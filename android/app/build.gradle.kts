@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")  // Ensure this is properly set up
+
 }
 
 android {
@@ -36,3 +37,10 @@ android {
 flutter {
     source = "../.."  // Make sure this path points to the correct location in your Flutter project
 }
+dependencies {
+    implementation("com.google.android.gms:play-services-auth:20.7.0")
+    implementation("androidx.credentials:credentials:1.2.2")
+    implementation("androidx.credentials:credentials-play-services-auth:1.2.2")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.0.0")
+}
+

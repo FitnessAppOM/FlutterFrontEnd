@@ -36,6 +36,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   
   http: ^1.2.0 
+  flutter_signin_button: ^2.1.1
+  google_sign_in: ^7.2.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -59,8 +61,8 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
+ # assets:
+   # - assets/google_logo.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
