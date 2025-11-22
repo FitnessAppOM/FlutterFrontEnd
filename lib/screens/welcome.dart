@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import '../auth/login.dart';
 import '../auth/signup.dart';
 import '../core/account_storage.dart';
-
-// style system
+import '../auth/questionnaire.dart';
 import '../theme/app_theme.dart';
 import '../theme/spacing.dart';
 import '../widgets/primary_button.dart';
@@ -21,6 +20,7 @@ class WelcomePage extends StatefulWidget {
 class _WelcomePageState extends State<WelcomePage> {
   String? lastEmail;
   String? lastName;
+  bool lastVerified = false;
 
   @override
   void initState() {
@@ -31,10 +31,12 @@ class _WelcomePageState extends State<WelcomePage> {
   Future<void> _loadLastUser() async {
     final e = await AccountStorage.getLastEmail();
     final n = await AccountStorage.getLastName();
+    final v = await AccountStorage.getLastVerified();
     if (!mounted) return;
     setState(() {
       lastEmail = e;
-      lastName = n;
+      lastVerified = v;
+      lastName = v ? n : null;
     });
   }
 
@@ -42,6 +44,7 @@ class _WelcomePageState extends State<WelcomePage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final hasAccount = (lastEmail != null && lastEmail!.isNotEmpty);
+    final hasVerifiedAccount = hasAccount && lastVerified;
     final displayName = lastName ?? (lastEmail?.split('@').first ?? '');
 
     return Scaffold(
@@ -52,33 +55,26 @@ class _WelcomePageState extends State<WelcomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ======= TOP HEADER IMAGE (fills the empty space) =======
               Expanded(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      // Use your asset image
                       Image.asset(
                         'assets/images/BGWELC.jpg',
                         fit: BoxFit.cover,
                       ),
-                      // Soft overlay for readability (optional)
                       Container(color: Colors.black.withOpacity(0.25)),
                     ],
                   ),
                 ),
               ),
-
               Gaps.h24,
-
-              // ======= Bottom content =======
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Headline
                   Text(
                     'Log your workouts easily, all in one place.',
                     textAlign: TextAlign.center,
@@ -87,31 +83,23 @@ class _WelcomePageState extends State<WelcomePage> {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-
                   Gaps.h24,
-
-                  // Saved account (consistent with login screen)
-                  if (hasAccount) ...[
+                  if (hasVerifiedAccount) ...[
                     const DividerWithLabel(label: "saved accounts"),
                     Gaps.h12,
                     SavedAccountTile(
                       title: 'Log in as $displayName',
                       onTap: () {
-                        Navigator.push(
+                        Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => LoginPage(prefilledEmail: lastEmail),
-                          ),
+                          MaterialPageRoute(builder: (_) => const QuestionnairePage()),
                         );
                       },
-                      onMenu: () {
-                        // TODO: show menu (remove saved account, switch, etc.)
-                      },
+                      onMenu: () {},
                     ),
+
                     Gaps.h20,
                   ],
-
-                  // Main CTA
                   PrimaryWhiteButton(
                     onPressed: () {
                       Navigator.push(
@@ -120,17 +108,14 @@ class _WelcomePageState extends State<WelcomePage> {
                       );
                     },
                     child: Text(
-                      hasAccount ? 'Log in using another account' : 'Log in',
+                      hasVerifiedAccount ? 'Log in using another account' : 'Log in',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: Colors.black,
                       ),
                     ),
                   ),
-
                   Gaps.h20,
-
-                  // New to TAQA? Sign up
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

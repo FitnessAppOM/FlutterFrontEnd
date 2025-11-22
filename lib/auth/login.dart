@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../core/account_storage.dart';
-import '../services/auth_service.dart'; // signInWithGoogle()
+import '../services/auth_service.dart';
 import '../theme/spacing.dart';
 import '../theme/app_theme.dart';
 import '../widgets/primary_button.dart';
@@ -11,7 +11,7 @@ import '../widgets/social_button.dart';
 import '../widgets/divider_with_label.dart';
 import '../widgets/saved_account_tile.dart';
 import 'email_verification_page.dart';
-// import '../home/home_page.dart'; // TODO: your real home page
+import 'questionnaire.dart'; // <<< IMPORTANT FIX
 
 class LoginPage extends StatefulWidget {
   final String? prefilledEmail;
@@ -28,6 +28,7 @@ class _LoginPageState extends State<LoginPage> {
   bool loading = false;
   String? lastEmail;
   String? lastName;
+  bool lastVerified = false;
 
   @override
   void initState() {
@@ -41,10 +42,12 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _loadLastUser() async {
     final e = await AccountStorage.getLastEmail();
     final n = await AccountStorage.getLastName();
+    final v = await AccountStorage.getLastVerified();
     if (!mounted) return;
     setState(() {
       lastEmail = e;
-      lastName = n;
+      lastName = v ? n : null;
+      lastVerified = v;
     });
   }
 
@@ -84,16 +87,26 @@ class _LoginPageState extends State<LoginPage> {
 
       if (response.statusCode == 200) {
         final uid = data?['user_id'] ?? 'unknown';
-        await AccountStorage.saveLastUser(
+        final name = (data?['username'] ?? data?['full_name'] ?? mail.split('@').first).toString();
+
+        await AccountStorage.saveUserSession(
           email: mail,
-          name: (data?['username'] ?? data?['full_name'] ?? mail.split('@').first).toString(),
+          name: name,
+          verified: true,
+          token: data?['token'] as String?,
         );
 
         if (!mounted) return;
+
+        /// >>> AFTER SUCCESSFUL LOGIN → GO TO QUESTIONNAIRE
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const QuestionnairePage()),
+        );
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Welcome! UserID: $uid")),
         );
-        // Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePage()));
         return;
       }
 
@@ -135,12 +148,23 @@ class _LoginPageState extends State<LoginPage> {
       final msg = decoded["message"] ?? "Signed in successfully!";
       final gEmail = (decoded["email"] ?? "").toString();
       final gName  = (decoded["name"]  ?? (gEmail.isNotEmpty ? gEmail.split('@').first : '')).toString();
+      final token  = decoded["token"] as String?;
 
-      await AccountStorage.saveLastUser(email: gEmail, name: gName);
+      await AccountStorage.saveUserSession(
+        email: gEmail,
+        name: gName,
+        verified: true,
+        token: token,
+      );
 
       if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const QuestionnairePage()),
+      );
+
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg.toString())));
-      // Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePage()));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -171,18 +195,16 @@ class _LoginPageState extends State<LoginPage> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // Email
             TextField(
               controller: email,
               keyboardType: TextInputType.emailAddress,
               onChanged: (_) => setState(() {}),
               decoration: const InputDecoration(
-                labelText: "Email or username",
+                labelText: "Email",
                 hintText: "example@gmail.com",
               ),
             ),
             Gaps.h12,
-            // Password
             TextField(
               controller: password,
               obscureText: true,
@@ -192,19 +214,13 @@ class _LoginPageState extends State<LoginPage> {
                 hintText: "minimum 6 characters",
               ),
             ),
-
-            // Forgot password
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: () {
-                  // TODO: push ForgotPassword page
-                },
+                onPressed: () {},
                 child: const Text("Forgot Password?"),
               ),
             ),
-
-            // Login button (disabled when not ready)
             SizedBox(
               width: double.infinity,
               child: PrimaryWhiteButton(
@@ -218,23 +234,18 @@ class _LoginPageState extends State<LoginPage> {
                     : const Text("Login"),
               ),
             ),
-
             Gaps.h20,
             const DividerWithLabel(label: "or"),
             Gaps.h12,
-
-            // Social buttons
-            SocialButton.dark(
-              icon: Icons.apple, // close enough for UI; swap if you use a custom Apple icon
+            SocialButton.apple(
+              icon: Icons.apple,
               text: "Sign in with Apple",
-              onPressed: () {
-                // TODO: implement Sign in with Apple
-              },
+              onPressed: () {},
             ),
             Gaps.h12,
             SocialButton.dark(
               iconAsset: null,
-              icon: Icons.g_mobiledata, // or use your Google asset if you prefer
+              icon: Icons.g_mobiledata,
               text: "Sign in with Google",
               onPressed: handleGoogleLogin,
             ),
@@ -242,16 +253,12 @@ class _LoginPageState extends State<LoginPage> {
             SocialButton.dark(
               icon: Icons.facebook,
               text: "Sign in with Facebook",
-              onPressed: () {
-                // TODO: implement Facebook login
-              },
+              onPressed: () {},
             ),
-
             Gaps.h20,
-            const DividerWithLabel(label: "saved accounts"),
-            Gaps.h12,
-
-            if ((lastEmail ?? '').isNotEmpty)
+            if (lastVerified && (lastEmail ?? '').isNotEmpty) ...[
+              const DividerWithLabel(label: "saved accounts"),
+              Gaps.h12,
               SavedAccountTile(
                 title: "Log in as ${lastName ?? lastEmail!.split('@').first}",
                 onTap: () {
@@ -260,10 +267,9 @@ class _LoginPageState extends State<LoginPage> {
                     MaterialPageRoute(builder: (_) => LoginPage(prefilledEmail: lastEmail)),
                   );
                 },
-                onMenu: () {
-                  // TODO: show menu (remove saved, switch, etc.)
-                },
+                onMenu: () {},
               ),
+            ],
           ],
         ),
       ),

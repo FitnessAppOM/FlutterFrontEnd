@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../theme/app_theme.dart';
 import '../theme/spacing.dart';
 import '../widgets/primary_button.dart';
+import 'questionnaire.dart';
 
 class EmailVerificationPage extends StatefulWidget {
   final String email;
@@ -61,8 +62,13 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
       if (response.statusCode == 200) {
         _show("Email verified successfully!");
         if (!mounted) return;
-        Navigator.pop(context);
-      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const QuestionnairePage()),
+        );
+        return;
+      }
+      else {
         String msg = "Verification failed";
         try {
           msg = (jsonDecode(response.body)["detail"] ?? msg).toString();

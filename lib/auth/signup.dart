@@ -155,8 +155,6 @@ class _SignupPageState extends State<SignupPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     final canSubmit = !loading &&
         username.text.trim().isNotEmpty &&
         email.text.trim().isNotEmpty &&
@@ -242,6 +240,14 @@ class _SignupPageState extends State<SignupPage> {
             // OR divider
             Gaps.h20,
             const DividerWithLabel(label: "or"),
+            Gaps.h12,
+
+            // Apple (iOS only)
+            SocialButton.apple(
+              icon: Icons.apple,
+              text: "Continue with Apple",
+              onPressed: () {},
+            ),
             Gaps.h12,
 
             // Google sign up (dark pill)
