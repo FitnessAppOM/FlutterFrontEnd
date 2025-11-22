@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+// adjust the import path if your file is somewhere else
+import 'theme/app_theme.dart';
 import 'screens/welcome.dart';
 
 void main() {
@@ -13,10 +15,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'TAQA Fitness',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
+      theme: buildDarkTheme(),   // ← global styles here
+      // If you later add a light theme:
+      // darkTheme: buildDarkTheme(),
+      // themeMode: ThemeMode.dark,
       home: const WelcomePage(),
     );
   }

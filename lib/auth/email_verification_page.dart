@@ -3,6 +3,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import '../theme/app_theme.dart';
+import '../theme/spacing.dart';
+import '../widgets/primary_button.dart';
+
 class EmailVerificationPage extends StatefulWidget {
   final String email;
 
@@ -14,9 +18,11 @@ class EmailVerificationPage extends StatefulWidget {
 
 class _EmailVerificationPageState extends State<EmailVerificationPage> {
   final TextEditingController codeController = TextEditingController();
+
   bool loading = false;
 
-  bool resendCooldown = false;     // prevent spam
+  // resend cooldown
+  bool resendCooldown = false;
   int cooldownSeconds = 30;
   Timer? timer;
 
@@ -38,7 +44,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
 
     setState(() => loading = true);
 
-    final url = Uri.parse("http://10.0.2.2:8000/verify-email");
+    final url = Uri.parse("http://10.0.2.2:8000/auth/verify-email");
 
     try {
       final response = await http.post(
@@ -54,9 +60,13 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
 
       if (response.statusCode == 200) {
         _show("Email verified successfully!");
+        if (!mounted) return;
         Navigator.pop(context);
       } else {
-        final msg = jsonDecode(response.body)["detail"];
+        String msg = "Verification failed";
+        try {
+          msg = (jsonDecode(response.body)["detail"] ?? msg).toString();
+        } catch (_) {}
         _show(msg);
       }
     } catch (e) {
@@ -67,7 +77,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
 
   // ---------------- RESEND CODE ----------------
   Future<void> resendCode() async {
-    if (resendCooldown) return; // protect from spam clicks
+    if (resendCooldown) return;
 
     // enable cooldown
     setState(() {
@@ -75,8 +85,9 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
       cooldownSeconds = 30;
     });
 
-    // Start countdown timer
+    // countdown timer
     timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return;
       setState(() {
         cooldownSeconds--;
         if (cooldownSeconds <= 0) {
@@ -86,7 +97,8 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
       });
     });
 
-    final url = Uri.parse("http://10.0.2.2:8000/resend-code");
+    // adjust path if your backend differs
+    final url = Uri.parse("http://10.0.2.2:8000/auth/resend-verification");
 
     try {
       final response = await http.post(
@@ -98,7 +110,10 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
       if (response.statusCode == 200) {
         _show("New verification code sent");
       } else {
-        final msg = jsonDecode(response.body)["detail"];
+        String msg = "Resend failed";
+        try {
+          msg = (jsonDecode(response.body)["detail"] ?? msg).toString();
+        } catch (_) {}
         _show(msg);
       }
     } catch (e) {
@@ -106,56 +121,93 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
     }
   }
 
-  // ---------------- SHOW SNACK ----------------
+  // ---------------- helpers ----------------
   void _show(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(text)),
-    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
-  // ---------------- UI ----------------
+  String _obfuscateEmail(String email) {
+    final parts = email.split('@');
+    if (parts.length != 2) return email;
+    final name = parts[0];
+    final domain = parts[1];
+    final visible = name.length <= 2 ? name : "${name.substring(0, 2)}${'*' * (name.length - 2)}";
+    return "$visible@$domain";
+  }
+
   @override
   Widget build(BuildContext context) {
+    final canSubmit = !loading && codeController.text.trim().length == 6;
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Verify Email")),
-      body: Padding(
+      backgroundColor: AppColors.black,
+      appBar: AppBar(
+        backgroundColor: AppColors.black,
+        title: const Text("Verify Email"),
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text("A verification code has been sent to:",
-                style: TextStyle(fontSize: 16)),
-            const SizedBox(height: 5),
-            Text(widget.email,
-                style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(
+              "A verification code has been sent to:",
+              style: const TextStyle(fontSize: 16, color: Colors.white70),
+            ),
+            Gaps.h5,
+            Text(
+              _obfuscateEmail(widget.email),
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
 
-            const SizedBox(height: 20),
+            Gaps.h20,
 
+            // Code input (underlined style from InputDecorationTheme)
             TextField(
               controller: codeController,
               keyboardType: TextInputType.number,
               maxLength: 6,
+              onChanged: (_) => setState(() {}),
               decoration: const InputDecoration(
                 labelText: "Enter verification code",
+                hintText: "6-digit code",
+                counterText: "", // hide maxLength counter
               ),
             ),
 
-            const SizedBox(height: 20),
+            Gaps.h20,
 
-            ElevatedButton(
-              onPressed: loading ? null : verifyCode,
-              child: loading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text("Verify"),
+            // Verify button
+            SizedBox(
+              width: double.infinity,
+              child: PrimaryWhiteButton(
+                onPressed: canSubmit ? verifyCode : null,
+                child: loading
+                    ? const SizedBox(
+                  height: 22,
+                  width: 22,
+                  child: CircularProgressIndicator(
+                    color: Colors.black,
+                    strokeWidth: 2,
+                  ),
+                )
+                    : const Text("Verify"),
+              ),
             ),
 
-            const SizedBox(height: 20),
+            Gaps.h20,
 
+            // Resend code
             Center(
               child: resendCooldown
                   ? Text(
                 "Resend available in $cooldownSeconds sec",
-                style: const TextStyle(color: Colors.grey),
+                style: const TextStyle(color: Colors.white54),
               )
                   : TextButton(
                 onPressed: resendCode,

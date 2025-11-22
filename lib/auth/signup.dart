@@ -1,8 +1,14 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:flutter_signin_button/flutter_signin_button.dart';
-import '../services/auth_service.dart';
+
+import '../services/auth_service.dart'; // signInWithGoogle()
+import '../core/account_storage.dart';
+import '../theme/app_theme.dart';
+import '../theme/spacing.dart';
+import '../widgets/primary_button.dart';
+import '../widgets/social_button.dart';
+import '../widgets/divider_with_label.dart';
 import 'email_verification_page.dart';
 
 class SignupPage extends StatefulWidget {
@@ -22,6 +28,7 @@ class _SignupPageState extends State<SignupPage> {
   bool passwordVisible = false;
 
   final RegExp emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+  final RegExp usernameRegex = RegExp(r'^[A-Za-z0-9._-]+$');
 
   @override
   void dispose() {
@@ -30,6 +37,10 @@ class _SignupPageState extends State<SignupPage> {
     fullname.dispose();
     password.dispose();
     super.dispose();
+  }
+
+  void _showSnack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   bool _validateInput() {
@@ -42,37 +53,27 @@ class _SignupPageState extends State<SignupPage> {
       _showSnack("All fields are required.");
       return false;
     }
-
-    // USERNAME LENGTH CHECK
     if (uname.length < 3) {
       _showSnack("Username must be at least 3 characters.");
       return false;
     }
-
     if (uname.length > 50) {
       _showSnack("Username cannot exceed 50 characters.");
       return false;
     }
-
-    // EMAIL VALIDATION
+    if (!usernameRegex.hasMatch(uname)) {
+      _showSnack("Username can use letters, numbers, '.', '-' or '_'.");
+      return false;
+    }
     if (!emailRegex.hasMatch(mail)) {
       _showSnack("Enter a valid email.");
       return false;
     }
-
-    // PASSWORD LENGTH
-    if (pass.length < 6) {
-      _showSnack("Password must be at least 6 characters.");
+    if (pass.length < 8) {
+      _showSnack("Password must be at least 8 characters.");
       return false;
     }
-
     return true;
-  }
-
-  void _showSnack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
-    );
   }
 
   Future<void> signup() async {
@@ -80,45 +81,47 @@ class _SignupPageState extends State<SignupPage> {
 
     setState(() => loading = true);
 
-    final url = Uri.parse("http://10.0.2.2:8000/signup");
-
-    final body = {
+    final url = Uri.parse("http://10.0.2.2:8000/auth/signup");
+    final body = jsonEncode({
       "username": username.text.trim(),
       "email": email.text.trim(),
       "full_name": fullname.text.trim(),
       "password": password.text.trim(),
-    };
+    });
 
     try {
       final response = await http
           .post(
         url,
         headers: {"Content-Type": "application/json"},
-        body: jsonEncode(body),
+        body: body,
       )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 12));
 
       setState(() => loading = false);
 
-
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final mail = (data["email"] ?? email.text.trim()).toString();
+        final name = fullname.text.trim().isNotEmpty
+            ? fullname.text.trim()
+            : username.text.trim();
 
+        await AccountStorage.saveLastUser(email: mail, name: name);
+
+        if (!mounted) return;
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => EmailVerificationPage(
-              email: data["email"] ?? "",
-            ),
-          ),
+          MaterialPageRoute(builder: (_) => EmailVerificationPage(email: mail)),
         );
-      }
-
-
-      else {
-        final decoded = jsonDecode(response.body);
-        final msg = decoded["detail"] ?? "Signup failed";
-        _showSnack(msg.toString());
+      } else {
+        Map<String, dynamic>? decoded;
+        try {
+          decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        } catch (_) {}
+        final msg =
+        (decoded?["detail"] ?? response.reasonPhrase ?? "Signup failed").toString();
+        _showSnack(msg);
       }
     } catch (e) {
       setState(() => loading = false);
@@ -128,16 +131,23 @@ class _SignupPageState extends State<SignupPage> {
 
   Future<void> handleGoogleSignup() async {
     final result = await signInWithGoogle();
-
     if (result == null) {
       _showSnack("Google sign-in canceled or failed.");
       return;
     }
 
     try {
-      final decoded = jsonDecode(result);
+      final decoded = jsonDecode(result) as Map<String, dynamic>;
       final msg = decoded["message"] ?? "Signed in successfully!";
+      final gEmail = (decoded["email"] ?? "").toString();
+      final gName =
+      (decoded["name"] ?? (gEmail.isNotEmpty ? gEmail.split('@').first : '')).toString();
+
+      await AccountStorage.saveLastUser(email: gEmail, name: gName);
       _showSnack(msg.toString());
+
+      // If your backend auto-verifies Google users, you can navigate to Home here.
+      // Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePage()));
     } catch (_) {
       _showSnack("Google sign-in failed: invalid response.");
     }
@@ -145,70 +155,98 @@ class _SignupPageState extends State<SignupPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    final canSubmit = !loading &&
+        username.text.trim().isNotEmpty &&
+        email.text.trim().isNotEmpty &&
+        fullname.text.trim().isNotEmpty &&
+        password.text.trim().isNotEmpty;
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Sign Up")),
+      backgroundColor: AppColors.black,
+      appBar: AppBar(
+        backgroundColor: AppColors.black,
+        title: const Text("Sign Up"),
+        elevation: 0,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
+            // Username
             TextField(
               controller: username,
-              decoration: const InputDecoration(labelText: "Username"),
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                labelText: "Username",
+                hintText: "yourname_123",
+              ),
             ),
+            Gaps.h12,
+
+            // Email
             TextField(
               controller: email,
-              decoration: const InputDecoration(labelText: "Email"),
               keyboardType: TextInputType.emailAddress,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                labelText: "Email",
+                hintText: "example@gmail.com",
+              ),
             ),
+            Gaps.h12,
+
+            // Full name
             TextField(
               controller: fullname,
-              decoration: const InputDecoration(labelText: "Full Name"),
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                labelText: "Full Name",
+                hintText: "First Last",
+              ),
             ),
+            Gaps.h12,
 
+            // Password (with visibility toggle)
             TextField(
               controller: password,
               obscureText: !passwordVisible,
+              onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 labelText: "Password",
+                hintText: "minimum 8 characters",
                 suffixIcon: IconButton(
                   icon: Icon(passwordVisible ? Icons.visibility_off : Icons.visibility),
-                  onPressed: () => setState(() {
-                    passwordVisible = !passwordVisible;
-                  }),
+                  onPressed: () => setState(() => passwordVisible = !passwordVisible),
                 ),
               ),
             ),
 
-            const SizedBox(height: 20),
-
-            ElevatedButton(
-              onPressed: loading ? null : signup,
-              child: loading
-                  ? const SizedBox(
-                height: 24,
-                width: 24,
-                child: CircularProgressIndicator(color: Colors.white),
-              )
-                  : const Text("Create Account"),
+            // Create Account button
+            Gaps.h20,
+            SizedBox(
+              width: double.infinity,
+              child: PrimaryWhiteButton(
+                onPressed: canSubmit ? signup : null,
+                child: loading
+                    ? const SizedBox(
+                  height: 22,
+                  width: 22,
+                  child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
+                )
+                    : const Text("Create Account"),
+              ),
             ),
 
-            const SizedBox(height: 20),
+            // OR divider
+            Gaps.h20,
+            const DividerWithLabel(label: "or"),
+            Gaps.h12,
 
-            Row(
-              children: const [
-                Expanded(child: Divider(thickness: 1)),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 10),
-                  child: Text("or"),
-                ),
-                Expanded(child: Divider(thickness: 1)),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            SignInButton(
-              Buttons.Google,
+            // Google sign up (dark pill)
+            SocialButton.dark(
+              icon: Icons.g_mobiledata, // swap to your Google asset if you like
               text: "Continue with Google",
               onPressed: handleGoogleSignup,
             ),
