@@ -1,65 +1,53 @@
-// lib/core/account_storage.dart
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AccountStorage {
-  static const _kEmail    = 'last_email';
-  static const _kName     = 'last_name';
-  static const _kVerified = 'last_verified';   // NEW
-  static const _kToken    = 'auth_token';      // optional
+  static const _kUserId = 'user_id';
+  static const _kEmail = 'last_email';
+  static const _kName = 'last_name';
+  static const _kVerified = 'last_verified';
+  static const _kToken = 'auth_token';
 
-  /// Save minimal "last user" (no token). Use verified=false for fresh signups.
-  static Future<void> saveLastUser({
-    required String email,
-    String? name,
-    bool verified = false, // NEW: default to not verified
-  }) async {
-    final sp = await SharedPreferences.getInstance();
-    await sp.setString(_kEmail, email);
-    if (name != null) await sp.setString(_kName, name);
-    await sp.setBool(_kVerified, verified);
-  }
-
-  /// Full session save (e.g., after successful login or verify).
+  // Save everything after login
   static Future<void> saveUserSession({
+    required int userId,
     required String email,
     required String name,
     required bool verified,
-    String? token, // optional JWT
+    String? token,
   }) async {
     final sp = await SharedPreferences.getInstance();
+    await sp.setInt(_kUserId, userId);
     await sp.setString(_kEmail, email);
     await sp.setString(_kName, name);
     await sp.setBool(_kVerified, verified);
-    if (token != null) await sp.setString(_kToken, token);
+    if (token != null) {
+      await sp.setString(_kToken, token);
+    }
   }
 
-  static Future<String?> getLastEmail() async {
+  static Future<int?> getUserId() async {
+    final sp = await SharedPreferences.getInstance();
+    return sp.getInt(_kUserId);
+  }
+
+  static Future<String?> getEmail() async {
     final sp = await SharedPreferences.getInstance();
     return sp.getString(_kEmail);
   }
 
-  static Future<String?> getLastName() async {
+  static Future<String?> getName() async {
     final sp = await SharedPreferences.getInstance();
     return sp.getString(_kName);
   }
 
-  static Future<bool> getLastVerified() async {
+  static Future<bool> isVerified() async {
     final sp = await SharedPreferences.getInstance();
-    return sp.getBool(_kVerified) ?? false; // default false for old installs
-  }
-
-  static Future<String?> getToken() async {
-    final sp = await SharedPreferences.getInstance();
-    return sp.getString(_kToken);
-  }
-
-  static Future<void> setVerified(bool value) async {
-    final sp = await SharedPreferences.getInstance();
-    await sp.setBool(_kVerified, value);
+    return sp.getBool(_kVerified) ?? false;
   }
 
   static Future<void> clear() async {
     final sp = await SharedPreferences.getInstance();
+    await sp.remove(_kUserId);
     await sp.remove(_kEmail);
     await sp.remove(_kName);
     await sp.remove(_kVerified);

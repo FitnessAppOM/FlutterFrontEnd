@@ -107,7 +107,6 @@ class _SignupPageState extends State<SignupPage> {
             ? fullname.text.trim()
             : username.text.trim();
 
-        await AccountStorage.saveLastUser(email: mail, name: name);
 
         if (!mounted) return;
         Navigator.push(
@@ -143,7 +142,6 @@ class _SignupPageState extends State<SignupPage> {
       final gName =
       (decoded["name"] ?? (gEmail.isNotEmpty ? gEmail.split('@').first : '')).toString();
 
-      await AccountStorage.saveLastUser(email: gEmail, name: gName);
       _showSnack(msg.toString());
 
       // If your backend auto-verifies Google users, you can navigate to Home here.

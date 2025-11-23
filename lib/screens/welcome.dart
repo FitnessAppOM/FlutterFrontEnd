@@ -29,9 +29,10 @@ class _WelcomePageState extends State<WelcomePage> {
   }
 
   Future<void> _loadLastUser() async {
-    final e = await AccountStorage.getLastEmail();
-    final n = await AccountStorage.getLastName();
-    final v = await AccountStorage.getLastVerified();
+    final e = await AccountStorage.getEmail();
+    final n = await AccountStorage.getName();
+    final v = await AccountStorage.isVerified();
+
     if (!mounted) return;
     setState(() {
       lastEmail = e;

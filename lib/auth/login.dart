@@ -11,7 +11,7 @@ import '../widgets/social_button.dart';
 import '../widgets/divider_with_label.dart';
 import '../widgets/saved_account_tile.dart';
 import 'email_verification_page.dart';
-import 'questionnaire.dart'; // <<< IMPORTANT FIX
+import 'questionnaire.dart';
 
 class LoginPage extends StatefulWidget {
   final String? prefilledEmail;
@@ -40,9 +40,9 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _loadLastUser() async {
-    final e = await AccountStorage.getLastEmail();
-    final n = await AccountStorage.getLastName();
-    final v = await AccountStorage.getLastVerified();
+    final e = await AccountStorage.getEmail();
+    final n = await AccountStorage.getName();
+    final v = await AccountStorage.isVerified();
     if (!mounted) return;
     setState(() {
       lastEmail = e;
@@ -64,6 +64,7 @@ class _LoginPageState extends State<LoginPage> {
 
     setState(() => loading = true);
 
+    // use 10.0.2.2 for Android emulator
     final url = Uri.parse("http://10.0.2.2:8000/auth/login");
     final body = jsonEncode({"email": mail, "password": pass});
 
@@ -86,34 +87,48 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       if (response.statusCode == 200) {
-        final uid = data?['user_id'] ?? 'unknown';
-        final name = (data?['username'] ?? data?['full_name'] ?? mail.split('@').first).toString();
+        final rawId = data?['user_id'] ?? data?['id'];
+        final int userId = rawId is int
+            ? rawId
+            : int.tryParse(rawId?.toString() ?? '') ?? 0;
+
+        final emailFromApi = (data?['email'] ?? mail).toString();
+        final name = (data?['username'] ??
+            data?['full_name'] ??
+            emailFromApi.split('@').first)
+            .toString();
+        final token = data?['token']?.toString();
 
         await AccountStorage.saveUserSession(
-          email: mail,
+          userId: userId,
+          email: emailFromApi,
           name: name,
           verified: true,
-          token: data?['token'] as String?,
+          token: token,
         );
 
         if (!mounted) return;
 
-        /// >>> AFTER SUCCESSFUL LOGIN → GO TO QUESTIONNAIRE
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const QuestionnairePage()),
         );
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Welcome! UserID: $uid")),
+          SnackBar(content: Text("Welcome, $name")),
         );
         return;
       }
 
-      final detail = (data?['detail'] ?? response.reasonPhrase ?? 'Login failed').toString();
-      if (response.statusCode == 403 && detail.toLowerCase().contains('verify')) {
+      final detail =
+      (data?['detail'] ?? response.reasonPhrase ?? 'Login failed')
+          .toString();
+
+      if (response.statusCode == 403 &&
+          detail.toLowerCase().contains('verify')) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(detail)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(detail)));
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => EmailVerificationPage(email: mail)),
@@ -122,7 +137,8 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(detail)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(detail)));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -146,11 +162,20 @@ class _LoginPageState extends State<LoginPage> {
     try {
       final decoded = jsonDecode(result) as Map<String, dynamic>;
       final msg = decoded["message"] ?? "Signed in successfully!";
-      final gEmail = (decoded["email"] ?? "").toString();
-      final gName  = (decoded["name"]  ?? (gEmail.isNotEmpty ? gEmail.split('@').first : '')).toString();
-      final token  = decoded["token"] as String?;
+      final gEmail =
+      (decoded["email"] ?? "").toString();
+      final gName = (decoded["name"] ??
+          (gEmail.isNotEmpty ? gEmail.split('@').first : ''))
+          .toString();
+      final token = decoded["token"] as String?;
+
+      final rawId = decoded["user_id"] ?? decoded["id"];
+      final int gUserId = rawId is int
+          ? rawId
+          : int.tryParse(rawId?.toString() ?? '') ?? 0;
 
       await AccountStorage.saveUserSession(
+        userId: gUserId,
         email: gEmail,
         name: gName,
         verified: true,
@@ -161,10 +186,13 @@ class _LoginPageState extends State<LoginPage> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const QuestionnairePage()),
+        MaterialPageRoute(
+          builder: (context) => const QuestionnairePage(),
+        ),
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg.toString())));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(msg.toString())));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -182,7 +210,8 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final canSubmit = !loading && email.text.trim().isNotEmpty && password.text.isNotEmpty;
+    final canSubmit =
+        !loading && email.text.trim().isNotEmpty && password.text.isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppColors.black,
@@ -229,7 +258,10 @@ class _LoginPageState extends State<LoginPage> {
                     ? const SizedBox(
                   height: 20,
                   width: 20,
-                  child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                    color: Colors.black,
+                    strokeWidth: 2,
+                  ),
                 )
                     : const Text("Login"),
               ),
@@ -264,7 +296,10 @@ class _LoginPageState extends State<LoginPage> {
                 onTap: () {
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (_) => LoginPage(prefilledEmail: lastEmail)),
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          LoginPage(prefilledEmail: lastEmail),
+                    ),
                   );
                 },
                 onMenu: () {},
