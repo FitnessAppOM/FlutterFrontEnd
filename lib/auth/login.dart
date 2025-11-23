@@ -11,7 +11,7 @@ import '../widgets/social_button.dart';
 import '../widgets/divider_with_label.dart';
 import '../widgets/saved_account_tile.dart';
 import 'email_verification_page.dart';
-import 'questionnaire.dart';
+
 
 class LoginPage extends StatefulWidget {
   final String? prefilledEmail;
@@ -64,7 +64,6 @@ class _LoginPageState extends State<LoginPage> {
 
     setState(() => loading = true);
 
-    // use 10.0.2.2 for Android emulator
     final url = Uri.parse("http://10.0.2.2:8000/auth/login");
     final body = jsonEncode({"email": mail, "password": pass});
 
@@ -109,14 +108,10 @@ class _LoginPageState extends State<LoginPage> {
 
         if (!mounted) return;
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const QuestionnairePage()),
-        );
+        // Stay here & show welcome message
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text("Welcome, $name")));
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Welcome, $name")),
-        );
         return;
       }
 
@@ -162,8 +157,7 @@ class _LoginPageState extends State<LoginPage> {
     try {
       final decoded = jsonDecode(result) as Map<String, dynamic>;
       final msg = decoded["message"] ?? "Signed in successfully!";
-      final gEmail =
-      (decoded["email"] ?? "").toString();
+      final gEmail = (decoded["email"] ?? "").toString();
       final gName = (decoded["name"] ??
           (gEmail.isNotEmpty ? gEmail.split('@').first : ''))
           .toString();
@@ -184,15 +178,10 @@ class _LoginPageState extends State<LoginPage> {
 
       if (!mounted) return;
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const QuestionnairePage(),
-        ),
-      );
-
+      // ❌ REMOVED Google → Questionnaire navigation
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(msg.toString())));
+
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -292,7 +281,8 @@ class _LoginPageState extends State<LoginPage> {
               const DividerWithLabel(label: "saved accounts"),
               Gaps.h12,
               SavedAccountTile(
-                title: "Log in as ${lastName ?? lastEmail!.split('@').first}",
+                title:
+                "Log in as ${lastName ?? lastEmail!.split('@').first}",
                 onTap: () {
                   Navigator.pushReplacement(
                     context,

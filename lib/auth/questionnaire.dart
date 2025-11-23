@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import '../theme/spacing.dart';
-import '../widgets/questionnaire_info_chip.dart';
-import '../widgets/questionnaire_section_row.dart';
+import '../widgets/questionnaire/questionnaire_info_chip.dart';
+import '../widgets/questionnaire/questionnaire_section_row.dart';
 import '../widgets/primary_button.dart';
-import '../widgets/questionnaire_form.dart';
+import '../widgets/questionnaire/questionnaire_form.dart';
 import '../services/questionnaire_service.dart';
 import '../core/account_storage.dart';
-import '../widgets/questionnaire_slider_field.dart';
+import '../widgets/questionnaire/questionnaire_slider_field.dart';
 
 class QuestionnairePage extends StatefulWidget {
   const QuestionnairePage({super.key});

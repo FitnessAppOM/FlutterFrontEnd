@@ -86,6 +86,11 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.0.0"
+  flutter_localizations:
+    dependency: "direct main"
+    description: flutter
+    source: sdk
+    version: "0.0.0"
   flutter_signin_button:
     dependency: "direct main"
     description:
@@ -132,10 +137,10 @@ packages:
     dependency: transitive
     description:
       name: google_sign_in_android
-      sha256: eff4ad55abb5de68ef85f1eb9c372638e9b45bea14871cbe8fa8fa78c366335f
+      sha256: "13759dc6dbff7501452830995d1a4446e4af172050e16a0091f98fcf607fa2c7"
       url: "https://pub.dev"
     source: hosted
-    version: "7.2.5"
+    version: "7.2.6"
   google_sign_in_ios:
     dependency: transitive
     description:
@@ -176,6 +181,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.2"
+  intl:
+    dependency: "direct main"
+    description:
+      name: intl
+      sha256: "3df61194eb431efc39c4ceba583b95633a403f46c9fd341e550ce0bfa50e9aa5"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.20.2"
   leak_tracker:
     dependency: transitive
     description:

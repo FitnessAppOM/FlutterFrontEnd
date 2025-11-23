@@ -10,7 +10,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  
+
+  flutter_localizations:
+    sdk: flutter
+
+  intl: ^0.20.2
+
   cupertino_icons: ^1.0.8
   http: ^1.2.0
   shared_preferences: ^2.3.2
@@ -24,6 +29,16 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true
 
   assets:
     - assets/images/
+
+# NEW LOCATION FOR L10N (Flutter 3.19+, valid)
+flutter_gen:
+  l10n:
+    arb-dir: lib/l10n
+    template-arb-file: app_en.arb
+    output-localization-file: app_localizations.dart
+    output-class: AppLocalizations
+    output-dir: lib/generated/l10n

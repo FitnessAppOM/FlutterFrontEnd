@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'primary_button.dart';
-import '../widgets/questionnaire_slider_field.dart';
-import '../widgets/cupertino_picker_field.dart';
-import '../widgets/height_picker_with_body.dart';
-import '../widgets/weight_picker_popup.dart';
+import '../primary_button.dart';
+import 'questionnaire_slider_field.dart';
+import 'cupertino_picker_field.dart';
+import 'height_picker_with_body.dart';
+import 'weight_picker_popup.dart';
 
 class QuestionnaireForm extends StatefulWidget {
   const QuestionnaireForm({
