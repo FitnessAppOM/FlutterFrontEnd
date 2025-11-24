@@ -3,12 +3,13 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-const _androidClientId =
-    "547065160142-vef32v6eh5vum6ij6te1fe6kfqmj60oo.apps.googleusercontent.com";
+// Android client ID is not needed anymore
+// const _androidClientId = "...";
 
 const _iosClientId =
-    "547065160142-mr1pjpoho6d1ql1ti0jttsa6r1b7t5dk.apps.googleusercontent.com"; // <-- You will put it once you get it from Google Cloud
+    "547065160142-mr1pjpoho6d1ql1ti0jttsa6r1b7t5dk.apps.googleusercontent.com";
 
+//  Your backend’s WEB CLIENT ID (serverClientId)
 const _webClientId =
     "547065160142-m809lbb6qc4s7u6eohqbf77b32nld9q4.apps.googleusercontent.com";
 
@@ -16,21 +17,18 @@ Future<String?> signInWithGoogle() async {
   try {
     final signIn = GoogleSignIn.instance;
 
-    // DIFFERENT CLIENT IDs FOR DIFFERENT PLATFORMS
-    if (Platform.isAndroid) {
+    // ----------------------------------------------------------
+    // IMPORTANT: Only pass serverClientId.
+    // Do NOT pass Android clientId → It breaks on your friend’s device.
+    // ----------------------------------------------------------
+    if (Platform.isIOS) {
       await signIn.initialize(
-        clientId: _androidClientId,
-        serverClientId: _webClientId,
-      );
-    } else if (Platform.isIOS) {
-      await signIn.initialize(
-        clientId: _iosClientId,
+        clientId: _iosClientId,     // only for iOS
         serverClientId: _webClientId,
       );
     } else {
-      // Web/Desktop fallback (rarely used)
       await signIn.initialize(
-        serverClientId: _webClientId,
+        serverClientId: _webClientId, // Android/Web
       );
     }
 
