@@ -189,26 +189,34 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     }
   }
 
+  // ---------------- BASIC INFO (age, height, weight) ----------------
   List<Widget> _buildBasicInfoSection() {
+    // Ensure required backend fields always exist
+    _values.putIfAbsent("age", () => "25");
+    _values.putIfAbsent("height_cm", () => "170");
+    _values.putIfAbsent("weight_kg", () => "70");
+
     return [
       _buildChoiceField(
         label: "Sex",
         keyName: "sex",
         options: const ["Male", "Female", "Prefer not to say"],
       ),
+
+      // AGE (Cupertino wheel)
       CupertinoPickerField(
         label: "Age",
-        options: List.generate(83, (i) => (i + 18).toString()), // age 18–100
-        initialValue: "25",
+        options: List.generate(83, (i) => (i + 18).toString()), // 18–100
+        initialValue: _values["age"]!,
         onSelected: (v) => _saveField("age", v),
       ),
 
-
+      // HEIGHT
       GestureDetector(
         onTap: () async {
           final selected = await showHeightPickerPopup(
             context,
-            initialHeight: int.tryParse(_values["height_cm"] ?? "170") ?? 170,
+            initialHeight: int.tryParse(_values["height_cm"]!) ?? 170,
           );
 
           if (selected != null) {
@@ -228,7 +236,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
             children: [
               const Text("Height"),
               Text(
-                "${_values["height_cm"] ?? "170"} cm",
+                "${_values["height_cm"]} cm",
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ],
@@ -237,11 +245,12 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       ),
       const SizedBox(height: 12),
 
+      // WEIGHT
       GestureDetector(
         onTap: () async {
           final selected = await showWeightPickerPopup(
             context,
-            initialWeight: int.tryParse(_values["weight_kg"] ?? "70") ?? 70,
+            initialWeight: int.tryParse(_values["weight_kg"]!) ?? 70,
           );
 
           if (selected != null) {
@@ -261,7 +270,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
             children: [
               const Text("Weight"),
               Text(
-                "${_values["weight_kg"] ?? "70"} kg",
+                "${_values["weight_kg"]} kg",
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ],
@@ -269,10 +278,10 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         ),
       ),
       const SizedBox(height: 12),
-
     ];
   }
 
+  // ---------------- GOALS ----------------
   List<Widget> _buildGoalsSection() {
     return [
       _buildChoiceField(
@@ -329,6 +338,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     ];
   }
 
+  // ---------------- TRAINING ----------------
   List<Widget> _buildTrainingSection() {
     return [
       _buildChoiceField(
@@ -418,6 +428,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     ];
   }
 
+  // ---------------- NUTRITION ----------------
   List<Widget> _buildNutritionSection() {
     return [
       _buildChoiceField(
@@ -484,6 +495,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     ];
   }
 
+  // ---------------- LIFESTYLE ----------------
   List<Widget> _buildLifestyleSection() {
     return [
       _buildChoiceField(
@@ -524,6 +536,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     ];
   }
 
+  // ---------------- HEALTH & SETTINGS ----------------
   List<Widget> _buildHealthSettingsSection() {
     return [
       _buildTextField(
