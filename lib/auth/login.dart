@@ -11,7 +11,7 @@ import '../widgets/social_button.dart';
 import '../widgets/divider_with_label.dart';
 import '../widgets/saved_account_tile.dart';
 import 'email_verification_page.dart';
-
+import 'package:taqaproject/screens/ForgetPassword/forgot_password_page.dart';
 
 class LoginPage extends StatefulWidget {
   final String? prefilledEmail;
@@ -87,9 +87,8 @@ class _LoginPageState extends State<LoginPage> {
 
       if (response.statusCode == 200) {
         final rawId = data?['user_id'] ?? data?['id'];
-        final int userId = rawId is int
-            ? rawId
-            : int.tryParse(rawId?.toString() ?? '') ?? 0;
+        final int userId =
+        rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
 
         final emailFromApi = (data?['email'] ?? mail).toString();
         final name = (data?['username'] ??
@@ -108,7 +107,6 @@ class _LoginPageState extends State<LoginPage> {
 
         if (!mounted) return;
 
-        // Stay here & show welcome message
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text("Welcome, $name")));
 
@@ -116,8 +114,7 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       final detail =
-      (data?['detail'] ?? response.reasonPhrase ?? 'Login failed')
-          .toString();
+      (data?['detail'] ?? response.reasonPhrase ?? 'Login failed').toString();
 
       if (response.statusCode == 403 &&
           detail.toLowerCase().contains('verify')) {
@@ -164,9 +161,8 @@ class _LoginPageState extends State<LoginPage> {
       final token = decoded["token"] as String?;
 
       final rawId = decoded["user_id"] ?? decoded["id"];
-      final int gUserId = rawId is int
-          ? rawId
-          : int.tryParse(rawId?.toString() ?? '') ?? 0;
+      final int gUserId =
+      rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
 
       await AccountStorage.saveUserSession(
         userId: gUserId,
@@ -178,10 +174,8 @@ class _LoginPageState extends State<LoginPage> {
 
       if (!mounted) return;
 
-      // ❌ REMOVED Google → Questionnaire navigation
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(msg.toString())));
-
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -229,13 +223,19 @@ class _LoginPageState extends State<LoginPage> {
               onChanged: (_) => setState(() {}),
               decoration: const InputDecoration(
                 labelText: "Password",
-                hintText: "minimum 6 characters",
+                hintText: "Your password",
               ),
             ),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => ForgotPasswordPage()),
+                  );
+                },
+
                 child: const Text("Forgot Password?"),
               ),
             ),
@@ -270,25 +270,17 @@ class _LoginPageState extends State<LoginPage> {
               text: "Sign in with Google",
               onPressed: handleGoogleLogin,
             ),
-            Gaps.h12,
-            SocialButton.dark(
-              icon: Icons.facebook,
-              text: "Sign in with Facebook",
-              onPressed: () {},
-            ),
             Gaps.h20,
             if (lastVerified && (lastEmail ?? '').isNotEmpty) ...[
               const DividerWithLabel(label: "saved accounts"),
               Gaps.h12,
               SavedAccountTile(
-                title:
-                "Log in as ${lastName ?? lastEmail!.split('@').first}",
+                title: "Log in as ${lastName ?? lastEmail!.split('@').first}",
                 onTap: () {
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          LoginPage(prefilledEmail: lastEmail),
+                      builder: (_) => LoginPage(prefilledEmail: lastEmail),
                     ),
                   );
                 },

@@ -1,14 +1,18 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    id("dev.flutter.flutter-gradle-plugin")  // Ensure this is properly set up
+    id("dev.flutter.flutter-gradle-plugin")
 
+    // REQUIRED for Firebase Messaging & google-services.json
+    id("com.google.gms.google-services")
 }
 
 android {
     namespace = "com.example.taqaproject"
-    compileSdk = flutter.compileSdkVersion  // Ensure this points to the correct Flutter SDK version
-    ndkVersion = flutter.ndkVersion  // Ensure this points to the correct NDK version
+
+    // REQUIRED by modern plugins
+    compileSdk = 36
+    ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -16,31 +20,43 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = "17"  // Set jvmTarget as a string
+        jvmTarget = "17"
     }
 
     defaultConfig {
         applicationId = "com.example.taqaproject"
-        minSdk = 31  // Use property for minSdk
-        targetSdk = 31  // Use property for targetSdk
-        versionCode = 1  // You can replace this with flutter.versionCode if properly configured
+
+        // REQUIRED by health, identity, permissions, geolocator
+        minSdk = 26
+
+        // Google Play 2024 requirement
+        targetSdk = 34
+
+        versionCode = 1
         versionName = flutter.versionName
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")  // Ensure the signing config is correct
+            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }
 
 flutter {
-    source = "../.."  // Make sure this path points to the correct location in your Flutter project
-}
-dependencies {
-    implementation("com.google.android.gms:play-services-auth:20.7.0")
-    implementation("androidx.credentials:credentials:1.2.2")
-    implementation("androidx.credentials:credentials-play-services-auth:1.2.2")
-    implementation("com.google.android.libraries.identity.googleid:googleid:1.0.0")
+    source = "../.."
 }
 
+dependencies {
+    // Google authentication
+    implementation("com.google.android.gms:play-services-auth:20.7.0")
+
+    // AndroidX Credentials API (new Google Identity)
+    implementation("androidx.credentials:credentials:1.2.2")
+    implementation("androidx.credentials:credentials-play-services-auth:1.2.2")
+
+    // New Google Identity Services
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.0.0")
+}

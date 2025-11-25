@@ -11,16 +11,35 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # Localization
   flutter_localizations:
     sdk: flutter
 
-  intl: ^0.20.2
+  # ATT (iOS)
+  app_tracking_transparency: ^2.0.4
 
+  # UMP (GDPR consent)
+  google_mobile_ads: ^5.0.0
+
+  # Notifications (iOS + Android 13+)
+  firebase_messaging: ^15.0.0
+
+  # Location permission
+  geolocator: ^12.0.0
+
+  # Camera / Mic / Photos runtime permissions
+  permission_handler: ^12.0.1
+
+  # Core utilities
+  intl: ^0.20.2
   cupertino_icons: ^1.0.8
   http: ^1.2.0
   shared_preferences: ^2.3.2
+
+  # Social login
   flutter_signin_button: ^2.1.1
   google_sign_in: ^7.2.0
+  health: ^13.2.1
 
 dev_dependencies:
   flutter_test:
@@ -34,7 +53,6 @@ flutter:
   assets:
     - assets/images/
 
-# NEW LOCATION FOR L10N (Flutter 3.19+, valid)
 flutter_gen:
   l10n:
     arb-dir: lib/l10n

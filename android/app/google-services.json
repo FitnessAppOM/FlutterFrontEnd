@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "280853704980",
+    "project_id": "fitnessproj-30252",
+    "storage_bucket": "fitnessproj-30252.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:280853704980:android:51e1d91cb097003f985201",
+        "android_client_info": {
+          "package_name": "com.example.taqaproject"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAL8LYUpmtj3BhsNPqE0kU18EjnnJ5MUi8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
