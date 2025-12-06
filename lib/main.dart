@@ -3,27 +3,29 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'localization/app_localizations.dart';
 import 'screens/welcome.dart';
 import 'theme/app_theme.dart';
+import 'core/locale_controller.dart';
 
 // Consents
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'consents/consent_manager.dart';
 
-// Firebase (required for notifications)
-import 'package:firebase_core/firebase_core.dart';
+// REMOVE Firebase (you have no configuration yet)
+// import 'package:firebase_core/firebase_core.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase FIRST (required for notifications)
-  await Firebase.initializeApp();
+  // Initialize Google Ads only (safe)
+  await MobileAds.instance.initialize();
 
-  // Show UI immediately
+  // Show the UI immediately
   runApp(const MyApp());
 
-  // Delay consent requests slightly to avoid emulator freeze
-  Future.delayed(const Duration(milliseconds: 300), () async {
-    await ConsentManager.requestStartupConsents();
-  });
+  // Request startup consents (delay avoids iOS freeze)
+  Future.delayed(
+    const Duration(milliseconds: 300),
+    () async => await ConsentManager.requestStartupConsents(),
+  );
 }
 
 class MyApp extends StatefulWidget {
@@ -34,10 +36,23 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  Locale _locale = const Locale('en');
+  @override
+  void initState() {
+    super.initState();
+    // Rebuild MaterialApp whenever the locale changes.
+    localeController.addListener(_handleLocaleChange);
+  }
 
-  void setLocale(Locale locale) {
-    setState(() => _locale = locale);
+  @override
+  void dispose() {
+    localeController.removeListener(_handleLocaleChange);
+    super.dispose();
+  }
+
+  void _handleLocaleChange() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
@@ -45,7 +60,7 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       title: 'TAQA Fitness',
       debugShowCheckedModeBanner: false,
-      locale: _locale,
+      locale: localeController.locale,
       localizationsDelegates: const [
         AppLocalizationsDelegate(),
         GlobalMaterialLocalizations.delegate,
@@ -57,7 +72,7 @@ class _MyAppState extends State<MyApp> {
         Locale('ar'),
       ],
       theme: buildDarkTheme(),
-      home: WelcomePage(onChangeLanguage: setLocale),
+      home: WelcomePage(onChangeLanguage: localeController.setLocale),
     );
   }
 }

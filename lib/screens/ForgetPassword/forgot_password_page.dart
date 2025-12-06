@@ -1,12 +1,17 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-
+import '../../config/base_url.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/spacing.dart';
+import '../welcome.dart';
 import 'verify_reset_code_page.dart';
+import '../../widgets/appbar_back_button.dart';
+import 'package:http/http.dart' as http;
+import '../../localization/app_localizations.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
+  const ForgotPasswordPage({super.key});
+
   @override
   State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
 }
@@ -16,18 +21,19 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   bool loading = false;
 
   Future<void> sendResetCode() async {
+    final t = AppLocalizations.of(context);
     final email = emailCtrl.text.trim();
 
     if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Enter your email.")),
+        SnackBar(content: Text(t.translate("error_required_fields"))),
       );
       return;
     }
 
     setState(() => loading = true);
 
-    final url = Uri.parse("http://10.0.2.2:8000/password/forgot");
+    final url = Uri.parse("${ApiConfig.baseUrl}/password/forgot");
     final body = jsonEncode({"email": email});
 
     try {
@@ -38,17 +44,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       );
 
       if (response.statusCode == 200) {
-        // ---------------------------------------
-        // Show success: code sent to user's email
-        // ---------------------------------------
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Reset code sent to $email")),
-        );
-
-        // ---------------------------------------
-        // IMPORTANT FIX:
-        // Use pushReplacement() to avoid duplicates
-        // ---------------------------------------
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -63,7 +58,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Network error: $e")),
+        SnackBar(content: Text("${t.translate("network_error")}: $e")),
       );
     } finally {
       if (mounted) setState(() => loading = false);
@@ -72,11 +67,22 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+
     return Scaffold(
       backgroundColor: AppColors.black,
       appBar: AppBar(
         backgroundColor: AppColors.black,
-        title: const Text("Forgot Password"),
+        title: Text(t.translate("forgot_password")),
+        leading: AppBarBackButton(
+          onTap: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const WelcomePage()),
+              (route) => false,
+            );
+          },
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -84,8 +90,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           children: [
             TextField(
               controller: emailCtrl,
-              decoration: const InputDecoration(
-                labelText: "Email",
+              decoration: InputDecoration(
+                labelText: t.translate("email"),
                 hintText: "example@gmail.com",
               ),
             ),
@@ -95,8 +101,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               child: ElevatedButton(
                 onPressed: loading ? null : sendResetCode,
                 child: loading
-                    ? const CircularProgressIndicator()
-                    : const Text("Send Reset Code"),
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Text(t.translate("send_reset_code")),
               ),
             ),
           ],

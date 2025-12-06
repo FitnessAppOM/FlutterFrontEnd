@@ -1,14 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-
-import '../services/auth_service.dart'; // signInWithGoogle()
-import '../core/account_storage.dart';
+import '../config/base_url.dart';
+import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/spacing.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/social_button.dart';
 import '../widgets/divider_with_label.dart';
+import '../localization/app_localizations.dart';   //  ADDED
 import 'email_verification_page.dart';
 
 class SignupPage extends StatefulWidget {
@@ -40,48 +40,53 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   void _showSnack(String msg) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   bool _validateInput() {
+    final t = AppLocalizations.of(context);
+
     final uname = username.text.trim();
     final mail = email.text.trim();
     final pass = password.text.trim();
     final fname = fullname.text.trim();
 
     if (uname.isEmpty || mail.isEmpty || fname.isEmpty || pass.isEmpty) {
-      _showSnack("All fields are required.");
+      _showSnack(t.translate("signup_required_fields"));
       return false;
     }
     if (uname.length < 3) {
-      _showSnack("Username must be at least 3 characters.");
+      _showSnack(t.translate("signup_username_short"));
       return false;
     }
     if (uname.length > 50) {
-      _showSnack("Username cannot exceed 50 characters.");
+      _showSnack(t.translate("signup_username_long"));
       return false;
     }
     if (!usernameRegex.hasMatch(uname)) {
-      _showSnack("Username can use letters, numbers, '.', '-' or '_'.");
+      _showSnack(t.translate("signup_username_invalid"));
       return false;
     }
     if (!emailRegex.hasMatch(mail)) {
-      _showSnack("Enter a valid email.");
+      _showSnack(t.translate("signup_email_invalid"));
       return false;
     }
     if (pass.length < 8) {
-      _showSnack("Password must be at least 8 characters.");
+      _showSnack(t.translate("signup_password_short"));
       return false;
     }
     return true;
   }
 
   Future<void> signup() async {
+    final t = AppLocalizations.of(context);
+
     if (!_validateInput()) return;
 
     setState(() => loading = true);
 
-    final url = Uri.parse("http://10.0.2.2:8000/auth/signup");
+    final url = Uri.parse("${ApiConfig.baseUrl}/auth/signup");
     final body = jsonEncode({
       "username": username.text.trim(),
       "email": email.text.trim(),
@@ -92,10 +97,10 @@ class _SignupPageState extends State<SignupPage> {
     try {
       final response = await http
           .post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: body,
-      )
+            url,
+            headers: {"Content-Type": "application/json"},
+            body: body,
+          )
           .timeout(const Duration(seconds: 12));
 
       setState(() => loading = false);
@@ -103,56 +108,55 @@ class _SignupPageState extends State<SignupPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final mail = (data["email"] ?? email.text.trim()).toString();
-        final name = fullname.text.trim().isNotEmpty
-            ? fullname.text.trim()
-            : username.text.trim();
-
 
         if (!mounted) return;
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => EmailVerificationPage(email: mail)),
+          MaterialPageRoute(
+            builder: (_) => EmailVerificationPage(email: mail),
+          ),
         );
       } else {
         Map<String, dynamic>? decoded;
         try {
-          decoded = jsonDecode(response.body) as Map<String, dynamic>;
+          decoded = jsonDecode(response.body);
         } catch (_) {}
-        final msg =
-        (decoded?["detail"] ?? response.reasonPhrase ?? "Signup failed").toString();
+
+        final msg = (decoded?["detail"] ??
+                response.reasonPhrase ??
+                t.translate("signup_failed"))
+            .toString();
+
         _showSnack(msg);
       }
     } catch (e) {
       setState(() => loading = false);
-      _showSnack("Network error: $e");
+      _showSnack("${t.translate("network_error")}: $e");
     }
   }
 
   Future<void> handleGoogleSignup() async {
+    final t = AppLocalizations.of(context);
+
     final result = await signInWithGoogle();
     if (result == null) {
-      _showSnack("Google sign-in canceled or failed.");
+      _showSnack(t.translate("google_failed"));
       return;
     }
 
     try {
       final decoded = jsonDecode(result) as Map<String, dynamic>;
-      final msg = decoded["message"] ?? "Signed in successfully!";
-      final gEmail = (decoded["email"] ?? "").toString();
-      final gName =
-      (decoded["name"] ?? (gEmail.isNotEmpty ? gEmail.split('@').first : '')).toString();
-
+      final msg = decoded["message"] ?? t.translate("google_success");
       _showSnack(msg.toString());
-
-      // If your backend auto-verifies Google users, you can navigate to Home here.
-      // Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePage()));
     } catch (_) {
-      _showSnack("Google sign-in failed: invalid response.");
+      _showSnack(t.translate("google_invalid"));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+
     final canSubmit = !loading &&
         username.text.trim().isNotEmpty &&
         email.text.trim().isNotEmpty &&
@@ -163,7 +167,7 @@ class _SignupPageState extends State<SignupPage> {
       backgroundColor: AppColors.black,
       appBar: AppBar(
         backgroundColor: AppColors.black,
-        title: const Text("Sign Up"),
+        title: Text(t.translate("signup_title")),
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -174,9 +178,9 @@ class _SignupPageState extends State<SignupPage> {
             TextField(
               controller: username,
               onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                labelText: "Username",
-                hintText: "yourname_123",
+              decoration: InputDecoration(
+                labelText: t.translate("signup_username"),
+                hintText: t.translate("signup_username_hint"),
               ),
             ),
             Gaps.h12,
@@ -186,9 +190,9 @@ class _SignupPageState extends State<SignupPage> {
               controller: email,
               keyboardType: TextInputType.emailAddress,
               onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                labelText: "Email",
-                hintText: "example@gmail.com",
+              decoration: InputDecoration(
+                labelText: t.translate("email"),
+                hintText: t.translate("email_hint"),
               ),
             ),
             Gaps.h12,
@@ -197,29 +201,31 @@ class _SignupPageState extends State<SignupPage> {
             TextField(
               controller: fullname,
               onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                labelText: "Full Name",
-                hintText: "First Last",
+              decoration: InputDecoration(
+                labelText: t.translate("signup_fullname"),
+                hintText: t.translate("signup_fullname_hint"),
               ),
             ),
             Gaps.h12,
 
-            // Password (with visibility toggle)
+            // Password
             TextField(
               controller: password,
               obscureText: !passwordVisible,
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
-                labelText: "Password",
-                hintText: "minimum 8 characters",
+                labelText: t.translate("password"),
+                hintText: t.translate("password_hint"),
                 suffixIcon: IconButton(
-                  icon: Icon(passwordVisible ? Icons.visibility_off : Icons.visibility),
-                  onPressed: () => setState(() => passwordVisible = !passwordVisible),
+                  icon: Icon(
+                      passwordVisible ? Icons.visibility_off : Icons.visibility),
+                  onPressed: () =>
+                      setState(() => passwordVisible = !passwordVisible),
                 ),
               ),
             ),
 
-            // Create Account button
+            // Signup button
             Gaps.h20,
             SizedBox(
               width: double.infinity,
@@ -227,31 +233,32 @@ class _SignupPageState extends State<SignupPage> {
                 onPressed: canSubmit ? signup : null,
                 child: loading
                     ? const SizedBox(
-                  height: 22,
-                  width: 22,
-                  child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
-                )
-                    : const Text("Create Account"),
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                            color: Colors.black, strokeWidth: 2),
+                      )
+                    : Text(t.translate("signup_btn")),
               ),
             ),
 
             // OR divider
             Gaps.h20,
-            const DividerWithLabel(label: "or"),
+            DividerWithLabel(label: t.translate("or")),
             Gaps.h12,
 
-            // Apple (iOS only)
+            // Apple
             SocialButton.apple(
               icon: Icons.apple,
-              text: "Continue with Apple",
+              text: t.translate("apple_login"),
               onPressed: () {},
             ),
             Gaps.h12,
 
-            // Google sign up (dark pill)
+            // Google
             SocialButton.dark(
-              icon: Icons.g_mobiledata, // swap to your Google asset if you like
-              text: "Continue with Google",
+              icon: Icons.g_mobiledata,
+              text: t.translate("google_signup"),
               onPressed: handleGoogleSignup,
             ),
           ],

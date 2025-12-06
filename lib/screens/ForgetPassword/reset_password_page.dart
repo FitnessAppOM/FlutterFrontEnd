@@ -1,10 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-
+import '../../config/base_url.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/spacing.dart';
-import '../../auth/questionnaire.dart';   // <-- Redirect target
+import '../../widgets/appbar_back_button.dart';
+import '../../auth/login.dart';
+import '../../screens/welcome.dart';
+import '../../localization/app_localizations.dart';
 
 class ResetPasswordPage extends StatefulWidget {
   final String email;
@@ -27,32 +30,28 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   bool loading = false;
 
   Future<void> resetPassword() async {
+    final t = AppLocalizations.of(context);
+
     final newPw = pwCtrl.text.trim();
     final rePw = retypeCtrl.text.trim();
 
-    // --------------------------------------
-    // 1. Check empty fields
-    // --------------------------------------
     if (newPw.isEmpty || rePw.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please fill all fields.")),
+        SnackBar(content: Text(t.translate("fill_all_fields"))),
       );
       return;
     }
 
-    // --------------------------------------
-    // 2. Check if passwords match
-    // --------------------------------------
     if (newPw != rePw) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Passwords do not match.")),
+        SnackBar(content: Text(t.translate("passwords_do_not_match"))),
       );
       return;
     }
 
     setState(() => loading = true);
 
-    final url = Uri.parse("http://10.0.2.2:8000/password/reset");
+    final url = Uri.parse("${ApiConfig.baseUrl}/password/reset");
 
     final body = jsonEncode({
       "email": widget.email,
@@ -69,31 +68,25 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
       final data = response.body.isNotEmpty ? jsonDecode(response.body) : null;
 
-      // ---------------------------------------------
-      // Backend validation
-      // ---------------------------------------------
       if (response.statusCode != 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data?["detail"] ?? "Password reset failed")),
+          SnackBar(content: Text(data?["detail"] ?? t.translate("reset_failed"))),
         );
         return;
       }
 
-      // ---------------------------------------------
-      // Success
-      // ---------------------------------------------
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Password changed successfully!")),
+        SnackBar(content: Text(t.translate("password_reset_success"))),
       );
 
-      // Redirect to QuestionnairePage
-      Navigator.pushReplacement(
+      Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => QuestionnairePage()),
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+        (route) => false,
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Network error: $e")),
+        SnackBar(content: Text("${t.translate("network_error")}: $e")),
       );
     } finally {
       setState(() => loading = false);
@@ -102,11 +95,22 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+
     return Scaffold(
       backgroundColor: AppColors.black,
       appBar: AppBar(
         backgroundColor: AppColors.black,
-        title: const Text("Reset Password"),
+        title: Text(t.translate("reset_password")),
+        leading: AppBarBackButton(
+          onTap: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const WelcomePage()),
+              (route) => false,
+            );
+          },
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -115,29 +119,33 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             TextField(
               controller: pwCtrl,
               obscureText: true,
-              decoration: const InputDecoration(
-                labelText: "New Password",
+              decoration: InputDecoration(
+                labelText: t.translate("new_password"),
               ),
             ),
             Gaps.h12,
-
             TextField(
               controller: retypeCtrl,
               obscureText: true,
-              decoration: const InputDecoration(
-                labelText: "Retype Password",
+              decoration: InputDecoration(
+                labelText: t.translate("retype_password"),
               ),
             ),
-
             Gaps.h20,
-
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: loading ? null : resetPassword,
                 child: loading
-                    ? const CircularProgressIndicator()
-                    : const Text("Reset Password"),
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(t.translate("reset_password")),
               ),
             ),
           ],

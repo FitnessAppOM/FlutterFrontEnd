@@ -1,22 +1,42 @@
 import 'package:flutter/material.dart';
+import '../widgets/lang_button.dart';
 
 import '../auth/login.dart';
 import '../auth/signup.dart';
 import '../core/account_storage.dart';
-import '../auth/questionnaire.dart';
 import '../theme/app_theme.dart';
 import '../theme/spacing.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/divider_with_label.dart';
 import '../widgets/saved_account_tile.dart';
 import '../localization/app_localizations.dart';
+import '../main/main_layout.dart';
+import '../core/locale_controller.dart';
+import '../config/base_url.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
+
+// -----------------------------------------------------------------------------
+// FIX: Model must be OUTSIDE the widget
+// -----------------------------------------------------------------------------
+class UserCheckResult {
+  final int id;
+  UserCheckResult(this.id);
+}
+
+
+// -----------------------------------------------------------------------------
+// WELCOME PAGE
+// -----------------------------------------------------------------------------
 class WelcomePage extends StatefulWidget {
   final void Function(Locale)? onChangeLanguage;
+  final bool fromLogout;
 
   const WelcomePage({
     super.key,
     this.onChangeLanguage,
+    this.fromLogout = false,   // <-- ADD THIS
   });
 
   @override
@@ -28,29 +48,85 @@ class _WelcomePageState extends State<WelcomePage> {
   String? lastName;
   bool lastVerified = false;
 
+  void _changeLanguage(Locale locale) {
+    final callback = widget.onChangeLanguage ?? localeController.setLocale;
+    callback(locale);
+    setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
     _loadLastUser();
   }
 
-  Future<void> _loadLastUser() async {
-    final e = await AccountStorage.getEmail();
-    final n = await AccountStorage.getName();
-    final v = await AccountStorage.isVerified();
+  // -----------------------------------------------------------------------------
+  // CHECK USER IN BACKEND
+  // -----------------------------------------------------------------------------
+  Future<UserCheckResult?> checkUserExistsBackend(String email) async {
+    try {
+      final url = Uri.parse("${ApiConfig.baseUrl}/auth/check-user");
+      final res = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"email": email}),
+      );
 
-    if (!mounted) return;
+      if (res.statusCode == 200) {
+        final json = jsonDecode(res.body);
+        return UserCheckResult(json["user_id"]);
+      }
+
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // -----------------------------------------------------------------------------
+  // LOAD LOCAL USER + AUTO LOGIN
+  // -----------------------------------------------------------------------------
+Future<void> _loadLastUser() async {
+  final e = await AccountStorage.getEmail();
+  final n = await AccountStorage.getName();
+  final v = await AccountStorage.isVerified();
+
+  if (!mounted) return;
+
+  //  Don't auto-redirect if coming from logout
+  if (widget.fromLogout) {
     setState(() {
       lastEmail = e;
       lastVerified = v;
       lastName = v ? n : null;
     });
+    return;
   }
 
+  // Normal auto-redirect
+  if (e != null && e.isNotEmpty && v == true) {
+final exists = await checkUserExistsBackend(e);
+   if (exists != null) {   // user exists
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(builder: (_) => const MainLayout()),
+  );
+  return;
+}
+  }
+
+  setState(() {
+    lastEmail = e;
+    lastVerified = v;
+    lastName = v ? n : null;
+  });
+}
+
+  // -----------------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final t = AppLocalizations.of(context); // 🔥 Translator
+    final t = AppLocalizations.of(context);
 
     final hasAccount = (lastEmail != null && lastEmail!.isNotEmpty);
     final hasVerifiedAccount = hasAccount && lastVerified;
@@ -64,18 +140,23 @@ class _WelcomePageState extends State<WelcomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 🔥 Language switch buttons
+              // LANG BUTTONS
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TextButton(
-                    onPressed: () => widget.onChangeLanguage?.call(const Locale('en')),
-                    child: const Text("English", style: TextStyle(color: Colors.white)),
+                  LangButton(
+                    label: "EN",
+                    flag: "🇬🇧",
+                    selected:
+                        Localizations.localeOf(context).languageCode == "en",
+                    onTap: () => _changeLanguage(const Locale('en')),
                   ),
-                  const SizedBox(width: 8),
-                  TextButton(
-                    onPressed: () => widget.onChangeLanguage?.call(const Locale('ar')),
-                    child: const Text("العربية", style: TextStyle(color: Colors.white)),
+                  LangButton(
+                    label: "AR",
+                    flag: "🇸🇦",
+                    selected:
+                        Localizations.localeOf(context).languageCode == "ar",
+                    onTap: () => _changeLanguage(const Locale('ar')),
                   ),
                 ],
               ),
@@ -100,9 +181,7 @@ class _WelcomePageState extends State<WelcomePage> {
 
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 🔥 Translated title
                   Text(
                     t.translate("welcome_tagline"),
                     textAlign: TextAlign.center,
@@ -117,20 +196,42 @@ class _WelcomePageState extends State<WelcomePage> {
                   if (hasVerifiedAccount) ...[
                     DividerWithLabel(label: t.translate("saved_accounts")),
                     Gaps.h12,
+
                     SavedAccountTile(
                       title: "${t.translate("login_as")} $displayName",
-                      onTap: () {
-                        Navigator.pushReplacement(
+                      onTap: () async {
+                        final email = lastEmail!;
+
+                        final exists = await checkUserExistsBackend(email);
+                        if (exists == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Account no longer exists."),
+                            ),
+                          );
+                          return;
+                        }
+
+                        await AccountStorage.saveUserSession(
+                          userId: exists.id,
+                          email: email,
+                          name: displayName,
+                          verified: true,
+                        );
+
+                        Navigator.pushAndRemoveUntil(
                           context,
-                          MaterialPageRoute(builder: (_) => const QuestionnairePage()),
+                          MaterialPageRoute(
+                              builder: (_) => const MainLayout()),
+                          (route) => false,
                         );
                       },
                       onMenu: () {},
                     ),
+
                     Gaps.h20,
                   ],
 
-                  // 🔥 LOGIN BUTTON
                   PrimaryWhiteButton(
                     onPressed: () {
                       Navigator.push(
@@ -151,7 +252,6 @@ class _WelcomePageState extends State<WelcomePage> {
 
                   Gaps.h20,
 
-                  // 🔥 SIGNUP ROW
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -181,7 +281,7 @@ class _WelcomePageState extends State<WelcomePage> {
                     ],
                   ),
                 ],
-              )
+              ),
             ],
           ),
         ),

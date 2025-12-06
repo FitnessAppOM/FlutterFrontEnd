@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-
+import '../core/account_storage.dart';
+import '../config/base_url.dart';
 import '../theme/app_theme.dart';
 import '../theme/spacing.dart';
 import '../widgets/primary_button.dart';
+import '../localization/app_localizations.dart';   // ADDED
 import 'questionnaire.dart';
 
 class EmailVerificationPage extends StatefulWidget {
@@ -22,7 +24,6 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
 
   bool loading = false;
 
-  // resend cooldown
   bool resendCooldown = false;
   int cooldownSeconds = 30;
   Timer? timer;
@@ -36,16 +37,18 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
 
   // ---------------- VERIFY CODE ----------------
   Future<void> verifyCode() async {
+    final t = AppLocalizations.of(context);
+
     final code = codeController.text.trim();
 
     if (code.length != 6) {
-      _show("Code must be 6 digits");
+      _show(t.translate("code_invalid"));
       return;
     }
 
     setState(() => loading = true);
 
-    final url = Uri.parse("http://10.0.2.2:8000/auth/verify-email");
+    final url = Uri.parse("${ApiConfig.baseUrl}/auth/verify-email");
 
     try {
       final response = await http.post(
@@ -60,16 +63,32 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
       setState(() => loading = false);
 
       if (response.statusCode == 200) {
-        _show("Email verified successfully!");
+        final data = jsonDecode(response.body);
+
+        final userId = data["user_id"];
+        final email = widget.email;
+
+        await AccountStorage.saveUserSession(
+          userId: userId,
+          email: email,
+          name: email.split('@').first,
+          verified: true,
+          token: null,
+        );
+
+        _show(t.translate("verified_success"));
+
         if (!mounted) return;
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const QuestionnairePage()),
         );
         return;
       }
+
       else {
-        String msg = "Verification failed";
+        String msg = t.translate("verified_failed");
         try {
           msg = (jsonDecode(response.body)["detail"] ?? msg).toString();
         } catch (_) {}
@@ -77,21 +96,21 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
       }
     } catch (e) {
       setState(() => loading = false);
-      _show("Error: $e");
+      _show("${t.translate("network_error")}: $e");
     }
   }
 
   // ---------------- RESEND CODE ----------------
   Future<void> resendCode() async {
+    final t = AppLocalizations.of(context);
+
     if (resendCooldown) return;
 
-    // enable cooldown
     setState(() {
       resendCooldown = true;
       cooldownSeconds = 30;
     });
 
-    // countdown timer
     timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (!mounted) return;
       setState(() {
@@ -103,8 +122,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
       });
     });
 
-    // adjust path if your backend differs
-    final url = Uri.parse("http://10.0.2.2:8000/auth/resend-verification");
+    final url = Uri.parse("${ApiConfig.baseUrl}/auth/resend-verification");
 
     try {
       final response = await http.post(
@@ -114,16 +132,16 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
       );
 
       if (response.statusCode == 200) {
-        _show("New verification code sent");
+        _show(t.translate("resend_success"));
       } else {
-        String msg = "Resend failed";
+        String msg = t.translate("resend_failed");
         try {
           msg = (jsonDecode(response.body)["detail"] ?? msg).toString();
         } catch (_) {}
         _show(msg);
       }
     } catch (e) {
-      _show("Error: $e");
+      _show("${t.translate("network_error")}: $e");
     }
   }
 
@@ -144,13 +162,14 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);   // Translator
     final canSubmit = !loading && codeController.text.trim().length == 6;
 
     return Scaffold(
       backgroundColor: AppColors.black,
       appBar: AppBar(
         backgroundColor: AppColors.black,
-        title: const Text("Verify Email"),
+        title: Text(t.translate("verification_title")),
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -159,7 +178,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              "A verification code has been sent to:",
+              t.translate("verification_sent"),
               style: const TextStyle(fontSize: 16, color: Colors.white70),
             ),
             Gaps.h5,
@@ -173,52 +192,49 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
 
             Gaps.h20,
 
-            // Code input (underlined style from InputDecorationTheme)
             TextField(
               controller: codeController,
               keyboardType: TextInputType.number,
               maxLength: 6,
               onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                labelText: "Enter verification code",
-                hintText: "6-digit code",
-                counterText: "", // hide maxLength counter
+              decoration: InputDecoration(
+                labelText: t.translate("enter_code"),
+                hintText: t.translate("hint_code"),
+                counterText: "",
               ),
             ),
 
             Gaps.h20,
 
-            // Verify button
             SizedBox(
               width: double.infinity,
               child: PrimaryWhiteButton(
                 onPressed: canSubmit ? verifyCode : null,
                 child: loading
                     ? const SizedBox(
-                  height: 22,
-                  width: 22,
-                  child: CircularProgressIndicator(
-                    color: Colors.black,
-                    strokeWidth: 2,
-                  ),
-                )
-                    : const Text("Verify"),
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                          color: Colors.black,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Text(t.translate("verify_btn")),
               ),
             ),
 
             Gaps.h20,
 
-            // Resend code
             Center(
               child: resendCooldown
                   ? Text(
-                "Resend available in $cooldownSeconds sec",
-                style: const TextStyle(color: Colors.white54),
-              )
+                      t.translate("resend_wait").replaceAll("{seconds}", "$cooldownSeconds"),
+                      style: const TextStyle(color: Colors.white54),
+                    )
                   : TextButton(
-                onPressed: resendCode,
-                child: const Text("Resend code"),
-              ),
+                      onPressed: resendCode,
+                      child: Text(t.translate("resend_btn")),
+                    ),
             ),
           ],
         ),

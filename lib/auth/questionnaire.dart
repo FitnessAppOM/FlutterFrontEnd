@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
-
-import '../theme/app_theme.dart';
-import '../theme/spacing.dart';
+import '../localization/app_localizations.dart';
 import '../widgets/questionnaire/questionnaire_info_chip.dart';
 import '../widgets/questionnaire/questionnaire_section_row.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/questionnaire/questionnaire_form.dart';
 import '../services/questionnaire_service.dart';
 import '../core/account_storage.dart';
-import '../widgets/questionnaire/questionnaire_slider_field.dart';
+import '../../widgets/appbar_back_button.dart';
+import '../screens/welcome.dart';
 
 class QuestionnairePage extends StatefulWidget {
   const QuestionnairePage({super.key});
@@ -22,25 +21,17 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final cs = theme.colorScheme;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Personalized Form"),
-        centerTitle: true,
-        leading: _started
-            ? IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            setState(() {
-              _started = false;
-            });
-          },
-        )
-            : null,
-      ),
-      backgroundColor: colorScheme.surface,
+  automaticallyImplyLeading: false, // no default back button
+  title: Text(t.translate("questionnaire_title")),
+  centerTitle: true,
+),
+      backgroundColor: cs.surface,
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
         child: _started ? _buildFormUI(context) : _buildIntro(context),
@@ -49,6 +40,7 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
   }
 
   Widget _buildIntro(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
@@ -58,40 +50,40 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "Let’s personalize your plan",
+            t.translate("questionnaire_intro_title"),
             style: theme.textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 8.0),
+          const SizedBox(height: 8),
           Text(
-            "Answer a few questions so we can adapt your workouts and nutrition to your body, lifestyle, and goals.",
+            t.translate("questionnaire_intro_text"),
             style: theme.textTheme.bodyMedium?.copyWith(
               color: cs.onSurface.withOpacity(0.7),
             ),
           ),
-          const SizedBox(height: 24.0),
+          const SizedBox(height: 24),
 
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: const [
+            children: [
               QuestionnaireInfoChip(
                 icon: Icons.timer_outlined,
-                label: "Takes ~3–5 min",
+                label: t.translate("questionnaire_chip_time"),
               ),
               QuestionnaireInfoChip(
                 icon: Icons.person_search_outlined,
-                label: "Fully personalized",
+                label: t.translate("questionnaire_chip_personal"),
               ),
               QuestionnaireInfoChip(
                 icon: Icons.lock_outline,
-                label: "Your data is private",
+                label: t.translate("questionnaire_chip_private"),
               ),
             ],
           ),
 
-          const SizedBox(height: 24.0),
+          const SizedBox(height: 24),
 
           Card(
             elevation: 1,
@@ -99,45 +91,45 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
               borderRadius: BorderRadius.circular(16),
             ),
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   QuestionnaireSectionRow(
                     icon: Icons.monitor_weight_outlined,
-                    title: "Basics",
-                    subtitle: "Age, height, weight, body type.",
+                    title: t.translate("section_basics_title"),
+                    subtitle: t.translate("section_basics_sub"),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   QuestionnaireSectionRow(
                     icon: Icons.flag_outlined,
-                    title: "Goals",
-                    subtitle: "What you want to achieve & by when.",
+                    title: t.translate("section_goals_title"),
+                    subtitle: t.translate("section_goals_sub"),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   QuestionnaireSectionRow(
                     icon: Icons.fitness_center_outlined,
-                    title: "Training",
-                    subtitle: "Experience, days per week, style.",
+                    title: t.translate("section_training_title"),
+                    subtitle: t.translate("section_training_sub"),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   QuestionnaireSectionRow(
                     icon: Icons.restaurant_outlined,
-                    title: "Nutrition",
-                    subtitle: "Diet type, allergies, meals.",
+                    title: t.translate("section_nutrition_title"),
+                    subtitle: t.translate("section_nutrition_sub"),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   QuestionnaireSectionRow(
                     icon: Icons.bedtime_outlined,
-                    title: "Lifestyle & Health",
-                    subtitle: "Sleep, stress, any conditions.",
+                    title: t.translate("section_lifestyle_title"),
+                    subtitle: t.translate("section_lifestyle_sub"),
                   ),
                 ],
               ),
             ),
           ),
 
-          const SizedBox(height: 32.0),
+          const SizedBox(height: 32),
 
           SizedBox(
             width: double.infinity,
@@ -145,15 +137,15 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
               onPressed: () {
                 setState(() => _started = true);
               },
-              child: const Text("Start questionnaire"),
+              child: Text(t.translate("start_questionnaire")),
             ),
           ),
 
-          const SizedBox(height: 12.0),
+          const SizedBox(height: 12),
 
           Center(
             child: Text(
-              "You can always update your answers later.",
+              t.translate("update_later"),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: cs.onSurface.withOpacity(0.6),
               ),
@@ -165,15 +157,17 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
   }
 
   Widget _buildFormUI(BuildContext context) {
+    final t = AppLocalizations.of(context);
+
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(16),
       child: QuestionnaireForm(
         onSubmit: (values) async {
           try {
             final userId = await AccountStorage.getUserId();
             if (userId == null) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('User ID missing – login again')),
+                SnackBar(content: Text(t.translate("user_missing"))),
               );
               return;
             }
@@ -187,16 +181,15 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
 
             if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Questionnaire saved successfully')),
+              SnackBar(content: Text(t.translate("save_success"))),
             );
           } catch (e) {
             if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error: $e')),
+              SnackBar(content: Text("${t.translate("save_error")}: $e")),
             );
           }
         },
-
       ),
     );
   }

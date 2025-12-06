@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-
+import '../config/base_url.dart';
 // Android client ID is not needed anymore
 // const _androidClientId = "...";
 
@@ -34,13 +34,12 @@ Future<String?> signInWithGoogle() async {
 
     await signIn.attemptLightweightAuthentication();
     final account = await signIn.authenticate();
-    if (account == null) return null;
 
-    final auth = await account.authentication;
+    final auth = account.authentication;
     final idToken = auth.idToken;
 
     final response = await http.post(
-      Uri.parse("http://10.0.2.2:8000/auth/google"),
+      Uri.parse("${ApiConfig.baseUrl}/auth/google"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({"token": idToken}),
     );

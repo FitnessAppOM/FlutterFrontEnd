@@ -49,7 +49,7 @@ Future<int?> showHeightPickerPopup(
 
                 // --- SLIDER ---
                 Text(
-                  "${currentHeight} cm",
+                  "$currentHeight cm",
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 Slider(

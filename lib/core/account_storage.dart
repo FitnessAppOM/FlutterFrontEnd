@@ -45,6 +45,24 @@ class AccountStorage {
     return sp.getBool(_kVerified) ?? false;
   }
 
+static Future<void> clearSession() async {
+  final sp = await SharedPreferences.getInstance();
+
+  // Only remove session-related values
+  await sp.remove(_kUserId);     // logged-in identity
+  await sp.remove(_kToken);      // JWT/session token
+  await sp.remove(_kVerified);   // verification flag
+
+
+}
+
+static Future<void> clearSessionOnly() async {
+  final sp = await SharedPreferences.getInstance();
+  await sp.remove(_kToken);
+  await sp.remove(_kUserId);
+  // Keep email + name + verified → so “Login as…” still works
+}
+
   static Future<void> clear() async {
     final sp = await SharedPreferences.getInstance();
     await sp.remove(_kUserId);

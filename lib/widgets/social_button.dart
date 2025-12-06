@@ -12,7 +12,6 @@ class SocialButton extends StatelessWidget {
   final bool onlyIOS;
 
   const SocialButton._({
-    super.key,
     required this.text,
     required this.onPressed,
     this.icon,

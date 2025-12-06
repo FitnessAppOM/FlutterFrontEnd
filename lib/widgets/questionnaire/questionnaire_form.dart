@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../primary_button.dart';
+import '../../localization/app_localizations.dart';
 import 'questionnaire_slider_field.dart';
 import 'cupertino_picker_field.dart';
 import 'height_picker_with_body.dart';
@@ -28,20 +29,24 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     _values[key] = value?.trim() ?? '';
   }
 
+  String _t(String key) {
+    return AppLocalizations.of(context).translate(key);
+  }
+
   String get _sectionTitle {
     switch (_currentSection) {
       case 0:
-        return "Basic Info";
+        return _t("sec_basic_title");
       case 1:
-        return "Goals & Motivation";
+        return _t("sec_goals_title");
       case 2:
-        return "Training";
+        return _t("sec_training_title");
       case 3:
-        return "Nutrition";
+        return _t("sec_nutrition_title");
       case 4:
-        return "Lifestyle & Recovery";
+        return _t("sec_lifestyle_title");
       case 5:
-        return "Health & Settings";
+        return _t("sec_health_title");
       default:
         return "";
     }
@@ -50,17 +55,17 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
   String get _sectionSubtitle {
     switch (_currentSection) {
       case 0:
-        return "Tell us your basic body information.";
+        return _t("sec_basic_sub");
       case 1:
-        return "What you want to achieve and why.";
+        return _t("sec_goals_sub");
       case 2:
-        return "How you like to train and what you can do.";
+        return _t("sec_training_sub");
       case 3:
-        return "Your diet habits and preferences.";
+        return _t("sec_nutrition_sub");
       case 4:
-        return "Your daily routine, sleep and stress.";
+        return _t("sec_lifestyle_sub");
       case 5:
-        return "Health details and how flexible your plan is.";
+        return _t("sec_health_sub");
       default:
         return "";
     }
@@ -93,11 +98,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     if (consent == 'No') {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'You need to consent to data collection and tracking to submit this questionnaire.',
-          ),
-        ),
+        SnackBar(content: Text(_t("consent_required"))),
       );
       return;
     }
@@ -135,7 +136,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
             const SizedBox(height: 24),
             Center(
               child: Text(
-                "Step ${_currentSection + 1} of $_totalSections",
+                "${_t("step")} ${_currentSection + 1} ${_t("of")} $_totalSections",
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: cs.onSurface.withOpacity(0.6),
                 ),
@@ -148,7 +149,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                   Expanded(
                     child: TextButton(
                       onPressed: _back,
-                      child: const Text("Back"),
+                      child: Text(_t("back")),
                     ),
                   ),
                 if (_currentSection > 0) const SizedBox(width: 8),
@@ -157,8 +158,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                     onPressed: _next,
                     child: Text(
                       _currentSection == _totalSections - 1
-                          ? "Finish"
-                          : "Next",
+                          ? _t("finish")
+                          : _t("next"),
                     ),
                   ),
                 ),
@@ -189,371 +190,330 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     }
   }
 
-  // ---------------- BASIC INFO (age, height, weight) ----------------
   List<Widget> _buildBasicInfoSection() {
-    // Ensure required backend fields always exist
     _values.putIfAbsent("age", () => "25");
     _values.putIfAbsent("height_cm", () => "170");
     _values.putIfAbsent("weight_kg", () => "70");
 
     return [
       _buildChoiceField(
-        label: "Sex",
+        label: _t("sex"),
         keyName: "sex",
-        options: const ["Male", "Female", "Prefer not to say"],
+        options: [_t("male"), _t("female"), _t("prefer_not")],
       ),
-
-      // AGE (Cupertino wheel)
       CupertinoPickerField(
-        label: "Age",
-        options: List.generate(83, (i) => (i + 18).toString()), // 18–100
+        label: _t("age"),
+        options: List.generate(83, (i) => (i + 18).toString()),
         initialValue: _values["age"]!,
         onSelected: (v) => _saveField("age", v),
       ),
-
-      // HEIGHT
       GestureDetector(
         onTap: () async {
           final selected = await showHeightPickerPopup(
             context,
             initialHeight: int.tryParse(_values["height_cm"]!) ?? 170,
           );
-
           if (selected != null) {
-            setState(() {
-              _values["height_cm"] = selected.toString();
-            });
+            setState(() => _values["height_cm"] = selected.toString());
           }
         },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.grey.shade400),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text("Height"),
-              Text(
-                "${_values["height_cm"]} cm",
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-        ),
+        child: _simpleFieldRow(_t("height"), "${_values["height_cm"]} cm"),
       ),
       const SizedBox(height: 12),
-
-      // WEIGHT
       GestureDetector(
         onTap: () async {
           final selected = await showWeightPickerPopup(
             context,
             initialWeight: int.tryParse(_values["weight_kg"]!) ?? 70,
           );
-
           if (selected != null) {
-            setState(() {
-              _values["weight_kg"] = selected.toString();
-            });
+            setState(() => _values["weight_kg"] = selected.toString());
           }
         },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.grey.shade400),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text("Weight"),
-              Text(
-                "${_values["weight_kg"]} kg",
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-        ),
+        child: _simpleFieldRow(_t("weight"), "${_values["weight_kg"]} kg"),
       ),
       const SizedBox(height: 12),
     ];
   }
 
-  // ---------------- GOALS ----------------
   List<Widget> _buildGoalsSection() {
     return [
       _buildChoiceField(
-        label: "What is your main goal?",
+        label: _t("goal_main"),
         keyName: "main_goal",
-        options: const [
-          "Lose weight",
-          "Gain muscle",
-          "Improve endurance",
-          "Maintain fitness",
-          "Improve health",
+        options: [
+          _t("lose_weight"),
+          _t("gain_muscle"),
+          _t("improve_endurance"),
+          _t("maintain_fitness"),
+          _t("improve_health"),
         ],
       ),
       _buildChoiceField(
-        label: "What motivates you most?",
+        label: _t("motivation"),
         keyName: "motivation",
-        options: const [
-          "Look better",
-          "Feel stronger",
-          "Improve health",
-          "Increase energy",
-          "Mental well-being",
+        options: [
+          _t("look_better"),
+          _t("feel_stronger"),
+          _t("health_better"),
+          _t("more_energy"),
+          _t("mental_wellbeing"),
         ],
       ),
       _buildChoiceField(
-        label: "Which muscles are most important to you?",
+        label: _t("important_muscles"),
         keyName: "important_muscles",
-        options: const [
-          "Arms",
-          "Shoulders",
-          "Abs",
-          "Back",
-          "Legs",
-          "All body",
+        options: [
+          _t("arms"),
+          _t("shoulders"),
+          _t("abs"),
+          _t("back"),
+          _t("legs"),
+          _t("all_body"),
         ],
       ),
       _buildChoiceField(
-        label: "How soon do you want to see change?",
+        label: _t("time_change"),
         keyName: "time_to_change",
-        options: const ["4 weeks", "8 weeks", "12 weeks", "No timeframe"],
+        options: ["4", "8", "12", _t("no_timeframe")],
       ),
       _buildChoiceField(
-        label: "Do you have a deadline?",
+        label: _t("deadline"),
         keyName: "event_deadline",
-        options: const [
-          "Yes – Sporting",
-          "Wedding",
-          "Birthday",
-          "Vacation",
-          "Other",
-          "No",
+        options: [
+          _t("sport"),
+          _t("wedding"),
+          _t("birthday"),
+          _t("vacation"),
+          _t("other"),
+          _t("no"),
         ],
       ),
     ];
   }
 
-  // ---------------- TRAINING ----------------
   List<Widget> _buildTrainingSection() {
     return [
       _buildChoiceField(
-        label: "Current body type",
+        label: _t("body_type"),
         keyName: "body_type",
-        options: const ["Slender", "Average", "Muscular", "Heavy"],
+        options: [_t("slender"), _t("average"), _t("muscular"), _t("heavy")],
       ),
       _buildChoiceField(
-        label: "Fitness experience",
+        label: _t("fitness_experience"),
         keyName: "fitness_experience",
-        options: const [
-          "Beginner (<6 months)",
-          "Intermediate (6–24 months)",
-          "Advanced (>2 years)",
+        options: [
+          _t("beginner"),
+          _t("intermediate"),
+          _t("advanced"),
         ],
       ),
       _buildChoiceField(
-        label: "Training days per week",
+        label: _t("training_days"),
         keyName: "training_days",
-        options: const ["1", "2", "3", "4", "5", "6"],
+        options: ["1", "2", "3", "4", "5", "6"],
       ),
       _buildChoiceField(
-        label: "Preferred time",
+        label: _t("preferred_time"),
         keyName: "preferred_time",
-        options: const [
-          "Morning",
-          "Noon",
-          "Afternoon",
-          "Evening",
-          "Flexible",
+        options: [
+          _t("morning"),
+          _t("noon"),
+          _t("afternoon"),
+          _t("evening"),
+          _t("flexible"),
         ],
       ),
       _buildChoiceField(
-        label: "Where do you train?",
+        label: _t("training_location"),
         keyName: "training_location",
-        options: const ["Gym", "Home", "Hybrid"],
+        options: [_t("gym"), _t("home"), _t("hybrid")],
       ),
       _buildChoiceField(
-        label: "Equipment access",
+        label: _t("equipment"),
         keyName: "equipment",
-        options: const [
-          "Dumbbells",
-          "Barbell",
-          "Resistance bands",
-          "Bodyweight only",
-          "Machines",
-          "Mix",
+        options: [
+          _t("dumbbells"),
+          _t("barbell"),
+          _t("resistance_bands"),
+          _t("bodyweight"),
+          _t("machines"),
+          _t("mix"),
         ],
       ),
       _buildChoiceField(
-        label: "Preferred training style",
+        label: _t("training_style"),
         keyName: "training_style",
-        options: const [
-          "Strength",
-          "Hypertrophy",
-          "Functional",
-          "Endurance",
-          "HIIT",
-          "Mobility",
+        options: [
+          _t("strength"),
+          _t("hypertrophy"),
+          _t("functional"),
+          _t("endurance"),
+          _t("hiit"),
+          _t("mobility"),
         ],
       ),
       _buildMultiChoiceField(
-        label: "Past injuries",
+        label: _t("past_injuries"),
         keyName: "past_injuries",
-        options: const [
-          "Shoulder",
-          "Back",
-          "Knee",
-          "Elbow",
-          "None",
+        options: [
+          _t("shoulder"),
+          _t("back"),
+          _t("knee"),
+          _t("elbow"),
+          _t("none"),
         ],
       ),
       _buildChoiceField(
-        label: "Train mode",
+        label: _t("train_mode"),
         keyName: "train_mode",
-        options: const [
-          "Alone",
-          "With partner",
-          "With trainer",
+        options: [
+          _t("alone"),
+          _t("partner"),
+          _t("trainer"),
         ],
       ),
       _buildChoiceField(
-        label: "Include recovery?",
+        label: _t("auto_recovery"),
         keyName: "auto_recovery",
-        options: const ["Yes", "No"],
+        options: [_t("yes"), _t("no")],
       ),
     ];
   }
 
-  // ---------------- NUTRITION ----------------
   List<Widget> _buildNutritionSection() {
     return [
       _buildChoiceField(
-        label: "Preferred diet",
+        label: _t("diet_type"),
         keyName: "diet_type",
-        options: const [
-          "No preference",
-          "High protein",
-          "Low carb",
-          "Vegetarian",
-          "Vegan",
-          "Intermittent fasting",
-          "Other",
+        options: [
+          _t("no_pref"),
+          _t("high_protein"),
+          _t("low_carb"),
+          _t("vegetarian"),
+          _t("vegan"),
+          _t("fasting"),
+          _t("other"),
         ],
       ),
       _buildMultiChoiceField(
-        label: "Allergies",
+        label: _t("allergies"),
         keyName: "allergies",
-        options: const [
-          "Dairy",
-          "Gluten",
-          "Nuts",
-          "Shellfish",
-          "None",
-          "Other",
+        options: [
+          _t("dairy"),
+          _t("gluten"),
+          _t("nuts"),
+          _t("shellfish"),
+          _t("none"),
+          _t("other"),
         ],
       ),
       _buildChoiceField(
-        label: "Meals per day",
+        label: _t("meals_per_day"),
         keyName: "meals_per_day",
-        options: const ["2", "3", "4", "5", "6"],
+        options: ["2", "3", "4", "5", "6"],
       ),
       _buildChoiceField(
-        label: "Food habit",
+        label: _t("food_habit"),
         keyName: "food_habit",
-        options: const ["Mostly cook", "Mostly eat out", "Mix"],
+        options: [_t("cook"), _t("eat_out"), _t("mix")],
       ),
       _buildChoiceField(
-        label: "Kitchen access",
+        label: _t("kitchen_access"),
         keyName: "kitchen_access",
-        options: const ["Yes", "No"],
+        options: [_t("yes"), _t("no")],
       ),
       _buildMultiChoiceField(
-        label: "Supplements",
+        label: _t("supplements"),
         keyName: "supplements",
-        options: const [
-          "Protein",
-          "Creatine",
-          "Multivitamin",
-          "None",
-          "Other",
+        options: [
+          _t("protein"),
+          _t("creatine"),
+          _t("multivitamin"),
+          _t("none"),
+          _t("other"),
         ],
       ),
       _buildChoiceField(
-        label: "Daily water intake",
+        label: _t("water_intake"),
         keyName: "water_intake",
-        options: const ["<1L", "1–2L", "2–3L", ">3L"],
+        options: ["<1L", "1–2L", "2–3L", ">3L"],
       ),
       _buildChoiceField(
-        label: "Meal plan type",
+        label: _t("meal_plan"),
         keyName: "meal_plan",
-        options: const ["Low budget", "Moderate", "Flexible"],
+        options: [_t("low_budget"), _t("moderate"), _t("flexible")],
       ),
     ];
   }
 
-  // ---------------- LIFESTYLE ----------------
   List<Widget> _buildLifestyleSection() {
     return [
       _buildChoiceField(
-        label: "Daily activity level",
+        label: _t("daily_activity"),
         keyName: "daily_activity",
-        options: const [
-          "Sedentary (desk job)",
-          "Moderate",
-          "Active",
-          "Highly physical",
-        ],
+        options: [_t("sedentary"), _t("moderate"), _t("active"), _t("highly_active")],
       ),
       _buildChoiceField(
-        label: "Sleep duration",
+        label: _t("sleep_hours"),
         keyName: "sleep_hours",
-        options: const [
-          "<6 hours",
-          "6–7 hours",
-          "7–8 hours",
-          ">8 hours",
-        ],
+        options: ["<6", "6–7", "7–8", ">8"],
       ),
       _buildChoiceField(
-        label: "Sleep consistency",
+        label: _t("sleep_consistency"),
         keyName: "sleep_consistency",
-        options: const ["Regular", "Irregular"],
+        options: [_t("regular"), _t("irregular")],
       ),
       _buildChoiceField(
-        label: "Wake feeling",
+        label: _t("wake_feeling"),
         keyName: "wake_feeling",
-        options: const ["Tired", "Okay", "Refreshed"],
+        options: [_t("tired"), _t("okay"), _t("refreshed")],
       ),
       _buildChoiceField(
-        label: "Stress level",
+        label: _t("stress_level"),
         keyName: "stress_level",
-        options: const ["Low", "Moderate", "High"],
+        options: [_t("low"), _t("moderate"), _t("high")],
       ),
     ];
   }
 
-  // ---------------- HEALTH & SETTINGS ----------------
   List<Widget> _buildHealthSettingsSection() {
     return [
       _buildTextField(
-        label: "Chronic conditions",
+        label: _t("chronic_conditions"),
         keyName: "chronic_conditions",
       ),
       _buildChoiceField(
-        label: "Auto-adjust weekly?",
+        label: _t("auto_adjust"),
         keyName: "auto_adjust",
-        options: const ["Yes", "No"],
+        options: [_t("yes"), _t("no")],
       ),
       _buildChoiceField(
-        label: "Consent to tracking?",
+        label: _t("consent_tracking"),
         keyName: "consent",
-        options: const ["Yes", "No"],
+        options: [_t("yes"), _t("no")],
       ),
     ];
+  }
+
+  Widget _simpleFieldRow(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade400),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label),
+          Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildTextField({
@@ -574,7 +534,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         keyboardType: keyboardType,
         validator: (value) {
           if (value == null || value.trim().isEmpty) {
-            return "This field is required";
+            return _t("required");
           }
           return null;
         },
@@ -600,18 +560,18 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
           labelText: label,
           border: const OutlineInputBorder(),
         ),
-        value: current,
+        initialValue: current,
         items: options
             .map(
               (o) => DropdownMenuItem<String>(
-            value: o,
-            child: Text(o, style: theme.textTheme.bodyMedium),
-          ),
-        )
+                value: o,
+                child: Text(o, style: theme.textTheme.bodyMedium),
+              ),
+            )
             .toList(),
         validator: (value) {
           if (value == null || value.isEmpty) {
-            return "Please select an option";
+            return _t("select_option");
           }
           return null;
         },
@@ -633,7 +593,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       initialValue: _values[keyName] ?? '',
       validator: (value) {
         if (value == null || value.trim().isEmpty) {
-          return "Please select at least one option";
+          return _t("select_one");
         }
         return null;
       },

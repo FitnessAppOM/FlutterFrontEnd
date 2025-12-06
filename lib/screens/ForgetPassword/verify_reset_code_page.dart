@@ -2,15 +2,18 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-
+import '../../config/base_url.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/spacing.dart';
+import '../../widgets/appbar_back_button.dart';
+import '../../screens/welcome.dart';
+import '../../localization/app_localizations.dart';
 import 'reset_password_page.dart';
 
 class VerifyResetCodePage extends StatefulWidget {
   final String email;
 
-  const VerifyResetCodePage({required this.email});
+  const VerifyResetCodePage({super.key, required this.email});
 
   @override
   State<VerifyResetCodePage> createState() => _VerifyResetCodePageState();
@@ -18,17 +21,13 @@ class VerifyResetCodePage extends StatefulWidget {
 
 class _VerifyResetCodePageState extends State<VerifyResetCodePage> {
   final TextEditingController codeCtrl = TextEditingController();
-
   bool loading = false;
 
-  // -------------------------------
-  // COOLDOWN SYSTEM
-  // -------------------------------
   bool resendCooldown = false;
   int cooldownSeconds = 30;
 
   Timer? timer;
-  DateTime? cooldownEndsAt; // where cooldown ends
+  DateTime? cooldownEndsAt;
 
   @override
   void initState() {
@@ -43,9 +42,6 @@ class _VerifyResetCodePageState extends State<VerifyResetCodePage> {
     super.dispose();
   }
 
-  // -------------------------------
-  // Restore countdown if returning to the page
-  // -------------------------------
   void _restoreCooldown() {
     if (cooldownEndsAt == null) return;
 
@@ -61,14 +57,10 @@ class _VerifyResetCodePageState extends State<VerifyResetCodePage> {
     }
   }
 
-  // -------------------------------
-  // Start a new cooldown
-  // -------------------------------
   void _startCooldown() {
-    cooldownEndsAt = DateTime.now().add(Duration(seconds: 30));
+    cooldownEndsAt = DateTime.now().add(const Duration(seconds: 30));
     cooldownSeconds = 30;
     resendCooldown = true;
-
     _startTimer();
   }
 
@@ -94,15 +86,13 @@ class _VerifyResetCodePageState extends State<VerifyResetCodePage> {
     });
   }
 
-  // -------------------------------
-  // RESEND CODE
-  // -------------------------------
   Future<void> resendCode() async {
     if (resendCooldown) return;
 
+    final t = AppLocalizations.of(context);
     _startCooldown();
 
-    final url = Uri.parse("http://10.0.2.2:8000/password/forgot");
+    final url = Uri.parse("${ApiConfig.baseUrl}/password/forgot");
     final body = jsonEncode({"email": widget.email});
 
     try {
@@ -114,7 +104,7 @@ class _VerifyResetCodePageState extends State<VerifyResetCodePage> {
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Reset code resent.")),
+          SnackBar(content: Text(t.translate("reset_code_resent"))),
         );
       } else {
         final data = jsonDecode(response.body);
@@ -124,27 +114,25 @@ class _VerifyResetCodePageState extends State<VerifyResetCodePage> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Network error: $e")),
+        SnackBar(content: Text("${t.translate("network_error")}: $e")),
       );
     }
   }
 
-  // -------------------------------
-  // VERIFY CODE
-  // -------------------------------
   Future<void> verifyCode() async {
+    final t = AppLocalizations.of(context);
     final code = codeCtrl.text.trim();
 
     if (code.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Enter the reset code.")),
+        SnackBar(content: Text(t.translate("enter_reset_code"))),
       );
       return;
     }
 
     setState(() => loading = true);
 
-    final url = Uri.parse("http://10.0.2.2:8000/password/verify");
+    final url = Uri.parse("${ApiConfig.baseUrl}/password/verify");
     final body = jsonEncode({"email": widget.email, "code": code});
 
     try {
@@ -158,8 +146,10 @@ class _VerifyResetCodePageState extends State<VerifyResetCodePage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) =>
-                ResetPasswordPage(email: widget.email, code: code),
+            builder: (_) => ResetPasswordPage(
+              email: widget.email,
+              code: code,
+            ),
           ),
         );
       } else {
@@ -170,23 +160,31 @@ class _VerifyResetCodePageState extends State<VerifyResetCodePage> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Network error: $e")),
+        SnackBar(content: Text("${t.translate("network_error")}: $e")),
       );
     } finally {
       setState(() => loading = false);
     }
   }
 
-  // -------------------------------
-  // UI
-  // -------------------------------
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+
     return Scaffold(
       backgroundColor: AppColors.black,
       appBar: AppBar(
         backgroundColor: AppColors.black,
-        title: const Text("Verify Reset Code"),
+        title: Text(t.translate("verify_reset_code")),
+        leading: AppBarBackButton(
+          onTap: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const WelcomePage()),
+              (route) => false,
+            );
+          },
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -194,54 +192,48 @@ class _VerifyResetCodePageState extends State<VerifyResetCodePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "A reset code was sent to:",
-              style: TextStyle(color: Colors.white70),
+              t.translate("reset_code_sent_to"),
+              style: const TextStyle(color: Colors.white70),
             ),
             Text(
               widget.email,
-              style: TextStyle(
+              style: const TextStyle(
                 color: AppColors.accent,
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
-
             Gaps.h20,
-
             TextField(
               controller: codeCtrl,
-              decoration: const InputDecoration(
-                labelText: "Code",
-                hintText: "6-digit code",
+              decoration: InputDecoration(
+                labelText: t.translate("code"),
+                hintText: t.translate("hint_code"),
               ),
             ),
-
             Gaps.h20,
-
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: loading ? null : verifyCode,
                 child: loading
                     ? const CircularProgressIndicator()
-                    : const Text("Verify"),
+                    : Text(t.translate("verify_btn")),
               ),
             ),
-
             Gaps.h20,
-
             Center(
               child: TextButton(
                 onPressed: resendCooldown ? null : resendCode,
                 child: resendCooldown
                     ? Text(
-                  "Resend in ${cooldownSeconds}s",
-                  style: const TextStyle(color: Colors.grey),
-                )
-                    : const Text(
-                  "Resend Code",
-                  style: TextStyle(color: Colors.white),
-                ),
+                        "${t.translate("resend_wait").replaceAll("{seconds}", cooldownSeconds.toString())}",
+                        style: const TextStyle(color: Colors.grey),
+                      )
+                    : Text(
+                        t.translate("resend_btn"),
+                        style: const TextStyle(color: Colors.white),
+                      ),
               ),
             ),
           ],
