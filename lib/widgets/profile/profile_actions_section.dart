@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../core/account_storage.dart';
-import '../../auth/login.dart';
 import '../../localization/app_localizations.dart';
 
 class ProfileActionsSection extends StatelessWidget {

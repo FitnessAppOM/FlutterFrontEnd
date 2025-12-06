@@ -8,9 +8,13 @@ import 'verify_reset_code_page.dart';
 import '../../widgets/appbar_back_button.dart';
 import 'package:http/http.dart' as http;
 import '../../localization/app_localizations.dart';
+import '../../widgets/app_toast.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
-  const ForgotPasswordPage({super.key});
+  final String? lockedEmail;
+  final bool lockEmailField;
+
+  const ForgotPasswordPage({super.key, this.lockedEmail, this.lockEmailField = false});
 
   @override
   State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
@@ -20,13 +24,26 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final TextEditingController emailCtrl = TextEditingController();
   bool loading = false;
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.lockedEmail != null && widget.lockEmailField) {
+      emailCtrl.text = widget.lockedEmail!;
+    }
+  }
+
   Future<void> sendResetCode() async {
     final t = AppLocalizations.of(context);
-    final email = emailCtrl.text.trim();
+    final email = widget.lockEmailField && widget.lockedEmail != null
+        ? widget.lockedEmail!.trim()
+        : emailCtrl.text.trim();
 
     if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.translate("error_required_fields"))),
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        t.translate("error_required_fields"),
+        type: AppToastType.error,
       );
       return;
     }
@@ -52,13 +69,19 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         );
       } else {
         final data = jsonDecode(response.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data["detail"].toString())),
+        if (!mounted) return;
+        AppToast.show(
+          context,
+          data["detail"].toString(),
+          type: AppToastType.error,
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("${t.translate("network_error")}: $e")),
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        "${t.translate("network_error")}: $e",
+        type: AppToastType.error,
       );
     } finally {
       if (mounted) setState(() => loading = false);
@@ -76,11 +99,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         title: Text(t.translate("forgot_password")),
         leading: AppBarBackButton(
           onTap: () {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (_) => const WelcomePage()),
-              (route) => false,
-            );
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const WelcomePage()),
+                (route) => false,
+              );
+            }
           },
         ),
       ),
@@ -90,6 +117,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           children: [
             TextField(
               controller: emailCtrl,
+              enabled: !(widget.lockEmailField && widget.lockedEmail != null),
               decoration: InputDecoration(
                 labelText: t.translate("email"),
                 hintText: "example@gmail.com",

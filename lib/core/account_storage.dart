@@ -6,6 +6,10 @@ class AccountStorage {
   static const _kName = 'last_name';
   static const _kVerified = 'last_verified';
   static const _kToken = 'auth_token';
+  static const _kIsExpert = 'is_expert';
+  static const _kQuestionnaireDone = 'questionnaire_done';
+  static const _kExpertQuestionnaireDone = 'expert_questionnaire_done';
+  static const _kAvatarPath = 'avatar_path';
 
   // Save everything after login
   static Future<void> saveUserSession({
@@ -14,12 +18,27 @@ class AccountStorage {
     required String name,
     required bool verified,
     String? token,
+    bool? isExpert,
+    bool? questionnaireDone,
+    bool? expertQuestionnaireDone,
   }) async {
     final sp = await SharedPreferences.getInstance();
+    final existingQuestionnaireDone = sp.getBool(_kQuestionnaireDone) ?? false;
+    final existingExpertQuestionnaireDone =
+        sp.getBool(_kExpertQuestionnaireDone) ?? false;
+
     await sp.setInt(_kUserId, userId);
     await sp.setString(_kEmail, email);
     await sp.setString(_kName, name);
     await sp.setBool(_kVerified, verified);
+    if (isExpert != null) {
+      await sp.setBool(_kIsExpert, isExpert);
+    }
+    // Preserve questionnaire completion unless explicitly provided
+    await sp.setBool(
+        _kQuestionnaireDone, questionnaireDone ?? existingQuestionnaireDone);
+    await sp.setBool(_kExpertQuestionnaireDone,
+        expertQuestionnaireDone ?? existingExpertQuestionnaireDone);
     if (token != null) {
       await sp.setString(_kToken, token);
     }
@@ -45,6 +64,56 @@ class AccountStorage {
     return sp.getBool(_kVerified) ?? false;
   }
 
+  static Future<bool> isExpert() async {
+    final sp = await SharedPreferences.getInstance();
+    return sp.getBool(_kIsExpert) ?? false;
+  }
+
+  static Future<void> setQuestionnaireDone(bool done) async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setBool(_kQuestionnaireDone, done);
+  }
+
+  static Future<bool> isQuestionnaireDone() async {
+    final sp = await SharedPreferences.getInstance();
+    return sp.getBool(_kQuestionnaireDone) ?? false;
+  }
+
+  static Future<void> setExpertQuestionnaireDone(bool done) async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setBool(_kExpertQuestionnaireDone, done);
+  }
+
+  static Future<bool> isExpertQuestionnaireDone() async {
+    final sp = await SharedPreferences.getInstance();
+    return sp.getBool(_kExpertQuestionnaireDone) ?? false;
+  }
+
+  static Future<void> setName(String name) async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setString(_kName, name);
+  }
+
+  static Future<void> setAvatarPath(String path) async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setString(_kAvatarPath, path);
+  }
+
+  static Future<String?> getAvatarPath() async {
+    final sp = await SharedPreferences.getInstance();
+    return sp.getString(_kAvatarPath);
+  }
+
+  static Future<void> setAvatarUrl(String url) async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setString("avatar_url", url);
+  }
+
+  static Future<String?> getAvatarUrl() async {
+    final sp = await SharedPreferences.getInstance();
+    return sp.getString("avatar_url");
+  }
+
 static Future<void> clearSession() async {
   final sp = await SharedPreferences.getInstance();
 
@@ -52,6 +121,9 @@ static Future<void> clearSession() async {
   await sp.remove(_kUserId);     // logged-in identity
   await sp.remove(_kToken);      // JWT/session token
   await sp.remove(_kVerified);   // verification flag
+  await sp.remove(_kIsExpert);
+  await sp.remove(_kQuestionnaireDone);
+  await sp.remove(_kExpertQuestionnaireDone);
 
 
 }
@@ -70,5 +142,8 @@ static Future<void> clearSessionOnly() async {
     await sp.remove(_kName);
     await sp.remove(_kVerified);
     await sp.remove(_kToken);
+    await sp.remove(_kIsExpert);
+    await sp.remove(_kQuestionnaireDone);
+    await sp.remove(_kExpertQuestionnaireDone);
   }
 }

@@ -19,7 +19,7 @@ class QuestionnaireInfoChip extends StatelessWidget {
     return Chip(
       avatar: Icon(icon, size: 18, color: cs.primary),
       label: Text(label),
-      backgroundColor: cs.primary.withOpacity(0.06),
+      backgroundColor: cs.primary.withValues(alpha: 0.06),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(24),
       ),

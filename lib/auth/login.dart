@@ -16,6 +16,10 @@ import '../localization/app_localizations.dart';
 import '../screens/ForgetPassword/forgot_password_page.dart';
 import '../main/main_layout.dart';           // <-- MAIN PAGE
 import 'email_verification_page.dart';
+import '../services/profile_service.dart';
+import 'questionnaire.dart';
+import 'expert_questionnaire.dart';
+import '../widgets/app_toast.dart';
 
 class LoginPage extends StatefulWidget {
   final String? prefilledEmail;
@@ -34,6 +38,9 @@ class _LoginPageState extends State<LoginPage> {
   String? lastEmail;
   String? lastName;
   bool lastVerified = false;
+  bool lastIsExpert = false;
+  bool lastQuestionnaireDone = false;
+  bool lastExpertQuestionnaireDone = false;
 
   @override
   void initState() {
@@ -48,12 +55,80 @@ class _LoginPageState extends State<LoginPage> {
     final e = await AccountStorage.getEmail();
     final n = await AccountStorage.getName();
     final v = await AccountStorage.isVerified();
+    final isExpert = await AccountStorage.isExpert();
+    final qDone = await AccountStorage.isQuestionnaireDone();
+    final qExpertDone = await AccountStorage.isExpertQuestionnaireDone();
 
     if (!mounted) return;
     setState(() {
       lastEmail = e;
       lastName = v ? n : null;
       lastVerified = v;
+      lastIsExpert = isExpert;
+      lastQuestionnaireDone = qDone;
+      lastExpertQuestionnaireDone = qExpertDone;
+    });
+  }
+
+  Future<void> _navigatePostAuth({
+    required int userId,
+    required bool isExpert,
+  }) async {
+    try {
+      final profile = await ProfileApi.fetchProfile(userId);
+      final serverDone = profile["filled_user_questionnaire"] == true;
+      final hasData = serverDone || _hasQuestionnaireData(profile);
+      if (serverDone) {
+        await AccountStorage.setQuestionnaireDone(true);
+        await AccountStorage.setExpertQuestionnaireDone(true);
+      }
+      if (!mounted) return;
+      if (hasData) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const MainLayout()),
+          (route) => false,
+        );
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => isExpert
+                ? const ExpertQuestionnairePage()
+                : const QuestionnairePage(),
+          ),
+          (route) => false,
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => isExpert
+              ? const ExpertQuestionnairePage()
+              : const QuestionnairePage(),
+        ),
+        (route) => false,
+      );
+    }
+  }
+
+  bool _hasQuestionnaireData(Map<String, dynamic> profile) {
+    const keys = [
+      "age",
+      "fitness_goal",
+      "training_days",
+      "diet_type",
+      "height_cm",
+      "weight_kg",
+      "sex",
+    ];
+    return keys.any((k) {
+      final v = profile[k];
+      if (v == null) return false;
+      final s = v.toString().trim();
+      return s.isNotEmpty && s != "null";
     });
   }
 
@@ -64,8 +139,11 @@ class _LoginPageState extends State<LoginPage> {
     final pass = password.text;
 
     if (mail.isEmpty || pass.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.translate("error_required_fields"))),
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        t.translate("error_required_fields"),
+        type: AppToastType.error,
       );
       return;
     }
@@ -102,6 +180,10 @@ class _LoginPageState extends State<LoginPage> {
                 emailFromApi.split('@').first)
             .toString();
         final token = data?['token']?.toString();
+        final storedEmail = await AccountStorage.getEmail();
+        final storedExpert = (storedEmail != null && storedEmail == emailFromApi)
+            ? await AccountStorage.isExpert()
+            : false;
 
         // Save session
         await AccountStorage.saveUserSession(
@@ -110,25 +192,20 @@ class _LoginPageState extends State<LoginPage> {
           name: name,
           verified: true,
           token: token,
+          isExpert: storedExpert,
+          questionnaireDone: await AccountStorage.isQuestionnaireDone(),
+          expertQuestionnaireDone:
+              await AccountStorage.isExpertQuestionnaireDone(),
         );
 
         if (!mounted) return;
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              t.translate("welcome_user").replaceFirst("{name}", name),
-            ),
-          ),
-        );
+        final qDone = await AccountStorage.isQuestionnaireDone();
+        final qExpertDone = await AccountStorage.isExpertQuestionnaireDone();
 
-        // ------------------------------------------------
-        // REDIRECT TO MAIN LAYOUT
-        // ------------------------------------------------
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const MainLayout()),
-          (route) => false,
+        await _navigatePostAuth(
+          userId: userId,
+          isExpert: storedExpert,
         );
 
         return;
@@ -142,8 +219,7 @@ class _LoginPageState extends State<LoginPage> {
       if (response.statusCode == 403 &&
           detail.toLowerCase().contains('verify')) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(detail)));
+        AppToast.show(context, detail, type: AppToastType.info);
 
         Navigator.push(
           context,
@@ -153,12 +229,13 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(detail)));
+      AppToast.show(context, detail, type: AppToastType.error);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("${t.translate("network_error")}: $e")),
+      AppToast.show(
+        context,
+        "${t.translate("network_error")}: $e",
+        type: AppToastType.error,
       );
     } finally {
       if (mounted) setState(() => loading = false);
@@ -171,8 +248,10 @@ class _LoginPageState extends State<LoginPage> {
     final result = await signInWithGoogle();
     if (result == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.translate("google_failed"))),
+      AppToast.show(
+        context,
+        t.translate("google_failed"),
+        type: AppToastType.error,
       );
       return;
     }
@@ -198,9 +277,7 @@ class _LoginPageState extends State<LoginPage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.translate("google_success"))),
-      );
+      AppToast.show(context, t.translate("google_success"), type: AppToastType.success);
 
       // Redirect to main
       Navigator.pushAndRemoveUntil(
@@ -210,9 +287,7 @@ class _LoginPageState extends State<LoginPage> {
       );
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.translate("google_invalid"))),
-      );
+      AppToast.show(context, t.translate("google_invalid"), type: AppToastType.error);
     }
   }
 

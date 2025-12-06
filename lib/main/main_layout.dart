@@ -67,7 +67,7 @@ class _MainLayoutState extends State<MainLayout> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: selected ? AppColors.accent.withOpacity(0.2) : Colors.transparent,
+          color: selected ? AppColors.accent.withValues(alpha: 0.2) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(

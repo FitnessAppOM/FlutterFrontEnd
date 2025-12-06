@@ -14,7 +14,7 @@ class ApiConfig {
     // ---------------------------
     if (Platform.isIOS) {
       // CHANGE THIS EVERY TIME YOUR MAC IP CHANGES
-      const macLocalIP = "10.192.7.69";
+      const macLocalIP = "127.0.0.1";
       return "http://$macLocalIP:8000";
     }
 

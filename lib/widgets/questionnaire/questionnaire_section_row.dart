@@ -23,7 +23,7 @@ class QuestionnaireSectionRow extends StatelessWidget {
       children: [
         Container(
           decoration: BoxDecoration(
-            color: cs.primary.withOpacity(0.08),
+            color: cs.primary.withValues(alpha: 0.08),
             shape: BoxShape.circle,
           ),
           padding: const EdgeInsets.all(8),
@@ -44,7 +44,7 @@ class QuestionnaireSectionRow extends StatelessWidget {
               Text(
                 subtitle,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: cs.onSurface.withOpacity(0.7),
+                  color: cs.onSurface.withValues(alpha: 0.7),
                 ),
               ),
             ],

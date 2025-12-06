@@ -1,0 +1,434 @@
+import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
+import '../localization/app_localizations.dart';
+import '../widgets/lang_button.dart';
+import '../core/locale_controller.dart';
+import 'ForgetPassword/forgot_password_page.dart';
+import '../services/profile_service.dart';
+import '../core/account_storage.dart';
+import '../widgets/app_toast.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter/services.dart';
+import '../consents/consent_manager.dart';
+
+class SettingsPage extends StatefulWidget {
+  const SettingsPage({super.key});
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  final _usernameController = TextEditingController();
+  bool _updatingUsername = false;
+  bool _updatingAvatar = false;
+  String? _email;
+
+  String get _langCode => localeController.locale.languageCode;
+
+  void _changeLanguage(Locale locale) {
+    localeController.setLocale(locale);
+    setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEmail();
+  }
+
+  Future<void> _showSuccessDialog(String message) async {
+    if (!mounted) return;
+    final t = AppLocalizations.of(context);
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: AppColors.black,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.check_circle, color: AppColors.accent, size: 42),
+              const SizedBox(height: 12),
+              Text(
+                t.translate("settings"),
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(t.translate("ok")),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadEmail() async {
+    final email = await AccountStorage.getEmail();
+    if (mounted) {
+      setState(() {
+        _email = email;
+      });
+    }
+  }
+
+  Future<void> _pickAvatar() async {
+    if (_updatingAvatar) return;
+    final picker = ImagePicker();
+
+    // Request camera/photos permissions so the picker works smoothly
+    final granted = await ConsentManager.requestCameraOrGalleryForAvatar();
+    if (!granted) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        AppLocalizations.of(context).translate("permissions_required"),
+        type: AppToastType.error,
+      );
+      return;
+    }
+
+    setState(() => _updatingAvatar = true);
+    try {
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 85,
+      );
+      if (picked == null) {
+        setState(() => _updatingAvatar = false);
+        return;
+      }
+      final userId = await AccountStorage.getUserId();
+      if (userId == null) {
+        if (!mounted) return;
+        AppToast.show(
+          context,
+          AppLocalizations.of(context).translate("user_missing"),
+          type: AppToastType.error,
+        );
+        return;
+      }
+      final url = await ProfileApi.uploadAvatar(userId, picked.path);
+      await AccountStorage.setAvatarUrl(url);
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        AppLocalizations.of(context).translate("avatar_updated"),
+        type: AppToastType.success,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, e.toString(), type: AppToastType.error);
+    } finally {
+      if (mounted) setState(() => _updatingAvatar = false);
+    }
+  }
+
+  Future<void> _showSupportDialog({
+    required String title,
+    required String body,
+  }) async {
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: AppColors.black,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            title,
+            style: const TextStyle(color: Colors.white),
+          ),
+          content: Text(
+            body,
+            style: const TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(AppLocalizations.of(context).translate("ok")),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _promptChangeUsername() async {
+    final t = AppLocalizations.of(context);
+    _usernameController.text = await AccountStorage.getName() ?? "";
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: AppColors.black,
+          title: Text(
+            t.translate("settings_change_username"),
+            style: const TextStyle(color: Colors.white),
+          ),
+          content: TextField(
+            controller: _usernameController,
+            decoration: InputDecoration(
+              labelText: t.translate("settings_change_username"),
+              hintText: "yourname_123",
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(t.translate("cancel")),
+            ),
+            TextButton(
+              onPressed: _updatingUsername ? null : () async {
+                final newUsername = _usernameController.text.trim();
+                final currentUsername = await AccountStorage.getName() ?? "";
+                if (newUsername.isEmpty || newUsername == currentUsername) {
+                  Navigator.pop(ctx);
+                  return;
+                }
+                setState(() => _updatingUsername = true);
+                try {
+                  final userId = await AccountStorage.getUserId();
+                  if (userId == null) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(t.translate("user_missing"))),
+                    );
+                    setState(() => _updatingUsername = false);
+                    return;
+                  }
+                  final updated = await ProfileApi.updateUsername(userId, newUsername);
+                  await AccountStorage.setName(updated);
+                  await _showSuccessDialog(
+                    "${t.translate("username_updated")}: $updated",
+                  );
+                  if (Navigator.canPop(ctx)) Navigator.pop(ctx);
+                } catch (e) {
+                  if (!mounted) return;
+                  AppToast.show(
+                    context,
+                    e.toString(),
+                    type: AppToastType.error,
+                  );
+                } finally {
+                  if (mounted) {
+                    setState(() => _updatingUsername = false);
+                  }
+                }
+              },
+              child: _updatingUsername
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(t.translate("save")),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+
+    return Scaffold(
+      backgroundColor: AppColors.black,
+      appBar: AppBar(
+        backgroundColor: AppColors.black,
+        title: Text(t.translate("settings")),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text(
+            t.translate("settings_language"),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              LangButton(
+                label: "EN",
+                flag: "🇬🇧",
+                selected: _langCode == "en",
+                onTap: () => _changeLanguage(const Locale('en')),
+              ),
+              LangButton(
+                label: "AR",
+                flag: "🇸🇦",
+                selected: _langCode == "ar",
+                onTap: () => _changeLanguage(const Locale('ar')),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Text(
+            t.translate("settings_profile"),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _SettingsTile(
+            title: t.translate("settings_change_username"),
+            subtitle: t.translate("settings_change_username_sub"),
+            icon: Icons.person_outline,
+            onTap: _promptChangeUsername,
+          ),
+          _SettingsTile(
+            title: t.translate("settings_change_avatar"),
+            subtitle: t.translate("settings_change_avatar_sub"),
+            icon: _updatingAvatar ? Icons.hourglass_bottom : Icons.image_outlined,
+            onTap: _pickAvatar,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            t.translate("settings_security"),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _SettingsTile(
+            title: t.translate("settings_change_password"),
+            subtitle: t.translate("settings_change_password_sub"),
+            icon: Icons.lock_reset,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ForgotPasswordPage(
+                    lockedEmail: _email,
+                    lockEmailField: _email != null,
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 24),
+          Text(
+            t.translate("settings_support"),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _SettingsTile(
+            title: t.translate("settings_contact"),
+            subtitle: t.translate("settings_contact_sub"),
+            icon: Icons.mail_outline,
+            onTap: () => _showSupportDialog(
+              title: t.translate("settings_contact"),
+              body: t.translate("settings_contact_body"),
+            ),
+          ),
+          _SettingsTile(
+            title: t.translate("settings_help"),
+            subtitle: t.translate("settings_help_sub"),
+            icon: Icons.help_outline,
+            onTap: () => _showSupportDialog(
+              title: t.translate("settings_help"),
+              body: t.translate("settings_help_body"),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingsTile extends StatelessWidget {
+  const _SettingsTile({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E1E),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white10),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: AppColors.accent),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.white54),
+          ],
+        ),
+      ),
+    );
+  }
+}

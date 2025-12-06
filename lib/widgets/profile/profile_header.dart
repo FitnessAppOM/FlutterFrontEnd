@@ -1,11 +1,23 @@
 import 'package:flutter/material.dart';
 import '../../localization/app_localizations.dart';
 import '../../theme/app_theme.dart';
-import '../../core/account_storage.dart';
 import '../../screens/welcome.dart';
+import '../../screens/settings_page.dart';
+import '../../config/base_url.dart';
+import '../../core/account_storage.dart';
+import '../../widgets/app_toast.dart';
 
 class ProfileHeader extends StatelessWidget {
-  const ProfileHeader({super.key});
+  const ProfileHeader({
+    super.key,
+    this.name,
+    this.occupation,
+    this.avatarUrl,
+  });
+
+  final String? name;
+  final String? occupation;
+  final String? avatarUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -14,10 +26,15 @@ class ProfileHeader extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        const CircleAvatar(
+        CircleAvatar(
           radius: 38,
           backgroundColor: AppColors.greyDark,
-          child: Icon(Icons.person, size: 48, color: Colors.white),
+          backgroundImage: (avatarUrl != null && avatarUrl!.isNotEmpty)
+              ? NetworkImage(_fullUrl(avatarUrl!)) as ImageProvider
+              : null,
+          child: (avatarUrl == null || avatarUrl!.isEmpty)
+              ? const Icon(Icons.person, size: 48, color: Colors.white)
+              : null,
         ),
 
         const SizedBox(width: 16),
@@ -27,7 +44,7 @@ class ProfileHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                t.translate("profile_user_name"),
+                name ?? t.translate("profile_user_name"),
                 style: const TextStyle(
                   color: AppColors.white,
                   fontSize: 20,
@@ -36,7 +53,7 @@ class ProfileHeader extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                t.translate("profile_occupation"),
+                occupation ?? t.translate("profile_occupation"),
                 style: const TextStyle(
                   color: AppColors.textDim,
                   fontSize: 14,
@@ -49,7 +66,10 @@ class ProfileHeader extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.settings, color: Colors.white, size: 26),
           onPressed: () {
-            // TODO: navigate to Settings
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsPage()),
+            );
           },
         ),
 
@@ -57,6 +77,7 @@ class ProfileHeader extends StatelessWidget {
           icon: const Icon(Icons.logout, color: Colors.redAccent, size: 26),
           onPressed: () async {
             await AccountStorage.clearSessionOnly();
+            if (!context.mounted) return;
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(
@@ -68,5 +89,10 @@ class ProfileHeader extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  String _fullUrl(String path) {
+    if (path.startsWith("http")) return path;
+    return "${ApiConfig.baseUrl}$path";
   }
 }

@@ -9,6 +9,7 @@ import '../../widgets/appbar_back_button.dart';
 import '../../screens/welcome.dart';
 import '../../localization/app_localizations.dart';
 import 'reset_password_page.dart';
+import '../../widgets/app_toast.dart';
 
 class VerifyResetCodePage extends StatefulWidget {
   final String email;
@@ -103,18 +104,27 @@ class _VerifyResetCodePageState extends State<VerifyResetCodePage> {
       );
 
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.translate("reset_code_resent"))),
+        if (!mounted) return;
+        AppToast.show(
+          context,
+          t.translate("reset_code_resent"),
+          type: AppToastType.success,
         );
       } else {
         final data = jsonDecode(response.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data["detail"].toString())),
+        if (!mounted) return;
+        AppToast.show(
+          context,
+          data["detail"].toString(),
+          type: AppToastType.error,
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("${t.translate("network_error")}: $e")),
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        "${t.translate("network_error")}: $e",
+        type: AppToastType.error,
       );
     }
   }
@@ -124,8 +134,11 @@ class _VerifyResetCodePageState extends State<VerifyResetCodePage> {
     final code = codeCtrl.text.trim();
 
     if (code.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.translate("enter_reset_code"))),
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        t.translate("enter_reset_code"),
+        type: AppToastType.error,
       );
       return;
     }
@@ -154,13 +167,19 @@ class _VerifyResetCodePageState extends State<VerifyResetCodePage> {
         );
       } else {
         final data = jsonDecode(response.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data["detail"].toString())),
+        if (!mounted) return;
+        AppToast.show(
+          context,
+          data["detail"].toString(),
+          type: AppToastType.error,
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("${t.translate("network_error")}: $e")),
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        "${t.translate("network_error")}: $e",
+        type: AppToastType.error,
       );
     } finally {
       setState(() => loading = false);

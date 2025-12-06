@@ -9,11 +9,18 @@ import '../theme/spacing.dart';
 import '../widgets/primary_button.dart';
 import '../localization/app_localizations.dart';   // ADDED
 import 'questionnaire.dart';
+import 'expert_questionnaire.dart';
+import '../widgets/app_toast.dart';
 
 class EmailVerificationPage extends StatefulWidget {
   final String email;
+  final bool isExpert;
 
-  const EmailVerificationPage({super.key, required this.email});
+  const EmailVerificationPage({
+    super.key,
+    required this.email,
+    this.isExpert = false,
+  });
 
   @override
   State<EmailVerificationPage> createState() => _EmailVerificationPageState();
@@ -74,15 +81,20 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
           name: email.split('@').first,
           verified: true,
           token: null,
+          isExpert: widget.isExpert,
+          questionnaireDone: false,
+          expertQuestionnaireDone: false,
         );
-
-        _show(t.translate("verified_success"));
 
         if (!mounted) return;
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const QuestionnairePage()),
+          MaterialPageRoute(
+            builder: (_) => widget.isExpert
+                ? const ExpertQuestionnairePage()
+                : const QuestionnairePage(),
+          ),
         );
         return;
       }
@@ -146,9 +158,9 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
   }
 
   // ---------------- helpers ----------------
-  void _show(String text) {
+  void _show(String text, {AppToastType type = AppToastType.info}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    AppToast.show(context, text, type: type);
   }
 
   String _obfuscateEmail(String email) {

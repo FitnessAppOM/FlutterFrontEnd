@@ -13,6 +13,10 @@ import '../localization/app_localizations.dart';
 import '../main/main_layout.dart';
 import '../core/locale_controller.dart';
 import '../config/base_url.dart';
+import '../services/profile_service.dart';
+import '../auth/questionnaire.dart';
+import '../auth/expert_questionnaire.dart';
+import '../widgets/app_toast.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -47,6 +51,9 @@ class _WelcomePageState extends State<WelcomePage> {
   String? lastEmail;
   String? lastName;
   bool lastVerified = false;
+  bool lastIsExpert = false;
+  bool lastQuestionnaireDone = false;
+  bool lastExpertQuestionnaireDone = false;
 
   void _changeLanguage(Locale locale) {
     final callback = widget.onChangeLanguage ?? localeController.setLocale;
@@ -86,10 +93,13 @@ class _WelcomePageState extends State<WelcomePage> {
   // -----------------------------------------------------------------------------
   // LOAD LOCAL USER + AUTO LOGIN
   // -----------------------------------------------------------------------------
-Future<void> _loadLastUser() async {
-  final e = await AccountStorage.getEmail();
-  final n = await AccountStorage.getName();
-  final v = await AccountStorage.isVerified();
+  Future<void> _loadLastUser() async {
+    final e = await AccountStorage.getEmail();
+    final n = await AccountStorage.getName();
+    final v = await AccountStorage.isVerified();
+    final isExpert = await AccountStorage.isExpert();
+    final qDone = await AccountStorage.isQuestionnaireDone();
+    final qExpertDone = await AccountStorage.isExpertQuestionnaireDone();
 
   if (!mounted) return;
 
@@ -98,6 +108,9 @@ Future<void> _loadLastUser() async {
     setState(() {
       lastEmail = e;
       lastVerified = v;
+      lastIsExpert = isExpert;
+      lastQuestionnaireDone = qDone;
+      lastExpertQuestionnaireDone = qExpertDone;
       lastName = v ? n : null;
     });
     return;
@@ -105,22 +118,87 @@ Future<void> _loadLastUser() async {
 
   // Normal auto-redirect
   if (e != null && e.isNotEmpty && v == true) {
-final exists = await checkUserExistsBackend(e);
-   if (exists != null) {   // user exists
-  Navigator.pushReplacement(
-    context,
-    MaterialPageRoute(builder: (_) => const MainLayout()),
-  );
-  return;
-}
+    final exists = await checkUserExistsBackend(e);
+    if (exists != null) {
+      await _navigatePostAuth(
+        userId: exists.id,
+        isExpert: isExpert,
+      );
+      return;
+    }
   }
 
   setState(() {
     lastEmail = e;
     lastVerified = v;
+    lastIsExpert = isExpert;
+    lastQuestionnaireDone = qDone;
+    lastExpertQuestionnaireDone = qExpertDone;
     lastName = v ? n : null;
   });
 }
+
+  Future<void> _navigatePostAuth({
+    required int userId,
+    required bool isExpert,
+  }) async {
+    try {
+      final profile = await ProfileApi.fetchProfile(userId);
+      final serverDone = profile["filled_user_questionnaire"] == true;
+      final hasData = serverDone || _hasQuestionnaireData(profile);
+      if (serverDone) {
+        await AccountStorage.setQuestionnaireDone(true);
+        await AccountStorage.setExpertQuestionnaireDone(true);
+      }
+      if (!mounted) return;
+      if (hasData) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const MainLayout()),
+          (route) => false,
+        );
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => isExpert
+                ? const ExpertQuestionnairePage()
+                : const QuestionnairePage(),
+          ),
+          (route) => false,
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => isExpert
+              ? const ExpertQuestionnairePage()
+              : const QuestionnairePage(),
+        ),
+        (route) => false,
+      );
+    }
+  }
+
+  bool _hasQuestionnaireData(Map<String, dynamic> profile) {
+    const keys = [
+      "age",
+      "fitness_goal",
+      "training_days",
+      "diet_type",
+      "height_cm",
+      "weight_kg",
+      "sex",
+    ];
+    return keys.any((k) {
+      final v = profile[k];
+      if (v == null) return false;
+      final s = v.toString().trim();
+      return s.isNotEmpty && s != "null";
+    });
+  }
 
   // -----------------------------------------------------------------------------
   @override
@@ -171,7 +249,7 @@ final exists = await checkUserExistsBackend(e);
                         'assets/images/BGWELC.jpg',
                         fit: BoxFit.cover,
                       ),
-                      Container(color: Colors.black.withOpacity(0.25)),
+                      Container(color: Colors.black.withValues(alpha: 0.25)),
                     ],
                   ),
                 ),
@@ -201,29 +279,30 @@ final exists = await checkUserExistsBackend(e);
                       title: "${t.translate("login_as")} $displayName",
                       onTap: () async {
                         final email = lastEmail!;
+                        final isExpert = lastIsExpert;
 
                         final exists = await checkUserExistsBackend(email);
                         if (exists == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Account no longer exists."),
-                            ),
+                          if (!mounted) return;
+                          AppToast.show(
+                            context,
+                            t.translate("account_no_longer_exists"),
+                            type: AppToastType.error,
                           );
                           return;
                         }
 
-                        await AccountStorage.saveUserSession(
-                          userId: exists.id,
-                          email: email,
-                          name: displayName,
-                          verified: true,
-                        );
+                            await AccountStorage.saveUserSession(
+                              userId: exists.id,
+                              email: email,
+                              name: displayName,
+                              verified: true,
+                              isExpert: isExpert,
+                            );
 
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const MainLayout()),
-                          (route) => false,
+                        await _navigatePostAuth(
+                          userId: exists.id,
+                          isExpert: isExpert,
                         );
                       },
                       onMenu: () {},
@@ -279,6 +358,25 @@ final exists = await checkUserExistsBackend(e);
                         ),
                       ),
                     ],
+                  ),
+
+                  TextButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SignupPage(isExpert: true),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.workspace_premium, color: AppColors.accent),
+                    label: Text(
+                      t.translate("signup_as_expert"),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: AppColors.accent,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ],
               ),

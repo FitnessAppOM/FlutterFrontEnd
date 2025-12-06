@@ -3,7 +3,18 @@ import '../../localization/app_localizations.dart';
 import 'section_title.dart';
 
 class ProfileGoalsSection extends StatelessWidget {
-  const ProfileGoalsSection({super.key});
+  const ProfileGoalsSection({
+    super.key,
+    required this.mainGoal,
+    required this.workoutFreq,
+    required this.dietPref,
+    required this.experience,
+  });
+
+  final String mainGoal;
+  final String workoutFreq;
+  final String dietPref;
+  final String experience;
 
   @override
   Widget build(BuildContext context) {
@@ -15,9 +26,10 @@ class ProfileGoalsSection extends StatelessWidget {
         SectionTitle(text: t.translate("profile_goals_title")),
         const SizedBox(height: 12),
 
-        _goalTile(t.translate("profile_main_goal"), "—"),
-        _goalTile(t.translate("profile_workout_freq"), "—"),
-        _goalTile(t.translate("profile_diet_pref"), "—"),
+        _goalTile(t.translate("profile_main_goal"), mainGoal),
+        _goalTile(t.translate("profile_workout_freq"), workoutFreq),
+        _goalTile(t.translate("profile_diet_pref"), dietPref),
+        _goalTile(t.translate("profile_experience"), experience),
       ],
     );
   }

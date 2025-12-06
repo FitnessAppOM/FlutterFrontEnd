@@ -10,9 +10,12 @@ import '../widgets/social_button.dart';
 import '../widgets/divider_with_label.dart';
 import '../localization/app_localizations.dart';   //  ADDED
 import 'email_verification_page.dart';
+import '../widgets/app_toast.dart';
 
 class SignupPage extends StatefulWidget {
-  const SignupPage({super.key});
+  const SignupPage({super.key, this.isExpert = false});
+
+  final bool isExpert;
 
   @override
   State<SignupPage> createState() => _SignupPageState();
@@ -39,9 +42,9 @@ class _SignupPageState extends State<SignupPage> {
     super.dispose();
   }
 
-  void _showSnack(String msg) {
+  void _showSnack(String msg, {AppToastType type = AppToastType.error}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    AppToast.show(context, msg, type: type);
   }
 
   bool _validateInput() {
@@ -113,7 +116,10 @@ class _SignupPageState extends State<SignupPage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => EmailVerificationPage(email: mail),
+            builder: (_) => EmailVerificationPage(
+              email: mail,
+              isExpert: widget.isExpert,
+            ),
           ),
         );
       } else {
@@ -156,6 +162,8 @@ class _SignupPageState extends State<SignupPage> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final titleKey = widget.isExpert ? "signup_expert_title" : "signup_title";
+    final buttonKey = widget.isExpert ? "signup_expert_btn" : "signup_btn";
 
     final canSubmit = !loading &&
         username.text.trim().isNotEmpty &&
@@ -167,13 +175,40 @@ class _SignupPageState extends State<SignupPage> {
       backgroundColor: AppColors.black,
       appBar: AppBar(
         backgroundColor: AppColors.black,
-        title: Text(t.translate("signup_title")),
+        title: Text(t.translate(titleKey)),
         elevation: 0,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
+            if (widget.isExpert) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.workspace_premium, color: AppColors.accent),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        t.translate("signup_expert_note"),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppColors.white,
+                            ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             // Username
             TextField(
               controller: username,
@@ -238,7 +273,7 @@ class _SignupPageState extends State<SignupPage> {
                         child: CircularProgressIndicator(
                             color: Colors.black, strokeWidth: 2),
                       )
-                    : Text(t.translate("signup_btn")),
+                    : Text(t.translate(buttonKey)),
               ),
             ),
 

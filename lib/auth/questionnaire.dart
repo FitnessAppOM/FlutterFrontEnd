@@ -6,8 +6,8 @@ import '../widgets/primary_button.dart';
 import '../widgets/questionnaire/questionnaire_form.dart';
 import '../services/questionnaire_service.dart';
 import '../core/account_storage.dart';
-import '../../widgets/appbar_back_button.dart';
-import '../screens/welcome.dart';
+import '../main/main_layout.dart';
+import '../widgets/app_toast.dart';
 
 class QuestionnairePage extends StatefulWidget {
   const QuestionnairePage({super.key});
@@ -59,7 +59,7 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
           Text(
             t.translate("questionnaire_intro_text"),
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: cs.onSurface.withOpacity(0.7),
+              color: cs.onSurface.withValues(alpha: 0.7),
             ),
           ),
           const SizedBox(height: 24),
@@ -147,7 +147,7 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
             child: Text(
               t.translate("update_later"),
               style: theme.textTheme.bodySmall?.copyWith(
-                color: cs.onSurface.withOpacity(0.6),
+                color: cs.onSurface.withValues(alpha: 0.6),
               ),
             ),
           ),
@@ -166,9 +166,7 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
           try {
             final userId = await AccountStorage.getUserId();
             if (userId == null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(t.translate("user_missing"))),
-              );
+              AppToast.show(context, t.translate("user_missing"), type: AppToastType.error);
               return;
             }
 
@@ -180,13 +178,21 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
             await QuestionnaireApi.submitQuestionnaire(payload);
 
             if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(t.translate("save_success"))),
+            AppToast.show(context, t.translate("save_success"), type: AppToastType.success);
+            await AccountStorage.setQuestionnaireDone(true);
+            if (!mounted) return;
+
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const MainLayout()),
+              (route) => false,
             );
           } catch (e) {
             if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("${t.translate("save_error")}: $e")),
+            AppToast.show(
+              context,
+              "${t.translate("save_error")}: $e",
+              type: AppToastType.error,
             );
           }
         },

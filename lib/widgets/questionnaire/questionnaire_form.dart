@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import '../primary_button.dart';
 import '../../localization/app_localizations.dart';
-import 'questionnaire_slider_field.dart';
 import 'cupertino_picker_field.dart';
 import 'height_picker_with_body.dart';
 import 'weight_picker_popup.dart';
+import '../app_toast.dart';
 
 class QuestionnaireForm extends StatefulWidget {
   const QuestionnaireForm({
@@ -97,8 +97,10 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
 
     if (consent == 'No') {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_t("consent_required"))),
+      AppToast.show(
+        context,
+        _t("consent_required"),
+        type: AppToastType.error,
       );
       return;
     }
@@ -128,7 +130,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
             Text(
               _sectionSubtitle,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: cs.onSurface.withOpacity(0.7),
+                color: cs.onSurface.withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 16),
@@ -138,7 +140,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
               child: Text(
                 "${_t("step")} ${_currentSection + 1} ${_t("of")} $_totalSections",
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: cs.onSurface.withOpacity(0.6),
+                  color: cs.onSurface.withValues(alpha: 0.6),
                 ),
               ),
             ),

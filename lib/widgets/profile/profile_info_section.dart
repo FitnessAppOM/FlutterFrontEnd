@@ -3,7 +3,20 @@ import '../../localization/app_localizations.dart';
 import 'section_title.dart';
 
 class ProfileInfoSection extends StatelessWidget {
-  const ProfileInfoSection({super.key});
+  const ProfileInfoSection({
+    super.key,
+    required this.age,
+    required this.sex,
+    required this.height,
+    required this.occupation,
+    required this.weight,
+  });
+
+  final String age;
+  final String sex;
+  final String height;
+  final String occupation;
+  final String weight;
 
   @override
   Widget build(BuildContext context) {
@@ -15,10 +28,11 @@ class ProfileInfoSection extends StatelessWidget {
         SectionTitle(text: t.translate("profile_info_title")),
         const SizedBox(height: 12),
 
-        _infoTile(t.translate("profile_age"), "—"),
-        _infoTile(t.translate("profile_sex"), "—"),
-        _infoTile(t.translate("profile_height"), "—"),
-        _infoTile(t.translate("profile_occupation"), "—"),
+        _infoTile(t.translate("profile_age"), age),
+        _infoTile(t.translate("profile_sex"), sex),
+        _infoTile(t.translate("profile_height"), height),
+        _infoTile(t.translate("profile_weight"), weight),
+        _infoTile(t.translate("profile_occupation"), occupation),
       ],
     );
   }

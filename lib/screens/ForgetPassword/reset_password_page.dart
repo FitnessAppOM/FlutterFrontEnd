@@ -8,6 +8,7 @@ import '../../widgets/appbar_back_button.dart';
 import '../../auth/login.dart';
 import '../../screens/welcome.dart';
 import '../../localization/app_localizations.dart';
+import '../../widgets/app_toast.dart';
 
 class ResetPasswordPage extends StatefulWidget {
   final String email;
@@ -36,15 +37,21 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     final rePw = retypeCtrl.text.trim();
 
     if (newPw.isEmpty || rePw.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.translate("fill_all_fields"))),
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        t.translate("fill_all_fields"),
+        type: AppToastType.error,
       );
       return;
     }
 
     if (newPw != rePw) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.translate("passwords_do_not_match"))),
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        t.translate("passwords_do_not_match"),
+        type: AppToastType.error,
       );
       return;
     }
@@ -69,14 +76,20 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       final data = response.body.isNotEmpty ? jsonDecode(response.body) : null;
 
       if (response.statusCode != 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data?["detail"] ?? t.translate("reset_failed"))),
+        if (!mounted) return;
+        AppToast.show(
+          context,
+          data?["detail"] ?? t.translate("reset_failed"),
+          type: AppToastType.error,
         );
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.translate("password_reset_success"))),
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        t.translate("password_reset_success"),
+        type: AppToastType.success,
       );
 
       Navigator.pushAndRemoveUntil(
@@ -85,8 +98,11 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         (route) => false,
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("${t.translate("network_error")}: $e")),
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        "${t.translate("network_error")}: $e",
+        type: AppToastType.error,
       );
     } finally {
       setState(() => loading = false);
