@@ -51,14 +51,16 @@ class ProfileHeader extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                occupation ?? t.translate("profile_occupation"),
-                style: const TextStyle(
-                  color: AppColors.textDim,
-                  fontSize: 14,
+              if (occupation != null && occupation!.trim().isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  occupation!,
+                  style: const TextStyle(
+                    color: AppColors.textDim,
+                    fontSize: 14,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),

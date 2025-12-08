@@ -75,7 +75,8 @@ class _LoginPageState extends State<LoginPage> {
     required bool isExpert,
   }) async {
     try {
-      final profile = await ProfileApi.fetchProfile(userId);
+      final lang = AppLocalizations.of(context).locale.languageCode;
+      final profile = await ProfileApi.fetchProfile(userId, lang: lang);
       final serverDone = profile["filled_user_questionnaire"] == true;
       final hasData = serverDone || _hasQuestionnaireData(profile);
       if (serverDone) {

@@ -143,7 +143,8 @@ class _WelcomePageState extends State<WelcomePage> {
     required bool isExpert,
   }) async {
     try {
-      final profile = await ProfileApi.fetchProfile(userId);
+      final lang = AppLocalizations.of(context).locale.languageCode;
+      final profile = await ProfileApi.fetchProfile(userId, lang: lang);
       final serverDone = profile["filled_user_questionnaire"] == true;
       final hasData = serverDone || _hasQuestionnaireData(profile);
       if (serverDone) {
@@ -358,25 +359,6 @@ class _WelcomePageState extends State<WelcomePage> {
                         ),
                       ),
                     ],
-                  ),
-
-                  TextButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const SignupPage(isExpert: true),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.workspace_premium, color: AppColors.accent),
-                    label: Text(
-                      t.translate("signup_as_expert"),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: AppColors.accent,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
                   ),
                 ],
               ),

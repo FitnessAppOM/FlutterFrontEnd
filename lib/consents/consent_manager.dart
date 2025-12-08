@@ -186,6 +186,23 @@ class ConsentManager {
     return true;
   }
 
+  // Files/documents (PDF/images) for uploads
+  static Future<bool> requestFileAccessJIT() async {
+    if (Platform.isAndroid) {
+      // Try media/photos first, then fall back to storage for PDFs.
+      var photos = await Permission.photos.status;
+      if (_isGrantedOrLimited(photos)) return true;
+
+      photos = await Permission.photos.request();
+      if (_isGrantedOrLimited(photos)) return true;
+
+      final storage = await Permission.storage.request();
+      return storage.isGranted;
+    }
+    // iOS prompts on first access.
+    return true;
+  }
+
   // ---------------------------------------------------------------------------
   // CAMERA or PHOTOS combo for avatar pickers
   // ---------------------------------------------------------------------------

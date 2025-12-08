@@ -7,6 +7,7 @@ import '../../widgets/profile/profile_actions_section.dart';
 import '../../localization/app_localizations.dart';
 import '../../core/account_storage.dart';
 import '../../services/profile_service.dart';
+import 'edit_profile_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -20,15 +21,32 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _loading = true;
   String? _error;
   String? _avatarUrl;
+  bool _didLoadProfile = false;
 
   @override
   void initState() {
     super.initState();
-    _loadProfile();
+    // Wait for localization to be available before loading
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadProfile();
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Fallback if post-frame never fired (defensive)
+    if (!_didLoadProfile) {
+      _loadProfile();
+    }
   }
 
   Future<void> _loadProfile() async {
+    _didLoadProfile = true;
     try {
+      final lang = AppLocalizations.of(context).locale.languageCode;
       final avatar = await AccountStorage.getAvatarUrl();
       final userId = await AccountStorage.getUserId();
       if (userId == null) {
@@ -39,7 +57,7 @@ class _ProfilePageState extends State<ProfilePage> {
         });
         return;
       }
-      final data = await ProfileApi.fetchProfile(userId);
+      final data = await ProfileApi.fetchProfile(userId, lang: lang);
       if (!mounted) return;
       setState(() {
         _profile = data;
@@ -70,65 +88,67 @@ class _ProfilePageState extends State<ProfilePage> {
     final value = raw.toString().trim();
     if (value.isEmpty) return "";
 
-    final normalized = value.toLowerCase().replaceAll('_', ' ').replaceAll('-', ' ');
+    final normalized = _normalizeValue(value);
 
-    const Map<String, Map<String, String>> map = {
-      "sex": {
-        "male": "male",
-        "female": "female",
-        "prefer not to say": "prefer_not",
-      },
-      "daily_activity": {
-        "sedentary": "sedentary",
-        "moderate": "moderate",
-        "active": "active",
-        "highly active": "highly_active",
-      },
-      "fitness_goal": {
-        "lose weight": "lose_weight",
-        "gain muscle": "gain_muscle",
-        "improve endurance": "improve_endurance",
-        "maintain fitness": "maintain_fitness",
-        "improve health": "improve_health",
-      },
-      "diet_type": {
-        "no pref": "no_pref",
-        "no preference": "no_pref",
-        "high protein": "high_protein",
-        "low carb": "low_carb",
-        "vegetarian": "vegetarian",
-        "vegan": "vegan",
-        "fasting": "fasting",
-        "other": "other",
-      },
-      "fitness_experience": {
-        "beginner": "beginner",
-        "intermediate": "intermediate",
-        "intermidiate": "intermediate",
-        "advanced": "advanced",
-      },
+    const Map<String, List<String>> optionKeys = {
+      "sex": ["male", "female", "prefer_not"],
+      "daily_activity": ["sedentary", "moderate", "active", "highly_active"],
+      "fitness_goal": [
+        "lose_weight",
+        "gain_muscle",
+        "improve_endurance",
+        "maintain_fitness",
+        "improve_health",
+      ],
+      "diet_type": [
+        "no_pref",
+        "high_protein",
+        "low_carb",
+        "vegetarian",
+        "vegan",
+        "fasting",
+        "other",
+      ],
+      "fitness_experience": ["beginner", "intermediate", "advanced"],
     };
 
-    // Loose matching for experience strings like "Intermediate (6–24 months)"
-    if (field == "fitness_experience") {
-      if (normalized.contains("beginner")) {
-        return t.translate("beginner");
-      }
-      if (normalized.contains("intermediate") || normalized.contains("intermidiate")) {
-        return t.translate("intermediate");
-      }
-      if (normalized.contains("advanced")) {
-        return t.translate("advanced");
+    final keys = optionKeys[field];
+    if (keys == null) return value;
+
+    final en = AppLocalizations(const Locale('en'));
+    final ar = AppLocalizations(const Locale('ar'));
+
+    for (final key in keys) {
+      final normalizedKey = _normalizeValue(key);
+      final normalizedEn = _normalizeValue(en.translate(key));
+      final normalizedAr = _normalizeValue(ar.translate(key));
+
+      final matches = _matches(normalized, normalizedKey) ||
+          _matches(normalized, normalizedEn) ||
+          _matches(normalized, normalizedAr);
+
+      if (matches) {
+        // Preserve custom "other" text; otherwise translate to current locale
+        if (key == "other") return value;
+        return t.translate(key);
       }
     }
 
-    final fieldMap = map[field];
-    if (fieldMap == null) return value;
+    return value;
+  }
 
-    final key = fieldMap[normalized];
-    if (key == null) return value;
+  String _normalizeValue(String input) {
+    return input
+        .toLowerCase()
+        .replaceAll(RegExp(r'[_-]'), ' ')
+        .replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
 
-    return t.translate(key);
+  bool _matches(String target, String candidate) {
+    if (candidate.isEmpty) return false;
+    return target == candidate || target.contains(candidate) || candidate.contains(target);
   }
 
   @override
@@ -138,6 +158,13 @@ class _ProfilePageState extends State<ProfilePage> {
     final name = _profile?["name"]?.toString();
     final occupation =
         _translateOption("daily_activity", _profile?["occupation"], t);
+    final affiliationName = _profile?["affiliation_name"]?.toString();
+    final affiliationOther = _profile?["affiliation_other_text"]?.toString();
+    final affiliationDisplay = (affiliationName != null && affiliationName.trim().isNotEmpty)
+        ? affiliationName
+        : (affiliationOther != null && affiliationOther.trim().isNotEmpty)
+            ? affiliationOther
+            : "";
     final age = _profile?["age"]?.toString();
     final sex = _translateOption("sex", _profile?["sex"], t);
     final height = _profile?["height_cm"]?.toString();
@@ -180,31 +207,45 @@ class _ProfilePageState extends State<ProfilePage> {
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ProfileHeader(
-                          name: _display(name),
-                          occupation: _display(occupation),
-                          avatarUrl: _avatarUrl,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ProfileHeader(
+                              name: _display(name),
+                              occupation: affiliationDisplay.isNotEmpty ? affiliationDisplay : null,
+                              avatarUrl: _avatarUrl,
+                            ),
+                            const SizedBox(height: 24),
+                            ProfileInfoSection(
+                              age: _display(age),
+                              sex: _display(sex),
+                              height: _displayWithUnit(height, "cm"),
+                              occupation: _display(occupation),
+                              weight: _displayWithUnit(weight, "kg"),
+                            ),
+                            const SizedBox(height: 24),
+                            ProfileGoalsSection(
+                              mainGoal: _display(mainGoal),
+                              workoutFreq: _displayDays(trainingDays),
+                              dietPref: _display(dietType),
+                              experience: _display(fitnessExperience),
+                            ),
+                            const SizedBox(height: 24),
+                        ProfileActionsSection(
+                          onEditProfile: () async {
+                            if (_profile == null) return;
+                            final updated = await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => EditProfilePage(
+                                  profile: _profile!,
+                                ),
+                              ),
+                            );
+                            if (updated == true) {
+                              _loadProfile();
+                            }
+                          },
                         ),
-                        const SizedBox(height: 24),
-                        ProfileInfoSection(
-                          age: _display(age),
-                          sex: _display(sex),
-                          height: _displayWithUnit(height, "cm"),
-                          occupation: _display(occupation),
-                          weight: _displayWithUnit(weight, "kg"),
-                        ),
-                        const SizedBox(height: 24),
-                        ProfileGoalsSection(
-                          mainGoal: _display(mainGoal),
-                          workoutFreq: _displayDays(trainingDays),
-                          dietPref: _display(dietType),
-                          experience: _display(fitnessExperience),
-                        ),
-                        const SizedBox(height: 24),
-                        const ProfileActionsSection(),
                       ],
                     ),
                   ),

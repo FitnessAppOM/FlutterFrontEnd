@@ -5,6 +5,7 @@ import 'cupertino_picker_field.dart';
 import 'height_picker_with_body.dart';
 import 'weight_picker_popup.dart';
 import '../app_toast.dart';
+import '../../services/affiliation_service.dart';
 
 class QuestionnaireForm extends StatefulWidget {
   const QuestionnaireForm({
@@ -21,9 +22,34 @@ class QuestionnaireForm extends StatefulWidget {
 class _QuestionnaireFormState extends State<QuestionnaireForm> {
   final _formKey = GlobalKey<FormState>();
   final Map<String, String> _values = {};
+  final Map<String, TextEditingController> _otherControllers = {};
   int _currentSection = 0;
+  final TextEditingController _affiliationOtherCtrl = TextEditingController();
+  final TextEditingController _chronicCtrl = TextEditingController();
 
-  static const _totalSections = 6;
+  static const _totalSections = 7;
+  List<String> _affiliationCategories = [];
+  List<Map<String, dynamic>> _affiliations = [];
+  String? _selectedAffiliationCategory;
+  bool _affiliationsLoading = false;
+  String? _affiliationError;
+  String? get _affiliationChoice => _values["affiliation_choice"];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAffiliationCategories();
+  }
+
+  @override
+  void dispose() {
+    _affiliationOtherCtrl.dispose();
+    for (final c in _otherControllers.values) {
+      c.dispose();
+    }
+    _chronicCtrl.dispose();
+    super.dispose();
+  }
 
   void _saveField(String key, String? value) {
     _values[key] = value?.trim() ?? '';
@@ -46,6 +72,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       case 4:
         return _t("sec_lifestyle_title");
       case 5:
+        return _t("sec_affiliation_title");
+      case 6:
         return _t("sec_health_title");
       default:
         return "";
@@ -65,9 +93,55 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       case 4:
         return _t("sec_lifestyle_sub");
       case 5:
+        return _t("sec_affiliation_sub");
+      case 6:
         return _t("sec_health_sub");
       default:
         return "";
+    }
+  }
+
+  Future<void> _loadAffiliationCategories() async {
+    try {
+      final categories = await AffiliationApi.fetchCategories();
+      if (!mounted) return;
+      setState(() {
+        _affiliationCategories =
+            categories.where((c) => !_isOther(c)).toList();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _affiliationError = _t("affiliation_load_error");
+      });
+    }
+  }
+
+  Future<void> _loadAffiliationsForCategory(String category) async {
+    setState(() {
+      _affiliationsLoading = true;
+      _affiliationError = null;
+    });
+
+    try {
+      final items = await AffiliationApi.fetchByCategory(category);
+      if (!mounted) return;
+      setState(() {
+        _affiliations =
+            items.where((item) => !_isOther(item["name"]?.toString() ?? "")).toList();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _affiliationError = _t("affiliation_load_error");
+        _affiliations = [];
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _affiliationsLoading = false;
+        });
+      }
     }
   }
 
@@ -105,8 +179,131 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       return;
     }
 
-    widget.onSubmit?.call(_values);
+    final cleanedValues = Map<String, String>.from(_values);
+    final affiliationId = (_values['affiliation_id'] ?? '').trim();
+    final affiliationOther = (_values['affiliation_other_text'] ?? '').trim();
+    final affiliationChoice = _affiliationChoice;
+
+    if (affiliationChoice == _t("yes")) {
+      if (affiliationId.isEmpty && affiliationOther.isEmpty) {
+        if (!mounted) return;
+        AppToast.show(
+          context,
+          _t("affiliation_required"),
+          type: AppToastType.error,
+        );
+        return;
+      }
+
+      if (affiliationId.isNotEmpty) {
+        cleanedValues['affiliation_id'] = affiliationId;
+        cleanedValues.remove('affiliation_other_text');
+      } else {
+        cleanedValues.remove('affiliation_id');
+        cleanedValues['affiliation_other_text'] = affiliationOther;
+      }
+    } else if (affiliationChoice == _t("no")) {
+      cleanedValues.remove('affiliation_id');
+      cleanedValues['affiliation_other_text'] = _t("affiliation_none_value");
+    } else {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        _t("affiliation_required"),
+        type: AppToastType.error,
+      );
+      return;
+    }
+
+    const singleChoiceOptions = {
+      "sex": ["male", "female", "prefer_not"],
+      "main_goal": ["lose_weight", "gain_muscle", "improve_endurance", "maintain_fitness", "improve_health"],
+      "motivation": ["look_better", "feel_stronger", "health_better", "more_energy", "mental_wellbeing"],
+      "important_muscles": ["arms", "shoulders", "abs", "back", "legs", "all_body"],
+      "time_to_change": ["4", "8", "12", "no_timeframe"],
+      "event_deadline": ["sport", "wedding", "birthday", "vacation", "other", "no"],
+      "body_type": ["slender", "average", "muscular", "heavy"],
+      "fitness_experience": ["beginner", "intermediate", "advanced"],
+      "training_days": ["1", "2", "3", "4", "5", "6"],
+      "preferred_time": ["morning", "noon", "afternoon", "evening", "flexible"],
+      "training_location": ["gym", "home", "hybrid"],
+      "equipment": ["dumbbells", "barbell", "resistance_bands", "bodyweight", "machines", "mix"],
+      "training_style": ["strength", "hypertrophy", "functional", "endurance", "hiit", "mobility"],
+      "train_mode": ["alone", "partner", "trainer"],
+      "auto_recovery": ["yes", "no"],
+      "diet_type": ["no_pref", "high_protein", "low_carb", "vegetarian", "vegan", "fasting", "other"],
+      "meals_per_day": ["2", "3", "4", "5", "6"],
+      "food_habit": ["cook", "eat_out", "mix"],
+      "kitchen_access": ["yes", "no"],
+      "water_intake": ["<1l", "1–2l", "2–3l", ">3l"],
+      "meal_plan": ["low_budget", "moderate", "flexible"],
+      "daily_activity": ["sedentary", "moderate", "active", "highly_active"],
+      "sleep_hours": ["<6", "6–7", "7–8", ">8"],
+      "sleep_consistency": ["regular", "irregular"],
+      "wake_feeling": ["tired", "okay", "refreshed"],
+      "stress_level": ["low", "moderate", "high"],
+      "auto_adjust": ["yes", "no"],
+      "consent": ["yes", "no"],
+    };
+
+    const multiChoiceOptions = {
+      "past_injuries": ["shoulder", "back", "knee", "elbow", "none"],
+      "allergies": ["dairy", "gluten", "nuts", "shellfish", "none", "other"],
+      "supplements": ["protein", "creatine", "multivitamin", "none", "other"],
+    };
+
+    singleChoiceOptions.forEach((field, options) {
+      if (cleanedValues.containsKey(field)) {
+        final v = cleanedValues[field]?.trim() ?? "";
+        if (v.isEmpty) return;
+        cleanedValues[field] = _toEnglishChoice(v, options);
+      }
+    });
+
+    multiChoiceOptions.forEach((field, options) {
+      if (cleanedValues.containsKey(field)) {
+        final v = cleanedValues[field]?.trim() ?? "";
+        if (v.isEmpty) return;
+        cleanedValues[field] = _toEnglishMulti(v, options);
+      }
+    });
+
+    widget.onSubmit?.call(cleanedValues);
     if (!mounted) return;
+  }
+
+  bool _isOther(String value) => value.trim().toLowerCase() == "other";
+
+  String _norm(String value) => value
+      .toLowerCase()
+      .replaceAll('_', ' ')
+      .replaceAll('-', ' ')
+      .replaceAll('–', ' ')
+      .trim();
+
+  String _toEnglishChoice(String value, List<String> keys) {
+    final normalized = _norm(value);
+    for (final key in keys) {
+      if (normalized == _norm(key) || normalized == _norm(_t(key))) {
+        return key;
+      }
+    }
+    return value;
+  }
+
+  String _toEnglishMulti(String value, List<String> keys) {
+    if (value.trim().isEmpty) return value;
+    final parts = value
+        .split(',')
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty)
+        .map((p) => _toEnglishChoice(p, keys))
+        .toSet();
+    return parts.join(", ");
+  }
+
+  TextEditingController _otherControllerFor(String key) {
+    return _otherControllers.putIfAbsent(key, () => TextEditingController());
   }
 
   @override
@@ -186,6 +383,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       case 4:
         return _buildLifestyleSection();
       case 5:
+        return _buildAffiliationSection();
+      case 6:
         return _buildHealthSettingsSection();
       default:
         return [];
@@ -479,12 +678,15 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     ];
   }
 
+  List<Widget> _buildAffiliationSection() {
+    return [
+      _buildAffiliationFields(),
+    ];
+  }
+
   List<Widget> _buildHealthSettingsSection() {
     return [
-      _buildTextField(
-        label: _t("chronic_conditions"),
-        keyName: "chronic_conditions",
-      ),
+      _buildChronicConditionsField(),
       _buildChoiceField(
         label: _t("auto_adjust"),
         keyName: "auto_adjust",
@@ -496,6 +698,247 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         options: [_t("yes"), _t("no")],
       ),
     ];
+  }
+
+  Widget _buildAffiliationFields() {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final selectedAffiliationId =
+        (_values["affiliation_id"]?.isNotEmpty ?? false) ? _values["affiliation_id"] : null;
+    final affiliationChoice = _affiliationChoice;
+
+    // Keep controller in sync with stored values
+    if ((_values["affiliation_other_text"] ?? "").isNotEmpty &&
+        _affiliationOtherCtrl.text != _values["affiliation_other_text"]) {
+      _affiliationOtherCtrl.text = _values["affiliation_other_text"]!;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _t("affiliation_heading"),
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          key: const ValueKey("affiliation_choice"),
+          decoration: InputDecoration(
+            labelText: _t("affiliation_prompt"),
+            border: const OutlineInputBorder(),
+          ),
+          value: affiliationChoice,
+          items: [
+            _t("yes"),
+            _t("no"),
+          ]
+              .map(
+                (c) => DropdownMenuItem<String>(
+                  value: c,
+                  child: Text(c),
+                ),
+              )
+              .toList(),
+          validator: (val) {
+            if (val == null || val.isEmpty) {
+              return _t("select_option");
+            }
+            return null;
+          },
+          onChanged: (val) {
+            setState(() {
+              _saveField("affiliation_choice", val);
+              if (val == _t("no")) {
+                _values.remove("affiliation_id");
+                _values.remove("affiliation_other_text");
+                _affiliationOtherCtrl.clear();
+                _affiliations = [];
+                _selectedAffiliationCategory = null;
+              }
+            });
+          },
+          onSaved: (val) => _saveField("affiliation_choice", val),
+        ),
+        if (affiliationChoice == _t("yes")) ...[
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            key: const ValueKey("affiliation_category"),
+            decoration: InputDecoration(
+              labelText: _t("affiliation_category"),
+              border: const OutlineInputBorder(),
+            ),
+            value: _selectedAffiliationCategory,
+            items: _affiliationCategories
+                .map(
+                  (c) => DropdownMenuItem<String>(
+                    value: c,
+                    child: Text(c),
+                  ),
+                )
+                .toList(),
+            validator: (val) {
+              if (affiliationChoice == _t("yes") &&
+                  (_affiliationOtherCtrl.text.trim().isEmpty) &&
+                  (val == null || val.isEmpty)) {
+                return _t("select_option");
+              }
+              return null;
+            },
+            onChanged: _affiliationCategories.isEmpty
+                ? null
+                : (val) {
+                    setState(() {
+                      _selectedAffiliationCategory = val;
+                      _affiliations = [];
+                      _values.remove("affiliation_id");
+                      _affiliationError = null;
+                    });
+                    if (val != null && val.isNotEmpty) {
+                      _loadAffiliationsForCategory(val);
+                    }
+                  },
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            key: const ValueKey("affiliation_id"),
+            decoration: InputDecoration(
+              labelText:
+                  _affiliationsLoading ? _t("affiliation_loading") : _t("affiliation_select"),
+              border: const OutlineInputBorder(),
+            ),
+            value: selectedAffiliationId,
+            isExpanded: true,
+            items: _affiliations
+                .map(
+                  (item) => DropdownMenuItem<String>(
+                    value: item["id"].toString(),
+                    child: Text(item["name"]?.toString() ?? ""),
+                  ),
+                )
+                .toList(),
+            validator: (val) {
+              if (affiliationChoice == _t("yes") &&
+                  (_affiliationOtherCtrl.text.trim().isEmpty) &&
+                  (val == null || val.isEmpty)) {
+                return _t("select_option");
+              }
+              return null;
+            },
+            onChanged: _affiliations.isEmpty || _affiliationsLoading
+                ? null
+                : (val) => setState(() => _saveField("affiliation_id", val)),
+            onSaved: (val) => _saveField("affiliation_id", val),
+          ),
+          if (_affiliationError != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              _affiliationError!,
+              style: theme.textTheme.bodySmall?.copyWith(color: cs.error),
+            ),
+          ],
+          const SizedBox(height: 12),
+          TextFormField(
+            key: const ValueKey("affiliation_other_text"),
+            controller: _affiliationOtherCtrl,
+            decoration: InputDecoration(
+              labelText: _t("affiliation_other"),
+              hintText: _t("affiliation_other_hint"),
+              border: const OutlineInputBorder(),
+            ),
+            onChanged: (val) => _saveField("affiliation_other_text", val),
+            onSaved: (val) => _saveField("affiliation_other_text", val),
+            validator: (val) {
+              if (affiliationChoice == _t("yes") &&
+                  (_values["affiliation_id"] ?? "").isEmpty &&
+                  (val == null || val.trim().isEmpty)) {
+                return _t("affiliation_required");
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _t("affiliation_help"),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: cs.onSurface.withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildChronicConditionsField() {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final choice = _values["chronic_choice"];
+    final yesLabel = _t("yes");
+    final noLabel = _t("no");
+
+    if ((_values["chronic_conditions"] ?? "").isNotEmpty &&
+        choice == yesLabel &&
+        _chronicCtrl.text != _values["chronic_conditions"]) {
+      _chronicCtrl.text = _values["chronic_conditions"]!;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DropdownButtonFormField<String>(
+          key: const ValueKey("chronic_choice"),
+          decoration: InputDecoration(
+            labelText: _t("chronic_prompt"),
+            border: const OutlineInputBorder(),
+          ),
+          value: choice,
+          items: [
+            DropdownMenuItem(value: yesLabel, child: Text(yesLabel)),
+            DropdownMenuItem(value: noLabel, child: Text(noLabel)),
+          ],
+          validator: (val) {
+            if (val == null || val.isEmpty) {
+              return _t("select_option");
+            }
+            return null;
+          },
+          onChanged: (val) {
+            setState(() {
+              _saveField("chronic_choice", val);
+              if (val == noLabel) {
+                _chronicCtrl.clear();
+                _saveField("chronic_conditions", _t("chronic_none_value"));
+              } else {
+                _saveField("chronic_conditions", _chronicCtrl.text);
+              }
+            });
+          },
+          onSaved: (val) => _saveField("chronic_choice", val),
+        ),
+        if (choice == yesLabel) ...[
+          const SizedBox(height: 12),
+          TextFormField(
+            key: const ValueKey("chronic_conditions_text"),
+            controller: _chronicCtrl,
+            decoration: InputDecoration(
+              labelText: _t("chronic_conditions"),
+              border: const OutlineInputBorder(),
+            ),
+            onChanged: (val) => _saveField("chronic_conditions", val),
+            onSaved: (val) => _saveField("chronic_conditions", val),
+            validator: (val) {
+              if (choice == yesLabel && (val == null || val.trim().isEmpty)) {
+                return _t("required");
+              }
+              return null;
+            },
+          ),
+        ] else ...[
+        ],
+      ],
+    );
   }
 
   Widget _simpleFieldRow(String label, String value) {
@@ -552,33 +995,87 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     required List<String> options,
   }) {
     final theme = Theme.of(context);
-    final current = _values[keyName];
+    final currentStored = _values[keyName];
+    final otherLabel = _t("other");
+    final hasOther = options.contains(otherLabel);
+    final otherCtrl = _otherControllerFor(keyName);
+
+    String? initialValue;
+    if (options.contains(currentStored)) {
+      initialValue = currentStored;
+    } else if (hasOther && (currentStored?.isNotEmpty ?? false)) {
+      initialValue = otherLabel;
+      if (otherCtrl.text != currentStored) {
+        otherCtrl.text = currentStored ?? "";
+      }
+    }
+
+    final showOtherField = hasOther && initialValue == otherLabel;
+    final isOtherSelected = showOtherField;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
-      child: DropdownButtonFormField<String>(
-        key: ValueKey(keyName),
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
-        initialValue: current,
-        items: options
-            .map(
-              (o) => DropdownMenuItem<String>(
-                value: o,
-                child: Text(o, style: theme.textTheme.bodyMedium),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DropdownButtonFormField<String>(
+            key: ValueKey(keyName),
+            decoration: InputDecoration(
+              labelText: label,
+              border: const OutlineInputBorder(),
+            ),
+            initialValue: initialValue,
+            items: options
+                .map(
+                  (o) => DropdownMenuItem<String>(
+                    value: o,
+                    child: Text(o, style: theme.textTheme.bodyMedium),
+                  ),
+                )
+                .toList(),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return _t("select_option");
+              }
+              if (value == otherLabel && otherCtrl.text.trim().isEmpty) {
+                return _t("required");
+              }
+              return null;
+            },
+            onChanged: (val) {
+              if (val != otherLabel) {
+                otherCtrl.clear();
+                _saveField(keyName, val);
+              } else {
+                _saveField(keyName, otherLabel);
+              }
+              setState(() {});
+            },
+            onSaved: (val) => _saveField(
+              keyName,
+              val == otherLabel ? otherCtrl.text : val,
+            ),
+          ),
+          if (hasOther && (showOtherField || otherCtrl.text.isNotEmpty)) ...[
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: otherCtrl,
+              decoration: InputDecoration(
+                labelText: _t("other"),
+                border: const OutlineInputBorder(),
               ),
-            )
-            .toList(),
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            return _t("select_option");
-          }
-          return null;
-        },
-        onChanged: (val) => _saveField(keyName, val),
-        onSaved: (val) => _saveField(keyName, val),
+              onChanged: (val) => _saveField(keyName, val),
+              validator: (val) {
+                if (isOtherSelected &&
+                    val != null &&
+                    val.trim().isEmpty) {
+                  return _t("required");
+                }
+                return null;
+              },
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -589,13 +1086,23 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     required List<String> options,
   }) {
     final theme = Theme.of(context);
+    final otherLabel = _t("other");
+    final hasOther = options.contains(otherLabel);
+    final otherCtrl = _otherControllerFor(keyName);
 
     return FormField<String>(
       key: ValueKey(keyName),
       initialValue: _values[keyName] ?? '',
       validator: (value) {
-        if (value == null || value.trim().isEmpty) {
+        final rawVal = value ?? '';
+        final parts = rawVal.isNotEmpty ? rawVal.split(', ') : <String>[];
+        if (parts.isEmpty) {
           return _t("select_one");
+        }
+        final hasCustom =
+            parts.any((p) => !options.contains(p)) || parts.contains(otherLabel);
+        if (hasCustom && otherCtrl.text.trim().isEmpty) {
+          return _t("required");
         }
         return null;
       },
@@ -605,6 +1112,39 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         final selected = <String>{
           if (raw.isNotEmpty) ...raw.split(', '),
         };
+
+        bool otherSelected = false;
+        String? customOther;
+        for (final s in selected) {
+          if (!options.contains(s) || s == otherLabel) {
+            otherSelected = true;
+            if (!options.contains(s)) {
+              customOther ??= s;
+            }
+          }
+        }
+
+        if (otherSelected && customOther != null && otherCtrl.text.isEmpty) {
+          otherCtrl.text = customOther;
+        }
+
+        String composeValue() {
+          final parts = <String>[];
+          for (final o in options) {
+            if (o == otherLabel) continue;
+            if (selected.contains(o)) {
+              parts.add(o);
+            }
+          }
+          if (otherSelected) {
+            parts.add(otherCtrl.text.isNotEmpty ? otherCtrl.text : otherLabel);
+          }
+          return parts.join(', ');
+        }
+
+        void updateValue() {
+          state.didChange(composeValue());
+        }
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 12.0),
@@ -617,23 +1157,41 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                 spacing: 8,
                 runSpacing: 4,
                 children: options.map((o) {
-                  final isSelected = selected.contains(o);
+                  final isSelected = o == otherLabel ? otherSelected : selected.contains(o);
                   return FilterChip(
                     label: Text(o),
                     selected: isSelected,
                     onSelected: (value) {
                       setState(() {
-                        if (value) {
-                          selected.add(o);
+                        if (o == otherLabel) {
+                          otherSelected = value;
+                          if (!value) {
+                            otherCtrl.clear();
+                          }
                         } else {
-                          selected.remove(o);
+                          if (value) {
+                            selected.add(o);
+                          } else {
+                            selected.remove(o);
+                          }
                         }
-                        state.didChange(selected.join(', '));
+                        updateValue();
                       });
                     },
                   );
                 }).toList(),
               ),
+              if (hasOther && (otherSelected || otherCtrl.text.isNotEmpty)) ...[
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: otherCtrl,
+                  decoration: InputDecoration(
+                    labelText: _t("other"),
+                    border: const OutlineInputBorder(),
+                  ),
+                  onChanged: (_) => updateValue(),
+                ),
+              ],
               if (state.hasError)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),

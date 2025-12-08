@@ -10,6 +10,7 @@ import '../widgets/app_toast.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
 import '../consents/consent_manager.dart';
+import '../auth/expert_questionnaire.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -23,6 +24,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _updatingUsername = false;
   bool _updatingAvatar = false;
   String? _email;
+  bool _expertQuestionnaireDone = false;
 
   String get _langCode => localeController.locale.languageCode;
 
@@ -35,6 +37,7 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     _loadEmail();
+    _loadExpertFlag();
   }
 
   Future<void> _showSuccessDialog(String message) async {
@@ -88,6 +91,13 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() {
         _email = email;
       });
+    }
+  }
+
+  Future<void> _loadExpertFlag() async {
+    final done = await AccountStorage.isExpertQuestionnaireDone();
+    if (mounted) {
+      setState(() => _expertQuestionnaireDone = done);
     }
   }
 
@@ -312,6 +322,28 @@ class _SettingsPageState extends State<SettingsPage> {
             subtitle: t.translate("settings_change_avatar_sub"),
             icon: _updatingAvatar ? Icons.hourglass_bottom : Icons.image_outlined,
             onTap: _pickAvatar,
+          ),
+          _SettingsTile(
+            title: t.translate("settings_be_expert"),
+            subtitle: t.translate("settings_be_expert_sub"),
+            icon: Icons.work_outline,
+            onTap: () async {
+              if (_expertQuestionnaireDone) {
+                AppToast.show(
+                  context,
+                  t.translate("expert_questionnaire_already_done"),
+                  type: AppToastType.info,
+                );
+                return;
+              }
+
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ExpertQuestionnairePage(),
+                ),
+              );
+              await _loadExpertFlag();
+            },
           ),
           const SizedBox(height: 12),
           Text(

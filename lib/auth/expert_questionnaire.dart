@@ -4,10 +4,11 @@ import '../widgets/primary_button.dart';
 import '../widgets/questionnaire/questionnaire_info_chip.dart';
 import '../widgets/questionnaire/questionnaire_section_row.dart';
 import '../widgets/questionnaire/expert_questionnaire_form.dart';
-import '../theme/app_theme.dart';
-import '../main/main_layout.dart';
 import '../core/account_storage.dart';
 import '../widgets/app_toast.dart';
+import 'expert_submission_success.dart';
+import '../services/expert_questionnaire_service.dart';
+import '../services/profile_service.dart';
 
 class ExpertQuestionnairePage extends StatefulWidget {
   const ExpertQuestionnairePage({super.key});
@@ -132,21 +133,38 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
     );
   }
 
-  Future<void> _submit() async {
+  Future<void> _submit(Map<String, dynamic> values) async {
+    final t = AppLocalizations.of(context);
+    final expertId = await AccountStorage.getUserId();
+    if (expertId == null) {
+      if (!mounted) return;
+      AppToast.show(context, t.translate("user_missing"), type: AppToastType.error);
+      return;
+    }
+
+    final payload = {
+      "expert_id": expertId,
+      ...values,
+    };
+
     setState(() => _submitting = true);
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    if (!mounted) return;
-    setState(() => _submitting = false);
-
-    await AccountStorage.setExpertQuestionnaireDone(true);
-    if (!mounted) return;
-
-    AppToast.show(context, _t("save_success"), type: AppToastType.success);
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const MainLayout()),
-      (route) => false,
-    );
+    try {
+      await ExpertQuestionnaireApi.submit(payload);
+      await ProfileApi.updateProfile({
+        "user_id": expertId,
+        "filled_expert_questionnaire": true,
+      });
+      await AccountStorage.setExpertQuestionnaireDone(true);
+      if (!mounted) return;
+      AppToast.show(context, _t("save_success"), type: AppToastType.success);
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const ExpertSubmissionSuccessPage()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, "$e", type: AppToastType.error);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 }

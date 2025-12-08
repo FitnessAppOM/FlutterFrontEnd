@@ -3,8 +3,9 @@ import 'package:http/http.dart' as http;
 import '../config/base_url.dart';
 
 class ProfileApi {
-  static Future<Map<String, dynamic>> fetchProfile(int userId) async {
-    final url = Uri.parse("${ApiConfig.baseUrl}/profile/$userId");
+  static Future<Map<String, dynamic>> fetchProfile(int userId, {String? lang}) async {
+    final langQuery = (lang != null && lang.isNotEmpty) ? "?lang=$lang" : "";
+    final url = Uri.parse("${ApiConfig.baseUrl}/profile/$userId$langQuery");
     final res = await http.get(url);
 
     if (res.statusCode == 200) {
@@ -49,6 +50,26 @@ class ProfileApi {
     }
 
     String msg = "Failed to update username";
+    try {
+      final data = jsonDecode(res.body);
+      msg = data["detail"]?.toString() ?? msg;
+    } catch (_) {}
+    throw Exception(msg);
+  }
+
+  static Future<void> updateProfile(Map<String, dynamic> payload) async {
+    final url = Uri.parse("${ApiConfig.baseUrl}/profile/update");
+    final res = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(payload),
+    );
+
+    if (res.statusCode == 200) {
+      return;
+    }
+
+    String msg = "Failed to update profile";
     try {
       final data = jsonDecode(res.body);
       msg = data["detail"]?.toString() ?? msg;

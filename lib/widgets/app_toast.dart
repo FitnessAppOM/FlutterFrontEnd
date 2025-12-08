@@ -26,12 +26,88 @@ class AppToast {
       _ => Icons.info_outline,
     };
 
-    final entry = OverlayEntry(
-      builder: (ctx) {
-        return Positioned(
-          left: 16,
-          right: 16,
-          bottom: 32,
+    OverlayEntry? entry;
+    entry = OverlayEntry(
+      builder: (ctx) => _ToastOverlay(
+        message: message,
+        color: color,
+        icon: icon,
+        duration: duration,
+        onDismiss: () {
+          if (entry != null && entry.mounted) {
+            entry.remove();
+          }
+        },
+      ),
+    );
+
+    overlay.insert(entry);
+  }
+}
+
+class _ToastOverlay extends StatefulWidget {
+  const _ToastOverlay({
+    required this.message,
+    required this.color,
+    required this.icon,
+    required this.duration,
+    required this.onDismiss,
+  });
+
+  final String message;
+  final Color color;
+  final IconData icon;
+  final Duration duration;
+  final VoidCallback onDismiss;
+
+  @override
+  State<_ToastOverlay> createState() => _ToastOverlayState();
+}
+
+class _ToastOverlayState extends State<_ToastOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<Offset> _offset;
+  late final Animation<double> _opacity;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+      reverseDuration: const Duration(milliseconds: 180),
+    );
+    final curve = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
+    _offset = Tween<Offset>(begin: const Offset(0, 0.16), end: Offset.zero).animate(curve);
+    _opacity = Tween<double>(begin: 0, end: 1).animate(curve);
+
+    _controller.forward();
+    _timer = Timer(widget.duration, () async {
+      if (!mounted) return;
+      await _controller.reverse();
+      if (mounted) widget.onDismiss();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: 16,
+      right: 16,
+      bottom: 32,
+      child: SlideTransition(
+        position: _offset,
+        child: FadeTransition(
+          opacity: _opacity,
           child: Material(
             color: Colors.transparent,
             child: Container(
@@ -39,7 +115,7 @@ class AppToast {
               decoration: BoxDecoration(
                 color: const Color(0xFF1E1E1E).withValues(alpha: 0.95),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: color.withValues(alpha: 0.6)),
+                border: Border.all(color: widget.color.withValues(alpha: 0.6)),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.35),
@@ -51,11 +127,11 @@ class AppToast {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(icon, color: color, size: 20),
+                  Icon(widget.icon, color: widget.color, size: 20),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      message,
+                      widget.message,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 14,
@@ -67,13 +143,8 @@ class AppToast {
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
-
-    overlay.insert(entry);
-    Timer(duration, () {
-      if (entry.mounted) entry.remove();
-    });
   }
 }

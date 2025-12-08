@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import '../../localization/app_localizations.dart';
 
 class ProfileActionsSection extends StatelessWidget {
-  const ProfileActionsSection({super.key});
+  const ProfileActionsSection({
+    super.key,
+    required this.onEditProfile,
+  });
+
+  final VoidCallback onEditProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +21,7 @@ class ProfileActionsSection extends StatelessWidget {
             foregroundColor: Colors.black,
             minimumSize: const Size(double.infinity, 48),
           ),
-          onPressed: () {},
+          onPressed: onEditProfile,
           child: Text(t.translate("edit_profile")),
         ),
         const SizedBox(height: 12),

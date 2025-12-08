@@ -36,6 +36,7 @@ dependencies:
   http: ^1.2.0
   shared_preferences: ^2.3.2
   image_picker: ^1.0.8
+  file_picker: ^8.0.0
 
   # Social login
   flutter_signin_button: ^2.1.1
