@@ -128,6 +128,19 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
               child: Text(_t("start_questionnaire")),
             ),
           ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+                side: BorderSide(color: cs.outlineVariant),
+                foregroundColor: cs.onSurface.withValues(alpha: 0.8),
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(_t("cancel")),
+            ),
+          ),
         ],
       ),
     );
@@ -150,10 +163,6 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
     setState(() => _submitting = true);
     try {
       await ExpertQuestionnaireApi.submit(payload);
-      await ProfileApi.updateProfile({
-        "user_id": expertId,
-        "filled_expert_questionnaire": true,
-      });
       await AccountStorage.setExpertQuestionnaireDone(true);
       if (!mounted) return;
       AppToast.show(context, _t("save_success"), type: AppToastType.success);

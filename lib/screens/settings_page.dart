@@ -328,15 +328,30 @@ class _SettingsPageState extends State<SettingsPage> {
             subtitle: t.translate("settings_be_expert_sub"),
             icon: Icons.work_outline,
             onTap: () async {
-              if (_expertQuestionnaireDone) {
+              final userId = await AccountStorage.getUserId();
+              if (userId == null) {
                 AppToast.show(
                   context,
-                  t.translate("expert_questionnaire_already_done"),
-                  type: AppToastType.info,
+                  t.translate("user_missing"),
+                  type: AppToastType.error,
                 );
                 return;
               }
-
+              try {
+                final lang = AppLocalizations.of(context).locale.languageCode;
+                final profile = await ProfileApi.fetchProfile(userId, lang: lang);
+                final done = profile["filled_expert_questionnaire"] == true;
+                if (done) {
+                  AppToast.show(
+                    context,
+                    t.translate("expert_questionnaire_already_done"),
+                    type: AppToastType.info,
+                  );
+                  return;
+                }
+              } catch (_) {
+                // If check fails, allow navigation so user can try
+              }
               await Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => const ExpertQuestionnairePage(),

@@ -10,6 +10,7 @@ class AccountStorage {
   static const _kQuestionnaireDone = 'questionnaire_done';
   static const _kExpertQuestionnaireDone = 'expert_questionnaire_done';
   static const _kAvatarPath = 'avatar_path';
+  static const _kAvatarUrl = 'avatar_url';
 
   // Save everything after login
   static Future<void> saveUserSession({
@@ -23,9 +24,21 @@ class AccountStorage {
     bool? expertQuestionnaireDone,
   }) async {
     final sp = await SharedPreferences.getInstance();
+    final previousUserId = sp.getInt(_kUserId);
+    final previousEmail = sp.getString(_kEmail);
+    final isDifferentUser =
+        (previousUserId != null && previousUserId != userId) ||
+        (previousEmail != null && previousEmail != email);
+
     final existingQuestionnaireDone = sp.getBool(_kQuestionnaireDone) ?? false;
     final existingExpertQuestionnaireDone =
         sp.getBool(_kExpertQuestionnaireDone) ?? false;
+
+    // Reset avatar cache when switching accounts
+    if (isDifferentUser) {
+      await sp.remove(_kAvatarUrl);
+      await sp.remove(_kAvatarPath);
+    }
 
     await sp.setInt(_kUserId, userId);
     await sp.setString(_kEmail, email);
@@ -106,12 +119,12 @@ class AccountStorage {
 
   static Future<void> setAvatarUrl(String url) async {
     final sp = await SharedPreferences.getInstance();
-    await sp.setString("avatar_url", url);
+    await sp.setString(_kAvatarUrl, url);
   }
 
   static Future<String?> getAvatarUrl() async {
     final sp = await SharedPreferences.getInstance();
-    return sp.getString("avatar_url");
+    return sp.getString(_kAvatarUrl);
   }
 
 static Future<void> clearSession() async {
@@ -124,6 +137,8 @@ static Future<void> clearSession() async {
   await sp.remove(_kIsExpert);
   await sp.remove(_kQuestionnaireDone);
   await sp.remove(_kExpertQuestionnaireDone);
+  await sp.remove(_kAvatarUrl);
+  await sp.remove(_kAvatarPath);
 
 
 }
@@ -145,5 +160,7 @@ static Future<void> clearSessionOnly() async {
     await sp.remove(_kIsExpert);
     await sp.remove(_kQuestionnaireDone);
     await sp.remove(_kExpertQuestionnaireDone);
+    await sp.remove(_kAvatarUrl);
+    await sp.remove(_kAvatarPath);
   }
 }

@@ -147,10 +147,8 @@ class _WelcomePageState extends State<WelcomePage> {
       final profile = await ProfileApi.fetchProfile(userId, lang: lang);
       final serverDone = profile["filled_user_questionnaire"] == true;
       final hasData = serverDone || _hasQuestionnaireData(profile);
-      if (serverDone) {
-        await AccountStorage.setQuestionnaireDone(true);
-        await AccountStorage.setExpertQuestionnaireDone(true);
-      }
+      await AccountStorage.setQuestionnaireDone(serverDone);
+      await AccountStorage.setExpertQuestionnaireDone(serverDone);
       if (!mounted) return;
       if (hasData) {
         Navigator.pushAndRemoveUntil(

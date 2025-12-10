@@ -7,7 +7,7 @@ import '../../widgets/profile/profile_actions_section.dart';
 import '../../localization/app_localizations.dart';
 import '../../core/account_storage.dart';
 import '../../services/profile_service.dart';
-import 'edit_profile_page.dart';
+import '../../screens/edit_profile_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});

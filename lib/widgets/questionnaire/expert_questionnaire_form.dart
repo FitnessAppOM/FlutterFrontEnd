@@ -44,6 +44,7 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
   String? _nationality;
   String? _residence;
   DateTime? _selectedDob;
+  bool _isAffiliated = false;
 
   // Sets for multi-choice
   final Set<String> _coreSpecialties = {};
@@ -210,12 +211,9 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
       return;
     }
 
-    // Certification validation
-    if (_hasCertification == null) {
-      _toast("Please choose if you have a certification.");
-      return;
-    }
-    if (_hasCertification == "Yes") {
+    // Certification validation (default to "No" if not selected)
+    final certChoice = _hasCertification ?? "No";
+    if (certChoice == "Yes") {
       if (_certType == null || _certType!.isEmpty) {
         _toast("Select certification type.");
         return;
@@ -230,10 +228,10 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
       }
     }
 
-    // Affiliation validation
+    final isAffiliated = _isAffiliated;
     final hasAffiliationId = _affiliationId != null && _affiliationId!.isNotEmpty;
     final otherAffiliation = (_affiliationOtherText ?? "").trim();
-    if (!hasAffiliationId && otherAffiliation.isEmpty) {
+    if (isAffiliated && !hasAffiliationId && otherAffiliation.isEmpty) {
       _toast("Please add your affiliation.");
       return;
     }
@@ -247,6 +245,12 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
       return;
     }
 
+    final selfieUrl = _c("selfie_file_url").text.trim().isEmpty
+        ? "test-selfie-placeholder"
+        : _c("selfie_file_url").text.trim();
+    final certFileUrl =
+        certChoice == "No" ? "" : _certFileCtrl.text.trim();
+
     final data = <String, dynamic>{
       "full_name": _c("full_name").text.trim(),
       "date_of_birth": dob,
@@ -258,13 +262,12 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
       "email_address": _c("email_address").text.trim(),
       "professional_role": _role,
       "professional_role_other": _c("professional_role_other").text.trim(),
-      "certification_type": _hasCertification == "No" ? "" : _certType,
+      "certification_type": certChoice == "No" ? "" : _certType,
       "certification_type_other":
-          _hasCertification == "No" ? "" : _certOtherCtrl.text.trim(),
-      "certification_file_url":
-          _hasCertification == "No" ? "" : _certFileCtrl.text.trim(),
+          certChoice == "No" ? "" : _certOtherCtrl.text.trim(),
+      "certification_file_url": certFileUrl,
       "government_id_file_url": _c("government_id_file_url").text.trim(),
-      "selfie_file_url": _c("selfie_file_url").text.trim(),
+      "selfie_file_url": selfieUrl,
       "years_experience": _yearsExperience,
       "core_specialties": _coreSpecialties
           .map((o) => o == "Other" && _coreOtherCtrl.text.trim().isNotEmpty
@@ -295,8 +298,10 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
       "refer_as_unassigned_coach": _referAsCoach == "Yes",
     };
 
-    data["affiliation_id"] = hasAffiliationId ? int.tryParse(_affiliationId!) : null;
-    data["affiliation_other_text"] = hasAffiliationId ? "" : otherAffiliation;
+    data["affiliation_id"] =
+        isAffiliated && hasAffiliationId ? int.tryParse(_affiliationId!) : null;
+    data["affiliation_other_text"] =
+        isAffiliated ? otherAffiliation : "";
 
     await widget.onSubmit?.call(data);
   }
@@ -339,6 +344,35 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
             const SizedBox(height: 16),
 
             _sectionTitle("Affiliation"),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  ChoiceChip(
+                    label: const Text("Affiliated"),
+                    selected: _isAffiliated,
+                    onSelected: (v) {
+                      setState(() {
+                        _isAffiliated = true;
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  ChoiceChip(
+                    label: const Text("Not affiliated"),
+                    selected: !_isAffiliated,
+                    onSelected: (v) {
+                      setState(() {
+                        _isAffiliated = false;
+                        _affiliationId = null;
+                        _affiliationOtherText = "";
+                        _affiliationName = null;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
             _affiliationSummary(),
             const SizedBox(height: 16),
 
@@ -446,8 +480,12 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
   }
 
   Widget _affiliationSummary() {
-    final label = _affiliationName ??
-        (_affiliationOtherText?.isNotEmpty == true ? _affiliationOtherText : "Not set");
+    final label = !_isAffiliated
+        ? "Not affiliated"
+        : _affiliationName ??
+            (_affiliationOtherText?.isNotEmpty == true
+                ? _affiliationOtherText
+                : "Not set");
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -477,7 +515,7 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
             ),
           ),
           TextButton(
-            onPressed: _openAffiliationSelector,
+            onPressed: _isAffiliated ? _openAffiliationSelector : null,
             child: const Text("Set"),
           ),
         ],
@@ -539,6 +577,7 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
     );
     if (result == null) return;
     setState(() {
+      _isAffiliated = true;
       _affiliationId = result["id"];
       _affiliationOtherText = result["other"] ?? "";
       _affiliationName = (result["name"]?.isNotEmpty ?? false)
@@ -1137,7 +1176,7 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
   @override
   void initState() {
     super.initState();
-    _hasCert = widget.hasCertification;
+    _hasCert = widget.hasCertification ?? "No";
     _certType = widget.certType;
     _otherCtrl = TextEditingController(text: widget.certTypeOther);
     _fileCtrl = TextEditingController(text: widget.certFileUrl);
@@ -1151,10 +1190,6 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
   }
 
   void _save() {
-    if (_hasCert == null) {
-      _toast("Please choose if you have a certification.", type: AppToastType.error);
-      return;
-    }
     if (_hasCert == "Yes") {
       if (_certType == null || _certType!.isEmpty) {
         _toast("Select certification type.", type: AppToastType.error);

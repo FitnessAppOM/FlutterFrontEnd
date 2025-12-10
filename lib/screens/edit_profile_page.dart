@@ -182,7 +182,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return null;
   }
 
-  bool _isNone(String value) => value.trim().toLowerCase() == "none";
+  bool _isNone(String value) {
+    final v = value.trim().toLowerCase();
+    return v == "none" || v == _t("chronic_none_value").toLowerCase();
+  }
 
   Future<void> _submit() async {
     _formKey.currentState!.save();
@@ -242,11 +245,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
         ? _pastInjuriesCtrl.text.trim()
         : initialStr("previous_injuries");
 
-    final chronicValue = _chronicChoice == _t("no")
+    final chronicValueRaw = _chronicChoice == _t("no")
         ? "none"
         : (_chronicCtrl.text.trim().isNotEmpty
             ? _chronicCtrl.text.trim()
             : initialStr("pain"));
+    final chronicValue = _isNone(chronicValueRaw) ? "none" : chronicValueRaw;
 
     if (_hasValidationError) return;
 

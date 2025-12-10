@@ -204,7 +204,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       }
     } else if (affiliationChoice == _t("no")) {
       cleanedValues.remove('affiliation_id');
-      cleanedValues['affiliation_other_text'] = _t("affiliation_none_value");
+      cleanedValues['affiliation_other_text'] = "none";
     } else {
       if (!mounted) return;
       AppToast.show(
@@ -267,6 +267,15 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         cleanedValues[field] = _toEnglishMulti(v, options);
       }
     });
+
+    final chronicKey = "chronic_conditions";
+    final chronicNone = _t("chronic_none_value").trim().toLowerCase();
+    if (cleanedValues.containsKey(chronicKey)) {
+      final val = cleanedValues[chronicKey]?.trim().toLowerCase() ?? "";
+      if (val == chronicNone) {
+        cleanedValues[chronicKey] = "none";
+      }
+    }
 
     widget.onSubmit?.call(cleanedValues);
     if (!mounted) return;
@@ -909,7 +918,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
               _saveField("chronic_choice", val);
               if (val == noLabel) {
                 _chronicCtrl.clear();
-                _saveField("chronic_conditions", _t("chronic_none_value"));
+                _saveField("chronic_conditions", "none");
               } else {
                 _saveField("chronic_conditions", _chronicCtrl.text);
               }
