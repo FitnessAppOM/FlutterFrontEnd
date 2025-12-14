@@ -1,30 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+
 import 'localization/app_localizations.dart';
 import 'screens/welcome.dart';
 import 'theme/app_theme.dart';
 import 'core/locale_controller.dart';
-
-// Consents
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'consents/consent_manager.dart';
 
-// REMOVE Firebase (you have no configuration yet)
-// import 'package:firebase_core/firebase_core.dart';
-
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Google Ads only (safe)
+  // Firebase (REQUIRED for Google Sign-In)
+  await Firebase.initializeApp();
+
+  // Ads (safe to init early)
   await MobileAds.instance.initialize();
 
-  // Show the UI immediately
   runApp(const MyApp());
 
-  // Request startup consents (delay avoids iOS freeze)
+  //  Delay consent request to avoid iOS freeze
   Future.delayed(
     const Duration(milliseconds: 300),
-    () async => await ConsentManager.requestStartupConsents(),
+        () async => await ConsentManager.requestStartupConsents(),
   );
 }
 
@@ -39,7 +38,6 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    // Rebuild MaterialApp whenever the locale changes.
     localeController.addListener(_handleLocaleChange);
   }
 
@@ -50,9 +48,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _handleLocaleChange() {
-    if (mounted) {
-      setState(() {});
-    }
+    if (mounted) setState(() {});
   }
 
   @override

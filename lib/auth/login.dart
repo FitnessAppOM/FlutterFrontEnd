@@ -244,7 +244,12 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> handleGoogleLogin() async {
     final t = AppLocalizations.of(context);
 
+    setState(() => loading = true);
+
     final result = await signInWithGoogle();
+
+    setState(() => loading = false);
+
     if (result == null) {
       if (!mounted) return;
       AppToast.show(
@@ -255,40 +260,41 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    try {
-      final decoded = jsonDecode(result) as Map<String, dynamic>;
-      final gEmail = (decoded["email"] ?? "").toString();
-      final gName =
-          (decoded["name"] ?? gEmail.split('@').first).toString();
-      final token = decoded["token"] as String?;
+    final rawId = result["user_id"] ?? result["id"];
+    final int userId =
+    rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
 
-      final rawId = decoded["user_id"] ?? decoded["id"];
-      final int gUserId =
-          rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
+    final email = (result["email"] ?? "").toString();
+    final name =
+    (result["name"] ?? email.split("@").first).toString();
+    final provider = result["provider"]?.toString();
 
-      await AccountStorage.saveUserSession(
-        userId: gUserId,
-        email: gEmail,
-        name: gName,
-        verified: true,
-        token: token,
-      );
+    await AccountStorage.saveUserSession(
+      userId: userId,
+      email: email,
+      name: name,
+      verified: true,
+      token: null, // Firebase handles auth
+      isExpert: false,
+      questionnaireDone: await AccountStorage.isQuestionnaireDone(),
+      expertQuestionnaireDone:
+      await AccountStorage.isExpertQuestionnaireDone(),
+    );
 
-      if (!mounted) return;
+    if (!mounted) return;
 
-      AppToast.show(context, t.translate("google_success"), type: AppToastType.success);
+    AppToast.show(
+      context,
+      t.translate("google_success"),
+      type: AppToastType.success,
+    );
 
-      // Redirect to main
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const MainLayout()),
-        (route) => false,
-      );
-    } catch (_) {
-      if (!mounted) return;
-      AppToast.show(context, t.translate("google_invalid"), type: AppToastType.error);
-    }
+    await _navigatePostAuth(
+      userId: userId,
+      isExpert: false,
+    );
   }
+
 
   @override
   Widget build(BuildContext context) {

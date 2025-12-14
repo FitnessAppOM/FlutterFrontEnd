@@ -11,6 +11,11 @@ import '../widgets/divider_with_label.dart';
 import '../localization/app_localizations.dart';   //  ADDED
 import 'email_verification_page.dart';
 import '../widgets/app_toast.dart';
+import '../core/account_storage.dart';
+import 'questionnaire.dart';
+import 'expert_questionnaire.dart';
+
+
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key, this.isExpert = false});
@@ -144,20 +149,51 @@ class _SignupPageState extends State<SignupPage> {
   Future<void> handleGoogleSignup() async {
     final t = AppLocalizations.of(context);
 
+    setState(() => loading = true);
+
     final result = await signInWithGoogle();
+
+    setState(() => loading = false);
+
     if (result == null) {
       _showSnack(t.translate("google_failed"));
       return;
     }
 
-    try {
-      final decoded = jsonDecode(result) as Map<String, dynamic>;
-      final msg = decoded["message"] ?? t.translate("google_success");
-      _showSnack(msg.toString());
-    } catch (_) {
-      _showSnack(t.translate("google_invalid"));
-    }
+    final userId = result["user_id"];
+    final email = (result["email"] ?? "").toString();
+
+    // Save session (same as verified email users)
+    await AccountStorage.saveUserSession(
+      userId: userId,
+      email: email,
+      name: (result["name"] ?? email.split('@').first).toString(),
+      verified: true,
+      token: null,
+      isExpert: widget.isExpert,
+      questionnaireDone: false,
+      expertQuestionnaireDone: false,
+    );
+
+    if (!mounted) return;
+
+    _showSnack(
+      t.translate("google_success"),
+      type: AppToastType.success,
+    );
+
+    //  SAME REDIRECT LOGIC AS EMAIL VERIFICATION SUCCESS
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => widget.isExpert
+            ? ExpertQuestionnairePage()
+            : QuestionnairePage(),
+      ),
+    );
   }
+
+
 
   @override
   Widget build(BuildContext context) {
