@@ -363,6 +363,9 @@ class AppLocalizations {
 "profile_update_failed": "Profile update failed",
 "no_changes": "No changes to save",
 "invalid_number": "Enter a valid number",
+      "university_student_question": "Are you currently a university student?",
+          "select_university": "Select your university",
+          "physical_rehab_question": "Are you using TAQA for physical rehabilitation or physiotherapy?",
     },
 
     'ar': {
@@ -717,6 +720,9 @@ class AppLocalizations {
 "profile_update_failed": "فشل تحديث الملف الشخصي",
 "no_changes": "لا توجد تغييرات للحفظ",
 "invalid_number": "أدخل رقماً صحيحاً",
+      "university_student_question": "هل أنت طالب جامعي حالياً؟",
+      "physical_rehab_question": "هل تستخدم تطبيق طاقة لإعادة التأهيل الجسدي أو العلاج الفيزيائي؟",
+"select_university": "اختر الجامعة",
     },
   };
 

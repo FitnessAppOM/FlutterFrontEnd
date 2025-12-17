@@ -6,6 +6,8 @@ import 'height_picker_with_body.dart';
 import 'weight_picker_popup.dart';
 import '../app_toast.dart';
 import '../../services/affiliation_service.dart';
+import '../../services/university_service.dart';
+
 
 class QuestionnaireForm extends StatefulWidget {
   const QuestionnaireForm({
@@ -18,6 +20,7 @@ class QuestionnaireForm extends StatefulWidget {
   @override
   State<QuestionnaireForm> createState() => _QuestionnaireFormState();
 }
+
 
 class _QuestionnaireFormState extends State<QuestionnaireForm> {
   final _formKey = GlobalKey<FormState>();
@@ -33,7 +36,13 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
   String? _selectedAffiliationCategory;
   bool _affiliationsLoading = false;
   String? _affiliationError;
+  bool? _isPhysicalRehab;
   String? get _affiliationChoice => _values["affiliation_choice"];
+  bool? _isUniversityStudent;
+  List<Map<String, dynamic>> _universities = [];
+  bool _universitiesLoading = false;
+  String? _selectedUniversityId;
+
 
   @override
   void initState() {
@@ -53,7 +62,42 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
 
   void _saveField(String key, String? value) {
     _values[key] = value?.trim() ?? '';
+
+    if (key == "is_physical_rehabilitation") {
+      final yes = _t("yes");
+
+      setState(() {
+        _isPhysicalRehab = value == yes;
+
+        if (_isPhysicalRehab == false) {
+          _selectedAffiliationCategory = null;
+          _affiliations = [];
+          _values.remove("affiliation_id");
+          _values.remove("affiliation_other_text");
+          _affiliationOtherCtrl.clear();
+        }
+      });
+
+      _loadAffiliationCategories();
+    }if (key == "is_university_student") {
+      final yes = _t("yes");
+
+      setState(() {
+        _isUniversityStudent = value == yes;
+
+        if (_isUniversityStudent == false) {
+          _selectedUniversityId = null;
+          _values.remove("university_id");
+        }
+      });
+
+      if (_isUniversityStudent == true) {
+        _loadUniversities();
+      }
+    }
+
   }
+
 
   String _t(String key) {
     return AppLocalizations.of(context).translate(key);
@@ -105,9 +149,19 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     try {
       final categories = await AffiliationApi.fetchCategories();
       if (!mounted) return;
+
       setState(() {
-        _affiliationCategories =
-            categories.where((c) => !_isOther(c)).toList();
+        _affiliationCategories = categories.where((c) {
+          if (_isOther(c)) return false;
+
+          final isGym = _norm(c) == _norm(_t("gym"));
+          final isHospital = _norm(c) == _norm(_t("hospital"));
+
+          if (_isPhysicalRehab == true) {
+            return isGym || isHospital;
+          }
+          return isGym;
+        }).toList();
       });
     } catch (e) {
       if (!mounted) return;
@@ -116,6 +170,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       });
     }
   }
+
 
   Future<void> _loadAffiliationsForCategory(String category) async {
     setState(() {
@@ -165,6 +220,32 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       });
     }
   }
+  Future<void> _loadUniversities() async {
+    setState(() {
+      _universitiesLoading = true;
+    });
+
+    try {
+      final data = await UniversityService.fetchUniversities();
+      if (!mounted) return;
+
+      setState(() {
+        _universities = data;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _universities = [];
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _universitiesLoading = false;
+        });
+      }
+    }
+  }
+
 
   Future<void> _submit() async {
     final consent = _values['consent'];
@@ -684,6 +765,11 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         keyName: "stress_level",
         options: [_t("low"), _t("moderate"), _t("high")],
       ),
+      _buildChoiceField(
+        label: _t("physical_rehab_question"),
+        keyName: "is_physical_rehabilitation",
+        options: [_t("yes"), _t("no")],
+      ),
     ];
   }
 
@@ -706,6 +792,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         keyName: "consent",
         options: [_t("yes"), _t("no")],
       ),
+
     ];
   }
 
@@ -725,6 +812,50 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _buildChoiceField(
+          label: _t("university_student_question"),
+          keyName: "is_university_student",
+          options: [_t("yes"), _t("no")],
+        ),
+        if (_isUniversityStudent == true) ...[
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            isExpanded: true, //  FIX 1
+            decoration: InputDecoration(
+              labelText: _t("select_university"),
+              border: const OutlineInputBorder(),
+            ),
+            value: _selectedUniversityId,
+            items: _universities
+                .map(
+                  (u) => DropdownMenuItem<String>(
+                value: u["id"].toString(),
+                child: Text(
+                  u["name"],
+                  overflow: TextOverflow.ellipsis, //  FIX 2
+                ),
+              ),
+            )
+                .toList(),
+            validator: (val) {
+              if (_isUniversityStudent == true && (val == null || val.isEmpty)) {
+                return _t("select_option");
+              }
+              return null;
+            },
+            onChanged: _universitiesLoading
+                ? null
+                : (val) {
+              setState(() {
+                _selectedUniversityId = val;
+                _values["university_id"] = val!;
+              });
+            },
+          ),
+        ],
+        const SizedBox(height: 16),
+        Divider(thickness: 1),
+        const SizedBox(height: 16),
         Text(
           _t("affiliation_heading"),
           style: theme.textTheme.titleMedium?.copyWith(
