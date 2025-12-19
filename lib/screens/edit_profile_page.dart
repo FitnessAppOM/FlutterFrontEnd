@@ -4,6 +4,7 @@ import '../../core/account_storage.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/profile_service.dart';
 import '../../services/affiliation_service.dart';
+import '../../services/university_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/primary_button.dart';
@@ -30,6 +31,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
   String? _affiliationId;
   String? _affiliationOther;
   String? _affiliationName;
+  bool? _isUniversityStudent;
+  String? _universityId;
+  String? _universityName;
+  List<Map<String, dynamic>> _universities = [];
+  bool _universitiesLoading = false;
+  String? _universityError;
 
   String? _sex;
   String? _mainGoal;
@@ -118,6 +125,48 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _affiliationId = _str(p["affiliation_id"]);
     _affiliationOther = _str(p["affiliation_other_text"]);
     _affiliationName = _str(p["affiliation_name"]);
+
+    final uniFlagRaw = p["is_university_student"];
+    if (uniFlagRaw is bool) {
+      _isUniversityStudent = uniFlagRaw;
+    } else {
+      final flagStr = _str(uniFlagRaw).toLowerCase();
+      if (flagStr.isNotEmpty) {
+        _isUniversityStudent = flagStr == "true" || flagStr == _t("yes").toLowerCase();
+      }
+    }
+    final uniIdStr = _str(p["university_id"]);
+    _universityId = (uniIdStr.isNotEmpty && uniIdStr != "0") ? uniIdStr : null;
+    _universityName = _str(p["university_name"]);
+
+    if (_isUniversityStudent == true) {
+      _loadUniversities();
+    }
+  }
+
+  Future<void> _loadUniversities() async {
+    setState(() {
+      _universitiesLoading = true;
+      _universityError = null;
+    });
+    try {
+      final items = await UniversityService.fetchUniversities();
+      if (!mounted) return;
+      setState(() {
+        _universities = items;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _universityError = e.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _universitiesLoading = false;
+        });
+      }
+    }
   }
 
   String _t(String key) => AppLocalizations.of(context).translate(key);
@@ -252,6 +301,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
             : initialStr("pain"));
     final chronicValue = _isNone(chronicValueRaw) ? "none" : chronicValueRaw;
 
+    final isStudent = _isUniversityStudent;
+    int? universityIdVal;
+    if (isStudent == true) {
+      if (_universityId == null || _universityId!.isEmpty) {
+        _hasValidationError = true;
+        AppToast.show(context, _t("select_university"), type: AppToastType.error);
+      } else {
+        universityIdVal = int.tryParse(_universityId!);
+        if (universityIdVal == null || universityIdVal <= 0) {
+          _hasValidationError = true;
+          AppToast.show(context, _t("select_university"), type: AppToastType.error);
+        }
+      }
+    }
+
     if (_hasValidationError) return;
 
     final sexVal = (_sex ?? _mapOptionKey(initialStr("sex"), _sexOptions()) ?? "").trim();
@@ -270,6 +334,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
       "past_injuries": pastInjuriesVal,
       "chronic_conditions": chronicValue,
     });
+
+    if (isStudent != null) {
+      payload["is_university_student"] = isStudent;
+    }
+    if (isStudent == true) {
+      payload["university_id"] = universityIdVal;
+    } else if (isStudent == false) {
+      payload["university_id"] = 0;
+    }
 
     final affIdStr = _affiliationId?.trim() ?? "";
     final affOtherStr = _affiliationOther?.trim() ?? "";
@@ -337,6 +410,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   )),
                 ],
               ),
+              const SizedBox(height: 12),
+              _universitySection(),
               const SizedBox(height: 12),
               _sectionTitle(t.translate("affiliation")),
               _affiliationBlock(),
@@ -459,6 +534,92 @@ class _EditProfilePageState extends State<EditProfilePage> {
           fontWeight: FontWeight.w700,
         ),
       ),
+    );
+  }
+
+  Widget _universitySection() {
+    final t = AppLocalizations.of(context);
+    final yes = t.translate("yes");
+    final no = t.translate("no");
+    final studentChoice = _isUniversityStudent == null
+        ? null
+        : (_isUniversityStudent! ? yes : no);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DropdownButtonFormField<String>(
+          decoration: InputDecoration(
+            labelText: t.translate("university_student_question"),
+            border: const OutlineInputBorder(),
+          ),
+          value: studentChoice,
+          style: const TextStyle(color: Colors.white),
+          dropdownColor: AppColors.black,
+          items: [
+            DropdownMenuItem(value: yes, child: Text(yes)),
+            DropdownMenuItem(value: no, child: Text(no)),
+          ],
+          validator: (_) => null,
+          onChanged: (val) {
+            setState(() {
+              _isUniversityStudent = val == yes;
+              if (_isUniversityStudent != true) {
+                _universityId = null;
+                _universityName = null;
+              } else if (_universities.isEmpty && !_universitiesLoading) {
+                _loadUniversities();
+              }
+            });
+          },
+        ),
+        if (_isUniversityStudent == true) ...[
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            decoration: InputDecoration(
+              labelText: t.translate("select_university"),
+              border: const OutlineInputBorder(),
+            ),
+            isExpanded: true,
+            value: _universityId,
+            style: const TextStyle(color: Colors.white),
+            dropdownColor: AppColors.black,
+            items: _universities
+                .map(
+                  (u) => DropdownMenuItem<String>(
+                    value: u["id"].toString(),
+                    child: Text(
+                      u["name"]?.toString() ?? "",
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: _universitiesLoading
+                ? null
+                : (val) {
+                    setState(() {
+                      _universityId = val;
+                      _universityName = _resolveUniversityName(val);
+                    });
+                  },
+            validator: (_) => null,
+          ),
+          if (_universitiesLoading)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: LinearProgressIndicator(minHeight: 2),
+            ),
+          if (_universityError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                _universityError!,
+                style: const TextStyle(color: Colors.redAccent),
+              ),
+            ),
+        ],
+      ],
     );
   }
 
@@ -648,6 +809,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
   void _toast(String msg) {
     if (!mounted) return;
     AppToast.show(context, msg, type: AppToastType.error);
+  }
+
+  String? _resolveUniversityName(String? id) {
+    if (id == null) return null;
+    final match = _universities
+        .firstWhere((u) => u["id"].toString() == id, orElse: () => {});
+    final name = match["name"];
+    return name?.toString();
   }
 }
 
