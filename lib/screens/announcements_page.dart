@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../widgets/Main/section_header.dart';
 import '../../widgets/Main/card_container.dart';
 import '../../models/news_item.dart';
+import '../../services/news_tag_actions.dart';
 
 class AnnouncementsPage extends StatelessWidget {
   const AnnouncementsPage({
@@ -43,58 +44,62 @@ class AnnouncementsPage extends StatelessWidget {
                   : "";
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: CardContainer(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: cs.primary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          item.tag,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: cs.primary,
-                            fontWeight: FontWeight.w600,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => NewsTagActions.handleTagTap(context, item.tag),
+                  child: CardContainer(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: cs.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            item.tag,
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: cs.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.title,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                color: cs.onSurface,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              item.subtitle,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: cs.onSurface.withValues(alpha: 0.7),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            if (dateLabel.isNotEmpty)
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               Text(
-                                dateLabel,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: cs.onSurface.withValues(alpha: 0.6),
+                                item.title,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  color: cs.onSurface,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
-                          ],
+                              const SizedBox(height: 6),
+                              Text(
+                                item.subtitle,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: cs.onSurface.withValues(alpha: 0.7),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              if (dateLabel.isNotEmpty)
+                                Text(
+                                  dateLabel,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: cs.onSurface.withValues(alpha: 0.6),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               );

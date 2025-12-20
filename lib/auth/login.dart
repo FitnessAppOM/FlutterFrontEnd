@@ -285,7 +285,7 @@ class _LoginPageState extends State<LoginPage> {
 
     AppToast.show(
       context,
-      t.translate("google_success"),
+      t.translate("google_success_message"),
       type: AppToastType.success,
     );
 

@@ -14,6 +14,7 @@ class ApiConfig {
     // ---------------------------
     if (Platform.isIOS) {
       // CHANGE THIS EVERY TIME YOUR MAC IP CHANGES
+      // Use localhost for iOS Simulator; replace with LAN IP when testing on device.
       const macLocalIP = "127.0.0.1";
       return "http://$macLocalIP:8000";
     }

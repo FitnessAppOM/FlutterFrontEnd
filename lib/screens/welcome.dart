@@ -17,6 +17,7 @@ import '../services/profile_service.dart';
 import '../auth/questionnaire.dart';
 import '../auth/expert_questionnaire.dart';
 import '../widgets/app_toast.dart';
+import '../services/navigation_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -105,6 +106,19 @@ class _WelcomePageState extends State<WelcomePage> {
 
   //  Don't auto-redirect if coming from logout
   if (widget.fromLogout) {
+    setState(() {
+      lastEmail = e;
+      lastVerified = v;
+      lastIsExpert = isExpert;
+      lastQuestionnaireDone = qDone;
+      lastExpertQuestionnaireDone = qExpertDone;
+      lastName = v ? n : null;
+    });
+    return;
+  }
+
+  // Skip auto-redirect when app was launched from a notification deep link.
+  if (NavigationService.launchedFromNotificationPayload) {
     setState(() {
       lastEmail = e;
       lastVerified = v;

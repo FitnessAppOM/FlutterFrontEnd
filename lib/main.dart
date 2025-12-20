@@ -8,6 +8,9 @@ import 'screens/welcome.dart';
 import 'theme/app_theme.dart';
 import 'core/locale_controller.dart';
 import 'consents/consent_manager.dart';
+import 'services/notification_service.dart';
+import 'screens/daily_journal.dart';
+import 'services/navigation_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,7 +21,14 @@ void main() async {
   // Ads (safe to init early)
   await MobileAds.instance.initialize();
 
-  runApp(const MyApp());
+  // Local notifications (permissions + timezone-safe scheduling)
+  await NotificationService.init();
+  final launchPayload = await NotificationService.getLaunchPayload();
+  NavigationService.launchedFromNotificationPayload =
+      launchPayload == NotificationService.dailyJournalPayload;
+  await NotificationService.scheduleTestReminderInTenSeconds();
+
+  runApp(MyApp(initialPayload: launchPayload));
 
   //  Delay consent request to avoid iOS freeze
   Future.delayed(
@@ -28,7 +38,9 @@ void main() async {
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  final String? initialPayload;
+
+  const MyApp({super.key, this.initialPayload});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -53,6 +65,11 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    final initialRoute =
+        widget.initialPayload == NotificationService.dailyJournalPayload
+            ? '/daily-journal'
+            : '/';
+
     return MaterialApp(
       title: 'TAQA Fitness',
       debugShowCheckedModeBanner: false,
@@ -68,7 +85,12 @@ class _MyAppState extends State<MyApp> {
         Locale('ar'),
       ],
       theme: buildDarkTheme(),
-      home: WelcomePage(onChangeLanguage: localeController.setLocale),
+      navigatorKey: NavigationService.navigatorKey,
+      initialRoute: initialRoute,
+      routes: {
+        '/': (_) => WelcomePage(onChangeLanguage: localeController.setLocale),
+        '/daily-journal': (_) => const DailyJournalPage(),
+      },
     );
   }
 }

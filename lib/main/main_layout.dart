@@ -38,7 +38,7 @@ class _MainLayoutState extends State<MainLayout> {
 
   Widget _buildBottomNav() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
         color: AppColors.black,
         border: Border(top: BorderSide(color: Colors.grey.shade800)),

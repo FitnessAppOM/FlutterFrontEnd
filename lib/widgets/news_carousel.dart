@@ -31,25 +31,46 @@ class NewsCarousel extends StatefulWidget {
 }
 
 class _NewsCarouselState extends State<NewsCarousel> {
-  late final PageController _controller;
+  PageController? _controller;
   int _index = 0;
+  int _initialPage = 0;
+
+  int _computeInitialPage(int length) => length > 0 ? length * 1000 : 0;
 
   @override
   void initState() {
     super.initState();
-    _controller = PageController(viewportFraction: 0.88);
+    _initialPage = _computeInitialPage(widget.slides.length);
+    _controller = PageController(
+      viewportFraction: 0.88,
+      initialPage: _initialPage,
+    );
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant NewsCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.slides.length != widget.slides.length) {
+      _initialPage = _computeInitialPage(widget.slides.length);
+      _controller?.dispose();
+      _controller = PageController(
+        viewportFraction: 0.88,
+        initialPage: _initialPage,
+      );
+      _index = 0;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final slides = widget.slides;
-    if (slides.isEmpty) return const SizedBox.shrink();
+    if (slides.isEmpty || _controller == null) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -58,13 +79,17 @@ class _NewsCarouselState extends State<NewsCarousel> {
           height: 160,
           child: PageView.builder(
             controller: _controller,
-            itemCount: slides.length,
-            onPageChanged: (i) => setState(() => _index = i),
+            itemCount: null, // infinite scroll
+            onPageChanged: (i) {
+              if (!mounted || slides.isEmpty) return;
+              setState(() => _index = i % slides.length);
+            },
             itemBuilder: (context, i) {
-              final slide = slides[i];
+              final realIndex = slides.isEmpty ? 0 : i % slides.length;
+              final slide = slides[realIndex];
               return _SlideCard(
                 slide: slide,
-                isFocused: i == _index,
+                isFocused: realIndex == _index,
               );
             },
           ),
@@ -107,6 +132,7 @@ class _SlideCard extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final accent = slide.color;
+    final edgeColor = const Color(0xFFD4AF37).withValues(alpha: 0.18);
     final rotation = isFocused ? 0.0 : (Random().nextBool() ? 0.004 : -0.004);
 
     return TweenAnimationBuilder<double>(
@@ -132,16 +158,16 @@ class _SlideCard extends StatelessWidget {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        accent.withValues(alpha: 0.85),
-                        cs.surfaceVariant.withValues(alpha: 0.4),
+                        accent.withValues(alpha: 0.9),
+                        cs.surfaceVariant.withValues(alpha: 0.35),
                       ],
                     ),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                    border: Border.all(color: edgeColor),
                     boxShadow: [
                       BoxShadow(
-                        color: accent.withValues(alpha: 0.35),
-                        blurRadius: 24,
-                        offset: const Offset(0, 12),
+                        color: accent.withValues(alpha: 0.28),
+                        blurRadius: 18,
+                        offset: const Offset(0, 10),
                       ),
                     ],
                   ),

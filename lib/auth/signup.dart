@@ -178,7 +178,7 @@ class _SignupPageState extends State<SignupPage> {
     if (!mounted) return;
 
     _showSnack(
-      t.translate("google_success"),
+      t.translate("google_success_message"),
       type: AppToastType.success,
     );
 

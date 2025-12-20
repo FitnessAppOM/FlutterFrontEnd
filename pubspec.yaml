@@ -25,6 +25,8 @@ dependencies:
   firebase_messaging: ^15.0.0
   firebase_core: ^3.5.0
   firebase_auth: ^5.3.0
+  flutter_local_notifications: ^17.2.2
+  timezone: ^0.9.4
 
 
 
