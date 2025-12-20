@@ -149,10 +149,13 @@ class _SignupPageState extends State<SignupPage> {
   Future<void> handleGoogleSignup() async {
     final t = AppLocalizations.of(context);
 
+    if (!mounted) return;
     setState(() => loading = true);
 
     final result = await signInWithGoogle();
 
+    // 🔴 check AFTER await
+    if (!mounted) return;
     setState(() => loading = false);
 
     if (result == null) {
@@ -163,7 +166,6 @@ class _SignupPageState extends State<SignupPage> {
     final userId = result["user_id"];
     final email = (result["email"] ?? "").toString();
 
-    // Save session (same as verified email users)
     await AccountStorage.saveUserSession(
       userId: userId,
       email: email,
@@ -182,16 +184,16 @@ class _SignupPageState extends State<SignupPage> {
       type: AppToastType.success,
     );
 
-    //  SAME REDIRECT LOGIC AS EMAIL VERIFICATION SUCCESS
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
         builder: (_) => widget.isExpert
-            ? ExpertQuestionnairePage()
-            : QuestionnairePage(),
+            ? const ExpertQuestionnairePage()
+            : const QuestionnairePage(),
       ),
     );
   }
+
 
 
 

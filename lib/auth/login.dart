@@ -244,14 +244,16 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> handleGoogleLogin() async {
     final t = AppLocalizations.of(context);
 
+    if (!mounted) return;
     setState(() => loading = true);
 
     final result = await signInWithGoogle();
 
+    // 🔴 IMPORTANT: check mounted AFTER await
+    if (!mounted) return;
     setState(() => loading = false);
 
     if (result == null) {
-      if (!mounted) return;
       AppToast.show(
         context,
         t.translate("google_failed"),
@@ -265,16 +267,14 @@ class _LoginPageState extends State<LoginPage> {
     rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
 
     final email = (result["email"] ?? "").toString();
-    final name =
-    (result["name"] ?? email.split("@").first).toString();
-    final provider = result["provider"]?.toString();
+    final name = (result["name"] ?? email.split("@").first).toString();
 
     await AccountStorage.saveUserSession(
       userId: userId,
       email: email,
       name: name,
       verified: true,
-      token: null, // Firebase handles auth
+      token: null,
       isExpert: false,
       questionnaireDone: await AccountStorage.isQuestionnaireDone(),
       expertQuestionnaireDone:
@@ -289,11 +289,13 @@ class _LoginPageState extends State<LoginPage> {
       type: AppToastType.success,
     );
 
+    // ⚠️ NO setState AFTER navigation
     await _navigatePostAuth(
       userId: userId,
       isExpert: false,
     );
   }
+
 
 
   @override
