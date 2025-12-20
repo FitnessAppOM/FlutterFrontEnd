@@ -26,9 +26,9 @@ void main() async {
   final launchPayload = await NotificationService.getLaunchPayload();
   NavigationService.launchedFromNotificationPayload =
       launchPayload == NotificationService.dailyJournalPayload;
-  await NotificationService.scheduleTestReminderInTenSeconds();
 
   runApp(MyApp(initialPayload: launchPayload));
+
 
   //  Delay consent request to avoid iOS freeze
   Future.delayed(

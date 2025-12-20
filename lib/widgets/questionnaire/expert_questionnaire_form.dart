@@ -58,6 +58,8 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
   String? _affiliationOtherText;
   String? _affiliationName;
 
+
+
   // "Other" controllers
   final TextEditingController _coreOtherCtrl = TextEditingController();
   final TextEditingController _workOtherCtrl = TextEditingController();
@@ -298,10 +300,22 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
       "refer_as_unassigned_coach": _referAsCoach == "Yes",
     };
 
-    data["affiliation_id"] =
-        isAffiliated && hasAffiliationId ? int.tryParse(_affiliationId!) : null;
-    data["affiliation_other_text"] =
-        isAffiliated ? otherAffiliation : "";
+    if (_isAffiliated) {
+      if (_affiliationId != null && _affiliationId!.isNotEmpty) {
+        data["affiliation_id"] = int.parse(_affiliationId!);
+        data["affiliation_other_text"] = "";
+      } else if ((_affiliationOtherText ?? "").trim().isNotEmpty) {
+        data["affiliation_id"] = null;
+        data["affiliation_other_text"] = _affiliationOtherText!.trim();
+      } else {
+        _toast("Please add your affiliation.");
+        return;
+      }
+    } else {
+      data["affiliation_id"] = null;
+      data["affiliation_other_text"] = "";
+    }
+
 
     await widget.onSubmit?.call(data);
   }
@@ -991,6 +1005,8 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
   bool _loading = false;
   String? _error;
   final TextEditingController _otherCtrl = TextEditingController();
+  bool _useCustomAffiliation = false;
+
 
   @override
   void initState() {
@@ -1116,14 +1132,34 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
                     },
             ),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _otherCtrl,
-              decoration: const InputDecoration(
-                labelText: "Other affiliation",
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (_) => setState(() => _selectedAffId = null),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _useCustomAffiliation = true;
+                  _selectedAffId = null;
+                  _selectedAffName = null;
+                });
+              },
+              child: const Text("Can’t find your affiliation?"),
             ),
+
+            if (_useCustomAffiliation) ...[
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _otherCtrl,
+                decoration: const InputDecoration(
+                  labelText: "Type your affiliation",
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (_) {
+                  setState(() {
+                    _selectedAffId = null;
+                    _selectedAffName = null;
+                  });
+                },
+              ),
+            ],
+
             if (_error != null) ...[
               const SizedBox(height: 8),
               Text(_error!, style: const TextStyle(color: Colors.redAccent)),

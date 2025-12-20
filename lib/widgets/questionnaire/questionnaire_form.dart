@@ -357,6 +357,22 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         cleanedValues[chronicKey] = "none";
       }
     }
+    if (affiliationChoice == _t("yes") &&
+        affiliationId == "custom" &&
+        affiliationOther.isNotEmpty) {
+      try {
+        await AffiliationApi.requestAffiliation(
+          name: affiliationOther,
+          category: _selectedAffiliationCategory ?? "gym",
+          source: "user",
+        );
+      } catch (_) {
+        // silent fail — questionnaire should still submit
+      }
+    }
+    if (cleanedValues['affiliation_id'] == "custom") {
+      cleanedValues.remove('affiliation_id');
+    }
 
     widget.onSubmit?.call(cleanedValues);
     if (!mounted) return;
@@ -944,20 +960,25 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
           DropdownButtonFormField<String>(
             key: const ValueKey("affiliation_id"),
             decoration: InputDecoration(
-              labelText:
-                  _affiliationsLoading ? _t("affiliation_loading") : _t("affiliation_select"),
+              labelText: _affiliationsLoading
+                  ? _t("affiliation_loading")
+                  : _t("affiliation_select"),
               border: const OutlineInputBorder(),
             ),
             value: selectedAffiliationId,
             isExpanded: true,
-            items: _affiliations
-                .map(
-                  (item) => DropdownMenuItem<String>(
-                    value: item["id"].toString(),
-                    child: Text(item["name"]?.toString() ?? ""),
-                  ),
-                )
-                .toList(),
+            items: [
+              ..._affiliations.map(
+                    (item) => DropdownMenuItem<String>(
+                  value: item["id"].toString(),
+                  child: Text(item["name"]?.toString() ?? ""),
+                ),
+              ),
+              DropdownMenuItem<String>(
+                value: "custom",
+                child: Text(_t("didnt_find_affiliation")),
+              ),
+            ],
             validator: (val) {
               if (affiliationChoice == _t("yes") &&
                   (_affiliationOtherCtrl.text.trim().isEmpty) &&
@@ -968,43 +989,55 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
             },
             onChanged: _affiliations.isEmpty || _affiliationsLoading
                 ? null
-                : (val) => setState(() => _saveField("affiliation_id", val)),
-            onSaved: (val) => _saveField("affiliation_id", val),
-          ),
-          if (_affiliationError != null) ...[
+                : (val) {
+              setState(() {
+                if (val == "custom") {
+                  _saveField("affiliation_id", "custom"); // ✅ IMPORTANT
+                  _affiliationOtherCtrl.clear();
+                } else {
+                  _saveField("affiliation_id", val);
+                  _affiliationOtherCtrl.clear();
+                  _values.remove("affiliation_other_text");
+                }
+
+              });
+            },
+          ),if (_affiliationError != null) ...[
             const SizedBox(height: 6),
             Text(
               _affiliationError!,
               style: theme.textTheme.bodySmall?.copyWith(color: cs.error),
             ),
           ],
-          const SizedBox(height: 12),
-          TextFormField(
-            key: const ValueKey("affiliation_other_text"),
-            controller: _affiliationOtherCtrl,
-            decoration: InputDecoration(
-              labelText: _t("affiliation_other"),
-              hintText: _t("affiliation_other_hint"),
-              border: const OutlineInputBorder(),
+
+          if ((_values["affiliation_id"] ?? "") == "custom") ...[
+            const SizedBox(height: 12),
+            TextFormField(
+              key: const ValueKey("affiliation_other_text"),
+              controller: _affiliationOtherCtrl,
+              decoration: InputDecoration(
+                labelText: _t("affiliation_other"),
+                hintText: _t("affiliation_other_hint"),
+                border: const OutlineInputBorder(),
+              ),
+              onChanged: (val) => _saveField("affiliation_other_text", val),
+              validator: (val) {
+                if ((_values["affiliation_id"] ?? "") == "custom" &&
+                    (val == null || val.trim().isEmpty)) {
+                  return _t("affiliation_required");
+                }
+                return null;
+              },
             ),
-            onChanged: (val) => _saveField("affiliation_other_text", val),
-            onSaved: (val) => _saveField("affiliation_other_text", val),
-            validator: (val) {
-              if (affiliationChoice == _t("yes") &&
-                  (_values["affiliation_id"] ?? "").isEmpty &&
-                  (val == null || val.trim().isEmpty)) {
-                return _t("affiliation_required");
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 6),
-          Text(
-            _t("affiliation_help"),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: cs.onSurface.withValues(alpha: 0.7),
+            const SizedBox(height: 6),
+            Text(
+              _t("affiliation_help"),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurface.withValues(alpha: 0.7),
+              ),
             ),
-          ),
+          ],
+
           const SizedBox(height: 16),
         ],
       ],

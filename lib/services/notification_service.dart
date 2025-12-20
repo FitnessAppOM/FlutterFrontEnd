@@ -71,6 +71,9 @@ class NotificationService {
     required String body,
     required DateTime dateTime,
   }) async {
+    final granted = await requestExactAlarmPermission();
+    if (!granted) return;
+
     await _plugin.zonedSchedule(
       id,
       title,
@@ -80,12 +83,15 @@ class NotificationService {
       payload: dailyJournalPayload,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: null,
+      UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 
+
   static Future<void> scheduleDailyJournalReminder() async {
+    final granted = await requestExactAlarmPermission();
+    if (!granted) return;
+
     final tz.TZDateTime nextEightAm = _nextInstanceOfEightAm();
 
     await _plugin.zonedSchedule(
@@ -97,10 +103,11 @@ class NotificationService {
       payload: dailyJournalPayload,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
+      UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
     );
   }
+
 
   static tz.TZDateTime _nextInstanceOfEightAm() {
     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
@@ -114,9 +121,24 @@ class NotificationService {
     return scheduledDate;
   }
 
+  static Future<bool> requestExactAlarmPermission() async {
+    final androidPlugin =
+    _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+
+    if (androidPlugin == null) return false;
+
+    final granted = await androidPlugin.requestExactAlarmsPermission();
+    return granted ?? false;
+  }
+
+
   static Future<void> scheduleTestReminderInTenSeconds() async {
+    final granted = await requestExactAlarmPermission();
+    if (!granted) return;
+
     final tz.TZDateTime scheduledTime =
-        tz.TZDateTime.now(tz.local).add(const Duration(seconds: 10));
+    tz.TZDateTime.now(tz.local).add(const Duration(seconds: 10));
 
     await _plugin.zonedSchedule(
       999,
@@ -127,10 +149,10 @@ class NotificationService {
       payload: dailyJournalPayload,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: null,
+      UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
+
 
   static Future<String?> getLaunchPayload() async {
     final details = await _plugin.getNotificationAppLaunchDetails();

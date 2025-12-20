@@ -40,4 +40,25 @@ class AffiliationApi {
     } catch (_) {}
     throw Exception(msg);
   }
+  static Future<void> requestAffiliation({
+    required String name,
+    required String category,
+    required String source,
+  }) async {
+    final res = await http.post(
+      Uri.parse("${ApiConfig.baseUrl}/affiliations/request"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "name": name,
+        "category": category,
+        "source": source,
+      }),
+    );
+
+    if (res.statusCode != 200 && res.statusCode != 201) {
+      throw Exception("Failed to submit affiliation request");
+    }
+  }
+
+
 }
