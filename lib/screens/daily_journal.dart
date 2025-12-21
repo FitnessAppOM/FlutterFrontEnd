@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/navigation_service.dart';
 import '../main/main_layout.dart';
+import '../localization/app_localizations.dart';
 
 class DailyJournalPage extends StatelessWidget {
   const DailyJournalPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Daily Journal'),
+        title: Text(t("journal_title")),
         automaticallyImplyLeading: true,
         leading: NavigationService.launchedFromNotificationPayload
             ? IconButton(
@@ -33,18 +35,36 @@ class DailyJournalPage extends StatelessWidget {
           children: const [
             Icon(Icons.edit_note, size: 64, color: Colors.white),
             SizedBox(height: 12),
-            Text(
-              'Journal placeholder',
-              style: TextStyle(color: Colors.white, fontSize: 18),
-            ),
+            _JournalText(),
             SizedBox(height: 6),
-            Text(
-              'Tap notifications to land here.',
-              style: TextStyle(color: Colors.white70),
-            ),
+            _JournalHint(),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _JournalText extends StatelessWidget {
+  const _JournalText();
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
+    return Text(
+      t("journal_placeholder"),
+      style: const TextStyle(color: Colors.white, fontSize: 18),
+    );
+  }
+}
+
+class _JournalHint extends StatelessWidget {
+  const _JournalHint();
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
+    return Text(
+      t("journal_hint"),
+      style: const TextStyle(color: Colors.white70),
     );
   }
 }

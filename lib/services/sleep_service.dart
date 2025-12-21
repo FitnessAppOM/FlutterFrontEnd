@@ -1,25 +1,15 @@
+import 'dart:convert';
 import 'package:health/health.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
+import '../consents/consent_manager.dart';
 
 class SleepService {
   final Health _health = Health();
   static const _manualKey = "manual_sleep_entries";
 
   Future<bool> _ensurePermission() async {
-    const types = [
-      HealthDataType.SLEEP_ASLEEP,
-      HealthDataType.SLEEP_IN_BED,
-    ];
-    final permissions = List<HealthDataAccess>.filled(
-      types.length,
-      HealthDataAccess.READ,
-    );
-    final granted = await _health.requestAuthorization(
-      types,
-      permissions: permissions,
-    );
-    return granted;
+    // Request steps + sleep + calories in one prompt to avoid multiple sheets.
+    return ConsentManager.requestAllHealth();
   }
 
   Future<double> fetchSleepHoursLast24h() async {

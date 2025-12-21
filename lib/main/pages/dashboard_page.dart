@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../widgets/Main/section_header.dart';
 import '../../widgets/Main/card_container.dart';
 import '../../widgets/news_carousel.dart';
@@ -21,6 +22,7 @@ import '../../services/water_service.dart';
 import '../../screens/sleep_detail_page.dart';
 import '../../screens/steps_detail_page.dart';
 import '../../screens/calories_detail_page.dart';
+import '../../localization/app_localizations.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -39,14 +41,27 @@ class _DashboardPageState extends State<DashboardPage> {
   String? _avatarPath;
   String? _displayName;
   int? _todaySteps;
+  int? _stepsGoal;
   bool _stepsLoading = false;
   double? _sleepHours;
+  double? _sleepGoal;
   bool _sleepLoading = false;
   int? _todayCalories;
+  int? _caloriesGoal;
   bool _caloriesLoading = false;
   double? _waterGoal;
   double? _waterIntake;
   bool _waterLoading = false;
+  int? _weeklySteps;
+  bool _weeklyStepsLoading = false;
+  List<double> _trendSleep = const [];
+  List<double> _trendCalories = const [];
+  bool _trendSleepLoading = false;
+  bool _trendCaloriesLoading = false;
+
+  static const _stepsGoalKey = "dashboard_steps_goal";
+  static const _sleepGoalKey = "dashboard_sleep_goal";
+  static const _caloriesGoalKey = "dashboard_calories_goal";
 
   Color _colorForTag(String tag) {
     final normalized = tag.toLowerCase().trim();
@@ -67,10 +82,14 @@ class _DashboardPageState extends State<DashboardPage> {
     super.initState();
     _loadUserInfo();
     _loadNews();
+    _loadGoals();
     _loadSteps();
     _loadSleep();
     _loadCalories();
     _loadWater();
+    _loadWeeklySteps();
+    _loadTrendSleep();
+    _loadTrendCalories();
   }
 
   Future<void> _refreshAll() async {
@@ -84,6 +103,9 @@ class _DashboardPageState extends State<DashboardPage> {
       _loadSleep(),
       _loadCalories(),
       _loadWater(),
+      _loadWeeklySteps(),
+      _loadTrendSleep(),
+      _loadTrendCalories(),
     ]);
   }
 
@@ -168,6 +190,7 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> _openWaterEditor() async {
+    final t = AppLocalizations.of(context).translate;
     final goalController = TextEditingController(
       text: (_waterGoal ?? 2.5).toStringAsFixed(1),
     );
@@ -180,7 +203,7 @@ class _DashboardPageState extends State<DashboardPage> {
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: AppColors.cardDark,
-          title: const Text("Water intake", style: TextStyle(color: Colors.white)),
+          title: Text(t("water_title"), style: const TextStyle(color: Colors.white)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -188,11 +211,11 @@ class _DashboardPageState extends State<DashboardPage> {
                 controller: goalController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: "Daily goal (L)",
-                  labelStyle: TextStyle(color: Colors.white70),
-                  hintText: "e.g. 2.5",
-                  hintStyle: TextStyle(color: Colors.white54),
+                decoration: InputDecoration(
+                  labelText: t("water_goal_label"),
+                  labelStyle: const TextStyle(color: Colors.white70),
+                  hintText: t("water_goal_hint"),
+                  hintStyle: const TextStyle(color: Colors.white54),
                 ),
               ),
               const SizedBox(height: 12),
@@ -200,11 +223,11 @@ class _DashboardPageState extends State<DashboardPage> {
                 controller: intakeController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: "Today's intake (L)",
-                  labelStyle: TextStyle(color: Colors.white70),
-                  hintText: "e.g. 1.8",
-                  hintStyle: TextStyle(color: Colors.white54),
+                decoration: InputDecoration(
+                  labelText: t("water_intake_label"),
+                  labelStyle: const TextStyle(color: Colors.white70),
+                  hintText: t("water_intake_hint"),
+                  hintStyle: const TextStyle(color: Colors.white54),
                 ),
               ),
             ],
@@ -212,11 +235,11 @@ class _DashboardPageState extends State<DashboardPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text("Cancel"),
+              child: Text(t("common_cancel")),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text("Save"),
+              child: Text(t("common_save")),
             ),
           ],
         );
@@ -236,6 +259,183 @@ class _DashboardPageState extends State<DashboardPage> {
       if (mounted) {
         _loadWater();
       }
+    }
+  }
+
+  Future<void> _loadWeeklySteps() async {
+    setState(() {
+      _weeklyStepsLoading = true;
+    });
+    try {
+      final now = DateTime.now();
+      final start = now.subtract(const Duration(days: 7));
+      final data =
+          await StepsService().fetchDailySteps(start: start, end: now);
+      final total = data.values.fold<int>(0, (sum, val) => sum + val);
+      if (!mounted) return;
+      setState(() => _weeklySteps = total);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _weeklySteps = null);
+    } finally {
+      if (mounted) {
+        setState(() => _weeklyStepsLoading = false);
+      }
+    }
+  }
+
+  Future<void> _loadTrendSleep() async {
+    setState(() => _trendSleepLoading = true);
+    try {
+      final now = DateTime.now();
+      final start = now.subtract(const Duration(days: 6));
+      final data = await SleepService().fetchDailySleep(start: start, end: now);
+      final days = List.generate(7, (i) {
+        final d = DateTime(now.year, now.month, now.day)
+            .subtract(Duration(days: 6 - i));
+        final key = DateTime(d.year, d.month, d.day);
+        return data[key] ?? 0.0;
+      });
+      final hasData = days.any((v) => v > 0);
+      if (!mounted) return;
+      setState(() => _trendSleep = hasData ? days : const []);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _trendSleep = const []);
+    } finally {
+      if (mounted) setState(() => _trendSleepLoading = false);
+    }
+  }
+
+  Future<void> _loadTrendCalories() async {
+    setState(() => _trendCaloriesLoading = true);
+    try {
+      final now = DateTime.now();
+      final start = now.subtract(const Duration(days: 6));
+      final data =
+          await CaloriesService().fetchDailyCalories(start: start, end: now);
+      final days = List.generate(7, (i) {
+        final d = DateTime(now.year, now.month, now.day)
+            .subtract(Duration(days: 6 - i));
+        final key = DateTime(d.year, d.month, d.day);
+        return (data[key] ?? 0).toDouble();
+      });
+      final hasData = days.any((v) => v > 0);
+      if (!mounted) return;
+      setState(() => _trendCalories = hasData ? days : const []);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _trendCalories = const []);
+    } finally {
+      if (mounted) setState(() => _trendCaloriesLoading = false);
+    }
+  }
+
+  Future<void> _loadGoals() async {
+    final sp = await SharedPreferences.getInstance();
+    setState(() {
+      _stepsGoal = sp.getInt(_stepsGoalKey) ?? 10000;
+      _sleepGoal = sp.getDouble(_sleepGoalKey) ?? 8.0;
+      _caloriesGoal = sp.getInt(_caloriesGoalKey) ?? 500;
+    });
+  }
+
+  Future<num?> _promptGoal({
+    required String title,
+    required String label,
+    required num initial,
+    required bool allowDecimal,
+  }) async {
+    final controller = TextEditingController(text: initial.toString());
+    return showDialog<num>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: AppColors.cardDark,
+          title: Text(title, style: const TextStyle(color: Colors.white)),
+          content: TextField(
+            controller: controller,
+            keyboardType: allowDecimal
+                ? const TextInputType.numberWithOptions(decimal: true)
+                : TextInputType.number,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              labelText: label,
+              labelStyle: const TextStyle(color: Colors.white70),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                final raw = controller.text.trim();
+                if (raw.isEmpty) {
+                  Navigator.of(ctx).pop();
+                  return;
+                }
+                final parsed = double.tryParse(raw);
+                if (parsed == null) {
+                  Navigator.of(ctx).pop();
+                  return;
+                }
+                Navigator.of(ctx).pop(allowDecimal ? parsed : parsed.toInt());
+              },
+              child: const Text("Save"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _editStepsGoal() async {
+    final current = _stepsGoal ?? 10000;
+    final res = await _promptGoal(
+      title: "Steps goal",
+      label: "Steps per day",
+      initial: current,
+      allowDecimal: false,
+    );
+    if (res != null) {
+      final sp = await SharedPreferences.getInstance();
+      await sp.setInt(_stepsGoalKey, res.toInt());
+      if (!mounted) return;
+      setState(() => _stepsGoal = res.toInt());
+    }
+  }
+
+  Future<void> _editSleepGoal() async {
+    final current = _sleepGoal ?? 8.0;
+    final res = await _promptGoal(
+      title: "Sleep goal",
+      label: "Hours per night",
+      initial: current,
+      allowDecimal: true,
+    );
+    if (res != null) {
+      final sp = await SharedPreferences.getInstance();
+      await sp.setDouble(_sleepGoalKey, res.toDouble());
+      if (!mounted) return;
+      setState(() => _sleepGoal = res.toDouble());
+    }
+  }
+
+  Future<void> _editCaloriesGoal() async {
+    final current = _caloriesGoal ?? 500;
+    final res = await _promptGoal(
+      title: "Calories burn goal",
+      label: "kcal per day",
+      initial: current,
+      allowDecimal: false,
+    );
+    if (res != null) {
+      final sp = await SharedPreferences.getInstance();
+      await sp.setInt(_caloriesGoalKey, res.toInt());
+      if (!mounted) return;
+      setState(() => _caloriesGoal = res.toInt());
     }
   }
 
@@ -311,6 +511,8 @@ class _DashboardPageState extends State<DashboardPage> {
       if (file.existsSync()) {
         return Image.file(
           file,
+          cacheWidth: 128,
+          cacheHeight: 128,
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => const Icon(Icons.person, color: Colors.white),
         );
@@ -320,6 +522,8 @@ class _DashboardPageState extends State<DashboardPage> {
     if (_avatarUrl != null && _avatarUrl!.isNotEmpty) {
       return Image.network(
         _fullUrl(_avatarUrl!),
+        cacheWidth: 128,
+        cacheHeight: 128,
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) => const Icon(Icons.person, color: Colors.white),
       );
@@ -335,12 +539,13 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final slides = _news.isEmpty
         ? [
             NewsSlide(
-              title: "Stay tuned",
-              subtitle: "Announcements will appear here.",
-              tag: "News",
+              title: t("dash_stay_tuned"),
+              subtitle: t("dash_announce_here"),
+              tag: t("dash_news_tag"),
               color: const Color(0xFF6A5AE0),
               onTap: _openAnnouncements,
             ),
@@ -361,12 +566,15 @@ class _DashboardPageState extends State<DashboardPage> {
         (_mockSleepHours.isEmpty
             ? 0
             : _mockSleepHours.reduce((a, b) => a + b) / _mockSleepHours.length);
-    final weeklySteps =
-        _mockSteps.isEmpty ? 0 : _mockSteps.reduce((a, b) => a + b);
+    final weeklySteps = _weeklySteps ?? (_mockSteps.isEmpty ? 0 : _mockSteps.reduce((a, b) => a + b));
     final todaysStepsDisplay = _todaySteps ?? 0;
     final todaysCaloriesDisplay = _todayCalories ?? 0;
     final waterGoal = _waterGoal ?? 2.5;
     final waterIntake = _waterIntake ?? 0;
+    final weeklyStepGoalTotal = (_stepsGoal ?? 10000) * 7;
+    final weeklyProgress = weeklyStepGoalTotal == 0
+        ? 0.0
+        : (weeklySteps / weeklyStepGoalTotal).clamp(0.0, 2.0);
 
     return SafeArea(
       child: RefreshIndicator(
@@ -379,26 +587,30 @@ class _DashboardPageState extends State<DashboardPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Welcome back",
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.white70,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _displayName == null || _displayName!.isEmpty
-                        ? "Dashboard"
-                        : "Hi, ${_displayName!}",
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      t("dash_welcome_back"),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.white70,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _displayName == null || _displayName!.isEmpty
+                          ? t("dash_dashboard")
+                          : t("dash_hi_name").replaceAll("{name}", _displayName!),
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
               Container(
                 height: 44,
@@ -442,7 +654,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Could not load news", style: TextStyle(color: Colors.white)),
+                    Text(t("dash_news_tag"), style: const TextStyle(color: Colors.white)),
                     const SizedBox(height: 6),
                     Text(
                       _error!,
@@ -464,61 +676,70 @@ class _DashboardPageState extends State<DashboardPage> {
             childAspectRatio: 1.10,
             children: [
               StatCard(
-                title: "Today's steps",
+                title: t("dash_today_steps"),
                 value: _stepsLoading ? "…" : "${todaysStepsDisplay.toString()}",
-                subtitle: "Goal 10,000",
+                subtitle: "${t("dash_goal")} ${(_stepsGoal ?? 10000).toString()}",
                 icon: Icons.directions_walk,
                 accentColor: const Color(0xFF35B6FF),
-                onTap: () {
-                  Navigator.of(context).push(
+                onTap: () async {
+                  await Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const StepsDetailPage()),
                   );
+                  await _loadGoals();
                 },
+                onLongPress: _editStepsGoal,
               ),
               StatCard(
-                title: "Sleep average",
+                title: t("dash_today_sleep"),
                 value: _sleepLoading
                     ? "…"
-                    : "${averageSleep.toStringAsFixed(1)} hrs",
-                subtitle: "Last night",
+                    : "${averageSleep.toStringAsFixed(1)} ${t("dash_unit_hrs")}",
+                subtitle: "${t("dash_goal")} ${(_sleepGoal ?? 8.0).toStringAsFixed(1)} ${t("dash_unit_hrs")}",
                 icon: Icons.nights_stay,
                 accentColor: const Color(0xFF9B8CFF),
-                onTap: () {
-                  Navigator.of(context).push(
+                onTap: () async {
+                  await Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const SleepDetailPage()),
                   );
+                  await _loadGoals();
                 },
+                onLongPress: _editSleepGoal,
               ),
               StatCard(
-                title: "Water intake",
-                value: _waterLoading ? "…" : "${waterIntake.toStringAsFixed(1)} L",
-                subtitle: _waterLoading ? "" : "Goal ${waterGoal.toStringAsFixed(1)} L",
+                title: t("dash_water_intake"),
+                value: _waterLoading ? "…" : "${waterIntake.toStringAsFixed(1)} ${t("dash_unit_l")}",
+                subtitle: _waterLoading ? "" : "${t("dash_goal")} ${waterGoal.toStringAsFixed(1)} ${t("dash_unit_l")}",
                 icon: Icons.water_drop,
                 accentColor: const Color(0xFF00BFA6),
                 onTap: _openWaterEditor,
+                onLongPress: _openWaterEditor,
               ),
               StatCard(
-                title: "Calories burned",
+                title: t("dash_calories_burned"),
                 value: _caloriesLoading
                     ? "…"
-                    : "${todaysCaloriesDisplay.toString()} kcal",
-                subtitle: "Today total",
+                    : "${todaysCaloriesDisplay.toString()} ${t("dash_unit_kcal")}",
+                subtitle: "${t("dash_goal")} ${(_caloriesGoal ?? 500).toString()}",
                 icon: Icons.local_fire_department,
                 accentColor: const Color(0xFFFF8A00),
-                onTap: () {
-                  Navigator.of(context).push(
+                onTap: () async {
+                  await Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const CaloriesDetailPage()),
                   );
+                  await _loadGoals();
                 },
+                onLongPress: _editCaloriesGoal,
               ),
             ],
           ),
           const SizedBox(height: 16),
           ProgressMeter(
-            title: "Weekly movement goal",
-            progress: weeklySteps / 70000, // vs 10k per day goal
-            targetLabel: "Target: 70,000 steps / week",
+            title: t("dash_weekly_goal"),
+            progress: weeklyProgress,
+            targetLabel: "${t("dash_target")}: $weeklyStepGoalTotal ${t("dash_steps_week")}",
+            trailingLabel: _weeklyStepsLoading ? t("dash_loading") : "$weeklySteps ${t("dash_steps_label")}",
             accentColor: const Color(0xFF35B6FF),
+            onTap: _loadWeeklySteps,
           ),
           const SizedBox(height: 16),
           CardContainer(
@@ -526,7 +747,7 @@ class _DashboardPageState extends State<DashboardPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  "7-day trends",
+                  t("dash_7day_trends"),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
@@ -536,18 +757,22 @@ class _DashboardPageState extends State<DashboardPage> {
                 Row(
                   children: [
                     Expanded(
-                      child: BarTrend(
-                        title: "Steps (k)",
-                        data: _mockSteps.map((e) => e / 1000).toList(),
-                        accentColor: const Color(0xFF35B6FF),
+                      child: _TrendTile(
+                        title: t("dash_sleep_hrs"),
+                        data: _trendSleep,
+                        loading: _trendSleepLoading,
+                        accentColor: const Color(0xFF9B8CFF),
+                        emptyLabel: t("dash_no_sleep_data"),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: BarTrend(
-                        title: "Sleep (hrs)",
-                        data: _mockSleepHours,
-                        accentColor: const Color(0xFF9B8CFF),
+                      child: _TrendTile(
+                        title: t("dash_calories_scaled"),
+                        data: _trendCalories.map((e) => e / 100).toList(),
+                        loading: _trendCaloriesLoading,
+                        accentColor: const Color(0xFFFF8A00),
+                        emptyLabel: t("dash_no_calories_data"),
                       ),
                     ),
                   ],
@@ -555,9 +780,139 @@ class _DashboardPageState extends State<DashboardPage> {
               ],
             ),
           ),
+          const SizedBox(height: 16),
+          _PlaceholderMetricCard(
+            title: t("dash_fueling"),
+            subtitle: t("dash_placeholder"),
+            icon: Icons.restaurant_menu,
+            accentColor: const Color(0xFF00BFA6),
+          ),
+          const SizedBox(height: 12),
+          _PlaceholderMetricCard(
+            title: t("dash_muscle"),
+            subtitle: t("dash_placeholder"),
+            icon: Icons.fitness_center,
+            accentColor: const Color(0xFFFF8A00),
+          ),
+          const SizedBox(height: 12),
+          _PlaceholderMetricCard(
+            title: t("dash_taqa_score"),
+            subtitle: t("dash_placeholder"),
+            icon: Icons.bolt,
+            accentColor: const Color(0xFF6A5AE0),
+          ),
         ],
       ),
       ),
+    );
+  }
+}
+
+class _PlaceholderMetricCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color accentColor;
+
+  const _PlaceholderMetricCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.accentColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CardContainer(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              height: 44,
+              width: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [
+                    accentColor,
+                    accentColor.withOpacity(0.65),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Icon(icon, color: Colors.white),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TrendTile extends StatelessWidget {
+  final String title;
+  final List<double> data;
+  final bool loading;
+  final Color accentColor;
+  final String emptyLabel;
+
+  const _TrendTile({
+    required this.title,
+    required this.data,
+    required this.loading,
+    required this.accentColor,
+    required this.emptyLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return const Center(
+        child: SizedBox(
+          height: 28,
+          width: 28,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+    if (data.isEmpty) {
+      return Text(
+        emptyLabel,
+        style: Theme.of(context)
+            .textTheme
+            .bodySmall
+            ?.copyWith(color: Colors.white60),
+      );
+    }
+    return BarTrend(
+      title: title,
+      data: data,
+      accentColor: accentColor,
     );
   }
 }

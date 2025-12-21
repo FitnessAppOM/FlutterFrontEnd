@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -34,6 +35,7 @@ class _NewsCarouselState extends State<NewsCarousel> {
   PageController? _controller;
   int _index = 0;
   int _initialPage = 0;
+  Timer? _timer;
 
   int _computeInitialPage(int length) => length > 0 ? length * 1000 : 0;
 
@@ -45,10 +47,12 @@ class _NewsCarouselState extends State<NewsCarousel> {
       viewportFraction: 0.88,
       initialPage: _initialPage,
     );
+    _startTimer();
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _controller?.dispose();
     super.dispose();
   }
@@ -64,7 +68,22 @@ class _NewsCarouselState extends State<NewsCarousel> {
         initialPage: _initialPage,
       );
       _index = 0;
+      _startTimer();
     }
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    if (widget.slides.isEmpty) return;
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (_controller == null || !mounted) return;
+      final nextPage = (_controller!.page ?? _initialPage).round() + 1;
+      _controller!.animateToPage(
+        nextPage,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   @override

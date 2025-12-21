@@ -140,10 +140,20 @@ class ConsentManager {
   static Future<bool> requestHealthPermissionsJIT({
     bool steps = true,
     bool sleep = true,
+    bool calories = false,
   }) async {
     final types = <HealthDataType>[];
     if (steps) types.add(HealthDataType.STEPS);
-    if (sleep) types.add(HealthDataType.SLEEP_ASLEEP);
+    if (sleep) {
+      // Request both sleep types together so iOS shows a single HealthKit sheet.
+      types.addAll([
+        HealthDataType.SLEEP_ASLEEP,
+        HealthDataType.SLEEP_IN_BED,
+      ]);
+    }
+    if (calories) types.add(HealthDataType.ACTIVE_ENERGY_BURNED);
+
+    if (types.isEmpty) return true;
 
     // Some platforms split permissions by READ/WRITE
     final permissions = types.map((_) => HealthDataAccess.READ).toList();
@@ -156,6 +166,14 @@ class ConsentManager {
     final granted = await health.requestAuthorization(types, permissions: permissions);
     return granted;
   }
+
+  /// Convenience helper to request both steps + sleep at once.
+  static Future<bool> requestStepsAndSleep() =>
+      requestHealthPermissionsJIT(steps: true, sleep: true);
+
+  /// Convenience helper to request steps + sleep + calories in one prompt.
+  static Future<bool> requestAllHealth() =>
+      requestHealthPermissionsJIT(steps: true, sleep: true, calories: true);
 
   // ---------------------------------------------------------------------------
   // CAMERA — JIT (you’ll still need proper Info.plist/Manifest entries)

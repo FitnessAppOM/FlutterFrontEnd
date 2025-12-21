@@ -10,23 +10,16 @@ class ApiConfig {
     }
 
     // ---------------------------
-    // IOS SIMULATOR / REAL IPHONE
+    // iOS (REAL DEVICE)
     // ---------------------------
     if (Platform.isIOS) {
-      // CHANGE THIS EVERY TIME YOUR MAC IP CHANGES
-      // Use localhost for iOS Simulator; replace with LAN IP when testing on device.
-      const macLocalIP = "127.0.0.1";
-      return "http://$macLocalIP:8000";
-    }
+  const macLocalIP = "172.20.10.3";
+  return "http://$macLocalIP:8000";
+}
 
     // ---------------------------
-    // macOS or Windows Desktop apps
+    // FALLBACK (Desktop / Web)
     // ---------------------------
-    if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
-      return "http://localhost:8000";
-    }
-
-    // Web fallback (if ever needed)
     return "http://localhost:8000";
   }
 }

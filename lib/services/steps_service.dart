@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:health/health.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../consents/consent_manager.dart';
 
 class StepsService {
   final Health _health = Health();
@@ -22,13 +23,7 @@ class StepsService {
     final now = DateTime.now();
     final todayKey = DateTime(now.year, now.month, now.day);
 
-    final types = [HealthDataType.STEPS];
-    final permissions = [HealthDataAccess.READ];
-
-    final granted = await _health.requestAuthorization(
-      types,
-      permissions: permissions,
-    );
+    final granted = await ConsentManager.requestAllHealth();
     if (!granted) {
       // Debug: permission was denied or unavailable.
       // ignore: avoid_print
@@ -55,7 +50,7 @@ class StepsService {
     final data = await _health.getHealthDataFromTypes(
       startTime: start,
       endTime: end,
-      types: types,
+      types: const [HealthDataType.STEPS],
     );
     // Debug: inspect returned samples.
     // ignore: avoid_print
@@ -74,19 +69,13 @@ class StepsService {
     required DateTime start,
     required DateTime end,
   }) async {
-    final types = [HealthDataType.STEPS];
-    final permissions = [HealthDataAccess.READ];
-
-    final granted = await _health.requestAuthorization(
-      types,
-      permissions: permissions,
-    );
+    final granted = await ConsentManager.requestAllHealth();
     if (!granted) return {};
 
     final data = await _health.getHealthDataFromTypes(
       startTime: start,
       endTime: end,
-      types: types,
+      types: const [HealthDataType.STEPS],
     );
 
     final Map<DateTime, int> totals = {};

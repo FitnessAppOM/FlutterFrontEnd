@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -122,14 +123,16 @@ class NotificationService {
   }
 
   static Future<bool> requestExactAlarmPermission() async {
+    if (!Platform.isAndroid) return true; // iOS/macOS: no exact alarm permission
+
     final androidPlugin =
     _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
 
-    if (androidPlugin == null) return false;
+    if (androidPlugin == null) return true;
 
     final granted = await androidPlugin.requestExactAlarmsPermission();
-    return granted ?? false;
+    return granted ?? true;
   }
 
 
@@ -151,6 +154,28 @@ class NotificationService {
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
     );
+  }
+
+  /// Debug helper: schedule a burst of notifications every 10 seconds.
+  static Future<void> scheduleDebugNotificationsEveryTenSeconds({int count = 3}) async {
+    final granted = await requestExactAlarmPermission();
+    if (!granted) return;
+
+    final baseId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    for (var i = 0; i < count; i++) {
+      final when = tz.TZDateTime.now(tz.local).add(Duration(seconds: 10 * (i + 1)));
+      await _plugin.zonedSchedule(
+        baseId + i,
+        'Debug reminder',
+        'This is test notification ${i + 1}/$count.',
+        when,
+        _defaultDetails,
+        payload: dailyJournalPayload,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+        UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    }
   }
 
 

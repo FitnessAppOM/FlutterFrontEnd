@@ -82,10 +82,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   void _prefill() {
     final p = widget.profile;
+    final t = AppLocalizations.of(context).translate;
     _ageCtrl.text = _str(p["age"]);
     _heightCtrl.text = _str(p["height_cm"]);
     _weightCtrl.text = _str(p["weight_kg"]);
-    _pastInjuriesCtrl.text = _str(p["previous_injuries"]);
+    _pastInjuriesCtrl.text =
+        _localizeInjury(_str(p["previous_injuries"]), t);
 
     _sex = _mapOptionKey(_str(p["sex"]), _sexOptions());
     _mainGoal = _mapOptionKey(_str(p["fitness_goal"]), _goalOptions());
@@ -236,6 +238,37 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return v == "none" || v == _t("chronic_none_value").toLowerCase();
   }
 
+  String _localizeInjury(String raw, String Function(String) t) {
+    final key = raw.trim().toLowerCase();
+    const map = {
+      "shoulder": "shoulder",
+      "back": "back",
+      "knee": "knee",
+      "elbow": "elbow",
+      "none": "none",
+    };
+    final matched = map[key];
+    if (matched != null) return t(matched);
+    return raw;
+  }
+
+  String _normalizeInjury(String input, String Function(String) t) {
+    final val = input.trim();
+    if (val.isEmpty) return val;
+    final translations = {
+      "shoulder": t("shoulder"),
+      "back": t("back"),
+      "knee": t("knee"),
+      "elbow": t("elbow"),
+      "none": t("none"),
+    };
+    for (final entry in translations.entries) {
+      if (val.toLowerCase() == entry.value.toLowerCase()) return entry.key;
+      if (val.toLowerCase() == entry.key.toLowerCase()) return entry.key;
+    }
+    return val;
+  }
+
   Future<void> _submit() async {
     _formKey.currentState!.save();
     _hasValidationError = false;
@@ -291,7 +324,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
 
     final pastInjuriesVal = _pastInjuriesCtrl.text.trim().isNotEmpty
-        ? _pastInjuriesCtrl.text.trim()
+        ? _normalizeInjury(_pastInjuriesCtrl.text.trim(), _t)
         : initialStr("previous_injuries");
 
     final chronicValueRaw = _chronicChoice == _t("no")
@@ -499,7 +532,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                               width: 20,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : Text(t.translate("save")),
+                          : Text(t.translate("common_save")),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -511,7 +544,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         side: const BorderSide(color: AppColors.greyDark),
                         minimumSize: const Size.fromHeight(48),
                       ),
-                      child: Text(t.translate("cancel")),
+                      child: Text(t.translate("common_cancel")),
                     ),
                   ),
                 ],
@@ -625,11 +658,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   Widget _affiliationBlock() {
     final t = AppLocalizations.of(context);
-    final subtitle = (_affiliationName != null && _affiliationName!.isNotEmpty)
+    String subtitle = (_affiliationName != null && _affiliationName!.isNotEmpty)
         ? _affiliationName!
         : (_affiliationOther != null && _affiliationOther!.isNotEmpty)
             ? _affiliationOther!
-            : t.translate("not_set");
+            : "";
+    if (subtitle.trim().isEmpty || subtitle.trim().toLowerCase() == "none") {
+      subtitle = t.translate("not_set");
+    }
 
     return Card(
       color: AppColors.greyDark,
@@ -687,7 +723,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 foregroundColor: Colors.white,
                 side: const BorderSide(color: AppColors.accent),
               ),
-              child: Text(t.translate("set")),
+              child: Text(t.translate("set_button")),
             ),
           ],
         ),
@@ -894,7 +930,7 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
   void _submit() {
     if ((_selectedAffId == null || _selectedAffId!.isEmpty) &&
         _otherCtrl.text.trim().isEmpty) {
-      _toast("Please choose an affiliation or type one.");
+      _toast(AppLocalizations.of(context).translate("affiliation_required"));
       return;
     }
     Navigator.of(context).pop(<String, String?>{

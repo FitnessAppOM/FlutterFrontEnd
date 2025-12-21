@@ -249,7 +249,6 @@ class _LoginPageState extends State<LoginPage> {
 
     final result = await signInWithGoogle();
 
-    // 🔴 IMPORTANT: check mounted AFTER await
     if (!mounted) return;
     setState(() => loading = false);
 
@@ -289,12 +288,12 @@ class _LoginPageState extends State<LoginPage> {
       type: AppToastType.success,
     );
 
-    // ⚠️ NO setState AFTER navigation
     await _navigatePostAuth(
       userId: userId,
       isExpert: false,
     );
   }
+
 
 
 

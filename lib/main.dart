@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -23,6 +24,11 @@ void main() async {
 
   // Local notifications (permissions + timezone-safe scheduling)
   await NotificationService.init();
+  if (kDebugMode) {
+    // Fire a few test notifications so you can verify delivery quickly.
+    await NotificationService.scheduleDebugNotificationsEveryTenSeconds(count: 3);
+  }
+  await NotificationService.scheduleDailyJournalReminder();
   final launchPayload = await NotificationService.getLaunchPayload();
   NavigationService.launchedFromNotificationPayload =
       launchPayload == NotificationService.dailyJournalPayload;

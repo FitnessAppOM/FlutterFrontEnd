@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/steps_service.dart';
 import '../theme/app_theme.dart';
+import '../localization/app_localizations.dart';
 
 class StepsDetailPage extends StatefulWidget {
   const StepsDetailPage({super.key});
@@ -13,11 +15,63 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
   String _range = 'weekly';
   bool _loading = true;
   Map<DateTime, int> _daily = {};
+  int? _goal;
+
+  static const _stepsGoalKey = "dashboard_steps_goal";
 
   @override
   void initState() {
     super.initState();
+    _loadGoal();
     _loadRange();
+  }
+
+  Future<void> _loadGoal() async {
+    final sp = await SharedPreferences.getInstance();
+    setState(() {
+      _goal = sp.getInt(_stepsGoalKey) ?? 10000;
+    });
+  }
+
+  Future<void> _editGoal() async {
+    final controller = TextEditingController(text: (_goal ?? 10000).toString());
+    final res = await showDialog<int>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: AppColors.cardDark,
+          title: const Text("Steps goal", style: TextStyle(color: Colors.white)),
+          content: TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            style: const TextStyle(color: Colors.white),
+            decoration: const InputDecoration(
+              labelText: "Steps per day",
+              labelStyle: TextStyle(color: Colors.white70),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                final parsed = int.tryParse(controller.text.trim());
+                Navigator.of(ctx).pop(parsed);
+              },
+              child: const Text("Save"),
+            ),
+          ],
+        );
+      },
+    );
+    if (res != null) {
+      final sp = await SharedPreferences.getInstance();
+      await sp.setInt(_stepsGoalKey, res);
+      if (!mounted) return;
+      setState(() => _goal = res);
+    }
   }
 
   Future<void> _loadRange() async {
@@ -54,6 +108,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final theme = Theme.of(context);
     final total = _daily.values.fold<int>(0, (a, b) => a + b);
     final avg = _daily.isEmpty ? 0 : total / _daily.length;
@@ -61,7 +116,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Steps'),
+        title: Text(t("steps_title")),
         backgroundColor: AppColors.black,
       ),
       backgroundColor: AppColors.black,
@@ -74,9 +129,9 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _chip('weekly'),
-                _chip('monthly'),
-                _chip('yearly'),
+                _chip('weekly', t("range_weekly")),
+                _chip('monthly', t("range_monthly")),
+                _chip('yearly', t("range_yearly")),
               ],
             ),
             const SizedBox(height: 12),
@@ -92,18 +147,30 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text("Edit today's steps"),
+                  child: Text(t("steps_edit_today")),
                 ),
                 const SizedBox(width: 10),
-                Text(
-                  "Today: ${_todaySteps()}",
-                  style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+                ElevatedButton(
+                  onPressed: _editGoal,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.cardDark,
+                    foregroundColor: Colors.white,
+                    side: BorderSide(color: AppColors.accent.withValues(alpha: 0.7)),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    t("steps_goal_btn").replaceAll("{value}", (_goal ?? 10000).toString()),
+                    style: const TextStyle(color: Colors.white),
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
             Text(
-              _rangeLabel(),
+              _rangeLabel(t),
               style: theme.textTheme.titleMedium?.copyWith(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
@@ -112,7 +179,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
             const SizedBox(height: 6),
             Text(
               _loading
-                  ? 'Loading steps...'
+                  ? t("dash_loading")
                   : 'Avg: ${avg.toStringAsFixed(0)} | Total: $total',
               style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
             ),
@@ -132,10 +199,10 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
     );
   }
 
-  Widget _chip(String value) {
+  Widget _chip(String value, String label) {
     final selected = _range == value;
     return ChoiceChip(
-      label: Text(value[0].toUpperCase() + value.substring(1)),
+      label: Text(label),
       selected: selected,
       onSelected: (_) {
         setState(() => _range = value);
@@ -263,22 +330,22 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
         border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.18)),
       ),
       child: Text(
-        'No steps data for this range.',
+        AppLocalizations.of(context).translate("no_steps_range"),
         style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
         textAlign: TextAlign.center,
       ),
     );
   }
 
-  String _rangeLabel() {
+  String _rangeLabel(String Function(String) t) {
     switch (_range) {
       case 'monthly':
-        return "Last 30 days";
+        return t("range_last30");
       case 'yearly':
-        return "Last year";
+        return t("range_last_year");
       case 'weekly':
       default:
-        return "Last 7 days";
+        return t("range_last7");
     }
   }
 
