@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:health/health.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../consents/consent_manager.dart';
 
 class CaloriesService {
   final Health _health = Health();
@@ -22,16 +23,7 @@ class CaloriesService {
     final today = DateTime.now();
     final todayKey = DateTime(today.year, today.month, today.day);
 
-    const types = [HealthDataType.ACTIVE_ENERGY_BURNED];
-    final permissions = List<HealthDataAccess>.filled(
-      types.length,
-      HealthDataAccess.READ,
-    );
-
-    final granted = await _health.requestAuthorization(
-      types,
-      permissions: permissions,
-    );
+    final granted = await ConsentManager.requestAllHealth();
     if (!granted) return manual[todayKey] ?? 0;
 
     final now = DateTime.now();
@@ -41,7 +33,7 @@ class CaloriesService {
       final data = await _health.getHealthDataFromTypes(
         startTime: start,
         endTime: now,
-        types: types,
+        types: const [HealthDataType.ACTIVE_ENERGY_BURNED],
       );
       final calories = data
           .where((e) => e.type == HealthDataType.ACTIVE_ENERGY_BURNED)
@@ -58,22 +50,13 @@ class CaloriesService {
     required DateTime start,
     required DateTime end,
   }) async {
-    const types = [HealthDataType.ACTIVE_ENERGY_BURNED];
-    final permissions = List<HealthDataAccess>.filled(
-      types.length,
-      HealthDataAccess.READ,
-    );
-
-    final granted = await _health.requestAuthorization(
-      types,
-      permissions: permissions,
-    );
+    final granted = await ConsentManager.requestAllHealth();
     if (!granted) return {};
 
     final data = await _health.getHealthDataFromTypes(
       startTime: start,
       endTime: end,
-      types: types,
+      types: const [HealthDataType.ACTIVE_ENERGY_BURNED],
     );
 
     final Map<DateTime, int> totals = {};

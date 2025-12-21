@@ -3,6 +3,7 @@ import '../../widgets/Main/section_header.dart';
 import '../../widgets/Main/card_container.dart';
 import '../../models/news_item.dart';
 import '../../services/news_tag_actions.dart';
+import '../../localization/app_localizations.dart';
 
 class AnnouncementsPage extends StatelessWidget {
   const AnnouncementsPage({
@@ -14,25 +15,26 @@ class AnnouncementsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final announcements = items;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Announcements"),
+        title: Text(t("announcements_title")),
         centerTitle: true,
       ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            const SectionHeader(title: "Latest news"),
+            SectionHeader(title: t("latest_news")),
             const SizedBox(height: 12),
             if (announcements.isEmpty)
               CardContainer(
                 child: Text(
-                  "No announcements yet.",
+                  t("no_announcements"),
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: cs.onSurface.withValues(alpha: 0.7),
                   ),

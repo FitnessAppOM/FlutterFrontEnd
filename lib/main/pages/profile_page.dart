@@ -73,7 +73,15 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  String _display(String? value) => (value == null || value.isEmpty) ? "—" : value;
+  String _display(String? value) {
+    if (value == null) return "—";
+    final v = value.trim();
+    if (v.isEmpty) return "—";
+    if (v.toLowerCase() == "none") {
+      return AppLocalizations.of(context).translate("not_set");
+    }
+    return v;
+  }
   String _displayWithUnit(String? value, String unit) {
     if (value == null || value.isEmpty) return "—";
     return "$value $unit";
@@ -212,7 +220,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           children: [
                             ProfileHeader(
                               name: _display(name),
-                              occupation: affiliationDisplay.isNotEmpty ? affiliationDisplay : null,
+                              occupation: _display(affiliationDisplay.isNotEmpty ? affiliationDisplay : null),
                               avatarUrl: _avatarUrl,
                             ),
                             const SizedBox(height: 24),

@@ -13,9 +13,9 @@ class ApiConfig {
     // iOS (REAL DEVICE)
     // ---------------------------
     if (Platform.isIOS) {
-      const macLocalIP = "10.245.224.125";
-      return "http://$macLocalIP:8000";
-    }
+  const macLocalIP = "172.20.10.3";
+  return "http://$macLocalIP:8000";
+}
 
     // ---------------------------
     // FALLBACK (Desktop / Web)

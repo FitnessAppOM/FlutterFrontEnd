@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/sleep_service.dart';
 import '../theme/app_theme.dart';
+import '../localization/app_localizations.dart';
 
 class SleepDetailPage extends StatefulWidget {
   const SleepDetailPage({super.key});
@@ -13,11 +15,65 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
   String _range = 'weekly';
   bool _loading = true;
   Map<DateTime, double> _daily = {};
+  double? _goal;
+
+  static const _sleepGoalKey = "dashboard_sleep_goal";
 
   @override
   void initState() {
     super.initState();
+    _loadGoal();
     _loadRange();
+  }
+
+  Future<void> _loadGoal() async {
+    final sp = await SharedPreferences.getInstance();
+    setState(() {
+      _goal = sp.getDouble(_sleepGoalKey) ?? 8.0;
+    });
+  }
+
+  Future<void> _editGoal() async {
+    final controller = TextEditingController(
+      text: (_goal ?? 8.0).toStringAsFixed(1),
+    );
+    final res = await showDialog<double>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: AppColors.cardDark,
+          title: const Text("Sleep goal", style: TextStyle(color: Colors.white)),
+          content: TextField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: const TextStyle(color: Colors.white),
+            decoration: const InputDecoration(
+              labelText: "Hours per night",
+              labelStyle: TextStyle(color: Colors.white70),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                final parsed = double.tryParse(controller.text.trim());
+                Navigator.of(ctx).pop(parsed);
+              },
+              child: const Text("Save"),
+            ),
+          ],
+        );
+      },
+    );
+    if (res != null) {
+      final sp = await SharedPreferences.getInstance();
+      await sp.setDouble(_sleepGoalKey, res);
+      if (!mounted) return;
+      setState(() => _goal = res);
+    }
   }
 
   Future<void> _loadRange() async {
@@ -54,6 +110,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final theme = Theme.of(context);
     final totalHours = _daily.values.fold<double>(0, (a, b) => a + b);
     final avgHours = _daily.isEmpty ? 0 : totalHours / _daily.length;
@@ -61,7 +118,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sleep'),
+        title: Text(t("sleep_title")),
         backgroundColor: AppColors.black,
       ),
       backgroundColor: AppColors.black,
@@ -74,9 +131,9 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _chip('weekly'),
-                _chip('monthly'),
-                _chip('yearly'),
+                _chip('weekly', t("range_weekly")),
+                _chip('monthly', t("range_monthly")),
+                _chip('yearly', t("range_yearly")),
               ],
             ),
             const SizedBox(height: 12),
@@ -92,24 +149,35 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text("Edit today's sleep"),
+                  child: Text(t("sleep_edit_today")),
                 ),
                 const SizedBox(width: 10),
-                Text(
-                  "Today: ${_todaySleepHours().toStringAsFixed(1)} h",
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70),
+                ElevatedButton(
+                  onPressed: _editGoal,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.cardDark,
+                    foregroundColor: Colors.white,
+                    side: BorderSide(color: AppColors.accent.withValues(alpha: 0.7)),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    t("sleep_goal_btn").replaceAll("{value}", (_goal ?? 8.0).toStringAsFixed(1)),
+                    style: const TextStyle(color: Colors.white),
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
             Text(
-              _rangeLabel(),
+              _rangeLabel(t),
               style: theme.textTheme.titleMedium?.copyWith(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 6),
             const SizedBox(height: 6),
             Expanded(
               child: _loading
@@ -126,10 +194,10 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     );
   }
 
-  Widget _chip(String value) {
+  Widget _chip(String value, String label) {
     final selected = _range == value;
     return ChoiceChip(
-      label: Text(value[0].toUpperCase() + value.substring(1)),
+      label: Text(label),
       selected: selected,
       onSelected: (_) {
         setState(() => _range = value);
@@ -216,15 +284,15 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     );
   }
 
-  String _rangeLabel({bool short = false}) {
+  String _rangeLabel(String Function(String) t, {bool short = false}) {
     switch (_range) {
       case 'monthly':
-        return short ? "30d" : "Last 30 days";
+        return short ? "30d" : t("range_last30");
       case 'yearly':
-        return short ? "1y" : "Last year";
+        return short ? "1y" : t("range_last_year");
       case 'weekly':
       default:
-        return short ? "7d" : "Last 7 days";
+        return short ? "7d" : t("range_last7");
     }
   }
 
@@ -308,7 +376,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'No sleep data for this range.',
+            AppLocalizations.of(context).translate("no_sleep_range"),
             style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
             textAlign: TextAlign.center,
           ),
