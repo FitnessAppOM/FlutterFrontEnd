@@ -12,7 +12,6 @@ class AppToast {
     Duration duration = const Duration(seconds: 3),
   }) {
     final overlay = Overlay.of(context);
-    if (overlay == null) return;
 
     final color = switch (type) {
       AppToastType.success => AppColors.accent,

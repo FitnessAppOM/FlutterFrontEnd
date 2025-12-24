@@ -841,7 +841,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
               labelText: _t("select_university"),
               border: const OutlineInputBorder(),
             ),
-            value: _selectedUniversityId,
+            initialValue: _selectedUniversityId,
             items: _universities
                 .map(
                   (u) => DropdownMenuItem<String>(
@@ -885,7 +885,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
             labelText: _t("affiliation_prompt"),
             border: const OutlineInputBorder(),
           ),
-          value: affiliationChoice,
+          initialValue: affiliationChoice,
           items: [
             _t("yes"),
             _t("no"),
@@ -925,7 +925,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
               labelText: _t("affiliation_category"),
               border: const OutlineInputBorder(),
             ),
-            value: _selectedAffiliationCategory,
+            initialValue: _selectedAffiliationCategory,
             items: _affiliationCategories
                 .map(
                   (c) => DropdownMenuItem<String>(
@@ -965,7 +965,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                   : _t("affiliation_select"),
               border: const OutlineInputBorder(),
             ),
-            value: selectedAffiliationId,
+            initialValue: selectedAffiliationId,
             isExpanded: true,
             items: [
               ..._affiliations.map(
@@ -1066,7 +1066,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
             labelText: _t("chronic_prompt"),
             border: const OutlineInputBorder(),
           ),
-          value: choice,
+          initialValue: choice,
           items: [
             DropdownMenuItem(value: yesLabel, child: Text(yesLabel)),
             DropdownMenuItem(value: noLabel, child: Text(noLabel)),

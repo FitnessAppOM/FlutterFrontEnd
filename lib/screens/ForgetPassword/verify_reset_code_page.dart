@@ -246,7 +246,7 @@ class _VerifyResetCodePageState extends State<VerifyResetCodePage> {
                 onPressed: resendCooldown ? null : resendCode,
                 child: resendCooldown
                     ? Text(
-                        "${t.translate("resend_wait").replaceAll("{seconds}", cooldownSeconds.toString())}",
+                        t.translate("resend_wait").replaceAll("{seconds}", cooldownSeconds.toString()),
                         style: const TextStyle(color: Colors.grey),
                       )
                     : Text(

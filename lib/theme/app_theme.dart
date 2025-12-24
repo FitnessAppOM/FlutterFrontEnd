@@ -67,7 +67,7 @@ ThemeData buildDarkTheme() {
     colorScheme: base.colorScheme.copyWith(
       primary: AppColors.accent,
       secondary: AppColors.accent,
-      background: AppColors.black,
+      surface: AppColors.black,
     ),
 
     inputDecorationTheme: const InputDecorationTheme(

@@ -5,7 +5,6 @@ import '../../screens/welcome.dart';
 import '../../screens/settings_page.dart';
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
-import '../../widgets/app_toast.dart';
 
 class ProfileHeader extends StatelessWidget {
   const ProfileHeader({

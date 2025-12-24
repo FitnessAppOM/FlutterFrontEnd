@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_native_timezone/flutter_native_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'navigation_service.dart';
@@ -30,6 +31,13 @@ class NotificationService {
 
   static Future<void> init() async {
     tz.initializeTimeZones();
+    // Align tz.local with the device's timezone so 8 AM stays at 8 AM locally.
+    try {
+      final String timeZoneName = await FlutterNativeTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
+    } catch (_) {
+      tz.setLocalLocation(tz.UTC);
+    }
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios = DarwinInitializationSettings();
@@ -93,13 +101,27 @@ class NotificationService {
     final granted = await requestExactAlarmPermission();
     if (!granted) return;
 
-    final tz.TZDateTime nextEightAm = _nextInstanceOfEightAm();
+    final tz.TZDateTime nextSixAm = _nextInstanceAtHour(6);
+    final tz.TZDateTime nextSixPm = _nextInstanceAtHour(18);
 
     await _plugin.zonedSchedule(
       2,
       'Daily Journal',
-      'Reminder to fill in your daily journal.',
-      nextEightAm,
+      'Please complete your daily journal if you haven\'t already.',
+      nextSixAm,
+      _defaultDetails,
+      payload: dailyJournalPayload,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+      UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+
+    await _plugin.zonedSchedule(
+      3,
+      'Daily Journal',
+      'Please complete your daily journal if you haven\'t already.',
+      nextSixPm,
       _defaultDetails,
       payload: dailyJournalPayload,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -110,10 +132,10 @@ class NotificationService {
   }
 
 
-  static tz.TZDateTime _nextInstanceOfEightAm() {
+  static tz.TZDateTime _nextInstanceAtHour(int hour) {
     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
     tz.TZDateTime scheduledDate =
-        tz.TZDateTime(tz.local, now.year, now.month, now.day, 8);
+        tz.TZDateTime(tz.local, now.year, now.month, now.day, hour);
 
     if (scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));

@@ -686,7 +686,7 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
           labelText: label,
           border: const OutlineInputBorder(),
         ),
-        value: value,
+        initialValue: value,
         dropdownColor: AppColors.black,
         style: const TextStyle(color: Colors.white),
         items: options
@@ -826,7 +826,7 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
               labelText: label,
               border: const OutlineInputBorder(),
             ),
-            value: value,
+            initialValue: value,
             dropdownColor: AppColors.black,
             style: const TextStyle(color: Colors.white),
             items: options
@@ -1090,7 +1090,7 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
                 labelText: "Category",
                 border: OutlineInputBorder(),
               ),
-              value: _selectedCategory,
+              initialValue: _selectedCategory,
               items: _categories
                   .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                   .toList(),
@@ -1109,7 +1109,7 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
                 labelText: _loading ? "Loading..." : "Affiliation",
                 border: const OutlineInputBorder(),
               ),
-              value: _selectedAffId,
+              initialValue: _selectedAffId,
               isExpanded: true,
               items: _affiliations
                   .map(
@@ -1263,7 +1263,7 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
                 labelText: "Do you have a certification?",
                 border: OutlineInputBorder(),
               ),
-              value: _hasCert,
+              initialValue: _hasCert,
               items: const [
                 DropdownMenuItem(value: "Yes", child: Text("Yes")),
                 DropdownMenuItem(value: "No", child: Text("No")),
@@ -1286,7 +1286,7 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
                   labelText: "Certification type",
                   border: OutlineInputBorder(),
                 ),
-                value: _certType,
+                initialValue: _certType,
                 items: widget.certOpts
                     .map((o) => DropdownMenuItem(value: o, child: Text(o)))
                     .toList(),
