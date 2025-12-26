@@ -13,7 +13,7 @@ class ApiConfig {
     // iOS (REAL DEVICE)
     // ---------------------------
     if (Platform.isIOS) {
-  const macLocalIP = "172.20.10.3";
+  const macLocalIP = "10.192.7.69";
   return "http://$macLocalIP:8000";
 }
 

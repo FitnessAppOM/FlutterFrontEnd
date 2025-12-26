@@ -105,4 +105,75 @@ class DailyJournalApi {
 
     throw Exception("Failed to fetch daily journal: ${res.body}");
   }
+
+  static Future<DailyJournalEntry?> fetchForDate(int userId, DateTime date) async {
+    final dateStr = date.toIso8601String().split("T").first;
+    final url = Uri.parse("${ApiConfig.baseUrl}/daily-journal/$userId/date/$dateStr");
+    final res = await http.get(url);
+
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      return DailyJournalEntry.fromJson(data);
+    }
+
+    if (res.statusCode == 404) {
+      return null;
+    }
+
+    throw Exception("Failed to fetch daily journal for $dateStr: ${res.body}");
+  }
+
+  static Future<void> upsert({
+    required int userId,
+    DateTime? entryDate,
+    double? sleepHours,
+    int? sleepQuality,
+    bool? caffeineYes,
+    int? caffeineCups,
+    bool? alcoholYes,
+    int? alcoholDrinks,
+    double? hydrationLiters,
+    bool? sorenessOrPain,
+    int? stressLevel,
+    int? moodUponWaking,
+    bool? sexualActivity,
+    bool? screenTimeBeforeBed,
+    int? productivityFocus,
+    int? motivationToTrain,
+    bool? tookSupplementsOrMedications,
+  }) async {
+    final url = Uri.parse("${ApiConfig.baseUrl}/daily-journal/");
+    final body = <String, dynamic>{
+      "user_id": userId,
+      if (entryDate != null) "entry_date": entryDate.toIso8601String().split("T").first,
+      if (sleepHours != null) "sleep_hours": sleepHours,
+      if (sleepQuality != null) "sleep_quality": sleepQuality,
+      if (caffeineYes != null) "caffeine_yes": caffeineYes,
+      if (caffeineCups != null) "caffeine_cups": caffeineCups,
+      if (alcoholYes != null) "alcohol_yes": alcoholYes,
+      if (alcoholDrinks != null) "alcohol_drinks": alcoholDrinks,
+      if (hydrationLiters != null) "hydration_liters": hydrationLiters,
+      if (sorenessOrPain != null) "soreness_or_pain": sorenessOrPain,
+      if (stressLevel != null) "stress_level": stressLevel,
+      if (moodUponWaking != null) "mood_upon_waking": moodUponWaking,
+      if (sexualActivity != null) "sexual_activity": sexualActivity,
+      if (screenTimeBeforeBed != null) "screen_time_before_bed": screenTimeBeforeBed,
+      if (productivityFocus != null) "productivity_focus": productivityFocus,
+      if (motivationToTrain != null) "motivation_to_train": motivationToTrain,
+      if (tookSupplementsOrMedications != null)
+        "took_supplements_or_medications": tookSupplementsOrMedications,
+    };
+
+    final res = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(body),
+    );
+
+    if (res.statusCode == 200) return;
+    if (res.statusCode == 409) {
+      throw Exception("already_submitted");
+    }
+    throw Exception("Failed to save daily journal: ${res.body}");
+  }
 }

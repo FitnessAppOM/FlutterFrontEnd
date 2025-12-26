@@ -11,6 +11,14 @@ class AccountStorage {
   static const _kExpertQuestionnaireDone = 'expert_questionnaire_done';
   static const _kAvatarPath = 'avatar_path';
   static const _kAvatarUrl = 'avatar_url';
+  static const _kMetricsKeys = [
+    "manual_steps_entries",
+    "manual_calories_entries",
+    "manual_sleep_entries",
+    "water_intake_entries",
+    "water_goal_liters",
+    "daily_metrics_last_push_date",
+  ];
 
   // Save everything after login
   static Future<void> saveUserSession({
@@ -38,6 +46,8 @@ class AccountStorage {
     if (isDifferentUser) {
       await sp.remove(_kAvatarUrl);
       await sp.remove(_kAvatarPath);
+      await _clearMetricsForUser(sp, previousUserId);
+      await _clearMetricsForUser(sp, null); // clear any unscoped cache
     }
 
     await sp.setInt(_kUserId, userId);
@@ -54,6 +64,13 @@ class AccountStorage {
         expertQuestionnaireDone ?? existingExpertQuestionnaireDone);
     if (token != null) {
       await sp.setString(_kToken, token);
+    }
+  }
+
+  static Future<void> _clearMetricsForUser(SharedPreferences sp, int? userId) async {
+    for (final base in _kMetricsKeys) {
+      final key = userId == null ? base : "${base}_u$userId";
+      await sp.remove(key);
     }
   }
 

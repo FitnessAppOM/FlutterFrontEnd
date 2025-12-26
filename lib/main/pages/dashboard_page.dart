@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 import '../../widgets/Main/section_header.dart';
 import '../../widgets/Main/card_container.dart';
 import '../../widgets/news_carousel.dart';
@@ -14,6 +15,7 @@ import '../../widgets/dashboard/bar_trend.dart';
 import '../../theme/app_theme.dart';
 import '../../core/account_storage.dart';
 import '../../services/profile_service.dart';
+import '../../services/daily_metrics_api.dart';
 import '../../config/base_url.dart';
 import '../../services/steps_service.dart';
 import '../../services/sleep_service.dart';
@@ -23,6 +25,8 @@ import '../../screens/sleep_detail_page.dart';
 import '../../screens/steps_detail_page.dart';
 import '../../screens/calories_detail_page.dart';
 import '../../localization/app_localizations.dart';
+import '../../widgets/app_toast.dart';
+import '../../widgets/common/date_header.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -58,6 +62,7 @@ class _DashboardPageState extends State<DashboardPage> {
   List<double> _trendCalories = const [];
   bool _trendSleepLoading = false;
   bool _trendCaloriesLoading = false;
+  DateTime _selectedDate = DateTime.now();
 
   static const _stepsGoalKey = "dashboard_steps_goal";
   static const _sleepGoalKey = "dashboard_sleep_goal";
@@ -75,6 +80,79 @@ class _DashboardPageState extends State<DashboardPage> {
     }
     // Default accent in the same palette family.
     return const Color(0xFF6A5AE0);
+  }
+
+  void _changeDay(int deltaDays) {
+    final next = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day + deltaDays,
+    );
+    final today = DateTime.now();
+    final todayOnly = DateTime(today.year, today.month, today.day);
+    if (next.isAfter(todayOnly)) return;
+    setState(() => _selectedDate = next);
+    _loadSteps();
+    _loadSleep();
+    _loadCalories();
+    _loadWater();
+    _loadWeeklySteps();
+    _loadTrendSleep();
+    _loadTrendCalories();
+  }
+
+  void _openDateSheet() {
+    final locale = AppLocalizations.of(context).locale.languageCode;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            void change(int delta) {
+              _changeDay(delta);
+              setModalState(() {});
+            }
+
+            return Container(
+              decoration: const BoxDecoration(
+                color: AppColors.surfaceDark,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DateHeader(
+                    selectedDate: _selectedDate,
+                    onPrev: () => change(-1),
+                    onNext: () => change(1),
+                    canGoNext: !_isToday(),
+                    label: DateFormat('dd/MM', locale).format(_selectedDate),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  bool _isToday() {
+    final now = DateTime.now();
+    return _selectedDate.year == now.year &&
+        _selectedDate.month == now.month &&
+        _selectedDate.day == now.day;
   }
 
   @override
@@ -114,7 +192,16 @@ class _DashboardPageState extends State<DashboardPage> {
       _stepsLoading = true;
     });
     try {
-      final steps = await StepsService().fetchTodaySteps();
+      int? steps;
+      if (_isToday()) {
+        steps = await StepsService().fetchTodaySteps();
+      } else {
+        final userId = await AccountStorage.getUserId();
+        if (userId != null) {
+          final entry = await DailyMetricsApi.fetchForDate(userId, _selectedDate);
+          steps = entry?.steps;
+        }
+      }
       if (!mounted) return;
       setState(() => _todaySteps = steps);
     } catch (_) {
@@ -132,7 +219,16 @@ class _DashboardPageState extends State<DashboardPage> {
       _sleepLoading = true;
     });
     try {
-      final hours = await SleepService().fetchSleepHoursLast24h();
+      double? hours;
+      if (_isToday()) {
+        hours = await SleepService().fetchSleepHoursLast24h();
+      } else {
+        final userId = await AccountStorage.getUserId();
+        if (userId != null) {
+          final entry = await DailyMetricsApi.fetchForDate(userId, _selectedDate);
+          hours = entry?.sleepHours;
+        }
+      }
       if (!mounted) return;
       setState(() => _sleepHours = hours);
     } catch (_) {
@@ -150,7 +246,16 @@ class _DashboardPageState extends State<DashboardPage> {
       _caloriesLoading = true;
     });
     try {
-      final kcal = await CaloriesService().fetchTodayCalories();
+      int? kcal;
+      if (_isToday()) {
+        kcal = await CaloriesService().fetchTodayCalories();
+      } else {
+        final userId = await AccountStorage.getUserId();
+        if (userId != null) {
+          final entry = await DailyMetricsApi.fetchForDate(userId, _selectedDate);
+          kcal = entry?.calories;
+        }
+      }
       if (!mounted) return;
       setState(() => _todayCalories = kcal);
     } catch (_) {
@@ -170,7 +275,16 @@ class _DashboardPageState extends State<DashboardPage> {
     try {
       final service = WaterService();
       final goal = await service.getGoal();
-      final intake = await service.getTodayIntake();
+      double? intake;
+      if (_isToday()) {
+        intake = await service.getIntakeForDay(_selectedDate);
+      } else {
+        final userId = await AccountStorage.getUserId();
+        if (userId != null) {
+          final entry = await DailyMetricsApi.fetchForDate(userId, _selectedDate);
+          intake = entry?.waterLiters;
+        }
+      }
       if (!mounted) return;
       setState(() {
         _waterGoal = goal;
@@ -262,16 +376,65 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
+  Future<Map<DateTime, DailyMetricsEntry?>> _fetchMetricsRange(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return {};
+    final normalizedStart = DateTime(start.year, start.month, start.day);
+    final normalizedEnd = DateTime(end.year, end.month, end.day);
+    final days = <DateTime>[];
+    var cursor = normalizedStart;
+    while (!cursor.isAfter(normalizedEnd)) {
+      days.add(cursor);
+      cursor = cursor.add(const Duration(days: 1));
+    }
+    final results = await Future.wait(
+      days.map((d) => DailyMetricsApi.fetchForDate(userId, d)),
+    );
+    final map = <DateTime, DailyMetricsEntry?>{};
+    for (var i = 0; i < days.length; i++) {
+      map[days[i]] = results[i];
+    }
+
+    // Inject today's local readings when the range includes today, since DB may not be updated yet.
+    final now = DateTime.now();
+    final todayKey = DateTime(now.year, now.month, now.day);
+    final includesToday =
+        !todayKey.isBefore(normalizedStart) && !todayKey.isAfter(normalizedEnd);
+    if (includesToday) {
+      final current = map[todayKey];
+      final localSteps = await StepsService().fetchTodaySteps();
+      final localSleep = await SleepService().fetchSleepHoursLast24h();
+      final localCalories = await CaloriesService().fetchTodayCalories();
+      final localWater = await WaterService().getIntakeForDay(todayKey);
+      map[todayKey] = DailyMetricsEntry(
+        entryDate: todayKey,
+        steps: current?.steps ?? localSteps,
+        sleepHours: current?.sleepHours ?? localSleep,
+        calories: current?.calories ?? localCalories,
+        waterLiters: current?.waterLiters ?? localWater,
+      );
+    }
+    return map;
+  }
+
   Future<void> _loadWeeklySteps() async {
     setState(() {
       _weeklyStepsLoading = true;
     });
     try {
-      final now = DateTime.now();
-      final start = now.subtract(const Duration(days: 7));
-      final data =
-          await StepsService().fetchDailySteps(start: start, end: now);
-      final total = data.values.fold<int>(0, (sum, val) => sum + val);
+      final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+      final start = anchor.subtract(const Duration(days: 6));
+      final metrics = await _fetchMetricsRange(start, anchor);
+      int total;
+      if (metrics.isNotEmpty) {
+        total = metrics.values.fold<int>(0, (sum, entry) => sum + (entry?.steps ?? 0));
+      } else {
+        final data = await StepsService().fetchDailySteps(start: start, end: anchor);
+        total = data.values.fold<int>(0, (sum, val) => sum + val);
+      }
       if (!mounted) return;
       setState(() => _weeklySteps = total);
     } catch (_) {
@@ -287,15 +450,27 @@ class _DashboardPageState extends State<DashboardPage> {
   Future<void> _loadTrendSleep() async {
     setState(() => _trendSleepLoading = true);
     try {
-      final now = DateTime.now();
-      final start = now.subtract(const Duration(days: 6));
-      final data = await SleepService().fetchDailySleep(start: start, end: now);
-      final days = List.generate(7, (i) {
-        final d = DateTime(now.year, now.month, now.day)
-            .subtract(Duration(days: 6 - i));
-        final key = DateTime(d.year, d.month, d.day);
-        return data[key] ?? 0.0;
-      });
+      final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+      final start = anchor.subtract(const Duration(days: 6));
+      final metrics = await _fetchMetricsRange(start, anchor);
+      List<double> days;
+      if (metrics.isNotEmpty) {
+        days = List.generate(7, (i) {
+          final d = DateTime(anchor.year, anchor.month, anchor.day)
+              .subtract(Duration(days: 6 - i));
+          final key = DateTime(d.year, d.month, d.day);
+          final entry = metrics[key];
+          return (entry?.sleepHours ?? 0.0).toDouble();
+        });
+      } else {
+        final data = await SleepService().fetchDailySleep(start: start, end: anchor);
+        days = List.generate(7, (i) {
+          final d = DateTime(anchor.year, anchor.month, anchor.day)
+              .subtract(Duration(days: 6 - i));
+          final key = DateTime(d.year, d.month, d.day);
+          return data[key] ?? 0.0;
+        });
+      }
       final hasData = days.any((v) => v > 0);
       if (!mounted) return;
       setState(() => _trendSleep = hasData ? days : const []);
@@ -310,16 +485,28 @@ class _DashboardPageState extends State<DashboardPage> {
   Future<void> _loadTrendCalories() async {
     setState(() => _trendCaloriesLoading = true);
     try {
-      final now = DateTime.now();
-      final start = now.subtract(const Duration(days: 6));
-      final data =
-          await CaloriesService().fetchDailyCalories(start: start, end: now);
-      final days = List.generate(7, (i) {
-        final d = DateTime(now.year, now.month, now.day)
-            .subtract(Duration(days: 6 - i));
-        final key = DateTime(d.year, d.month, d.day);
-        return (data[key] ?? 0).toDouble();
-      });
+      final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+      final start = anchor.subtract(const Duration(days: 6));
+      final metrics = await _fetchMetricsRange(start, anchor);
+      List<double> days;
+      if (metrics.isNotEmpty) {
+        days = List.generate(7, (i) {
+          final d = DateTime(anchor.year, anchor.month, anchor.day)
+              .subtract(Duration(days: 6 - i));
+          final key = DateTime(d.year, d.month, d.day);
+          final entry = metrics[key];
+          return (entry?.calories ?? 0).toDouble();
+        });
+      } else {
+        final data =
+            await CaloriesService().fetchDailyCalories(start: start, end: anchor);
+        days = List.generate(7, (i) {
+          final d = DateTime(anchor.year, anchor.month, anchor.day)
+              .subtract(Duration(days: 6 - i));
+          final key = DateTime(d.year, d.month, d.day);
+          return (data[key] ?? 0).toDouble();
+        });
+      }
       final hasData = days.any((v) => v > 0);
       if (!mounted) return;
       setState(() => _trendCalories = hasData ? days : const []);
@@ -540,6 +727,8 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context).translate;
+    final locale = AppLocalizations.of(context).locale.languageCode;
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     final slides = _news.isEmpty
         ? [
             NewsSlide(
@@ -575,234 +764,330 @@ class _DashboardPageState extends State<DashboardPage> {
     final weeklyProgress = weeklyStepGoalTotal == 0
         ? 0.0
         : (weeklySteps / weeklyStepGoalTotal).clamp(0.0, 2.0);
+    final metricsLoading = _stepsLoading || _sleepLoading || _caloriesLoading || _waterLoading;
+    final noEntriesForSelectedDate = !_isToday() &&
+        !metricsLoading &&
+        _todaySteps == null &&
+        _sleepHours == null &&
+        _todayCalories == null &&
+        _waterIntake == null;
+    final todayOnly = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final selectedDayOnly = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final isYesterday = selectedDayOnly == todayOnly.subtract(const Duration(days: 1));
+    final relativeDateLabel = _isToday()
+        ? t("date_today")
+        : isYesterday
+            ? t("date_yesterday")
+            : DateFormat('MMM d, y', locale).format(_selectedDate);
 
     return SafeArea(
       child: RefreshIndicator(
         color: AppColors.accent,
         backgroundColor: AppColors.cardDark,
         onRefresh: _refreshAll,
-        child: ListView(
-          padding: const EdgeInsets.all(20),
+        child: Stack(
           children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      t("dash_welcome_back"),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.white70,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _displayName == null || _displayName!.isEmpty
-                          ? t("dash_dashboard")
-                          : t("dash_hi_name").replaceAll("{name}", _displayName!),
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                height: 44,
-                width: 44,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: (_avatarUrl == null || _avatarUrl!.isEmpty) &&
-                          (_avatarPath == null || _avatarPath!.isEmpty)
-                      ? const LinearGradient(
-                          colors: [Color(0xFF35B6FF), AppColors.accent],
-                        )
-                      : null,
-                  border: Border.all(
-                    color: const Color(0xFFD4AF37).withValues(alpha: 0.35),
-                    width: 1,
-                  ),
-                ),
-                child: ClipOval(
-                  child: _buildAvatar(),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (_loading)
-            const CardContainer(
-              child: Padding(
-                padding: EdgeInsets.all(12.0),
-                child: Center(
-                  child: SizedBox(
-                    height: 28,
-                    width: 28,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
-              ),
-            )
-          else ...[
-            if (_error != null)
-              CardContainer(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(t("dash_news_tag"), style: const TextStyle(color: Colors.white)),
-                    const SizedBox(height: 6),
-                    Text(
-                      _error!,
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ],
-                ),
-              )
-            else
-              NewsCarousel(slides: slides),
-          ],
-          const SizedBox(height: 20),
-          GridView.count(
-            physics: const NeverScrollableScrollPhysics(),
-            shrinkWrap: true,
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.10,
-            children: [
-              StatCard(
-                title: t("dash_today_steps"),
-                value: _stepsLoading ? "…" : "${todaysStepsDisplay.toString()}",
-                subtitle: "${t("dash_goal")} ${(_stepsGoal ?? 10000).toString()}",
-                icon: Icons.directions_walk,
-                accentColor: const Color(0xFF35B6FF),
-                onTap: () async {
-                  await Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const StepsDetailPage()),
-                  );
-                  await _loadGoals();
-                },
-                onLongPress: _editStepsGoal,
-              ),
-              StatCard(
-                title: t("dash_today_sleep"),
-                value: _sleepLoading
-                    ? "…"
-                    : "${averageSleep.toStringAsFixed(1)} ${t("dash_unit_hrs")}",
-                subtitle: "${t("dash_goal")} ${(_sleepGoal ?? 8.0).toStringAsFixed(1)} ${t("dash_unit_hrs")}",
-                icon: Icons.nights_stay,
-                accentColor: const Color(0xFF9B8CFF),
-                onTap: () async {
-                  await Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SleepDetailPage()),
-                  );
-                  await _loadGoals();
-                },
-                onLongPress: _editSleepGoal,
-              ),
-              StatCard(
-                title: t("dash_water_intake"),
-                value: _waterLoading ? "…" : "${waterIntake.toStringAsFixed(1)} ${t("dash_unit_l")}",
-                subtitle: _waterLoading ? "" : "${t("dash_goal")} ${waterGoal.toStringAsFixed(1)} ${t("dash_unit_l")}",
-                icon: Icons.water_drop,
-                accentColor: const Color(0xFF00BFA6),
-                onTap: _openWaterEditor,
-                onLongPress: _openWaterEditor,
-              ),
-              StatCard(
-                title: t("dash_calories_burned"),
-                value: _caloriesLoading
-                    ? "…"
-                    : "${todaysCaloriesDisplay.toString()} ${t("dash_unit_kcal")}",
-                subtitle: "${t("dash_goal")} ${(_caloriesGoal ?? 500).toString()}",
-                icon: Icons.local_fire_department,
-                accentColor: const Color(0xFFFF8A00),
-                onTap: () async {
-                  await Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const CaloriesDetailPage()),
-                  );
-                  await _loadGoals();
-                },
-                onLongPress: _editCaloriesGoal,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ProgressMeter(
-            title: t("dash_weekly_goal"),
-            progress: weeklyProgress,
-            targetLabel: "${t("dash_target")}: $weeklyStepGoalTotal ${t("dash_steps_week")}",
-            trailingLabel: _weeklyStepsLoading ? t("dash_loading") : "$weeklySteps ${t("dash_steps_label")}",
-            accentColor: const Color(0xFF35B6FF),
-            onTap: _loadWeeklySteps,
-          ),
-          const SizedBox(height: 16),
-          CardContainer(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            ListView(
+              padding: const EdgeInsets.all(20),
               children: [
-                Text(
-                  t("dash_7day_trends"),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-                const SizedBox(height: 12),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
-                      child: _TrendTile(
-                        title: t("dash_sleep_hrs"),
-                        data: _trendSleep,
-                        loading: _trendSleepLoading,
-                        accentColor: const Color(0xFF9B8CFF),
-                        emptyLabel: t("dash_no_sleep_data"),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            t("dash_welcome_back"),
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Colors.white70,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _displayName == null || _displayName!.isEmpty
+                                ? t("dash_dashboard")
+                                : t("dash_hi_name").replaceAll("{name}", _displayName!),
+                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _TrendTile(
-                        title: t("dash_calories_scaled"),
-                        data: _trendCalories.map((e) => e / 100).toList(),
-                        loading: _trendCaloriesLoading,
-                        accentColor: const Color(0xFFFF8A00),
-                        emptyLabel: t("dash_no_calories_data"),
+                    Container(
+                      height: 44,
+                      width: 44,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: (_avatarUrl == null || _avatarUrl!.isEmpty) &&
+                                (_avatarPath == null || _avatarPath!.isEmpty)
+                            ? const LinearGradient(
+                                colors: [Color(0xFF35B6FF), AppColors.accent],
+                              )
+                            : null,
+                        border: Border.all(
+                          color: const Color(0xFFD4AF37).withValues(alpha: 0.35),
+                          width: 1,
+                        ),
+                      ),
+                      child: ClipOval(
+                        child: _buildAvatar(),
                       ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 16),
+                if (_loading)
+                  const CardContainer(
+                    child: Padding(
+                      padding: EdgeInsets.all(12.0),
+                      child: Center(
+                        child: SizedBox(
+                          height: 28,
+                          width: 28,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    ),
+                  )
+                else if (noEntriesForSelectedDate)
+                  CardContainer(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Center(
+                        child: Text(
+                          t("no_entries"),
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                      ),
+                    ),
+                  )
+                else ...[
+                  if (_todaySteps == null &&
+                      _sleepHours == null &&
+                      _todayCalories == null &&
+                      _waterIntake == null)
+                    CardContainer(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Center(
+                          child: Text(
+                            t("no_entries"),
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (_error != null)
+                    CardContainer(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(t("dash_news_tag"), style: const TextStyle(color: Colors.white)),
+                          const SizedBox(height: 6),
+                          Text(
+                            _error!,
+                            style: const TextStyle(color: Colors.white70, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    NewsCarousel(slides: slides),
+                ],
+                const SizedBox(height: 16),
+                if (!_loading && !noEntriesForSelectedDate) ...[
+                  const SizedBox(height: 20),
+                  GridView.count(
+                    physics: const NeverScrollableScrollPhysics(),
+                    shrinkWrap: true,
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.10,
+                    children: [
+                      StatCard(
+                        title: t("dash_today_steps"),
+                        value: _stepsLoading ? "…" : "${todaysStepsDisplay.toString()}",
+                        subtitle: "${t("dash_goal")} ${(_stepsGoal ?? 10000).toString()}",
+                        icon: Icons.directions_walk,
+                        accentColor: const Color(0xFF35B6FF),
+                        onTap: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const StepsDetailPage()),
+                          );
+                          await _loadGoals();
+                          await _loadSteps();
+                        },
+                        onLongPress: _editStepsGoal,
+                      ),
+                      StatCard(
+                        title: t("dash_today_sleep"),
+                        value: _sleepLoading
+                            ? "…"
+                            : "${averageSleep.toStringAsFixed(1)} ${t("dash_unit_hrs")}",
+                        subtitle: "${t("dash_goal")} ${(_sleepGoal ?? 8.0).toStringAsFixed(1)} ${t("dash_unit_hrs")}",
+                        icon: Icons.nights_stay,
+                        accentColor: const Color(0xFF9B8CFF),
+                        onTap: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const SleepDetailPage()),
+                          );
+                          await _loadGoals();
+                          await _loadSleep();
+                        },
+                        onLongPress: _editSleepGoal,
+                      ),
+                      StatCard(
+                        title: t("dash_water_intake"),
+                        value: _waterLoading ? "…" : "${waterIntake.toStringAsFixed(1)} ${t("dash_unit_l")}",
+                        subtitle: _waterLoading ? "" : "${t("dash_goal")} ${waterGoal.toStringAsFixed(1)} ${t("dash_unit_l")}",
+                        icon: Icons.water_drop,
+                        accentColor: const Color(0xFF00BFA6),
+                        onTap: _openWaterEditor,
+                        onLongPress: _openWaterEditor,
+                      ),
+                      StatCard(
+                        title: t("dash_calories_burned"),
+                        value: _caloriesLoading
+                            ? "…"
+                            : "${todaysCaloriesDisplay.toString()} ${t("dash_unit_kcal")}",
+                        subtitle: "${t("dash_goal")} ${(_caloriesGoal ?? 500).toString()}",
+                        icon: Icons.local_fire_department,
+                        accentColor: const Color(0xFFFF8A00),
+                        onTap: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const CaloriesDetailPage()),
+                          );
+                          await _loadGoals();
+                          await _loadCalories();
+                        },
+                        onLongPress: _editCaloriesGoal,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  ProgressMeter(
+                    title: t("dash_weekly_goal"),
+                    progress: weeklyProgress,
+                    targetLabel: "${t("dash_target")}: $weeklyStepGoalTotal ${t("dash_steps_week")}",
+                    trailingLabel: _weeklyStepsLoading ? t("dash_loading") : "$weeklySteps ${t("dash_steps_label")}",
+                    accentColor: const Color(0xFF35B6FF),
+                    onTap: _loadWeeklySteps,
+                  ),
+                  const SizedBox(height: 16),
+                  CardContainer(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          t("dash_7day_trends"),
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _TrendTile(
+                                title: t("dash_sleep_hrs"),
+                                data: _trendSleep,
+                                loading: _trendSleepLoading,
+                                accentColor: const Color(0xFF9B8CFF),
+                                emptyLabel: t("dash_no_sleep_data"),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _TrendTile(
+                                title: t("dash_calories_scaled"),
+                                data: _trendCalories.map((e) => e / 100).toList(),
+                                loading: _trendCaloriesLoading,
+                                accentColor: const Color(0xFFFF8A00),
+                                emptyLabel: t("dash_no_calories_data"),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _PlaceholderMetricCard(
+                    title: t("dash_fueling"),
+                    subtitle: t("dash_placeholder"),
+                    icon: Icons.restaurant_menu,
+                    accentColor: const Color(0xFF00BFA6),
+                  ),
+                  const SizedBox(height: 12),
+                  _PlaceholderMetricCard(
+                    title: t("dash_muscle"),
+                    subtitle: t("dash_placeholder"),
+                    icon: Icons.fitness_center,
+                    accentColor: const Color(0xFFFF8A00),
+                  ),
+                  const SizedBox(height: 12),
+                  _PlaceholderMetricCard(
+                    title: t("dash_taqa_score"),
+                    subtitle: t("dash_placeholder"),
+                    icon: Icons.bolt,
+                    accentColor: const Color(0xFF6A5AE0),
+                  ),
+                ],
               ],
             ),
-          ),
-          const SizedBox(height: 16),
-          _PlaceholderMetricCard(
-            title: t("dash_fueling"),
-            subtitle: t("dash_placeholder"),
-            icon: Icons.restaurant_menu,
-            accentColor: const Color(0xFF00BFA6),
-          ),
-          const SizedBox(height: 12),
-          _PlaceholderMetricCard(
-            title: t("dash_muscle"),
-            subtitle: t("dash_placeholder"),
-            icon: Icons.fitness_center,
-            accentColor: const Color(0xFFFF8A00),
-          ),
-          const SizedBox(height: 12),
-          _PlaceholderMetricCard(
-            title: t("dash_taqa_score"),
-            subtitle: t("dash_placeholder"),
-            icon: Icons.bolt,
-            accentColor: const Color(0xFF6A5AE0),
-          ),
-        ],
-      ),
+            Positioned(
+              right: 20,
+              bottom: 20 + bottomInset,
+              child: GestureDetector(
+                onTap: _openDateSheet,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(32),
+                    border: Border.all(color: AppColors.accent.withValues(alpha: 0.35)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black54,
+                        blurRadius: 12,
+                        offset: Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.calendar_month, color: Colors.white, size: 22),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            relativeDateLabel,
+                            style: AppTextStyles.small.copyWith(color: Colors.white70),
+                          ),
+                          Text(
+                            DateFormat('dd/MM', locale).format(_selectedDate),
+                            style: AppTextStyles.subtitle.copyWith(color: Colors.white),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(Icons.expand_more, color: Colors.white70, size: 22),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

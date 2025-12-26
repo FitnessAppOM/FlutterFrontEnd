@@ -131,13 +131,50 @@ class NotificationService {
     );
   }
 
+  static Future<void> rescheduleDailyJournalRemindersForTomorrow() async {
+    await _plugin.cancel(2);
+    await _plugin.cancel(3);
+    final granted = await requestExactAlarmPermission();
+    if (!granted) return;
 
-  static tz.TZDateTime _nextInstanceAtHour(int hour) {
+    final tz.TZDateTime nextSixAm = _nextInstanceAtHour(6, startTomorrow: true);
+    final tz.TZDateTime nextSixPm = _nextInstanceAtHour(18, startTomorrow: true);
+
+    await _plugin.zonedSchedule(
+      2,
+      'Daily Journal',
+      'Please complete your daily journal if you haven\'t already.',
+      nextSixAm,
+      _defaultDetails,
+      payload: dailyJournalPayload,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+      UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+
+    await _plugin.zonedSchedule(
+      3,
+      'Daily Journal',
+      'Please complete your daily journal if you haven\'t already.',
+      nextSixPm,
+      _defaultDetails,
+      payload: dailyJournalPayload,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+      UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+  }
+
+
+  static tz.TZDateTime _nextInstanceAtHour(int hour, {bool startTomorrow = false}) {
     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
+    final tz.TZDateTime baseDay = startTomorrow ? now.add(const Duration(days: 1)) : now;
     tz.TZDateTime scheduledDate =
-        tz.TZDateTime(tz.local, now.year, now.month, now.day, hour);
+        tz.TZDateTime(tz.local, baseDay.year, baseDay.month, baseDay.day, hour);
 
-    if (scheduledDate.isBefore(now)) {
+    if (!startTomorrow && scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
 

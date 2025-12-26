@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:health/health.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../consents/consent_manager.dart';
+import '../core/account_storage.dart';
+import 'daily_metrics_sync.dart';
 
 class CaloriesService {
   final Health _health = Health();
@@ -77,6 +79,13 @@ class CaloriesService {
     return totals;
   }
 
+  Future<int> fetchCaloriesForDay(DateTime day) async {
+    final start = DateTime(day.year, day.month, day.day);
+    final end = start.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
+    final map = await fetchDailyCalories(start: start, end: end);
+    return map[start] ?? 0;
+  }
+
   Future<void> saveManualEntry(DateTime day, int calories) async {
     final sp = await SharedPreferences.getInstance();
     final existing = await _loadManualEntries();
@@ -85,12 +94,14 @@ class CaloriesService {
     final encoded = existing.map((k, v) => MapEntry(
         "${k.year}-${k.month.toString().padLeft(2, '0')}-${k.day.toString().padLeft(2, '0')}",
         v));
-    await sp.setString(_manualKey, jsonEncode(encoded));
+    final key = await _scopedKey(_manualKey);
+    await sp.setString(key, jsonEncode(encoded));
   }
 
   Future<Map<DateTime, int>> _loadManualEntries() async {
     final sp = await SharedPreferences.getInstance();
-    final raw = sp.getString(_manualKey);
+    final key = await _scopedKey(_manualKey);
+    final raw = sp.getString(key);
     if (raw == null) return {};
     final Map<String, dynamic> decoded = jsonDecode(raw);
     final Map<DateTime, int> result = {};
@@ -106,5 +117,19 @@ class CaloriesService {
       }
     });
     return result;
+  }
+
+  Future<void> _syncDailyMetrics() async {
+    try {
+      await DailyMetricsSync().pushToday();
+    } catch (_) {
+      // Ignore sync failures; manual data still stored locally.
+    }
+  }
+
+  Future<String> _scopedKey(String base) async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return base;
+    return "${base}_u$userId";
   }
 }

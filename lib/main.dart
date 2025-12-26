@@ -12,6 +12,7 @@ import 'consents/consent_manager.dart';
 import 'services/notification_service.dart';
 import 'screens/daily_journal.dart';
 import 'services/navigation_service.dart';
+import 'services/daily_metrics_sync.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +30,13 @@ void main() async {
     await NotificationService.scheduleDebugNotificationsEveryTenSeconds(count: 3);
   }
   await NotificationService.scheduleDailyJournalReminder();
+  // Push health metrics for yesterday once per day (on app start) if not already sent today.
+  try {
+    await DailyMetricsSync().pushIfNewDay();
+  } catch (e) {
+    // ignore: avoid_print
+    print("DailyMetricsSync daily push skipped: $e");
+  }
   final launchPayload = await NotificationService.getLaunchPayload();
   NavigationService.launchedFromNotificationPayload =
       launchPayload == NotificationService.dailyJournalPayload;
@@ -53,20 +61,33 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  final AppLifecycleListener _lifecycleListener = AppLifecycleListener();
+
   @override
   void initState() {
     super.initState();
     localeController.addListener(_handleLocaleChange);
+    _lifecycleListener.add(_handleLifecycle);
   }
 
   @override
   void dispose() {
+    _lifecycleListener.remove(_handleLifecycle);
     localeController.removeListener(_handleLocaleChange);
     super.dispose();
   }
 
   void _handleLocaleChange() {
     if (mounted) setState(() {});
+  }
+
+  void _handleLifecycle() async {
+    try {
+      await DailyMetricsSync().pushIfNewDay();
+    } catch (e) {
+      // ignore: avoid_print
+      print("DailyMetricsSync resume push skipped: $e");
+    }
   }
 
   @override
@@ -98,5 +119,31 @@ class _MyAppState extends State<MyApp> {
         '/daily-journal': (_) => const DailyJournalPage(),
       },
     );
+  }
+}
+
+class AppLifecycleListener with WidgetsBindingObserver {
+  final List<VoidCallback> _callbacks = [];
+
+  AppLifecycleListener() {
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  void add(VoidCallback cb) => _callbacks.add(cb);
+  void remove(VoidCallback cb) => _callbacks.remove(cb);
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      for (final cb in List<VoidCallback>.from(_callbacks)) {
+        cb();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _callbacks.clear();
   }
 }

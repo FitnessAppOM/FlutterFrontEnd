@@ -11,7 +11,14 @@ class AppToast {
     AppToastType type = AppToastType.info,
     Duration duration = const Duration(seconds: 3),
   }) {
-    final overlay = Overlay.of(context);
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    if (overlay == null) {
+      // Fallback: show a SnackBar if no overlay is available.
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+      return;
+    }
 
     final color = switch (type) {
       AppToastType.success => AppColors.accent,
