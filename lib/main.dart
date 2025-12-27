@@ -29,7 +29,7 @@ void main() async {
     // Fire a few test notifications so you can verify delivery quickly.
     await NotificationService.scheduleDebugNotificationsEveryTenSeconds(count: 3);
   }
-  await NotificationService.scheduleDailyJournalReminder();
+  await NotificationService.refreshDailyJournalRemindersForCurrentUser();
   // Push health metrics for yesterday once per day (on app start) if not already sent today.
   try {
     await DailyMetricsSync().pushIfNewDay();

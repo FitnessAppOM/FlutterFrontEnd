@@ -10,6 +10,8 @@ import '../widgets/app_toast.dart';
 import 'package:image_picker/image_picker.dart';
 import '../consents/consent_manager.dart';
 import '../auth/expert_questionnaire.dart';
+import '../services/notification_service.dart';
+import '../screens/welcome.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -22,6 +24,7 @@ class _SettingsPageState extends State<SettingsPage> {
   final _usernameController = TextEditingController();
   bool _updatingUsername = false;
   bool _updatingAvatar = false;
+  bool _deletingAccount = false;
   String? _email;
   bool _expertQuestionnaireDone = false;
 
@@ -262,6 +265,78 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Future<void> _confirmDeleteAccount() async {
+    if (_deletingAccount) return;
+    final t = AppLocalizations.of(context);
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        t.translate("user_missing"),
+        type: AppToastType.error,
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) {
+            return AlertDialog(
+              backgroundColor: AppColors.black,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Text(
+                t.translate("settings_delete_account"),
+                style: const TextStyle(color: Colors.white),
+              ),
+              content: Text(
+                t.translate("settings_delete_account_confirm_body"),
+                style: const TextStyle(color: Colors.white70),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(t.translate("cancel")),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: Text(
+                    t.translate("settings_delete_account_confirm_yes"),
+                    style: const TextStyle(color: Colors.redAccent),
+                  ),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    if (!confirmed || !mounted) return;
+
+    setState(() => _deletingAccount = true);
+    try {
+      await ProfileApi.deleteAccount(userId);
+      await AccountStorage.clear();
+      await NotificationService.refreshDailyJournalRemindersForCurrentUser();
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        t.translate("settings_delete_account_success"),
+        type: AppToastType.success,
+      );
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const WelcomePage(fromLogout: true)),
+        (route) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, e.toString(), type: AppToastType.error);
+    } finally {
+      if (mounted) setState(() => _deletingAccount = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
@@ -385,6 +460,13 @@ class _SettingsPageState extends State<SettingsPage> {
               );
             },
           ),
+          _SettingsTile(
+            title: t.translate("settings_delete_account"),
+            subtitle: t.translate("settings_delete_account_sub"),
+            icon: _deletingAccount ? Icons.hourglass_bottom : Icons.delete_forever,
+            onTap: _deletingAccount ? null : _confirmDeleteAccount,
+            color: Colors.redAccent,
+          ),
           const SizedBox(height: 24),
           Text(
             t.translate("settings_support"),
@@ -425,12 +507,14 @@ class _SettingsTile extends StatelessWidget {
     required this.subtitle,
     required this.icon,
     required this.onTap,
+    this.color,
   });
 
   final String title;
   final String subtitle;
   final IconData icon;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -447,7 +531,7 @@ class _SettingsTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon, color: AppColors.accent),
+            Icon(icon, color: color ?? AppColors.accent),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -455,8 +539,8 @@ class _SettingsTile extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: color ?? Colors.white,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

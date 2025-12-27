@@ -3,6 +3,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_native_timezone/flutter_native_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import '../core/account_storage.dart';
+import 'daily_journal_service.dart';
 import 'navigation_service.dart';
 
 class NotificationService {
@@ -101,6 +103,9 @@ class NotificationService {
     final granted = await requestExactAlarmPermission();
     if (!granted) return;
 
+    await _plugin.cancel(2);
+    await _plugin.cancel(3);
+
     final tz.TZDateTime nextSixAm = _nextInstanceAtHour(6);
     final tz.TZDateTime nextSixPm = _nextInstanceAtHour(18);
 
@@ -129,6 +134,31 @@ class NotificationService {
       UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
     );
+  }
+
+  /// Check if today's journal entry exists for the current user and adjust reminders:
+  /// - if an entry exists, start reminders again tomorrow (skip the rest of today)
+  /// - if no entry exists, ensure today's 6am/6pm reminders are scheduled
+  /// - if no user is logged in, clear any pending reminders
+  static Future<void> refreshDailyJournalRemindersForCurrentUser() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) {
+      await _plugin.cancel(2);
+      await _plugin.cancel(3);
+      return;
+    }
+
+    try {
+      final entry = await DailyJournalApi.fetchForDate(userId, DateTime.now());
+      if (entry != null) {
+        await rescheduleDailyJournalRemindersForTomorrow();
+        return;
+      }
+    } catch (_) {
+      // If the fetch fails, fall back to scheduling to avoid missing reminders.
+    }
+
+    await scheduleDailyJournalReminder();
   }
 
   static Future<void> rescheduleDailyJournalRemindersForTomorrow() async {

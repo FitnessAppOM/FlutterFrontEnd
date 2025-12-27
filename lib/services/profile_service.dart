@@ -76,4 +76,18 @@ class ProfileApi {
     } catch (_) {}
     throw Exception(msg);
   }
+
+  static Future<void> deleteAccount(int userId) async {
+    final url = Uri.parse("${ApiConfig.baseUrl}/profile/$userId");
+    final res = await http.delete(url);
+
+    if (res.statusCode == 200) return;
+
+    String msg = "Failed to delete account";
+    try {
+      final data = jsonDecode(res.body);
+      msg = data["detail"]?.toString() ?? msg;
+    } catch (_) {}
+    throw Exception(msg);
+  }
 }

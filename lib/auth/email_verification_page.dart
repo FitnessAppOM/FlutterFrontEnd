@@ -11,6 +11,8 @@ import '../localization/app_localizations.dart';   // ADDED
 import 'questionnaire.dart';
 import 'expert_questionnaire.dart';
 import '../widgets/app_toast.dart';
+import '../services/notification_service.dart';
+import '../services/daily_metrics_sync.dart';
 
 class EmailVerificationPage extends StatefulWidget {
   final String email;
@@ -85,6 +87,9 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
           questionnaireDone: false,
           expertQuestionnaireDone: false,
         );
+
+        await NotificationService.refreshDailyJournalRemindersForCurrentUser();
+        await DailyMetricsSync().pushIfNewDay();
 
         if (!mounted) return;
 

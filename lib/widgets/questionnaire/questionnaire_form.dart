@@ -87,7 +87,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
 
         if (_isUniversityStudent == false) {
           _selectedUniversityId = null;
-          _values.remove("university_id");
+          _values["university_id"] = "0"; // backend requires this field even when not a student
         }
       });
 
@@ -203,6 +203,9 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
   Future<void> _next() async {
     if (!_formKey.currentState!.validate()) return;
     _formKey.currentState!.save();
+
+    // Backend expects university_id even when not a student (use 0)
+    _values["university_id"] = _values["university_id"] ?? "0";
 
     if (_currentSection < _totalSections - 1) {
       setState(() {
