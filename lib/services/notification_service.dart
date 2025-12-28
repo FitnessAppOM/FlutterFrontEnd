@@ -283,7 +283,9 @@ class NotificationService {
   /// Debug helper: schedule a burst of notifications every 10 seconds.
   static Future<void> scheduleDebugNotificationsEveryTenSeconds({int count = 3}) async {
     final granted = await requestExactAlarmPermission();
-    if (!granted) return;
+    final scheduleMode = granted
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
 
     final baseId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     for (var i = 0; i < count; i++) {
@@ -295,7 +297,7 @@ class NotificationService {
         when,
         _defaultDetails,
         payload: dailyJournalPayload,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        androidScheduleMode: scheduleMode,
         uiLocalNotificationDateInterpretation:
         UILocalNotificationDateInterpretation.absoluteTime,
       );
