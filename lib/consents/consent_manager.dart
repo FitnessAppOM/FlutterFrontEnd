@@ -193,8 +193,8 @@ class ConsentManager {
       final health = Health();
       final available = await health.isHealthConnectAvailable();
       if (available) return true;
-      final installed = await health.installHealthConnect();
-      return installed;
+      await health.installHealthConnect(); // opens Play Store flow
+      return false;
     } catch (e) {
       if (kDebugMode) {
         print("Health Connect install check failed: $e");
