@@ -101,15 +101,19 @@ class NotificationService {
     final androidPlugin =
         _plugin.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
-    await androidPlugin?.requestNotificationsPermission();
+    final androidGranted = await androidPlugin?.requestNotificationsPermission();
+    // ignore: avoid_print
+    print('[Notif] Android notification perm result=$androidGranted');
 
     final iosPlugin = _plugin
         .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
-    await iosPlugin?.requestPermissions(
+    final iosSettings = await iosPlugin?.requestPermissions(
       alert: true,
       badge: true,
       sound: true,
     );
+    // ignore: avoid_print
+    print('[Notif] iOS notification perm result=$iosSettings');
   }
 
   static Future<void> schedule({
@@ -271,6 +275,8 @@ class NotificationService {
     if (androidPlugin == null) return true;
 
     final granted = await androidPlugin.requestExactAlarmsPermission();
+    // ignore: avoid_print
+    print('[Notif] requestExactAlarmPermission granted=$granted');
     return granted ?? true;
   }
 

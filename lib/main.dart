@@ -17,16 +17,22 @@ import 'services/daily_metrics_sync.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  debugPrint('[Main] Starting app bootstrap');
   // Firebase (REQUIRED for Google Sign-In)
   await Firebase.initializeApp();
+  debugPrint('[Main] Firebase initialized');
 
   // Ads (safe to init early)
   await MobileAds.instance.initialize();
+  debugPrint('[Main] MobileAds initialized');
 
   // Local notifications (permissions + timezone-safe scheduling)
+  debugPrint('[Main] NotificationService.init() starting');
   await NotificationService.init();
+  debugPrint('[Main] NotificationService.init() done');
   if (kDebugMode) {
     // Fire a few test notifications so you can verify delivery quickly.
+    debugPrint('[Main] Scheduling debug notifications');
     await NotificationService.scheduleDebugNotificationsEveryTenSeconds(count: 3);
   }
   await NotificationService.refreshDailyJournalRemindersForCurrentUser();
