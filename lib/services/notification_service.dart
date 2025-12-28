@@ -31,6 +31,11 @@ class NotificationService {
   );
 
   static Future<void> init() async {
+    if (Platform.isAndroid) {
+      // Helpful to know when Android flow starts.
+      // ignore: avoid_print
+      print('[Notif] init() starting for Android');
+    }
     tz.initializeTimeZones();
     await _setLocalTimeZone();
 
@@ -45,6 +50,8 @@ class NotificationService {
     await _plugin.initialize(
       settings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
+        // ignore: avoid_print
+        print('[Notif] onDidReceiveNotificationResponse payload=${response.payload}');
         final payload = response.payload;
         if (payload == dailyJournalPayload) {
           NavigationService.navigateToJournal(fromNotification: true);
@@ -52,6 +59,8 @@ class NotificationService {
       },
     );
     await _requestPermissions();
+    // ignore: avoid_print
+    print('[Notif] init() complete');
   }
 
   /// Best-effort local timezone assignment without platform channels.
@@ -109,6 +118,8 @@ class NotificationService {
     required String body,
     required DateTime dateTime,
   }) async {
+    // ignore: avoid_print
+    print('[Notif] schedule id=$id at=$dateTime title=$title');
     final granted = await requestExactAlarmPermission();
     final scheduleMode = granted
         ? AndroidScheduleMode.exactAllowWhileIdle
@@ -129,6 +140,8 @@ class NotificationService {
 
 
   static Future<void> scheduleDailyJournalReminder() async {
+    // ignore: avoid_print
+    print('[Notif] scheduleDailyJournalReminder()');
     final granted = await requestExactAlarmPermission();
     final scheduleMode = granted
         ? AndroidScheduleMode.exactAllowWhileIdle
@@ -172,6 +185,8 @@ class NotificationService {
   /// - if no entry exists, ensure today's 6am/6pm reminders are scheduled
   /// - if no user is logged in, clear any pending reminders
   static Future<void> refreshDailyJournalRemindersForCurrentUser() async {
+    // ignore: avoid_print
+    print('[Notif] refreshDailyJournalRemindersForCurrentUser()');
     final userId = await AccountStorage.getUserId();
     if (userId == null) {
       await _plugin.cancel(2);
@@ -193,6 +208,8 @@ class NotificationService {
   }
 
   static Future<void> rescheduleDailyJournalRemindersForTomorrow() async {
+    // ignore: avoid_print
+    print('[Notif] rescheduleDailyJournalRemindersForTomorrow()');
     await _plugin.cancel(2);
     await _plugin.cancel(3);
     final granted = await requestExactAlarmPermission();
@@ -259,6 +276,8 @@ class NotificationService {
 
 
   static Future<void> scheduleTestReminderInTenSeconds() async {
+    // ignore: avoid_print
+    print('[Notif] scheduleTestReminderInTenSeconds()');
     final granted = await requestExactAlarmPermission();
     final scheduleMode = granted
         ? AndroidScheduleMode.exactAllowWhileIdle
@@ -282,6 +301,8 @@ class NotificationService {
 
   /// Debug helper: schedule a burst of notifications every 10 seconds.
   static Future<void> scheduleDebugNotificationsEveryTenSeconds({int count = 3}) async {
+    // ignore: avoid_print
+    print('[Notif] scheduleDebugNotificationsEveryTenSeconds(count=$count)');
     final granted = await requestExactAlarmPermission();
     final scheduleMode = granted
         ? AndroidScheduleMode.exactAllowWhileIdle
