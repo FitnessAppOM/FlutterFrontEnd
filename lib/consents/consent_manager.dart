@@ -160,11 +160,18 @@ class ConsentManager {
 
     final health = Health();
 
-    final has = await health.hasPermissions(types, permissions: permissions) ?? false;
-    if (has) return true;
+    try {
+      final has = await health.hasPermissions(types, permissions: permissions) ?? false;
+      if (has) return true;
 
-    final granted = await health.requestAuthorization(types, permissions: permissions);
-    return granted;
+      final granted = await health.requestAuthorization(types, permissions: permissions);
+      return granted;
+    } catch (e) {
+      if (kDebugMode) {
+        print("Health permission check failed (possibly missing Health Connect): $e");
+      }
+      return false;
+    }
   }
 
   /// Convenience helper to request both steps + sleep at once.

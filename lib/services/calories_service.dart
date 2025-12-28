@@ -42,7 +42,10 @@ class CaloriesService {
           .fold<int>(0, (sum, e) => sum + _valueToNum(e.value).round());
       if (manual.containsKey(todayKey)) return manual[todayKey]!;
       return calories;
-    } catch (_) {
+    } catch (e) {
+      // Unsupported platform/Health Connect missing—fallback to manual data.
+      // ignore: avoid_print
+      print("CaloriesService: calories fetch failed, falling back to manual: $e");
       return manual[todayKey] ?? 0;
     }
   }
@@ -55,28 +58,36 @@ class CaloriesService {
     final granted = await ConsentManager.requestAllHealth();
     if (!granted) return {};
 
-    final data = await _health.getHealthDataFromTypes(
-      startTime: start,
-      endTime: end,
-      types: const [HealthDataType.ACTIVE_ENERGY_BURNED],
-    );
+    try {
+      final data = await _health.getHealthDataFromTypes(
+        startTime: start,
+        endTime: end,
+        types: const [HealthDataType.ACTIVE_ENERGY_BURNED],
+      );
 
-    final Map<DateTime, int> totals = {};
-    for (final s in data.where((e) => e.type == HealthDataType.ACTIVE_ENERGY_BURNED)) {
-      final num val = _valueToNum(s.value);
-      final dt = s.dateFrom ?? DateTime.now();
-      final dayKey = DateTime(dt.year, dt.month, dt.day);
-      final current = totals[dayKey] ?? 0;
-      totals[dayKey] = current + val.round();
-    }
-    final manual = await _loadManualEntries();
-    manual.forEach((day, kcal) {
-      if (!day.isBefore(DateTime(start.year, start.month, start.day)) &&
-          !day.isAfter(DateTime(end.year, end.month, end.day))) {
-        totals[day] = kcal;
+      final Map<DateTime, int> totals = {};
+      for (final s in data.where((e) => e.type == HealthDataType.ACTIVE_ENERGY_BURNED)) {
+        final num val = _valueToNum(s.value);
+        final dt = s.dateFrom ?? DateTime.now();
+        final dayKey = DateTime(dt.year, dt.month, dt.day);
+        final current = totals[dayKey] ?? 0;
+        totals[dayKey] = current + val.round();
       }
-    });
-    return totals;
+      final manual = await _loadManualEntries();
+      manual.forEach((day, kcal) {
+        if (!day.isBefore(DateTime(start.year, start.month, start.day)) &&
+            !day.isAfter(DateTime(end.year, end.month, end.day))) {
+          totals[day] = kcal;
+        }
+      });
+      return totals;
+    } catch (e) {
+      // Unsupported platform/Health Connect missing—fallback to manual data.
+      // ignore: avoid_print
+      print("CaloriesService: daily calories fetch failed, returning manual data: $e");
+      final manual = await _loadManualEntries();
+      return manual;
+    }
   }
 
   Future<int> fetchCaloriesForDay(DateTime day) async {
