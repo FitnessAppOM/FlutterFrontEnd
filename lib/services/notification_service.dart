@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_native_timezone/flutter_native_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import '../core/account_storage.dart';
@@ -33,13 +32,7 @@ class NotificationService {
 
   static Future<void> init() async {
     tz.initializeTimeZones();
-    // Align tz.local with the device's timezone so 8 AM stays at 8 AM locally.
-    try {
-      final String timeZoneName = await FlutterNativeTimezone.getLocalTimezone();
-      tz.setLocalLocation(tz.getLocation(timeZoneName));
-    } catch (_) {
-      tz.setLocalLocation(tz.UTC);
-    }
+    await _setLocalTimeZone();
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios = DarwinInitializationSettings();
@@ -59,6 +52,40 @@ class NotificationService {
       },
     );
     await _requestPermissions();
+  }
+
+  /// Best-effort local timezone assignment without platform channels.
+  /// Tries:
+  /// 1) Exact location name match from DateTime.now().timeZoneName
+  /// 2) First tz location whose current offset matches the device offset
+  /// Falls back to UTC if nothing matches.
+  static Future<void> _setLocalTimeZone() async {
+    final now = DateTime.now();
+    final tzName = now.timeZoneName;
+    final offset = now.timeZoneOffset;
+
+    // Attempt exact location name match
+    try {
+      final loc = tz.getLocation(tzName);
+      tz.setLocalLocation(loc);
+      return;
+    } catch (_) {
+      // ignore and continue
+    }
+
+    // Attempt offset match
+    try {
+      final match = tz.timeZoneDatabase.locations.values.firstWhere(
+        (loc) => tz.TZDateTime.now(loc).timeZoneOffset == offset,
+        orElse: () => tz.getLocation('Etc/UTC'),
+      );
+      tz.setLocalLocation(match);
+      return;
+    } catch (_) {
+      // ignore and fall back
+    }
+
+    tz.setLocalLocation(tz.UTC);
   }
 
   static Future<void> _requestPermissions() async {
