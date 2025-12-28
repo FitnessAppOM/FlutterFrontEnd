@@ -21,6 +21,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:health/health.dart';
 
 class ConsentManager {
+  static bool? _healthAvailable; // cache Health Connect / platform availability
   // ---------------------------------------------------------------------------
   // STARTUP (call once)
   // ---------------------------------------------------------------------------
@@ -161,6 +162,27 @@ class ConsentManager {
     final permissions = types.map((_) => HealthDataAccess.READ).toList();
 
     final health = Health();
+
+    // On Android emulators/devices without Health Connect or Google Fit, short-circuit
+    // to avoid spamming logs with repeated failures.
+    if (Platform.isAndroid) {
+      if (_healthAvailable == null) {
+        try {
+          _healthAvailable = await health.isHealthConnectAvailable();
+        } catch (e) {
+          _healthAvailable = false;
+          if (kDebugMode) {
+            print("Health availability check failed: $e");
+          }
+        }
+        if (kDebugMode) {
+          print("Health availability (Health Connect): $_healthAvailable");
+        }
+      }
+      if (_healthAvailable == false) {
+        return false;
+      }
+    }
 
     try {
       final has = await health.hasPermissions(types, permissions: permissions) ?? false;

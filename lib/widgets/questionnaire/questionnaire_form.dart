@@ -61,7 +61,11 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
   }
 
   void _saveField(String key, String? value) {
-    _values[key] = value?.trim() ?? '';
+    if (value == null || value.trim().isEmpty) {
+      _values.remove(key);
+      return;
+    }
+    _values[key] = value.trim();
 
     if (key == "is_physical_rehabilitation") {
       final yes = _t("yes");
@@ -207,6 +211,21 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     // Backend expects university_id even when not a student (use 0)
     _values["university_id"] = _values["university_id"] ?? "0";
 
+    // At least one muscle priority (upper or lower) must be chosen.
+    if (_currentSection == 1) {
+      final hasUpper = (_values["muscle_priority_upper"] ?? "").isNotEmpty;
+      final hasLower = (_values["muscle_priority_lower"] ?? "").isNotEmpty;
+      if (!hasUpper && !hasLower) {
+        if (!mounted) return;
+        AppToast.show(
+          context,
+          "Please select at least one muscle priority (upper or lower).",
+          type: AppToastType.error,
+        );
+        return;
+      }
+    }
+
     if (_currentSection < _totalSections - 1) {
       setState(() {
         _currentSection++;
@@ -303,7 +322,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       "sex": ["male", "female", "prefer_not"],
       "main_goal": ["lose_weight", "gain_muscle", "improve_endurance", "maintain_fitness", "improve_health"],
       "motivation": ["look_better", "feel_stronger", "health_better", "more_energy", "mental_wellbeing"],
-      "important_muscles": ["arms", "shoulders", "abs", "back", "legs", "all_body"],
+      "muscle_priority_upper": ["chest", "back", "shoulders"],
+      "muscle_priority_lower": ["quads", "hamstrings", "glutes"],
       "time_to_change": ["4", "8", "12", "no_timeframe"],
       "event_deadline": ["sport", "wedding", "birthday", "vacation", "other", "no"],
       "body_type": ["slender", "average", "muscular", "heavy"],
@@ -311,7 +331,6 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       "training_days": ["1", "2", "3", "4", "5", "6"],
       "preferred_time": ["morning", "noon", "afternoon", "evening", "flexible"],
       "training_location": ["gym", "home", "hybrid"],
-      "equipment": ["dumbbells", "barbell", "resistance_bands", "bodyweight", "machines", "mix"],
       "training_style": ["strength", "hypertrophy", "functional", "endurance", "hiit", "mobility"],
       "train_mode": ["alone", "partner", "trainer"],
       "auto_recovery": ["yes", "no"],
@@ -571,16 +590,24 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         ],
       ),
       _buildChoiceField(
-        label: _t("important_muscles"),
-        keyName: "important_muscles",
+        label: _t("muscle_priority_upper"),
+        keyName: "muscle_priority_upper",
         options: [
-          _t("arms"),
+          _t("chest"),
+          _t("back_muscle"),
           _t("shoulders"),
-          _t("abs"),
-          _t("back"),
-          _t("legs"),
-          _t("all_body"),
         ],
+        requiredField: false,
+      ),
+      _buildChoiceField(
+        label: _t("muscle_priority_lower"),
+        keyName: "muscle_priority_lower",
+        options: [
+          _t("quads"),
+          _t("hamstrings"),
+          _t("glutes"),
+        ],
+        requiredField: false,
       ),
       _buildChoiceField(
         label: _t("time_change"),
@@ -638,18 +665,6 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         label: _t("training_location"),
         keyName: "training_location",
         options: [_t("gym"), _t("home"), _t("hybrid")],
-      ),
-      _buildChoiceField(
-        label: _t("equipment"),
-        keyName: "equipment",
-        options: [
-          _t("dumbbells"),
-          _t("barbell"),
-          _t("resistance_bands"),
-          _t("bodyweight"),
-          _t("machines"),
-          _t("mix"),
-        ],
       ),
       _buildChoiceField(
         label: _t("training_style"),
@@ -1169,6 +1184,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     required String label,
     required String keyName,
     required List<String> options,
+    bool requiredField = true,
   }) {
     final theme = Theme.of(context);
     final currentStored = _values[keyName];
@@ -1210,6 +1226,9 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                 )
                 .toList(),
             validator: (value) {
+              if (!requiredField && (value == null || value.isEmpty)) {
+                return null;
+              }
               if (value == null || value.isEmpty) {
                 return _t("select_option");
               }
@@ -1229,7 +1248,11 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
             },
             onSaved: (val) => _saveField(
               keyName,
-              val == otherLabel ? otherCtrl.text : val,
+              val == null || val.isEmpty
+                  ? null
+                  : val == otherLabel
+                      ? otherCtrl.text
+                      : val,
             ),
           ),
           if (hasOther && (showOtherField || otherCtrl.text.isNotEmpty)) ...[

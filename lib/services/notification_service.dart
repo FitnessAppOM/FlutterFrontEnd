@@ -156,6 +156,8 @@ class NotificationService {
 
     final tz.TZDateTime nextSixAm = _nextInstanceAtHour(6);
     final tz.TZDateTime nextSixPm = _nextInstanceAtHour(18);
+    // ignore: avoid_print
+    print('[Notif] next 6am=$nextSixAm, next 6pm=$nextSixPm, mode=$scheduleMode');
 
     await _plugin.zonedSchedule(
       2,
@@ -291,6 +293,8 @@ class NotificationService {
 
     final tz.TZDateTime scheduledTime =
     tz.TZDateTime.now(tz.local).add(const Duration(seconds: 10));
+    // ignore: avoid_print
+    print('[Notif] test reminder at $scheduledTime mode=$scheduleMode');
 
     await _plugin.zonedSchedule(
       999,
@@ -317,6 +321,8 @@ class NotificationService {
     final baseId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     for (var i = 0; i < count; i++) {
       final when = tz.TZDateTime.now(tz.local).add(Duration(seconds: 10 * (i + 1)));
+      // ignore: avoid_print
+      print('[Notif] scheduling debug id=${baseId + i} at=$when mode=$scheduleMode');
       await _plugin.zonedSchedule(
         baseId + i,
         'Debug reminder',
