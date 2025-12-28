@@ -61,7 +61,7 @@ class AppLocalizations {
       "signup_password_short": "Password must be at least 8 characters.",
       "signup_failed": "Signup failed.",
       "google_signup": "Continue with Google",
-      "google_success_message": "Signed in with Google. Welcome back!",
+      "google_success_message": "Signed in with Google. Welcome!",
       "signup_expert_title": "Create Expert Account",
       "signup_expert_btn": "Create Expert Account",
       "signup_as_expert": "Sign up as expert",
