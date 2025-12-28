@@ -18,6 +18,7 @@ import 'package:health/health.dart';
 
 // Optional helper for camera/photos on Android; iOS uses Info.plist prompts
 import 'package:permission_handler/permission_handler.dart';
+import 'package:health/health.dart';
 
 class ConsentManager {
   // ---------------------------------------------------------------------------
@@ -27,6 +28,7 @@ class ConsentManager {
     await _requestATTIfAvailable();       // iOS tracking (IDFA)
     await _requestGDPRIfRequired();       // UMP (if you’ll personalize/ads)
     await _requestNotifications();        // Push permission
+    await ensureHealthConnectInstalled(); // Prompt Health Connect on Android if missing
   }
 
   // ---------------------------------------------------------------------------
@@ -181,6 +183,25 @@ class ConsentManager {
   /// Convenience helper to request steps + sleep + calories in one prompt.
   static Future<bool> requestAllHealth() =>
       requestHealthPermissionsJIT(steps: true, sleep: true, calories: true);
+
+  // ---------------------------------------------------------------------------
+  // HEALTH CONNECT INSTALL PROMPT (Android)
+  // ---------------------------------------------------------------------------
+  static Future<bool> ensureHealthConnectInstalled() async {
+    if (!Platform.isAndroid) return true;
+    try {
+      final health = Health();
+      final available = await health.isHealthConnectAvailable();
+      if (available) return true;
+      final installed = await health.installHealthConnect();
+      return installed;
+    } catch (e) {
+      if (kDebugMode) {
+        print("Health Connect install check failed: $e");
+      }
+      return false;
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // CAMERA — JIT (you’ll still need proper Info.plist/Manifest entries)

@@ -110,7 +110,9 @@ class NotificationService {
     required DateTime dateTime,
   }) async {
     final granted = await requestExactAlarmPermission();
-    if (!granted) return;
+    final scheduleMode = granted
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
 
     await _plugin.zonedSchedule(
       id,
@@ -119,7 +121,7 @@ class NotificationService {
       tz.TZDateTime.from(dateTime, tz.local),
       _defaultDetails,
       payload: dailyJournalPayload,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: scheduleMode,
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
     );
@@ -128,7 +130,9 @@ class NotificationService {
 
   static Future<void> scheduleDailyJournalReminder() async {
     final granted = await requestExactAlarmPermission();
-    if (!granted) return;
+    final scheduleMode = granted
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
 
     await _plugin.cancel(2);
     await _plugin.cancel(3);
@@ -143,7 +147,7 @@ class NotificationService {
       nextSixAm,
       _defaultDetails,
       payload: dailyJournalPayload,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: scheduleMode,
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
@@ -156,7 +160,7 @@ class NotificationService {
       nextSixPm,
       _defaultDetails,
       payload: dailyJournalPayload,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: scheduleMode,
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
@@ -192,7 +196,9 @@ class NotificationService {
     await _plugin.cancel(2);
     await _plugin.cancel(3);
     final granted = await requestExactAlarmPermission();
-    if (!granted) return;
+    final scheduleMode = granted
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
 
     final tz.TZDateTime nextSixAm = _nextInstanceAtHour(6, startTomorrow: true);
     final tz.TZDateTime nextSixPm = _nextInstanceAtHour(18, startTomorrow: true);
@@ -204,7 +210,7 @@ class NotificationService {
       nextSixAm,
       _defaultDetails,
       payload: dailyJournalPayload,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: scheduleMode,
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
@@ -217,7 +223,7 @@ class NotificationService {
       nextSixPm,
       _defaultDetails,
       payload: dailyJournalPayload,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: scheduleMode,
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
@@ -254,7 +260,9 @@ class NotificationService {
 
   static Future<void> scheduleTestReminderInTenSeconds() async {
     final granted = await requestExactAlarmPermission();
-    if (!granted) return;
+    final scheduleMode = granted
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
 
     final tz.TZDateTime scheduledTime =
     tz.TZDateTime.now(tz.local).add(const Duration(seconds: 10));
@@ -266,7 +274,7 @@ class NotificationService {
       scheduledTime,
       _defaultDetails,
       payload: dailyJournalPayload,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: scheduleMode,
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
     );
