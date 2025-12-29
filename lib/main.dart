@@ -15,21 +15,33 @@ import 'services/navigation_service.dart';
 import 'services/daily_metrics_sync.dart';
 
 void main() async {
+  print('[Main] Entry');
   WidgetsFlutterBinding.ensureInitialized();
 
+  print('[Main] Starting app bootstrap');
   // Firebase (REQUIRED for Google Sign-In)
   await Firebase.initializeApp();
+  print('[Main] Firebase initialized');
 
   // Ads (safe to init early)
   await MobileAds.instance.initialize();
+  print('[Main] MobileAds initialized');
 
   // Local notifications (permissions + timezone-safe scheduling)
-  await NotificationService.init();
+  print('[Main] NotificationService.init() starting');
+  try {
+    await NotificationService.init();
+    print('[Main] NotificationService.init() done');
+  } catch (e, st) {
+    // ignore: avoid_print
+    print('[Main] NotificationService.init() ERROR: $e\n$st');
+  }
   if (kDebugMode) {
     // Fire a few test notifications so you can verify delivery quickly.
+    print('[Main] Scheduling debug notifications');
     await NotificationService.scheduleDebugNotificationsEveryTenSeconds(count: 3);
   }
-  await NotificationService.scheduleDailyJournalReminder();
+  await NotificationService.refreshDailyJournalRemindersForCurrentUser();
   // Push health metrics for yesterday once per day (on app start) if not already sent today.
   try {
     await DailyMetricsSync().pushIfNewDay();

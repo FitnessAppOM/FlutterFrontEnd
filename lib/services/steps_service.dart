@@ -41,34 +41,41 @@ class StepsService {
     final start = DateTime(now.year, now.month, now.day);
     final end = now;
 
-    // Prefer the API that already aggregates steps.
     try {
-      final total = await _health.getTotalStepsInInterval(start, end);
-      if (total != null) {
+      // Prefer the API that already aggregates steps.
+      try {
+        final total = await _health.getTotalStepsInInterval(start, end);
+        if (total != null) {
+          // ignore: avoid_print
+          print("StepsService: total steps via getTotalStepsInInterval = $total");
+          return total;
+        }
+      } catch (e) {
         // ignore: avoid_print
-        print("StepsService: total steps via getTotalStepsInInterval = $total");
-        return total;
+        print("StepsService: getTotalStepsInInterval failed: $e");
       }
-    } catch (e) {
+
+      final data = await _health.getHealthDataFromTypes(
+        startTime: start,
+        endTime: end,
+        types: const [HealthDataType.STEPS],
+      );
+      // Debug: inspect returned samples.
       // ignore: avoid_print
-      print("StepsService: getTotalStepsInInterval failed: $e");
+      print("StepsService: fetched ${data.length} step samples from $start to $end");
+
+      final steps = data
+          .where((e) => e.type == HealthDataType.STEPS)
+          .fold<int>(0, (sum, e) => sum + _valueToNum(e.value).toInt());
+      // ignore: avoid_print
+      print("StepsService: total steps computed = $steps");
+      return steps;
+    } catch (e) {
+      // Unsupported platform/Health Connect missing—fallback to manual data.
+      // ignore: avoid_print
+      print("StepsService: steps fetch failed, falling back to manual: $e");
+      return manual[todayKey] ?? 0;
     }
-
-    final data = await _health.getHealthDataFromTypes(
-      startTime: start,
-      endTime: end,
-      types: const [HealthDataType.STEPS],
-    );
-    // Debug: inspect returned samples.
-    // ignore: avoid_print
-    print("StepsService: fetched ${data.length} step samples from $start to $end");
-
-    final steps = data
-        .where((e) => e.type == HealthDataType.STEPS)
-        .fold<int>(0, (sum, e) => sum + _valueToNum(e.value).toInt());
-    // ignore: avoid_print
-    print("StepsService: total steps computed = $steps");
-    return steps;
   }
 
   Future<Map<DateTime, int>> fetchDailySteps({
@@ -78,30 +85,38 @@ class StepsService {
     final granted = await ConsentManager.requestAllHealth();
     if (!granted) return {};
 
-    final data = await _health.getHealthDataFromTypes(
-      startTime: start,
-      endTime: end,
-      types: const [HealthDataType.STEPS],
-    );
+    try {
+      final data = await _health.getHealthDataFromTypes(
+        startTime: start,
+        endTime: end,
+        types: const [HealthDataType.STEPS],
+      );
 
-    final Map<DateTime, int> totals = {};
-    for (final s in data.where((e) => e.type == HealthDataType.STEPS)) {
-      final num steps = _valueToNum(s.value);
-      final dt = s.dateFrom ?? DateTime.now();
-      final dayKey = DateTime(dt.year, dt.month, dt.day);
-      final current = totals[dayKey] ?? 0;
-      totals[dayKey] = current + steps.toInt();
-    }
-
-    // Override with manual entries when provided.
-    final manual = await _loadManualEntries();
-    manual.forEach((day, steps) {
-      if (!day.isBefore(DateTime(start.year, start.month, start.day)) &&
-          !day.isAfter(DateTime(end.year, end.month, end.day))) {
-        totals[day] = steps;
+      final Map<DateTime, int> totals = {};
+      for (final s in data.where((e) => e.type == HealthDataType.STEPS)) {
+        final num steps = _valueToNum(s.value);
+        final dt = s.dateFrom ?? DateTime.now();
+        final dayKey = DateTime(dt.year, dt.month, dt.day);
+        final current = totals[dayKey] ?? 0;
+        totals[dayKey] = current + steps.toInt();
       }
-    });
-    return totals;
+
+      // Override with manual entries when provided.
+      final manual = await _loadManualEntries();
+      manual.forEach((day, steps) {
+        if (!day.isBefore(DateTime(start.year, start.month, start.day)) &&
+            !day.isAfter(DateTime(end.year, end.month, end.day))) {
+          totals[day] = steps;
+        }
+      });
+      return totals;
+    } catch (e) {
+      // Unsupported platform/Health Connect missing—fallback to manual data.
+      // ignore: avoid_print
+      print("StepsService: daily steps fetch failed, returning manual data: $e");
+      final manual = await _loadManualEntries();
+      return manual;
+    }
   }
 
   Future<int> fetchStepsForDay(DateTime day) async {

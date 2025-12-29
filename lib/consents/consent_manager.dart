@@ -18,8 +18,10 @@ import 'package:health/health.dart';
 
 // Optional helper for camera/photos on Android; iOS uses Info.plist prompts
 import 'package:permission_handler/permission_handler.dart';
+import 'package:health/health.dart';
 
 class ConsentManager {
+  static bool? _healthAvailable; // cache Health Connect / platform availability
   // ---------------------------------------------------------------------------
   // STARTUP (call once)
   // ---------------------------------------------------------------------------
@@ -27,6 +29,7 @@ class ConsentManager {
     await _requestATTIfAvailable();       // iOS tracking (IDFA)
     await _requestGDPRIfRequired();       // UMP (if you’ll personalize/ads)
     await _requestNotifications();        // Push permission
+    await ensureHealthConnectInstalled(); // Prompt Health Connect on Android if missing
   }
 
   // ---------------------------------------------------------------------------
@@ -160,11 +163,39 @@ class ConsentManager {
 
     final health = Health();
 
-    final has = await health.hasPermissions(types, permissions: permissions) ?? false;
-    if (has) return true;
+    // On Android emulators/devices without Health Connect or Google Fit, short-circuit
+    // to avoid spamming logs with repeated failures.
+    if (Platform.isAndroid) {
+      if (_healthAvailable == null) {
+        try {
+          _healthAvailable = await health.isHealthConnectAvailable();
+        } catch (e) {
+          _healthAvailable = false;
+          if (kDebugMode) {
+            print("Health availability check failed: $e");
+          }
+        }
+        if (kDebugMode) {
+          print("Health availability (Health Connect): $_healthAvailable");
+        }
+      }
+      if (_healthAvailable == false) {
+        return false;
+      }
+    }
 
-    final granted = await health.requestAuthorization(types, permissions: permissions);
-    return granted;
+    try {
+      final has = await health.hasPermissions(types, permissions: permissions) ?? false;
+      if (has) return true;
+
+      final granted = await health.requestAuthorization(types, permissions: permissions);
+      return granted;
+    } catch (e) {
+      if (kDebugMode) {
+        print("Health permission check failed (possibly missing Health Connect): $e");
+      }
+      return false;
+    }
   }
 
   /// Convenience helper to request both steps + sleep at once.
@@ -174,6 +205,25 @@ class ConsentManager {
   /// Convenience helper to request steps + sleep + calories in one prompt.
   static Future<bool> requestAllHealth() =>
       requestHealthPermissionsJIT(steps: true, sleep: true, calories: true);
+
+  // ---------------------------------------------------------------------------
+  // HEALTH CONNECT INSTALL PROMPT (Android)
+  // ---------------------------------------------------------------------------
+  static Future<bool> ensureHealthConnectInstalled() async {
+    if (!Platform.isAndroid) return true;
+    try {
+      final health = Health();
+      final available = await health.isHealthConnectAvailable();
+      if (available) return true;
+      await health.installHealthConnect(); // opens Play Store flow
+      return false;
+    } catch (e) {
+      if (kDebugMode) {
+        print("Health Connect install check failed: $e");
+      }
+      return false;
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // CAMERA — JIT (you’ll still need proper Info.plist/Manifest entries)

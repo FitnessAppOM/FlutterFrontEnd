@@ -20,6 +20,8 @@ import '../services/profile_service.dart';
 import 'questionnaire.dart';
 import 'expert_questionnaire.dart';
 import '../widgets/app_toast.dart';
+import '../services/notification_service.dart';
+import '../services/daily_metrics_sync.dart';
 
 class LoginPage extends StatefulWidget {
   final String? prefilledEmail;
@@ -197,6 +199,9 @@ class _LoginPageState extends State<LoginPage> {
               await AccountStorage.isExpertQuestionnaireDone(),
         );
 
+        await NotificationService.refreshDailyJournalRemindersForCurrentUser();
+        await DailyMetricsSync().pushIfNewDay();
+
         if (!mounted) return;
 
         final qDone = await AccountStorage.isQuestionnaireDone();
@@ -263,7 +268,7 @@ class _LoginPageState extends State<LoginPage> {
 
     final rawId = result["user_id"] ?? result["id"];
     final int userId =
-    rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
+        rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
 
     final email = (result["email"] ?? "").toString();
     final name = (result["name"] ?? email.split("@").first).toString();
@@ -277,8 +282,11 @@ class _LoginPageState extends State<LoginPage> {
       isExpert: false,
       questionnaireDone: await AccountStorage.isQuestionnaireDone(),
       expertQuestionnaireDone:
-      await AccountStorage.isExpertQuestionnaireDone(),
+          await AccountStorage.isExpertQuestionnaireDone(),
     );
+
+    await NotificationService.refreshDailyJournalRemindersForCurrentUser();
+    await DailyMetricsSync().pushIfNewDay();
 
     if (!mounted) return;
 

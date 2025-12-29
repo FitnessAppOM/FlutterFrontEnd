@@ -1,8 +1,9 @@
 import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_native_timezone/flutter_native_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import '../core/account_storage.dart';
+import 'daily_journal_service.dart';
 import 'navigation_service.dart';
 
 class NotificationService {
@@ -30,14 +31,13 @@ class NotificationService {
   );
 
   static Future<void> init() async {
-    tz.initializeTimeZones();
-    // Align tz.local with the device's timezone so 8 AM stays at 8 AM locally.
-    try {
-      final String timeZoneName = await FlutterNativeTimezone.getLocalTimezone();
-      tz.setLocalLocation(tz.getLocation(timeZoneName));
-    } catch (_) {
-      tz.setLocalLocation(tz.UTC);
+    if (Platform.isAndroid) {
+      // Helpful to know when Android flow starts.
+      // ignore: avoid_print
+      print('[Notif] init() starting for Android');
     }
+    tz.initializeTimeZones();
+    await _setLocalTimeZone();
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios = DarwinInitializationSettings();
@@ -50,6 +50,8 @@ class NotificationService {
     await _plugin.initialize(
       settings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
+        // ignore: avoid_print
+        print('[Notif] onDidReceiveNotificationResponse payload=${response.payload}');
         final payload = response.payload;
         if (payload == dailyJournalPayload) {
           NavigationService.navigateToJournal(fromNotification: true);
@@ -57,21 +59,61 @@ class NotificationService {
       },
     );
     await _requestPermissions();
+    // ignore: avoid_print
+    print('[Notif] init() complete');
+  }
+
+  /// Best-effort local timezone assignment without platform channels.
+  /// Tries:
+  /// 1) Exact location name match from DateTime.now().timeZoneName
+  /// 2) First tz location whose current offset matches the device offset
+  /// Falls back to UTC if nothing matches.
+  static Future<void> _setLocalTimeZone() async {
+    final now = DateTime.now();
+    final tzName = now.timeZoneName;
+    final offset = now.timeZoneOffset;
+
+    // Attempt exact location name match
+    try {
+      final loc = tz.getLocation(tzName);
+      tz.setLocalLocation(loc);
+      return;
+    } catch (_) {
+      // ignore and continue
+    }
+
+    // Attempt offset match
+    try {
+      final match = tz.timeZoneDatabase.locations.values.firstWhere(
+        (loc) => tz.TZDateTime.now(loc).timeZoneOffset == offset,
+        orElse: () => tz.getLocation('Etc/UTC'),
+      );
+      tz.setLocalLocation(match);
+      return;
+    } catch (_) {
+      // ignore and fall back
+    }
+
+    tz.setLocalLocation(tz.UTC);
   }
 
   static Future<void> _requestPermissions() async {
     final androidPlugin =
         _plugin.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
-    await androidPlugin?.requestNotificationsPermission();
+    final androidGranted = await androidPlugin?.requestNotificationsPermission();
+    // ignore: avoid_print
+    print('[Notif] Android notification perm result=$androidGranted');
 
     final iosPlugin = _plugin
         .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
-    await iosPlugin?.requestPermissions(
+    final iosSettings = await iosPlugin?.requestPermissions(
       alert: true,
       badge: true,
       sound: true,
     );
+    // ignore: avoid_print
+    print('[Notif] iOS notification perm result=$iosSettings');
   }
 
   static Future<void> schedule({
@@ -80,8 +122,12 @@ class NotificationService {
     required String body,
     required DateTime dateTime,
   }) async {
+    // ignore: avoid_print
+    print('[Notif] schedule id=$id at=$dateTime title=$title');
     final granted = await requestExactAlarmPermission();
-    if (!granted) return;
+    final scheduleMode = granted
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
 
     await _plugin.zonedSchedule(
       id,
@@ -90,7 +136,7 @@ class NotificationService {
       tz.TZDateTime.from(dateTime, tz.local),
       _defaultDetails,
       payload: dailyJournalPayload,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: scheduleMode,
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
     );
@@ -98,11 +144,20 @@ class NotificationService {
 
 
   static Future<void> scheduleDailyJournalReminder() async {
+    // ignore: avoid_print
+    print('[Notif] scheduleDailyJournalReminder()');
     final granted = await requestExactAlarmPermission();
-    if (!granted) return;
+    final scheduleMode = granted
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
+
+    await _plugin.cancel(2);
+    await _plugin.cancel(3);
 
     final tz.TZDateTime nextSixAm = _nextInstanceAtHour(6);
     final tz.TZDateTime nextSixPm = _nextInstanceAtHour(18);
+    // ignore: avoid_print
+    print('[Notif] next 6am=$nextSixAm, next 6pm=$nextSixPm, mode=$scheduleMode');
 
     await _plugin.zonedSchedule(
       2,
@@ -111,7 +166,7 @@ class NotificationService {
       nextSixAm,
       _defaultDetails,
       payload: dailyJournalPayload,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: scheduleMode,
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
@@ -124,18 +179,49 @@ class NotificationService {
       nextSixPm,
       _defaultDetails,
       payload: dailyJournalPayload,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: scheduleMode,
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
     );
   }
 
+  /// Check if today's journal entry exists for the current user and adjust reminders:
+  /// - if an entry exists, start reminders again tomorrow (skip the rest of today)
+  /// - if no entry exists, ensure today's 6am/6pm reminders are scheduled
+  /// - if no user is logged in, clear any pending reminders
+  static Future<void> refreshDailyJournalRemindersForCurrentUser() async {
+    // ignore: avoid_print
+    print('[Notif] refreshDailyJournalRemindersForCurrentUser()');
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) {
+      await _plugin.cancel(2);
+      await _plugin.cancel(3);
+      return;
+    }
+
+    try {
+      final entry = await DailyJournalApi.fetchForDate(userId, DateTime.now());
+      if (entry != null) {
+        await rescheduleDailyJournalRemindersForTomorrow();
+        return;
+      }
+    } catch (_) {
+      // If the fetch fails, fall back to scheduling to avoid missing reminders.
+    }
+
+    await scheduleDailyJournalReminder();
+  }
+
   static Future<void> rescheduleDailyJournalRemindersForTomorrow() async {
+    // ignore: avoid_print
+    print('[Notif] rescheduleDailyJournalRemindersForTomorrow()');
     await _plugin.cancel(2);
     await _plugin.cancel(3);
     final granted = await requestExactAlarmPermission();
-    if (!granted) return;
+    final scheduleMode = granted
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
 
     final tz.TZDateTime nextSixAm = _nextInstanceAtHour(6, startTomorrow: true);
     final tz.TZDateTime nextSixPm = _nextInstanceAtHour(18, startTomorrow: true);
@@ -147,7 +233,7 @@ class NotificationService {
       nextSixAm,
       _defaultDetails,
       payload: dailyJournalPayload,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: scheduleMode,
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
@@ -160,7 +246,7 @@ class NotificationService {
       nextSixPm,
       _defaultDetails,
       payload: dailyJournalPayload,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: scheduleMode,
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
@@ -191,16 +277,24 @@ class NotificationService {
     if (androidPlugin == null) return true;
 
     final granted = await androidPlugin.requestExactAlarmsPermission();
+    // ignore: avoid_print
+    print('[Notif] requestExactAlarmPermission granted=$granted');
     return granted ?? true;
   }
 
 
   static Future<void> scheduleTestReminderInTenSeconds() async {
+    // ignore: avoid_print
+    print('[Notif] scheduleTestReminderInTenSeconds()');
     final granted = await requestExactAlarmPermission();
-    if (!granted) return;
+    final scheduleMode = granted
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
 
     final tz.TZDateTime scheduledTime =
     tz.TZDateTime.now(tz.local).add(const Duration(seconds: 10));
+    // ignore: avoid_print
+    print('[Notif] test reminder at $scheduledTime mode=$scheduleMode');
 
     await _plugin.zonedSchedule(
       999,
@@ -209,7 +303,7 @@ class NotificationService {
       scheduledTime,
       _defaultDetails,
       payload: dailyJournalPayload,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: scheduleMode,
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
     );
@@ -217,12 +311,18 @@ class NotificationService {
 
   /// Debug helper: schedule a burst of notifications every 10 seconds.
   static Future<void> scheduleDebugNotificationsEveryTenSeconds({int count = 3}) async {
+    // ignore: avoid_print
+    print('[Notif] scheduleDebugNotificationsEveryTenSeconds(count=$count)');
     final granted = await requestExactAlarmPermission();
-    if (!granted) return;
+    final scheduleMode = granted
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
 
     final baseId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     for (var i = 0; i < count; i++) {
       final when = tz.TZDateTime.now(tz.local).add(Duration(seconds: 10 * (i + 1)));
+      // ignore: avoid_print
+      print('[Notif] scheduling debug id=${baseId + i} at=$when mode=$scheduleMode');
       await _plugin.zonedSchedule(
         baseId + i,
         'Debug reminder',
@@ -230,7 +330,7 @@ class NotificationService {
         when,
         _defaultDetails,
         payload: dailyJournalPayload,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        androidScheduleMode: scheduleMode,
         uiLocalNotificationDateInterpretation:
         UILocalNotificationDateInterpretation.absoluteTime,
       );

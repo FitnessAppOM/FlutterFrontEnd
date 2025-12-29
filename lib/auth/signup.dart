@@ -14,6 +14,8 @@ import '../widgets/app_toast.dart';
 import '../core/account_storage.dart';
 import 'questionnaire.dart';
 import 'expert_questionnaire.dart';
+import '../services/notification_service.dart';
+import '../services/daily_metrics_sync.dart';
 
 
 
@@ -176,6 +178,9 @@ class _SignupPageState extends State<SignupPage> {
       questionnaireDone: false,
       expertQuestionnaireDone: false,
     );
+
+    await NotificationService.refreshDailyJournalRemindersForCurrentUser();
+    await DailyMetricsSync().pushIfNewDay();
 
     if (!mounted) return;
 

@@ -18,6 +18,8 @@ import '../auth/questionnaire.dart';
 import '../auth/expert_questionnaire.dart';
 import '../widgets/app_toast.dart';
 import '../services/navigation_service.dart';
+import '../services/notification_service.dart';
+import '../services/daily_metrics_sync.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -131,7 +133,9 @@ class _WelcomePageState extends State<WelcomePage> {
   }
 
   // Normal auto-redirect
-  if (e != null && e.isNotEmpty && v == true) {
+  // Auto-redirect only if verified AND questionnaire was completed
+  final questionnaireDone = qDone || qExpertDone;
+  if (e != null && e.isNotEmpty && v == true && questionnaireDone) {
     final exists = await checkUserExistsBackend(e);
     if (exists != null) {
       await _navigatePostAuth(
@@ -312,6 +316,9 @@ class _WelcomePageState extends State<WelcomePage> {
                               verified: true,
                               isExpert: isExpert,
                             );
+
+                        await NotificationService.refreshDailyJournalRemindersForCurrentUser();
+                        await DailyMetricsSync().pushIfNewDay();
 
                         await _navigatePostAuth(
                           userId: exists.id,

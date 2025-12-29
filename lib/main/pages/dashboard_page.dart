@@ -63,6 +63,7 @@ class _DashboardPageState extends State<DashboardPage> {
   bool _trendSleepLoading = false;
   bool _trendCaloriesLoading = false;
   DateTime _selectedDate = DateTime.now();
+  int _weeklyDaysCount = 7;
 
   static const _stepsGoalKey = "dashboard_steps_goal";
   static const _sleepGoalKey = "dashboard_sleep_goal";
@@ -200,6 +201,9 @@ class _DashboardPageState extends State<DashboardPage> {
         if (userId != null) {
           final entry = await DailyMetricsApi.fetchForDate(userId, _selectedDate);
           steps = entry?.steps;
+          if (steps == null) {
+            steps = await StepsService().fetchStepsForDay(_selectedDate);
+          }
         }
       }
       if (!mounted) return;
@@ -227,6 +231,9 @@ class _DashboardPageState extends State<DashboardPage> {
         if (userId != null) {
           final entry = await DailyMetricsApi.fetchForDate(userId, _selectedDate);
           hours = entry?.sleepHours;
+          if (hours == null) {
+            hours = await SleepService().fetchSleepForDay(_selectedDate);
+          }
         }
       }
       if (!mounted) return;
@@ -254,6 +261,9 @@ class _DashboardPageState extends State<DashboardPage> {
         if (userId != null) {
           final entry = await DailyMetricsApi.fetchForDate(userId, _selectedDate);
           kcal = entry?.calories;
+          if (kcal == null) {
+            kcal = await CaloriesService().fetchCaloriesForDay(_selectedDate);
+          }
         }
       }
       if (!mounted) return;
@@ -283,6 +293,9 @@ class _DashboardPageState extends State<DashboardPage> {
         if (userId != null) {
           final entry = await DailyMetricsApi.fetchForDate(userId, _selectedDate);
           intake = entry?.waterLiters;
+          if (intake == null) {
+            intake = await service.getIntakeForDay(_selectedDate);
+          }
         }
       }
       if (!mounted) return;
@@ -390,12 +403,28 @@ class _DashboardPageState extends State<DashboardPage> {
       days.add(cursor);
       cursor = cursor.add(const Duration(days: 1));
     }
-    final results = await Future.wait(
-      days.map((d) => DailyMetricsApi.fetchForDate(userId, d)),
-    );
     final map = <DateTime, DailyMetricsEntry?>{};
-    for (var i = 0; i < days.length; i++) {
-      map[days[i]] = results[i];
+    for (final d in days) {
+      final entry = await DailyMetricsApi.fetchForDate(userId, d);
+      if (entry != null) {
+        map[d] = entry;
+      } else {
+        // Fallback: pull local data for that specific day if the backend has nothing.
+        final steps = await StepsService().fetchStepsForDay(d);
+        final sleep = await SleepService().fetchSleepForDay(d);
+        final calories = await CaloriesService().fetchCaloriesForDay(d);
+        final water = await WaterService().getIntakeForDay(d);
+        final any = steps > 0 || sleep > 0 || calories > 0 || water > 0;
+        map[d] = any
+            ? DailyMetricsEntry(
+                entryDate: d,
+                steps: steps,
+                sleepHours: sleep,
+                calories: calories,
+                waterLiters: water,
+              )
+            : null;
+      }
     }
 
     // Inject today's local readings when the range includes today, since DB may not be updated yet.
@@ -426,20 +455,38 @@ class _DashboardPageState extends State<DashboardPage> {
     });
     try {
       final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-      final start = anchor.subtract(const Duration(days: 6));
-      final metrics = await _fetchMetricsRange(start, anchor);
-      int total;
+      final monday = anchor.subtract(Duration(days: anchor.weekday - 1));
+      final today = DateTime.now();
+      final todayOnly = DateTime(today.year, today.month, today.day);
+      final endOfWeek = monday.add(const Duration(days: 6));
+      var end = anchor.isBefore(todayOnly) ? anchor : todayOnly;
+      if (end.isAfter(endOfWeek)) {
+        end = endOfWeek;
+      }
+      if (end.isBefore(monday)) {
+        end = monday;
+      }
+
+      final metrics = await _fetchMetricsRange(monday, end);
+      int total = 0;
       if (metrics.isNotEmpty) {
         total = metrics.values.fold<int>(0, (sum, entry) => sum + (entry?.steps ?? 0));
       } else {
-        final data = await StepsService().fetchDailySteps(start: start, end: anchor);
+        final data = await StepsService().fetchDailySteps(start: monday, end: end);
         total = data.values.fold<int>(0, (sum, val) => sum + val);
       }
+      final daysCount = end.difference(monday).inDays + 1;
       if (!mounted) return;
-      setState(() => _weeklySteps = total);
+      setState(() {
+        _weeklySteps = total;
+        _weeklyDaysCount = daysCount.clamp(1, 7);
+      });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _weeklySteps = null);
+      setState(() {
+        _weeklySteps = null;
+        _weeklyDaysCount = 7;
+      });
     } finally {
       if (mounted) {
         setState(() => _weeklyStepsLoading = false);
@@ -900,16 +947,16 @@ class _DashboardPageState extends State<DashboardPage> {
                     NewsCarousel(slides: slides),
                 ],
                 const SizedBox(height: 16),
-                if (!_loading && !noEntriesForSelectedDate) ...[
-                  const SizedBox(height: 20),
-                  GridView.count(
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.10,
-                    children: [
+    if (!_loading && !noEntriesForSelectedDate) ...[
+      const SizedBox(height: 20),
+      GridView.count(
+        physics: const NeverScrollableScrollPhysics(),
+        shrinkWrap: true,
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.10,
+        children: [
                       StatCard(
                         title: t("dash_today_steps"),
                         value: _stepsLoading ? "…" : "${todaysStepsDisplay.toString()}",
@@ -945,12 +992,12 @@ class _DashboardPageState extends State<DashboardPage> {
                       StatCard(
                         title: t("dash_water_intake"),
                         value: _waterLoading ? "…" : "${waterIntake.toStringAsFixed(1)} ${t("dash_unit_l")}",
-                        subtitle: _waterLoading ? "" : "${t("dash_goal")} ${waterGoal.toStringAsFixed(1)} ${t("dash_unit_l")}",
-                        icon: Icons.water_drop,
-                        accentColor: const Color(0xFF00BFA6),
-                        onTap: _openWaterEditor,
-                        onLongPress: _openWaterEditor,
-                      ),
+            subtitle: _waterLoading ? "" : "${t("dash_goal")} ${waterGoal.toStringAsFixed(1)} ${t("dash_unit_l")}",
+            icon: Icons.water_drop,
+            accentColor: const Color(0xFF00BFA6),
+            onTap: _isToday() ? _openWaterEditor : null,
+            onLongPress: _isToday() ? _openWaterEditor : null,
+          ),
                       StatCard(
                         title: t("dash_calories_burned"),
                         value: _caloriesLoading
