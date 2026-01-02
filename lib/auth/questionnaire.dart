@@ -8,6 +8,8 @@ import '../services/questionnaire_service.dart';
 import '../core/account_storage.dart';
 import '../main/main_layout.dart';
 import '../widgets/app_toast.dart';
+import '../screens/generating_training_screen.dart';
+
 
 class QuestionnairePage extends StatefulWidget {
   const QuestionnairePage({super.key});
@@ -184,8 +186,8 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
 
             Navigator.pushAndRemoveUntil(
               context,
-              MaterialPageRoute(builder: (_) => const MainLayout()),
-              (route) => false,
+              MaterialPageRoute(builder: (_) => const GeneratingTrainingScreen()),
+                  (route) => false,
             );
           } catch (e) {
             if (!mounted) return;
