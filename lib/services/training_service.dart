@@ -51,7 +51,7 @@ class TrainingService {
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'program_exercise_id': programExerciseId,
-          'weight': weight,
+          'weight_used': weight,
         }));
   }
 
@@ -71,4 +71,32 @@ class TrainingService {
           'performed_rir': rir,
         }));
   }
+  static Future<List<dynamic>> getFeedbackQuestions(String exerciseName) async {
+    final url = Uri.parse(
+        '$baseUrl/training/exercise/$exerciseName/feedback-questions');
+    final response = await http.get(url);
+
+    if (response.statusCode != 200) {
+      throw Exception("Failed to load feedback questions");
+    }
+
+    return json.decode(response.body);
+  }
+  static Future<void> submitFeedback({
+    required int programExerciseId,
+    required int questionIndex,
+    required int answer,
+  }) async {
+    final url = Uri.parse('$baseUrl/training/feedback');
+    await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'program_exercise_id': programExerciseId,
+        'question_index': questionIndex,
+        'answer': answer,
+      }),
+    );
+  }
+
 }

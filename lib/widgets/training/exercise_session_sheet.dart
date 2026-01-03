@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/training_service.dart';
+import 'exercise_feedback_sheet.dart';
 
 class ExerciseSessionSheet extends StatefulWidget {
   final Map<String, dynamic> exercise;
@@ -18,6 +19,8 @@ class ExerciseSessionSheet extends StatefulWidget {
 
 class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
   bool started = false;
+  bool submitting = false;
+
   int seconds = 0;
   Timer? timer;
 
@@ -45,6 +48,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
   }
 
   Future<void> _finishExercise() async {
+    if (submitting) return;
+
+    setState(() => submitting = true);
     timer?.cancel();
 
     final int finalSets =
@@ -67,8 +73,21 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
       rir: rir.round(),
     );
 
-    widget.onFinished();
-    Navigator.pop(context);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => ExerciseFeedbackSheet(
+        programExerciseId: widget.exercise['program_exercise_id'],
+        exerciseName: widget.exercise['exercise_name'],
+        onDone: () {
+          widget.onFinished();
+          Navigator.pop(context); // close ExerciseSessionSheet
+        },
+      ),
+    );
   }
 
   @override
@@ -83,8 +102,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
   @override
   Widget build(BuildContext context) {
     final String? animPath = widget.exercise['animation_rel_path'];
-    final String instructions =
-        widget.exercise['instructions'] ?? '';
+    final String instructions = widget.exercise['instructions'] ?? '';
 
     Widget animationWidget = const Icon(
       Icons.fitness_center,
@@ -93,17 +111,15 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
     );
 
     if (animPath != null && animPath.isNotEmpty) {
-      // This will show the exact path in your Debug Console
-      print("DEBUG: Trying to load asset: 'assets/$animPath'");
+      final String gifUrl =
+          "${TrainingService.baseUrl}/static/$animPath";
 
       animationWidget = SizedBox(
         height: 160,
-        child: Image.asset(
-          'assets/$animPath',
+        child: Image.network(
+          gifUrl,
           fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) {
-            // This prints the error if the image fails to load
-            print("ERROR loading GIF: $error");
+          errorBuilder: (_, __, ___) {
             return const Icon(
               Icons.fitness_center,
               size: 80,
@@ -118,7 +134,6 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Center(child: animationWidget),
@@ -156,7 +171,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
             if (!started)
               ElevatedButton(
                 onPressed: _startExercise,
-                child: const Text("Start Exercise"), // translate later
+                child: const Text("Start Exercise"),
               ),
 
             if (started) ...[
@@ -211,8 +226,14 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
               const SizedBox(height: 8),
 
               ElevatedButton(
-                onPressed: _finishExercise,
-                child: const Text("Finish Exercise"),
+                onPressed: submitting ? null : _finishExercise,
+                child: submitting
+                    ? const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+                    : const Text("Finish Exercise"),
               ),
             ],
           ],

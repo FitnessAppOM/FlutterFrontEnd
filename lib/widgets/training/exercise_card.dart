@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../Main/card_container.dart';
+import '../../services/training_service.dart';
+
 
 class ExerciseCard extends StatelessWidget {
   final Map<String, dynamic> exercise;
@@ -23,11 +25,14 @@ class ExerciseCard extends StatelessWidget {
     );
 
     if (animPath != null && animPath.isNotEmpty) {
+      final String gifUrl =
+          "${TrainingService.baseUrl}/static/$animPath";
+
       leading = SizedBox(
         width: 56,
         height: 56,
-        child: Image.asset(
-          'assets/$animPath',
+        child: Image.network(
+          gifUrl,
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) {
             return const Icon(
@@ -39,6 +44,7 @@ class ExerciseCard extends StatelessWidget {
         ),
       );
     }
+
 
     return GestureDetector(
       onTap: onTap,
