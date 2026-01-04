@@ -68,54 +68,101 @@ class _TrainPageState extends State<TrainPage> {
     final currentDay = days[selectedDay];
     final List exercises = currentDay['exercises'] ?? [];
 
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          SectionHeader(title: t.translate("training")),
-          const SizedBox(height: 16),
-
-          DaySelector(
-            labels: days.map<String>((d) => d['day_label']).toList(),
-            selectedIndex: selectedDay,
-            onSelect: (i) => setState(() => selectedDay = i),
+    void startExerciseFlow(Map<String, dynamic> ex) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(20),
           ),
+        ),
+        builder: (_) => ExerciseSessionSheet(
+          exercise: ex,
+          onFinished: _loadProgram,
+        ),
+      ).whenComplete(() {
+        // If the sheet is dismissed by swiping down, still refresh the program state.
+        _loadProgram();
+      });
+    }
 
-          const SizedBox(height: 20),
+    Map<String, dynamic>? firstPending() {
+      final pending = exercises.firstWhere(
+        (e) => e['is_completed'] != true,
+        orElse: () => exercises.isNotEmpty ? exercises.first : null,
+      );
+      if (pending is Map<String, dynamic>) return pending;
+      return null;
+    }
 
-          // ✅ B) Rest day handling
-          if (exercises.isEmpty)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 40),
-                child: Text(
-                  t.translate("rest_day"),
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-            )
-          else
-            ...exercises.map<Widget>((ex) {
-              return ExerciseCard(
-                exercise: ex,
-                onTap: () {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(20),
-                      ),
+    return Container(
+      color: Colors.black,
+      child: SafeArea(
+        child: RefreshIndicator(
+          color: Colors.blueAccent,
+          backgroundColor: Colors.black87,
+          onRefresh: _loadProgram,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(20),
+            children: [
+              SectionHeader(title: t.translate("training")),
+              const SizedBox(height: 12),
+              Text(
+                currentDay['day_label'] ?? "",
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
                     ),
-                    builder: (_) => ExerciseSessionSheet(
+              ),
+              const SizedBox(height: 12),
+              DaySelector(
+                labels: days.map<String>((d) => d['day_label']).toList(),
+                selectedIndex: selectedDay,
+                onSelect: (i) => setState(() => selectedDay = i),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                t.translate("training_exercise_list_title"),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                t.translate("training_exercise_list_sub"),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.white.withOpacity(0.7),
+                    ),
+              ),
+              const SizedBox(height: 16),
+              if (exercises.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 40),
+                    child: Text(
+                      t.translate("rest_day"),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: Colors.white,
+                          ),
+                    ),
+                  ),
+                )
+              else
+                ...exercises.map<Widget>((ex) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: ExerciseCard(
                       exercise: ex,
-                      onFinished: _loadProgram,
+                      onTap: () => startExerciseFlow(ex),
                     ),
                   );
-                },
-              );
-            }).toList(),
-        ],
+                }).toList(),
+            ],
+          ),
+        ),
       ),
     );
   }

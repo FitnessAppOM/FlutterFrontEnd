@@ -12,7 +12,8 @@ class CardContainer extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white12),
+        // Match the subtle gold edge treatment used across other widgets.
+        border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.18)),
       ),
       child: child,
     );

@@ -283,6 +283,13 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     }
 
     final cleanedValues = Map<String, String>.from(_values);
+    final isStudentRaw = (cleanedValues["is_university_student"] ?? "").trim().toLowerCase();
+    final isStudent = isStudentRaw == "yes" || isStudentRaw == _t("yes").toLowerCase();
+    cleanedValues["is_university_student"] = isStudent ? "true" : "false";
+    if (!isStudent) {
+      cleanedValues["university_id"] = "0";
+    }
+
     final affiliationId = (_values['affiliation_id'] ?? '').trim();
     final affiliationOther = (_values['affiliation_other_text'] ?? '').trim();
     final affiliationChoice = _affiliationChoice;
@@ -331,9 +338,10 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       "training_days": ["1", "2", "3", "4", "5", "6"],
       "preferred_time": ["morning", "noon", "afternoon", "evening", "flexible"],
       "training_location": ["gym", "home", "hybrid"],
-      "training_style": ["strength", "hypertrophy", "functional", "endurance", "hiit", "mobility"],
       "train_mode": ["alone", "partner", "trainer"],
       "auto_recovery": ["yes", "no"],
+      "is_university_student": ["yes", "no"],
+      "is_physical_rehabilitation": ["yes", "no"],
       "diet_type": ["no_pref", "high_protein", "low_carb", "vegetarian", "vegan", "fasting", "other"],
       "meals_per_day": ["2", "3", "4", "5", "6"],
       "food_habit": ["cook", "eat_out", "mix"],
@@ -665,18 +673,6 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         label: _t("training_location"),
         keyName: "training_location",
         options: [_t("gym"), _t("home"), _t("hybrid")],
-      ),
-      _buildChoiceField(
-        label: _t("training_style"),
-        keyName: "training_style",
-        options: [
-          _t("strength"),
-          _t("hypertrophy"),
-          _t("functional"),
-          _t("endurance"),
-          _t("hiit"),
-          _t("mobility"),
-        ],
       ),
       _buildMultiChoiceField(
         label: _t("past_injuries"),

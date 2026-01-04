@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/training_service.dart';
 import '../core/account_storage.dart';
 import '../widgets/app_toast.dart';
+import '../widgets/training_loading_indicator.dart';
 import '../main/main_layout.dart';
 import '../localization/app_localizations.dart';
 
@@ -13,11 +15,17 @@ class GeneratingTrainingScreen extends StatefulWidget {
       _GeneratingTrainingScreenState();
 }
 
-class _GeneratingTrainingScreenState
-    extends State<GeneratingTrainingScreen> {
-
+class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
+  bool _isGenerating = true;
+  String? _error;
   int _retryCount = 0;
   static const int _maxRetries = 3;
+  // Allow longer server processing before we consider it a timeout.
+  static const Duration _timeout = Duration(seconds: 60);
+  static const Duration _toastThreshold = Duration(minutes: 2);
+  final DateTime _startedAt = DateTime.now();
+
+  bool get _showFinalError => _error != null && _retryCount >= _maxRetries;
 
   @override
   void initState() {
@@ -25,14 +33,25 @@ class _GeneratingTrainingScreenState
     _generateTraining();
   }
 
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
   Future<void> _generateTraining() async {
+    setState(() {
+      _isGenerating = true;
+      _error = null;
+    });
+
     try {
       final userId = await AccountStorage.getUserId();
       if (userId == null) {
         throw Exception("User not found");
       }
 
-      await TrainingService.generateProgram(userId);
+      await TrainingService.generateProgram(userId)
+          .timeout(_timeout);
 
       if (!mounted) return;
 
@@ -44,11 +63,17 @@ class _GeneratingTrainingScreenState
     } catch (e) {
       if (!mounted) return;
 
-      AppToast.show(
-        context,
-        e.toString().replaceFirst('Exception: ', ''),
-        type: AppToastType.error,
-      );
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      final elapsed = DateTime.now().difference(_startedAt);
+
+      final shouldShowToast = elapsed >= _toastThreshold;
+      if (shouldShowToast) {
+        AppToast.show(context, msg, type: AppToastType.error);
+      }
+
+      setState(() {
+        _error = shouldShowToast && msg.isNotEmpty ? msg : null;
+      });
 
       _retryCount++;
 
@@ -60,32 +85,144 @@ class _GeneratingTrainingScreenState
           },
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() => _isGenerating = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
     return WillPopScope(
       onWillPop: () async => false,
       child: Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(
-                width: 48,
-                height: 48,
-                child: CircularProgressIndicator(strokeWidth: 4),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                cs.primary.withOpacity(0.12),
+                cs.surfaceVariant.withOpacity(0.35),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: cs.surface.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 22,
+                        offset: const Offset(0, 16),
+                      ),
+                    ],
+                    border: Border.all(color: cs.outlineVariant.withOpacity(0.6)),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: cs.primary.withOpacity(0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              _showFinalError ? Icons.error_outline : Icons.auto_awesome,
+                              color: _showFinalError ? cs.error : cs.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        t.translate("generating_training_title"),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        t.translate("generating_training_body"),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: cs.onSurface.withOpacity(0.7),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      if (_isGenerating) ...[
+                        const TrainingLoadingIndicator(),
+                        const SizedBox(height: 12),
+                        if (!_showFinalError)
+                          Text(
+                            t.translate("generating_waiting_hint"),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: cs.onSurface.withOpacity(0.6),
+                            ),
+                          ),
+                      ],
+                      if (_showFinalError) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          t.translate("generating_error_title"),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: cs.error,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _error!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: cs.error.withOpacity(0.9),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: cs.surfaceVariant.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.verified_user, color: cs.primary),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                t.translate("generating_training_note"),
+                                style: theme.textTheme.bodyMedium,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              const SizedBox(height: 24),
-              Text(
-                t.translate("generating_training"),
-                style: Theme.of(context).textTheme.titleMedium,
-                textAlign: TextAlign.center,
-              ),
-            ],
+            ),
           ),
         ),
       ),

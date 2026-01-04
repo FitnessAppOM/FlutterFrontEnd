@@ -16,12 +16,14 @@ class MainLayout extends StatefulWidget {
 class _MainLayoutState extends State<MainLayout> {
   int _index = 0;
 
-  final pages = const [
-    DashboardPage(),
-    TrainPage(),
-    DietPage(),
-    CommunityPage(),
-    ProfilePage(),
+  final GlobalKey<DashboardPageState> _dashboardKey = GlobalKey<DashboardPageState>();
+
+  late final List<Widget> pages = [
+    DashboardPage(key: _dashboardKey),
+    const TrainPage(),
+    const DietPage(),
+    const CommunityPage(),
+    const ProfilePage(),
   ];
 
   @override
@@ -62,6 +64,10 @@ class _MainLayoutState extends State<MainLayout> {
     return GestureDetector(
       onTap: () {
         setState(() => _index = idx);
+        if (idx == 0) {
+          final state = _dashboardKey.currentState;
+          state?.refreshExerciseProgress();
+        }
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),

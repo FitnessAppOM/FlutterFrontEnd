@@ -38,6 +38,9 @@ class DailyMetricsEntry {
 }
 
 class DailyMetricsApi {
+  static final Map<String, DailyMetricsEntry?> _cache = {};
+  static final Map<String, Future<DailyMetricsEntry?>> _inFlight = {};
+
   static Future<void> upsert({
     required int userId,
     required DateTime entryDate,
@@ -72,13 +75,36 @@ class DailyMetricsApi {
 
   static Future<DailyMetricsEntry?> fetchForDate(int userId, DateTime date) async {
     final dateStr = date.toIso8601String().split("T").first;
-    final url = Uri.parse("${ApiConfig.baseUrl}/daily-metrics/$userId/date/$dateStr");
-    final res = await http.get(url);
-    if (res.statusCode == 200) {
-      final data = jsonDecode(res.body) as Map<String, dynamic>;
-      return DailyMetricsEntry.fromJson(data);
+    final todayStr = DateTime.now().toIso8601String().split("T").first;
+    final cacheKey = "$userId-$dateStr";
+
+    // Serve from cache for past days to avoid repeated HTTP calls.
+    if (dateStr != todayStr && _cache.containsKey(cacheKey)) {
+      return _cache[cacheKey];
     }
-    if (res.statusCode == 404) return null;
-    throw Exception("Failed to fetch daily metrics: ${res.body}");
+    if (_inFlight.containsKey(cacheKey)) {
+      return _inFlight[cacheKey];
+    }
+
+    final url = Uri.parse("${ApiConfig.baseUrl}/daily-metrics/$userId/date/$dateStr");
+    final future = http.get(url).then((res) {
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        return DailyMetricsEntry.fromJson(data);
+      }
+      if (res.statusCode == 404) return null;
+      throw Exception("Failed to fetch daily metrics: ${res.body}");
+    });
+
+    _inFlight[cacheKey] = future;
+    try {
+      final result = await future;
+      if (dateStr != todayStr) {
+        _cache[cacheKey] = result;
+      }
+      return result;
+    } finally {
+      _inFlight.remove(cacheKey);
+    }
   }
 }

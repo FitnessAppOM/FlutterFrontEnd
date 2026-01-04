@@ -1,5 +1,5 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../Main/card_container.dart';
 import '../../services/training_service.dart';
 
 
@@ -15,76 +15,292 @@ class ExerciseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool completed = exercise['is_completed'] == true;
-    final String? animPath = exercise['animation_rel_path'];
-
-    Widget leading = const Icon(
-      Icons.fitness_center,
-      size: 32,
-      color: Colors.grey,
-    );
-
-    if (animPath != null && animPath.isNotEmpty) {
-      final String gifUrl =
-          "${TrainingService.baseUrl}/static/$animPath";
-
-      leading = SizedBox(
-        width: 56,
-        height: 56,
-        child: Image.network(
-          gifUrl,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) {
-            return const Icon(
-              Icons.fitness_center,
-              size: 32,
-              color: Colors.grey,
-            );
-          },
-        ),
-      );
+    DateTime? _parseDate(dynamic value) {
+      if (value is DateTime) return value;
+      if (value is String && value.isNotEmpty) return DateTime.tryParse(value);
+      if (value is num) {
+        final intVal = value.toInt();
+        // Accept both seconds and milliseconds since epoch.
+        if (intVal > 1000000000000) {
+          return DateTime.fromMillisecondsSinceEpoch(intVal);
+        }
+        if (intVal > 1000000000) {
+          return DateTime.fromMillisecondsSinceEpoch(intVal * 1000);
+        }
+      }
+      return null;
     }
 
+    DateTime _startOfCurrentWeekSunday() {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      // In Dart, Sunday == 7. We want the most recent Sunday 00:00.
+      final daysSinceSunday = now.weekday % 7;
+      return today.subtract(Duration(days: daysSinceSunday));
+    }
 
-    return GestureDetector(
-      onTap: onTap,
-      child: CardContainer(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            leading,
-            const SizedBox(width: 12),
+    final DateTime _weekStart = _startOfCurrentWeekSunday();
 
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    exercise['exercise_name'] ?? '',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    "${exercise['sets']} x ${exercise['reps']} • RIR ${exercise['rir']}",
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
+    bool _isInCurrentWeek(dynamic loggedAt) {
+      final dt = _parseDate(loggedAt);
+      if (dt == null) return false;
+      return !dt.isBefore(_weekStart);
+    }
 
-            const SizedBox(width: 8),
+    bool _isCompleted(dynamic value) {
+      if (value == null) return false;
+      if (value is bool) return value;
+      if (value is num) return value != 0;
+      final s = value.toString().trim().toLowerCase();
+      if (s.isEmpty) return false;
+      // Accept common truthy markers, including "1", "t", and numeric strings.
+      if (s == "true" || s == "yes" || s == "y" || s == "t" || s == "1") {
+        return true;
+      }
+      final numeric = num.tryParse(s);
+      if (numeric != null) return numeric != 0;
+      // Fallback: any non-falsey string is treated as completed (e.g. logged_at timestamp).
+      return !(s == "false" || s == "f" || s == "no" || s == "n" || s == "0");
+    }
 
-            completed
-                ? const Icon(Icons.check_circle, color: Colors.green)
-                : const Icon(Icons.play_arrow),
-          ],
+    bool _hasComplianceCompleted(dynamic compliance) {
+      if (compliance == null) return false;
+      if (compliance is String) {
+        try {
+          final decoded = jsonDecode(compliance);
+          return _hasComplianceCompleted(decoded);
+        } catch (_) {
+          return _isCompleted(compliance);
+        }
+      }
+      if (compliance is Map) {
+        if (!_isInCurrentWeek(compliance['logged_at'])) return false;
+        // Check common fields returned from program_compliance payloads. Ignore logged_at alone;
+        // we only consider explicit completion flags or logged performance metrics.
+        final possibleFlags = [
+          compliance['completed'],
+          compliance['is_completed'],
+          compliance['performed_sets'],
+          compliance['performed_reps'],
+          compliance['performed_time_seconds'],
+          // Consider textual statuses that imply completion.
+          if (compliance['status'] != null)
+            (compliance['status'].toString().toLowerCase().contains("complete") ||
+                    compliance['status'].toString().toLowerCase().contains("done") ||
+                    compliance['status'].toString().toLowerCase().contains("finish")),
+        ];
+        return possibleFlags.any(_isCompleted);
+      }
+      if (compliance is Iterable) {
+        return compliance.any((item) => _hasComplianceCompleted(item));
+      }
+      return _isCompleted(compliance);
+    }
+
+    // Accept multiple backend representations for completion/compliance flags.
+    final completionFields = [
+      exercise['is_completed'],
+      exercise['completed'],
+      exercise['program_compliance_completed'],
+      exercise['compliance_status'],
+      exercise['performed_sets'],
+      exercise['performed_reps'],
+      exercise['performed_time_seconds'],
+      exercise['weight_used'],
+    ];
+
+    final bool completed =
+        completionFields.any(_isCompleted) ||
+        _hasComplianceCompleted(exercise['program_compliance']) ||
+        _hasComplianceCompleted(exercise['compliance']);
+    final cs = Theme.of(context).colorScheme;
+
+    final gradientColors = completed
+        ? const [Color(0xFF0E2A1E), Color(0xFF0B1F1A)]
+        : const [Color(0xFF0F162A), Color(0xFF0A0F1C)];
+    final shadowColor =
+        completed ? Colors.greenAccent.withOpacity(0.35) : Colors.black.withOpacity(0.45);
+    final borderColor =
+        completed ? Colors.greenAccent.withOpacity(0.6) : Colors.white.withOpacity(0.07);
+    final statusChip = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: completed ? Colors.greenAccent.withOpacity(0.15) : Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: completed ? Colors.greenAccent : Colors.white24,
         ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(completed ? Icons.check : Icons.play_arrow,
+              size: 14, color: completed ? Colors.greenAccent : Colors.white70),
+          const SizedBox(width: 3),
+          Text(
+            completed ? "Done" : "Start",
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: completed ? Colors.greenAccent : Colors.white,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: gradientColors,
+            ),
+            border: Border.all(color: borderColor),
+            boxShadow: [
+              BoxShadow(
+                color: shadowColor,
+                blurRadius: completed ? 18 : 14,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    width: 74,
+                    height: 66,
+                    color: Colors.black26,
+                    child: (exercise['animation_rel_path'] == null ||
+                            (exercise['animation_rel_path'] as String).isEmpty)
+                        ? const Icon(Icons.fitness_center, color: Colors.white70)
+                        : Image.network(
+                            "${TrainingService.baseUrl}/static/${exercise['animation_rel_path']}",
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                const Icon(Icons.fitness_center, color: Colors.white70),
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              exercise['exercise_name'] ?? '',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: completed ? Colors.greenAccent : Colors.white,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          statusChip,
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          _StatChip(
+                            icon: Icons.repeat,
+                            label: "${exercise['sets']} x ${exercise['reps']}",
+                          ),
+                          _StatChip(
+                            icon: Icons.bolt,
+                            label: "RIR ${exercise['rir']}",
+                          ),
+                        ],
+                      ),
+                      if ((exercise['primary_muscles'] ?? '').toString().isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Icon(Icons.fiber_manual_record,
+                                size: 10, color: cs.secondary.withOpacity(0.85)),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                exercise['primary_muscles'],
+                                style: TextStyle(
+                                  color: cs.secondary.withOpacity(0.85),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(Icons.chevron_right, color: Colors.white54),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color? accent;
+
+  const _StatChip({
+    required this.icon,
+    required this.label,
+    this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: (accent ?? Colors.white).withOpacity(0.06),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: (accent ?? Colors.white).withOpacity(0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: accent ?? Colors.white70),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: accent ?? Colors.white,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+          ),
+        ],
       ),
     );
   }

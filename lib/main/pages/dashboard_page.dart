@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -27,15 +28,17 @@ import '../../screens/calories_detail_page.dart';
 import '../../localization/app_localizations.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/common/date_header.dart';
+import '../../services/training_service.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
   @override
-  State<DashboardPage> createState() => _DashboardPageState();
+  State<DashboardPage> createState() => DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> {
+class DashboardPageState extends State<DashboardPage> {
+
   List<NewsItem> _news = const [];
   bool _loading = true;
   String? _error;
@@ -64,6 +67,9 @@ class _DashboardPageState extends State<DashboardPage> {
   bool _trendCaloriesLoading = false;
   DateTime _selectedDate = DateTime.now();
   int _weeklyDaysCount = 7;
+  int? _exerciseTotal;
+  int? _exerciseCompleted;
+  bool _exerciseLoading = false;
 
   static const _stepsGoalKey = "dashboard_steps_goal";
   static const _sleepGoalKey = "dashboard_sleep_goal";
@@ -100,6 +106,7 @@ class _DashboardPageState extends State<DashboardPage> {
     _loadWeeklySteps();
     _loadTrendSleep();
     _loadTrendCalories();
+    _loadExerciseProgress();
   }
 
   void _openDateSheet() {
@@ -169,6 +176,7 @@ class _DashboardPageState extends State<DashboardPage> {
     _loadWeeklySteps();
     _loadTrendSleep();
     _loadTrendCalories();
+    _loadExerciseProgress();
   }
 
   Future<void> _refreshAll() async {
@@ -185,8 +193,245 @@ class _DashboardPageState extends State<DashboardPage> {
       _loadWeeklySteps(),
       _loadTrendSleep(),
       _loadTrendCalories(),
+      _loadExerciseProgress(),
     ]);
   }
+
+  bool _flagTrue(dynamic value) {
+    if (value == null) return false;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final lower = value.toLowerCase().trim();
+      if (lower == "true" || lower == "yes" || lower == "y") return true;
+      final numeric = num.tryParse(value);
+      return numeric != null && numeric != 0;
+    }
+    return false;
+  }
+
+  bool _complianceCompleted(dynamic compliance) {
+    // Deprecated overload kept for back-compat; defaults to selected week.
+    final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final weekStart = anchor.subtract(Duration(days: anchor.weekday - 1));
+    final weekEnd = weekStart.add(const Duration(days: 6));
+    return _complianceCompletedForWeek(compliance, weekStart, weekEnd);
+  }
+
+  DateTime? _parseDateTime(dynamic value) {
+    if (value is DateTime) {
+      return DateTime(value.year, value.month, value.day);
+    }
+    if (value is String && value.trim().isNotEmpty) {
+      final parsed = DateTime.tryParse(value);
+      if (parsed != null) return DateTime(parsed.year, parsed.month, parsed.day);
+    }
+    if (value is num) {
+      final intVal = value.toInt();
+      try {
+        // Accept seconds or milliseconds.
+        if (intVal > 1000000000000) {
+          final dt = DateTime.fromMillisecondsSinceEpoch(intVal);
+          return DateTime(dt.year, dt.month, dt.day);
+        }
+        if (intVal > 1000000000) {
+          final dt = DateTime.fromMillisecondsSinceEpoch(intVal * 1000);
+          return DateTime(dt.year, dt.month, dt.day);
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  bool _isInWeek(DateTime date, DateTime weekStart, DateTime weekEnd) {
+    return !date.isBefore(weekStart) && !date.isAfter(weekEnd);
+  }
+
+  bool _complianceCompletedForWeek(
+    dynamic compliance,
+    DateTime weekStart,
+    DateTime weekEnd,
+  ) {
+    if (compliance == null) return false;
+    if (compliance is Map) {
+      final loggedAt = _parseDateTime(
+        compliance['logged_at'] ??
+            compliance['completed_at'] ??
+            compliance['updated_at'] ??
+            compliance['performed_at'],
+      );
+      if (loggedAt == null) return false;
+      if (!_isInWeek(loggedAt, weekStart, weekEnd)) return false;
+      final flags = [
+        compliance['completed'],
+        compliance['is_completed'],
+        compliance['performed_sets'],
+        compliance['performed_reps'],
+        compliance['performed_time_seconds'],
+        if (compliance['status'] != null)
+          compliance['status'].toString().toLowerCase().contains("complete") ||
+              compliance['status'].toString().toLowerCase().contains("done") ||
+              compliance['status'].toString().toLowerCase().contains("finish"),
+      ];
+      return flags.any(_flagTrue);
+    }
+    if (compliance is Iterable) {
+      return compliance.any(
+        (item) => _complianceCompletedForWeek(item, weekStart, weekEnd),
+      );
+    }
+    if (compliance is String) {
+      try {
+        final decoded = jsonDecode(compliance);
+        return _complianceCompletedForWeek(decoded, weekStart, weekEnd);
+      } catch (_) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  DateTime? _exerciseCompletionDate(Map<String, dynamic> ex) {
+    final candidates = [
+      ex['logged_at'],
+      ex['completed_at'],
+      ex['updated_at'],
+      ex['performed_at'],
+      ex['last_performed_at'],
+    ];
+    for (final c in candidates) {
+      final dt = _parseDateTime(c);
+      if (dt != null) return dt;
+    }
+    return null;
+  }
+
+  bool _isExerciseCompletedForWeek(
+    Map<String, dynamic> ex,
+    DateTime weekStart,
+    DateTime weekEnd,
+  ) {
+    if (_complianceCompletedForWeek(ex['program_compliance'], weekStart, weekEnd) ||
+        _complianceCompletedForWeek(ex['compliance'], weekStart, weekEnd)) {
+      return true;
+    }
+
+    final completionDate = _exerciseCompletionDate(ex);
+    if (completionDate != null && !_isInWeek(completionDate, weekStart, weekEnd)) {
+      return false;
+    }
+
+    final flags = [
+      ex['is_completed'],
+      ex['completed'],
+      ex['program_compliance_completed'],
+      ex['performed_sets'],
+      ex['performed_reps'],
+      ex['performed_time_seconds'],
+      ex['weight_used'],
+    ];
+
+    if (completionDate == null) return false;
+
+    return flags.any(_flagTrue);
+  }
+
+  DateTime? _parseDayDate(dynamic day) {
+    if (day is Map) {
+      for (final key in ['date', 'day_date', 'scheduled_date', 'training_date', 'day']) {
+        final val = day[key];
+        if (val is String && val.trim().isNotEmpty) {
+          final parsed = DateTime.tryParse(val);
+          if (parsed != null) {
+            return DateTime(parsed.year, parsed.month, parsed.day);
+          }
+        }
+        if (val is int) {
+          try {
+            final parsed = DateTime.fromMillisecondsSinceEpoch(val);
+            return DateTime(parsed.year, parsed.month, parsed.day);
+          } catch (_) {
+            // ignore parse error and continue
+          }
+        }
+      }
+    }
+    if (day is String && day.trim().isNotEmpty) {
+      final parsed = DateTime.tryParse(day);
+      if (parsed != null) {
+        return DateTime(parsed.year, parsed.month, parsed.day);
+      }
+    }
+    return null;
+  }
+
+  Future<void> _loadExerciseProgress() async {
+    setState(() => _exerciseLoading = true);
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null) {
+        setState(() {
+          _exerciseTotal = 0;
+          _exerciseCompleted = 0;
+        });
+        return;
+      }
+
+      final program = await TrainingService.fetchActiveProgram(userId);
+      final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+      final weekStart = anchor.subtract(Duration(days: anchor.weekday - 1));
+      final weekEnd = weekStart.add(const Duration(days: 6));
+      int total = 0;
+      int done = 0;
+
+      final days = program['days'];
+      bool hasDatedDays = false;
+      if (days is List) {
+        for (final day in days) {
+          if (_parseDayDate(day) != null) {
+            hasDatedDays = true;
+            break;
+          }
+        }
+      }
+      if (days is List) {
+        for (final day in days) {
+          final exercises = day is Map ? day['exercises'] : null;
+          final dayDate = _parseDayDate(day);
+          if (hasDatedDays) {
+            if (dayDate == null) continue;
+            if (dayDate.isBefore(weekStart) || dayDate.isAfter(weekEnd)) continue;
+          }
+          if (exercises is List) {
+            for (final ex in exercises) {
+              if (ex is Map<String, dynamic>) {
+                total++;
+                if (_isExerciseCompletedForWeek(ex, weekStart, weekEnd)) done++;
+              }
+            }
+          }
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _exerciseTotal = total;
+        _exerciseCompleted = done;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _exerciseTotal = null;
+        _exerciseCompleted = null;
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _exerciseLoading = false);
+      }
+    }
+  }
+
+  Future<void> refreshExerciseProgress() => _loadExerciseProgress();
 
   Future<void> _loadSteps() async {
     setState(() {
@@ -826,6 +1071,7 @@ class _DashboardPageState extends State<DashboardPage> {
         : isYesterday
             ? t("date_yesterday")
             : DateFormat('MMM d, y', locale).format(_selectedDate);
+    final bool isCurrentDay = _isToday();
 
     return SafeArea(
       child: RefreshIndicator(
@@ -947,6 +1193,94 @@ class _DashboardPageState extends State<DashboardPage> {
                     NewsCarousel(slides: slides),
                 ],
                 const SizedBox(height: 16),
+                CardContainer(
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          height: 72,
+                          width: 72,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              CircularProgressIndicator(
+                                value: 1,
+                                strokeWidth: 8,
+                                valueColor: AlwaysStoppedAnimation(
+                                  Colors.white.withOpacity(0.08),
+                                ),
+                              ),
+                              CircularProgressIndicator(
+                                value: (_exerciseTotal != null && _exerciseTotal != 0)
+                                    ? ((_exerciseCompleted ?? 0) / (_exerciseTotal!.toDouble()))
+                                        .clamp(0.0, 1.0)
+                                    : 0.0,
+                                strokeWidth: 8,
+                                valueColor: const AlwaysStoppedAnimation(AppColors.accent),
+                                backgroundColor: Colors.transparent,
+                              ),
+                              Center(
+                                child: _exerciseLoading
+                                    ? const SizedBox(
+                                        height: 18,
+                                        width: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: AppColors.accent,
+                                        ),
+                                      )
+                                    : Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            (_exerciseCompleted ?? 0).toString(),
+                                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                          ),
+                                          Text(
+                                            _exerciseTotal == null
+                                                ? "—"
+                                                : "/ ${_exerciseTotal.toString()}",
+                                            style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                          ),
+                                        ],
+                                      ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                t("dash_exercise_progress"),
+                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                _exerciseTotal == null
+                                    ? t("dash_exercise_unavailable")
+                                    : t("dash_exercise_done_of_total")
+                                        .replaceAll("{done}", (_exerciseCompleted ?? 0).toString())
+                                        .replaceAll("{total}", _exerciseTotal.toString()),
+                                style: const TextStyle(color: Colors.white70, fontSize: 13),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
     if (!_loading && !noEntriesForSelectedDate) ...[
       const SizedBox(height: 20),
       GridView.count(
@@ -963,14 +1297,16 @@ class _DashboardPageState extends State<DashboardPage> {
                         subtitle: "${t("dash_goal")} ${(_stepsGoal ?? 10000).toString()}",
                         icon: Icons.directions_walk,
                         accentColor: const Color(0xFF35B6FF),
-                        onTap: () async {
-                          await Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const StepsDetailPage()),
-                          );
-                          await _loadGoals();
-                          await _loadSteps();
-                        },
-                        onLongPress: _editStepsGoal,
+                        onTap: isCurrentDay
+                            ? () async {
+                                await Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => const StepsDetailPage()),
+                                );
+                                await _loadGoals();
+                                await _loadSteps();
+                              }
+                            : null,
+                        onLongPress: isCurrentDay ? _editStepsGoal : null,
                       ),
                       StatCard(
                         title: t("dash_today_sleep"),
@@ -980,14 +1316,16 @@ class _DashboardPageState extends State<DashboardPage> {
                         subtitle: "${t("dash_goal")} ${(_sleepGoal ?? 8.0).toStringAsFixed(1)} ${t("dash_unit_hrs")}",
                         icon: Icons.nights_stay,
                         accentColor: const Color(0xFF9B8CFF),
-                        onTap: () async {
-                          await Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const SleepDetailPage()),
-                          );
-                          await _loadGoals();
-                          await _loadSleep();
-                        },
-                        onLongPress: _editSleepGoal,
+                        onTap: isCurrentDay
+                            ? () async {
+                                await Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => const SleepDetailPage()),
+                                );
+                                await _loadGoals();
+                                await _loadSleep();
+                              }
+                            : null,
+                        onLongPress: isCurrentDay ? _editSleepGoal : null,
                       ),
                       StatCard(
                         title: t("dash_water_intake"),
@@ -995,8 +1333,8 @@ class _DashboardPageState extends State<DashboardPage> {
             subtitle: _waterLoading ? "" : "${t("dash_goal")} ${waterGoal.toStringAsFixed(1)} ${t("dash_unit_l")}",
             icon: Icons.water_drop,
             accentColor: const Color(0xFF00BFA6),
-            onTap: _isToday() ? _openWaterEditor : null,
-            onLongPress: _isToday() ? _openWaterEditor : null,
+            onTap: isCurrentDay ? _openWaterEditor : null,
+            onLongPress: isCurrentDay ? _openWaterEditor : null,
           ),
                       StatCard(
                         title: t("dash_calories_burned"),
@@ -1006,14 +1344,16 @@ class _DashboardPageState extends State<DashboardPage> {
                         subtitle: "${t("dash_goal")} ${(_caloriesGoal ?? 500).toString()}",
                         icon: Icons.local_fire_department,
                         accentColor: const Color(0xFFFF8A00),
-                        onTap: () async {
-                          await Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const CaloriesDetailPage()),
-                          );
-                          await _loadGoals();
-                          await _loadCalories();
-                        },
-                        onLongPress: _editCaloriesGoal,
+                        onTap: isCurrentDay
+                            ? () async {
+                                await Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => const CaloriesDetailPage()),
+                                );
+                                await _loadGoals();
+                                await _loadCalories();
+                              }
+                            : null,
+                        onLongPress: isCurrentDay ? _editCaloriesGoal : null,
                       ),
                     ],
                   ),
@@ -1139,6 +1479,9 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 }
+
+// Backward-compatible alias for older references during hot reloads.
+typedef _DashboardPageState = DashboardPageState;
 
 class _PlaceholderMetricCard extends StatelessWidget {
   final String title;

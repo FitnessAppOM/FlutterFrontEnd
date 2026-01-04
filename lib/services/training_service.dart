@@ -60,6 +60,7 @@ class TrainingService {
     required int sets,
     required int reps,
     required int rir,
+    required int durationSeconds,
   }) async {
     final url = Uri.parse('$baseUrl/training/exercise/finish');
     await http.post(url,
@@ -69,6 +70,7 @@ class TrainingService {
           'performed_sets': sets,
           'performed_reps': reps,
           'performed_rir': rir,
+          'performed_time_seconds': durationSeconds,
         }));
   }
   static Future<List<dynamic>> getFeedbackQuestions(String exerciseName) async {
