@@ -6,12 +6,16 @@ import '../../services/training_service.dart';
 class ExerciseCard extends StatelessWidget {
   final Map<String, dynamic> exercise;
   final VoidCallback onTap;
+  final VoidCallback onReplace;
+
 
   const ExerciseCard({
     super.key,
     required this.exercise,
     required this.onTap,
+    required this.onReplace,
   });
+
 
   @override
   Widget build(BuildContext context) {
@@ -148,6 +152,34 @@ class ExerciseCard extends StatelessWidget {
         ],
       ),
     );
+    final replaceChip = GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onReplace,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white24),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.swap_horiz, size: 14, color: Colors.white70),
+            SizedBox(width: 4),
+            Text(
+              "Replace",
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
 
     return Material(
       color: Colors.transparent,
@@ -214,6 +246,9 @@ class ExerciseCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 6),
                           statusChip,
+                          const SizedBox(width: 6),
+                          if (!completed) replaceChip,
+
                         ],
                       ),
                       const SizedBox(height: 6),

@@ -37,12 +37,16 @@ class TrainingService {
 
   static Future<void> startExercise(int programExerciseId) async {
     final url = Uri.parse('$baseUrl/training/exercise/start');
-    await http.post(url,
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'program_exercise_id': programExerciseId,
-        }));
+    final res = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'program_exercise_id': programExerciseId}),
+    );
+    if (res.statusCode != 200) {
+      throw Exception("Failed to start exercise");
+    }
   }
+
 
   static Future<void> saveWeight(
       int programExerciseId, double weight) async {
@@ -74,16 +78,16 @@ class TrainingService {
         }));
   }
   static Future<List<dynamic>> getFeedbackQuestions(String exerciseName) async {
-    final url = Uri.parse(
-        '$baseUrl/training/exercise/$exerciseName/feedback-questions');
+    final safeName = Uri.encodeComponent(exerciseName);
+    final url = Uri.parse('$baseUrl/training/exercise/$safeName/feedback-questions');
     final response = await http.get(url);
 
     if (response.statusCode != 200) {
       throw Exception("Failed to load feedback questions");
     }
-
     return json.decode(response.body);
   }
+
   static Future<void> submitFeedback({
     required int programExerciseId,
     required int questionIndex,
@@ -100,5 +104,59 @@ class TrainingService {
       }),
     );
   }
+  static Future<List<dynamic>> fetchAllExercises() async {
+    final url = Uri.parse('$baseUrl/training/exercises');
+    final response = await http.get(url);
+    if (response.statusCode != 200) {
+      throw Exception("Failed to load exercises");
+    }
+    return json.decode(response.body);
+  }
+
+  static Future<List<String>> fetchExerciseMuscles() async {
+    final url = Uri.parse('$baseUrl/training/exercises/muscles');
+    final response = await http.get(url);
+    if (response.statusCode != 200) {
+      throw Exception("Failed to load muscles");
+    }
+    final data = json.decode(response.body);
+    return (data as List).map((e) => e.toString()).toList();
+  }
+
+
+  static Future<List<dynamic>> fetchReplaceSuggestions({
+    required int programExerciseId,
+  }) async {
+    final url = Uri.parse('$baseUrl/training/exercise/$programExerciseId/replace-suggestions');
+    final response = await http.get(url);
+    if (response.statusCode != 200) {
+      throw Exception("Failed to load suggestions");
+    }
+    return json.decode(response.body);
+  }
+
+
+  static Future<void> replaceExercise({
+    required int userId,
+    required int programExerciseId,
+    required int newExerciseId,
+  }) async {
+    final url = Uri.parse('$baseUrl/training/exercise/replace');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'user_id': userId,
+        'program_exercise_id': programExerciseId,
+        'new_exercise_id': newExerciseId,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      final body = response.body.isNotEmpty ? json.decode(response.body) : {};
+      throw Exception(body['detail'] ?? "Replace failed");
+    }
+  }
+
 
 }
