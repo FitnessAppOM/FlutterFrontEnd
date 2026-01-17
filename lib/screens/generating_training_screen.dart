@@ -44,8 +44,9 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
       _error = null;
     });
 
+    int? userId;
     try {
-      final userId = await AccountStorage.getUserId();
+      userId = await AccountStorage.getUserId();
       if (userId == null) {
         throw Exception("User not found");
       }
@@ -62,6 +63,11 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
       );
     } catch (e) {
       if (!mounted) return;
+
+      if (userId != null) {
+        final navigated = await _tryNavigateIfProgramReady(userId);
+        if (navigated) return;
+      }
 
       final msg = e.toString().replaceFirst('Exception: ', '');
       final elapsed = DateTime.now().difference(_startedAt);
@@ -89,6 +95,22 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
       if (mounted) {
         setState(() => _isGenerating = false);
       }
+    }
+  }
+
+  Future<bool> _tryNavigateIfProgramReady(int userId) async {
+    try {
+      await TrainingService.fetchActiveProgram(userId)
+          .timeout(const Duration(seconds: 20));
+      if (!mounted) return true;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const MainLayout()),
+            (_) => false,
+      );
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 

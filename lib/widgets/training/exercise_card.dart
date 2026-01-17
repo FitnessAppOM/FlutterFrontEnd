@@ -16,6 +16,37 @@ class ExerciseCard extends StatelessWidget {
     required this.onReplace,
   });
 
+  Map<String, dynamic>? _extractCompliance(dynamic value) {
+    if (value == null) return null;
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    if (value is String) {
+      try {
+        final decoded = jsonDecode(value);
+        if (decoded is Map<String, dynamic>) return decoded;
+        if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  String? _valueAsText(dynamic value) {
+    if (value == null) return null;
+    if (value is String) {
+      final trimmed = value.trim();
+      return trimmed.isEmpty ? null : trimmed;
+    }
+    if (value is num) {
+      if (value == 0) return null;
+      final asInt = value.toInt();
+      return (value == asInt) ? asInt.toString() : value.toString();
+    }
+    if (value is bool) return value ? "1" : null;
+    return value.toString();
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +75,18 @@ class ExerciseCard extends StatelessWidget {
     }
 
     final DateTime _weekStart = _startOfCurrentWeekSunday();
+    final Map<String, dynamic>? compliance =
+        _extractCompliance(exercise['program_compliance']) ??
+            _extractCompliance(exercise['compliance']);
+    final String? overrideSets =
+        _valueAsText(compliance?['performed_sets'] ?? exercise['performed_sets']);
+    final String? overrideReps =
+        _valueAsText(compliance?['performed_reps'] ?? exercise['performed_reps']);
+    final String setsLabel = overrideSets ?? exercise['sets'].toString();
+    final String repsLabel = overrideReps ?? exercise['reps'].toString();
+    final String? overrideRir =
+        _valueAsText(compliance?['performed_rir'] ?? exercise['performed_rir']);
+    final String rirLabel = overrideRir ?? exercise['rir'].toString();
 
     bool _isInCurrentWeek(dynamic loggedAt) {
       final dt = _parseDate(loggedAt);
@@ -126,32 +169,33 @@ class ExerciseCard extends StatelessWidget {
         completed ? Colors.greenAccent.withOpacity(0.35) : Colors.black.withOpacity(0.45);
     final borderColor =
         completed ? Colors.greenAccent.withOpacity(0.6) : Colors.white.withOpacity(0.07);
-    final statusChip = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: completed ? Colors.greenAccent.withOpacity(0.15) : Colors.white.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: completed ? Colors.greenAccent : Colors.white24,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(completed ? Icons.check : Icons.play_arrow,
-              size: 14, color: completed ? Colors.greenAccent : Colors.white70),
-          const SizedBox(width: 3),
-          Text(
-            completed ? "Done" : "Start",
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: completed ? Colors.greenAccent : Colors.white,
-              fontSize: 11,
+    final statusChip = completed
+        ? Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.greenAccent.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: Colors.greenAccent,
+              ),
             ),
-          ),
-        ],
-      ),
-    );
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.check, size: 14, color: Colors.greenAccent),
+                SizedBox(width: 3),
+                Text(
+                  "Done",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: Colors.greenAccent,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          )
+        : null;
     final replaceChip = GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onReplace,
@@ -245,7 +289,7 @@ class ExerciseCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 6),
-                          statusChip,
+                          if (statusChip != null) statusChip,
                           const SizedBox(width: 6),
                           if (!completed) replaceChip,
 
@@ -258,11 +302,11 @@ class ExerciseCard extends StatelessWidget {
                         children: [
                           _StatChip(
                             icon: Icons.repeat,
-                            label: "${exercise['sets']} x ${exercise['reps']}",
+                            label: "$setsLabel x $repsLabel",
                           ),
                           _StatChip(
                             icon: Icons.bolt,
-                            label: "RIR ${exercise['rir']}",
+                            label: "RIR $rirLabel",
                           ),
                         ],
                       ),

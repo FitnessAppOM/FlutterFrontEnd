@@ -177,6 +177,9 @@ class DashboardPageState extends State<DashboardPage> {
     _loadTrendSleep();
     _loadTrendCalories();
     _loadExerciseProgress();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _preloadExerciseGifsForWeek();
+    });
   }
 
   Future<void> _refreshAll() async {
@@ -396,19 +399,20 @@ class DashboardPageState extends State<DashboardPage> {
       }
       if (days is List) {
         for (final day in days) {
-          final exercises = day is Map ? day['exercises'] : null;
           final dayDate = _parseDayDate(day);
           if (hasDatedDays) {
             if (dayDate == null) continue;
             if (dayDate.isBefore(weekStart) || dayDate.isAfter(weekEnd)) continue;
           }
+
+          total++;
+          final exercises = day is Map ? day['exercises'] : null;
           if (exercises is List) {
-            for (final ex in exercises) {
-              if (ex is Map<String, dynamic>) {
-                total++;
-                if (_isExerciseCompletedForWeek(ex, weekStart, weekEnd)) done++;
-              }
-            }
+            final completedDay = exercises.any((ex) {
+              if (ex is! Map<String, dynamic>) return false;
+              return _isExerciseCompletedForWeek(ex, weekStart, weekEnd);
+            });
+            if (completedDay) done++;
           }
         }
       }
@@ -432,6 +436,59 @@ class DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> refreshExerciseProgress() => _loadExerciseProgress();
+
+  Future<void> _preloadExerciseGifsForWeek() async {
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null || !mounted) return;
+
+      final program = await TrainingService.fetchActiveProgram(userId);
+      if (!mounted) return;
+
+      final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+      final weekStart = anchor.subtract(Duration(days: anchor.weekday - 1));
+      final weekEnd = weekStart.add(const Duration(days: 6));
+
+      final days = program['days'];
+      bool hasDatedDays = false;
+      if (days is List) {
+        for (final day in days) {
+          if (_parseDayDate(day) != null) {
+            hasDatedDays = true;
+            break;
+          }
+        }
+      }
+
+      if (days is List) {
+        for (final day in days) {
+          final dayDate = _parseDayDate(day);
+          if (hasDatedDays) {
+            if (dayDate == null) continue;
+            if (dayDate.isBefore(weekStart) || dayDate.isAfter(weekEnd)) continue;
+          }
+
+          final exercises = day is Map ? day['exercises'] : null;
+          if (exercises is List) {
+            for (final ex in exercises) {
+              if (!mounted) return;
+              if (ex is! Map<String, dynamic>) continue;
+              final animPath = ex['animation_rel_path'];
+              if (animPath is! String || animPath.trim().isEmpty) continue;
+              final url = "${TrainingService.baseUrl}/static/$animPath";
+              try {
+                await precacheImage(NetworkImage(url), context);
+              } catch (_) {
+                // Ignore individual preload failures.
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {
+      // Ignore preload failures to avoid blocking dashboard load.
+    }
+  }
 
   Future<void> _loadSteps() async {
     setState(() {
