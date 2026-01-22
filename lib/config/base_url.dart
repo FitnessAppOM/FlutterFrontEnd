@@ -14,7 +14,7 @@ class ApiConfig {
     // ---------------------------
     if (Platform.isIOS) {
       // Update this to your Mac's current LAN IP when testing on a real device.
-      const macLocalIP = "10.192.7.69";
+      const macLocalIP = "172.20.10.3";
       return "http://$macLocalIP:8000";
     }
 

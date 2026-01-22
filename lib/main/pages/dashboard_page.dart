@@ -29,6 +29,8 @@ import '../../localization/app_localizations.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/common/date_header.dart';
 import '../../services/training_service.dart';
+import '../../widgets/primary_button.dart';
+import '../../screens/whoop_test_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -1483,6 +1485,19 @@ class DashboardPageState extends State<DashboardPage> {
                     icon: Icons.bolt,
                     accentColor: const Color(0xFF6A5AE0),
                   ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: PrimaryWhiteButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const WhoopTestPage()),
+                        );
+                      },
+                      child: const Text("Whoop Test"),
+                    ),
+                  ),
+                  const SizedBox(height: 60),
                 ],
               ],
             ),

@@ -30,9 +30,9 @@ class _MainLayoutState extends State<MainLayout> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.black,
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 250),
-        child: pages[_index],
+      body: IndexedStack(
+        index: _index,
+        children: pages,
       ),
       bottomNavigationBar: _buildBottomNav(),
     );
