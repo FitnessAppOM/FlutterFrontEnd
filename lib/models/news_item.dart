@@ -22,4 +22,14 @@ class NewsItem {
       createdAt: DateTime.tryParse("${json["created_at"] ?? ""}"),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "id": id,
+      "title": title,
+      "subtitle": subtitle,
+      "tag": tag,
+      "created_at": createdAt?.toIso8601String(),
+    };
+  }
 }

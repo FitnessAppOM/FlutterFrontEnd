@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/training_service.dart';
+import '../../services/exercise_action_queue.dart';
+import '../../widgets/app_toast.dart';
+import '../../services/feedback_questions_storage.dart';
 
 class ExerciseFeedbackSheet extends StatefulWidget {
   final int programExerciseId;
@@ -23,6 +26,7 @@ class _ExerciseFeedbackSheetState extends State<ExerciseFeedbackSheet> {
   List questions = [];
   final Map<int, int> answers = {};
   bool loading = true;
+  String? error;
 
   @override
   void initState() {
@@ -31,30 +35,90 @@ class _ExerciseFeedbackSheetState extends State<ExerciseFeedbackSheet> {
   }
 
   Future<void> _loadQuestions() async {
-    final q = await TrainingService.getFeedbackQuestions(
-      widget.exerciseName,
-    );
-    setState(() {
-      questions = q;
-      loading = false;
-    });
+    try {
+      // Try to load from server (will fallback to cache if offline)
+      final q = await TrainingService.getFeedbackQuestions(
+        widget.exerciseName,
+      );
+      if (!mounted) return;
+      setState(() {
+        questions = q;
+        loading = false;
+        error = null;
+      });
+    } catch (e) {
+      // Try loading from cache as fallback
+      try {
+        final cached = await FeedbackQuestionsStorage.loadQuestions(
+          widget.exerciseName,
+        );
+        if (!mounted) return;
+        if (cached.isNotEmpty) {
+          setState(() {
+            questions = cached;
+            loading = false;
+            error = null;
+          });
+        } else {
+          // No cache available
+          if (!mounted) return;
+          setState(() {
+            loading = false;
+            error = "No questions available offline";
+          });
+        }
+      } catch (_) {
+        // Both failed
+        if (!mounted) return;
+        setState(() {
+          loading = false;
+          error = "Failed to load questions";
+        });
+      }
+    }
   }
 
   Future<void> _submitFeedback() async {
+    final t = AppLocalizations.of(context);
+    bool needsSync = false;
+
     for (final q in questions) {
       final index = q['index'];
       final answer = answers[index];
       if (answer != null) {
-        await TrainingService.submitFeedback(
-          programExerciseId: widget.programExerciseId,
-          questionIndex: index,
-          answer: answer,
-        );
+        try {
+          await TrainingService.submitFeedback(
+            programExerciseId: widget.programExerciseId,
+            questionIndex: index,
+            answer: answer,
+          );
+        } catch (e) {
+          // Queue feedback action if offline
+          await ExerciseActionQueue.queueAction(
+            action: ExerciseActionQueue.actionFeedback,
+            programExerciseId: widget.programExerciseId,
+            data: {
+              "question_index": index,
+              "answer": answer,
+            },
+          );
+          needsSync = true;
+        }
       }
     }
 
+    if (needsSync && mounted) {
+      AppToast.show(
+        context,
+        t.translate("feedback_saved_offline") ?? "Feedback saved offline. Will sync when online.",
+        type: AppToastType.info,
+      );
+    }
+
     widget.onDone();
-    Navigator.pop(context);
+    if (mounted) {
+      Navigator.pop(context);
+    }
   }
 
   @override
@@ -67,6 +131,39 @@ class _ExerciseFeedbackSheetState extends State<ExerciseFeedbackSheet> {
 
     if (loading) {
       body = const Center(child: CircularProgressIndicator());
+    } else if (error != null || questions.isEmpty) {
+      // Show message if no questions available
+      body = Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.info_outline,
+                size: 48,
+                color: cs.onSurface.withOpacity(0.5),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                error ?? t.translate("no_feedback_questions") ?? "No feedback questions available",
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurface.withOpacity(0.7),
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  widget.onDone();
+                },
+                child: Text(t.translate("common_close") ?? "Close"),
+              ),
+            ],
+          ),
+        ),
+      );
     } else {
       body = Column(
         mainAxisSize: MainAxisSize.min,

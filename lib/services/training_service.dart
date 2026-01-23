@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/base_url.dart';
+import 'training_program_storage.dart';
+import 'feedback_questions_storage.dart';
 
 class TrainingService {
   static String baseUrl = ApiConfig.baseUrl;
@@ -32,7 +34,17 @@ class TrainingService {
       throw Exception("Failed to load program");
     }
 
-    return json.decode(response.body);
+    final program = json.decode(response.body) as Map<String, dynamic>;
+    
+    // Cache program locally for offline access
+    await TrainingProgramStorage.saveProgram(program);
+    
+    return program;
+  }
+
+  /// Fetch program from cache (for offline use)
+  static Future<Map<String, dynamic>?> fetchActiveProgramFromCache() async {
+    return await TrainingProgramStorage.loadProgram();
   }
 
   static Future<void> startExercise(int programExerciseId) async {
@@ -78,14 +90,37 @@ class TrainingService {
         }));
   }
   static Future<List<dynamic>> getFeedbackQuestions(String exerciseName) async {
-    final safeName = Uri.encodeComponent(exerciseName);
-    final url = Uri.parse('$baseUrl/training/exercise/$safeName/feedback-questions');
-    final response = await http.get(url);
+    try {
+      final safeName = Uri.encodeComponent(exerciseName);
+      final url = Uri.parse('$baseUrl/training/exercise/$safeName/feedback-questions');
+      final response = await http.get(url);
 
-    if (response.statusCode != 200) {
-      throw Exception("Failed to load feedback questions");
+      if (response.statusCode != 200) {
+        throw Exception("Failed to load feedback questions");
+      }
+      
+      final questions = json.decode(response.body) as List<dynamic>;
+      
+      // Cache questions for offline access
+      try {
+        await FeedbackQuestionsStorage.saveQuestions(exerciseName, questions);
+      } catch (_) {
+        // Ignore cache errors
+      }
+      
+      return questions;
+    } catch (e) {
+      // If network fails, try loading from cache
+      try {
+        final cached = await FeedbackQuestionsStorage.loadQuestions(exerciseName);
+        if (cached.isNotEmpty) {
+          return cached;
+        }
+      } catch (_) {
+        // Ignore cache load errors
+      }
+      rethrow;
     }
-    return json.decode(response.body);
   }
 
   static Future<void> submitFeedback({
@@ -140,6 +175,7 @@ class TrainingService {
     required int userId,
     required int programExerciseId,
     required int newExerciseId,
+    required String reason,
   }) async {
     final url = Uri.parse('$baseUrl/training/exercise/replace');
     final response = await http.post(
@@ -149,6 +185,8 @@ class TrainingService {
         'user_id': userId,
         'program_exercise_id': programExerciseId,
         'new_exercise_id': newExerciseId,
+        'source': 'manual',
+        'reason': reason,
       }),
     );
 

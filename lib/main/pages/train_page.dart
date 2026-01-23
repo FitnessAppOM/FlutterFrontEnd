@@ -7,6 +7,8 @@ import '../../core/account_storage.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/training_service.dart';
 import '../../widgets/training/replace_exercise_sheet.dart';
+import '../../widgets/app_toast.dart';
+import '../../services/exercise_action_queue.dart';
 
 class TrainPage extends StatefulWidget {
   const TrainPage({super.key});
@@ -19,6 +21,7 @@ class _TrainPageState extends State<TrainPage> {
   Map<String, dynamic>? program;
   int selectedDay = 0;
   bool loading = true;
+  bool isOffline = false;
 
   int? _userId;
 
@@ -38,18 +41,53 @@ class _TrainPageState extends State<TrainPage> {
       final userId = _userId ?? await AccountStorage.getUserId();
       if (userId == null) throw Exception("User not found");
 
-      final data = await TrainingService.fetchActiveProgram(userId);
+      // Try to sync queued actions first (if online)
+      try {
+        await ExerciseActionQueue.syncQueue();
+      } catch (_) {
+        // Ignore sync errors, continue loading program
+      }
 
-      if (!mounted) return;
-      setState(() {
-        program = data;
-        loading = false;
-      });
+      // Try to fetch from server first
+      try {
+        final data = await TrainingService.fetchActiveProgram(userId);
+        if (!mounted) return;
+        setState(() {
+          program = data;
+          loading = false;
+          isOffline = false;
+        });
+        return;
+      } catch (e) {
+        // Network failed, try loading from cache
+        final cached = await TrainingService.fetchActiveProgramFromCache();
+        if (cached != null) {
+          if (!mounted) return;
+          setState(() {
+            program = cached;
+            loading = false;
+            isOffline = true;
+          });
+          // Show offline indicator
+          if (mounted) {
+            final t = AppLocalizations.of(context);
+            AppToast.show(
+              context,
+              t.translate("offline_mode_using_cached_data") ?? "Offline: Using cached data",
+              type: AppToastType.info,
+            );
+          }
+          return;
+        }
+        // No cache available, rethrow original error
+        rethrow;
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() {
         loading = false;
         program = null;
+        isOffline = false;
       });
     }
   }
@@ -87,6 +125,12 @@ class _TrainPageState extends State<TrainPage> {
     );
 
     if (changed == true) {
+      // Try to sync queued actions (in case replace was queued)
+      try {
+        await ExerciseActionQueue.syncQueue();
+      } catch (_) {
+        // Ignore sync errors
+      }
       await _loadProgram();
     }
   }
@@ -131,6 +175,28 @@ class _TrainPageState extends State<TrainPage> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(20),
             children: [
+              if (isOffline)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.cloud_off, color: Colors.orange, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          t.translate("offline_mode") ?? "Offline Mode",
+                          style: const TextStyle(color: Colors.orange),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               SectionHeader(title: t.translate("training")),
               const SizedBox(height: 12),
               Text(

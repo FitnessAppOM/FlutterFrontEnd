@@ -8,6 +8,7 @@ import '../../services/university_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/primary_button.dart';
+import 'generating_training_screen.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key, required this.profile});
@@ -382,16 +383,34 @@ class _EditProfilePageState extends State<EditProfilePage> {
     payload["affiliation_id"] = affIdStr.isEmpty ? null : int.tryParse(affIdStr);
     payload["affiliation_other_text"] = affOtherStr;
 
+    // Check if training days changed
+    final initialTrainingDays = _mapOptionKey(initialStr("training_days"), _trainingDaysOptions()) ?? "";
+    final newTrainingDays = trainingDaysKey;
+    final trainingDaysChanged = initialTrainingDays != newTrainingDays;
+
     setState(() => _saving = true);
     try {
       await ProfileApi.updateProfile(payload);
       if (!mounted) return;
+      
       AppToast.show(
         context,
         _t("profile_update_success"),
         type: AppToastType.success,
       );
-      Navigator.of(context).pop(true);
+      
+      // If training days changed, show generating training screen
+      if (trainingDaysChanged) {
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const GeneratingTrainingScreen()),
+          (route) => false,
+        );
+      } else {
+        // Otherwise, just pop back
+        Navigator.of(context).pop(true);
+      }
     } catch (e) {
       if (!mounted) return;
       AppToast.show(

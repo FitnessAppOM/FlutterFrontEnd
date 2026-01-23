@@ -13,6 +13,7 @@ import 'services/notification_service.dart';
 import 'screens/daily_journal.dart';
 import 'services/navigation_service.dart';
 import 'services/daily_metrics_sync.dart';
+import 'services/exercise_action_queue.dart';
 
 void main() async {
   print('[Main] Entry');
@@ -99,6 +100,14 @@ class _MyAppState extends State<MyApp> {
     } catch (e) {
       // ignore: avoid_print
       print("DailyMetricsSync resume push skipped: $e");
+    }
+    
+    // Sync queued exercise actions when app resumes
+    try {
+      await ExerciseActionQueue.syncQueue();
+    } catch (e) {
+      // ignore: avoid_print
+      print("ExerciseActionQueue sync skipped: $e");
     }
   }
 

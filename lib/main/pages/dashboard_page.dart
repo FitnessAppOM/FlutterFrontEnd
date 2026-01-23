@@ -1021,18 +1021,32 @@ class DashboardPageState extends State<DashboardPage> {
 
   Future<void> _loadNews() async {
     try {
+      // Try to fetch from server first
       final items = await NewsApi.fetchNews(limit: 10);
       if (!mounted) return;
       setState(() {
         _news = items;
         _loading = false;
+        _error = null;
       });
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
+      // Network failed, try loading from cache
+      try {
+        final cached = await NewsApi.fetchNewsFromCache();
+        if (!mounted) return;
+        setState(() {
+          _news = cached;
+          _loading = false;
+          _error = null; // Don't show error if we have cached data
+        });
+      } catch (_) {
+        // No cache available
+        if (!mounted) return;
+        setState(() {
+          _error = null; // Don't show error, just show empty state
+          _loading = false;
+        });
+      }
     }
   }
 

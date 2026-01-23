@@ -5,6 +5,8 @@ import '../../localization/app_localizations.dart';
 import '../../services/training_service.dart';
 import 'exercise_feedback_sheet.dart';
 import 'exercise_instruction_dialog.dart';
+import '../../widgets/app_toast.dart';
+import '../../services/exercise_action_queue.dart';
 
 class ExerciseSessionSheet extends StatefulWidget {
   final Map<String, dynamic> exercise;
@@ -167,9 +169,25 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
       "${(seconds ~/ 60).toString().padLeft(2, '0')}:${(seconds % 60).toString().padLeft(2, '0')}";
 
   Future<void> _startExercise() async {
-    // Only start locally; defer server start until we actually finish.
     setState(() => started = true);
     _startTimer();
+    
+    // Queue start action for sync (non-blocking)
+    final programExerciseId = widget.exercise['program_exercise_id'];
+    if (programExerciseId != null) {
+      try {
+        // Try to start on server immediately
+        await TrainingService.startExercise(programExerciseId);
+        startRecorded = true;
+      } catch (e) {
+        // If offline, queue for later sync
+        await ExerciseActionQueue.queueAction(
+          action: ExerciseActionQueue.actionStart,
+          programExerciseId: programExerciseId,
+        );
+        startRecorded = false; // Will be recorded when syncing
+      }
+    }
   }
 
   Future<void> _finishExercise() async {
@@ -178,12 +196,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
     setState(() => submitting = true);
     timer?.cancel();
 
-    if (!startRecorded) {
-      await TrainingService.startExercise(
-        widget.exercise['program_exercise_id'],
-      );
-      startRecorded = true;
-    }
+    final t = AppLocalizations.of(context);
+    final programExerciseId = widget.exercise['program_exercise_id'];
+    bool needsSync = false;
 
     final int finalSets =
         int.tryParse(setsCtrl.text) ?? widget.exercise['sets'];
@@ -191,36 +206,94 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
         int.tryParse(repsCtrl.text) ?? widget.exercise['reps'];
 
     final double? weight = double.tryParse(weightCtrl.text);
-    if (weight != null && weight > 0) {
-      await TrainingService.saveWeight(
-        widget.exercise['program_exercise_id'],
-        weight,
+
+    // Try to sync with server, but queue if offline
+    try {
+      // Start exercise if not already started
+      if (!startRecorded) {
+        try {
+          await TrainingService.startExercise(programExerciseId);
+          startRecorded = true;
+        } catch (e) {
+          // Queue start action
+          await ExerciseActionQueue.queueAction(
+            action: ExerciseActionQueue.actionStart,
+            programExerciseId: programExerciseId,
+          );
+          needsSync = true;
+        }
+      }
+
+      // Save weight if provided
+      if (weight != null && weight > 0) {
+        try {
+          await TrainingService.saveWeight(programExerciseId, weight);
+        } catch (e) {
+          // Queue weight action
+          await ExerciseActionQueue.queueAction(
+            action: ExerciseActionQueue.actionWeight,
+            programExerciseId: programExerciseId,
+            data: {"weight": weight},
+          );
+          needsSync = true;
+        }
+      }
+
+      // Finish exercise
+      try {
+        await TrainingService.finishExercise(
+          programExerciseId: programExerciseId,
+          sets: finalSets,
+          reps: finalReps,
+          rir: rir.round(),
+          durationSeconds: seconds,
+        );
+      } catch (e) {
+        // Queue finish action
+        await ExerciseActionQueue.queueAction(
+          action: ExerciseActionQueue.actionFinish,
+          programExerciseId: programExerciseId,
+          data: {
+            "sets": finalSets,
+            "reps": finalReps,
+            "rir": rir.round(),
+            "duration_seconds": seconds,
+          },
+        );
+        needsSync = true;
+      }
+    } catch (e) {
+      // If all fails, queue everything
+      needsSync = true;
+    }
+
+    // Show message if queued for sync
+    if (needsSync && mounted) {
+      AppToast.show(
+        context,
+        t.translate("exercise_saved_offline") ?? "Exercise saved offline. Will sync when online.",
+        type: AppToastType.info,
       );
     }
 
-    await TrainingService.finishExercise(
-      programExerciseId: widget.exercise['program_exercise_id'],
-      sets: finalSets,
-      reps: finalReps,
-      rir: rir.round(),
-      durationSeconds: seconds,
-    );
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => ExerciseFeedbackSheet(
-        programExerciseId: widget.exercise['program_exercise_id'],
-        exerciseName: widget.exercise['exercise_name'],
-        onDone: () {
-          widget.onFinished();
-          Navigator.pop(context); // close ExerciseSessionSheet
-        },
-      ),
-    );
+    // Show feedback sheet (works offline)
+    if (mounted) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (_) => ExerciseFeedbackSheet(
+          programExerciseId: programExerciseId,
+          exerciseName: widget.exercise['exercise_name'],
+          onDone: () {
+            widget.onFinished();
+            Navigator.pop(context); // close ExerciseSessionSheet
+          },
+        ),
+      );
+    }
   }
 
   void _cancelSession() {
