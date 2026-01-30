@@ -14,6 +14,7 @@ import 'screens/daily_journal.dart';
 import 'services/navigation_service.dart';
 import 'services/daily_metrics_sync.dart';
 import 'services/exercise_action_queue.dart';
+import 'core/account_storage.dart';
 
 void main() async {
   print('[Main] Entry');
@@ -81,12 +82,14 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     localeController.addListener(_handleLocaleChange);
     _lifecycleListener.add(_handleLifecycle);
+    AccountStorage.accountChange.addListener(_handleAccountChange);
   }
 
   @override
   void dispose() {
     _lifecycleListener.remove(_handleLifecycle);
     localeController.removeListener(_handleLocaleChange);
+    AccountStorage.accountChange.removeListener(_handleAccountChange);
     super.dispose();
   }
 
@@ -109,6 +112,10 @@ class _MyAppState extends State<MyApp> {
       // ignore: avoid_print
       print("ExerciseActionQueue sync skipped: $e");
     }
+  }
+
+  void _handleAccountChange() {
+    NotificationService.refreshDailyJournalRemindersForCurrentUser();
   }
 
   @override

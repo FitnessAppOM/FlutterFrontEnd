@@ -4,6 +4,9 @@ import '../main/main_layout.dart';
 import '../services/daily_journal_service.dart';
 import '../services/navigation_service.dart';
 import '../services/notification_service.dart';
+import '../services/sleep_service.dart';
+import '../services/water_service.dart';
+import '../services/whoop_sleep_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_toast.dart';
 import '../localization/app_localizations.dart';
@@ -19,6 +22,7 @@ class DailyJournalPage extends StatefulWidget {
 class _DailyJournalPageState extends State<DailyJournalPage> {
   Future<DailyJournalEntry?>? _future;
   bool _seededFromRemote = false;
+  bool _seededFromWidgets = false;
   bool _isSubmitting = false;
   bool _formHidden = false;
   DateTime _selectedDate = _dateOnly(DateTime.now());
@@ -88,6 +92,47 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
     _productivityFocus = entry.productivityFocus;
     _motivationToTrain = entry.motivationToTrain;
     _tookSupplements = entry.tookSupplementsOrMedications;
+  }
+
+  Future<void> _prefillFromWidgets() async {
+    if (_seededFromWidgets) return;
+    final sleepEmpty = _sleepHoursCtrl.text.trim().isEmpty;
+    final hydrationEmpty = _hydrationCtrl.text.trim().isEmpty;
+    if (!sleepEmpty && !hydrationEmpty) {
+      setState(() => _seededFromWidgets = true);
+      return;
+    }
+
+    double? sleepHours;
+    try {
+      sleepHours = await WhoopSleepService().fetchSleepHoursForDay(_selectedDate);
+    } catch (_) {
+      sleepHours = null;
+    }
+    if (sleepHours == null || sleepHours <= 0) {
+      try {
+        sleepHours = await SleepService().fetchSleepForDay(_selectedDate);
+      } catch (_) {
+        sleepHours = null;
+      }
+    }
+
+    double? hydrationLiters;
+    try {
+      final val = await WaterService().getIntakeForDay(_selectedDate);
+      hydrationLiters = val > 0 ? val : null;
+    } catch (_) {
+      hydrationLiters = null;
+    }
+
+    if (!mounted) return;
+    if (sleepEmpty && sleepHours != null && sleepHours > 0) {
+      _sleepHoursCtrl.text = sleepHours.toStringAsFixed(1);
+    }
+    if (hydrationEmpty && hydrationLiters != null && hydrationLiters > 0) {
+      _hydrationCtrl.text = hydrationLiters.toStringAsFixed(1);
+    }
+    setState(() => _seededFromWidgets = true);
   }
 
   double? _parseDouble(TextEditingController c) {
@@ -240,6 +285,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
       _selectedDate = nextDate;
       _formHidden = !_isTodaySelected;
       _seededFromRemote = false;
+      _seededFromWidgets = false;
       _future = _loadForSelectedDate();
     });
   }
@@ -298,6 +344,11 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _seedForm(entry);
               setState(() => _seededFromRemote = true);
+            });
+          }
+          if (entry == null && !_seededFromWidgets && _isTodaySelected) {
+            WidgetsBinding.instance.addPostFrameCallback((_) async {
+              await _prefillFromWidgets();
             });
           }
           final bool hideForm =

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../../widgets/Main/section_header.dart';
@@ -13,6 +14,10 @@ import '../../models/news_item.dart';
 import '../../widgets/dashboard/stat_card.dart';
 import '../../widgets/dashboard/progress_meter.dart';
 import '../../widgets/dashboard/bar_trend.dart';
+import '../../widgets/dashboard/whoop_recovery_card.dart';
+import '../../widgets/dashboard/whoop_sleep_card.dart';
+import '../../widgets/dashboard/whoop_extras_card.dart';
+import '../../screens/whoop_insights_page.dart';
 import '../../theme/app_theme.dart';
 import '../../core/account_storage.dart';
 import '../../services/profile_service.dart';
@@ -20,6 +25,7 @@ import '../../services/daily_metrics_api.dart';
 import '../../config/base_url.dart';
 import '../../services/steps_service.dart';
 import '../../services/sleep_service.dart';
+import '../../services/whoop_sleep_service.dart';
 import '../../services/calories_service.dart';
 import '../../services/water_service.dart';
 import '../../screens/sleep_detail_page.dart';
@@ -67,6 +73,13 @@ class DashboardPageState extends State<DashboardPage> {
   List<double> _trendCalories = const [];
   bool _trendSleepLoading = false;
   bool _trendCaloriesLoading = false;
+  bool _whoopLinked = false;
+  bool _whoopLoading = false;
+  int? _whoopRecovery;
+  double? _whoopSleepHours;
+  int? _whoopSleepScore;
+  int? _whoopSleepDelta;
+  int _whoopReqId = 0;
   DateTime _selectedDate = DateTime.now();
   int _weeklyDaysCount = 7;
   int? _exerciseTotal;
@@ -109,6 +122,7 @@ class DashboardPageState extends State<DashboardPage> {
     _loadTrendSleep();
     _loadTrendCalories();
     _loadExerciseProgress();
+    _loadWhoopRecovery();
   }
 
   void _openDateSheet() {
@@ -168,17 +182,36 @@ class DashboardPageState extends State<DashboardPage> {
   @override
   void initState() {
     super.initState();
-    _loadUserInfo();
-    _loadNews();
-    _loadGoals();
-    _loadSteps();
-    _loadSleep();
-    _loadCalories();
-    _loadWater();
-    _loadWeeklySteps();
-    _loadTrendSleep();
-    _loadTrendCalories();
-    _loadExerciseProgress();
+    AccountStorage.whoopChange.addListener(_onWhoopChanged);
+    _loadInitialData();
+  }
+
+  void _onWhoopChanged() {
+    _refreshAll();
+  }
+
+  @override
+  void dispose() {
+    AccountStorage.whoopChange.removeListener(_onWhoopChanged);
+    super.dispose();
+  }
+
+  Future<void> _loadInitialData() async {
+    await Future.wait([
+      _loadUserInfo(),
+      _loadNews(),
+      _loadGoals(),
+      _loadSteps(),
+      _loadSleep(),
+      _loadCalories(),
+      _loadWater(),
+      _loadWeeklySteps(),
+      _loadTrendSleep(),
+      _loadTrendCalories(),
+      _loadExerciseProgress(),
+      _loadWhoopRecovery(),
+    ]);
+    if (!mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _preloadExerciseGifsForWeek();
     });
@@ -199,6 +232,7 @@ class DashboardPageState extends State<DashboardPage> {
       _loadTrendSleep(),
       _loadTrendCalories(),
       _loadExerciseProgress(),
+      _loadWhoopRecovery(),
     ]);
   }
 
@@ -620,6 +654,244 @@ class DashboardPageState extends State<DashboardPage> {
     }
   }
 
+  double? _parseWhoopSleepHours(Map<String, dynamic> data) {
+    final sleep = data["sleep"];
+    if (sleep is! Map<String, dynamic>) return null;
+
+    dynamic pick(dynamic v) => v is Map<String, dynamic> ? null : v;
+
+    dynamic score = sleep["score"];
+    final stage = score is Map<String, dynamic> ? score["stage_summary"] : null;
+    if (stage is Map<String, dynamic>) {
+      final light = stage["total_light_sleep_time_milli"];
+      final slow = stage["total_slow_wave_sleep_time_milli"];
+      final rem = stage["total_rem_sleep_time_milli"];
+      if (light is num && slow is num && rem is num) {
+        final totalMs = light + slow + rem;
+        if (totalMs > 0) return totalMs / 3600000.0;
+      }
+      if (light is String && slow is String && rem is String) {
+        final l = double.tryParse(light);
+        final s = double.tryParse(slow);
+        final r = double.tryParse(rem);
+        if (l != null && s != null && r != null) {
+          final totalMs = l + s + r;
+          if (totalMs > 0) return totalMs / 3600000.0;
+        }
+      }
+    }
+    return null;
+  }
+
+  int? _parseWhoopSleepScore(Map<String, dynamic> data) {
+    final sleep = data["sleep"];
+    if (sleep is! Map<String, dynamic>) return null;
+
+    dynamic pick(dynamic v) => v is Map<String, dynamic> ? null : v;
+
+    final scoreNode = sleep["score"];
+    final candidates = [
+      scoreNode is Map<String, dynamic> ? scoreNode["sleep_score"] : null,
+      scoreNode is Map<String, dynamic> ? scoreNode["score"] : null,
+      scoreNode is Map<String, dynamic> ? scoreNode["value"] : null,
+      scoreNode is Map<String, dynamic> ? scoreNode["sleep_score_percent"] : null,
+      sleep["sleep_score"],
+      sleep["score"],
+      sleep["value"],
+    ];
+
+    for (final c in candidates) {
+      final v = pick(c);
+      if (v is num) return v.round();
+      if (v is String) {
+        final parsed = double.tryParse(v);
+        if (parsed != null) return parsed.round();
+      }
+    }
+    return null;
+  }
+
+  double? _durationFromStartEnd(Map<String, dynamic> sleep) {
+    final startCandidates = [
+      sleep["start"],
+      sleep["start_time"],
+      sleep["start_datetime"],
+      sleep["start_at"],
+    ];
+    final endCandidates = [
+      sleep["end"],
+      sleep["end_time"],
+      sleep["end_datetime"],
+      sleep["end_at"],
+    ];
+
+    DateTime? parse(dynamic v) {
+      if (v is String && v.isNotEmpty) {
+        return DateTime.tryParse(v);
+      }
+      if (v is int) {
+        final ms = v > 1000000000000 ? v : v * 1000;
+        return DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);
+      }
+      if (v is double) {
+        final ms = v > 1000000000000 ? v : v * 1000;
+        return DateTime.fromMillisecondsSinceEpoch(ms.round(), isUtc: true);
+      }
+      return null;
+    }
+
+    DateTime? start;
+    for (final s in startCandidates) {
+      start = parse(s);
+      if (start != null) break;
+    }
+    DateTime? end;
+    for (final e in endCandidates) {
+      end = parse(e);
+      if (end != null) break;
+    }
+    if (start == null || end == null) return null;
+    final diff = end.difference(start);
+    if (diff.isNegative) return null;
+    return diff.inMinutes / 60.0;
+  }
+
+  Future<void> _loadWhoopRecovery() async {
+    final int requestId = ++_whoopReqId;
+    final userId = await AccountStorage.getUserId();
+    if (!mounted) return;
+    if (userId == null || userId == 0) {
+      if (requestId != _whoopReqId) return;
+      setState(() {
+        _whoopLinked = false;
+        _whoopRecovery = null;
+        _whoopSleepHours = null;
+        _whoopSleepScore = null;
+        _whoopLoading = false;
+      });
+      return;
+    }
+
+    setState(() => _whoopLoading = true);
+    try {
+      final statusUrl = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId");
+      final statusRes = await http.get(statusUrl).timeout(const Duration(seconds: 12));
+      if (requestId != _whoopReqId) return;
+      if (statusRes.statusCode != 200) {
+        throw Exception("Status ${statusRes.statusCode}");
+      }
+      final statusData = jsonDecode(statusRes.body) as Map<String, dynamic>;
+      final linked = statusData["linked"] == true;
+      if (!linked) {
+        if (!mounted) return;
+        if (requestId != _whoopReqId) return;
+        setState(() {
+          _whoopLinked = false;
+          _whoopRecovery = null;
+          _whoopSleepHours = null;
+          _whoopSleepScore = null;
+          _whoopLoading = false;
+        });
+        return;
+      }
+
+      final dateParam =
+          "${_selectedDate.year.toString().padLeft(4, '0')}"
+          "-${_selectedDate.month.toString().padLeft(2, '0')}"
+          "-${_selectedDate.day.toString().padLeft(2, '0')}";
+      final dataUrl = Uri.parse(
+        "${ApiConfig.baseUrl}/whoop/day?user_id=$userId&date=$dateParam",
+      );
+      final dataRes = await http.get(dataUrl).timeout(const Duration(seconds: 20));
+      if (requestId != _whoopReqId) return;
+      if (dataRes.statusCode != 200) {
+        throw Exception("Status ${dataRes.statusCode}");
+      }
+      final data = jsonDecode(dataRes.body) as Map<String, dynamic>;
+      final sleepHours = data["sleep_hours"] is num
+          ? (data["sleep_hours"] as num).toDouble()
+          : double.tryParse("${data["sleep_hours"]}");
+      int? efficiency;
+      final sleep = data["sleep"];
+      if (sleep is Map<String, dynamic>) {
+        final scoreNode = sleep["score"];
+        final stage = scoreNode is Map<String, dynamic> ? scoreNode["stage_summary"] : null;
+        if (stage is Map<String, dynamic>) {
+          final totalBed = stage["total_in_bed_time_milli"];
+          final light = stage["total_light_sleep_time_milli"];
+          final slow = stage["total_slow_wave_sleep_time_milli"];
+          final rem = stage["total_rem_sleep_time_milli"];
+          if (totalBed is num && light is num && slow is num && rem is num && totalBed > 0) {
+            final sleepMs = light + slow + rem;
+            efficiency = ((sleepMs / totalBed) * 100).round();
+          }
+        }
+      }
+      int? efficiencyDelta;
+      final yesterday = _selectedDate.subtract(const Duration(days: 1));
+      final yParam =
+          "${yesterday.year.toString().padLeft(4, '0')}"
+          "-${yesterday.month.toString().padLeft(2, '0')}"
+          "-${yesterday.day.toString().padLeft(2, '0')}";
+      final yUrl = Uri.parse(
+        "${ApiConfig.baseUrl}/whoop/day?user_id=$userId&date=$yParam",
+      );
+      final yRes = await http.get(yUrl).timeout(const Duration(seconds: 20));
+      if (requestId != _whoopReqId) return;
+      if (yRes.statusCode == 200) {
+        final yData = jsonDecode(yRes.body) as Map<String, dynamic>;
+        final ySleep = yData["sleep"];
+        int? yEfficiency;
+        if (ySleep is Map<String, dynamic>) {
+          final scoreNode = ySleep["score"];
+          final stage = scoreNode is Map<String, dynamic> ? scoreNode["stage_summary"] : null;
+          if (stage is Map<String, dynamic>) {
+            final totalBed = stage["total_in_bed_time_milli"];
+            final light = stage["total_light_sleep_time_milli"];
+            final slow = stage["total_slow_wave_sleep_time_milli"];
+            final rem = stage["total_rem_sleep_time_milli"];
+            if (totalBed is num && light is num && slow is num && rem is num && totalBed > 0) {
+              final sleepMs = light + slow + rem;
+              yEfficiency = ((sleepMs / totalBed) * 100).round();
+            }
+          }
+        }
+        if (efficiency != null && yEfficiency != null) {
+          efficiencyDelta = efficiency - yEfficiency;
+        }
+      }
+      final recoveryScore = data["recovery_score"] is num
+          ? (data["recovery_score"] as num).round()
+          : int.tryParse("${data["recovery_score"]}");
+      final int? score = recoveryScore;
+
+      final cycleUrl = Uri.parse(
+        "${ApiConfig.baseUrl}/whoop/cycle-day?user_id=$userId&date=$dateParam",
+      );
+
+      if (!mounted) return;
+      if (requestId != _whoopReqId) return;
+      setState(() {
+        _whoopLinked = true;
+        _whoopRecovery = score;
+        _whoopSleepHours = sleepHours;
+        _whoopSleepScore = efficiency;
+        _whoopSleepDelta = efficiencyDelta;
+        _whoopLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      if (requestId != _whoopReqId) return;
+      setState(() {
+        _whoopLinked = false;
+        _whoopRecovery = null;
+        _whoopSleepHours = null;
+        _whoopSleepScore = null;
+        _whoopLoading = false;
+      });
+    }
+  }
+
   Future<void> _openWaterEditor() async {
     final t = AppLocalizations.of(context).translate;
     final goalController = TextEditingController(
@@ -803,24 +1075,34 @@ class DashboardPageState extends State<DashboardPage> {
     try {
       final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
       final start = anchor.subtract(const Duration(days: 6));
-      final metrics = await _fetchMetricsRange(start, anchor);
       List<double> days;
-      if (metrics.isNotEmpty) {
-        days = List.generate(7, (i) {
-          final d = DateTime(anchor.year, anchor.month, anchor.day)
-              .subtract(Duration(days: 6 - i));
-          final key = DateTime(d.year, d.month, d.day);
-          final entry = metrics[key];
-          return (entry?.sleepHours ?? 0.0).toDouble();
-        });
-      } else {
-        final data = await SleepService().fetchDailySleep(start: start, end: anchor);
+      if (_whoopLinked) {
+        final data = await WhoopSleepService().fetchDailySleep(start: start, end: anchor);
         days = List.generate(7, (i) {
           final d = DateTime(anchor.year, anchor.month, anchor.day)
               .subtract(Duration(days: 6 - i));
           final key = DateTime(d.year, d.month, d.day);
           return data[key] ?? 0.0;
         });
+      } else {
+        final metrics = await _fetchMetricsRange(start, anchor);
+        if (metrics.isNotEmpty) {
+          days = List.generate(7, (i) {
+            final d = DateTime(anchor.year, anchor.month, anchor.day)
+                .subtract(Duration(days: 6 - i));
+            final key = DateTime(d.year, d.month, d.day);
+            final entry = metrics[key];
+            return (entry?.sleepHours ?? 0.0).toDouble();
+          });
+        } else {
+          final data = await SleepService().fetchDailySleep(start: start, end: anchor);
+          days = List.generate(7, (i) {
+            final d = DateTime(anchor.year, anchor.month, anchor.day)
+                .subtract(Duration(days: 6 - i));
+            final key = DateTime(d.year, d.month, d.day);
+            return data[key] ?? 0.0;
+          });
+        }
       }
       final hasData = days.any((v) => v > 0);
       if (!mounted) return;
@@ -1012,6 +1294,11 @@ class DashboardPageState extends State<DashboardPage> {
     }
 
     if (!mounted) return;
+    if (fetchedName != null &&
+        fetchedName.trim().isNotEmpty &&
+        fetchedName != storedName) {
+      await AccountStorage.setName(fetchedName);
+    }
     setState(() {
       _avatarUrl = fetchedAvatar;
       _avatarPath = storedAvatarPath;
@@ -1381,25 +1668,43 @@ class DashboardPageState extends State<DashboardPage> {
                             : null,
                         onLongPress: isCurrentDay ? _editStepsGoal : null,
                       ),
-                      StatCard(
-                        title: t("dash_today_sleep"),
-                        value: _sleepLoading
-                            ? "…"
-                            : "${averageSleep.toStringAsFixed(1)} ${t("dash_unit_hrs")}",
-                        subtitle: "${t("dash_goal")} ${(_sleepGoal ?? 8.0).toStringAsFixed(1)} ${t("dash_unit_hrs")}",
-                        icon: Icons.nights_stay,
-                        accentColor: const Color(0xFF9B8CFF),
-                        onTap: isCurrentDay
-                            ? () async {
-                                await Navigator.of(context).push(
-                                  MaterialPageRoute(builder: (_) => const SleepDetailPage()),
-                                );
-                                await _loadGoals();
-                                await _loadSleep();
-                              }
-                            : null,
-                        onLongPress: isCurrentDay ? _editSleepGoal : null,
-                      ),
+                      _whoopLinked
+                          ? WhoopSleepCard(
+                              loading: _whoopLoading,
+                              linked: _whoopLinked,
+                              hours: _whoopSleepHours,
+                              score: _whoopSleepScore,
+                              goal: _sleepGoal,
+                              delta: _whoopSleepDelta,
+                              onTap: isCurrentDay
+                                  ? () async {
+                                      await Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => const SleepDetailPage(useWhoop: true),
+                                        ),
+                                      );
+                                    }
+                                  : null,
+                            )
+                          : StatCard(
+                              title: t("dash_today_sleep"),
+                              value: _sleepLoading
+                                  ? "…"
+                                  : "${averageSleep.toStringAsFixed(1)} ${t("dash_unit_hrs")}",
+                              subtitle: "${t("dash_goal")} ${(_sleepGoal ?? 8.0).toStringAsFixed(1)} ${t("dash_unit_hrs")}",
+                              icon: Icons.nights_stay,
+                              accentColor: const Color(0xFF9B8CFF),
+                              onTap: isCurrentDay
+                                  ? () async {
+                                      await Navigator.of(context).push(
+                                        MaterialPageRoute(builder: (_) => const SleepDetailPage()),
+                                      );
+                                      await _loadGoals();
+                                      await _loadSleep();
+                                    }
+                                  : null,
+                              onLongPress: isCurrentDay ? _editSleepGoal : null,
+                            ),
                       StatCard(
                         title: t("dash_water_intake"),
                         value: _waterLoading ? "…" : "${waterIntake.toStringAsFixed(1)} ${t("dash_unit_l")}",
@@ -1431,6 +1736,22 @@ class DashboardPageState extends State<DashboardPage> {
                     ],
                   ),
                   const SizedBox(height: 16),
+                  if (_whoopLinked) ...[
+                    WhoopExtrasCard(
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => WhoopInsightsPage(
+                              loading: _whoopLoading,
+                              linked: _whoopLinked,
+                              recoveryScore: _whoopRecovery,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   ProgressMeter(
                     title: t("dash_weekly_goal"),
                     progress: weeklyProgress,
@@ -1498,18 +1819,6 @@ class DashboardPageState extends State<DashboardPage> {
                     subtitle: t("dash_placeholder"),
                     icon: Icons.bolt,
                     accentColor: const Color(0xFF6A5AE0),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: PrimaryWhiteButton(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const WhoopTestPage()),
-                        );
-                      },
-                      child: const Text("Whoop Test"),
-                    ),
                   ),
                   const SizedBox(height: 60),
                 ],

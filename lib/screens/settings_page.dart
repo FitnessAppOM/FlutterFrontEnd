@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
+import 'package:http/http.dart' as http;
 import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
 import '../widgets/lang_button.dart';
@@ -8,6 +11,7 @@ import '../services/profile_service.dart';
 import '../core/account_storage.dart';
 import '../widgets/app_toast.dart';
 import 'package:image_picker/image_picker.dart';
+import '../config/base_url.dart';
 import '../consents/consent_manager.dart';
 import '../auth/expert_questionnaire.dart';
 import '../services/notification_service.dart';
@@ -27,6 +31,8 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _deletingAccount = false;
   String? _email;
   bool _expertQuestionnaireDone = false;
+  bool _whoopLinked = false;
+  bool _whoopLoading = false;
 
   String get _langCode => localeController.locale.languageCode;
 
@@ -40,6 +46,7 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     _loadEmail();
     _loadExpertFlag();
+    _loadWhoopStatus();
   }
 
   Future<void> _showSuccessDialog(String message) async {
@@ -100,6 +107,97 @@ class _SettingsPageState extends State<SettingsPage> {
     final done = await AccountStorage.isExpertQuestionnaireDone();
     if (mounted) {
       setState(() => _expertQuestionnaireDone = done);
+    }
+  }
+
+  Future<void> _loadWhoopStatus() async {
+    final userId = await AccountStorage.getUserId();
+    if (!mounted) return;
+    if (userId == null || userId == 0) {
+      setState(() => _whoopLinked = false);
+      return;
+    }
+    try {
+      final url = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId");
+      final res = await http.get(url).timeout(const Duration(seconds: 12));
+      if (res.statusCode != 200) {
+        throw Exception("Status ${res.statusCode}");
+      }
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      if (!mounted) return;
+      setState(() => _whoopLinked = data["linked"] == true);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _whoopLinked = false);
+    }
+  }
+
+  Future<void> _connectWhoop() async {
+    final userId = await AccountStorage.getUserId();
+    if (!mounted) return;
+    if (userId == null || userId == 0) {
+      AppToast.show(context, "Please log in to connect Whoop.", type: AppToastType.info);
+      return;
+    }
+    setState(() => _whoopLoading = true);
+    try {
+      final url = "${ApiConfig.baseUrl}/auth/whoop/login?user_id=$userId";
+      final result = await FlutterWebAuth2.authenticate(
+        url: url,
+        callbackUrlScheme: 'taqa',
+      );
+      final uri = Uri.tryParse(result);
+      final ok = uri != null && uri.scheme == 'taqa' && uri.host == 'whoop';
+      if (!mounted) return;
+      setState(() => _whoopLinked = ok);
+      if (ok) {
+        AccountStorage.notifyWhoopChanged();
+      }
+      AppToast.show(
+        context,
+        ok ? "Whoop connected successfully." : "Whoop connect failed.",
+        type: ok ? AppToastType.success : AppToastType.error,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, "Whoop connect failed: $e", type: AppToastType.error);
+    } finally {
+      if (mounted) setState(() => _whoopLoading = false);
+    }
+  }
+
+  Future<void> _disconnectWhoop() async {
+    final userId = await AccountStorage.getUserId();
+    if (!mounted) return;
+    if (userId == null || userId == 0) {
+      AppToast.show(context, "Please log in.", type: AppToastType.info);
+      return;
+    }
+    setState(() => _whoopLoading = true);
+    try {
+      final url = Uri.parse("${ApiConfig.baseUrl}/whoop/disconnect?user_id=$userId");
+      final res = await http.post(url).timeout(const Duration(seconds: 12));
+      if (res.statusCode != 200) {
+        throw Exception("Status ${res.statusCode}");
+      }
+      if (!mounted) return;
+      setState(() => _whoopLinked = false);
+      AccountStorage.notifyWhoopChanged();
+      AppToast.show(context, "Whoop disconnected.", type: AppToastType.success);
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, "Disconnect failed: $e", type: AppToastType.error);
+    } finally {
+      if (mounted) setState(() => _whoopLoading = false);
+    }
+  }
+
+  Future<void> _handleWhoopTap() async {
+    if (_whoopLoading) return;
+    if (_whoopLinked) {
+      await _disconnectWhoop();
+    } else {
+      await _connectWhoop();
     }
   }
 
@@ -469,6 +567,41 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 24),
           Text(
+            "Devices",
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _SettingsTile(
+            title: _whoopLinked ? "Whoop connected" : "Connect Whoop",
+            subtitle:
+                _whoopLinked ? "Disconnect your Whoop" : "Link your Whoop account",
+            icon: _whoopLoading ? Icons.hourglass_bottom : Icons.monitor_heart,
+            onTap: _whoopLoading ? null : _handleWhoopTap,
+            color: _whoopLinked ? const Color(0xFF4CD964) : null,
+            leading: Container(
+              height: 28,
+              width: 28,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: const Color(0xFF2D7CFF),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                "W",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
             t.translate("settings_support"),
             style: const TextStyle(
               color: Colors.white,
@@ -495,6 +628,7 @@ class _SettingsPageState extends State<SettingsPage> {
               body: t.translate("settings_help_body"),
             ),
           ),
+          const SizedBox(height: 60),
         ],
       ),
     );
@@ -508,6 +642,7 @@ class _SettingsTile extends StatelessWidget {
     required this.icon,
     required this.onTap,
     this.color,
+    this.leading,
   });
 
   final String title;
@@ -515,6 +650,7 @@ class _SettingsTile extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
   final Color? color;
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
@@ -531,7 +667,7 @@ class _SettingsTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon, color: color ?? AppColors.accent),
+            leading ?? Icon(icon, color: color ?? AppColors.accent),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

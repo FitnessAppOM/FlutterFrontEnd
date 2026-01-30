@@ -9,6 +9,8 @@ class StatCard extends StatefulWidget {
     this.subtitle,
     this.icon,
     this.accentColor = AppColors.accent,
+    this.borderColor,
+    this.borderWidth = 1,
     this.onTap,
     this.onLongPress,
   });
@@ -18,6 +20,8 @@ class StatCard extends StatefulWidget {
   final String? subtitle;
   final IconData? icon;
   final Color accentColor;
+  final Color? borderColor;
+  final double borderWidth;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
 
@@ -48,7 +52,8 @@ class _StatCardState extends State<StatCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final edgeColor = const Color(0xFFD4AF37).withValues(alpha: 0.18);
+    final edgeColor = (widget.borderColor ?? const Color(0xFFD4AF37))
+        .withValues(alpha: widget.borderColor == null ? 0.18 : 1);
     return AnimatedScale(
       scale: _pressed ? 0.97 : 1.0,
       duration: const Duration(milliseconds: 90),
@@ -64,7 +69,7 @@ class _StatCardState extends State<StatCard> {
             decoration: BoxDecoration(
               color: AppColors.cardDark,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: edgeColor),
+              border: Border.all(color: edgeColor, width: widget.borderWidth),
             ),
             padding: const EdgeInsets.all(12),
             child: Row(

@@ -39,6 +39,35 @@ class _WhoopTestPageState extends State<WhoopTestPage> {
       _userId = userId;
       _loading = false;
     });
+    await _loadWhoopStatus();
+  }
+
+  Future<void> _loadWhoopStatus() async {
+    if (_userId == null || _userId == 0) return;
+    try {
+      final url = Uri.parse(
+        "${ApiConfig.baseUrl}/whoop/status?user_id=$_userId",
+      );
+      final response = await http.get(url).timeout(const Duration(seconds: 12));
+      if (response.statusCode != 200) {
+        throw Exception("Status ${response.statusCode}");
+      }
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final linked = data["linked"] == true;
+      if (!mounted) return;
+      setState(() {
+        _statusOk = linked;
+        _statusMessage = linked
+            ? "Whoop already connected."
+            : "Whoop not connected yet.";
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _statusOk = false;
+        _statusMessage = "Unable to check Whoop status.";
+      });
+    }
   }
 
   Future<void> _connectWhoop() async {
@@ -72,6 +101,9 @@ class _WhoopTestPageState extends State<WhoopTestPage> {
         _statusOk = ok;
         _statusMessage = ok ? "Whoop connected successfully." : "Whoop connect failed.";
       });
+      if (ok) {
+        await _loadWhoopStatus();
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {

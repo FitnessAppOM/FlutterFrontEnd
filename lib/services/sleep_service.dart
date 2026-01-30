@@ -36,13 +36,19 @@ class SleepService {
         ],
       );
 
-      double totalHours = 0;
+      double asleepHours = 0;
+      double inBedHours = 0;
       for (final s in samples.where((e) =>
           e.type == HealthDataType.SLEEP_ASLEEP ||
           e.type == HealthDataType.SLEEP_IN_BED)) {
         final minutes = _minutesForSample(s);
-        totalHours += minutes / 60.0;
+        if (s.type == HealthDataType.SLEEP_ASLEEP) {
+          asleepHours += minutes / 60.0;
+        } else if (s.type == HealthDataType.SLEEP_IN_BED) {
+          inBedHours += minutes / 60.0;
+        }
       }
+      final totalHours = asleepHours > 0 ? asleepHours : inBedHours;
 
       if (manual.containsKey(todayKey)) return manual[todayKey]!;
       return totalHours;
@@ -72,14 +78,29 @@ class SleepService {
         ],
       );
 
-      final Map<DateTime, double> totals = {};
+      final Map<DateTime, double> asleepTotals = {};
+      final Map<DateTime, double> inBedTotals = {};
       for (final s in samples.where((e) =>
           e.type == HealthDataType.SLEEP_ASLEEP ||
           e.type == HealthDataType.SLEEP_IN_BED)) {
         final minutes = _minutesForSample(s);
         final dt = s.dateFrom ?? DateTime.now();
         final dayKey = DateTime(dt.year, dt.month, dt.day);
-        totals[dayKey] = (totals[dayKey] ?? 0) + minutes / 60.0;
+        if (s.type == HealthDataType.SLEEP_ASLEEP) {
+          asleepTotals[dayKey] = (asleepTotals[dayKey] ?? 0) + minutes / 60.0;
+        } else if (s.type == HealthDataType.SLEEP_IN_BED) {
+          inBedTotals[dayKey] = (inBedTotals[dayKey] ?? 0) + minutes / 60.0;
+        }
+      }
+      final Map<DateTime, double> totals = {};
+      final allKeys = <DateTime>{
+        ...asleepTotals.keys,
+        ...inBedTotals.keys,
+      };
+      for (final key in allKeys) {
+        final asleep = asleepTotals[key] ?? 0;
+        final inBed = inBedTotals[key] ?? 0;
+        totals[key] = asleep > 0 ? asleep : inBed;
       }
 
       // Manual entries override the day's value.

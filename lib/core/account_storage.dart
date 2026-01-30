@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AccountStorage {
@@ -19,6 +20,18 @@ class AccountStorage {
     "water_goal_liters",
     "daily_metrics_last_push_date",
   ];
+
+  // In-app signal to refresh Whoop status across screens.
+  static final ValueNotifier<int> whoopChange = ValueNotifier(0);
+  static final ValueNotifier<int> accountChange = ValueNotifier(0);
+
+  static void notifyWhoopChanged() {
+    whoopChange.value++;
+  }
+
+  static void notifyAccountChanged() {
+    accountChange.value++;
+  }
 
   // Save everything after login
   static Future<void> saveUserSession({
@@ -64,6 +77,9 @@ class AccountStorage {
         expertQuestionnaireDone ?? existingExpertQuestionnaireDone);
     if (token != null) {
       await sp.setString(_kToken, token);
+    }
+    if (isDifferentUser) {
+      notifyAccountChanged();
     }
   }
 
@@ -157,6 +173,7 @@ static Future<void> clearSession() async {
   await sp.remove(_kAvatarUrl);
   await sp.remove(_kAvatarPath);
 
+  notifyAccountChanged();
 
 }
 
@@ -165,6 +182,7 @@ static Future<void> clearSessionOnly() async {
   await sp.remove(_kToken);
   await sp.remove(_kUserId);
   // Keep email + name + verified → so “Login as…” still works
+  notifyAccountChanged();
 }
 
   static Future<void> clear() async {
@@ -179,5 +197,6 @@ static Future<void> clearSessionOnly() async {
     await sp.remove(_kExpertQuestionnaireDone);
     await sp.remove(_kAvatarUrl);
     await sp.remove(_kAvatarPath);
+    notifyAccountChanged();
   }
 }
