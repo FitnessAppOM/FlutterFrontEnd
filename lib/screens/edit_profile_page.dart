@@ -8,7 +8,7 @@ import '../../services/university_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/primary_button.dart';
-import 'generating_training_screen.dart';
+import 'updating_plan_screen.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key, required this.profile});
@@ -389,28 +389,64 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final trainingDaysChanged = initialTrainingDays != newTrainingDays;
 
     setState(() => _saving = true);
+
+    // If training days changed, prompt the user before regenerating training + diet.
+    if (trainingDaysChanged) {
+      if (!mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) {
+          final t = AppLocalizations.of(ctx);
+          return AlertDialog(
+            backgroundColor: AppColors.cardDark,
+            title: Text(
+              t.translate("training_days_change_confirm_title"),
+              style: const TextStyle(color: Colors.white),
+            ),
+            content: Text(
+              t.translate("training_days_change_confirm_message"),
+              style: const TextStyle(color: Colors.white70),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(t.translate("common_cancel"), style: const TextStyle(color: Colors.white70)),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
+                child: Text(t.translate("common_confirm"), style: const TextStyle(color: Colors.black)),
+              ),
+            ],
+          );
+        },
+      );
+      if (!mounted) return;
+      if (confirmed != true) {
+        setState(() => _saving = false);
+        return;
+      }
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => UpdatingPlanScreen(profilePayload: payload)),
+        (route) => false,
+      );
+      return;
+    }
+
     try {
       await ProfileApi.updateProfile(payload);
       if (!mounted) return;
-      
+
       AppToast.show(
         context,
         _t("profile_update_success"),
         type: AppToastType.success,
       );
-      
-      // If training days changed, show generating training screen
-      if (trainingDaysChanged) {
-        if (!mounted) return;
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const GeneratingTrainingScreen()),
-          (route) => false,
-        );
-      } else {
-        // Otherwise, just pop back
-        Navigator.of(context).pop(true);
-      }
+
+      // Otherwise, just pop back
+      Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
       AppToast.show(
@@ -427,19 +463,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
 
-    return Scaffold(
-      backgroundColor: AppColors.black,
-      appBar: AppBar(
-        title: Text(t.translate("edit_profile")),
+    return PopScope(
+      canPop: !_saving,
+      child: Scaffold(
         backgroundColor: AppColors.black,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        appBar: AppBar(
+          title: Text(t.translate("edit_profile")),
+          backgroundColor: AppColors.black,
+          automaticallyImplyLeading: !_saving,
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               _sectionTitle(t.translate("section_basics_title")),
               Row(
                 children: [
@@ -568,7 +607,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   ),
                 ],
               ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

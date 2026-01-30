@@ -7,6 +7,13 @@ import 'feedback_questions_storage.dart';
 class TrainingService {
   static String baseUrl = ApiConfig.baseUrl;
 
+  static String _dateParam(DateTime d) {
+    final yyyy = d.year.toString().padLeft(4, '0');
+    final mm = d.month.toString().padLeft(2, '0');
+    final dd = d.day.toString().padLeft(2, '0');
+    return "$yyyy-$mm-$dd";
+  }
+
   static Future<bool> generateProgram(int userId) async {
     final url = Uri.parse('$baseUrl/training/generate/$userId');
     final response = await http.post(url);
@@ -47,12 +54,17 @@ class TrainingService {
     return await TrainingProgramStorage.loadProgram();
   }
 
-  static Future<void> startExercise(int programExerciseId) async {
+  /// Start an exercise and (optionally) record entry_date (user local date) on backend.
+  /// When entryDate is provided, backend can map date -> training_day_id for diet inference.
+  static Future<void> startExercise(int programExerciseId, {DateTime? entryDate}) async {
     final url = Uri.parse('$baseUrl/training/exercise/start');
     final res = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
-      body: json.encode({'program_exercise_id': programExerciseId}),
+      body: json.encode({
+        'program_exercise_id': programExerciseId,
+        if (entryDate != null) 'entry_date': _dateParam(entryDate),
+      }),
     );
     if (res.statusCode != 200) {
       throw Exception("Failed to start exercise");
@@ -77,6 +89,7 @@ class TrainingService {
     required int reps,
     required int rir,
     required int durationSeconds,
+    DateTime? entryDate,
   }) async {
     final url = Uri.parse('$baseUrl/training/exercise/finish');
     await http.post(url,
@@ -87,6 +100,7 @@ class TrainingService {
           'performed_reps': reps,
           'performed_rir': rir,
           'performed_time_seconds': durationSeconds,
+          if (entryDate != null) 'entry_date': _dateParam(entryDate),
         }));
   }
   static Future<List<dynamic>> getFeedbackQuestions(String exerciseName) async {

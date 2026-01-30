@@ -99,10 +99,14 @@ class ExerciseActionQueue {
     final actionType = action["action"] as String;
     final programExerciseId = action["program_exercise_id"] as int;
     final data = action["data"] as Map<String, dynamic>? ?? {};
+    final entryDate = data["entry_date"] as String?;
 
     switch (actionType) {
       case actionStart:
-        await TrainingService.startExercise(programExerciseId);
+        await TrainingService.startExercise(
+          programExerciseId,
+          entryDate: entryDate != null ? DateTime.tryParse(entryDate) : null,
+        );
         break;
       case actionFinish:
         await TrainingService.finishExercise(
@@ -111,6 +115,7 @@ class ExerciseActionQueue {
           reps: data["reps"] as int? ?? 0,
           rir: data["rir"] as int? ?? 0,
           durationSeconds: data["duration_seconds"] as int? ?? 0,
+          entryDate: entryDate != null ? DateTime.tryParse(entryDate) : null,
         );
         break;
       case actionWeight:

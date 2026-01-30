@@ -17,11 +17,12 @@ class _MainLayoutState extends State<MainLayout> {
   int _index = 0;
 
   final GlobalKey<DashboardPageState> _dashboardKey = GlobalKey<DashboardPageState>();
+  final GlobalKey<DietPageState> _dietKey = GlobalKey<DietPageState>();
 
   late final List<Widget> pages = [
     DashboardPage(key: _dashboardKey),
     const TrainPage(),
-    const DietPage(),
+    DietPage(key: _dietKey),
     const CommunityPage(),
     const ProfilePage(),
   ];
@@ -65,8 +66,10 @@ class _MainLayoutState extends State<MainLayout> {
       onTap: () {
         setState(() => _index = idx);
         if (idx == 0) {
-          final state = _dashboardKey.currentState;
-          state?.refreshExerciseProgress();
+          _dashboardKey.currentState?.refreshExerciseProgress();
+        }
+        if (idx == 2) {
+          _dietKey.currentState?.refreshTrainingLock();
         }
       },
       child: AnimatedContainer(

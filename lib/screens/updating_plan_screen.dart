@@ -1,27 +1,33 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../services/diet_service.dart';
-import '../services/training_service.dart';
 import '../core/account_storage.dart';
+import '../localization/app_localizations.dart';
+import '../main/main_layout.dart';
+import '../services/diet_service.dart';
+import '../services/profile_service.dart';
+import '../services/training_service.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/training_loading_indicator.dart';
-import '../main/main_layout.dart';
-import '../localization/app_localizations.dart';
 
-class GeneratingTrainingScreen extends StatefulWidget {
-  const GeneratingTrainingScreen({super.key});
+/// Shown after editing profile when training days change.
+/// Saves the profile first, then regenerates training + diet.
+class UpdatingPlanScreen extends StatefulWidget {
+  const UpdatingPlanScreen({
+    super.key,
+    required this.profilePayload,
+  });
+
+  final Map<String, dynamic> profilePayload;
 
   @override
-  State<GeneratingTrainingScreen> createState() =>
-      _GeneratingTrainingScreenState();
+  State<UpdatingPlanScreen> createState() => _UpdatingPlanScreenState();
 }
 
-class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
-  bool _isGenerating = true;
+class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
+  bool _isWorking = true;
   String? _error;
   int _retryCount = 0;
   static const int _maxRetries = 3;
-  // Allow longer server processing before we consider it a timeout.
   static const Duration _timeout = Duration(seconds: 60);
   static const Duration _toastThreshold = Duration(minutes: 2);
   final DateTime _startedAt = DateTime.now();
@@ -31,47 +37,55 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
   @override
   void initState() {
     super.initState();
-    _generateTraining();
+    _run();
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
-  Future<void> _generateTraining() async {
+  Future<void> _run() async {
     setState(() {
-      _isGenerating = true;
+      _isWorking = true;
       _error = null;
     });
 
     int? userId;
     try {
       userId = await AccountStorage.getUserId();
-      if (userId == null) {
-        throw Exception("User not found");
+      if (userId == null) throw Exception("User not found");
+
+      // 1) Save profile
+      await ProfileApi.updateProfile(widget.profilePayload).timeout(_timeout);
+      if (!mounted) return;
+
+      // 2) Regenerate training (AI)
+      await TrainingService.generateProgram(userId).timeout(_timeout);
+      if (!mounted) return;
+
+      // 3) Regenerate diet targets (AI)
+      await DietService.generateTargets(userId).timeout(_timeout);
+      if (!mounted) return;
+
+      // 4) Pre-open / fetch today's meals (best-effort)
+      try {
+        await DietService.fetchMealsForDate(
+          userId,
+          date: DateTime.now(),
+          autoOpen: true,
+        ).timeout(const Duration(seconds: 20));
+      } catch (_) {
+        // ignore
       }
 
-      await TrainingService.generateProgram(userId)
-          .timeout(_timeout);
-
       if (!mounted) return;
-
-      await DietService.generateTargets(userId)
-          .timeout(_timeout);
-
-      if (!mounted) return;
-
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const MainLayout()),
-            (_) => false,
+        (_) => false,
       );
     } catch (e) {
       if (!mounted) return;
 
+      // If generation succeeded but response timed out, try verifying readiness.
       if (userId != null) {
-        final navigated = await _tryNavigateIfProgramAndDietReady(userId);
+        final navigated = await _tryNavigateIfReady(userId);
         if (navigated) return;
       }
 
@@ -79,9 +93,8 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
 
       final msg = e.toString().replaceFirst('Exception: ', '');
       final elapsed = DateTime.now().difference(_startedAt);
-
       final shouldShowToast = elapsed >= _toastThreshold;
-      if (shouldShowToast) {
+      if (shouldShowToast && msg.isNotEmpty) {
         AppToast.show(context, msg, type: AppToastType.error);
       }
 
@@ -90,33 +103,25 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
       });
 
       _retryCount++;
-
       if (_retryCount < _maxRetries) {
-        Future.delayed(
-          Duration(seconds: 2 * _retryCount),
-              () {
-            if (mounted) _generateTraining();
-          },
-        );
+        Future.delayed(Duration(seconds: 2 * _retryCount), () {
+          if (mounted) _run();
+        });
       }
     } finally {
-      if (mounted) {
-        setState(() => _isGenerating = false);
-      }
+      if (mounted) setState(() => _isWorking = false);
     }
   }
 
-  Future<bool> _tryNavigateIfProgramAndDietReady(int userId) async {
+  Future<bool> _tryNavigateIfReady(int userId) async {
     try {
-      await TrainingService.fetchActiveProgram(userId)
-          .timeout(const Duration(seconds: 20));
-      await DietService.fetchCurrentTargets(userId)
-          .timeout(const Duration(seconds: 20));
+      await TrainingService.fetchActiveProgram(userId).timeout(const Duration(seconds: 20));
+      await DietService.fetchCurrentTargets(userId).timeout(const Duration(seconds: 20));
       if (!mounted) return true;
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const MainLayout()),
-            (_) => false,
+        (_) => false,
       );
       return true;
     } catch (_) {
@@ -130,15 +135,15 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    return WillPopScope(
-      onWillPop: () async => false,
+    return PopScope(
+      canPop: false,
       child: Scaffold(
         body: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                cs.primary.withOpacity(0.12),
-                cs.surfaceVariant.withOpacity(0.35),
+                cs.primary.withValues(alpha: 0.12),
+                cs.surfaceContainerHighest.withValues(alpha: 0.35),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -152,39 +157,34 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: cs.surface.withOpacity(0.9),
+                    color: cs.surface.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
+                        color: Colors.black.withValues(alpha: 0.08),
                         blurRadius: 22,
                         offset: const Offset(0, 16),
                       ),
                     ],
-                    border: Border.all(color: cs.outlineVariant.withOpacity(0.6)),
+                    border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.6)),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: cs.primary.withOpacity(0.12),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              _showFinalError ? Icons.error_outline : Icons.auto_awesome,
-                              color: _showFinalError ? cs.error : cs.primary,
-                            ),
-                          ),
-                        ],
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: cs.primary.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          _showFinalError ? Icons.error_outline : Icons.auto_awesome,
+                          color: _showFinalError ? cs.error : cs.primary,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        t.translate("generating_training_title"),
+                        t.translate("updating_plan_title"),
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
@@ -192,21 +192,21 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        t.translate("generating_training_body"),
+                        t.translate("updating_plan_body"),
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: cs.onSurface.withOpacity(0.7),
+                          color: cs.onSurface.withValues(alpha: 0.7),
                         ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 12),
-                      if (_isGenerating) ...[
+                      if (_isWorking) ...[
                         const TrainingLoadingIndicator(),
                         const SizedBox(height: 12),
                         if (!_showFinalError)
                           Text(
                             t.translate("generating_waiting_hint"),
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: cs.onSurface.withOpacity(0.6),
+                              color: cs.onSurface.withValues(alpha: 0.6),
                             ),
                           ),
                       ],
@@ -224,26 +224,37 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
                         Text(
                           _error!,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: cs.error.withOpacity(0.9),
+                            color: cs.error.withValues(alpha: 0.9),
                           ),
                           textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              _retryCount = 0;
+                              _run();
+                            },
+                            child: Text(t.translate("generating_retry")),
+                          ),
                         ),
                       ],
                       const SizedBox(height: 14),
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: cs.surfaceVariant.withOpacity(0.5),
+                          color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.verified_user, color: cs.primary),
+                            Icon(Icons.info_outline, color: cs.primary),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                t.translate("generating_training_note"),
+                                t.translate("updating_plan_note"),
                                 style: theme.textTheme.bodyMedium,
                               ),
                             ),
@@ -261,3 +272,4 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
     );
   }
 }
+

@@ -7,6 +7,7 @@ import 'exercise_feedback_sheet.dart';
 import 'exercise_instruction_dialog.dart';
 import '../../widgets/app_toast.dart';
 import '../../services/exercise_action_queue.dart';
+import '../../services/training_completion_storage.dart';
 
 class ExerciseSessionSheet extends StatefulWidget {
   final Map<String, dynamic> exercise;
@@ -199,6 +200,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
     final t = AppLocalizations.of(context);
     final programExerciseId = widget.exercise['program_exercise_id'];
     bool needsSync = false;
+    final now = DateTime.now(); // device local
 
     final int finalSets =
         int.tryParse(setsCtrl.text) ?? widget.exercise['sets'];
@@ -212,13 +214,14 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
       // Start exercise if not already started
       if (!startRecorded) {
         try {
-          await TrainingService.startExercise(programExerciseId);
+          await TrainingService.startExercise(programExerciseId, entryDate: now);
           startRecorded = true;
         } catch (e) {
           // Queue start action
           await ExerciseActionQueue.queueAction(
             action: ExerciseActionQueue.actionStart,
             programExerciseId: programExerciseId,
+            data: {"entry_date": "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}"},
           );
           needsSync = true;
         }
@@ -247,6 +250,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
           reps: finalReps,
           rir: rir.round(),
           durationSeconds: seconds,
+          entryDate: now,
         );
       } catch (e) {
         // Queue finish action
@@ -258,6 +262,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
             "reps": finalReps,
             "rir": rir.round(),
             "duration_seconds": seconds,
+            "entry_date": "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
           },
         );
         needsSync = true;
@@ -275,6 +280,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
         type: AppToastType.info,
       );
     }
+
+    // Record that user completed an exercise today (diet page can auto-set "training day" and lock "rest day")
+    await TrainingCompletionStorage.recordExerciseCompletedToday();
 
     // Show feedback sheet (works offline)
     if (mounted) {
