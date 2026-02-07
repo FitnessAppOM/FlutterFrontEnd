@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../config/base_url.dart';
+import '../../core/account_storage.dart';
 
 class DailyMetricsEntry {
   final DateTime entryDate;
@@ -59,12 +60,14 @@ class DailyMetricsApi {
       if (steps != null) "steps": steps,
     };
 
+    final headers = {"Content-Type": "application/json", ...await AccountStorage.getAuthHeaders()};
     final res = await http.post(
       url,
-      headers: {"Content-Type": "application/json"},
+      headers: headers,
       body: jsonEncode(body),
     );
 
+    await AccountStorage.handle401(res.statusCode);
     if (res.statusCode == 200 || res.statusCode == 409) {
       // 200 inserted, 409 already exists → treat as success for idempotency.
       return;

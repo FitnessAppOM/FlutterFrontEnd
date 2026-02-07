@@ -26,12 +26,25 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
+    AccountStorage.accountChange.addListener(_onAccountChanged);
     // Wait for localization to be available before loading
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _loadProfile();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    AccountStorage.accountChange.removeListener(_onAccountChanged);
+    super.dispose();
+  }
+
+  void _onAccountChanged() {
+    if (!mounted) return;
+    _didLoadProfile = false;
+    _loadProfile();
   }
 
   @override
@@ -45,11 +58,13 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _loadProfile() async {
     _didLoadProfile = true;
+    if (mounted) setState(() { _error = null; _loading = true; });
     try {
       final lang = AppLocalizations.of(context).locale.languageCode;
       final avatar = await AccountStorage.getAvatarUrl();
       final userId = await AccountStorage.getUserId();
-      if (userId == null) {
+      if (userId == null || userId == 0) {
+        if (!mounted) return;
         setState(() {
           _error = "user_missing";
           _loading = false;

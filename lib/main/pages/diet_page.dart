@@ -36,6 +36,7 @@ class DietPageState extends State<DietPage> {
   final DateTime _mealDate = DateTime.now();
   bool _mealsFromCache = false;
   bool _freezing = false;
+  int _mealsRequestId = 0;
 
   int _modeIndex = 0; // 0 = Rest, 1 = Training
   int _selectedTrainingDayIndex = 0;
@@ -78,7 +79,7 @@ class DietPageState extends State<DietPage> {
       _trainDayLockedByExercise = didComplete;
       if (didComplete) _modeIndex = 1;
     });
-    if (didComplete) _loadMeals();
+    if (didComplete) _loadMeals(clearExisting: true);
   }
 
   Future<void> _loadTargets({bool forceNetwork = true}) async {
@@ -180,11 +181,16 @@ class DietPageState extends State<DietPage> {
     return "$yyyy-$mm-$dd";
   }
 
-  Future<void> _loadMeals() async {
+  Future<void> _loadMeals({bool clearExisting = false}) async {
+    _mealsRequestId++;
+    final requestId = _mealsRequestId;
     setState(() {
       _mealsLoading = true;
       _mealsError = null;
       _mealsFromCache = false;
+      if (clearExisting) {
+        _meals = null; // avoid showing stale summary/macros during mode switch
+      }
     });
 
     try {
@@ -199,7 +205,7 @@ class DietPageState extends State<DietPage> {
         date: _mealDate,
         autoOpen: true,
       );
-      if (!mounted) return;
+      if (!mounted || requestId != _mealsRequestId) return;
 
       // If day_summary isn't in response, fetch it separately
       if (data["day_summary"] == null) {
@@ -214,6 +220,7 @@ class DietPageState extends State<DietPage> {
         }
       }
 
+      if (!mounted || requestId != _mealsRequestId) return;
       setState(() {
         _meals = data;
         _mealsLoading = false;
@@ -226,7 +233,7 @@ class DietPageState extends State<DietPage> {
         final cached = await DietService.fetchMealsForDateFromCache(
           _mealDate,
         );
-        if (!mounted) return;
+        if (!mounted || requestId != _mealsRequestId) return;
         if (cached != null) {
           setState(() {
             _meals = cached;
@@ -239,7 +246,7 @@ class DietPageState extends State<DietPage> {
         // ignore cache load errors
       }
 
-      if (!mounted) return;
+      if (!mounted || requestId != _mealsRequestId) return;
       setState(() {
         _mealsLoading = false;
         _mealsFromCache = false;
@@ -1049,7 +1056,9 @@ class DietPageState extends State<DietPage> {
                         isSelected: [_modeIndex == 0, _modeIndex == 1],
                         onPressed: (idx) async {
                           if (_trainDayLockedByExercise && idx == 0) return; // cannot switch to Rest when trained today
-                          setState(() => _modeIndex = idx);
+                          setState(() {
+                            _modeIndex = idx;
+                          });
                           // Persist calendar mapping so backend can infer diet targets without training_day_id.
                           try {
                             final userId = await AccountStorage.getUserId();
@@ -1073,7 +1082,7 @@ class DietPageState extends State<DietPage> {
                           } catch (_) {
                             // ignore calendar mapping errors; diet endpoints may still fall back
                           }
-                          _loadMeals();
+                          _loadMeals(clearExisting: true);
                         },
                         borderRadius: BorderRadius.circular(14),
                         color: Colors.white70,
@@ -1093,7 +1102,10 @@ class DietPageState extends State<DietPage> {
 
                   if (_modeIndex == 1) ...[
                     const SizedBox(height: 12),
-                    _buildTrainingDayPicker(theme, onChanged: () => _loadMeals()),
+                    _buildTrainingDayPicker(
+                      theme,
+                      onChanged: () => _loadMeals(clearExisting: true),
+                    ),
                   ],
 
                   const SizedBox(height: 14),

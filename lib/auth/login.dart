@@ -25,7 +25,8 @@ import '../services/metrics/daily_metrics_sync.dart';
 
 class LoginPage extends StatefulWidget {
   final String? prefilledEmail;
-  const LoginPage({super.key, this.prefilledEmail});
+  final bool autoGoogle;
+  const LoginPage({super.key, this.prefilledEmail, this.autoGoogle = false});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -43,6 +44,7 @@ class _LoginPageState extends State<LoginPage> {
   bool lastIsExpert = false;
   bool lastQuestionnaireDone = false;
   bool lastExpertQuestionnaireDone = false;
+  String? lastAuthProvider;
 
   @override
   void initState() {
@@ -51,6 +53,12 @@ class _LoginPageState extends State<LoginPage> {
       email.text = widget.prefilledEmail!;
     }
     _loadLastUser();
+    if (widget.autoGoogle) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || loading) return;
+        handleGoogleLogin();
+      });
+    }
   }
 
   Future<void> _loadLastUser() async {
@@ -60,6 +68,11 @@ class _LoginPageState extends State<LoginPage> {
     final isExpert = await AccountStorage.isExpert();
     final qDone = await AccountStorage.isQuestionnaireDone();
     final qExpertDone = await AccountStorage.isExpertQuestionnaireDone();
+    final provider = await AccountStorage.getAuthProvider();
+    final userId = await AccountStorage.getUserId();
+    final token = await AccountStorage.getAccessToken();
+    final validSession =
+        userId != null && userId > 0 && token != null && token.trim().isNotEmpty;
 
     if (!mounted) return;
     setState(() {
@@ -69,6 +82,7 @@ class _LoginPageState extends State<LoginPage> {
       lastIsExpert = isExpert;
       lastQuestionnaireDone = qDone;
       lastExpertQuestionnaireDone = qExpertDone;
+      lastAuthProvider = provider;
     });
   }
 
@@ -174,19 +188,34 @@ class _LoginPageState extends State<LoginPage> {
         final rawId = data?['user_id'] ?? data?['id'];
         final int userId =
             rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
+        final token = (data?['access_token'] ??
+                data?['accessToken'] ??
+                data?['jwt'] ??
+                data?['token'])
+            ?.toString()
+            ?.trim();
+
+        // Backend must return user_id and access_token; otherwise do not overwrite storage
+        if (userId <= 0 || token == null || token.isEmpty) {
+          if (!mounted) return;
+          AppToast.show(
+            context,
+            t.translate("network_error"),
+            type: AppToastType.error,
+          );
+          return;
+        }
 
         final emailFromApi = (data?['email'] ?? mail).toString();
         final name = (data?['username'] ??
                 data?['full_name'] ??
                 emailFromApi.split('@').first)
             .toString();
-        final token = data?['token']?.toString();
         final storedEmail = await AccountStorage.getEmail();
         final storedExpert = (storedEmail != null && storedEmail == emailFromApi)
             ? await AccountStorage.isExpert()
             : false;
 
-        // Save session
         await AccountStorage.saveUserSession(
           userId: userId,
           email: emailFromApi,
@@ -197,20 +226,32 @@ class _LoginPageState extends State<LoginPage> {
           questionnaireDone: await AccountStorage.isQuestionnaireDone(),
           expertQuestionnaireDone:
               await AccountStorage.isExpertQuestionnaireDone(),
+          authProvider: "email",
         );
 
-        await NotificationService.refreshDailyJournalRemindersForCurrentUser();
-        await DailyMetricsSync().pushIfNewDay();
+        // Verify session was stored (avoids "user id missing" if storage failed)
+        final savedId = await AccountStorage.getUserId();
+        final savedToken = await AccountStorage.getAccessToken();
+        if (savedId == null || savedId <= 0 || savedToken == null || savedToken.isEmpty) {
+          if (!mounted) return;
+          AppToast.show(
+            context,
+            t.translate("network_error"),
+            type: AppToastType.error,
+          );
+          return;
+        }
 
         if (!mounted) return;
-
-        final qDone = await AccountStorage.isQuestionnaireDone();
-        final qExpertDone = await AccountStorage.isExpertQuestionnaireDone();
 
         await _navigatePostAuth(
           userId: userId,
           isExpert: storedExpert,
         );
+
+        // Fire-and-forget: do not block navigation if these fail.
+        NotificationService.refreshDailyJournalRemindersForCurrentUser();
+        DailyMetricsSync().pushIfNewDay().catchError((_) {});
 
         return;
       }
@@ -269,6 +310,22 @@ class _LoginPageState extends State<LoginPage> {
     final rawId = result["user_id"] ?? result["id"];
     final int userId =
         rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
+    final accessToken = (result["access_token"] ??
+            result["accessToken"] ??
+            result["jwt"] ??
+            result["token"])
+        ?.toString()
+        ?.trim();
+
+    if (userId <= 0 || accessToken == null || accessToken.isEmpty) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        t.translate("google_failed"),
+        type: AppToastType.error,
+      );
+      return;
+    }
 
     final email = (result["email"] ?? "").toString();
     final name = (result["name"] ?? email.split("@").first).toString();
@@ -278,15 +335,25 @@ class _LoginPageState extends State<LoginPage> {
       email: email,
       name: name,
       verified: true,
-      token: null,
+      token: accessToken,
       isExpert: false,
       questionnaireDone: await AccountStorage.isQuestionnaireDone(),
       expertQuestionnaireDone:
           await AccountStorage.isExpertQuestionnaireDone(),
+      authProvider: "google",
     );
 
-    await NotificationService.refreshDailyJournalRemindersForCurrentUser();
-    await DailyMetricsSync().pushIfNewDay();
+    final savedId = await AccountStorage.getUserId();
+    final savedToken = await AccountStorage.getAccessToken();
+    if (savedId == null || savedId <= 0 || savedToken == null || savedToken.isEmpty) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        t.translate("google_failed"),
+        type: AppToastType.error,
+      );
+      return;
+    }
 
     if (!mounted) return;
 
@@ -300,6 +367,10 @@ class _LoginPageState extends State<LoginPage> {
       userId: userId,
       isExpert: false,
     );
+
+    // Fire-and-forget: do not block navigation if these fail.
+    NotificationService.refreshDailyJournalRemindersForCurrentUser();
+    DailyMetricsSync().pushIfNewDay().catchError((_) {});
   }
 
 
@@ -392,19 +463,15 @@ class _LoginPageState extends State<LoginPage> {
 
             Gaps.h20,
 
-            if (lastVerified && (lastEmail ?? '').isNotEmpty) ...[
+            if (lastVerified &&
+                (lastEmail ?? '').isNotEmpty &&
+                lastAuthProvider == "google") ...[
               DividerWithLabel(label: t.translate("saved_accounts")),
               Gaps.h12,
               SavedAccountTile(
                 title:
                     "${t.translate("login_as")} ${lastName ?? lastEmail!.split('@').first}",
-               onTap: () async {
-  Navigator.pushAndRemoveUntil(
-    context,
-    MaterialPageRoute(builder: (_) => const MainLayout()),
-    (route) => false,
-  );
-},
+                onTap: loading ? null : handleGoogleLogin,
                 onMenu: () {},
               ),
             ],

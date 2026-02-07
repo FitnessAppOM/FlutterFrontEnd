@@ -55,6 +55,16 @@ void main() async {
   NavigationService.launchedFromNotificationPayload =
       launchPayload == NotificationService.dailyJournalPayload;
 
+  // When backend returns 401, clear session and send user to welcome (login).
+  AccountStorage.onUnauthorized = () {
+    NavigationService.navigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => WelcomePage(onChangeLanguage: localeController.setLocale),
+      ),
+      (_) => false,
+    );
+  };
+
   runApp(MyApp(initialPayload: launchPayload));
 
 

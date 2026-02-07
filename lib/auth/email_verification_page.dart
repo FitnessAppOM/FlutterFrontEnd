@@ -8,8 +8,7 @@ import '../theme/app_theme.dart';
 import '../theme/spacing.dart';
 import '../widgets/primary_button.dart';
 import '../localization/app_localizations.dart';   // ADDED
-import 'questionnaire.dart';
-import 'expert_questionnaire.dart';
+import 'verification_success_page.dart';
 import '../widgets/app_toast.dart';
 import '../services/core/notification_service.dart';
 import '../services/metrics/daily_metrics_sync.dart';
@@ -72,35 +71,54 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
       setState(() => loading = false);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        final userId = data["user_id"];
+        final data = jsonDecode(response.body) as Map<String, dynamic>? ?? {};
+        final rawId = data["user_id"] ?? data["id"];
+        final int userId = rawId is int
+            ? rawId
+            : (int.tryParse(rawId?.toString() ?? '') ?? 0);
         final email = widget.email;
+        final token = (data["access_token"] ??
+                data["accessToken"] ??
+                data["jwt"] ??
+                data["token"])
+            ?.toString()
+            ?.trim();
+
+        if (userId <= 0) {
+          _show(t.translate("network_error"));
+          return;
+        }
 
         await AccountStorage.saveUserSession(
           userId: userId,
           email: email,
           name: email.split('@').first,
           verified: true,
-          token: null,
+          token: token,
           isExpert: widget.isExpert,
           questionnaireDone: false,
           expertQuestionnaireDone: false,
+          authProvider: "email",
         );
-
-        await NotificationService.refreshDailyJournalRemindersForCurrentUser();
-        await DailyMetricsSync().pushIfNewDay();
 
         if (!mounted) return;
 
+        final canContinue = token != null && token.isNotEmpty;
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => widget.isExpert
-                ? const ExpertQuestionnairePage()
-                : const QuestionnairePage(),
+            builder: (_) => VerificationSuccessPage(
+              email: email,
+              isExpert: widget.isExpert,
+              canContinue: canContinue,
+            ),
           ),
         );
+        // Fire-and-forget: do not block navigation if these fail.
+        NotificationService.refreshDailyJournalRemindersForCurrentUser();
+        if (token != null && token.isNotEmpty) {
+          DailyMetricsSync().pushIfNewDay().catchError((_) {});
+        }
         return;
       }
 

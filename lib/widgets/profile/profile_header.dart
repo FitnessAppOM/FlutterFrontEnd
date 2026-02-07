@@ -78,8 +78,8 @@ class ProfileHeader extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.logout, color: Colors.redAccent, size: 26),
           onPressed: () async {
+            // Clear first so a later login is never overwritten by a delayed clear.
             await AccountStorage.clearSessionOnly();
-            await NotificationService.refreshDailyJournalRemindersForCurrentUser();
             if (!context.mounted) return;
             Navigator.pushAndRemoveUntil(
               context,
@@ -88,6 +88,8 @@ class ProfileHeader extends StatelessWidget {
               ),
               (route) => false,
             );
+            // Refresh notifications after leaving; don't await so we don't race with new login.
+            NotificationService.refreshDailyJournalRemindersForCurrentUser();
           },
         ),
       ],

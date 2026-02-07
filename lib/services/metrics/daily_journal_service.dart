@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../config/base_url.dart';
+import '../../core/account_storage.dart';
 
 class DailyJournalEntry {
   final DateTime entryDate;
@@ -164,12 +165,14 @@ class DailyJournalApi {
         "took_supplements_or_medications": tookSupplementsOrMedications,
     };
 
+    final headers = {"Content-Type": "application/json", ...await AccountStorage.getAuthHeaders()};
     final res = await http.post(
       url,
-      headers: {"Content-Type": "application/json"},
+      headers: headers,
       body: jsonEncode(body),
     );
 
+    await AccountStorage.handle401(res.statusCode);
     if (res.statusCode == 200) return;
     if (res.statusCode == 409) {
       throw Exception("already_submitted");

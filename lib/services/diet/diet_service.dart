@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../config/base_url.dart';
+import '../../core/account_storage.dart';
 import 'diet_meals_storage.dart';
 import 'diet_targets_storage.dart';
 
@@ -11,8 +12,10 @@ class DietService {
   /// Returns the generated targets JSON (and caches it locally).
   static Future<Map<String, dynamic>> generateTargets(int userId) async {
     final url = Uri.parse('$baseUrl/diet/generate/$userId');
-    final response = await http.post(url);
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.post(url, headers: headers);
 
+    await AccountStorage.handle401(response.statusCode);
     if (response.statusCode == 200) {
       if (response.body.isEmpty) {
         // Backend should return JSON; keep a safe fallback.
@@ -73,8 +76,10 @@ class DietService {
   }) async {
     final d = date ?? DateTime.now();
     final url = Uri.parse('$baseUrl/diet/meals/open/$userId?meal_date=${_dateParam(d)}');
-    final response = await http.post(url);
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.post(url, headers: headers);
 
+    await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
       final body = response.body.isNotEmpty ? json.decode(response.body) : {};
       throw Exception(body['detail'] ?? 'Failed to open meals');
@@ -127,14 +132,16 @@ class DietService {
   }) async {
     final url = Uri.parse('$baseUrl/diet/meals/$userId')
         .replace(queryParameters: {'meal_date': _dateParam(date)});
+    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
     final response = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: headers,
       body: json.encode({
         if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
       }),
     );
 
+    await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
       final body = response.body.isNotEmpty ? json.decode(response.body) : {};
       throw Exception(body['detail'] ?? 'Failed to create meal');
@@ -156,8 +163,10 @@ class DietService {
       if (trainingDayId != null) 'training_day_id': trainingDayId.toString(),
     };
     final url = Uri.parse('$baseUrl/diet/meals/$userId').replace(queryParameters: qp);
-    final response = await http.delete(url);
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.delete(url, headers: headers);
 
+    await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
       final body = response.body.isNotEmpty ? json.decode(response.body) : {};
       throw Exception(body['detail'] ?? 'Failed to delete meal');
@@ -173,15 +182,22 @@ class DietService {
     required int userId,
     required int mealItemId,
   }) async {
-    Future<http.Response> attempt(String url) => http.delete(Uri.parse(url));
+    final headers = await AccountStorage.getAuthHeaders();
 
     // Primary path: /diet/meals/{user_id}/{meal_item_id}
-    var response = await attempt('$baseUrl/diet/meals/$userId/$mealItemId');
+    var response = await http.delete(
+      Uri.parse('$baseUrl/diet/meals/$userId/$mealItemId'),
+      headers: headers,
+    );
     if (response.statusCode == 404) {
       // Fallback path: /diet/meals/{user_id}/items/{meal_item_id}
-      response = await attempt('$baseUrl/diet/meals/$userId/items/$mealItemId');
+      response = await http.delete(
+        Uri.parse('$baseUrl/diet/meals/$userId/items/$mealItemId'),
+        headers: headers,
+      );
     }
 
+    await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
       final body = response.body.isNotEmpty ? json.decode(response.body) : {};
       throw Exception(body['detail'] ?? 'Failed to delete meal item');
@@ -204,9 +220,10 @@ class DietService {
     int? trainingDayId,
   }) async {
     final url = Uri.parse('$baseUrl/diet/meals/$userId/items/search/foods-master');
+    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
     final response = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: headers,
       body: json.encode({
         'meal_id': mealId,
         'food_id': foodId,
@@ -215,6 +232,7 @@ class DietService {
       }),
     );
 
+    await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
       final body = response.body.isNotEmpty ? json.decode(response.body) : {};
       throw Exception(body['detail'] ?? 'Failed to add item');
@@ -234,9 +252,10 @@ class DietService {
     int? trainingDayId,
   }) async {
     final url = Uri.parse('$baseUrl/diet/meals/$userId/items/search/restaurants');
+    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
     final response = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: headers,
       body: json.encode({
         'meal_id': mealId,
         'restaurant_item_id': restaurantItemId,
@@ -245,6 +264,7 @@ class DietService {
       }),
     );
 
+    await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
       final body = response.body.isNotEmpty ? json.decode(response.body) : {};
       throw Exception(body['detail'] ?? 'Failed to add item');
@@ -285,7 +305,9 @@ class DietService {
       if (trainingDayId != null) 'training_day_id': trainingDayId.toString(),
     };
     final url = Uri.parse('$baseUrl/diet/day-summary/$userId/capture').replace(queryParameters: qp);
-    final response = await http.post(url);
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.post(url, headers: headers);
+    await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
       final body = response.body.isNotEmpty ? json.decode(response.body) : {};
       throw Exception(body['detail'] ?? 'Failed to freeze day');
@@ -318,12 +340,14 @@ class DietService {
       if (ingredients != null && ingredients.isNotEmpty) 'ingredients': ingredients,
       if (trainingDayId != null) 'training_day_id': trainingDayId,
     };
+    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
     final response = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: headers,
       body: json.encode(body),
     );
 
+    await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
       final body = response.body.isNotEmpty ? json.decode(response.body) : {};
       throw Exception(body['detail'] ?? 'Failed to add manual item');
@@ -341,15 +365,17 @@ class DietService {
     required double grams,
   }) async {
     final url = Uri.parse('$baseUrl/diet/meals/$userId/items/manual/preview/foods-master');
+    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
     final response = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: headers,
       body: json.encode({
         'food_id': foodId,
         'grams': grams,
       }),
     );
 
+    await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
       final body = response.body.isNotEmpty ? json.decode(response.body) : {};
       throw Exception(body['detail'] ?? 'Failed to preview food');
@@ -367,12 +393,14 @@ class DietService {
     required List<Map<String, dynamic>> ingredients,
   }) async {
     final url = Uri.parse('$baseUrl/diet/meals/$userId/items/$mealItemId/ingredients');
+    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
     final response = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: headers,
       body: json.encode({'ingredients': ingredients}),
     );
 
+    await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
       final body = response.body.isNotEmpty ? json.decode(response.body) : {};
       throw Exception(body['detail'] ?? 'Failed to add ingredients');
@@ -391,9 +419,10 @@ class DietService {
     required List<Map<String, dynamic>> items,
   }) async {
     final url = Uri.parse('$baseUrl/diet/favorites/$userId');
+    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
     final response = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: headers,
       body: json.encode({
         'meal_name': mealName,
         if (notes != null) 'notes': notes,
@@ -401,6 +430,7 @@ class DietService {
       }),
     );
 
+    await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
       final body = response.body.isNotEmpty ? json.decode(response.body) : {};
       throw Exception(body['detail'] ?? 'Failed to save favorite');
@@ -470,15 +500,17 @@ class DietService {
     int? trainingDayId,
   }) async {
     final url = Uri.parse('$baseUrl/diet/favorites/$userId/$favoriteMealId/log');
+    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
     final response = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: headers,
       body: json.encode({
         'meal_id': mealId,
         if (trainingDayId != null) 'training_day_id': trainingDayId,
       }),
     );
 
+    await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
       final body = response.body.isNotEmpty ? json.decode(response.body) : {};
       throw Exception(body['detail'] ?? 'Failed to log favorite');
@@ -505,6 +537,8 @@ class DietService {
   }) async {
     final url = Uri.parse('$baseUrl/diet/meals/$userId/items/photo');
     final req = http.MultipartRequest('POST', url);
+    final auth = await AccountStorage.getAuthHeaders();
+    req.headers.addAll(auth);
 
     req.fields['meal_id'] = mealId.toString();
     final desc = (textDescription ?? '').trim();
@@ -519,6 +553,7 @@ class DietService {
     final streamed = await req.send();
     final body = await streamed.stream.bytesToString();
 
+    await AccountStorage.handle401(streamed.statusCode);
     if (streamed.statusCode != 200) {
       final decoded = body.isNotEmpty ? json.decode(body) : {};
       throw Exception((decoded is Map && decoded['detail'] != null) ? decoded['detail'] : 'Failed to add photo item');

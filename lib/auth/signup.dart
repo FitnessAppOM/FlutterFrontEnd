@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../config/base_url.dart';
 import '../services/auth/auth_service.dart';
+import '../services/auth/profile_service.dart';
+import '../main/main_layout.dart';
 import '../theme/app_theme.dart';
 import '../theme/spacing.dart';
 import '../widgets/primary_button.dart';
@@ -156,7 +158,6 @@ class _SignupPageState extends State<SignupPage> {
 
     final result = await signInWithGoogle();
 
-    // 🔴 check AFTER await
     if (!mounted) return;
     setState(() => loading = false);
 
@@ -165,19 +166,45 @@ class _SignupPageState extends State<SignupPage> {
       return;
     }
 
-    final userId = result["user_id"];
+    // Same as Google sign-in: read access_token and user_id from response
+    final rawId = result["user_id"] ?? result["id"];
+    final int userId =
+        rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
+    final accessToken = (result["access_token"] ??
+            result["accessToken"] ??
+            result["jwt"] ??
+            result["token"])
+        ?.toString()
+        ?.trim();
+
+    if (userId <= 0 || accessToken == null || accessToken.isEmpty) {
+      if (!mounted) return;
+      _showSnack(t.translate("google_failed"));
+      return;
+    }
+
     final email = (result["email"] ?? "").toString();
+    final name = (result["name"] ?? email.split('@').first).toString();
 
     await AccountStorage.saveUserSession(
       userId: userId,
       email: email,
-      name: (result["name"] ?? email.split('@').first).toString(),
+      name: name,
       verified: true,
-      token: null,
+      token: accessToken,
       isExpert: widget.isExpert,
       questionnaireDone: false,
       expertQuestionnaireDone: false,
+      authProvider: "google",
     );
+
+    final savedId = await AccountStorage.getUserId();
+    final savedToken = await AccountStorage.getAccessToken();
+    if (savedId == null || savedId <= 0 || savedToken == null || savedToken.isEmpty) {
+      if (!mounted) return;
+      _showSnack(t.translate("google_failed"));
+      return;
+    }
 
     await NotificationService.refreshDailyJournalRemindersForCurrentUser();
     await DailyMetricsSync().pushIfNewDay();
@@ -189,14 +216,62 @@ class _SignupPageState extends State<SignupPage> {
       type: AppToastType.success,
     );
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => widget.isExpert
-            ? const ExpertQuestionnairePage()
-            : const QuestionnairePage(),
-      ),
-    );
+    // Same post-auth flow as Google sign-in: fetch profile, then MainLayout or questionnaire
+    try {
+      final lang = AppLocalizations.of(context).locale.languageCode;
+      final profile = await ProfileApi.fetchProfile(userId, lang: lang);
+      final serverDone = profile["filled_user_questionnaire"] == true;
+      final hasData = serverDone || _hasQuestionnaireData(profile);
+      await AccountStorage.setQuestionnaireDone(serverDone);
+      await AccountStorage.setExpertQuestionnaireDone(serverDone);
+      if (!mounted) return;
+      if (hasData) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const MainLayout()),
+          (route) => false,
+        );
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => widget.isExpert
+                ? const ExpertQuestionnairePage()
+                : const QuestionnairePage(),
+          ),
+          (route) => false,
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => widget.isExpert
+              ? const ExpertQuestionnairePage()
+              : const QuestionnairePage(),
+        ),
+        (route) => false,
+      );
+    }
+  }
+
+  bool _hasQuestionnaireData(Map<String, dynamic> profile) {
+    const keys = [
+      "age",
+      "fitness_goal",
+      "training_days",
+      "diet_type",
+      "height_cm",
+      "weight_kg",
+      "sex",
+    ];
+    return keys.any((k) {
+      final v = profile[k];
+      if (v == null) return false;
+      final s = v.toString().trim();
+      return s.isNotEmpty && s != "null";
+    });
   }
 
 

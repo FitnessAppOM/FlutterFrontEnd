@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../config/base_url.dart';
+import '../../core/account_storage.dart';
 
 class TrainingCalendarService {
   static String baseUrl = ApiConfig.baseUrl;
@@ -32,11 +33,13 @@ class TrainingCalendarService {
       if (dayType == 'training') 'training_day_id': trainingDayId,
       if (dayType == 'rest') 'training_day_id': null,
     };
+    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
     final res = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: headers,
       body: json.encode(body),
     );
+    await AccountStorage.handle401(res.statusCode);
     if (res.statusCode != 200) {
       final decoded = res.body.isNotEmpty ? json.decode(res.body) : {};
       throw Exception((decoded is Map && decoded['detail'] != null) ? decoded['detail'] : 'Failed to set training calendar');

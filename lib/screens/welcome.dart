@@ -20,6 +20,7 @@ import '../widgets/app_toast.dart';
 import '../services/core/navigation_service.dart';
 import '../services/core/notification_service.dart';
 import '../services/metrics/daily_metrics_sync.dart';
+import '../services/auth/auth_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -57,6 +58,8 @@ class _WelcomePageState extends State<WelcomePage> {
   bool lastIsExpert = false;
   bool lastQuestionnaireDone = false;
   bool lastExpertQuestionnaireDone = false;
+  String? lastAuthProvider;
+  bool _googleLoggingIn = false;
 
   void _changeLanguage(Locale locale) {
     final callback = widget.onChangeLanguage ?? localeController.setLocale;
@@ -83,8 +86,13 @@ class _WelcomePageState extends State<WelcomePage> {
       );
 
       if (res.statusCode == 200) {
-        final json = jsonDecode(res.body);
-        return UserCheckResult(json["user_id"]);
+        final data = jsonDecode(res.body);
+        if (data is! Map) return null;
+        final id = data["user_id"];
+        if (id == null) return null;
+        final userId = id is int ? id : int.tryParse(id.toString());
+        if (userId == null) return null;
+        return UserCheckResult(userId);
       }
 
       return null;
@@ -103,6 +111,7 @@ class _WelcomePageState extends State<WelcomePage> {
     final isExpert = await AccountStorage.isExpert();
     final qDone = await AccountStorage.isQuestionnaireDone();
     final qExpertDone = await AccountStorage.isExpertQuestionnaireDone();
+    final provider = await AccountStorage.getAuthProvider();
 
   if (!mounted) return;
 
@@ -115,6 +124,7 @@ class _WelcomePageState extends State<WelcomePage> {
       lastQuestionnaireDone = qDone;
       lastExpertQuestionnaireDone = qExpertDone;
       lastName = v ? n : null;
+      lastAuthProvider = provider;
     });
     return;
   }
@@ -128,6 +138,7 @@ class _WelcomePageState extends State<WelcomePage> {
       lastQuestionnaireDone = qDone;
       lastExpertQuestionnaireDone = qExpertDone;
       lastName = v ? n : null;
+      lastAuthProvider = provider;
     });
     return;
   }
@@ -153,6 +164,7 @@ class _WelcomePageState extends State<WelcomePage> {
     lastQuestionnaireDone = qDone;
     lastExpertQuestionnaireDone = qExpertDone;
     lastName = v ? n : null;
+    lastAuthProvider = provider;
   });
 }
 
@@ -199,6 +211,87 @@ class _WelcomePageState extends State<WelcomePage> {
     }
   }
 
+  Future<void> _handleGoogleQuickLogin() async {
+    if (_googleLoggingIn) return;
+    final t = AppLocalizations.of(context);
+    setState(() => _googleLoggingIn = true);
+    try {
+      final result = await signInWithGoogle();
+      if (!mounted) return;
+      if (result == null) {
+        AppToast.show(
+          context,
+          t.translate("google_failed"),
+          type: AppToastType.error,
+        );
+        return;
+      }
+
+      final rawId = result["user_id"] ?? result["id"];
+      final int userId =
+          rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
+      final accessToken = (result["access_token"] ??
+              result["accessToken"] ??
+              result["jwt"] ??
+              result["token"])
+          ?.toString()
+          ?.trim();
+
+      if (userId <= 0 || accessToken == null || accessToken.isEmpty) {
+        if (!mounted) return;
+        AppToast.show(
+          context,
+          t.translate("google_failed"),
+          type: AppToastType.error,
+        );
+        return;
+      }
+
+      final email = (result["email"] ?? "").toString();
+      final name = (result["name"] ?? email.split("@").first).toString();
+
+      await AccountStorage.saveUserSession(
+        userId: userId,
+        email: email,
+        name: name,
+        verified: true,
+        token: accessToken,
+        isExpert: lastIsExpert,
+        questionnaireDone: await AccountStorage.isQuestionnaireDone(),
+        expertQuestionnaireDone:
+            await AccountStorage.isExpertQuestionnaireDone(),
+        authProvider: "google",
+      );
+
+      final savedId = await AccountStorage.getUserId();
+      final savedToken = await AccountStorage.getAccessToken();
+      if (savedId == null ||
+          savedId <= 0 ||
+          savedToken == null ||
+          savedToken.isEmpty) {
+        if (!mounted) return;
+        AppToast.show(
+          context,
+          t.translate("google_failed"),
+          type: AppToastType.error,
+        );
+        return;
+      }
+
+      if (!mounted) return;
+
+      await _navigatePostAuth(
+        userId: userId,
+        isExpert: lastIsExpert,
+      );
+
+      NotificationService.refreshDailyJournalRemindersForCurrentUser();
+      DailyMetricsSync().pushIfNewDay().catchError((_) {});
+    } finally {
+      if (mounted) setState(() => _googleLoggingIn = false);
+    }
+  }
+
   bool _hasQuestionnaireData(Map<String, dynamic> profile) {
     const keys = [
       "age",
@@ -225,6 +318,7 @@ class _WelcomePageState extends State<WelcomePage> {
 
     final hasAccount = (lastEmail != null && lastEmail!.isNotEmpty);
     final hasVerifiedAccount = hasAccount && lastVerified;
+    final isGoogleAccount = lastAuthProvider == "google";
     final displayName = lastName ?? (lastEmail?.split('@').first ?? '');
 
     return Scaffold(
@@ -294,35 +388,17 @@ class _WelcomePageState extends State<WelcomePage> {
 
                     SavedAccountTile(
                       title: "${t.translate("login_as")} $displayName",
-                      onTap: () async {
-                        final email = lastEmail!;
-                        final isExpert = lastIsExpert;
-
-                        final exists = await checkUserExistsBackend(email);
-                        if (exists == null) {
-                          if (!mounted) return;
-                          AppToast.show(
-                            context,
-                            t.translate("account_no_longer_exists"),
-                            type: AppToastType.error,
-                          );
+                      onTap: () {
+                        if (isGoogleAccount) {
+                          _handleGoogleQuickLogin();
                           return;
                         }
-
-                            await AccountStorage.saveUserSession(
-                              userId: exists.id,
-                              email: email,
-                              name: displayName,
-                              verified: true,
-                              isExpert: isExpert,
-                            );
-
-                        await NotificationService.refreshDailyJournalRemindersForCurrentUser();
-                        await DailyMetricsSync().pushIfNewDay();
-
-                        await _navigatePostAuth(
-                          userId: exists.id,
-                          isExpert: isExpert,
+                        // Email accounts: go to login with email prefilled so user enters password.
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => LoginPage(prefilledEmail: lastEmail),
+                          ),
                         );
                       },
                       onMenu: () {},

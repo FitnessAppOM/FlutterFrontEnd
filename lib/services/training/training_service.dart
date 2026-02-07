@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../config/base_url.dart';
+import '../../core/account_storage.dart';
 import 'training_program_storage.dart';
 import '../core/feedback_questions_storage.dart';
 
@@ -16,8 +17,10 @@ class TrainingService {
 
   static Future<bool> generateProgram(int userId) async {
     final url = Uri.parse('$baseUrl/training/generate/$userId');
-    final response = await http.post(url);
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.post(url, headers: headers);
 
+    await AccountStorage.handle401(response.statusCode);
     if (response.statusCode == 200) {
       return true;
     }
@@ -58,14 +61,16 @@ class TrainingService {
   /// When entryDate is provided, backend can map date -> training_day_id for diet inference.
   static Future<void> startExercise(int programExerciseId, {DateTime? entryDate}) async {
     final url = Uri.parse('$baseUrl/training/exercise/start');
+    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
     final res = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: headers,
       body: json.encode({
         'program_exercise_id': programExerciseId,
         if (entryDate != null) 'entry_date': _dateParam(entryDate),
       }),
     );
+    await AccountStorage.handle401(res.statusCode);
     if (res.statusCode != 200) {
       throw Exception("Failed to start exercise");
     }
@@ -75,12 +80,14 @@ class TrainingService {
   static Future<void> saveWeight(
       int programExerciseId, double weight) async {
     final url = Uri.parse('$baseUrl/training/exercise/weight');
-    await http.post(url,
-        headers: {'Content-Type': 'application/json'},
+    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
+    final res = await http.post(url,
+        headers: headers,
         body: json.encode({
           'program_exercise_id': programExerciseId,
           'weight_used': weight,
         }));
+    await AccountStorage.handle401(res.statusCode);
   }
 
   static Future<void> finishExercise({
@@ -92,8 +99,9 @@ class TrainingService {
     DateTime? entryDate,
   }) async {
     final url = Uri.parse('$baseUrl/training/exercise/finish');
-    await http.post(url,
-        headers: {'Content-Type': 'application/json'},
+    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
+    final res = await http.post(url,
+        headers: headers,
         body: json.encode({
           'program_exercise_id': programExerciseId,
           'performed_sets': sets,
@@ -102,6 +110,7 @@ class TrainingService {
           'performed_time_seconds': durationSeconds,
           if (entryDate != null) 'entry_date': _dateParam(entryDate),
         }));
+    await AccountStorage.handle401(res.statusCode);
   }
   static Future<List<dynamic>> getFeedbackQuestions(String exerciseName) async {
     try {
@@ -143,15 +152,17 @@ class TrainingService {
     required int answer,
   }) async {
     final url = Uri.parse('$baseUrl/training/feedback');
-    await http.post(
+    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
+    final res = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: headers,
       body: json.encode({
         'program_exercise_id': programExerciseId,
         'question_index': questionIndex,
         'answer': answer,
       }),
     );
+    await AccountStorage.handle401(res.statusCode);
   }
   static Future<List<dynamic>> fetchAllExercises() async {
     final url = Uri.parse('$baseUrl/training/exercises');
@@ -192,9 +203,10 @@ class TrainingService {
     required String reason,
   }) async {
     final url = Uri.parse('$baseUrl/training/exercise/replace');
+    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
     final response = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: headers,
       body: json.encode({
         'user_id': userId,
         'program_exercise_id': programExerciseId,
@@ -204,6 +216,7 @@ class TrainingService {
       }),
     );
 
+    await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
       final body = response.body.isNotEmpty ? json.decode(response.body) : {};
       throw Exception(body['detail'] ?? "Replace failed");

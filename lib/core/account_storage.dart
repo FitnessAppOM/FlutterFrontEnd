@@ -12,6 +12,7 @@ class AccountStorage {
   static const _kExpertQuestionnaireDone = 'expert_questionnaire_done';
   static const _kAvatarPath = 'avatar_path';
   static const _kAvatarUrl = 'avatar_url';
+  static const _kAuthProvider = 'auth_provider';
   static const _kMetricsKeys = [
     "manual_steps_entries",
     "manual_calories_entries",
@@ -33,7 +34,7 @@ class AccountStorage {
     accountChange.value++;
   }
 
-  // Save everything after login
+  // Save everything after login (do not call with userId <= 0 or empty token)
   static Future<void> saveUserSession({
     required int userId,
     required String email,
@@ -43,7 +44,9 @@ class AccountStorage {
     bool? isExpert,
     bool? questionnaireDone,
     bool? expertQuestionnaireDone,
+    String? authProvider,
   }) async {
+    if (userId <= 0) return; // Never overwrite with invalid id
     final sp = await SharedPreferences.getInstance();
     final previousUserId = sp.getInt(_kUserId);
     final previousEmail = sp.getString(_kEmail);
@@ -75,12 +78,14 @@ class AccountStorage {
         _kQuestionnaireDone, questionnaireDone ?? existingQuestionnaireDone);
     await sp.setBool(_kExpertQuestionnaireDone,
         expertQuestionnaireDone ?? existingExpertQuestionnaireDone);
-    if (token != null) {
-      await sp.setString(_kToken, token);
+    if (token != null && token.trim().isNotEmpty) {
+      await sp.setString(_kToken, token.trim());
     }
-    if (isDifferentUser) {
-      notifyAccountChanged();
+    if (authProvider != null && authProvider.trim().isNotEmpty) {
+      await sp.setString(_kAuthProvider, authProvider.trim());
     }
+    // Notify after every login so UI (e.g. profile) can refresh with new user_id / token
+    notifyAccountChanged();
   }
 
   static Future<void> _clearMetricsForUser(SharedPreferences sp, int? userId) async {
@@ -115,6 +120,11 @@ class AccountStorage {
     return sp.getBool(_kIsExpert) ?? false;
   }
 
+  static Future<String?> getAuthProvider() async {
+    final sp = await SharedPreferences.getInstance();
+    return sp.getString(_kAuthProvider);
+  }
+
   static Future<void> setQuestionnaireDone(bool done) async {
     final sp = await SharedPreferences.getInstance();
     await sp.setBool(_kQuestionnaireDone, done);
@@ -134,6 +144,32 @@ class AccountStorage {
     final sp = await SharedPreferences.getInstance();
     return sp.getBool(_kExpertQuestionnaireDone) ?? false;
   }
+
+  /// JWT access token returned by login / Google login. Used for Authorization header on protected APIs.
+  static Future<String?> getAccessToken() async {
+    final sp = await SharedPreferences.getInstance();
+    return sp.getString(_kToken);
+  }
+
+  /// Headers to send with protected API requests. Empty if no token.
+  /// Uses exact token string, trimmed (no extra spaces) as required by backend.
+  static Future<Map<String, String>> getAuthHeaders() async {
+    final token = await getAccessToken();
+    final t = token?.trim();
+    if (t == null || t.isEmpty) return {};
+    return {'Authorization': 'Bearer $t'};
+  }
+
+  /// Call when a protected API returns 401: clears session and invokes onUnauthorized (e.g. navigate to login).
+  static Future<void> handle401(int statusCode) async {
+    if (statusCode == 401) {
+      await clearSession();
+      onUnauthorized?.call();
+    }
+  }
+
+  /// Set from app (e.g. main.dart) to navigate to login when session expires (401).
+  static void Function()? onUnauthorized;
 
   static Future<void> setName(String name) async {
     final sp = await SharedPreferences.getInstance();
@@ -192,6 +228,7 @@ static Future<void> clearSessionOnly() async {
     await sp.remove(_kName);
     await sp.remove(_kVerified);
     await sp.remove(_kToken);
+    await sp.remove(_kAuthProvider);
     await sp.remove(_kIsExpert);
     await sp.remove(_kQuestionnaireDone);
     await sp.remove(_kExpertQuestionnaireDone);

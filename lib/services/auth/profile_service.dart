@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../config/base_url.dart';
+import '../../core/account_storage.dart';
 
 class ProfileApi {
   static Future<Map<String, dynamic>> fetchProfile(int userId, {String? lang}) async {
@@ -19,10 +20,13 @@ class ProfileApi {
   static Future<String> uploadAvatar(int userId, String filePath) async {
     final url = Uri.parse("${ApiConfig.baseUrl}/profile/$userId/avatar");
     final request = http.MultipartRequest("POST", url);
+    final auth = await AccountStorage.getAuthHeaders();
+    request.headers.addAll(auth);
     request.files.add(await http.MultipartFile.fromPath("file", filePath));
     final streamed = await request.send();
     final res = await http.Response.fromStream(streamed);
 
+    await AccountStorage.handle401(res.statusCode);
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       return (data["avatar_url"] ?? "").toString();
@@ -38,12 +42,14 @@ class ProfileApi {
 
   static Future<String> updateUsername(int userId, String username) async {
     final url = Uri.parse("${ApiConfig.baseUrl}/profile/$userId/username");
+    final headers = {"Content-Type": "application/json", ...await AccountStorage.getAuthHeaders()};
     final res = await http.patch(
       url,
-      headers: {"Content-Type": "application/json"},
+      headers: headers,
       body: jsonEncode({"username": username}),
     );
 
+    await AccountStorage.handle401(res.statusCode);
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       return (data["username"] ?? username).toString();
@@ -59,12 +65,14 @@ class ProfileApi {
 
   static Future<void> updateProfile(Map<String, dynamic> payload) async {
     final url = Uri.parse("${ApiConfig.baseUrl}/profile/update");
+    final headers = {"Content-Type": "application/json", ...await AccountStorage.getAuthHeaders()};
     final res = await http.post(
       url,
-      headers: {"Content-Type": "application/json"},
+      headers: headers,
       body: jsonEncode(payload),
     );
 
+    await AccountStorage.handle401(res.statusCode);
     if (res.statusCode == 200) {
       return;
     }
@@ -79,8 +87,10 @@ class ProfileApi {
 
   static Future<void> deleteAccount(int userId) async {
     final url = Uri.parse("${ApiConfig.baseUrl}/profile/$userId");
-    final res = await http.delete(url);
+    final headers = await AccountStorage.getAuthHeaders();
+    final res = await http.delete(url, headers: headers);
 
+    await AccountStorage.handle401(res.statusCode);
     if (res.statusCode == 200) return;
 
     String msg = "Failed to delete account";
