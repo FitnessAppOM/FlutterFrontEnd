@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
-import '../services/whoop_recovery_service.dart';
+import '../services/whoop/whoop_recovery_service.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/charts/simple_line_chart.dart';
 import '../widgets/recovery/recovery_gauge.dart';

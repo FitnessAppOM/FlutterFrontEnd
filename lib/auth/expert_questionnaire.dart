@@ -7,7 +7,7 @@ import '../widgets/questionnaire/expert_questionnaire_form.dart';
 import '../core/account_storage.dart';
 import '../widgets/app_toast.dart';
 import 'expert_submission_success.dart';
-import '../services/expert_questionnaire_service.dart';
+import '../services/core/expert_questionnaire_service.dart';
 
 class ExpertQuestionnairePage extends StatefulWidget {
   const ExpertQuestionnairePage({super.key});

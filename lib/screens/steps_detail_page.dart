@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/steps_service.dart';
+import '../services/health/steps_service.dart';
 import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
 

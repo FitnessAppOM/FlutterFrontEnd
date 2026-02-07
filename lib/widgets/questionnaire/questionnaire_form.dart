@@ -5,8 +5,8 @@ import 'cupertino_picker_field.dart';
 import 'height_picker_with_body.dart';
 import 'weight_picker_popup.dart';
 import '../app_toast.dart';
-import '../../services/affiliation_service.dart';
-import '../../services/university_service.dart';
+import '../../services/auth/affiliation_service.dart';
+import '../../services/core/university_service.dart';
 
 
 class QuestionnaireForm extends StatefulWidget {

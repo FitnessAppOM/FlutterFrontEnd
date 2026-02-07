@@ -5,7 +5,7 @@ import '../widgets/dashboard/whoop_cycle_card.dart';
 import '../widgets/dashboard/whoop_body_card.dart';
 import 'whoop_recovery_detail_page.dart';
 import 'whoop_cycle_detail_page.dart';
-import '../services/whoop_cycle_service.dart';
+import '../services/whoop/whoop_cycle_service.dart';
 import 'whoop_body_detail_page.dart';
 
 class WhoopInsightsPage extends StatefulWidget {

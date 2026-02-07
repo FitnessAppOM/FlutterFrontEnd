@@ -13,13 +13,13 @@ import '../localization/app_localizations.dart';
 import '../main/main_layout.dart';
 import '../core/locale_controller.dart';
 import '../config/base_url.dart';
-import '../services/profile_service.dart';
+import '../services/auth/profile_service.dart';
 import '../auth/questionnaire.dart';
 import '../auth/expert_questionnaire.dart';
 import '../widgets/app_toast.dart';
-import '../services/navigation_service.dart';
-import '../services/notification_service.dart';
-import '../services/daily_metrics_sync.dart';
+import '../services/core/navigation_service.dart';
+import '../services/core/notification_service.dart';
+import '../services/metrics/daily_metrics_sync.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 

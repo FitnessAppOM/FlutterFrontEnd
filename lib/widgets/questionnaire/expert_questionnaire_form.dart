@@ -5,12 +5,12 @@ import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../localization/app_localizations.dart';
-import '../../services/affiliation_service.dart';
+import '../../services/auth/affiliation_service.dart';
 import '../../theme/app_theme.dart';
 import '../primary_button.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../consents/consent_manager.dart';
-import '../../services/expert_questionnaire_service.dart';
+import '../../services/core/expert_questionnaire_service.dart';
 import '../app_toast.dart';
 
 class ExpertQuestionnaireForm extends StatefulWidget {

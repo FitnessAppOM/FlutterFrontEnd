@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../../services/training_service.dart';
+import '../../services/training/training_service.dart';
 
 
 class ExerciseCard extends StatelessWidget {

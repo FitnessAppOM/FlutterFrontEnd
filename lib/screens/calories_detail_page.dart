@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../services/calories_service.dart';
+import '../services/diet/calories_service.dart';
 import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
 

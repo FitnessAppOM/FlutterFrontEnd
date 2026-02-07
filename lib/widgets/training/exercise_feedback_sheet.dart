@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../localization/app_localizations.dart';
-import '../../services/training_service.dart';
-import '../../services/exercise_action_queue.dart';
+import '../../services/training/training_service.dart';
+import '../../services/training/exercise_action_queue.dart';
 import '../../widgets/app_toast.dart';
-import '../../services/feedback_questions_storage.dart';
+import '../../services/core/feedback_questions_storage.dart';
 
 class ExerciseFeedbackSheet extends StatefulWidget {
   final int programExerciseId;

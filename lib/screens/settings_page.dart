@@ -7,14 +7,14 @@ import '../localization/app_localizations.dart';
 import '../widgets/lang_button.dart';
 import '../core/locale_controller.dart';
 import 'ForgetPassword/forgot_password_page.dart';
-import '../services/profile_service.dart';
+import '../services/auth/profile_service.dart';
 import '../core/account_storage.dart';
 import '../widgets/app_toast.dart';
 import 'package:image_picker/image_picker.dart';
 import '../config/base_url.dart';
 import '../consents/consent_manager.dart';
 import '../auth/expert_questionnaire.dart';
-import '../services/notification_service.dart';
+import '../services/core/notification_service.dart';
 import '../screens/welcome.dart';
 
 class SettingsPage extends StatefulWidget {

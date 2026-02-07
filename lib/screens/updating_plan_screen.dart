@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../core/account_storage.dart';
+import '../core/diet_regeneration_flag.dart';
 import '../localization/app_localizations.dart';
 import '../main/main_layout.dart';
-import '../services/diet_service.dart';
-import '../services/profile_service.dart';
-import '../services/training_service.dart';
+import '../services/auth/profile_service.dart';
+import '../services/diet/diet_service.dart';
+import '../services/diet/diet_targets_storage.dart';
+import '../services/training/training_service.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/training_loading_indicator.dart';
 
@@ -55,15 +57,11 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
       await ProfileApi.updateProfile(widget.profilePayload).timeout(_timeout);
       if (!mounted) return;
 
-      // 2) Regenerate training (AI)
+      // 2) Regenerate training (AI); diet is generated in background
       await TrainingService.generateProgram(userId).timeout(_timeout);
       if (!mounted) return;
 
-      // 3) Regenerate diet targets (AI)
-      await DietService.generateTargets(userId).timeout(_timeout);
-      if (!mounted) return;
-
-      // 4) Pre-open / fetch today's meals (best-effort)
+      // 3) Pre-open / fetch today's meals (best-effort)
       try {
         await DietService.fetchMealsForDate(
           userId,
@@ -74,6 +72,9 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
         // ignore
       }
 
+      if (!mounted) return;
+      DietRegenerationFlag.setRegenerating();
+      await DietTargetsStorage.clearTargets();
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
@@ -113,10 +114,13 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
     }
   }
 
+  /// Navigate if training program is ready (diet may still be generating in background).
   Future<bool> _tryNavigateIfReady(int userId) async {
     try {
       await TrainingService.fetchActiveProgram(userId).timeout(const Duration(seconds: 20));
-      await DietService.fetchCurrentTargets(userId).timeout(const Duration(seconds: 20));
+      if (!mounted) return true;
+      DietRegenerationFlag.setRegenerating();
+      await DietTargetsStorage.clearTargets();
       if (!mounted) return true;
       Navigator.pushAndRemoveUntil(
         context,

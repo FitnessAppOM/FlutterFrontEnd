@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
-import '../services/whoop_profile_service.dart';
+import '../services/whoop/whoop_profile_service.dart';
 
 class WhoopBodyDetailPage extends StatefulWidget {
   const WhoopBodyDetailPage({super.key});

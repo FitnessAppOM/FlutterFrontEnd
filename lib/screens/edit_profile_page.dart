@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../core/account_storage.dart';
 import '../../localization/app_localizations.dart';
-import '../../services/profile_service.dart';
-import '../../services/affiliation_service.dart';
-import '../../services/university_service.dart';
+import '../../services/auth/profile_service.dart';
+import '../../services/auth/affiliation_service.dart';
+import '../../services/core/university_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/primary_button.dart';
+import 'updating_diet_screen.dart';
 import 'updating_plan_screen.dart';
 
 class EditProfilePage extends StatefulWidget {
@@ -388,6 +389,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final newTrainingDays = trainingDaysKey;
     final trainingDaysChanged = initialTrainingDays != newTrainingDays;
 
+    // Check if main goal or nutrition (diet type) changed — we'll regenerate diet only after save
+    final rawInitialGoal = (initialStr("fitness_goal").trim().isNotEmpty
+        ? initialStr("fitness_goal")
+        : initialStr("main_goal"));
+    final initialMainGoal = _mapOptionKey(rawInitialGoal, _goalOptions()) ?? rawInitialGoal.trim();
+    final initialDiet = (initialStr("diet_type")).trim();
+    final newDietValue = resolvedDietKey == _otherKey ? _dietOtherCtrl.text.trim() : (resolvedDietKey ?? "");
+    final mainGoalOrDietChanged = (initialMainGoal != mainGoalKey) || (initialDiet != newDietValue);
+
     setState(() => _saving = true);
 
     // If training days changed, prompt the user before regenerating training + diet.
@@ -435,6 +445,56 @@ class _EditProfilePageState extends State<EditProfilePage> {
       return;
     }
 
+    // If main goal or nutrition changed, confirm then show loading screen until diet is regenerated
+    if (mainGoalOrDietChanged) {
+      if (!mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) {
+          final t = AppLocalizations.of(ctx);
+          return AlertDialog(
+            backgroundColor: AppColors.cardDark,
+            title: Text(
+              t.translate("diet_plan_change_confirm_title"),
+              style: const TextStyle(color: Colors.white),
+            ),
+            content: Text(
+              t.translate("diet_plan_change_confirm_message"),
+              style: const TextStyle(color: Colors.white70),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(t.translate("common_cancel"), style: const TextStyle(color: Colors.white70)),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
+                child: Text(t.translate("common_confirm"), style: const TextStyle(color: Colors.black)),
+              ),
+            ],
+          );
+        },
+      );
+      if (!mounted) return;
+      if (confirmed != true) {
+        setState(() => _saving = false);
+        return;
+      }
+      final result = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(builder: (_) => UpdatingDietScreen(profilePayload: payload)),
+      );
+      if (!mounted) return;
+      setState(() => _saving = false);
+      if (result == true) {
+        AppToast.show(context, _t("profile_update_success"), type: AppToastType.success);
+        Navigator.of(context).pop(true);
+      }
+      return;
+    }
+
     try {
       await ProfileApi.updateProfile(payload);
       if (!mounted) return;
@@ -445,7 +505,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
         type: AppToastType.success,
       );
 
-      // Otherwise, just pop back
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;

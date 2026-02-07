@@ -5,10 +5,10 @@ import '../../widgets/training/exercise_card.dart';
 import '../../widgets/training/exercise_session_sheet.dart';
 import '../../core/account_storage.dart';
 import '../../localization/app_localizations.dart';
-import '../../services/training_service.dart';
+import '../../services/training/training_service.dart';
 import '../../widgets/training/replace_exercise_sheet.dart';
 import '../../widgets/app_toast.dart';
-import '../../services/exercise_action_queue.dart';
+import '../../services/training/exercise_action_queue.dart';
 
 class TrainPage extends StatefulWidget {
   const TrainPage({super.key});

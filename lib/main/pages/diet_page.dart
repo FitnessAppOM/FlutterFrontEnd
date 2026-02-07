@@ -1,16 +1,19 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../widgets/Main/section_header.dart';
 import '../../widgets/Main/card_container.dart';
 import '../../core/account_storage.dart';
+import '../../core/diet_regeneration_flag.dart';
 import '../../localization/app_localizations.dart';
-import '../../services/diet_service.dart';
+import '../../services/diet/diet_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/diet_item_search_sheet.dart';
 import '../../widgets/diet_logging_options_sheet.dart';
 import '../../widgets/diet_manual_entry_sheet.dart';
 import '../../widgets/diet_photo_entry_sheet.dart';
-import '../../services/training_completion_storage.dart';
-import '../../services/training_calendar_service.dart';
+import '../../widgets/diet_favorites_sheet.dart';
+import '../../services/training/training_completion_storage.dart';
+import '../../services/training/training_calendar_service.dart';
 
 class DietPage extends StatefulWidget {
   const DietPage({super.key});
@@ -24,6 +27,8 @@ class DietPageState extends State<DietPage> {
   String? _error;
   Map<String, dynamic>? _targets;
   bool _targetsFromCache = false;
+  /// When diet is generating in background, we poll until targets appear.
+  Timer? _targetsPollTimer;
 
   bool _mealsLoading = true;
   String? _mealsError;
@@ -47,6 +52,13 @@ class DietPageState extends State<DietPage> {
     _loadTargets();
     _loadMeals();
     _updateTrainingLockFromCompletion();
+  }
+
+  @override
+  void dispose() {
+    _targetsPollTimer?.cancel();
+    _targetsPollTimer = null;
+    super.dispose();
   }
 
   /// Call when user switches to diet tab (e.g. after finishing a workout) so we refresh lock state.
@@ -84,6 +96,24 @@ class DietPageState extends State<DietPage> {
 
       final data = await DietService.fetchCurrentTargets(userId);
       if (!mounted) return;
+      // While diet was just regenerated (e.g. after training days change), don't
+      // accept the first response — it may still be old. Wait and keep polling.
+      if (DietRegenerationFlag.isRegenerating && !DietRegenerationFlag.canAcceptTargets) {
+        _targetsPollTimer?.cancel();
+        _targetsPollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+          if (!mounted) return;
+          _loadTargets(forceNetwork: true);
+        });
+        setState(() {
+          _loading = true;
+          _error = null;
+          _targetsFromCache = false;
+        });
+        return;
+      }
+      DietRegenerationFlag.clear();
+      _targetsPollTimer?.cancel();
+      _targetsPollTimer = null;
       setState(() {
         _targets = data;
         _loading = false;
@@ -92,28 +122,39 @@ class DietPageState extends State<DietPage> {
         _selectedTrainingDayIndex = 0;
       });
     } catch (e) {
-      // Cache fallback (offline-friendly)
-      try {
-        final cached = await DietService.fetchCurrentTargetsFromCache();
-        if (!mounted) return;
-        if (cached != null) {
-          setState(() {
-            _targets = cached;
-            _loading = false;
-            _targetsFromCache = true;
-            _selectedTrainingDayIndex = 0;
-          });
-          return;
+      // Cache fallback (offline-friendly) — but never show old cache while diet is regenerating
+      if (!DietRegenerationFlag.isRegenerating) {
+        try {
+          final cached = await DietService.fetchCurrentTargetsFromCache();
+          if (!mounted) return;
+          if (cached != null) {
+            _targetsPollTimer?.cancel();
+            _targetsPollTimer = null;
+            setState(() {
+              _targets = cached;
+              _loading = false;
+              _error = null;
+              _targetsFromCache = true;
+              _selectedTrainingDayIndex = 0;
+            });
+            return;
+          }
+        } catch (_) {
+          // ignore cache load errors
         }
-      } catch (_) {
-        // ignore cache load errors
       }
 
+      // Diet still generating in background: keep loading and poll until ready
       if (!mounted) return;
+      _targetsPollTimer?.cancel();
+      _targetsPollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+        if (!mounted) return;
+        _loadTargets(forceNetwork: true);
+      });
       setState(() {
-        _loading = false;
+        _loading = true;
+        _error = null;
         _targetsFromCache = false;
-        _error = e.toString().replaceFirst('Exception: ', '');
       });
     }
   }
@@ -122,6 +163,12 @@ class DietPageState extends State<DietPage> {
     if (v is int) return v;
     if (v is double) return v.round();
     return int.tryParse(v?.toString() ?? "") ?? fallback;
+  }
+
+  static double _asDouble(dynamic v, {double fallback = 0}) {
+    if (v is double) return v;
+    if (v is int) return v.toDouble();
+    return double.tryParse(v?.toString() ?? "") ?? fallback;
   }
 
   static String _asString(dynamic v) => (v == null ? "" : v.toString()).trim();
@@ -282,7 +329,527 @@ class DietPageState extends State<DietPage> {
     return null;
   }
 
+  List<Map<String, dynamic>> _mealItems(Map<String, dynamic> meal) {
+    final list = meal["items"];
+    if (list is List) {
+      return list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+    }
+    return const [];
+  }
+
+  int _mealItemId(Map<String, dynamic> item) {
+    // Backend likely uses "id" for meal item primary key; fall back to other keys if present.
+    return _asInt(item["meal_item_id"] ?? item["id"] ?? item["item_id"], fallback: 0);
+  }
+
   int _dsInt(Map<String, dynamic>? m, String key) => _asInt(m?[key], fallback: 0);
+
+  Future<void> _openAddIngredientDialog({
+    required int mealItemId,
+    required String itemName,
+  }) async {
+    final t = AppLocalizations.of(context);
+    final nameCtrl = TextEditingController();
+    final amountCtrl = TextEditingController();
+    final unitCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    try {
+      final res = await showDialog<bool>(
+        context: context,
+        builder: (ctx) {
+          return AlertDialog(
+            scrollable: true,
+            title: Text(t.translate("diet_add_ingredient")),
+            content: Form(
+              key: formKey,
+              child: Column(
+                children: [
+                  Text(
+                    itemName,
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: nameCtrl,
+                    decoration: InputDecoration(
+                      labelText: t.translate("diet_ingredient_name"),
+                    ),
+                    validator: (v) {
+                      final trimmed = v?.trim() ?? '';
+                      if (trimmed.isEmpty) {
+                        return t.translate("diet_ingredient_name_required");
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: amountCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: t.translate("diet_ingredient_amount"),
+                      hintText: t.translate("diet_ingredient_optional"),
+                    ),
+                    validator: (v) {
+                      final trimmed = v?.trim() ?? '';
+                      if (trimmed.isEmpty) return null;
+                      final val = double.tryParse(trimmed);
+                      if (val == null || val <= 0) {
+                        return t.translate("diet_ingredient_amount_invalid");
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: unitCtrl,
+                    decoration: InputDecoration(
+                      labelText: t.translate("diet_ingredient_unit"),
+                      hintText: t.translate("diet_ingredient_optional"),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(t.translate("common_cancel")),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (!formKey.currentState!.validate()) return;
+                  Navigator.of(ctx).pop(true);
+                },
+                child: Text(t.translate("diet_add_ingredient")),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (res != true) return;
+
+      final userId = await AccountStorage.getUserId();
+      if (userId == null) return;
+
+      final ingredients = [
+        {
+          'ingredient_name': nameCtrl.text.trim(),
+          if (amountCtrl.text.trim().isNotEmpty)
+            'amount': double.parse(amountCtrl.text.trim()),
+          if (unitCtrl.text.trim().isNotEmpty) 'unit': unitCtrl.text.trim(),
+        },
+      ];
+      await DietService.addIngredientsToMealItem(
+        userId: userId,
+        mealItemId: mealItemId,
+        ingredients: ingredients,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(t.translate("diet_ingredient_added"))),
+      );
+      await _loadMeals();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("${t.translate("diet_ingredient_add_failed")}: $e")),
+      );
+    } finally {
+      nameCtrl.dispose();
+      amountCtrl.dispose();
+      unitCtrl.dispose();
+    }
+  }
+
+  Future<void> _openFavoritesSheet({
+    required int userId,
+    required int mealId,
+    required String mealTitle,
+    required int? trainingDayId,
+  }) async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.black,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (_) => DietFavoritesSheet(
+        rootContext: context,
+        userId: userId,
+        mealId: mealId,
+        mealTitle: mealTitle,
+        trainingDayId: trainingDayId,
+        onLogged: (daySummary) async {
+          try {
+            if (daySummary != null && _meals != null && mounted) {
+              setState(() {
+                _meals = {
+                  ..._meals!,
+                  "day_summary": daySummary,
+                };
+              });
+            }
+            if (mounted) await _loadMeals();
+          } catch (_) {
+            if (mounted) await _loadMeals();
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> _saveMealAsFavorite({
+    required int userId,
+    required Map<String, dynamic> meal,
+    required String mealTitle,
+  }) async {
+    final t = AppLocalizations.of(context);
+    final nameCtrl = TextEditingController(text: mealTitle);
+    final notesCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          scrollable: true,
+          title: Text(t.translate("diet_favorites_save_title")),
+          content: Form(
+            key: formKey,
+            child: Column(
+              children: [
+                TextFormField(
+                  controller: nameCtrl,
+                  decoration: InputDecoration(
+                    labelText: t.translate("diet_favorites_name"),
+                  ),
+                  validator: (v) {
+                    final trimmed = v?.trim() ?? '';
+                    if (trimmed.isEmpty) {
+                      return t.translate("diet_favorites_name_required");
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: notesCtrl,
+                  decoration: InputDecoration(
+                    labelText: t.translate("diet_favorites_notes"),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(t.translate("common_cancel")),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (!formKey.currentState!.validate()) return;
+                Navigator.of(ctx).pop(true);
+              },
+              child: Text(t.translate("diet_favorites_save")),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    final items = _mealItems(meal);
+    if (items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(t.translate("diet_favorites_empty_meal"))),
+      );
+      return;
+    }
+
+    final payloadItems = items.asMap().entries.map((entry) {
+      final index = entry.key; // 0-based
+      final item = entry.value;
+      final ingredients = item['ingredients'];
+      final ingList = ingredients is List
+          ? ingredients.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList()
+          : <Map<String, dynamic>>[];
+      final source = _asString(item['source']);
+      return {
+        'source': source.isNotEmpty ? source : 'manual',
+        'item_name': _asString(item['item_name']),
+        if (item['grams'] != null) 'grams': _asDouble(item['grams']),
+        'calories': _asInt(item['calories']),
+        'protein_g': _asInt(item['protein_g']),
+        'carbs_g': _asInt(item['carbs_g']),
+        'fat_g': _asInt(item['fat_g']),
+        'is_estimated': item['is_estimated'] == true,
+        'photo_url': item['photo_url'],
+        'food_id': item['food_id'],
+        // Backend requires item_order >= 1; use 1..N regardless of original value.
+        'item_order': index + 1,
+        if (ingList.isNotEmpty) 'ingredients': ingList,
+      };
+    }).toList();
+
+    try {
+      await DietService.createFavoriteMeal(
+        userId: userId,
+        mealName: nameCtrl.text.trim(),
+        notes: notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
+        items: payloadItems,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(t.translate("diet_favorites_saved"))),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("${t.translate("diet_favorites_save_failed")}: $e")),
+      );
+    } finally {
+      nameCtrl.dispose();
+      notesCtrl.dispose();
+    }
+  }
+
+  Future<void> _createMealManually() async {
+    final t = AppLocalizations.of(context);
+    final titleCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) {
+          return AlertDialog(
+            scrollable: true,
+            title: Text(t.translate("diet_add_meal_title")),
+            content: Form(
+              key: formKey,
+              child: TextFormField(
+                controller: titleCtrl,
+                decoration: InputDecoration(
+                  labelText: t.translate("diet_add_meal_name"),
+                  hintText: t.translate("diet_add_meal_name_hint"),
+                ),
+                validator: (v) {
+                  final trimmed = v?.trim() ?? '';
+                  if (trimmed.length > 120) {
+                    return t.translate("diet_add_meal_name_too_long");
+                  }
+                  return null;
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(t.translate("common_cancel")),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (!formKey.currentState!.validate()) return;
+                  Navigator.of(ctx).pop(true);
+                },
+                child: Text(t.translate("diet_add_meal_confirm")),
+              ),
+            ],
+          );
+        },
+      );
+      if (confirmed != true) return;
+
+      final userId = await AccountStorage.getUserId();
+      if (userId == null) return;
+
+      await DietService.createMeal(
+        userId: userId,
+        date: _mealDate,
+        title: titleCtrl.text.trim().isEmpty ? null : titleCtrl.text.trim(),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(t.translate("diet_add_meal_success"))),
+      );
+      await _loadMeals();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("${t.translate("diet_add_meal_failed")}: $e")),
+      );
+    } finally {
+      titleCtrl.dispose();
+    }
+  }
+
+  Future<void> _deleteMeal({
+    required int mealId,
+    required String mealTitle,
+    required List<Map<String, dynamic>> items,
+    int? trainingDayId,
+  }) async {
+    final t = AppLocalizations.of(context);
+    final itemCount = items.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          scrollable: true,
+          title: Text(t.translate("diet_delete_meal_title")),
+          content: Text(
+            "${(itemCount > 0 ? t.translate("diet_delete_meal_confirm_has_items") : t.translate("diet_delete_meal_confirm_empty")).replaceAll("{meal}", mealTitle)}\n\n${t.translate("diet_delete_meal_note")}",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(t.translate("common_cancel")),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(t.translate("diet_delete_meal_confirm")),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true) return;
+
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null) return;
+      final response = await DietService.deleteMeal(
+        userId: userId,
+        mealId: mealId,
+        trainingDayId: trainingDayId,
+      );
+      if (!mounted) return;
+      final daySummary = response["day_summary"] is Map
+          ? (response["day_summary"] as Map).cast<String, dynamic>()
+          : null;
+      if (_meals != null) {
+        final updatedMeals = _mealList
+            .where((m) => _asInt(m["meal_id"], fallback: 0) != mealId)
+            .toList();
+        setState(() {
+          _meals = {
+            ..._meals!,
+            "meals": updatedMeals,
+            if (daySummary != null) "day_summary": daySummary,
+          };
+        });
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(t.translate("diet_delete_meal_success"))),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("${t.translate("diet_delete_meal_failed")}: $e")),
+      );
+    }
+  }
+
+  Future<void> _deleteMealItem({
+    required int mealItemId,
+    required String itemName,
+  }) async {
+    final t = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          scrollable: true,
+          title: Text(t.translate("diet_delete_item_title")),
+          content: Text(
+            t.translate("diet_delete_item_confirm").replaceAll("{item}", itemName),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(t.translate("common_cancel")),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(t.translate("diet_delete_item_confirm_button")),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true) return;
+
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null) return;
+      await DietService.deleteMealItem(userId: userId, mealItemId: mealItemId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(t.translate("diet_delete_item_success"))),
+      );
+      await _loadMeals();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("${t.translate("diet_delete_item_failed")}: $e")),
+      );
+    }
+  }
+
+  Future<void> _clearMealItems({
+    required List<Map<String, dynamic>> items,
+    required String mealTitle,
+  }) async {
+    final t = AppLocalizations.of(context);
+    if (items.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          scrollable: true,
+          title: Text(t.translate("diet_clear_meal_title")),
+          content: Text(
+            t.translate("diet_clear_meal_confirm").replaceAll("{meal}", mealTitle),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(t.translate("common_cancel")),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(t.translate("diet_clear_meal_confirm_button")),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true) return;
+
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null) return;
+      for (final item in items) {
+        final itemId = _mealItemId(item);
+        if (itemId <= 0) continue;
+        await DietService.deleteMealItem(userId: userId, mealItemId: itemId);
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(t.translate("diet_clear_meal_success"))),
+      );
+      await _loadMeals();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("${t.translate("diet_clear_meal_failed")}: $e")),
+      );
+    }
+  }
 
   Future<void> _freezeDay() async {
     final t = AppLocalizations.of(context);
@@ -453,27 +1020,24 @@ class DietPageState extends State<DietPage> {
                 ),
                 const SizedBox(height: 14),
 
-                if (_loading) ...[
+                if (_loading || _targets == null || DietRegenerationFlag.isRegenerating) ...[
                   Center(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: CircularProgressIndicator(color: cs.primary),
-                    ),
-                  ),
-                ] else if (_targets == null) ...[
-                  Text(
-                    t.translate("diet_no_targets_yet"),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => _loadTargets(forceNetwork: true),
-                      child: Text(t.translate("generating_retry")),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(color: cs.primary),
+                          const SizedBox(height: 12),
+                          Text(
+                            t.translate("diet_preparing_plan"),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ] else ...[
@@ -699,6 +1263,11 @@ class DietPageState extends State<DietPage> {
                       onPressed: _mealsLoading ? null : _loadMeals,
                       icon: const Icon(Icons.refresh, color: Colors.white70),
                     ),
+                    IconButton(
+                      tooltip: t.translate("diet_add_meal_title"),
+                      onPressed: _mealsLoading ? null : _createMealManually,
+                      icon: const Icon(Icons.add_circle_outline, color: Colors.white70),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 14),
@@ -733,10 +1302,20 @@ class DietPageState extends State<DietPage> {
                     ),
                   ),
                 ] else ...[
-                  ..._mealList.map((meal) {
-                    final title = _asString(meal["title"]);
-                    final idx = _asInt(meal["meal_index"], fallback: 0);
-                    final items = meal["items"] is List ? (meal["items"] as List).length : 0;
+                  ..._mealList.asMap().entries.map((entry) {
+                    final listIndex = entry.key;
+                    final meal = entry.value;
+                    final backendTitle = _asString(meal["title"]);
+                    final idx = listIndex + 1; // Frontend display index (1..N) - always use this for numbering
+                    // Use custom title only if it's not a default "Meal X" pattern
+                    final isDefaultTitle = backendTitle.isEmpty || 
+                        RegExp(r'^Meal\s+\d+$', caseSensitive: false).hasMatch(backendTitle) ||
+                        RegExp(r'^' + t.translate("diet_meal") + r'\s+\d+$', caseSensitive: false).hasMatch(backendTitle);
+                    final displayTitle = (!isDefaultTitle && backendTitle.isNotEmpty) 
+                        ? backendTitle 
+                        : "${t.translate("diet_meal")} $idx";
+                    final itemList = _mealItems(meal);
+                    final items = itemList.length;
                     final sums = _sumMealItemsMacros(meal);
                     final itemsLabel = items == 1
                         ? t.translate("diet_items_singular")
@@ -761,12 +1340,75 @@ class DietPageState extends State<DietPage> {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    title.isNotEmpty ? title : "${t.translate("diet_meal")} $idx",
+                                    displayTitle,
                                     style: theme.textTheme.titleSmall?.copyWith(
                                       color: Colors.white,
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
+                                ),
+                                PopupMenuButton<String>(
+                                  icon: const Icon(Icons.more_vert, color: Colors.white70),
+                                  onSelected: (value) async {
+                                    final userId = await AccountStorage.getUserId();
+                                    if (userId == null) return;
+                                    final trainingDayId = _modeIndex == 1
+                                        ? _asInt(_selectedTrainingDay?["day_id"], fallback: 0)
+                                        : null;
+                                    if (value == 'favorites_log') {
+                                      await _openFavoritesSheet(
+                                        userId: userId,
+                                        mealId: mealId,
+                                        mealTitle: displayTitle,
+                                        trainingDayId: trainingDayId,
+                                      );
+                                      return;
+                                    }
+                                    if (value == 'favorites_save') {
+                                      await _saveMealAsFavorite(
+                                        userId: userId,
+                                        meal: meal,
+                                        mealTitle: displayTitle,
+                                      );
+                                      return;
+                                    }
+                                    if (value == 'meal_clear_items') {
+                                      await _clearMealItems(
+                                        items: itemList,
+                                        mealTitle: displayTitle,
+                                      );
+                                      return;
+                                    }
+                                    if (value == 'meal_delete') {
+                                      if (mealId <= 0) return;
+                                      await _deleteMeal(
+                                        mealId: mealId,
+                                        mealTitle: displayTitle,
+                                        items: itemList,
+                                        trainingDayId: trainingDayId,
+                                      );
+                                    }
+                                  },
+                                  itemBuilder: (ctx) => [
+                                    PopupMenuItem(
+                                      value: 'favorites_log',
+                                      child: Text(t.translate("diet_favorites_add_from")),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'favorites_save',
+                                      enabled: itemList.isNotEmpty,
+                                      child: Text(t.translate("diet_favorites_save_current")),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'meal_clear_items',
+                                      enabled: itemList.isNotEmpty,
+                                      child: Text(t.translate("diet_clear_meal_items")),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'meal_delete',
+                                      child: Text(t.translate("diet_delete_meal")),
+                                    ),
+                                  ],
                                 ),
                                 IconButton(
                                   tooltip: t.translate("diet_add_item"),
@@ -777,9 +1419,6 @@ class DietPageState extends State<DietPage> {
                                           if (userId == null) return;
                                           if (!context.mounted) return;
 
-                                          final mealTitle = title.isNotEmpty
-                                              ? title
-                                              : "${t.translate("diet_meal")} $idx";
                                           final trainingDayId = _modeIndex == 1
                                               ? _asInt(_selectedTrainingDay?["day_id"], fallback: 0)
                                               : null;
@@ -793,7 +1432,7 @@ class DietPageState extends State<DietPage> {
                                               borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
                                             ),
                                             builder: (_) => DietLoggingOptionsSheet(
-                                              mealTitle: mealTitle,
+                                              mealTitle: displayTitle,
                                               onSearch: () async {
                                                 if (!context.mounted) return;
                                                 await showModalBottomSheet(
@@ -807,7 +1446,7 @@ class DietPageState extends State<DietPage> {
                                                     rootContext: context,
                                                     userId: userId,
                                                     mealId: mealId,
-                                                    mealTitle: mealTitle,
+                                                    mealTitle: displayTitle,
                                                     trainingDayId: trainingDayId,
                                                     initialTab: 0,
                                                     onLogged: (daySummary) async {
@@ -841,7 +1480,7 @@ class DietPageState extends State<DietPage> {
                                                     rootContext: context,
                                                     userId: userId,
                                                     mealId: mealId,
-                                                    mealTitle: mealTitle,
+                                                    mealTitle: displayTitle,
                                                     trainingDayId: trainingDayId,
                                                     onLogged: (daySummary) async {
                                                       try {
@@ -874,7 +1513,7 @@ class DietPageState extends State<DietPage> {
                                                     rootContext: context,
                                                     userId: userId,
                                                     mealId: mealId,
-                                                    mealTitle: mealTitle,
+                                                    mealTitle: displayTitle,
                                                     trainingDayId: trainingDayId,
                                                     onLogged: (daySummary) async {
                                                       try {
@@ -947,6 +1586,98 @@ class DietPageState extends State<DietPage> {
                                 color: Colors.white60,
                               ),
                             ),
+                            if (itemList.isNotEmpty) ...[
+                              const SizedBox(height: 14),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: itemList.map((item) {
+                                  final itemName = _asString(item["item_name"]);
+                                  final kcal = _asInt(item["calories"]);
+                                  final p = _asInt(item["protein_g"]);
+                                  final c = _asInt(item["carbs_g"]);
+                                  final f = _asInt(item["fat_g"]);
+                                  final grams = item["grams"];
+                                  final itemId = _mealItemId(item);
+                                  final ingredients = item["ingredients"];
+                                  final ingList = ingredients is List
+                                      ? ingredients.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList()
+                                      : <Map<String, dynamic>>[];
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 10),
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.black.withValues(alpha: 0.6),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: const Color(0xFFD4AF37).withValues(alpha: 0.12),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                itemName,
+                                                style: theme.textTheme.bodyMedium?.copyWith(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ),
+                                            if (itemId > 0)
+                                              IconButton(
+                                                tooltip: t.translate("diet_add_ingredient"),
+                                                onPressed: () => _openAddIngredientDialog(
+                                                  mealItemId: itemId,
+                                                  itemName: itemName,
+                                                ),
+                                                icon: const Icon(Icons.add, color: Colors.white70, size: 20),
+                                              ),
+                                            if (itemId > 0)
+                                              IconButton(
+                                                tooltip: t.translate("diet_delete_item"),
+                                                onPressed: () => _deleteMealItem(
+                                                  mealItemId: itemId,
+                                                  itemName: itemName,
+                                                ),
+                                                icon: const Icon(Icons.delete_outline, color: Colors.white54, size: 20),
+                                              ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          "${t.translate("diet_kcal_label")} $kcal • "
+                                          "${t.translate("diet_p_short")} $p • "
+                                          "${t.translate("diet_c_short")} $c • "
+                                          "${t.translate("diet_f_short")} $f"
+                                          "${grams != null ? " • ${grams}g" : ""}",
+                                          style: theme.textTheme.bodySmall?.copyWith(color: Colors.white60),
+                                        ),
+                                        if (ingList.isNotEmpty) ...[
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            ingList
+                                                .map((ing) {
+                                                  final n = _asString(ing["ingredient_name"]);
+                                                  final amt = ing["amount"];
+                                                  final unit = _asString(ing["unit"]);
+                                                  final amountLabel = amt != null ? " ${amt.toString()}" : "";
+                                                  final unitLabel = unit.isNotEmpty ? " $unit" : "";
+                                                  return "$n$amountLabel$unitLabel";
+                                                })
+                                                .where((e) => e.trim().isNotEmpty)
+                                                .join(" • "),
+                                            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
                           ],
                         ),
                       ),

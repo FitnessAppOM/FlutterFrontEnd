@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../config/base_url.dart';
 import '../core/account_storage.dart';
-import '../services/auth_service.dart';
+import '../services/auth/auth_service.dart';
 import '../theme/spacing.dart';
 import '../theme/app_theme.dart';
 import '../widgets/primary_button.dart';
@@ -16,12 +16,12 @@ import '../localization/app_localizations.dart';
 import '../screens/ForgetPassword/forgot_password_page.dart';
 import '../main/main_layout.dart';           // <-- MAIN PAGE
 import 'email_verification_page.dart';
-import '../services/profile_service.dart';
+import '../services/auth/profile_service.dart';
 import 'questionnaire.dart';
 import 'expert_questionnaire.dart';
 import '../widgets/app_toast.dart';
-import '../services/notification_service.dart';
-import '../services/daily_metrics_sync.dart';
+import '../services/core/notification_service.dart';
+import '../services/metrics/daily_metrics_sync.dart';
 
 class LoginPage extends StatefulWidget {
   final String? prefilledEmail;

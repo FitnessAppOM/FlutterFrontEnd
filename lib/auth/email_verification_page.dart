@@ -11,8 +11,8 @@ import '../localization/app_localizations.dart';   // ADDED
 import 'questionnaire.dart';
 import 'expert_questionnaire.dart';
 import '../widgets/app_toast.dart';
-import '../services/notification_service.dart';
-import '../services/daily_metrics_sync.dart';
+import '../services/core/notification_service.dart';
+import '../services/metrics/daily_metrics_sync.dart';
 
 class EmailVerificationPage extends StatefulWidget {
   final String email;

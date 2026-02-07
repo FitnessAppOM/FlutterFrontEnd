@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../localization/app_localizations.dart';
-import '../services/diet_service.dart';
-import '../services/nutrition_search_service.dart';
+import '../services/diet/diet_service.dart';
+import '../services/diet/nutrition_search_service.dart';
 import '../theme/app_theme.dart';
 
 class DietItemSearchSheet extends StatefulWidget {
@@ -208,8 +208,8 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
     required String unit,
     required String initial,
   }) async {
-    final ctrl = TextEditingController(text: initial);
     final t = AppLocalizations.of(context);
+    String value = initial;
     final res = await showDialog<double>(
       context: context,
       builder: (ctx) {
@@ -218,9 +218,10 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
           title: Text(title),
           content: Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: TextField(
-              controller: ctrl,
-              keyboardType: TextInputType.number,
+            child: TextFormField(
+              initialValue: initial,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              onChanged: (v) => value = v,
               decoration: InputDecoration(
                 hintText: hint,
                 suffixText: unit,
@@ -234,7 +235,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
             ),
             ElevatedButton(
               onPressed: () {
-                final v = double.tryParse(ctrl.text.trim());
+                final v = double.tryParse(value.trim());
                 Navigator.of(ctx).pop(v);
               },
               child: Text(t.translate("diet_log")),
@@ -243,7 +244,6 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
         );
       },
     );
-    ctrl.dispose();
     return res;
   }
 
@@ -253,8 +253,8 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
     required String unit,
     required String initial,
   }) async {
-    final ctrl = TextEditingController(text: initial);
     final t = AppLocalizations.of(context);
+    String value = initial;
     final res = await showDialog<int>(
       context: context,
       builder: (ctx) {
@@ -263,9 +263,10 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
           title: Text(title),
           content: Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: TextField(
-              controller: ctrl,
+            child: TextFormField(
+              initialValue: initial,
               keyboardType: TextInputType.number,
+              onChanged: (v) => value = v,
               decoration: InputDecoration(
                 hintText: hint,
                 suffixText: unit,
@@ -279,7 +280,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
             ),
             ElevatedButton(
               onPressed: () {
-                final v = int.tryParse(ctrl.text.trim());
+                final v = int.tryParse(value.trim());
                 Navigator.of(ctx).pop(v);
               },
               child: Text(t.translate("diet_log")),
@@ -288,7 +289,6 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
         );
       },
     );
-    ctrl.dispose();
     return res;
   }
 

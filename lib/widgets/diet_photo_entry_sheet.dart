@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../localization/app_localizations.dart';
-import '../services/diet_service.dart';
+import '../services/diet/diet_service.dart';
 import '../theme/app_theme.dart';
 
 class DietPhotoEntrySheet extends StatefulWidget {

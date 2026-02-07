@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../config/base_url.dart';
-import '../services/auth_service.dart';
+import '../services/auth/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/spacing.dart';
 import '../widgets/primary_button.dart';
@@ -14,8 +14,8 @@ import '../widgets/app_toast.dart';
 import '../core/account_storage.dart';
 import 'questionnaire.dart';
 import 'expert_questionnaire.dart';
-import '../services/notification_service.dart';
-import '../services/daily_metrics_sync.dart';
+import '../services/core/notification_service.dart';
+import '../services/metrics/daily_metrics_sync.dart';
 
 
 

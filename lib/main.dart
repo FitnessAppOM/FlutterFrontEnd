@@ -9,11 +9,11 @@ import 'screens/welcome.dart';
 import 'theme/app_theme.dart';
 import 'core/locale_controller.dart';
 import 'consents/consent_manager.dart';
-import 'services/notification_service.dart';
+import 'services/core/notification_service.dart';
 import 'screens/daily_journal.dart';
-import 'services/navigation_service.dart';
-import 'services/daily_metrics_sync.dart';
-import 'services/exercise_action_queue.dart';
+import 'services/core/navigation_service.dart';
+import 'services/metrics/daily_metrics_sync.dart';
+import 'services/training/exercise_action_queue.dart';
 import 'core/account_storage.dart';
 
 void main() async {

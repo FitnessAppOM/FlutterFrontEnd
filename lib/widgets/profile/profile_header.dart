@@ -5,7 +5,7 @@ import '../../screens/welcome.dart';
 import '../../screens/settings_page.dart';
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
-import '../../services/notification_service.dart';
+import '../../services/core/notification_service.dart';
 
 class ProfileHeader extends StatelessWidget {
   const ProfileHeader({

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../services/diet_service.dart';
-import '../services/training_service.dart';
+import '../services/training/training_service.dart';
 import '../core/account_storage.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/training_loading_indicator.dart';
@@ -52,12 +51,8 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
         throw Exception("User not found");
       }
 
+      // Training program is returned immediately; diet is generated in background.
       await TrainingService.generateProgram(userId)
-          .timeout(_timeout);
-
-      if (!mounted) return;
-
-      await DietService.generateTargets(userId)
           .timeout(_timeout);
 
       if (!mounted) return;
@@ -106,11 +101,10 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
     }
   }
 
+  /// Navigate into app if training program is ready (diet may still be generating in background).
   Future<bool> _tryNavigateIfProgramAndDietReady(int userId) async {
     try {
       await TrainingService.fetchActiveProgram(userId)
-          .timeout(const Duration(seconds: 20));
-      await DietService.fetchCurrentTargets(userId)
           .timeout(const Duration(seconds: 20));
       if (!mounted) return true;
       Navigator.pushAndRemoveUntil(

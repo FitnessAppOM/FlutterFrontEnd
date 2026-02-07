@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
-import '../services/whoop_cycle_service.dart';
+import '../services/whoop/whoop_cycle_service.dart';
 import '../widgets/recovery/recovery_metric_card.dart';
 import '../widgets/charts/simple_line_chart.dart';
 import '../widgets/common/date_switcher.dart';

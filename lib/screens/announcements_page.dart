@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../widgets/Main/section_header.dart';
 import '../../widgets/Main/card_container.dart';
 import '../../models/news_item.dart';
-import '../../services/news_tag_actions.dart';
+import '../../services/news/news_tag_actions.dart';
 import '../../localization/app_localizations.dart';
 
 class AnnouncementsPage extends StatelessWidget {

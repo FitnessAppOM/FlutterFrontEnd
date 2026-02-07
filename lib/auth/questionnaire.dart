@@ -4,7 +4,7 @@ import '../widgets/questionnaire/questionnaire_info_chip.dart';
 import '../widgets/questionnaire/questionnaire_section_row.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/questionnaire/questionnaire_form.dart';
-import '../services/questionnaire_service.dart';
+import '../services/core/questionnaire_service.dart';
 import '../core/account_storage.dart';
 import '../main/main_layout.dart';
 import '../widgets/app_toast.dart';

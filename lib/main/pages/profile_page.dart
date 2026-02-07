@@ -6,7 +6,7 @@ import '../../widgets/profile/profile_goals_section.dart';
 import '../../widgets/profile/profile_actions_section.dart';
 import '../../localization/app_localizations.dart';
 import '../../core/account_storage.dart';
-import '../../services/profile_service.dart';
+import '../../services/auth/profile_service.dart';
 import '../../screens/edit_profile_page.dart';
 
 class ProfilePage extends StatefulWidget {

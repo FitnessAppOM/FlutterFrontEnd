@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../services/training_service.dart';
-import '../../services/exercise_action_queue.dart';
+import '../../services/training/training_service.dart';
+import '../../services/training/exercise_action_queue.dart';
 import '../../widgets/app_toast.dart';
 import '../../localization/app_localizations.dart';
 import '../../theme/app_theme.dart';
