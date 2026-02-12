@@ -326,8 +326,10 @@ class AppLocalizations {
       "weight": "Weight",
 
       "goal_main": "What is your main goal?",
+      "goal_main_subtitle": "In addition to gaining muscles",
       "lose_weight": "Lose weight",
       "gain_muscle": "Gain muscle",
+      "maintain_weight": "Maintain weight",
       "improve_endurance": "Improve endurance",
       "maintain_fitness": "Maintain fitness",
       "improve_health": "Improve health",
@@ -1017,8 +1019,10 @@ class AppLocalizations {
       "weight": "الوزن",
 
       "goal_main": "ما هو هدفك الأساسي؟",
+      "goal_main_subtitle": "بالإضافة إلى زيادة العضلات",
       "lose_weight": "خسارة الوزن",
       "gain_muscle": "زيادة العضلات",
+      "maintain_weight": "الحفاظ على الوزن",
       "improve_endurance": "تحسين التحمل",
       "maintain_fitness": "الحفاظ على اللياقة",
       "improve_health": "تحسين الصحة",

@@ -327,7 +327,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
 
     const singleChoiceOptions = {
       "sex": ["male", "female", "prefer_not"],
-      "main_goal": ["lose_weight", "gain_muscle", "improve_endurance", "maintain_fitness", "improve_health"],
+      "main_goal": ["lose_weight", "gain_muscle", "maintain_weight"],
       "motivation": ["look_better", "feel_stronger", "health_better", "more_energy", "mental_wellbeing"],
       "muscle_priority_upper": ["chest", "back", "shoulders"],
       "muscle_priority_lower": ["quads", "hamstrings", "glutes"],
@@ -342,7 +342,6 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       "auto_recovery": ["yes", "no"],
       "is_university_student": ["yes", "no"],
       "is_physical_rehabilitation": ["yes", "no"],
-      "diet_type": ["no_pref", "high_protein", "low_carb", "vegetarian", "vegan", "fasting", "other"],
       "meals_per_day": ["2", "3", "4", "5", "6"],
       "food_habit": ["cook", "eat_out", "mix"],
       "kitchen_access": ["yes", "no"],
@@ -361,6 +360,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       "past_injuries": ["shoulder", "back", "knee", "elbow", "none"],
       "allergies": ["dairy", "gluten", "nuts", "shellfish", "none", "other"],
       "supplements": ["protein", "creatine", "multivitamin", "none", "other"],
+      "diet_type": ["no_pref", "high_protein", "low_carb", "vegetarian", "vegan"],
     };
 
     singleChoiceOptions.forEach((field, options) {
@@ -581,10 +581,9 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         options: [
           _t("lose_weight"),
           _t("gain_muscle"),
-          _t("improve_endurance"),
-          _t("maintain_fitness"),
-          _t("improve_health"),
+          _t("maintain_weight"),
         ],
+        subtitle: _t("goal_main_subtitle"),
       ),
       _buildChoiceField(
         label: _t("motivation"),
@@ -704,7 +703,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
 
   List<Widget> _buildNutritionSection() {
     return [
-      _buildChoiceField(
+      _buildMultiChoiceField(
         label: _t("diet_type"),
         keyName: "diet_type",
         options: [
@@ -713,9 +712,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
           _t("low_carb"),
           _t("vegetarian"),
           _t("vegan"),
-          _t("fasting"),
-          _t("other"),
         ],
+        requiredField: false,
       ),
       _buildMultiChoiceField(
         label: _t("allergies"),
@@ -1181,6 +1179,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     required String keyName,
     required List<String> options,
     bool requiredField = true,
+    String? subtitle,
   }) {
     final theme = Theme.of(context);
     final currentStored = _values[keyName];
@@ -1206,16 +1205,33 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          DropdownButtonFormField<String>(
+          if (subtitle != null) ...[
+            Text(
+              label,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          DropdownButtonFormField<String?>(
             key: ValueKey(keyName),
             decoration: InputDecoration(
-              labelText: label,
+              labelText: subtitle != null ? null : label,
+              hintText: _t("select_option"),
               border: const OutlineInputBorder(),
             ),
-            initialValue: initialValue,
+            value: initialValue,
             items: options
                 .map(
-                  (o) => DropdownMenuItem<String>(
+                  (o) => DropdownMenuItem<String?>(
                     value: o,
                     child: Text(o, style: theme.textTheme.bodyMedium),
                   ),
@@ -1234,7 +1250,9 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
               return null;
             },
             onChanged: (val) {
-              if (val != otherLabel) {
+              if (val == null) {
+                _saveField(keyName, null);
+              } else if (val != otherLabel) {
                 otherCtrl.clear();
                 _saveField(keyName, val);
               } else {
@@ -1279,6 +1297,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     required String label,
     required String keyName,
     required List<String> options,
+    bool requiredField = true,
   }) {
     final theme = Theme.of(context);
     final otherLabel = _t("other");
@@ -1291,6 +1310,9 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       validator: (value) {
         final rawVal = value ?? '';
         final parts = rawVal.isNotEmpty ? rawVal.split(', ') : <String>[];
+        if (!requiredField && parts.isEmpty) {
+          return null;
+        }
         if (parts.isEmpty) {
           return _t("select_one");
         }
