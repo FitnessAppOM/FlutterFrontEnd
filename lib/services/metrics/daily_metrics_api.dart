@@ -42,6 +42,10 @@ class DailyMetricsApi {
   static final Map<String, DailyMetricsEntry?> _cache = {};
   static final Map<String, Future<DailyMetricsEntry?>> _inFlight = {};
 
+  static void clearCache() {
+    _cache.clear();
+  }
+
   static Future<void> upsert({
     required int userId,
     required DateTime entryDate,

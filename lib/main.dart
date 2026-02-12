@@ -6,6 +6,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'localization/app_localizations.dart';
 import 'screens/welcome.dart';
+import 'screens/splash/boot_gate.dart';
 import 'theme/app_theme.dart';
 import 'core/locale_controller.dart';
 import 'consents/consent_manager.dart';
@@ -153,7 +154,7 @@ class _MyAppState extends State<MyApp> {
       navigatorKey: NavigationService.navigatorKey,
       initialRoute: initialRoute,
       routes: {
-        '/': (_) => WelcomePage(onChangeLanguage: localeController.setLocale),
+        '/': (_) => const BootGate(),
         '/daily-journal': (_) => const DailyJournalPage(),
       },
     );

@@ -17,7 +17,19 @@ import '../../widgets/dashboard/bar_trend.dart';
 import '../../widgets/dashboard/whoop_recovery_card.dart';
 import '../../widgets/dashboard/whoop_sleep_card.dart';
 import '../../widgets/dashboard/whoop_extras_card.dart';
+import '../../widgets/dashboard/whoop_cycle_card.dart';
+import '../../widgets/dashboard/whoop_body_card.dart';
+import '../../widgets/dashboard/body_measurements_card.dart';
+import '../../widgets/dashboard/body_measurements_sheet.dart';
+import '../../widgets/dashboard/water_intake_card.dart';
+import '../../widgets/dashboard/water_intake_sheet.dart';
+import '../../widgets/dashboard/fitbit_steps_card.dart';
+import '../../widgets/dashboard/edit_mode_bubble.dart';
+import '../../widgets/dashboard/widget_library_sheet.dart';
 import '../../screens/whoop_insights_page.dart';
+import '../../screens/whoop_recovery_detail_page.dart';
+import '../../screens/whoop_cycle_detail_page.dart';
+import '../../screens/whoop_body_detail_page.dart';
 import '../../theme/app_theme.dart';
 import '../../core/account_storage.dart';
 import '../../services/auth/profile_service.dart';
@@ -26,8 +38,10 @@ import '../../config/base_url.dart';
 import '../../services/health/steps_service.dart';
 import '../../services/health/sleep_service.dart';
 import '../../services/whoop/whoop_sleep_service.dart';
+import '../../services/whoop/whoop_profile_service.dart';
 import '../../services/diet/calories_service.dart';
 import '../../services/health/water_service.dart';
+import '../../services/fitbit/fitbit_steps_service.dart';
 import '../../screens/sleep_detail_page.dart';
 import '../../screens/steps_detail_page.dart';
 import '../../screens/calories_detail_page.dart';
@@ -37,6 +51,7 @@ import '../../widgets/common/date_header.dart';
 import '../../services/training/training_service.dart';
 import '../../widgets/primary_button.dart';
 import '../../screens/whoop_test_page.dart';
+import 'dart:math' as math;
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -45,7 +60,20 @@ class DashboardPage extends StatefulWidget {
   State<DashboardPage> createState() => DashboardPageState();
 }
 
-class DashboardPageState extends State<DashboardPage> {
+class DashboardPageState extends State<DashboardPage>
+    with SingleTickerProviderStateMixin {
+  AnimationController? _wiggleController;
+  Animation<double>? _wiggleAnim;
+  bool _wiggling = false;
+  final List<String> _statOrder = ['steps', 'sleep', 'water', 'calories'];
+  final Map<String, GlobalKey> _tileKeys = {};
+  OverlayEntry? _dragOverlay;
+  String? _dragKey;
+  Offset? _dragTouchOffset;
+  Size? _dragSize;
+  Offset? _dragTopLeft;
+  Offset? _lastDragPos;
+  Widget? _dragChild;
 
   List<NewsItem> _news = const [];
   bool _loading = true;
@@ -55,6 +83,8 @@ class DashboardPageState extends State<DashboardPage> {
   String? _avatarUrl;
   String? _avatarPath;
   String? _displayName;
+  double? _heightCm;
+  double? _weightKg;
   int? _todaySteps;
   int? _stepsGoal;
   bool _stepsLoading = false;
@@ -79,7 +109,12 @@ class DashboardPageState extends State<DashboardPage> {
   double? _whoopSleepHours;
   int? _whoopSleepScore;
   int? _whoopSleepDelta;
+  double? _whoopBodyWeightKg;
   int _whoopReqId = 0;
+  bool _fitbitLinked = false;
+  bool _fitbitLoading = false;
+  int? _fitbitSteps;
+  int _fitbitReqId = 0;
   DateTime _selectedDate = DateTime.now();
   int _weeklyDaysCount = 7;
   int? _exerciseTotal;
@@ -123,6 +158,7 @@ class DashboardPageState extends State<DashboardPage> {
     _loadTrendCalories();
     _loadExerciseProgress();
     _loadWhoopRecovery();
+    _loadFitbitSteps();
   }
 
   void _openDateSheet() {
@@ -182,7 +218,10 @@ class DashboardPageState extends State<DashboardPage> {
   @override
   void initState() {
     super.initState();
+    _ensureWiggle();
     AccountStorage.whoopChange.addListener(_onWhoopChanged);
+    AccountStorage.accountChange.addListener(_onAccountChanged);
+    _loadStatOrder();
     _loadInitialData();
   }
 
@@ -190,11 +229,538 @@ class DashboardPageState extends State<DashboardPage> {
     _refreshAll();
   }
 
+  void _onAccountChanged() {
+    _refreshAll();
+  }
+
   @override
   void dispose() {
+    _wiggleController?.dispose();
     AccountStorage.whoopChange.removeListener(_onWhoopChanged);
+    AccountStorage.accountChange.removeListener(_onAccountChanged);
     super.dispose();
   }
+
+  void _ensureWiggle() {
+    if (_wiggleController != null) return;
+    final controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+    );
+    _wiggleController = controller;
+    _wiggleAnim = Tween<double>(begin: -1, end: 1).animate(
+      CurvedAnimation(parent: controller, curve: Curves.linear),
+    );
+  }
+
+  void _startWiggle() {
+    _ensureWiggle();
+    if (_wiggling) return;
+    setState(() => _wiggling = true);
+    _wiggleController?.repeat(reverse: true);
+  }
+
+  void _stopWiggle() {
+    if (!_wiggling) return;
+    _endDrag(null);
+    _wiggleController?.stop();
+    _wiggleController?.reset();
+    setState(() => _wiggling = false);
+  }
+
+  void _openWidgetLibrary() {
+    final available = _buildAvailableWidgetOptions();
+    showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "Widgets",
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (context, anim, secondary) {
+        return WidgetLibrarySheet(
+          options: available,
+          onClose: () => Navigator.of(context).pop(),
+          onSelect: (option) {
+            Navigator.of(context).pop();
+            _activateWidget(option.keyName);
+          },
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.08, 0),
+              end: Offset.zero,
+            ).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
+  bool _isWidgetActive(String key) {
+    switch (key) {
+      case 'steps':
+      case 'sleep':
+      case 'water':
+      case 'calories':
+      case 'body':
+        return _statOrder.contains(key);
+      case 'fitbit_steps':
+        return _statOrder.contains(key);
+      case 'whoop_sleep':
+        return _statOrder.contains(key);
+      case 'whoop_recovery':
+      case 'whoop_cycle':
+      case 'whoop_body':
+        return _statOrder.contains(key);
+      default:
+        return _statOrder.contains(key);
+    }
+  }
+
+  List<WidgetLibraryOption> _buildAvailableWidgetOptions() {
+    final t = AppLocalizations.of(context).translate;
+    final all = <WidgetLibraryOption>[
+      WidgetLibraryOption(
+        keyName: 'steps',
+        title: t("dash_today_steps"),
+        subtitle: "${t("dash_goal")} ${(_stepsGoal ?? 10000).toString()}",
+        icon: Icons.directions_walk,
+        accentColor: const Color(0xFF35B6FF),
+      ),
+      WidgetLibraryOption(
+        keyName: 'sleep',
+        title: t("dash_today_sleep"),
+        subtitle:
+            "${t("dash_goal")} ${(_sleepGoal ?? 8.0).toStringAsFixed(1)} ${t("dash_unit_hrs")}",
+        icon: Icons.nights_stay,
+        accentColor: const Color(0xFF9B8CFF),
+      ),
+      WidgetLibraryOption(
+        keyName: 'water',
+        title: t("dash_water_intake"),
+        subtitle:
+            "${t("dash_goal")} ${(_waterGoal ?? 2.5).toStringAsFixed(1)} ${t("dash_unit_l")}",
+        icon: Icons.water_drop,
+        accentColor: const Color(0xFF00BFA6),
+      ),
+      WidgetLibraryOption(
+        keyName: 'calories',
+        title: t("dash_calories_burned"),
+        subtitle: "${t("dash_goal")} ${(_caloriesGoal ?? 500).toString()}",
+        icon: Icons.local_fire_department,
+        accentColor: const Color(0xFFFF8A00),
+      ),
+      WidgetLibraryOption(
+        keyName: 'body',
+        title: "Body measurements",
+        subtitle: "Height & weight",
+        icon: Icons.person,
+        accentColor: const Color(0xFF6A5AE0),
+      ),
+    ];
+    if (_fitbitLinked) {
+      all.add(
+        WidgetLibraryOption(
+          keyName: 'fitbit_steps',
+          title: "Fitbit Steps",
+          subtitle: "Live from Fitbit",
+          icon: Icons.directions_walk,
+          accentColor: const Color(0xFF22C55E),
+        ),
+      );
+    }
+    if (_whoopLinked) {
+      all.addAll([
+        WidgetLibraryOption(
+          keyName: 'whoop_sleep',
+          title: "Whoop Sleep",
+          subtitle: "Sleep + efficiency",
+          icon: Icons.nights_stay,
+          accentColor: const Color(0xFF2D7CFF),
+        ),
+        WidgetLibraryOption(
+          keyName: 'whoop_recovery',
+          title: "Whoop Recovery",
+          subtitle: "Recovery score",
+          icon: Icons.monitor_heart,
+          accentColor: const Color(0xFF4CD964),
+        ),
+        WidgetLibraryOption(
+          keyName: 'whoop_cycle',
+          title: "Whoop Cycle",
+          subtitle: "Daily strain score",
+          icon: Icons.loop,
+          accentColor: const Color(0xFF2D7CFF),
+        ),
+        WidgetLibraryOption(
+          keyName: 'whoop_body',
+          title: "Whoop Body",
+          subtitle: "Body measurements",
+          icon: Icons.person,
+          accentColor: const Color(0xFF2D7CFF),
+        ),
+      ]);
+    }
+    return all.where((item) => !_isWidgetActive(item.keyName)).toList();
+  }
+
+  void _swapStatOrder(String from, String to) {
+    if (from == to) return;
+    final fromIndex = _statOrder.indexOf(from);
+    final toIndex = _statOrder.indexOf(to);
+    if (fromIndex == -1 || toIndex == -1) return;
+    setState(() {
+      final tmp = _statOrder[fromIndex];
+      _statOrder[fromIndex] = _statOrder[toIndex];
+      _statOrder[toIndex] = tmp;
+    });
+    _saveStatOrder();
+  }
+
+  void _deactivateWidget(String key) {
+    if (!_statOrder.contains(key)) return;
+    setState(() {
+      _statOrder.remove(key);
+    });
+    _saveStatOrder();
+  }
+
+  Future<void> _loadStatOrder() async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = await AccountStorage.getUserId();
+    final key = userId == null ? "dash_stat_order" : "dash_stat_order_u$userId";
+    final raw = sp.getString(key);
+    if (raw == null || raw.trim().isEmpty) return;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        final next = decoded.map((e) => e.toString()).toList();
+        final allowed = {
+          'steps',
+          'sleep',
+          'water',
+          'calories',
+          'body',
+          'fitbit_steps',
+          'whoop_sleep',
+          'whoop_recovery',
+          'whoop_cycle',
+          'whoop_body',
+        };
+        final filtered = <String>[];
+        for (final item in next) {
+          if (allowed.contains(item) && !filtered.contains(item)) {
+            filtered.add(item);
+          }
+        }
+        final pruned = <String>[];
+        final seenGroup = <String>{};
+        for (final item in filtered) {
+          final group = _exclusiveGroupForKey(item);
+          if (group != null) {
+            if (seenGroup.contains(group)) continue;
+            seenGroup.add(group);
+          }
+          pruned.add(item);
+        }
+        setState(() {
+          _statOrder
+            ..clear()
+            ..addAll(pruned);
+        });
+      }
+    } catch (_) {
+      // ignore parse errors
+    }
+  }
+
+  bool get _useWhoop {
+    return false;
+  }
+
+  bool get _useFitbit {
+    return false;
+  }
+
+  bool get _hasFitbitWidget => _statOrder.contains('fitbit_steps');
+  bool get _hasWhoopSleepWidget => _statOrder.contains('whoop_sleep');
+  bool get _hasAnyWhoopWidget =>
+      _statOrder.contains('whoop_sleep') ||
+      _statOrder.contains('whoop_recovery') ||
+      _statOrder.contains('whoop_cycle') ||
+      _statOrder.contains('whoop_body');
+
+  Future<void> _saveStatOrder() async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = await AccountStorage.getUserId();
+    final key = userId == null ? "dash_stat_order" : "dash_stat_order_u$userId";
+    await sp.setString(key, jsonEncode(_statOrder));
+  }
+
+  void _activateWidget(String key) {
+    final group = _exclusiveGroupForKey(key);
+    if (group != null) {
+      final existing = _statOrder.firstWhere(
+        (k) => _exclusiveGroupForKey(k) == group,
+        orElse: () => "",
+      );
+      if (existing.isNotEmpty && existing != key) {
+        AppToast.show(
+          context,
+          "Only one ${_exclusiveGroupLabel(group)} widget can be active",
+          type: AppToastType.info,
+        );
+        return;
+      }
+    }
+
+    if (key == 'fitbit_steps') {
+      if (!_fitbitLinked) {
+        AppToast.show(context, "Connect Fitbit first", type: AppToastType.info);
+        return;
+      }
+    } else if (key == 'whoop_sleep' ||
+        key == 'whoop_recovery' ||
+        key == 'whoop_cycle' ||
+        key == 'whoop_body') {
+      if (!_whoopLinked) {
+        AppToast.show(context, "Connect Whoop first", type: AppToastType.info);
+        return;
+      }
+    }
+
+    if (!_statOrder.contains(key)) {
+      setState(() => _statOrder.add(key));
+      _saveStatOrder();
+    }
+  }
+
+  String? _exclusiveGroupForKey(String key) {
+    switch (key) {
+      case 'steps':
+      case 'fitbit_steps':
+        return 'steps';
+      case 'sleep':
+      case 'whoop_sleep':
+        return 'sleep';
+      case 'body':
+      case 'whoop_body':
+        return 'body';
+      default:
+        return null;
+    }
+  }
+
+  String _exclusiveGroupLabel(String group) {
+    switch (group) {
+      case 'steps':
+        return 'steps';
+      case 'sleep':
+        return 'sleep';
+      case 'body':
+        return 'body';
+      default:
+        return 'metric';
+    }
+  }
+
+
+  Widget _wiggleWrap(Widget child) {
+    final anim = _wiggleAnim;
+    if (anim == null || _wiggleController == null) return child;
+    return AnimatedBuilder(
+      animation: _wiggleController!,
+      builder: (_, __) {
+        final phase = _wiggling ? anim.value : 0.0;
+        final wave = math.sin(phase * math.pi * 2);
+        final angle = wave * 0.035; // ~2.0 degrees
+        final dx = wave * 1.6;
+        return Transform.translate(
+          offset: Offset(dx, 0),
+          child: Transform.rotate(
+            angle: angle,
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
+  void _beginDrag(String key, Offset globalPosition, Widget child) {
+    if (_dragOverlay != null) return;
+    final ctx = _tileKeys[key]?.currentContext;
+    if (ctx == null) return;
+    final box = ctx.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final size = box.size;
+    final topLeft = box.localToGlobal(Offset.zero);
+    _dragKey = key;
+    _dragTouchOffset = globalPosition - topLeft;
+    _dragSize = size;
+    _dragTopLeft = topLeft;
+    _lastDragPos = globalPosition;
+    _dragChild = child;
+    setState(() {});
+
+    _dragOverlay = OverlayEntry(
+      builder: (_) {
+        final offset = _dragTopLeft ?? topLeft;
+        return Positioned(
+          left: offset.dx,
+          top: offset.dy,
+          width: size.width,
+          height: size.height,
+          child: IgnorePointer(
+            child: Material(
+              color: Colors.transparent,
+              child: _dragChild ?? child,
+            ),
+          ),
+        );
+      },
+    );
+    Overlay.of(context).insert(_dragOverlay!);
+  }
+
+  void _updateDrag(Offset globalPosition) {
+    if (_dragOverlay == null || _dragKey == null) return;
+    final size = _dragSize;
+    final touch = _dragTouchOffset ?? Offset.zero;
+    if (size == null) return;
+    _lastDragPos = globalPosition;
+    _dragTopLeft = globalPosition - touch;
+    _dragOverlay?.markNeedsBuild();
+  }
+
+  void _endDrag(Offset? globalPosition) {
+    if (_dragOverlay != null) {
+      _dragOverlay?.remove();
+      _dragOverlay = null;
+    }
+    final pos = globalPosition ?? _lastDragPos;
+    if (pos != null && _dragKey != null) {
+      final target = _findDropTarget(pos, _dragKey!);
+      if (target != null) {
+        _swapStatOrder(_dragKey!, target);
+      }
+    }
+    _dragKey = null;
+    _dragTouchOffset = null;
+    _dragSize = null;
+    _dragTopLeft = null;
+    _lastDragPos = null;
+    _dragChild = null;
+    setState(() {});
+  }
+
+  String? _findDropTarget(Offset globalPosition, String fromKey) {
+    String? best;
+    double bestDist = double.infinity;
+    for (final entry in _tileKeys.entries) {
+      final key = entry.key;
+      if (key == fromKey) continue;
+      final ctx = entry.value.currentContext;
+      if (ctx == null) continue;
+      final box = ctx.findRenderObject() as RenderBox?;
+      if (box == null) continue;
+      final rect = box.localToGlobal(Offset.zero) & box.size;
+      if (rect.contains(globalPosition)) return key;
+      final center = rect.center;
+      final dist = (center - globalPosition).distance;
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = key;
+      }
+    }
+    return bestDist <= 140 ? best : null;
+  }
+
+  Widget _buildTileChild(String key, Widget child) {
+    final isDragging = _dragKey == key;
+    return Opacity(
+      opacity: isDragging ? 0.0 : 1.0,
+      child: child,
+    );
+  }
+
+  Widget _buildRemovableTile(String key, Widget child) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IgnorePointer(
+          ignoring: _wiggling,
+          child: child,
+        ),
+        Positioned(
+          top: -6,
+          left: -6,
+          child: IgnorePointer(
+            ignoring: !_wiggling,
+            child: AnimatedOpacity(
+              opacity: _wiggling ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 160),
+              child: AnimatedScale(
+                scale: _wiggling ? 1.0 : 0.9,
+                duration: const Duration(milliseconds: 160),
+                child: GestureDetector(
+                  onTap: () => _deactivateWidget(key),
+                  child: Container(
+                    width: 26,
+                    height: 26,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E1F26),
+                      borderRadius: BorderRadius.circular(13),
+                      border: Border.all(color: const Color(0xFFFF6B6B), width: 1.6),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black54,
+                          blurRadius: 8,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.remove, color: Color(0xFFFF6B6B), size: 16),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatTile(String key, Widget child) {
+    final decorated = _buildRemovableTile(key, child);
+    final tile = _wiggleWrap(decorated);
+    return KeyedSubtree(
+      key: _tileKeys.putIfAbsent(key, () => GlobalKey()),
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onLongPressStart: (d) {
+          if (!_wiggling) _startWiggle();
+          _beginDrag(key, d.globalPosition, tile);
+        },
+        onLongPressMoveUpdate: (d) => _updateDrag(d.globalPosition),
+        onLongPressEnd: (d) => _endDrag(d.globalPosition),
+        onPanStart: _wiggling ? (d) => _beginDrag(key, d.globalPosition, tile) : null,
+        onPanUpdate: _wiggling ? (d) => _updateDrag(d.globalPosition) : null,
+        onPanEnd: _wiggling ? (d) => _endDrag(_lastDragPos) : null,
+        child: _buildTileChild(key, tile),
+      ),
+    );
+  }
+
 
   Future<void> _loadInitialData() async {
     await Future.wait([
@@ -210,17 +776,24 @@ class DashboardPageState extends State<DashboardPage> {
       _loadTrendCalories(),
       _loadExerciseProgress(),
       _loadWhoopRecovery(),
+      _loadWhoopBody(),
+      _loadFitbitSteps(),
     ]);
     if (!mounted) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _preloadExerciseGifsForWeek();
-    });
+    // Best-effort: retry Fitbit load shortly after startup in case user/session wasn't ready.
+    if (!_fitbitLinked) {
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (!mounted) return;
+        _loadFitbitSteps();
+      });
+    }
   }
 
   Future<void> _refreshAll() async {
     setState(() {
       _loading = true;
     });
+    DailyMetricsApi.clearCache();
     await Future.wait([
       _loadUserInfo(),
       _loadNews(),
@@ -233,6 +806,8 @@ class DashboardPageState extends State<DashboardPage> {
       _loadTrendCalories(),
       _loadExerciseProgress(),
       _loadWhoopRecovery(),
+      _loadWhoopBody(),
+      _loadFitbitSteps(),
     ]);
   }
 
@@ -762,14 +1337,15 @@ class DashboardPageState extends State<DashboardPage> {
     if (!mounted) return;
     if (userId == null || userId == 0) {
       if (requestId != _whoopReqId) return;
-      setState(() {
-        _whoopLinked = false;
-        _whoopRecovery = null;
-        _whoopSleepHours = null;
-        _whoopSleepScore = null;
-        _whoopLoading = false;
-      });
-      return;
+          setState(() {
+            _whoopLinked = false;
+            _whoopRecovery = null;
+            _whoopSleepHours = null;
+            _whoopSleepScore = null;
+            _whoopLoading = false;
+            _whoopBodyWeightKg = null;
+          });
+          return;
     }
 
     setState(() => _whoopLoading = true);
@@ -791,6 +1367,21 @@ class DashboardPageState extends State<DashboardPage> {
           _whoopSleepHours = null;
           _whoopSleepScore = null;
           _whoopLoading = false;
+          _whoopBodyWeightKg = null;
+        });
+        return;
+      }
+
+      if (!_useWhoop && !_hasAnyWhoopWidget) {
+        if (!mounted) return;
+        if (requestId != _whoopReqId) return;
+        setState(() {
+          _whoopLinked = true;
+          _whoopRecovery = null;
+          _whoopSleepHours = null;
+          _whoopSleepScore = null;
+          _whoopLoading = false;
+          _whoopBodyWeightKg = null;
         });
         return;
       }
@@ -892,77 +1483,123 @@ class DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  Future<void> _openWaterEditor() async {
-    final t = AppLocalizations.of(context).translate;
-    final goalController = TextEditingController(
-      text: (_waterGoal ?? 2.5).toStringAsFixed(1),
-    );
-    final intakeController = TextEditingController(
-      text: (_waterIntake ?? 0).toStringAsFixed(1),
-    );
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: AppColors.cardDark,
-          title: Text(t("water_title"), style: const TextStyle(color: Colors.white)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: goalController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: t("water_goal_label"),
-                  labelStyle: const TextStyle(color: Colors.white70),
-                  hintText: t("water_goal_hint"),
-                  hintStyle: const TextStyle(color: Colors.white54),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: intakeController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: t("water_intake_label"),
-                  labelStyle: const TextStyle(color: Colors.white70),
-                  hintText: t("water_intake_hint"),
-                  hintStyle: const TextStyle(color: Colors.white54),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(t("common_cancel")),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(t("common_save")),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (result == true) {
-      final goal = double.tryParse(goalController.text.trim());
-      final intake = double.tryParse(intakeController.text.trim());
-      final service = WaterService();
-      if (goal != null && goal > 0) {
-        await service.setGoal(goal);
-      }
-      if (intake != null && intake >= 0) {
-        await service.setTodayIntake(intake);
-      }
-      if (mounted) {
-        _loadWater();
-      }
+  Future<void> _loadWhoopBody() async {
+    final userId = await AccountStorage.getUserId();
+    if (!mounted) return;
+    if (userId == null || userId == 0) {
+      setState(() {
+        _whoopBodyWeightKg = null;
+      });
+      return;
     }
+    if (!_whoopLinked && !_hasAnyWhoopWidget) return;
+    try {
+      final metrics = await WhoopProfileService().fetchBodyMetrics();
+      if (!mounted) return;
+      setState(() {
+        _whoopBodyWeightKg = metrics?.weightKg;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _whoopBodyWeightKg = null;
+      });
+    }
+  }
+
+  Future<void> _loadFitbitSteps({int attempt = 0}) async {
+    final int requestId = ++_fitbitReqId;
+    final userId = await AccountStorage.getUserId();
+    if (!mounted) return;
+    if (userId == null || userId == 0) {
+      if (attempt < 2) {
+        await Future.delayed(Duration(milliseconds: 400 + (attempt * 400)));
+        if (!mounted) return;
+        return _loadFitbitSteps(attempt: attempt + 1);
+      }
+      if (requestId != _fitbitReqId) return;
+      setState(() {
+        _fitbitLinked = false;
+        _fitbitSteps = null;
+        _fitbitLoading = false;
+      });
+      return;
+    }
+
+    setState(() => _fitbitLoading = true);
+    try {
+      final statusUrl = Uri.parse("${ApiConfig.baseUrl}/fitbit/status?user_id=$userId");
+      final statusRes = await http.get(statusUrl).timeout(const Duration(seconds: 12));
+      if (requestId != _fitbitReqId) return;
+      if (statusRes.statusCode != 200) {
+        throw Exception("Status ${statusRes.statusCode}");
+      }
+      final statusData = jsonDecode(statusRes.body) as Map<String, dynamic>;
+      final linked = statusData["linked"] == true;
+      if (!linked) {
+        if (!mounted) return;
+        if (requestId != _fitbitReqId) return;
+        setState(() {
+          _fitbitLinked = false;
+          _fitbitSteps = null;
+          _fitbitLoading = false;
+        });
+        return;
+      }
+
+      if (!_useFitbit && !_hasFitbitWidget) {
+        if (!mounted) return;
+        if (requestId != _fitbitReqId) return;
+        setState(() {
+          _fitbitLinked = true;
+          _fitbitSteps = null;
+          _fitbitLoading = false;
+        });
+        return;
+      }
+
+      final dateParam =
+          "${_selectedDate.year.toString().padLeft(4, '0')}"
+          "-${_selectedDate.month.toString().padLeft(2, '0')}"
+          "-${_selectedDate.day.toString().padLeft(2, '0')}";
+      final dataUrl = Uri.parse(
+        "${ApiConfig.baseUrl}/fitbit/steps?user_id=$userId&date=$dateParam",
+      );
+      final dataRes = await http.get(dataUrl).timeout(const Duration(seconds: 20));
+      if (requestId != _fitbitReqId) return;
+      if (dataRes.statusCode != 200) {
+        throw Exception("Status ${dataRes.statusCode}");
+      }
+      final data = jsonDecode(dataRes.body) as Map<String, dynamic>;
+      final steps = data["steps"];
+      final stepsInt = steps is int ? steps : int.tryParse("$steps");
+      setState(() {
+        _fitbitLinked = true;
+        _fitbitSteps = stepsInt;
+        _fitbitLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      if (requestId != _fitbitReqId) return;
+      setState(() {
+        _fitbitLinked = false;
+        _fitbitSteps = null;
+        _fitbitLoading = false;
+      });
+    }
+  }
+
+  Future<void> _openWaterSheet() async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => WaterIntakeSheet(
+        initialGoal: _waterGoal ?? 2.5,
+        initialIntake: _waterIntake ?? 0,
+        onSaved: _loadWater,
+      ),
+    );
   }
 
   Future<Map<DateTime, DailyMetricsEntry?>> _fetchMetricsRange(
@@ -1045,7 +1682,27 @@ class DashboardPageState extends State<DashboardPage> {
 
       final metrics = await _fetchMetricsRange(monday, end);
       int total = 0;
-      if (metrics.isNotEmpty) {
+      if (_hasFitbitWidget && _fitbitLinked) {
+        try {
+          final fitbitData =
+              await FitbitStepsService().fetchDailySteps(start: monday, end: end);
+          if (fitbitData.isNotEmpty) {
+            total = fitbitData.values.fold<int>(0, (sum, val) => sum + val);
+          } else if (metrics.isNotEmpty) {
+            total = metrics.values.fold<int>(0, (sum, entry) => sum + (entry?.steps ?? 0));
+          } else {
+            final data = await StepsService().fetchDailySteps(start: monday, end: end);
+            total = data.values.fold<int>(0, (sum, val) => sum + val);
+          }
+        } catch (_) {
+          if (metrics.isNotEmpty) {
+            total = metrics.values.fold<int>(0, (sum, entry) => sum + (entry?.steps ?? 0));
+          } else {
+            final data = await StepsService().fetchDailySteps(start: monday, end: end);
+            total = data.values.fold<int>(0, (sum, val) => sum + val);
+          }
+        }
+      } else if (metrics.isNotEmpty) {
         total = metrics.values.fold<int>(0, (sum, entry) => sum + (entry?.steps ?? 0));
       } else {
         final data = await StepsService().fetchDailySteps(start: monday, end: end);
@@ -1076,7 +1733,7 @@ class DashboardPageState extends State<DashboardPage> {
       final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
       final start = anchor.subtract(const Duration(days: 6));
       List<double> days;
-      if (_whoopLinked) {
+      if (_hasWhoopSleepWidget && _whoopLinked) {
         final data = await WhoopSleepService().fetchDailySleep(start: start, end: anchor);
         days = List.generate(7, (i) {
           final d = DateTime(anchor.year, anchor.month, anchor.day)
@@ -1084,6 +1741,25 @@ class DashboardPageState extends State<DashboardPage> {
           final key = DateTime(d.year, d.month, d.day);
           return data[key] ?? 0.0;
         });
+      } else if (_hasFitbitWidget && _fitbitLinked) {
+        final metrics = await _fetchMetricsRange(start, anchor);
+        if (metrics.isNotEmpty) {
+          days = List.generate(7, (i) {
+            final d = DateTime(anchor.year, anchor.month, anchor.day)
+                .subtract(Duration(days: 6 - i));
+            final key = DateTime(d.year, d.month, d.day);
+            final entry = metrics[key];
+            return (entry?.sleepHours ?? 0.0).toDouble();
+          });
+        } else {
+          final data = await SleepService().fetchDailySleep(start: start, end: anchor);
+          days = List.generate(7, (i) {
+            final d = DateTime(anchor.year, anchor.month, anchor.day)
+                .subtract(Duration(days: 6 - i));
+            final key = DateTime(d.year, d.month, d.day);
+            return data[key] ?? 0.0;
+          });
+        }
       } else {
         final metrics = await _fetchMetricsRange(start, anchor);
         if (metrics.isNotEmpty) {
@@ -1276,17 +1952,27 @@ class DashboardPageState extends State<DashboardPage> {
 
     String? fetchedName = storedName;
     String? fetchedAvatar = storedAvatar;
+    double? fetchedHeight;
+    double? fetchedWeight;
 
     if (userId != null) {
       try {
         final profile = await ProfileApi.fetchProfile(userId);
         final fullName = profile["full_name"]?.toString();
         final remoteAvatar = profile["avatar_url"]?.toString();
+        final height = profile["height_cm"];
+        final weight = profile["weight_kg"];
         if (fullName != null && fullName.trim().isNotEmpty) {
           fetchedName = fullName;
         }
         if (remoteAvatar != null && remoteAvatar.trim().isNotEmpty) {
           fetchedAvatar = remoteAvatar;
+        }
+        if (height != null) {
+          fetchedHeight = double.tryParse(height.toString());
+        }
+        if (weight != null) {
+          fetchedWeight = double.tryParse(weight.toString());
         }
       } catch (_) {
         // Ignore and fallback to stored values
@@ -1303,7 +1989,40 @@ class DashboardPageState extends State<DashboardPage> {
       _avatarUrl = fetchedAvatar;
       _avatarPath = storedAvatarPath;
       _displayName = fetchedName;
+      _heightCm = fetchedHeight;
+      _weightKg = fetchedWeight;
     });
+
+    await _loadBodyMeasurements();
+  }
+
+  Future<void> _loadBodyMeasurements() async {
+    final userId = await AccountStorage.getUserId();
+    final key = userId == null ? "body_measurements" : "body_measurements_u$userId";
+    final sp = await SharedPreferences.getInstance();
+    final raw = sp.getString(key);
+    if (raw == null || raw.trim().isEmpty) return;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List && decoded.isNotEmpty) {
+        final first = decoded.first;
+        if (first is Map<String, dynamic>) {
+          final height = first["height_cm"];
+          final weight = first["weight_kg"];
+          if (!mounted) return;
+          setState(() {
+            if (height != null) {
+              _heightCm = double.tryParse(height.toString()) ?? _heightCm;
+            }
+            if (weight != null) {
+              _weightKg = double.tryParse(weight.toString()) ?? _weightKg;
+            }
+          });
+        }
+      }
+    } catch (_) {
+      // ignore parse errors
+    }
   }
 
   Future<void> _loadNews() async {
@@ -1437,12 +2156,15 @@ class DashboardPageState extends State<DashboardPage> {
       child: RefreshIndicator(
         color: AppColors.accent,
         backgroundColor: AppColors.cardDark,
-        onRefresh: _refreshAll,
-        child: Stack(
-          children: [
-            ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
+        onRefresh: _wiggling ? () async {} : _refreshAll,
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: _stopWiggle,
+          child: Stack(
+            children: [
+              ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -1550,7 +2272,10 @@ class DashboardPageState extends State<DashboardPage> {
                       ),
                     )
                   else
-                    NewsCarousel(slides: slides),
+                    IgnorePointer(
+                      ignoring: _wiggling,
+                      child: NewsCarousel(slides: slides),
+                    ),
                 ],
                 const SizedBox(height: 16),
                 CardContainer(
@@ -1651,100 +2376,235 @@ class DashboardPageState extends State<DashboardPage> {
         mainAxisSpacing: 12,
         childAspectRatio: 1.10,
         children: [
-                      StatCard(
-                        title: t("dash_today_steps"),
-                        value: _stepsLoading ? "…" : "${todaysStepsDisplay.toString()}",
-                        subtitle: "${t("dash_goal")} ${(_stepsGoal ?? 10000).toString()}",
-                        icon: Icons.directions_walk,
-                        accentColor: const Color(0xFF35B6FF),
-                        onTap: isCurrentDay
-                            ? () async {
-                                await Navigator.of(context).push(
-                                  MaterialPageRoute(builder: (_) => const StepsDetailPage()),
-                                );
-                                await _loadGoals();
-                                await _loadSteps();
-                              }
-                            : null,
-                        onLongPress: isCurrentDay ? _editStepsGoal : null,
-                      ),
-                      _whoopLinked
-                          ? WhoopSleepCard(
-                              loading: _whoopLoading,
-                              linked: _whoopLinked,
-                              hours: _whoopSleepHours,
-                              score: _whoopSleepScore,
-                              goal: _sleepGoal,
-                              delta: _whoopSleepDelta,
-                              onTap: isCurrentDay
-                                  ? () async {
-                                      await Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) => const SleepDetailPage(useWhoop: true),
-                                        ),
-                                      );
-                                    }
-                                  : null,
-                            )
-                          : StatCard(
-                              title: t("dash_today_sleep"),
-                              value: _sleepLoading
-                                  ? "…"
-                                  : "${averageSleep.toStringAsFixed(1)} ${t("dash_unit_hrs")}",
-                              subtitle: "${t("dash_goal")} ${(_sleepGoal ?? 8.0).toStringAsFixed(1)} ${t("dash_unit_hrs")}",
-                              icon: Icons.nights_stay,
-                              accentColor: const Color(0xFF9B8CFF),
-                              onTap: isCurrentDay
-                                  ? () async {
-                                      await Navigator.of(context).push(
-                                        MaterialPageRoute(builder: (_) => const SleepDetailPage()),
-                                      );
-                                      await _loadGoals();
-                                      await _loadSleep();
-                                    }
-                                  : null,
-                              onLongPress: isCurrentDay ? _editSleepGoal : null,
-                            ),
-                      StatCard(
-                        title: t("dash_water_intake"),
-                        value: _waterLoading ? "…" : "${waterIntake.toStringAsFixed(1)} ${t("dash_unit_l")}",
-            subtitle: _waterLoading ? "" : "${t("dash_goal")} ${waterGoal.toStringAsFixed(1)} ${t("dash_unit_l")}",
-            icon: Icons.water_drop,
-            accentColor: const Color(0xFF00BFA6),
-            onTap: isCurrentDay ? _openWaterEditor : null,
-            onLongPress: isCurrentDay ? _openWaterEditor : null,
-          ),
-                      StatCard(
-                        title: t("dash_calories_burned"),
-                        value: _caloriesLoading
-                            ? "…"
-                            : "${todaysCaloriesDisplay.toString()} ${t("dash_unit_kcal")}",
-                        subtitle: "${t("dash_goal")} ${(_caloriesGoal ?? 500).toString()}",
-                        icon: Icons.local_fire_department,
-                        accentColor: const Color(0xFFFF8A00),
-                        onTap: isCurrentDay
-                            ? () async {
-                                await Navigator.of(context).push(
-                                  MaterialPageRoute(builder: (_) => const CaloriesDetailPage()),
-                                );
-                                await _loadGoals();
-                                await _loadCalories();
-                              }
-                            : null,
-                        onLongPress: isCurrentDay ? _editCaloriesGoal : null,
-                      ),
+                      ..._statOrder.map((key) {
+                        switch (key) {
+                          case 'steps':
+                            return _buildStatTile(
+                              key,
+                              StatCard(
+                                title: t("dash_today_steps"),
+                                value: _stepsLoading ? "…" : "${todaysStepsDisplay.toString()}",
+                                subtitle:
+                                    "${t("dash_goal")} ${(_stepsGoal ?? 10000).toString()}",
+                                icon: Icons.directions_walk,
+                                accentColor: const Color(0xFF35B6FF),
+                                onTap: isCurrentDay
+                                    ? () async {
+                                        await Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => const StepsDetailPage(),
+                                          ),
+                                        );
+                                        await _loadGoals();
+                                        await _loadSteps();
+                                      }
+                                    : null,
+                              ),
+                            );
+                          case 'fitbit_steps':
+                            return _buildStatTile(
+                              key,
+                              FitbitStepsCard(
+                                loading: _fitbitLoading,
+                                steps: _fitbitSteps,
+                                subtitle: _fitbitLoading
+                                    ? "…"
+                                    : "${t("dash_goal")} ${(_stepsGoal ?? 10000).toString()}",
+                                onTap: isCurrentDay
+                                    ? () async {
+                                        await Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const StepsDetailPage(useFitbit: true),
+                                          ),
+                                        );
+                                        await _loadGoals();
+                                        await _loadSteps();
+                                        await _loadFitbitSteps();
+                                      }
+                                    : null,
+                              ),
+                            );
+                          case 'sleep':
+                            return _buildStatTile(
+                              key,
+                              StatCard(
+                                title: t("dash_today_sleep"),
+                                value: _sleepLoading
+                                    ? "…"
+                                    : "${averageSleep.toStringAsFixed(1)} ${t("dash_unit_hrs")}",
+                                subtitle:
+                                    "${t("dash_goal")} ${(_sleepGoal ?? 8.0).toStringAsFixed(1)} ${t("dash_unit_hrs")}",
+                                icon: Icons.nights_stay,
+                                accentColor: const Color(0xFF9B8CFF),
+                                onTap: isCurrentDay
+                                    ? () async {
+                                        await Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => const SleepDetailPage(),
+                                          ),
+                                        );
+                                        await _loadGoals();
+                                        await _loadSleep();
+                                      }
+                                    : null,
+                              ),
+                            );
+                          case 'whoop_sleep':
+                            return _buildStatTile(
+                              key,
+                              WhoopSleepCard(
+                                loading: _whoopLoading,
+                                linked: _whoopLinked,
+                                hours: _whoopSleepHours,
+                                score: _whoopSleepScore,
+                                goal: _sleepGoal,
+                                delta: _whoopSleepDelta,
+                                onTap: isCurrentDay
+                                    ? () async {
+                                        await Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const SleepDetailPage(useWhoop: true),
+                                          ),
+                                        );
+                                      }
+                                    : null,
+                              ),
+                            );
+                          case 'whoop_recovery':
+                            return _buildStatTile(
+                              key,
+                              WhoopRecoveryCard(
+                                loading: _whoopLoading,
+                                linked: _whoopLinked,
+                                score: _whoopRecovery,
+                                onTap: () async {
+                                  await Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => const WhoopRecoveryDetailPage(),
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          case 'whoop_cycle':
+                            return _buildStatTile(
+                              key,
+                              WhoopCycleCard(
+                                loading: _whoopLoading,
+                                linked: _whoopLinked,
+                                strain: null,
+                                onTap: () async {
+                                  await Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => const WhoopCycleDetailPage(),
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          case 'whoop_body':
+                            return _buildStatTile(
+                              key,
+                              WhoopBodyCard(
+                                loading: _whoopLoading,
+                                linked: _whoopLinked,
+                                weightKg: _whoopBodyWeightKg,
+                                onTap: () async {
+                                  await Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => const WhoopBodyDetailPage(),
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          case 'water':
+                            return _buildStatTile(
+                              key,
+                              WaterIntakeCard(
+                                loading: _waterLoading,
+                                intakeLiters: waterIntake,
+                                goalLiters: waterGoal,
+                                onTap: isCurrentDay ? _openWaterSheet : null,
+                              ),
+                            );
+                          case 'body':
+                            return _buildStatTile(
+                              key,
+                              BodyMeasurementsCard(
+                                heightCm: _heightCm,
+                                weightKg: _weightKg,
+                                onTap: () async {
+                                  await showModalBottomSheet(
+                                    context: context,
+                                    isScrollControlled: true,
+                                    backgroundColor: Colors.transparent,
+                                    builder: (_) => BodyMeasurementsSheet(
+                                      initialHeightCm: _heightCm,
+                                      initialWeightKg: _weightKg,
+                                      onSaved: (res) {
+                                        setState(() {
+                                          if (res.heightCm != null) _heightCm = res.heightCm;
+                                          if (res.weightKg != null) _weightKg = res.weightKg;
+                                        });
+                                      },
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          case 'calories':
+                          default:
+                            return _buildStatTile(
+                              key,
+                              StatCard(
+                                title: t("dash_calories_burned"),
+                                value: _caloriesLoading
+                                    ? "…"
+                                    : "${todaysCaloriesDisplay.toString()} ${t("dash_unit_kcal")}",
+                                subtitle: "${t("dash_goal")} ${(_caloriesGoal ?? 500).toString()}",
+                                icon: Icons.local_fire_department,
+                                accentColor: const Color(0xFFFF8A00),
+                                onTap: isCurrentDay
+                                    ? () async {
+                                        await Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => const CaloriesDetailPage(),
+                                          ),
+                                        );
+                                        await _loadGoals();
+                                        await _loadCalories();
+                                      }
+                                    : null,
+                              ),
+                            );
+                        }
+                      }).toList(),
                     ],
                   ),
                   const SizedBox(height: 16),
                   if (_whoopLinked) ...[
                     WhoopExtrasCard(
-                      onTap: () async {
+                      onTap: _wiggling
+                          ? null
+                          : () async {
                         await Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => WhoopInsightsPage(
                               loading: _whoopLoading,
                               linked: _whoopLinked,
                               recoveryScore: _whoopRecovery,
+                              weightKg: _whoopBodyWeightKg,
+                              sleepHours: _whoopSleepHours,
+                              sleepScore: _whoopSleepScore,
+                              sleepGoal: _sleepGoal,
+                              sleepDelta: _whoopSleepDelta,
+                              hideSleep: _statOrder.contains('whoop_sleep'),
+                              hideRecovery: _statOrder.contains('whoop_recovery'),
+                              hideCycle: _statOrder.contains('whoop_cycle'),
+                              hideBody: _statOrder.contains('whoop_body'),
                             ),
                           ),
                         );
@@ -1758,7 +2618,7 @@ class DashboardPageState extends State<DashboardPage> {
                     targetLabel: "${t("dash_target")}: $weeklyStepGoalTotal ${t("dash_steps_week")}",
                     trailingLabel: _weeklyStepsLoading ? t("dash_loading") : "$weeklySteps ${t("dash_steps_label")}",
                     accentColor: const Color(0xFF35B6FF),
-                    onTap: _loadWeeklySteps,
+                    onTap: _wiggling ? null : _loadWeeklySteps,
                   ),
                   const SizedBox(height: 16),
                   CardContainer(
@@ -1828,7 +2688,7 @@ class DashboardPageState extends State<DashboardPage> {
               right: 20,
               bottom: 20 + bottomInset,
               child: GestureDetector(
-                onTap: _openDateSheet,
+                onTap: _wiggling ? null : _openDateSheet,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
@@ -1868,10 +2728,19 @@ class DashboardPageState extends State<DashboardPage> {
                 ),
               ),
             ),
+            Positioned(
+              left: 20,
+              bottom: 20 + bottomInset,
+              child: EditModeBubble(
+                visible: _wiggling || _statOrder.isEmpty,
+                onTap: _openWidgetLibrary,
+              ),
+            ),
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 }
 

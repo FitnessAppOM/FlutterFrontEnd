@@ -1,43 +1,40 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
-import 'stat_card.dart';
+import '../../widgets/dashboard/stat_card.dart';
 
-class WhoopBodyCard extends StatelessWidget {
-  const WhoopBodyCard({
+class FitbitStepsCard extends StatelessWidget {
+  final bool loading;
+  final int? steps;
+  final String subtitle;
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+
+  const FitbitStepsCard({
     super.key,
     required this.loading,
-    required this.linked,
-    required this.weightKg,
-    required this.onTap,
+    required this.steps,
+    required this.subtitle,
+    this.onTap,
+    this.onLongPress,
   });
-
-  final bool loading;
-  final bool linked;
-  final double? weightKg;
-  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    const whoopBlue = Color(0xFF2D7CFF);
-    final value = loading
-        ? "…"
-        : linked
-            ? (weightKg != null ? "${weightKg!.toStringAsFixed(0)} kg" : "—")
-            : "Not connected";
-    final subtitle = linked ? "Current weight" : "Connect Whoop";
+    const fitbitTeal = Color(0xFF00B0B9);
+    final value = loading ? "…" : "${steps ?? 0}";
 
     return Stack(
       clipBehavior: Clip.none,
       children: [
         StatCard(
-          title: "Body",
+          title: "Steps",
           value: value,
           subtitle: subtitle,
-          icon: Icons.person,
-          accentColor: AppColors.accent,
-          borderColor: whoopBlue,
+          icon: Icons.directions_walk,
+          accentColor: const Color(0xFF35B6FF),
+          borderColor: fitbitTeal,
           borderWidth: 2.5,
           onTap: onTap,
+          onLongPress: onLongPress,
         ),
         Positioned(
           top: -10,
@@ -45,7 +42,7 @@ class WhoopBodyCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: whoopBlue,
+              color: fitbitTeal,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
@@ -56,7 +53,7 @@ class WhoopBodyCard extends StatelessWidget {
               ],
             ),
             child: const Text(
-              "whoop",
+              "fitbit",
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 11,

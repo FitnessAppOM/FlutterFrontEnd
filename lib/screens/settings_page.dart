@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:http/http.dart' as http;
 import '../theme/app_theme.dart';
@@ -10,6 +11,7 @@ import 'ForgetPassword/forgot_password_page.dart';
 import '../services/auth/profile_service.dart';
 import '../core/account_storage.dart';
 import '../widgets/app_toast.dart';
+import '../widgets/confirm_dialog.dart';
 import 'package:image_picker/image_picker.dart';
 import '../config/base_url.dart';
 import '../consents/consent_manager.dart';
@@ -33,6 +35,8 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _expertQuestionnaireDone = false;
   bool _whoopLinked = false;
   bool _whoopLoading = false;
+  bool _fitbitLinked = false;
+  bool _fitbitLoading = false;
 
   String get _langCode => localeController.locale.languageCode;
 
@@ -47,6 +51,7 @@ class _SettingsPageState extends State<SettingsPage> {
     _loadEmail();
     _loadExpertFlag();
     _loadWhoopStatus();
+    _loadFitbitStatus();
   }
 
   Future<void> _showSuccessDialog(String message) async {
@@ -132,6 +137,26 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<void> _loadFitbitStatus() async {
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null) {
+        setState(() => _fitbitLinked = false);
+        return;
+      }
+      final url = Uri.parse("${ApiConfig.baseUrl}/fitbit/status?user_id=$userId");
+      final response = await http.get(url);
+      if (response.statusCode != 200) {
+        setState(() => _fitbitLinked = false);
+        return;
+      }
+      final data = json.decode(response.body);
+      setState(() => _fitbitLinked = data["linked"] == true);
+    } catch (_) {
+      setState(() => _fitbitLinked = false);
+    }
+  }
+
   Future<void> _connectWhoop() async {
     final userId = await AccountStorage.getUserId();
     if (!mounted) return;
@@ -166,6 +191,66 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<void> _connectFitbit() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) {
+      AppToast.show(context, "Please log in to connect Fitbit.", type: AppToastType.info);
+      return;
+    }
+    setState(() => _fitbitLoading = true);
+    try {
+      final url = "${ApiConfig.baseUrl}/auth/fitbit/login?user_id=$userId";
+      final result = await FlutterWebAuth2.authenticate(
+        url: url,
+        callbackUrlScheme: 'taqa',
+      );
+      final uri = Uri.tryParse(result);
+      final ok = uri != null && uri.scheme == 'taqa' && uri.host == 'fitbit';
+      setState(() => _fitbitLinked = ok);
+      AppToast.show(
+        context,
+        ok ? "Fitbit connected successfully." : "Fitbit connect failed.",
+        type: ok ? AppToastType.success : AppToastType.error,
+      );
+    } catch (e) {
+      AppToast.show(context, "Fitbit connect failed: $e", type: AppToastType.error);
+    } finally {
+      if (mounted) setState(() => _fitbitLoading = false);
+    }
+  }
+
+  Future<void> _disconnectFitbit() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return;
+    final ok = await showConfirmDialog(
+      context: context,
+      title: "Disconnect Fitbit",
+      message: "Are you sure you want to disconnect Fitbit?",
+      confirmText: "Disconnect",
+    );
+    if (ok != true) return;
+    setState(() => _fitbitLoading = true);
+    try {
+      final url = Uri.parse("${ApiConfig.baseUrl}/fitbit/disconnect?user_id=$userId");
+      await http.post(url);
+      setState(() => _fitbitLinked = false);
+      AppToast.show(context, "Fitbit disconnected.", type: AppToastType.success);
+    } catch (e) {
+      AppToast.show(context, "Fitbit disconnect failed: $e", type: AppToastType.error);
+    } finally {
+      if (mounted) setState(() => _fitbitLoading = false);
+    }
+  }
+
+  Future<void> _handleFitbitTap() async {
+    if (_fitbitLoading) return;
+    if (_fitbitLinked) {
+      await _disconnectFitbit();
+    } else {
+      await _connectFitbit();
+    }
+  }
+
   Future<void> _disconnectWhoop() async {
     final userId = await AccountStorage.getUserId();
     if (!mounted) return;
@@ -173,6 +258,13 @@ class _SettingsPageState extends State<SettingsPage> {
       AppToast.show(context, "Please log in.", type: AppToastType.info);
       return;
     }
+    final ok = await showConfirmDialog(
+      context: context,
+      title: "Disconnect Whoop",
+      message: "Are you sure you want to disconnect Whoop?",
+      confirmText: "Disconnect",
+    );
+    if (ok != true) return;
     setState(() => _whoopLoading = true);
     try {
       final url = Uri.parse("${ApiConfig.baseUrl}/whoop/disconnect?user_id=$userId");
@@ -435,6 +527,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
@@ -592,6 +685,31 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               child: const Text(
                 "W",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+          _SettingsTile(
+            title: _fitbitLinked ? "Fitbit connected" : "Connect Fitbit",
+            subtitle:
+                _fitbitLinked ? "Disconnect your Fitbit" : "Link your Fitbit account",
+            icon: _fitbitLoading ? Icons.hourglass_bottom : Icons.directions_walk,
+            onTap: _fitbitLoading ? null : _handleFitbitTap,
+            color: _fitbitLinked ? const Color(0xFF4CD964) : null,
+            leading: Container(
+              height: 28,
+              width: 28,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: const Color(0xFF00B0B9),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                "F",
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w800,

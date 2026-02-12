@@ -11,11 +11,13 @@ import '../../services/training/training_completion_storage.dart';
 
 class ExerciseSessionSheet extends StatefulWidget {
   final Map<String, dynamic> exercise;
+  final Set<String> completedExerciseNames;
   final VoidCallback onFinished;
 
   const ExerciseSessionSheet({
     super.key,
     required this.exercise,
+    required this.completedExerciseNames,
     required this.onFinished,
   });
 
@@ -118,6 +120,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
   bool _shouldAutoShowInstructions() {
     final instructions = widget.exercise['instructions'] ?? '';
     if (instructions.toString().trim().isEmpty) return false;
+    final rawName = (widget.exercise['exercise_name'] ?? '').toString().trim().toLowerCase();
+    if (rawName.isNotEmpty && widget.completedExerciseNames.contains(rawName)) {
+      return false;
+    }
     return !_hasExistingEntry(widget.exercise);
   }
 

@@ -22,6 +22,7 @@ class _TrainPageState extends State<TrainPage> {
   int selectedDay = 0;
   bool loading = true;
   bool isOffline = false;
+  Set<String> completedExerciseNames = {};
 
   int? _userId;
 
@@ -51,23 +52,41 @@ class _TrainPageState extends State<TrainPage> {
       // Try to fetch from server first
       try {
         final data = await TrainingService.fetchActiveProgram(userId);
+        Set<String> completed = {};
+        try {
+          final names = await TrainingService.fetchCompletedExerciseNames(userId);
+          completed = names.map((e) => e.trim().toLowerCase()).where((e) => e.isNotEmpty).toSet();
+        } catch (_) {
+          // Ignore completed names fetch errors
+        }
         if (!mounted) return;
         setState(() {
           program = data;
           loading = false;
           isOffline = false;
+          completedExerciseNames = completed;
         });
+        _preloadExerciseGifsFromProgram();
         return;
       } catch (e) {
         // Network failed, try loading from cache
         final cached = await TrainingService.fetchActiveProgramFromCache();
         if (cached != null) {
+          Set<String> completed = completedExerciseNames;
+          try {
+            final names = await TrainingService.fetchCompletedExerciseNames(userId);
+            completed = names.map((e) => e.trim().toLowerCase()).where((e) => e.isNotEmpty).toSet();
+          } catch (_) {
+            // Ignore completed names fetch errors
+          }
           if (!mounted) return;
           setState(() {
             program = cached;
             loading = false;
             isOffline = true;
+            completedExerciseNames = completed;
           });
+          _preloadExerciseGifsFromProgram();
           // Show offline indicator
           if (mounted) {
             final t = AppLocalizations.of(context);
@@ -92,6 +111,34 @@ class _TrainPageState extends State<TrainPage> {
     }
   }
 
+  Future<void> _preloadExerciseGifsFromProgram() async {
+    if (!mounted) return;
+    final data = program;
+    if (data == null) return;
+    try {
+      final days = data['days'];
+      if (days is! List) return;
+      for (final day in days) {
+        final exercises = day is Map ? day['exercises'] : null;
+        if (exercises is! List) continue;
+        for (final ex in exercises) {
+          if (!mounted) return;
+          if (ex is! Map<String, dynamic>) continue;
+          final animPath = ex['animation_rel_path'];
+          if (animPath is! String || animPath.trim().isEmpty) continue;
+          final url = "${TrainingService.baseUrl}/static/$animPath";
+          try {
+            await precacheImage(NetworkImage(url), context);
+          } catch (_) {
+            // Ignore individual preload failures.
+          }
+        }
+      }
+    } catch (_) {
+      // Ignore preload failures.
+    }
+  }
+
   void _startExerciseFlow(Map<String, dynamic> ex) {
     showModalBottomSheet(
       context: context,
@@ -101,6 +148,7 @@ class _TrainPageState extends State<TrainPage> {
       ),
       builder: (_) => ExerciseSessionSheet(
         exercise: ex,
+        completedExerciseNames: completedExerciseNames,
         onFinished: _loadProgram,
       ),
     ).whenComplete(() {

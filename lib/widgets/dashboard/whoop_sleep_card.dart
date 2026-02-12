@@ -12,6 +12,7 @@ class WhoopSleepCard extends StatelessWidget {
     required this.goal,
     this.delta,
     this.onTap,
+    this.showEfficiency = true,
   });
 
   final bool loading;
@@ -21,6 +22,7 @@ class WhoopSleepCard extends StatelessWidget {
   final double? goal;
   final int? delta;
   final VoidCallback? onTap;
+  final bool showEfficiency;
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +49,7 @@ class WhoopSleepCard extends StatelessWidget {
           borderWidth: 2.5,
           onTap: onTap,
         ),
-        if (efficiency != null)
+        if (showEfficiency && efficiency != null)
           Positioned(
             bottom: 10,
             left: 14,

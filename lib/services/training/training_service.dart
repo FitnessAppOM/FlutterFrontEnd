@@ -173,6 +173,21 @@ class TrainingService {
     return json.decode(response.body);
   }
 
+  static Future<List<String>> fetchCompletedExerciseNames(int userId) async {
+    final url = Uri.parse('$baseUrl/training/exercises/completed/$userId');
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.get(url, headers: headers);
+    await AccountStorage.handle401(response.statusCode);
+    if (response.statusCode != 200) {
+      throw Exception("Failed to load completed exercise names");
+    }
+    final data = json.decode(response.body);
+    if (data is List) {
+      return data.map((e) => e.toString()).toList();
+    }
+    return const [];
+  }
+
   static Future<List<String>> fetchExerciseMuscles() async {
     final url = Uri.parse('$baseUrl/training/exercises/muscles');
     final response = await http.get(url);

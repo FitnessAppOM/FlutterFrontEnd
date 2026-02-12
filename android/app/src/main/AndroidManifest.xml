@@ -68,6 +68,7 @@
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="taqa" android:host="whoop"/>
+                <data android:scheme="taqa" android:host="fitbit"/>
             </intent-filter>
         </activity>
 

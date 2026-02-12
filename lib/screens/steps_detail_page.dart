@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/health/steps_service.dart';
+import '../services/fitbit/fitbit_steps_service.dart';
 import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
 
 class StepsDetailPage extends StatefulWidget {
-  const StepsDetailPage({super.key});
+  const StepsDetailPage({super.key, this.useFitbit = false});
+
+  final bool useFitbit;
 
   @override
   State<StepsDetailPage> createState() => _StepsDetailPageState();
@@ -91,7 +94,9 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
           start = now.subtract(const Duration(days: 7));
           break;
       }
-      final data = await StepsService().fetchDailySteps(start: start, end: now);
+      final data = widget.useFitbit
+          ? await FitbitStepsService().fetchDailySteps(start: start, end: now)
+          : await StepsService().fetchDailySteps(start: start, end: now);
       if (!mounted) return;
       setState(() {
         _daily = data;
@@ -137,19 +142,21 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
             const SizedBox(height: 12),
             Row(
               children: [
-                ElevatedButton(
-                  onPressed: _promptManualEntry,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                if (!widget.useFitbit) ...[
+                  ElevatedButton(
+                    onPressed: _promptManualEntry,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
+                    child: Text(t("steps_edit_today")),
                   ),
-                  child: Text(t("steps_edit_today")),
-                ),
-                const SizedBox(width: 10),
+                  const SizedBox(width: 10),
+                ],
                 ElevatedButton(
                   onPressed: _editGoal,
                   style: ElevatedButton.styleFrom(
