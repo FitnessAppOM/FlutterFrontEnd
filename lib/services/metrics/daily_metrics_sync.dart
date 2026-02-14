@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../../core/account_storage.dart';
 import '../diet/calories_service.dart';
+import '../diet/diet_service.dart';
 import 'daily_metrics_api.dart';
 import '../health/sleep_service.dart';
 import '../health/steps_service.dart';
@@ -45,6 +46,21 @@ class DailyMetricsSync {
       sleepHours: sleepHours,
       waterLiters: waterLiters,
     );
+
+    // When we pushed for today, submit burn so surplus runs, then refetch diet targets.
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    if (target == today) {
+      try {
+        await DailyMetricsApi.submitBurn(
+          userId: userId,
+          caloriesBurned: calories,
+          entryDate: target,
+        );
+        await DietService.fetchCurrentTargets(userId);
+      } catch (_) {
+        // Ignore; diet page will refetch when opened.
+      }
+    }
 
     final sp = await SharedPreferences.getInstance();
     await sp.setString(_userScopedKey(userId), _dateKey(DateTime.now()));

@@ -83,6 +83,30 @@ class DailyMetricsApi {
     throw Exception("Failed to upsert daily metrics: ${res.body}");
   }
 
+  /// Submits calories burned for a day so the backend can run the surplus rule.
+  /// Call when you have the dashboard "calories burned" value (e.g. on dashboard load).
+  /// [entryDate] defaults to today if null.
+  static Future<void> submitBurn({
+    required int userId,
+    required int caloriesBurned,
+    DateTime? entryDate,
+  }) async {
+    final date = entryDate ?? DateTime.now();
+    final entryDateStr = date.toIso8601String().split("T").first;
+    final url = Uri.parse("${ApiConfig.baseUrl}/daily-metrics/submit-burn");
+    final body = <String, dynamic>{
+      "user_id": userId,
+      "calories_burned": caloriesBurned,
+      "entry_date": entryDateStr,
+    };
+    final headers = {"Content-Type": "application/json", ...await AccountStorage.getAuthHeaders()};
+    final res = await http.post(url, headers: headers, body: jsonEncode(body));
+    await AccountStorage.handle401(res.statusCode);
+    if (res.statusCode != 200) {
+      throw Exception("Failed to submit burn: ${res.body}");
+    }
+  }
+
   static Future<DailyMetricsEntry?> fetchForDate(int userId, DateTime date) async {
     final dateStr = date.toIso8601String().split("T").first;
     final todayStr = DateTime.now().toIso8601String().split("T").first;

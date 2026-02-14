@@ -46,6 +46,7 @@ import '../../services/health/sleep_service.dart';
 import '../../services/whoop/whoop_sleep_service.dart';
 import '../../services/whoop/whoop_latest_service.dart';
 import '../../services/diet/calories_service.dart';
+import '../../services/diet/diet_service.dart';
 import '../../services/health/water_service.dart';
 import '../../services/fitbit/fitbit_activity_service.dart';
 import '../../services/fitbit/fitbit_heart_service.dart';
@@ -1324,6 +1325,22 @@ class DashboardPageState extends State<DashboardPage>
       }
       if (!mounted) return;
       setState(() => _todayCalories = kcal);
+      // Send burn so backend can run surplus rule; then refetch diet targets.
+      if (_isToday() && kcal != null) {
+        final userId = await AccountStorage.getUserId();
+        if (userId != null) {
+          try {
+            await DailyMetricsApi.submitBurn(
+              userId: userId,
+              caloriesBurned: kcal,
+              entryDate: _selectedDate,
+            );
+            await DietService.fetchCurrentTargets(userId);
+          } catch (_) {
+            // Ignore; surplus will run on next submit or full metrics upsert.
+          }
+        }
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() => _todayCalories = null);
