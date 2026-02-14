@@ -1,40 +1,42 @@
 import 'package:flutter/material.dart';
 import '../../widgets/dashboard/stat_card.dart';
 
-class FitbitStepsCard extends StatelessWidget {
+class FitbitHeartCard extends StatelessWidget {
   final bool loading;
-  final int? steps;
-  final String subtitle;
+  final int? restingHr;
+  final double? hrvRmssd;
+  final String? vo2Max;
   final VoidCallback? onTap;
-  final VoidCallback? onLongPress;
 
-  const FitbitStepsCard({
+  const FitbitHeartCard({
     super.key,
     required this.loading,
-    required this.steps,
-    required this.subtitle,
+    required this.restingHr,
+    required this.hrvRmssd,
+    required this.vo2Max,
     this.onTap,
-    this.onLongPress,
   });
 
   @override
   Widget build(BuildContext context) {
-    const fitbitTeal = Color(0xFF0C6A73);
-    final value = steps != null ? "$steps" : (loading ? "…" : "0");
+    const fitbitDark = Color(0xFF0C6A73);
+    final value = restingHr != null ? "${restingHr} bpm" : (loading ? "…" : "—");
+    final hrv = hrvRmssd != null ? "HRV ${hrvRmssd!.toStringAsFixed(0)}" : null;
+    final vo2 = vo2Max != null && vo2Max!.isNotEmpty ? "VO₂ ${vo2Max!}" : null;
+    final subtitle = [hrv, vo2].whereType<String>().join(" • ");
 
     return Stack(
       clipBehavior: Clip.none,
       children: [
         StatCard(
-          title: "Steps",
+          title: "Heart & cardio",
           value: value,
-          subtitle: subtitle,
-          icon: Icons.directions_walk,
-          accentColor: const Color(0xFF35B6FF),
-          borderColor: fitbitTeal,
-          borderWidth: 2.5,
+          subtitle: subtitle.isEmpty ? null : subtitle,
+          icon: Icons.favorite,
+          accentColor: fitbitDark,
+          borderColor: fitbitDark,
+          borderWidth: 2.2,
           onTap: onTap,
-          onLongPress: onLongPress,
         ),
         Positioned(
           top: -10,
@@ -42,7 +44,7 @@ class FitbitStepsCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: fitbitTeal,
+              color: fitbitDark,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(

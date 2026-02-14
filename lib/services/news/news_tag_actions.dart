@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../core/navigation_service.dart';
 import '../../screens/settings_page.dart';
+import '../../screens/article_page.dart';
+import '../../models/news_item.dart';
 import '../../auth/expert_questionnaire.dart';
 import '../../core/account_storage.dart';
 import '../../widgets/app_toast.dart';
@@ -19,7 +21,7 @@ class NewsTagActions {
     'application',
   };
 
-  static bool handleTagTap(BuildContext context, String tag) {
+  static bool handleTagTap(BuildContext context, String tag, {NewsItem? item}) {
     final normalized = tag.toLowerCase().trim();
 
     if (_journalTags.contains(normalized)) {
@@ -29,6 +31,14 @@ class NewsTagActions {
 
     if (_applyTags.contains(normalized)) {
       _navigateToExpertQuestionnaire(context);
+      return true;
+    }
+
+    if (normalized == "article") {
+      if (item == null) return false;
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => ArticlePage(item: item)),
+      );
       return true;
     }
 

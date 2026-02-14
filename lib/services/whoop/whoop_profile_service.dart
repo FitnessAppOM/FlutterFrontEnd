@@ -1,7 +1,5 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import 'whoop_latest_service.dart';
 
 class WhoopBodyMetrics {
   const WhoopBodyMetrics({
@@ -19,13 +17,8 @@ class WhoopProfileService {
   Future<WhoopBodyMetrics?> fetchBodyMetrics() async {
     final userId = await AccountStorage.getUserId();
     if (userId == null || userId == 0) return null;
-
-    final url = Uri.parse("${ApiConfig.baseUrl}/whoop/latest?user_id=$userId");
-    final res = await http.get(url).timeout(const Duration(seconds: 20));
-    if (res.statusCode != 200) {
-      throw Exception("Status ${res.statusCode}");
-    }
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    final data = await WhoopLatestService.fetch();
+    if (data == null) return null;
     final body = data["body_measurement"];
     if (body is! Map<String, dynamic>) return null;
 

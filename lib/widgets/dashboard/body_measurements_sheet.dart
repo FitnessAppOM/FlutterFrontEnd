@@ -162,21 +162,43 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
   }
 
   Map<String, dynamic> _buildProfilePayload(Map<String, dynamic> latest, int userId) {
+    String? _normalizeStringField(dynamic v) {
+      if (v == null) return null;
+      if (v is String) {
+        final trimmed = v.trim();
+        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+          try {
+            final decoded = jsonDecode(trimmed);
+            if (decoded is List && decoded.isNotEmpty) {
+              return decoded.first?.toString();
+            }
+          } catch (_) {
+            return trimmed;
+          }
+        }
+        return trimmed;
+      }
+      if (v is List && v.isNotEmpty) {
+        return v.first?.toString();
+      }
+      return v.toString();
+    }
+
     return <String, dynamic>{
       "user_id": userId,
       "age": latest["age"],
       "sex": latest["sex"],
       "height_cm": latest["height_cm"],
       "weight_kg": latest["weight_kg"],
-      "main_goal": latest["main_goal"] ?? latest["fitness_goal"],
-      "training_days": latest["training_days"],
-      "fitness_experience": latest["fitness_experience"],
-      "daily_activity": latest["daily_activity"] ?? latest["occupation"],
-      "diet_type": latest["diet_type"],
-      "past_injuries": latest["past_injuries"],
-      "chronic_conditions": latest["chronic_conditions"],
+      "main_goal": _normalizeStringField(latest["main_goal"] ?? latest["fitness_goal"]),
+      "training_days": _normalizeStringField(latest["training_days"]),
+      "fitness_experience": _normalizeStringField(latest["fitness_experience"]),
+      "daily_activity": _normalizeStringField(latest["daily_activity"] ?? latest["occupation"]),
+      "diet_type": _normalizeStringField(latest["diet_type"]),
+      "past_injuries": _normalizeStringField(latest["past_injuries"]),
+      "chronic_conditions": _normalizeStringField(latest["chronic_conditions"]),
       "affiliation_id": latest["affiliation_id"],
-      "affiliation_other_text": latest["affiliation_other_text"],
+      "affiliation_other_text": _normalizeStringField(latest["affiliation_other_text"]),
       "is_university_student": latest["is_university_student"],
       "university_id": latest["university_id"],
     };

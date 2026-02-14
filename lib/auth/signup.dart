@@ -18,6 +18,7 @@ import 'questionnaire.dart';
 import 'expert_questionnaire.dart';
 import '../services/core/notification_service.dart';
 import '../services/metrics/daily_metrics_sync.dart';
+import '../services/whoop/whoop_daily_sync.dart';
 
 
 
@@ -208,6 +209,7 @@ class _SignupPageState extends State<SignupPage> {
 
     await NotificationService.refreshDailyJournalRemindersForCurrentUser();
     await DailyMetricsSync().pushIfNewDay();
+    await WhoopDailySync().pushIfNewDay();
 
     if (!mounted) return;
 

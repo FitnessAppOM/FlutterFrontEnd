@@ -50,12 +50,28 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
       if (userId == null) return;
       final end = DateTime.now();
       final start = end.subtract(const Duration(days: 29));
+      final normalizedEnd = DateTime(end.year, end.month, end.day);
+      final normalizedStart = DateTime(start.year, start.month, start.day);
+      final todayKey = DateTime(end.year, end.month, end.day);
+
+      final fetched = await DailyMetricsApi.fetchRange(
+        userId: userId,
+        start: normalizedStart,
+        end: normalizedEnd,
+      );
+
+      // Override today's water with locally saved value for the current user.
+      final localToday = await WaterService().getIntakeForDay(todayKey);
+
       final entries = <_WaterLogEntry>[];
       for (int i = 0; i < 30; i++) {
-        final d = DateTime(start.year, start.month, start.day).add(Duration(days: i));
-        final entry = await DailyMetricsApi.fetchForDate(userId, d);
-        final liters = entry?.waterLiters;
-        if (liters != null && liters > 0) {
+        final d = normalizedStart.add(Duration(days: i));
+        final entry = fetched[d];
+        double liters = entry?.waterLiters ?? 0;
+        if (d == todayKey && localToday >= 0) {
+          liters = localToday;
+        }
+        if (liters > 0) {
           entries.add(_WaterLogEntry(date: d, liters: liters));
         }
       }
@@ -86,12 +102,15 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
         await WaterService().setGoal(goal);
       }
       if (intake != null && intake >= 0) {
+        final current = await WaterService().getTodayIntake();
+        if (current == intake) {
+          if (mounted) {
+            AppToast.show(context, "No change to save", type: AppToastType.info);
+            setState(() => _saving = false);
+          }
+          return;
+        }
         await WaterService().setTodayIntake(intake);
-        await DailyMetricsApi.upsert(
-          userId: userId,
-          entryDate: DateTime.now(),
-          waterLiters: intake,
-        );
       }
     } catch (e) {
       AppToast.show(context, "Failed to save: $e", type: AppToastType.error);

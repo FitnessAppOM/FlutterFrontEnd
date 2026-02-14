@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import 'whoop_latest_service.dart';
 
 class WhoopSleepService {
   double? _parseDurationHours(Map<String, dynamic> sleep) {
@@ -106,44 +107,93 @@ class WhoopSleepService {
     return result;
   }
 
-  Future<Map<DateTime, double>> fetchLatestSleepDaily() async {
+  Future<Map<DateTime, double>> fetchDailySleepFromDb({
+    required DateTime start,
+    required DateTime end,
+  }) async {
     final userId = await AccountStorage.getUserId();
     if (userId == null || userId == 0) return {};
 
-    final url = Uri.parse("${ApiConfig.baseUrl}/whoop/latest?user_id=$userId");
+    final startStr =
+        "${start.year.toString().padLeft(4, '0')}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')}";
+    final endStr =
+        "${end.year.toString().padLeft(4, '0')}-${end.month.toString().padLeft(2, '0')}-${end.day.toString().padLeft(2, '0')}";
+    final url = Uri.parse(
+      "${ApiConfig.baseUrl}/whoop/daily-metrics/range?user_id=$userId&start=$startStr&end=$endStr",
+    );
     final res = await http.get(url).timeout(const Duration(seconds: 20));
-    if (res.statusCode != 200) {
-      throw Exception("Status ${res.statusCode}");
+    if (res.statusCode != 200) return {};
+
+    final data = jsonDecode(res.body);
+    if (data is! List) return {};
+    final out = <DateTime, double>{};
+    for (final item in data) {
+      if (item is! Map) continue;
+      final dateStr = item["entry_date"]?.toString();
+      if (dateStr == null) continue;
+      DateTime? dt;
+      try {
+        dt = DateTime.parse(dateStr);
+      } catch (_) {
+        continue;
+      }
+      final minutesRaw = item["total_sleep_minutes"];
+      double? minutes;
+      if (minutesRaw is num) {
+        minutes = minutesRaw.toDouble();
+      } else if (minutesRaw is String) {
+        minutes = double.tryParse(minutesRaw);
+      }
+      if (minutes != null) {
+        final key = DateTime(dt.year, dt.month, dt.day);
+        out[key] = minutes / 60.0;
+      }
     }
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    return out;
+  }
+
+  Future<Map<DateTime, double>> fetchLatestSleepDaily({bool includeNaps = false}) async {
+    final data = await WhoopLatestService.fetch();
+    if (data == null) return {};
     final sleep = data["sleep"];
     if (sleep is! Map<String, dynamic>) return {};
+
+    final napRaw = sleep["nap"];
+    final isNap = napRaw == true || napRaw == 1 || napRaw == "true";
+    if (isNap && !includeNaps) return {};
 
     final hours = _parseDurationHours(sleep) ?? _durationFromStartEnd(sleep);
     if (hours == null) return {};
 
-    final startRaw = sleep["start"];
-    DateTime? start;
-    if (startRaw is String) {
-      start = DateTime.tryParse(startRaw);
+    DateTime? _parse(dynamic v) {
+      if (v is String && v.isNotEmpty) return DateTime.tryParse(v);
+      if (v is int) {
+        final ms = v > 1000000000000 ? v : v * 1000;
+        return DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);
+      }
+      if (v is double) {
+        final ms = v > 1000000000000 ? v : v * 1000;
+        return DateTime.fromMillisecondsSinceEpoch(ms.round(), isUtc: true);
+      }
+      return null;
     }
-    if (start == null) {
-      start = DateTime.now();
-    }
-    final dayKey = DateTime(start.year, start.month, start.day);
+
+    final end = _parse(sleep["end"]) ??
+        _parse(sleep["end_time"]) ??
+        _parse(sleep["end_datetime"]) ??
+        _parse(sleep["end_at"]);
+    final start = _parse(sleep["start"]) ??
+        _parse(sleep["start_time"]) ??
+        _parse(sleep["start_datetime"]) ??
+        _parse(sleep["start_at"]);
+    final anchor = end ?? start ?? DateTime.now();
+    final dayKey = DateTime(anchor.year, anchor.month, anchor.day);
     return {dayKey: hours};
   }
 
   Future<Map<String, dynamic>?> fetchLatestSleepRaw() async {
-    final userId = await AccountStorage.getUserId();
-    if (userId == null || userId == 0) return null;
-
-    final url = Uri.parse("${ApiConfig.baseUrl}/whoop/latest?user_id=$userId");
-    final res = await http.get(url).timeout(const Duration(seconds: 20));
-    if (res.statusCode != 200) {
-      throw Exception("Status ${res.statusCode}");
-    }
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    final data = await WhoopLatestService.fetch();
+    if (data == null) return null;
     final sleep = data["sleep"];
     if (sleep is! Map<String, dynamic>) return null;
     return sleep;

@@ -18,12 +18,12 @@ class WhoopBodyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const whoopBlue = Color(0xFF2D7CFF);
-    final value = loading
-        ? "…"
-        : linked
-            ? (weightKg != null ? "${weightKg!.toStringAsFixed(0)} kg" : "—")
-            : "Not connected";
+    const whoopBlue = Color(0xFF4A8BFF);
+    final value = linked
+        ? (weightKg != null
+            ? "${weightKg!.toStringAsFixed(1)} kg"
+            : (loading ? "…" : "—"))
+        : "Not connected";
     final subtitle = linked ? "Current weight" : "Connect Whoop";
 
     return Stack(
@@ -55,14 +55,10 @@ class WhoopBodyCard extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Text(
-              "whoop",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.3,
-              ),
+            child: Image.asset(
+              'assets/images/whoop.png',
+              height: 14,
+              fit: BoxFit.contain,
             ),
           ),
         ),

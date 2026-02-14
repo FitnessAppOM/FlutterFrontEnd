@@ -25,6 +25,7 @@ class WhoopInsightsPage extends StatefulWidget {
     this.sleepGoal,
     this.sleepDelta,
     this.weightKg,
+    this.cycleStrain,
   });
 
   final bool loading;
@@ -39,6 +40,7 @@ class WhoopInsightsPage extends StatefulWidget {
   final double? sleepGoal;
   final int? sleepDelta;
   final double? weightKg;
+  final double? cycleStrain;
 
   @override
   State<WhoopInsightsPage> createState() => _WhoopInsightsPageState();
@@ -51,6 +53,7 @@ class _WhoopInsightsPageState extends State<WhoopInsightsPage> {
   @override
   void initState() {
     super.initState();
+    _lastStrain = widget.cycleStrain;
     _loadLastStrain();
   }
 
@@ -130,7 +133,7 @@ class _WhoopInsightsPageState extends State<WhoopInsightsPage> {
             ],
             if (!widget.hideCycle) ...[
               WhoopCycleCard(
-                loading: widget.loading || _cycleLoading,
+                loading: widget.loading,
                 linked: widget.linked,
                 strain: _lastStrain,
                 onTap: () async {

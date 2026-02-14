@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:http/http.dart' as http;
+import 'package:file_picker/file_picker.dart';
 import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
 import '../widgets/lang_button.dart';
@@ -18,6 +20,7 @@ import '../consents/consent_manager.dart';
 import '../auth/expert_questionnaire.dart';
 import '../services/core/notification_service.dart';
 import '../screens/welcome.dart';
+import '../widgets/Main/card_container.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -37,6 +40,24 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _whoopLoading = false;
   bool _fitbitLinked = false;
   bool _fitbitLoading = false;
+  bool _fitbitAuthInFlight = false;
+
+  bool _isAuthCancelled(Object e) {
+    if (e is PlatformException) {
+      final code = e.code.toLowerCase();
+      if (code.contains('cancel')) return true;
+      final msg = (e.message ?? '').toLowerCase();
+      return msg.contains('cancel');
+    }
+    final msg = e.toString().toLowerCase();
+    return msg.contains('cancel');
+  }
+  final _newsTitleCtrl = TextEditingController();
+  final _newsSubtitleCtrl = TextEditingController();
+  final _newsContentCtrl = TextEditingController();
+  String _newsTag = "Article";
+  String? _newsPdfUrl;
+  bool _newsSaving = false;
 
   String get _langCode => localeController.locale.languageCode;
 
@@ -96,7 +117,86 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void dispose() {
     _usernameController.dispose();
+    _newsTitleCtrl.dispose();
+    _newsSubtitleCtrl.dispose();
+    _newsContentCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickNewsPdf() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ["pdf"],
+    );
+    if (result == null || result.files.single.path == null) return;
+    final path = result.files.single.path!;
+    setState(() => _newsSaving = true);
+    try {
+      final url = Uri.parse("${ApiConfig.baseUrl}/news/upload");
+      final request = http.MultipartRequest("POST", url);
+      final headers = await AccountStorage.getAuthHeaders();
+      request.headers.addAll(headers);
+      request.files.add(await http.MultipartFile.fromPath("file", path));
+      final response = await request.send();
+      final body = await response.stream.bytesToString();
+      if (response.statusCode != 200) {
+        throw Exception(body);
+      }
+      final data = json.decode(body) as Map<String, dynamic>;
+      setState(() => _newsPdfUrl = data["url"]?.toString());
+    } catch (e) {
+      AppToast.show(context, "Upload failed: $e", type: AppToastType.error);
+    } finally {
+      if (mounted) setState(() => _newsSaving = false);
+    }
+  }
+
+  Future<void> _createNewsItem() async {
+    if (_newsSaving) return;
+    FocusScope.of(context).unfocus();
+    final title = _newsTitleCtrl.text.trim();
+    final subtitle = _newsSubtitleCtrl.text.trim();
+    if (title.isEmpty || subtitle.isEmpty) {
+      AppToast.show(context, "Title and subtitle are required", type: AppToastType.info);
+      return;
+    }
+    if (_newsTag == "Article" &&
+        _newsContentCtrl.text.trim().isEmpty &&
+        _newsPdfUrl == null) {
+      AppToast.show(context, "Add content or upload a PDF", type: AppToastType.info);
+      return;
+    }
+    setState(() => _newsSaving = true);
+    try {
+      final url = Uri.parse("${ApiConfig.baseUrl}/news");
+      final headers = {
+        "Content-Type": "application/json",
+        ...await AccountStorage.getAuthHeaders(),
+      };
+      final body = json.encode({
+        "title": title,
+        "subtitle": subtitle,
+        "tag": _newsTag,
+        "content": _newsContentCtrl.text.trim(),
+        "content_url": _newsPdfUrl,
+      });
+      final res = await http.post(url, headers: headers, body: body);
+      if (res.statusCode != 200) {
+        throw Exception(res.body);
+      }
+      AppToast.show(context, "News added", type: AppToastType.success);
+      _newsTitleCtrl.clear();
+      _newsSubtitleCtrl.clear();
+      _newsContentCtrl.clear();
+      setState(() {
+        _newsPdfUrl = null;
+        _newsTag = "Article";
+      });
+    } catch (e) {
+      AppToast.show(context, "Failed to add news: $e", type: AppToastType.error);
+    } finally {
+      if (mounted) setState(() => _newsSaving = false);
+    }
   }
 
   Future<void> _loadEmail() async {
@@ -185,6 +285,9 @@ class _SettingsPageState extends State<SettingsPage> {
       );
     } catch (e) {
       if (!mounted) return;
+      if (_isAuthCancelled(e)) {
+        return;
+      }
       AppToast.show(context, "Whoop connect failed: $e", type: AppToastType.error);
     } finally {
       if (mounted) setState(() => _whoopLoading = false);
@@ -192,11 +295,13 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _connectFitbit() async {
+    if (_fitbitAuthInFlight) return;
     final userId = await AccountStorage.getUserId();
     if (userId == null) {
       AppToast.show(context, "Please log in to connect Fitbit.", type: AppToastType.info);
       return;
     }
+    _fitbitAuthInFlight = true;
     setState(() => _fitbitLoading = true);
     try {
       final url = "${ApiConfig.baseUrl}/auth/fitbit/login?user_id=$userId";
@@ -213,8 +318,12 @@ class _SettingsPageState extends State<SettingsPage> {
         type: ok ? AppToastType.success : AppToastType.error,
       );
     } catch (e) {
+      if (_isAuthCancelled(e)) {
+        return;
+      }
       AppToast.show(context, "Fitbit connect failed: $e", type: AppToastType.error);
     } finally {
+      _fitbitAuthInFlight = false;
       if (mounted) setState(() => _fitbitLoading = false);
     }
   }
@@ -716,6 +825,102 @@ class _SettingsPageState extends State<SettingsPage> {
                   fontSize: 14,
                 ),
               ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            "News testing",
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 12),
+          CardContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: _newsTitleCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: "Title",
+                    labelStyle: TextStyle(color: Colors.white70),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _newsSubtitleCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: "Subtitle",
+                    labelStyle: TextStyle(color: Colors.white70),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  value: _newsTag,
+                  dropdownColor: const Color(0xFF1E1E1E),
+                  decoration: const InputDecoration(
+                    labelText: "Tag",
+                    labelStyle: TextStyle(color: Colors.white70),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: "Article", child: Text("Article")),
+                    DropdownMenuItem(value: "Apply", child: Text("Apply")),
+                    DropdownMenuItem(value: "Journal", child: Text("Journal")),
+                    DropdownMenuItem(value: "Update", child: Text("Update")),
+                    DropdownMenuItem(value: "Nutrition", child: Text("Nutrition")),
+                    DropdownMenuItem(value: "Workout", child: Text("Workout")),
+                    DropdownMenuItem(value: "Reminder", child: Text("Reminder")),
+                  ],
+                  onChanged: (v) => setState(() => _newsTag = v ?? "Article"),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _newsContentCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: "Content (optional)",
+                    labelStyle: TextStyle(color: Colors.white70),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (_newsTag == "Article") ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _newsPdfUrl == null ? "No PDF uploaded" : "PDF uploaded",
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: _newsSaving ? null : _pickNewsPdf,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accent,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text("Upload PDF"),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _newsSaving ? null : _createNewsItem,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: Text(_newsSaving ? "Saving..." : "Add News"),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 24),

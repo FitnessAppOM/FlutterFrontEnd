@@ -8,7 +8,7 @@ class WhoopExtrasCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const whoopBlue = Color(0xFF2D7CFF);
+    const whoopBlue = Color(0xFF4A8BFF);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -84,14 +84,10 @@ class WhoopExtrasCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Text(
-                  "whoop",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.3,
-                  ),
+                child: Image.asset(
+                  'assets/images/whoop.png',
+                  height: 14,
+                  fit: BoxFit.contain,
                 ),
               ),
             ),

@@ -26,13 +26,11 @@ class WhoopSleepCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const whoopBlue = Color(0xFF2D7CFF);
-    final value = loading
-        ? "…"
-        : linked
-            ? (hours != null ? _formatHours(hours!) : "—")
-            : "Not connected";
-    final subtitle = goal != null ? "Goal: ${_formatHours(goal!)}" : null;
+    const whoopBlue = Color(0xFF4A8BFF);
+    final value = linked
+        ? (hours != null ? _formatHours(hours!) : (loading ? "…" : "—"))
+        : "Not connected";
+    final subtitle = (goal != null ? "Goal: ${_formatHours(goal!)}" : null);
     final efficiency = score;
     final deltaValue = delta;
 
@@ -101,14 +99,10 @@ class WhoopSleepCard extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Text(
-              "whoop",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.3,
-              ),
+            child: Image.asset(
+              'assets/images/whoop.png',
+              height: 14,
+              fit: BoxFit.contain,
             ),
           ),
         ),

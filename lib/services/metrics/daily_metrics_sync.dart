@@ -67,7 +67,49 @@ class DailyMetricsSync {
 
   /// Pushes metrics if we haven't already pushed for the current calendar day.
   Future<void> pushIfNewDay() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return;
+
+    final sp = await SharedPreferences.getInstance();
+    final lastKey = _userScopedKey(userId);
+    final last = sp.getString(lastKey);
+    final todayKey = _dateKey(DateTime.now());
+    if (last == todayKey) return;
+
     await pushYesterdayIfNewDay();
+    await backfillMissingIfNeeded();
+  }
+
+  /// Backfill missing days in the last 7 days (excluding today) if more than 3 are missing.
+  Future<void> backfillMissingIfNeeded() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return;
+
+    final today = DateTime.now();
+    final todayKey = DateTime(today.year, today.month, today.day);
+    final start = todayKey.subtract(const Duration(days: 7));
+    final end = todayKey.subtract(const Duration(days: 1));
+
+    if (end.isBefore(start)) return;
+
+    final existing = await DailyMetricsApi.fetchRange(
+      userId: userId,
+      start: start,
+      end: end,
+    );
+
+    final missing = <DateTime>[];
+    var cursor = start;
+    while (!cursor.isAfter(end)) {
+      if (!existing.containsKey(cursor)) {
+        missing.add(cursor);
+      }
+      cursor = cursor.add(const Duration(days: 1));
+    }
+
+    for (final day in missing) {
+      await pushForDate(day);
+    }
   }
 
   String _userScopedKey(int userId) => "${_lastPushKey}_$userId";

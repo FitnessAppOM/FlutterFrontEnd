@@ -1,42 +1,42 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
-import 'stat_card.dart';
+import '../../widgets/dashboard/stat_card.dart';
 
-class WhoopRecoveryCard extends StatelessWidget {
-  const WhoopRecoveryCard({
+class FitbitDailyActivityCard extends StatelessWidget {
+  final bool loading;
+  final int? steps;
+  final double? distanceKm;
+  final int? calories;
+  final int? activeMinutes;
+  final VoidCallback? onTap;
+
+  const FitbitDailyActivityCard({
     super.key,
     required this.loading,
-    required this.linked,
-    required this.score,
+    required this.steps,
+    required this.distanceKm,
+    required this.calories,
+    required this.activeMinutes,
     this.onTap,
   });
 
-  final bool loading;
-  final bool linked;
-  final int? score;
-  final VoidCallback? onTap;
-
   @override
   Widget build(BuildContext context) {
-    const whoopBlue = Color(0xFF4A8BFF);
-    final value = linked
-        ? (score != null ? "$score%" : (loading ? "…" : "—"))
-        : "Not connected";
-    final subtitle = linked
-        ? (score != null ? "Last recovery score" : "No data yet for today")
-        : "Connect Whoop";
+    final value = activeMinutes != null ? "$activeMinutes min" : (loading ? "…" : "0 min");
+    final dist = distanceKm == null ? "—" : "${distanceKm!.toStringAsFixed(1)} km";
+    final subtitle = loading ? "" : "$dist";
 
+    const fitbitDark = Color(0xFF0C6A73);
     return Stack(
       clipBehavior: Clip.none,
       children: [
         StatCard(
-          title: "Recovery",
+          title: "Fitbit activity",
           value: value,
           subtitle: subtitle,
-          icon: Icons.monitor_heart,
-          accentColor: const Color(0xFF4CD964),
-          borderColor: whoopBlue,
-          borderWidth: 2.5,
+          icon: Icons.directions_walk,
+          accentColor: fitbitDark,
+          borderColor: fitbitDark,
+          borderWidth: 2.2,
           onTap: onTap,
         ),
         Positioned(
@@ -45,7 +45,7 @@ class WhoopRecoveryCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: whoopBlue,
+              color: fitbitDark,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
@@ -56,7 +56,7 @@ class WhoopRecoveryCard extends StatelessWidget {
               ],
             ),
             child: Image.asset(
-              'assets/images/whoop.png',
+              'assets/images/fitbit.png',
               height: 14,
               fit: BoxFit.contain,
             ),

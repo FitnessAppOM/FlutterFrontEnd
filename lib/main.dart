@@ -14,6 +14,7 @@ import 'services/core/notification_service.dart';
 import 'screens/daily_journal.dart';
 import 'services/core/navigation_service.dart';
 import 'services/metrics/daily_metrics_sync.dart';
+import 'services/whoop/whoop_daily_sync.dart';
 import 'services/training/exercise_action_queue.dart';
 import 'core/account_storage.dart';
 
@@ -48,6 +49,7 @@ void main() async {
   // Push health metrics for yesterday once per day (on app start) if not already sent today.
   try {
     await DailyMetricsSync().pushIfNewDay();
+    await WhoopDailySync().pushIfNewDay();
   } catch (e) {
     // ignore: avoid_print
     print("DailyMetricsSync daily push skipped: $e");
@@ -111,6 +113,7 @@ class _MyAppState extends State<MyApp> {
   void _handleLifecycle() async {
     try {
       await DailyMetricsSync().pushIfNewDay();
+      await WhoopDailySync().pushIfNewDay();
     } catch (e) {
       // ignore: avoid_print
       print("DailyMetricsSync resume push skipped: $e");

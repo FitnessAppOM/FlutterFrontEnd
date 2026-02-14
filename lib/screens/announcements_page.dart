@@ -48,7 +48,7 @@ class AnnouncementsPage extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(12),
-                  onTap: () => NewsTagActions.handleTagTap(context, item.tag),
+                  onTap: () => NewsTagActions.handleTagTap(context, item.tag, item: item),
                   child: CardContainer(
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,

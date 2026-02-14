@@ -41,9 +41,12 @@ class DailyMetricsEntry {
 class DailyMetricsApi {
   static final Map<String, DailyMetricsEntry?> _cache = {};
   static final Map<String, Future<DailyMetricsEntry?>> _inFlight = {};
+  static final Map<String, Map<DateTime, DailyMetricsEntry>> _rangeCache = {};
+  static final Map<String, Future<Map<DateTime, DailyMetricsEntry>>> _rangeInFlight = {};
 
   static void clearCache() {
     _cache.clear();
+    _rangeCache.clear();
   }
 
   static Future<void> upsert({
@@ -112,6 +115,49 @@ class DailyMetricsApi {
       return result;
     } finally {
       _inFlight.remove(cacheKey);
+    }
+  }
+
+  static Future<Map<DateTime, DailyMetricsEntry>> fetchRange({
+    required int userId,
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final startStr = start.toIso8601String().split("T").first;
+    final endStr = end.toIso8601String().split("T").first;
+    final cacheKey = "$userId-$startStr-$endStr";
+    if (_rangeCache.containsKey(cacheKey)) {
+      return _rangeCache[cacheKey]!;
+    }
+    if (_rangeInFlight.containsKey(cacheKey)) {
+      return _rangeInFlight[cacheKey]!;
+    }
+    final url = Uri.parse("${ApiConfig.baseUrl}/daily-metrics/$userId/range?start=$startStr&end=$endStr");
+
+    final future = http.get(url).then((res) {
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as List<dynamic>;
+        final out = <DateTime, DailyMetricsEntry>{};
+        for (final item in data) {
+          if (item is Map<String, dynamic>) {
+            final entry = DailyMetricsEntry.fromJson(item);
+            final key = DateTime(entry.entryDate.year, entry.entryDate.month, entry.entryDate.day);
+            out[key] = entry;
+          }
+        }
+        return out;
+      }
+      if (res.statusCode == 404) return <DateTime, DailyMetricsEntry>{};
+      throw Exception("Failed to fetch daily metrics range: ${res.body}");
+    });
+
+    _rangeInFlight[cacheKey] = future;
+    try {
+      final result = await future;
+      _rangeCache[cacheKey] = result;
+      return result;
+    } finally {
+      _rangeInFlight.remove(cacheKey);
     }
   }
 }

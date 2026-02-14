@@ -18,12 +18,10 @@ class WhoopCycleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const whoopBlue = Color(0xFF2D7CFF);
-    final value = loading
-        ? "…"
-        : linked
-            ? (strain != null ? _fmt(strain) : "—")
-            : "Not connected";
+    const whoopBlue = Color(0xFF4A8BFF);
+    final value = linked
+        ? (strain != null ? _fmt(strain) : (loading ? "…" : "—"))
+        : "Not connected";
     final subtitle = linked
         ? (strain != null ? "Last strain score" : "No cycle data yet")
         : "Connect Whoop";
@@ -56,14 +54,10 @@ class WhoopCycleCard extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Text(
-              "whoop",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.3,
-              ),
+            child: Image.asset(
+              'assets/images/whoop.png',
+              height: 14,
+              fit: BoxFit.contain,
             ),
           ),
         ),

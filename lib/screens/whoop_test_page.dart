@@ -9,6 +9,7 @@ import '../core/account_storage.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/primary_button.dart';
+import '../services/whoop/whoop_latest_service.dart';
 
 class WhoopTestPage extends StatefulWidget {
   const WhoopTestPage({super.key});
@@ -135,14 +136,10 @@ class _WhoopTestPageState extends State<WhoopTestPage> {
     });
 
     try {
-      final url = Uri.parse(
-        "${ApiConfig.baseUrl}/whoop/latest?user_id=$_userId",
-      );
-      final response = await http.get(url).timeout(const Duration(seconds: 20));
-      if (response.statusCode != 200) {
-        throw Exception("Status ${response.statusCode}");
+      final data = await WhoopLatestService.fetch();
+      if (data == null) {
+        throw Exception("No data");
       }
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
       if (!mounted) return;
       setState(() {
         _whoopData = data;
