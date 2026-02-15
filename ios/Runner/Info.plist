@@ -36,8 +36,15 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<key>LSApplicationCategoryType</key>
+	<string></string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>We need camera access to let you take a profile photo.</string>
 	<key>NSHealthClinicalHealthRecordsShareUsageDescription</key>
@@ -46,10 +53,16 @@
 	<string>This app needs access to your health data.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>This app needs permission to update your health data.</string>
+	<key>NSHumanReadableCopyright</key>
+	<string></string>
+	<key>NSLiveActivityUsageDescription</key>
+	<string>Show your active training timer on the Lock Screen and Dynamic Island.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>We need permission to save your chosen avatar to your library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>We need photo library access to let you pick a profile photo.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>This identifier will be used to deliver personalized ads and improve app experience.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
@@ -71,10 +84,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsArbitraryLoads</key>
-		<true/>
-	</dict>
 </dict>
 </plist>

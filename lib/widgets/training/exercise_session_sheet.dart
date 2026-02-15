@@ -8,6 +8,7 @@ import 'exercise_instruction_dialog.dart';
 import '../../widgets/app_toast.dart';
 import '../../services/training/exercise_action_queue.dart';
 import '../../services/training/training_completion_storage.dart';
+import '../../services/training/training_activity_service.dart';
 
 class ExerciseSessionSheet extends StatefulWidget {
   final Map<String, dynamic> exercise;
@@ -169,6 +170,16 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
   void _startTimer() {
     timer = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() => seconds++);
+      if (seconds % 5 == 0) {
+        final sets = _currentSets();
+        final reps = _currentReps();
+        TrainingActivityService.updateSession(
+          exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
+          sets: sets,
+          reps: reps,
+          seconds: seconds,
+        );
+      }
     });
   }
 
@@ -178,6 +189,12 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
   Future<void> _startExercise() async {
     setState(() => started = true);
     _startTimer();
+    await TrainingActivityService.startSession(
+      exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
+      sets: _currentSets(),
+      reps: _currentReps(),
+      seconds: seconds,
+    );
     
     // Queue start action for sync (non-blocking)
     final programExerciseId = widget.exercise['program_exercise_id'];
@@ -202,6 +219,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
 
     setState(() => submitting = true);
     timer?.cancel();
+    await TrainingActivityService.stopSession();
 
     final t = AppLocalizations.of(context);
     final programExerciseId = widget.exercise['program_exercise_id'];
@@ -312,16 +330,38 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
 
   void _cancelSession() {
     timer?.cancel();
+    TrainingActivityService.stopSession();
     Navigator.of(context).maybePop();
   }
 
   @override
   void dispose() {
     timer?.cancel();
+    TrainingActivityService.stopSession();
     weightCtrl.dispose();
     setsCtrl.dispose();
     repsCtrl.dispose();
     super.dispose();
+  }
+
+  int _currentSets() {
+    final raw = int.tryParse(setsCtrl.text);
+    if (raw != null && raw > 0) return raw;
+    final ex = widget.exercise['sets'];
+    if (ex is int) return ex;
+    if (ex is String) return int.tryParse(ex) ?? 0;
+    if (ex is num) return ex.toInt();
+    return 0;
+  }
+
+  int _currentReps() {
+    final raw = int.tryParse(repsCtrl.text);
+    if (raw != null && raw > 0) return raw;
+    final ex = widget.exercise['reps'];
+    if (ex is int) return ex;
+    if (ex is String) return int.tryParse(ex) ?? 0;
+    if (ex is num) return ex.toInt();
+    return 0;
   }
 
   @override

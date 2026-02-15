@@ -349,6 +349,28 @@ class DietService {
     return json.decode(response.body) as Map<String, dynamic>;
   }
 
+  static Future<Map<String, dynamic>> fetchRemainingRecommendations(
+    int userId, {
+    DateTime? date,
+    int? trainingDayId,
+  }) async {
+    final d = date ?? DateTime.now();
+    final qp = <String, String>{
+      'meal_date': _dateParam(d),
+      if (trainingDayId != null) 'training_day_id': trainingDayId.toString(),
+    };
+    final url = Uri.parse('$baseUrl/diet/recommendations/$userId/remaining')
+        .replace(queryParameters: qp);
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.get(url, headers: headers);
+    await AccountStorage.handle401(response.statusCode);
+    if (response.statusCode != 200) {
+      final body = response.body.isNotEmpty ? json.decode(response.body) : {};
+      throw Exception(body['detail'] ?? 'Failed to load recommendations');
+    }
+    return json.decode(response.body) as Map<String, dynamic>;
+  }
+
   static Future<Map<String, dynamic>> captureDaySummary(
     int userId, {
     DateTime? date,
@@ -648,4 +670,3 @@ class DietService {
     return body.isNotEmpty ? (json.decode(body) as Map<String, dynamic>) : <String, dynamic>{};
   }
 }
-

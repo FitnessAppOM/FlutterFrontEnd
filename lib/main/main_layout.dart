@@ -7,14 +7,16 @@ import 'pages/community_page.dart';
 import 'pages/profile_page.dart';
 
 class MainLayout extends StatefulWidget {
-  const MainLayout({super.key});
+  const MainLayout({super.key, this.initialIndex = 0});
+
+  final int initialIndex;
 
   @override
   State<MainLayout> createState() => _MainLayoutState();
 }
 
 class _MainLayoutState extends State<MainLayout> {
-  int _index = 0;
+  late int _index;
 
   final GlobalKey<DashboardPageState> _dashboardKey = GlobalKey<DashboardPageState>();
   final GlobalKey<DietPageState> _dietKey = GlobalKey<DietPageState>();
@@ -26,6 +28,13 @@ class _MainLayoutState extends State<MainLayout> {
     const CommunityPage(),
     const ProfilePage(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    final idx = widget.initialIndex;
+    _index = (idx >= 0 && idx < pages.length) ? idx : 0;
+  }
 
   @override
   Widget build(BuildContext context) {

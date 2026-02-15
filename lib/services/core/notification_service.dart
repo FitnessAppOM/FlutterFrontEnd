@@ -5,11 +5,13 @@ import 'package:timezone/timezone.dart' as tz;
 import '../../core/account_storage.dart';
 import '../metrics/daily_journal_service.dart';
 import 'navigation_service.dart';
+import '../diet/diet_service.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   static const String dailyJournalPayload = 'daily_journal';
+  static const String dietPayload = 'diet';
 
   static const String _scheduledChannelId = 'scheduled_channel';
   static const String _scheduledChannelName = 'Scheduled Notifications';
@@ -55,6 +57,8 @@ class NotificationService {
         final payload = response.payload;
         if (payload == dailyJournalPayload) {
           NavigationService.navigateToJournal(fromNotification: true);
+        } else if (payload == dietPayload) {
+          NavigationService.navigateToDiet(fromNotification: true);
         }
       },
     );
@@ -153,11 +157,13 @@ class NotificationService {
 
     await _plugin.cancel(2);
     await _plugin.cancel(3);
+    await _plugin.cancel(4);
 
     final tz.TZDateTime nextSixAm = _nextInstanceAtHour(6);
     final tz.TZDateTime nextSixPm = _nextInstanceAtHour(18);
+    final tz.TZDateTime nextNinePm = _nextInstanceAtHour(21);
     // ignore: avoid_print
-    print('[Notif] next 6am=$nextSixAm, next 6pm=$nextSixPm, mode=$scheduleMode');
+    print('[Notif] next 6am=$nextSixAm, next 6pm=$nextSixPm, next 9pm=$nextNinePm, mode=$scheduleMode');
 
     await _plugin.zonedSchedule(
       2,
@@ -182,6 +188,21 @@ class NotificationService {
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
     );
+
+    final dietBody = await _buildDietDebugBody();
+    if (dietBody != null) {
+      await _plugin.zonedSchedule(
+        4,
+        'Diet check-in',
+        dietBody,
+        nextNinePm,
+        _defaultDetails,
+        payload: dietPayload,
+        androidScheduleMode: scheduleMode,
+        uiLocalNotificationDateInterpretation:
+        UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    }
   }
 
   /// Check if today's journal entry exists for the current user and adjust reminders:
@@ -216,6 +237,7 @@ class NotificationService {
     print('[Notif] rescheduleDailyJournalRemindersForTomorrow()');
     await _plugin.cancel(2);
     await _plugin.cancel(3);
+    await _plugin.cancel(4);
     final granted = await requestExactAlarmPermission();
     final scheduleMode = granted
         ? AndroidScheduleMode.exactAllowWhileIdle
@@ -223,6 +245,7 @@ class NotificationService {
 
     final tz.TZDateTime nextSixAm = _nextInstanceAtHour(6, startTomorrow: true);
     final tz.TZDateTime nextSixPm = _nextInstanceAtHour(18, startTomorrow: true);
+    final tz.TZDateTime nextNinePm = _nextInstanceAtHour(21, startTomorrow: true);
 
     await _plugin.zonedSchedule(
       2,
@@ -249,6 +272,22 @@ class NotificationService {
       UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
     );
+
+    final dietBody = await _buildDietDebugBody();
+    if (dietBody != null) {
+      await _plugin.zonedSchedule(
+        4,
+        'Diet check-in',
+        dietBody,
+        nextNinePm,
+        _defaultDetails,
+        payload: dietPayload,
+        androidScheduleMode: scheduleMode,
+        uiLocalNotificationDateInterpretation:
+        UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+    }
   }
 
 
@@ -257,6 +296,19 @@ class NotificationService {
     final tz.TZDateTime baseDay = startTomorrow ? now.add(const Duration(days: 1)) : now;
     tz.TZDateTime scheduledDate =
         tz.TZDateTime(tz.local, baseDay.year, baseDay.month, baseDay.day, hour);
+
+    if (!startTomorrow && scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+
+    return scheduledDate;
+  }
+
+  static tz.TZDateTime _nextInstanceAtTime(int hour, int minute, {bool startTomorrow = false}) {
+    final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
+    final tz.TZDateTime baseDay = startTomorrow ? now.add(const Duration(days: 1)) : now;
+    tz.TZDateTime scheduledDate =
+        tz.TZDateTime(tz.local, baseDay.year, baseDay.month, baseDay.day, hour, minute);
 
     if (!startTomorrow && scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
@@ -316,6 +368,11 @@ class NotificationService {
         ? AndroidScheduleMode.exactAllowWhileIdle
         : AndroidScheduleMode.inexactAllowWhileIdle;
 
+    final dietBody = await _buildDietDebugBody();
+    if (dietBody == null) {
+      // Skip debug diet notifications when remaining calories are high.
+      return;
+    }
     final baseId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     for (var i = 0; i < count; i++) {
       final when = tz.TZDateTime.now(tz.local).add(Duration(seconds: 10 * (i + 1)));
@@ -323,16 +380,56 @@ class NotificationService {
       print('[Notif] scheduling debug id=${baseId + i} at=$when mode=$scheduleMode');
       await _plugin.zonedSchedule(
         baseId + i,
-        'Debug reminder',
-        'This is test notification ${i + 1}/$count.',
+        'Diet check-in',
+        "$dietBody (${i + 1}/$count)",
         when,
         _defaultDetails,
-        payload: dailyJournalPayload,
+        payload: dietPayload,
         androidScheduleMode: scheduleMode,
         uiLocalNotificationDateInterpretation:
         UILocalNotificationDateInterpretation.absoluteTime,
       );
     }
+  }
+
+  static int _toInt(dynamic v) {
+    if (v is int) return v;
+    if (v is double) return v.round();
+    if (v is String) return int.tryParse(v.trim()) ?? 0;
+    return 0;
+  }
+
+  static Future<String?> _buildDietDebugBody() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) {
+      return "Tap to open your diet module.";
+    }
+
+    try {
+      final summary = await DietService.fetchDaySummary(userId);
+      final live = (summary["live"] is Map) ? summary["live"] as Map : summary;
+      final remaining = (live["remaining"] is Map) ? live["remaining"] as Map : const {};
+      final target = (live["target"] is Map) ? live["target"] as Map : const {};
+      final consumed = (live["consumed"] is Map) ? live["consumed"] as Map : const {};
+
+      final remCal = _toInt(remaining["calories"]);
+      final tarCal = _toInt(target["calories"]);
+      final conCal = _toInt(consumed["calories"]);
+
+      if (remCal <= 0) {
+        return null;
+      }
+      if (tarCal > 0 && remCal >= 0) {
+        return "You still have $remCal kcal left!";
+      }
+      if (tarCal > 0) {
+        return "You still have calories left!";
+      }
+    } catch (_) {
+      // Best effort: fall back to generic message.
+    }
+
+    return "Tap to open your diet module.";
   }
 
 

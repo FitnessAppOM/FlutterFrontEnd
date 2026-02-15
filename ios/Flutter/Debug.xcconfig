@@ -1,2 +1,5 @@
 #include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"
 #include "Generated.xcconfig"
+
+ENABLE_EXTRACT_APP_INTENTS_METADATA = NO
+EXTRACT_APP_INTENTS_METADATA = NO

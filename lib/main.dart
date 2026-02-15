@@ -17,12 +17,36 @@ import 'services/metrics/daily_metrics_sync.dart';
 import 'services/whoop/whoop_daily_sync.dart';
 import 'services/training/exercise_action_queue.dart';
 import 'core/account_storage.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 void main() async {
   print('[Main] Entry');
   WidgetsFlutterBinding.ensureInitialized();
 
   print('[Main] Starting app bootstrap');
+  FlutterForegroundTask.init(
+    androidNotificationOptions: AndroidNotificationOptions(
+      channelId: 'training_session',
+      channelName: 'Training Session',
+      channelDescription: 'Ongoing training session timer.',
+      channelImportance: NotificationChannelImportance.LOW,
+      priority: NotificationPriority.LOW,
+      enableVibration: false,
+      playSound: false,
+    ),
+    iosNotificationOptions: IOSNotificationOptions(
+      showNotification: false,
+      playSound: false,
+    ),
+    foregroundTaskOptions: ForegroundTaskOptions(
+      interval: 5000,
+      isOnceEvent: false,
+      autoRunOnBoot: false,
+      allowWakeLock: true,
+      allowWifiLock: true,
+    ),
+  );
+
   // Firebase (REQUIRED for Google Sign-In)
   await Firebase.initializeApp();
   print('[Main] Firebase initialized');
@@ -68,7 +92,7 @@ void main() async {
     );
   };
 
-  runApp(MyApp(initialPayload: launchPayload));
+  runApp(WithForegroundTask(child: MyApp(initialPayload: launchPayload)));
 
 
   //  Delay consent request to avoid iOS freeze

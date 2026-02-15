@@ -14,6 +14,8 @@ import '../../widgets/diet_photo_entry_sheet.dart';
 import '../../widgets/diet_favorites_sheet.dart';
 import '../../services/training/training_completion_storage.dart';
 import '../../services/training/training_calendar_service.dart';
+import '../../services/core/navigation_service.dart';
+import '../../widgets/diet_recommendation_dialog.dart';
 
 class DietPage extends StatefulWidget {
   const DietPage({super.key});
@@ -41,6 +43,7 @@ class DietPageState extends State<DietPage> {
   bool _itemSearchSheetOpen = false;
   bool _manualEntrySheetOpen = false;
   bool _photoEntrySheetOpen = false;
+  bool _dietRecommendationShown = false;
 
   int _modeIndex = 0; // 0 = Rest, 1 = Training
   int _selectedTrainingDayIndex = 0;
@@ -58,10 +61,53 @@ class DietPageState extends State<DietPage> {
     _loadMeals();
     _updateTrainingLockFromCompletion();
     DietService.onTargetsUpdatedAfterBurn = _onTargetsUpdatedAfterBurn;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeShowDietRecommendation();
+    });
   }
 
   void _onTargetsUpdatedAfterBurn() {
     if (mounted) refreshTargetsAndMeals();
+  }
+
+  Future<void> _maybeShowDietRecommendation() async {
+    if (_dietRecommendationShown) return;
+    final shouldShow = NavigationService.consumeDietNotification();
+    if (!shouldShow) return;
+    _dietRecommendationShown = true;
+
+    if (mounted) {
+      showDietRecommendationLoadingDialog(context: context);
+    }
+
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null || !mounted) {
+        if (mounted) Navigator.of(context, rootNavigator: true).pop();
+        return;
+      }
+      final data = await DietService.fetchRemainingRecommendations(userId);
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      final rec = (data["recommendation"] is Map) ? data["recommendation"] as Map : const {};
+      final message = (rec["message"] ?? "Here are a few ideas to finish your day.").toString();
+      final optionsRaw = rec["options"];
+      final options = (optionsRaw is List)
+          ? optionsRaw.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList()
+          : <Map<String, dynamic>>[];
+
+      await showDietRecommendationDialog(
+        context: context,
+        title: "Diet Suggestions",
+        message: message,
+        options: options,
+      );
+    } catch (_) {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+      // Best-effort: no dialog if recommendation fails.
+    }
   }
 
   @override

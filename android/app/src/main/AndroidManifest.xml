@@ -14,6 +14,8 @@
 
     <!-- Notifications — REQUIRED on Android 13+ (API 33) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
     <!-- Camera (for profile picture / scanning) -->
     <uses-permission android:name="android.permission.CAMERA"/>
@@ -81,6 +83,11 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <service
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
     </application>
 
     <!-- Required by Flutter engine for PROCESS_TEXT APIs -->
