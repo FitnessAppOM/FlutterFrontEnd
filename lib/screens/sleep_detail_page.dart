@@ -39,6 +39,9 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
   @override
   void initState() {
     super.initState();
+    if (widget.useWhoop) {
+      _metricsLoading = true;
+    }
     _loadGoal();
     _loadRange();
   }
@@ -456,6 +459,8 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _metricsDateHeader(),
+            const SizedBox(height: 12),
+            _metricsNoDataCard(theme, loading: isLoading),
           ],
         ),
       );

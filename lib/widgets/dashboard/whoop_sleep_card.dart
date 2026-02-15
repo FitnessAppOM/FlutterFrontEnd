@@ -7,6 +7,7 @@ class WhoopSleepCard extends StatelessWidget {
     super.key,
     required this.loading,
     required this.linked,
+    required this.linkedKnown,
     required this.hours,
     required this.score,
     required this.goal,
@@ -17,6 +18,7 @@ class WhoopSleepCard extends StatelessWidget {
 
   final bool loading;
   final bool linked;
+  final bool linkedKnown;
   final double? hours;
   final int? score;
   final double? goal;
@@ -27,9 +29,11 @@ class WhoopSleepCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const whoopBlue = Color(0xFF4A8BFF);
-    final value = linked
-        ? (hours != null ? _formatHours(hours!) : (loading ? "…" : "—"))
-        : "Not connected";
+    final value = !linkedKnown
+        ? "…"
+        : linked
+            ? (hours != null ? _formatHours(hours!) : (loading ? "…" : "—"))
+            : "Not connected";
     final subtitle = (goal != null ? "Goal: ${_formatHours(goal!)}" : null);
     final efficiency = score;
     final deltaValue = delta;

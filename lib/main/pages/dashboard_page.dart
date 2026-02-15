@@ -30,9 +30,11 @@ import '../../widgets/dashboard/fitbit_heart_card.dart';
 import '../../widgets/dashboard/fitbit_heart_sheet.dart';
 import '../../widgets/dashboard/fitbit_sleep_card.dart';
 import '../../widgets/dashboard/fitbit_sleep_sheet.dart';
+import '../../widgets/dashboard/fitbit_extras_card.dart';
 import '../../widgets/dashboard/edit_mode_bubble.dart';
 import '../../widgets/dashboard/widget_library_sheet.dart';
 import '../../screens/whoop_insights_page.dart';
+import '../../screens/fitbit_insights_page.dart';
 import '../../screens/whoop_recovery_detail_page.dart';
 import '../../screens/whoop_cycle_detail_page.dart';
 import '../../screens/whoop_body_detail_page.dart';
@@ -115,6 +117,7 @@ class DashboardPageState extends State<DashboardPage>
   bool _trendSleepLoading = false;
   bool _trendCaloriesLoading = false;
   bool _whoopLinked = false;
+  bool _whoopLinkedKnown = false;
   bool _whoopLoading = false;
   int? _whoopRecovery;
   double? _whoopSleepHours;
@@ -1499,6 +1502,7 @@ class DashboardPageState extends State<DashboardPage>
       if (requestId != _whoopReqId) return;
           setState(() {
             _whoopLinked = false;
+            _whoopLinkedKnown = true;
             _whoopRecovery = null;
             _whoopSleepHours = null;
             _whoopSleepScore = null;
@@ -1522,6 +1526,12 @@ class DashboardPageState extends State<DashboardPage>
       }
       final statusData = jsonDecode(statusRes.body) as Map<String, dynamic>;
       final linked = statusData["linked"] == true;
+      if (!mounted) return;
+      if (requestId != _whoopReqId) return;
+      setState(() {
+        _whoopLinked = linked;
+        _whoopLinkedKnown = true;
+      });
       if (!linked) {
         if (!mounted) return;
         if (requestId != _whoopReqId) return;
@@ -1665,6 +1675,9 @@ class DashboardPageState extends State<DashboardPage>
       });
       _pruneDeviceWidgets();
       _loadWhoopBody();
+      if (!_trendSleepLoading) {
+        _loadTrendSleep();
+      }
     } catch (_) {
       if (!mounted) return;
       if (requestId != _whoopReqId) return;
@@ -2682,6 +2695,7 @@ class DashboardPageState extends State<DashboardPage>
                             return WhoopSleepCard(
                               loading: _whoopLoading,
                               linked: _whoopLinked,
+                              linkedKnown: _whoopLinkedKnown,
                               hours: _whoopSleepHours,
                               score: _whoopSleepScore,
                               goal: _sleepGoal,
@@ -2908,6 +2922,7 @@ class DashboardPageState extends State<DashboardPage>
                             builder: (_) => WhoopInsightsPage(
                               loading: _whoopLoading,
                               linked: _whoopLinked,
+                              linkedKnown: _whoopLinkedKnown,
                               recoveryScore: _whoopRecovery,
                               weightKg: _whoopBodyWeightKg,
                               sleepHours: _whoopSleepHours,
@@ -2925,6 +2940,38 @@ class DashboardPageState extends State<DashboardPage>
                       },
                     ),
                     const SizedBox(height: 16),
+                  ],
+                  if (_fitbitLinked) ...[
+                    if (!(_statOrder.contains('fitbit_activity') &&
+                        _statOrder.contains('fitbit_heart') &&
+                        _statOrder.contains('fitbit_sleep'))) ...[
+                      FitbitExtrasCard(
+                        onTap: _wiggling
+                            ? null
+                            : () async {
+                                await Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => FitbitInsightsPage(
+                                      activityLoading: _fitbitActivityLoading,
+                                      heartLoading: _fitbitHeartLoading,
+                                      sleepLoading: _fitbitSleepLoading,
+                                      activity: _fitbitActivity,
+                                      activityLast: _fitbitActivityLast,
+                                      heart: _fitbitHeart,
+                                      heartLast: _fitbitHeartLast,
+                                      sleep: _fitbitSleep,
+                                      sleepLast: _fitbitSleepLast,
+                                      date: _selectedDate,
+                                      hideActivity: _statOrder.contains('fitbit_activity'),
+                                      hideHeart: _statOrder.contains('fitbit_heart'),
+                                      hideSleep: _statOrder.contains('fitbit_sleep'),
+                                    ),
+                                  ),
+                                );
+                              },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                   ],
                   ProgressMeter(
                     title: t("dash_weekly_goal"),

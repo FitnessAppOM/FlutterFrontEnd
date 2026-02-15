@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 
-class WhoopExtrasCard extends StatelessWidget {
-  const WhoopExtrasCard({super.key, this.onTap});
+class FitbitExtrasCard extends StatelessWidget {
+  const FitbitExtrasCard({super.key, this.onTap});
 
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    const whoopBlue = Color(0xFF4A8BFF);
+    const fitbitDark = Color(0xFF0C6A73);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -23,25 +23,25 @@ class WhoopExtrasCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.cardDark,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: whoopBlue, width: 1.6),
+                border: Border.all(color: fitbitDark, width: 1.6),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Whoop insights",
+                    "Fitbit insights",
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w800,
                         ),
                   ),
-          const SizedBox(height: 8),
-          Text(
-            "Check your Whoop stats",
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.white60,
-                  fontWeight: FontWeight.w600,
-                ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Check your Fitbit stats",
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.white60,
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                 ],
               ),
@@ -52,7 +52,7 @@ class WhoopExtrasCard extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: whoopBlue,
+                  color: fitbitDark,
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
@@ -63,7 +63,7 @@ class WhoopExtrasCard extends StatelessWidget {
                   ],
                 ),
                 child: Image.asset(
-                  'assets/images/whoop.png',
+                  'assets/images/fitbit.png',
                   height: 14,
                   fit: BoxFit.contain,
                 ),

@@ -37,6 +37,10 @@ class DietPageState extends State<DietPage> {
   bool _mealsFromCache = false;
   bool _freezing = false;
   int _mealsRequestId = 0;
+  bool _manualMealDialogOpen = false;
+  bool _itemSearchSheetOpen = false;
+  bool _manualEntrySheetOpen = false;
+  bool _photoEntrySheetOpen = false;
 
   int _modeIndex = 0; // 0 = Rest, 1 = Training
   int _selectedTrainingDayIndex = 0;
@@ -626,6 +630,8 @@ class DietPageState extends State<DietPage> {
   }
 
   Future<void> _createMealManually() async {
+    if (_manualMealDialogOpen) return;
+    _manualMealDialogOpen = true;
     final t = AppLocalizations.of(context);
     final titleCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
@@ -690,7 +696,13 @@ class DietPageState extends State<DietPage> {
         SnackBar(content: Text("${t.translate("diet_add_meal_failed")}: $e")),
       );
     } finally {
-      titleCtrl.dispose();
+      _manualMealDialogOpen = false;
+      // Dispose after the dialog route has fully settled to avoid disposing
+      // a controller still attached during transition.
+      final ctrl = titleCtrl;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ctrl.dispose();
+      });
     }
   }
 
@@ -1447,6 +1459,8 @@ class DietPageState extends State<DietPage> {
                                               mealTitle: displayTitle,
                                               onSearch: () async {
                                                 if (!context.mounted) return;
+                                                if (_itemSearchSheetOpen) return;
+                                                _itemSearchSheetOpen = true;
                                                 await showModalBottomSheet(
                                                   context: context,
                                                   isScrollControlled: true,
@@ -1478,9 +1492,12 @@ class DietPageState extends State<DietPage> {
                                                     },
                                                   ),
                                                 );
+                                                _itemSearchSheetOpen = false;
                                               },
                                               onManualEntry: () async {
                                                 if (!context.mounted) return;
+                                                if (_manualEntrySheetOpen) return;
+                                                _manualEntrySheetOpen = true;
                                                 await showModalBottomSheet(
                                                   context: context,
                                                   isScrollControlled: true,
@@ -1511,9 +1528,12 @@ class DietPageState extends State<DietPage> {
                                                     },
                                                   ),
                                                 );
+                                                _manualEntrySheetOpen = false;
                                               },
                                               onPhotoEntry: () async {
                                                 if (!context.mounted) return;
+                                                if (_photoEntrySheetOpen) return;
+                                                _photoEntrySheetOpen = true;
                                                 await showModalBottomSheet(
                                                   context: context,
                                                   isScrollControlled: true,
@@ -1544,6 +1564,7 @@ class DietPageState extends State<DietPage> {
                                                     },
                                                   ),
                                                 );
+                                                _photoEntrySheetOpen = false;
                                               },
                                             ),
                                           );
