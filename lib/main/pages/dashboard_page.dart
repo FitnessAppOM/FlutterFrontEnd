@@ -1328,8 +1328,9 @@ class DashboardPageState extends State<DashboardPage>
       }
       if (!mounted) return;
       setState(() => _todayCalories = kcal);
-      // Send burn so backend can run surplus rule; then refetch diet targets.
-      if (_isToday() && kcal != null) {
+      // Submit burn for this date whenever we have a value (no run limit). When user
+      // lowers calories burned, backend reduces surplus and targets for that date.
+      if (kcal != null) {
         final userId = await AccountStorage.getUserId();
         if (userId != null) {
           try {
@@ -1338,7 +1339,7 @@ class DashboardPageState extends State<DashboardPage>
               caloriesBurned: kcal,
               entryDate: _selectedDate,
             );
-            await DietService.fetchCurrentTargets(userId);
+            if (_isToday()) await DietService.fetchCurrentTargets(userId);
           } catch (_) {
             // Ignore; surplus will run on next submit or full metrics upsert.
           }

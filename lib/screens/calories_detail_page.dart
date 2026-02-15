@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/account_storage.dart';
 import '../services/diet/calories_service.dart';
+import '../services/diet/diet_service.dart';
+import '../services/metrics/daily_metrics_api.dart';
 import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
 
@@ -401,6 +404,22 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
       final today = DateTime.now();
       final day = DateTime(today.year, today.month, today.day);
       await CaloriesService().saveManualEntry(day, result);
+      // Submit burn so surplus rule runs (e.g. when user lowers value, targets go down).
+      final userId = await AccountStorage.getUserId();
+      if (userId != null) {
+        try {
+          await DailyMetricsApi.submitBurn(
+            userId: userId,
+            caloriesBurned: result,
+            entryDate: day,
+          );
+          if (day.year == today.year && day.month == today.month && day.day == today.day) {
+            await DietService.fetchCurrentTargets(userId);
+          }
+        } catch (_) {
+          // Ignore; next dashboard load or sync will submit.
+        }
+      }
       if (mounted) {
         _loadRange();
       }

@@ -327,7 +327,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
 
     const singleChoiceOptions = {
       "sex": ["male", "female", "prefer_not"],
-      "main_goal": ["lose_weight", "gain_muscle", "maintain_weight"],
+      "main_goal": ["lose_weight", "gain_weight", "maintain_weight"],
       "motivation": ["look_better", "feel_stronger", "health_better", "more_energy", "mental_wellbeing"],
       "muscle_priority_upper": ["chest", "back", "shoulders"],
       "muscle_priority_lower": ["quads", "hamstrings", "glutes"],
@@ -580,7 +580,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         keyName: "main_goal",
         options: [
           _t("lose_weight"),
-          _t("gain_muscle"),
+          _t("gain_weight"),
           _t("maintain_weight"),
         ],
         subtitle: _t("goal_main_subtitle"),

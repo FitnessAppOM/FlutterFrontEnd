@@ -184,6 +184,12 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
       return v.toString();
     }
 
+    // diet_type: API accepts array (recommended) or string; pass list through
+    final dietRaw = latest["diet_type"];
+    final dynamic dietPayload = dietRaw is List
+        ? (dietRaw as List).map((e) => e?.toString().trim()).whereType<String>().where((s) => s.isNotEmpty).toList()
+        : _normalizeStringField(dietRaw);
+
     return <String, dynamic>{
       "user_id": userId,
       "age": latest["age"],
@@ -194,7 +200,7 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
       "training_days": _normalizeStringField(latest["training_days"]),
       "fitness_experience": _normalizeStringField(latest["fitness_experience"]),
       "daily_activity": _normalizeStringField(latest["daily_activity"] ?? latest["occupation"]),
-      "diet_type": _normalizeStringField(latest["diet_type"]),
+      "diet_type": dietPayload,
       "past_injuries": _normalizeStringField(latest["past_injuries"]),
       "chronic_conditions": _normalizeStringField(latest["chronic_conditions"]),
       "affiliation_id": latest["affiliation_id"],

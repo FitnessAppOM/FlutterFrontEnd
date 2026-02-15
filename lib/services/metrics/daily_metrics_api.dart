@@ -84,21 +84,26 @@ class DailyMetricsApi {
   }
 
   /// Submits calories burned for a day so the backend can run the surplus rule.
-  /// Call when you have the dashboard "calories burned" value (e.g. on dashboard load).
-  /// [entryDate] defaults to today if null.
+  /// Call whenever you have updated "calories burned" (e.g. dashboard load, Health sync,
+  /// or user editing/lowering the value). No limit on how many times per day.
+  /// [caloriesBurned] accepts int or double (e.g. from Apple Health); negative/NaN → 0.
+  /// [entryDate] defaults to today if null. Backend runs surplus for that date.
   static Future<void> submitBurn({
     required int userId,
-    required int caloriesBurned,
+    required num caloriesBurned,
     DateTime? entryDate,
   }) async {
     final date = entryDate ?? DateTime.now();
     final entryDateStr = date.toIso8601String().split("T").first;
-    final url = Uri.parse("${ApiConfig.baseUrl}/daily-metrics/submit-burn");
+    // Normalize: backend accepts int or float; treat negative/NaN as 0 for consistent behavior
+    final n = caloriesBurned is num ? caloriesBurned.toDouble() : 0.0;
+    final normalized = (n.isNaN || n.isNegative) ? 0.0 : n;
     final body = <String, dynamic>{
       "user_id": userId,
-      "calories_burned": caloriesBurned,
+      "calories_burned": normalized == normalized.roundToDouble() ? normalized.toInt() : normalized,
       "entry_date": entryDateStr,
     };
+    final url = Uri.parse("${ApiConfig.baseUrl}/daily-metrics/submit-burn");
     final headers = {"Content-Type": "application/json", ...await AccountStorage.getAuthHeaders()};
     final res = await http.post(url, headers: headers, body: jsonEncode(body));
     await AccountStorage.handle401(res.statusCode);

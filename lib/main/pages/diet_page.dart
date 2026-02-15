@@ -203,11 +203,17 @@ class DietPageState extends State<DietPage> {
         throw Exception("User not found");
       }
 
-      // auto_open=true will create Meal 1..N if missing
+      // When in training mode, fetch meals for that training day so create/fetch match
+      final trainingDayId = _modeIndex == 1
+          ? _asInt(_selectedTrainingDay?["day_id"], fallback: 0)
+          : null;
+      final effectiveTdId = (trainingDayId != null && trainingDayId > 0) ? trainingDayId : null;
+
       final data = await DietService.fetchMealsForDate(
         userId,
         date: _mealDate,
         autoOpen: true,
+        trainingDayId: effectiveTdId,
       );
       if (!mounted || requestId != _mealsRequestId) return;
 
@@ -234,8 +240,13 @@ class DietPageState extends State<DietPage> {
     } catch (e) {
       // Cache fallback (offline-friendly)
       try {
+        final trainingDayId = _modeIndex == 1
+            ? _asInt(_selectedTrainingDay?["day_id"], fallback: 0)
+            : null;
+        final effectiveTdId = (trainingDayId != null && trainingDayId > 0) ? trainingDayId : null;
         final cached = await DietService.fetchMealsForDateFromCache(
           _mealDate,
+          trainingDayId: effectiveTdId,
         );
         if (!mounted || requestId != _mealsRequestId) return;
         if (cached != null) {
@@ -680,16 +691,69 @@ class DietPageState extends State<DietPage> {
       final userId = await AccountStorage.getUserId();
       if (userId == null) return;
 
-      await DietService.createMeal(
+      final trainingDayId = _modeIndex == 1
+          ? _asInt(_selectedTrainingDay?["day_id"], fallback: 0)
+          : null;
+      final effectiveTdId = (trainingDayId != null && trainingDayId > 0) ? trainingDayId : null;
+
+      final created = await DietService.createMeal(
         userId: userId,
         date: _mealDate,
         title: titleCtrl.text.trim().isEmpty ? null : titleCtrl.text.trim(),
+        trainingDayId: effectiveTdId,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(t.translate("diet_add_meal_success"))),
       );
+
+      // Optimistically add the new meal so it appears immediately
+      final mealData = created["meal"] is Map
+          ? Map<String, dynamic>.from(created["meal"] as Map)
+          : created;
+      final mealId = _asInt(mealData["meal_id"], fallback: _asInt(mealData["id"], fallback: 0));
+      final newMeal = mealId > 0
+          ? <String, dynamic>{
+              "meal_id": mealId,
+              "title": mealData["title"] ?? titleCtrl.text.trim(),
+              "items": mealData["items"] ?? mealData["meal_items"] ?? [],
+            }
+          : null;
+      if (newMeal != null) {
+        setState(() {
+          if (_meals != null) {
+            final mealsList = _meals!["meals"];
+            if (mealsList is List) {
+              final updated = List<Map<String, dynamic>>.from(
+                mealsList.map((e) => e is Map ? Map<String, dynamic>.from(e) : <String, dynamic>{}),
+              );
+              updated.add(newMeal);
+              _meals = Map<String, dynamic>.from(_meals!);
+              _meals!["meals"] = updated;
+            }
+          } else {
+            _meals = {"meals": [newMeal]};
+          }
+        });
+      }
+
       await _loadMeals();
+      // If the backend didn't return the new meal (e.g. caps at meals_per_day), keep it in the list
+      if (!mounted || newMeal == null) return;
+      final list = _meals?["meals"];
+      if (list is List) {
+        final hasNew = list.any((m) =>
+            _asInt(m is Map ? m["meal_id"] : null, fallback: 0) == mealId ||
+            _asInt(m is Map ? m["id"] : null, fallback: 0) == mealId);
+        if (!hasNew) {
+          setState(() {
+            _meals = Map<String, dynamic>.from(_meals!);
+            _meals!["meals"] = List<Map<String, dynamic>>.from(
+              list.map((e) => e is Map ? Map<String, dynamic>.from(e) : <String, dynamic>{}),
+            )..add(newMeal);
+          });
+        }
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

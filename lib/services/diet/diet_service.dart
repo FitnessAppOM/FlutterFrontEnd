@@ -125,13 +125,18 @@ class DietService {
   }
 
   /// Create a custom meal for a given date (manual add meal widget).
+  /// When [trainingDayId] is set, the meal is created for that training day (same as fetch).
   static Future<Map<String, dynamic>> createMeal({
     required int userId,
     required DateTime date,
     String? title,
+    int? trainingDayId,
   }) async {
-    final url = Uri.parse('$baseUrl/diet/meals/$userId')
-        .replace(queryParameters: {'meal_date': _dateParam(date)});
+    final qp = <String, String>{
+      'meal_date': _dateParam(date),
+      if (trainingDayId != null) 'training_day_id': trainingDayId.toString(),
+    };
+    final url = Uri.parse('$baseUrl/diet/meals/$userId').replace(queryParameters: qp);
     final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
     final response = await http.post(
       url,

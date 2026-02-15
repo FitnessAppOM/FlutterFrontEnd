@@ -43,10 +43,19 @@ class ProfileGoalsSection extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label, style: const TextStyle(color: Colors.white70)),
-          const Spacer(),
-          Text(value, style: const TextStyle(color: Colors.white)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(color: Colors.white),
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+              softWrap: true,
+            ),
+          ),
         ],
       ),
     );

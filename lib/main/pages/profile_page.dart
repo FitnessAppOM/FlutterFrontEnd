@@ -108,20 +108,38 @@ class _ProfilePageState extends State<ProfilePage> {
 
   String _translateOption(String field, dynamic raw, AppLocalizations t) {
     if (raw == null) return "";
+    // diet_type may be array (API JSONB) or string
+    if (field == "diet_type" && raw is List) {
+      final parts = <String>[];
+      for (final e in raw) {
+        final s = e?.toString().trim();
+        if (s != null && s.isNotEmpty) parts.add(s);
+      }
+      return parts.map((p) => _translateOption("diet_type", p, t)).join(", ");
+    }
     final value = raw.toString().trim();
     if (value.isEmpty) return "";
 
+    // diet_type can be comma-separated string (multi-choice)
+    if (field == "diet_type" && value.contains(",")) {
+      final parts = value.split(RegExp(r',\s*')).map((s) => s.trim()).where((s) => s.isNotEmpty);
+      return parts.map((p) => _translateOption("diet_type", p, t)).join(", ");
+    }
+
     final normalized = _normalizeValue(value);
 
+    // Option keys aligned with questionnaire (and edit profile)
     const Map<String, List<String>> optionKeys = {
       "sex": ["male", "female", "prefer_not"],
       "daily_activity": ["sedentary", "moderate", "active", "highly_active"],
       "fitness_goal": [
         "lose_weight",
+        "gain_weight",
+        "maintain_weight",
+        "lose_fat",
+        "build_muscle",
+        "maintain",
         "gain_muscle",
-        "improve_endurance",
-        "maintain_fitness",
-        "improve_health",
       ],
       "diet_type": [
         "no_pref",
@@ -129,7 +147,6 @@ class _ProfilePageState extends State<ProfilePage> {
         "low_carb",
         "vegetarian",
         "vegan",
-        "fasting",
         "other",
       ],
       "fitness_experience": ["beginner", "intermediate", "advanced"],

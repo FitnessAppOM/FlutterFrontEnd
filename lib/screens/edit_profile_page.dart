@@ -45,7 +45,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
   String? _trainingDays;
   String? _fitnessExperience;
   String? _dailyActivity;
-  String? _dietType;
+  /// Diet preferences (multi-choice, same as questionnaire); "other" uses _dietOtherCtrl
+  Set<String> _dietSelected = {};
   String? _trainingStyle;
   String? _chronicChoice;
 
@@ -92,20 +93,39 @@ class _EditProfilePageState extends State<EditProfilePage> {
         _localizeInjury(_str(p["previous_injuries"]), t);
 
     _sex = _mapOptionKey(_str(p["sex"]), _sexOptions());
-    _mainGoal = _mapOptionKey(_str(p["fitness_goal"]), _goalOptions());
+    // main_goal / fitness_goal: same 3 options as questionnaire
+    final goalRaw = _str(p["fitness_goal"] ?? p["main_goal"]);
+    _mainGoal = _mapOptionKey(goalRaw, _goalOptions()) ??
+        _mapLegacyGoal(goalRaw);
     _trainingDays = _matchOption(p["training_days"], _trainingDaysOptions());
     _fitnessExperience =
         _mapOptionKey(_str(p["fitness_experience"]), _fitnessExperienceOptions()) ??
             _matchOption(p["fitness_experience"], _fitnessExperienceOptions());
     _dailyActivity = _mapOptionKey(_str(p["occupation"]), _dailyActivityOptions());
 
-    final dietRaw = _str(p["diet_type"]);
-    final matchedDiet = _mapOptionKey(dietRaw, _dietOptions());
-    if (matchedDiet == null && dietRaw.isNotEmpty) {
-      _dietType = _otherKey;
-      _dietOtherCtrl.text = dietRaw;
+    // Diet: API may return array (JSONB) or string; multi-choice same as questionnaire
+    final dietRaw = p["diet_type"];
+    List<String> dietParts = [];
+    if (dietRaw is List) {
+      dietParts = dietRaw.map((e) => _str(e)).where((s) => s.isNotEmpty).toList();
     } else {
-      _dietType = matchedDiet;
+      final s = _str(dietRaw);
+      if (s.isNotEmpty) {
+        dietParts = s.split(RegExp(r',\s*')).map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+      }
+    }
+    for (final part in dietParts) {
+      final matched = _mapOptionKey(part, _dietOptions());
+      if (matched != null) {
+        _dietSelected.add(matched);
+      } else {
+        _dietSelected.add(_otherKey);
+        _dietOtherCtrl.text = part;
+      }
+    }
+    if (_dietSelected.isEmpty && dietParts.isNotEmpty) {
+      _dietSelected.add(_otherKey);
+      _dietOtherCtrl.text = dietParts.join(", ");
     }
 
     final trainingRaw = _str(p["training_style"]);
@@ -181,12 +201,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
   String get _otherLabel => _t("other");
 
   List<String> _sexOptions() => ["male", "female", "prefer_not"];
+  // Main goal: same 3 options as questionnaire (Lose weight, Gain weight, Maintain weight)
   List<String> _goalOptions() => [
         "lose_weight",
-        "gain_muscle",
-        "improve_endurance",
-        "maintain_fitness",
-        "improve_health",
+        "gain_weight",
+        "maintain_weight",
       ];
   List<String> _trainingDaysOptions() =>
       List<String>.generate(7, (i) => "${i + 1}");
@@ -194,13 +213,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ["beginner", "intermediate", "advanced"];
   List<String> _dailyActivityOptions() =>
       ["sedentary", "moderate", "active", "highly_active"];
+  // Match questionnaire diet_type options (multi-choice); "other" for backward compat
   List<String> _dietOptions() => [
         "no_pref",
         "high_protein",
         "low_carb",
         "vegetarian",
         "vegan",
-        "fasting",
         _otherKey,
       ];
   List<String> _trainingStyleOptions() => [
@@ -223,6 +242,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
         return key;
       }
     }
+    return null;
+  }
+
+  /// Map legacy/API goal values to current options (lose_weight, gain_weight, maintain_weight)
+  String? _mapLegacyGoal(String raw) {
+    final n = _norm(raw);
+    if (n == _norm("lose_fat") || n == _norm("lose_weight") || n == _norm(_t("lose_weight"))) return "lose_weight";
+    if (n == _norm("build_muscle") || n == _norm("gain_muscle") || n == _norm("gain_weight") || n == _norm(_t("gain_muscle")) || n == _norm(_t("gain_weight"))) return "gain_weight";
+    if (n == _norm("maintain") || n == _norm("maintain_weight") || n == _norm(_t("maintain_weight"))) return "maintain_weight";
     return null;
   }
 
@@ -315,10 +343,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final activityKey =
         _dailyActivity ?? _mapOptionKey(initialStr("occupation"), _dailyActivityOptions()) ?? "";
 
-    String? resolvedDietKey = _dietType ?? _mapOptionKey(initialStr("diet_type"), _dietOptions());
-    if (resolvedDietKey == null && _dietOtherCtrl.text.trim().isEmpty) {
-      resolvedDietKey = initialStr("diet_type").isNotEmpty ? _otherKey : null;
-    }
+    // Diet: multi-choice → array (Profile Update API recommended format, same as questionnaire)
+    final dietParts = _dietSelected
+        .map((k) => k == _otherKey ? _dietOtherCtrl.text.trim() : k)
+        .where((v) => v.isNotEmpty)
+        .toList();
+    final resolvedDietValue = dietParts.isEmpty ? null : dietParts;
+    final resolvedDietForCompare = dietParts.isEmpty
+        ? initialStr("diet_type")
+        : dietParts.join(", ");
     String? resolvedTrainingKey =
         _trainingStyle ?? _mapOptionKey(initialStr("training_style"), _trainingStyleOptions());
     if (resolvedTrainingKey == null && _trainingStyleCtrl.text.trim().isEmpty) {
@@ -363,7 +396,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       "training_days": trainingDaysKey.isEmpty ? null : trainingDaysKey,
       "fitness_experience": fitnessExpKey.isEmpty ? null : fitnessExpKey,
       "daily_activity": activityKey.isEmpty ? null : activityKey,
-      "diet_type": resolvedDietKey == _otherKey ? _dietOtherCtrl.text.trim() : resolvedDietKey,
+      "diet_type": resolvedDietValue,
       "training_style":
           resolvedTrainingKey == _otherKey ? _trainingStyleCtrl.text.trim() : resolvedTrainingKey,
       "past_injuries": pastInjuriesVal,
@@ -393,10 +426,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final rawInitialGoal = (initialStr("fitness_goal").trim().isNotEmpty
         ? initialStr("fitness_goal")
         : initialStr("main_goal"));
-    final initialMainGoal = _mapOptionKey(rawInitialGoal, _goalOptions()) ?? rawInitialGoal.trim();
+    final initialMainGoal = _mapOptionKey(rawInitialGoal, _goalOptions()) ??
+        _mapLegacyGoal(rawInitialGoal) ??
+        rawInitialGoal.trim();
     final initialDiet = (initialStr("diet_type")).trim();
-    final newDietValue = resolvedDietKey == _otherKey ? _dietOtherCtrl.text.trim() : (resolvedDietKey ?? "");
-    final mainGoalOrDietChanged = (initialMainGoal != mainGoalKey) || (initialDiet != newDietValue);
+    // initialDiet may be stored as string or array; compare with normalized diet selection
+    final initialDietNorm = (_initial["diet_type"] is List)
+        ? (_initial["diet_type"] as List).map((e) => _str(e)).where((s) => s.isNotEmpty).join(", ")
+        : initialDiet;
+    final mainGoalOrDietChanged = (initialMainGoal != mainGoalKey) ||
+        (initialDietNorm != resolvedDietForCompare);
 
     setState(() => _saving = true);
 
@@ -596,22 +635,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ),
               const SizedBox(height: 12),
               _sectionTitle(t.translate("section_nutrition_title")),
-              _dropdownField(
-                label: t.translate("diet_type"),
-                value: _dietType,
-                options: _dietOptions(),
-                translateOptions: true,
-                onChanged: (v) {
-                  setState(() {
-                    _dietType = v;
-                    if (v != _otherKey) {
-                      _dietOtherCtrl.clear();
-                    }
-                  });
-                },
-              ),
-              if (_dietType == _otherKey)
-                _textField(_dietOtherCtrl, t.translate("other")),
+              _dietMultiChoiceField(),
               const SizedBox(height: 12),
               _sectionTitle(t.translate("section_training_title")),
               _dropdownField(
@@ -914,6 +938,55 @@ class _EditProfilePageState extends State<EditProfilePage> {
             .toList(),
         validator: (_) => null,
         onChanged: onChanged,
+      ),
+    );
+  }
+
+  /// Diet preference: multi-choice chips (same input type and options as questionnaire)
+  Widget _dietMultiChoiceField() {
+    final t = AppLocalizations.of(context);
+    final options = _dietOptions();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            t.translate("diet_type"),
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: options.map((o) {
+              final isSelected = _dietSelected.contains(o);
+              return FilterChip(
+                label: Text(o == _otherKey ? _otherLabel : _t(o)),
+                selected: isSelected,
+                selectedColor: AppColors.accent.withValues(alpha: 0.4),
+                checkmarkColor: Colors.white,
+                onSelected: (value) {
+                  setState(() {
+                    if (value) {
+                      _dietSelected.add(o);
+                    } else {
+                      _dietSelected.remove(o);
+                      if (o == _otherKey) _dietOtherCtrl.clear();
+                    }
+                  });
+                },
+              );
+            }).toList(),
+          ),
+          if (_dietSelected.contains(_otherKey)) ...[
+            const SizedBox(height: 8),
+            _textField(_dietOtherCtrl, t.translate("other")),
+          ],
+        ],
       ),
     );
   }
