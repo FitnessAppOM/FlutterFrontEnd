@@ -70,6 +70,8 @@ class _MainLayoutState extends State<MainLayout> {
         }
         if (idx == 2) {
           _dietKey.currentState?.refreshTrainingLock();
+          // Refetch targets and day summary so surplus from calories burned shows without manual refresh.
+          _dietKey.currentState?.refreshTargetsAndMeals();
         }
       },
       child: AnimatedContainer(

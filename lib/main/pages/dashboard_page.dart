@@ -1339,7 +1339,10 @@ class DashboardPageState extends State<DashboardPage>
               caloriesBurned: kcal,
               entryDate: _selectedDate,
             );
-            if (_isToday()) await DietService.fetchCurrentTargets(userId);
+            if (_isToday()) {
+              await DietService.fetchCurrentTargets(userId);
+              DietService.notifyTargetsUpdatedAfterBurn();
+            }
           } catch (_) {
             // Ignore; surplus will run on next submit or full metrics upsert.
           }

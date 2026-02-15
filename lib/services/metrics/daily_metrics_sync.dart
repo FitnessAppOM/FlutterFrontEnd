@@ -47,19 +47,20 @@ class DailyMetricsSync {
       waterLiters: waterLiters,
     );
 
-    // When we pushed for today, submit burn so surplus runs, then refetch diet targets.
+    // Submit burn for this date so surplus is set (surplus = calories burned). Every submit overwrites.
     final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
-    if (target == today) {
-      try {
-        await DailyMetricsApi.submitBurn(
-          userId: userId,
-          caloriesBurned: calories,
-          entryDate: target,
-        );
+    try {
+      await DailyMetricsApi.submitBurn(
+        userId: userId,
+        caloriesBurned: calories,
+        entryDate: target,
+      );
+      if (target == today) {
         await DietService.fetchCurrentTargets(userId);
-      } catch (_) {
-        // Ignore; diet page will refetch when opened.
+        DietService.notifyTargetsUpdatedAfterBurn();
       }
+    } catch (_) {
+      // Ignore; diet page will refetch when opened; day summary uses backend surplus.
     }
 
     final sp = await SharedPreferences.getInstance();

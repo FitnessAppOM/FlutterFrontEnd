@@ -84,24 +84,22 @@ class DailyMetricsApi {
   }
 
   /// Submits calories burned for a day so the backend can run the surplus rule.
-  /// Call whenever you have updated "calories burned" (e.g. dashboard load, Health sync,
-  /// or user editing/lowering the value). No limit on how many times per day.
-  /// [caloriesBurned] accepts int or double (e.g. from Apple Health); negative/NaN → 0.
-  /// [entryDate] defaults to today if null. Backend runs surplus for that date.
+  /// Call whenever you have new or updated "calories burned" (e.g. Health sync or user edit).
+  /// No limit on how many times per day. Surplus = exactly the value sent (no thresholds/caps).
+  /// [caloriesBurned] accepts int or double (e.g. from Apple Health / Health Connect); negative → 0.
+  /// [entryDate] optional; use the user's local date for the burn. Omit for backend to use today.
   static Future<void> submitBurn({
     required int userId,
     required num caloriesBurned,
     DateTime? entryDate,
   }) async {
-    final date = entryDate ?? DateTime.now();
-    final entryDateStr = date.toIso8601String().split("T").first;
-    // Normalize: backend accepts int or float; treat negative/NaN as 0 for consistent behavior
+    // Backend accepts int or float; coerce negative/NaN to 0
     final n = caloriesBurned is num ? caloriesBurned.toDouble() : 0.0;
     final normalized = (n.isNaN || n.isNegative) ? 0.0 : n;
     final body = <String, dynamic>{
       "user_id": userId,
       "calories_burned": normalized == normalized.roundToDouble() ? normalized.toInt() : normalized,
-      "entry_date": entryDateStr,
+      if (entryDate != null) "entry_date": entryDate.toIso8601String().split("T").first,
     };
     final url = Uri.parse("${ApiConfig.baseUrl}/daily-metrics/submit-burn");
     final headers = {"Content-Type": "application/json", ...await AccountStorage.getAuthHeaders()};

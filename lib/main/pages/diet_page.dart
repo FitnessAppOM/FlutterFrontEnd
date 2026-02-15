@@ -57,10 +57,16 @@ class DietPageState extends State<DietPage> {
     _loadTargets();
     _loadMeals();
     _updateTrainingLockFromCompletion();
+    DietService.onTargetsUpdatedAfterBurn = _onTargetsUpdatedAfterBurn;
+  }
+
+  void _onTargetsUpdatedAfterBurn() {
+    if (mounted) refreshTargetsAndMeals();
   }
 
   @override
   void dispose() {
+    DietService.onTargetsUpdatedAfterBurn = null;
     _targetsPollTimer?.cancel();
     _targetsPollTimer = null;
     super.dispose();
@@ -69,6 +75,13 @@ class DietPageState extends State<DietPage> {
   /// Call when user switches to diet tab (e.g. after finishing a workout) so we refresh lock state.
   Future<void> refreshTrainingLock() async {
     await _updateTrainingLockFromCompletion();
+  }
+
+  /// Refetch targets and meals from backend so surplus (from calories burned) is visible without manual refresh.
+  /// Refreshes silently in the background — existing data stays visible (no spinners).
+  Future<void> refreshTargetsAndMeals() async {
+    await _loadTargets(forceNetwork: true);
+    if (mounted) await _loadMeals();
   }
 
   Future<void> _updateTrainingLockFromCompletion() async {
@@ -87,8 +100,10 @@ class DietPageState extends State<DietPage> {
   }
 
   Future<void> _loadTargets({bool forceNetwork = true}) async {
+    final hasExistingTargets = _targets != null;
     setState(() {
-      _loading = true;
+      // Only show loading spinner on first load; otherwise refresh silently.
+      if (!hasExistingTargets) _loading = true;
       _error = null;
       _targetsFromCache = false;
     });
@@ -188,12 +203,15 @@ class DietPageState extends State<DietPage> {
   Future<void> _loadMeals({bool clearExisting = false}) async {
     _mealsRequestId++;
     final requestId = _mealsRequestId;
+    final hasExistingData = _meals != null && !clearExisting;
     setState(() {
-      _mealsLoading = true;
+      // Only show loading spinner on first load or explicit clear;
+      // otherwise refresh silently in the background to avoid widget flicker.
+      if (!hasExistingData) _mealsLoading = true;
       _mealsError = null;
       _mealsFromCache = false;
       if (clearExisting) {
-        _meals = null; // avoid showing stale summary/macros during mode switch
+        _meals = null;
       }
     });
 
@@ -644,42 +662,20 @@ class DietPageState extends State<DietPage> {
     if (_manualMealDialogOpen) return;
     _manualMealDialogOpen = true;
     final t = AppLocalizations.of(context);
-    final titleCtrl = TextEditingController();
-    final formKey = GlobalKey<FormState>();
     try {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) {
           return AlertDialog(
-            scrollable: true,
             title: Text(t.translate("diet_add_meal_title")),
-            content: Form(
-              key: formKey,
-              child: TextFormField(
-                controller: titleCtrl,
-                decoration: InputDecoration(
-                  labelText: t.translate("diet_add_meal_name"),
-                  hintText: t.translate("diet_add_meal_name_hint"),
-                ),
-                validator: (v) {
-                  final trimmed = v?.trim() ?? '';
-                  if (trimmed.length > 120) {
-                    return t.translate("diet_add_meal_name_too_long");
-                  }
-                  return null;
-                },
-              ),
-            ),
+            content: Text(t.translate("diet_add_meal_confirm_message")),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(false),
                 child: Text(t.translate("common_cancel")),
               ),
               ElevatedButton(
-                onPressed: () {
-                  if (!formKey.currentState!.validate()) return;
-                  Navigator.of(ctx).pop(true);
-                },
+                onPressed: () => Navigator.of(ctx).pop(true),
                 child: Text(t.translate("diet_add_meal_confirm")),
               ),
             ],
@@ -691,82 +687,31 @@ class DietPageState extends State<DietPage> {
       final userId = await AccountStorage.getUserId();
       if (userId == null) return;
 
-      final trainingDayId = _modeIndex == 1
-          ? _asInt(_selectedTrainingDay?["day_id"], fallback: 0)
-          : null;
-      final effectiveTdId = (trainingDayId != null && trainingDayId > 0) ? trainingDayId : null;
-
-      final created = await DietService.createMeal(
+      // Add one extra meal slot for this day; backend names it by order (Meal 4, etc.).
+      final response = await DietService.addMealSlot(
         userId: userId,
         date: _mealDate,
-        title: titleCtrl.text.trim().isEmpty ? null : titleCtrl.text.trim(),
-        trainingDayId: effectiveTdId,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(t.translate("diet_add_meal_success"))),
       );
 
-      // Optimistically add the new meal so it appears immediately
-      final mealData = created["meal"] is Map
-          ? Map<String, dynamic>.from(created["meal"] as Map)
-          : created;
-      final mealId = _asInt(mealData["meal_id"], fallback: _asInt(mealData["id"], fallback: 0));
-      final newMeal = mealId > 0
-          ? <String, dynamic>{
-              "meal_id": mealId,
-              "title": mealData["title"] ?? titleCtrl.text.trim(),
-              "items": mealData["items"] ?? mealData["meal_items"] ?? [],
-            }
-          : null;
-      if (newMeal != null) {
-        setState(() {
-          if (_meals != null) {
-            final mealsList = _meals!["meals"];
-            if (mealsList is List) {
-              final updated = List<Map<String, dynamic>>.from(
-                mealsList.map((e) => e is Map ? Map<String, dynamic>.from(e) : <String, dynamic>{}),
-              );
-              updated.add(newMeal);
-              _meals = Map<String, dynamic>.from(_meals!);
-              _meals!["meals"] = updated;
-            }
-          } else {
-            _meals = {"meals": [newMeal]};
-          }
-        });
-      }
-
-      await _loadMeals();
-      // If the backend didn't return the new meal (e.g. caps at meals_per_day), keep it in the list
-      if (!mounted || newMeal == null) return;
-      final list = _meals?["meals"];
-      if (list is List) {
-        final hasNew = list.any((m) =>
-            _asInt(m is Map ? m["meal_id"] : null, fallback: 0) == mealId ||
-            _asInt(m is Map ? m["id"] : null, fallback: 0) == mealId);
-        if (!hasNew) {
-          setState(() {
-            _meals = Map<String, dynamic>.from(_meals!);
-            _meals!["meals"] = List<Map<String, dynamic>>.from(
-              list.map((e) => e is Map ? Map<String, dynamic>.from(e) : <String, dynamic>{}),
-            )..add(newMeal);
-          });
+      setState(() {
+        _meals = Map<String, dynamic>.from(response);
+        if (_meals!["meals"] == null && response["meals"] != null) {
+          _meals!["meals"] = response["meals"];
         }
-      }
+      });
+      await _loadMeals();
     } catch (e) {
       if (!mounted) return;
+      final msg = e is Exception ? e.toString().replaceFirst('Exception: ', '') : e.toString();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("${t.translate("diet_add_meal_failed")}: $e")),
+        SnackBar(content: Text("${t.translate("diet_add_meal_failed")}: $msg")),
       );
     } finally {
       _manualMealDialogOpen = false;
-      // Dispose after the dialog route has fully settled to avoid disposing
-      // a controller still attached during transition.
-      final ctrl = titleCtrl;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ctrl.dispose();
-      });
     }
   }
 
@@ -934,6 +879,94 @@ class DietPageState extends State<DietPage> {
     }
   }
 
+  Future<void> _renameMeal({
+    required int mealId,
+    required String currentTitle,
+    int? trainingDayId,
+  }) async {
+    final t = AppLocalizations.of(context);
+    final nameCtrl = TextEditingController(text: currentTitle);
+    final formKey = GlobalKey<FormState>();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          scrollable: true,
+          title: Text(t.translate("diet_rename_meal_dialog_title")),
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              controller: nameCtrl,
+              decoration: InputDecoration(
+                labelText: t.translate("diet_rename_meal_label"),
+                hintText: t.translate("diet_add_meal_name_hint"),
+              ),
+              validator: (v) {
+                final trimmed = v?.trim() ?? '';
+                if (trimmed.length > 120) {
+                  return t.translate("diet_add_meal_name_too_long");
+                }
+                return null;
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(t.translate("common_cancel")),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (!formKey.currentState!.validate()) return;
+                Navigator.of(ctx).pop(true);
+              },
+              child: Text(t.translate("common_save")),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true) return;
+
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null) return;
+      final newTitle = nameCtrl.text.trim();
+      await DietService.updateMeal(
+        userId: userId,
+        mealId: mealId,
+        title: newTitle,
+        trainingDayId: trainingDayId,
+      );
+      if (!mounted) return;
+
+      // Optimistic update: immediately show the new title in local state
+      if (_meals != null) {
+        final meals = _mealList;
+        for (final m in meals) {
+          if (_asInt(m["meal_id"], fallback: 0) == mealId) {
+            m["title"] = newTitle;
+            break;
+          }
+        }
+        setState(() {});
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(t.translate("diet_rename_meal_success"))),
+      );
+      await _loadMeals();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("${t.translate("diet_rename_meal_failed")}: $e")),
+      );
+    } finally {
+      nameCtrl.dispose();
+    }
+  }
+
   Future<void> _freezeDay() async {
     final t = AppLocalizations.of(context);
     final userId = await AccountStorage.getUserId();
@@ -958,6 +991,20 @@ class DietPageState extends State<DietPage> {
     } finally {
       if (mounted) setState(() => _freezing = false);
     }
+  }
+
+  /// Meal totals: from API when present (sum of items or user override), otherwise sum of items.
+  Map<String, int> _mealTotals(Map<String, dynamic> meal) {
+    final totals = meal["totals"];
+    if (totals is Map) {
+      return {
+        "calories": _asInt(totals["calories"]),
+        "protein_g": _asInt(totals["protein_g"]),
+        "carbs_g": _asInt(totals["carbs_g"]),
+        "fat_g": _asInt(totals["fat_g"]),
+      };
+    }
+    return _sumMealItemsMacros(meal);
   }
 
   Map<String, int> _sumMealItemsMacros(Map<String, dynamic> meal) {
@@ -1395,16 +1442,18 @@ class DietPageState extends State<DietPage> {
                     final meal = entry.value;
                     final backendTitle = _asString(meal["title"]);
                     final idx = listIndex + 1; // Frontend display index (1..N) - always use this for numbering
-                    // Use custom title only if it's not a default "Meal X" pattern
-                    final isDefaultTitle = backendTitle.isEmpty || 
-                        RegExp(r'^Meal\s+\d+$', caseSensitive: false).hasMatch(backendTitle) ||
-                        RegExp(r'^' + t.translate("diet_meal") + r'\s+\d+$', caseSensitive: false).hasMatch(backendTitle);
+                    final mealIndex = _asInt(meal["meal_index"], fallback: idx);
+                    // Treat as default only if it exactly matches "Meal {index}" for this slot
+                    final lowerTitle = backendTitle.toLowerCase().trim();
+                    final isDefaultTitle = backendTitle.isEmpty ||
+                        lowerTitle == "meal $mealIndex" ||
+                        lowerTitle == "${t.translate("diet_meal").toLowerCase()} $mealIndex";
                     final displayTitle = (!isDefaultTitle && backendTitle.isNotEmpty) 
                         ? backendTitle 
                         : "${t.translate("diet_meal")} $idx";
                     final itemList = _mealItems(meal);
                     final items = itemList.length;
-                    final sums = _sumMealItemsMacros(meal);
+                    final sums = _mealTotals(meal);
                     final itemsLabel = items == 1
                         ? t.translate("diet_items_singular")
                         : t.translate("diet_items_plural");
@@ -1460,6 +1509,14 @@ class DietPageState extends State<DietPage> {
                                       );
                                       return;
                                     }
+                                    if (value == 'meal_rename') {
+                                      await _renameMeal(
+                                        mealId: mealId,
+                                        currentTitle: displayTitle,
+                                        trainingDayId: trainingDayId,
+                                      );
+                                      return;
+                                    }
                                     if (value == 'meal_clear_items') {
                                       await _clearMealItems(
                                         items: itemList,
@@ -1486,6 +1543,10 @@ class DietPageState extends State<DietPage> {
                                       value: 'favorites_save',
                                       enabled: itemList.isNotEmpty,
                                       child: Text(t.translate("diet_favorites_save_current")),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'meal_rename',
+                                      child: Text(t.translate("diet_rename_meal")),
                                     ),
                                     PopupMenuItem(
                                       value: 'meal_clear_items',

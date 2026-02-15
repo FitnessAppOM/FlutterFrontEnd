@@ -8,6 +8,14 @@ import 'diet_targets_storage.dart';
 class DietService {
   static String baseUrl = ApiConfig.baseUrl;
 
+  /// Set by Diet page so it can refresh when surplus is updated (submitBurn + fetchCurrentTargets).
+  static void Function()? onTargetsUpdatedAfterBurn;
+
+  /// Call after updating today's burn so the Diet page refreshes targets/meals if visible.
+  static void notifyTargetsUpdatedAfterBurn() {
+    onTargetsUpdatedAfterBurn?.call();
+  }
+
   /// Generates diet targets for a user and persists them on the backend.
   /// Returns the generated targets JSON (and caches it locally).
   static Future<Map<String, dynamic>> generateTargets(int userId) async {
@@ -39,10 +47,13 @@ class DietService {
   }
 
   /// Fetch current diet targets from backend and cache them locally.
+  /// Backend returns targets for "today" including surplus from calories burned.
   static Future<Map<String, dynamic>> fetchCurrentTargets(int userId) async {
     final url = Uri.parse('$baseUrl/diet/current/$userId');
-    final response = await http.get(url);
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.get(url, headers: headers);
 
+    await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
       final body = response.body.isNotEmpty ? json.decode(response.body) : {};
       throw Exception(body['detail'] ?? 'Failed to load diet targets');
@@ -108,8 +119,10 @@ class DietService {
       if (trainingDayId != null) 'training_day_id': trainingDayId.toString(),
     };
     final url = Uri.parse('$baseUrl/diet/meals/$userId').replace(queryParameters: qp);
-    final response = await http.get(url);
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.get(url, headers: headers);
 
+    await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
       final body = response.body.isNotEmpty ? json.decode(response.body) : {};
       throw Exception(body['detail'] ?? 'Failed to load meals');
@@ -118,6 +131,41 @@ class DietService {
     final parsed = json.decode(response.body) as Map<String, dynamic>;
     try {
       await DietMealsStorage.saveMealsForDate(d, parsed, trainingDayId: trainingDayId);
+    } catch (_) {
+      // Ignore cache errors
+    }
+    return parsed;
+  }
+
+  /// Add one extra meal slot for a specific date (questionnaire meals_per_day unchanged).
+  /// Returns the full meals list for that day (same shape as fetchMealsForDate).
+  /// Throws with message on 400 (max 10 meals) or 403.
+  static Future<Map<String, dynamic>> addMealSlot({
+    required int userId,
+    DateTime? date,
+  }) async {
+    final d = date ?? DateTime.now();
+    final qp = <String, String>{
+      'meal_date': _dateParam(d),
+    };
+    final url = Uri.parse('$baseUrl/diet/meals/$userId/add').replace(queryParameters: qp);
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.post(url, headers: headers);
+
+    await AccountStorage.handle401(response.statusCode);
+    if (response.statusCode == 400 || response.statusCode == 403) {
+      final body = response.body.isNotEmpty ? json.decode(response.body) : {};
+      final detail = body is Map ? (body['detail'] ?? body['message'])?.toString() : null;
+      throw Exception(detail ?? (response.statusCode == 400 ? 'Maximum 10 meals per day.' : 'Not allowed'));
+    }
+    if (response.statusCode != 200) {
+      final body = response.body.isNotEmpty ? json.decode(response.body) : {};
+      throw Exception(body['detail'] ?? 'Failed to add meal slot');
+    }
+
+    final parsed = json.decode(response.body) as Map<String, dynamic>;
+    try {
+      await DietMealsStorage.saveMealsForDate(d, parsed);
     } catch (_) {
       // Ignore cache errors
     }
@@ -291,7 +339,9 @@ class DietService {
       if (trainingDayId != null) 'training_day_id': trainingDayId.toString(),
     };
     final url = Uri.parse('$baseUrl/diet/day-summary/$userId').replace(queryParameters: qp);
-    final response = await http.get(url);
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.get(url, headers: headers);
+    await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
       final body = response.body.isNotEmpty ? json.decode(response.body) : {};
       throw Exception(body['detail'] ?? 'Failed to load day summary');
@@ -320,29 +370,24 @@ class DietService {
     return json.decode(response.body) as Map<String, dynamic>;
   }
 
-  /// Add a manual item to a meal (user enters name and macros directly).
-  static Future<Map<String, dynamic>> addManualItem({
+  /// Save a manual entry: one meal made only of ingredients.
+  /// Each ingredient has its own name and macros; optional meal_name updates the meal slot title.
+  /// [ingredients] must have at least one item; each: ingredient_name, calories, protein_g, carbs_g, fat_g; optional grams, food_id.
+  static Future<Map<String, dynamic>> saveManualEntry({
     required int userId,
     required int mealId,
-    required String itemName,
-    required int calories,
-    required int proteinG,
-    required int carbsG,
-    required int fatG,
-    double? grams,
-    List<Map<String, dynamic>>? ingredients,
+    String? mealName,
+    required List<Map<String, dynamic>> ingredients,
     int? trainingDayId,
   }) async {
+    if (ingredients.isEmpty) {
+      throw Exception('At least one ingredient is required');
+    }
     final url = Uri.parse('$baseUrl/diet/meals/$userId/items/manual');
     final body = <String, dynamic>{
       'meal_id': mealId,
-      'item_name': itemName,
-      'calories': calories,
-      'protein_g': proteinG,
-      'carbs_g': carbsG,
-      'fat_g': fatG,
-      if (grams != null) 'grams': grams,
-      if (ingredients != null && ingredients.isNotEmpty) 'ingredients': ingredients,
+      if (mealName != null && mealName.trim().isNotEmpty) 'meal_name': mealName.trim(),
+      'ingredients': ingredients,
       if (trainingDayId != null) 'training_day_id': trainingDayId,
     };
     final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
@@ -354,8 +399,44 @@ class DietService {
 
     await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
-      final body = response.body.isNotEmpty ? json.decode(response.body) : {};
-      throw Exception(body['detail'] ?? 'Failed to add manual item');
+      final respBody = response.body.isNotEmpty ? json.decode(response.body) : {};
+      throw Exception(respBody['detail'] ?? 'Failed to save manual entry');
+    }
+
+    return response.body.isNotEmpty
+        ? (json.decode(response.body) as Map<String, dynamic>)
+        : <String, dynamic>{};
+  }
+
+  /// Update a meal: title, notes and/or totals_override.
+  /// [totalsOverride] when set must include all four: calories, protein_g, carbs_g, fat_g (int or null). Send all null to clear override.
+  static Future<Map<String, dynamic>> updateMeal({
+    required int userId,
+    required int mealId,
+    String? title,
+    String? notes,
+    Map<String, int?>? totalsOverride,
+    int? trainingDayId,
+  }) async {
+    final url = Uri.parse('$baseUrl/diet/meals/$userId');
+    final body = <String, dynamic>{
+      'meal_id': mealId,
+      if (title != null) 'title': title,
+      if (notes != null) 'notes': notes,
+      if (totalsOverride != null) 'totals_override': totalsOverride,
+      if (trainingDayId != null) 'training_day_id': trainingDayId,
+    };
+    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
+    final response = await http.patch(
+      url,
+      headers: headers,
+      body: json.encode(body),
+    );
+
+    await AccountStorage.handle401(response.statusCode);
+    if (response.statusCode != 200) {
+      final respBody = response.body.isNotEmpty ? json.decode(response.body) : {};
+      throw Exception(respBody['detail'] ?? 'Failed to update meal');
     }
 
     return response.body.isNotEmpty

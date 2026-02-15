@@ -415,6 +415,7 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
           );
           if (day.year == today.year && day.month == today.month && day.day == today.day) {
             await DietService.fetchCurrentTargets(userId);
+            DietService.notifyTargetsUpdatedAfterBurn();
           }
         } catch (_) {
           // Ignore; next dashboard load or sync will submit.
