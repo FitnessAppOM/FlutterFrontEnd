@@ -20,6 +20,7 @@
 		F622C84F2F428292001B6EBA /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F622C84E2F428292001B6EBA /* SwiftUI.framework */; };
 		F63E9A0B2EDB974500CB237B /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = F63E9A0A2EDB974500CB237B /* GoogleService-Info.plist */; };
 		F6ABC1234567890ABCDEF001 /* TrainingLiveActivityChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6ABC1234567890ABCDEF002 /* TrainingLiveActivityChannel.swift */; };
+		F6ABC1234567890ABCDEF011 /* TrainingLiveActivityExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = F622C84B2F428292001B6EBA /* TrainingLiveActivityExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -48,6 +49,17 @@
 			files = (
 			);
 			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F6ABC1234567890ABCDEF012 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				F6ABC1234567890ABCDEF011 /* TrainingLiveActivityExtension.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -254,6 +266,7 @@
 				97C146EB1CF9000F007C117D /* Frameworks */,
 				97C146EC1CF9000F007C117D /* Resources */,
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
+				F6ABC1234567890ABCDEF012 /* Embed App Extensions */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				A287A06D11F9E50B46D8C156 /* [CP] Embed Pods Frameworks */,
 				AE4EDFF5990C523C6FB47ADE /* [CP] Copy Pods Resources */,

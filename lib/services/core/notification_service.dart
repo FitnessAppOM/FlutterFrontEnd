@@ -150,6 +150,21 @@ class NotificationService {
   static Future<void> scheduleDailyJournalReminder() async {
     // ignore: avoid_print
     print('[Notif] scheduleDailyJournalReminder()');
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) {
+      await _plugin.cancel(2);
+      await _plugin.cancel(3);
+      return;
+    }
+    try {
+      final entry = await DailyJournalApi.fetchForDate(userId, DateTime.now());
+      if (entry != null) {
+        await rescheduleDailyJournalRemindersForTomorrow();
+        return;
+      }
+    } catch (_) {
+      // If the fetch fails, fall back to scheduling to avoid missing reminders.
+    }
     final granted = await requestExactAlarmPermission();
     final scheduleMode = granted
         ? AndroidScheduleMode.exactAllowWhileIdle

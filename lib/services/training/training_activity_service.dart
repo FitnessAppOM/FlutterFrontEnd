@@ -114,13 +114,15 @@ class TrainingActivityService {
     required int seconds,
   }) async {
     try {
-      await _liveActivityChannel.invokeMethod('start', {
+      final ok = await _liveActivityChannel.invokeMethod('start', {
         'sessionId': _liveActivitySessionId,
         'exerciseName': exerciseName,
         'sets': sets,
         'reps': reps,
         'seconds': seconds,
       });
+      // ignore: avoid_print
+      print('[LiveActivity] start result: $ok');
     } catch (_) {}
   }
 
@@ -131,19 +133,23 @@ class TrainingActivityService {
     required int seconds,
   }) async {
     try {
-      await _liveActivityChannel.invokeMethod('update', {
+      final ok = await _liveActivityChannel.invokeMethod('update', {
         'sessionId': _liveActivitySessionId,
         'exerciseName': exerciseName,
         'sets': sets,
         'reps': reps,
         'seconds': seconds,
       });
+      // ignore: avoid_print
+      print('[LiveActivity] update result: $ok');
     } catch (_) {}
   }
 
   static Future<void> _stopLiveActivity() async {
     try {
-      await _liveActivityChannel.invokeMethod('stop');
+      final ok = await _liveActivityChannel.invokeMethod('stop');
+      // ignore: avoid_print
+      print('[LiveActivity] stop result: $ok');
     } catch (_) {}
     _liveActivitySessionId = null;
   }
