@@ -190,6 +190,7 @@ class NotificationService {
       androidScheduleMode: scheduleMode,
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
     );
 
     await _plugin.zonedSchedule(
@@ -202,6 +203,7 @@ class NotificationService {
       androidScheduleMode: scheduleMode,
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
     );
 
     final dietBody = await _buildDietDebugBody();

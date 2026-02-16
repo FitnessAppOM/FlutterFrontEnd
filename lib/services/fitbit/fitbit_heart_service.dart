@@ -34,11 +34,12 @@ class FitbitHeartService {
     final heartUrl = Uri.parse("${ApiConfig.baseUrl}/fitbit/heart/daily?user_id=$userId&date=$dateStr");
     final hrvUrl = Uri.parse("${ApiConfig.baseUrl}/fitbit/hrv?user_id=$userId&date=$dateStr");
     final cardioUrl = Uri.parse("${ApiConfig.baseUrl}/fitbit/cardio?user_id=$userId&date=$dateStr");
+    final headers = await AccountStorage.getAuthHeaders();
 
     final res = await Future.wait([
-      http.get(heartUrl),
-      http.get(hrvUrl),
-      http.get(cardioUrl),
+      http.get(heartUrl, headers: headers),
+      http.get(hrvUrl, headers: headers),
+      http.get(cardioUrl, headers: headers),
     ]);
 
     if (res.any((r) => r.statusCode != 200)) {
@@ -78,7 +79,8 @@ class FitbitHeartService {
     final url = Uri.parse(
       "${ApiConfig.baseUrl}/fitbit/heart/intraday?user_id=$userId&date=$dateStr&detail=$detail",
     );
-    final res = await http.get(url);
+    final headers = await AccountStorage.getAuthHeaders();
+    final res = await http.get(url, headers: headers);
     if (res.statusCode != 200) return null;
     final data = jsonDecode(res.body);
     return data is Map<String, dynamic> ? data : null;

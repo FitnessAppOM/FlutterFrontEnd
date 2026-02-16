@@ -305,7 +305,10 @@ class _SettingsPageState extends State<SettingsPage> {
     }
     try {
       final url = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId");
-      final res = await http.get(url).timeout(const Duration(seconds: 12));
+      final headers = await AccountStorage.getAuthHeaders();
+      final res = await http
+          .get(url, headers: headers)
+          .timeout(const Duration(seconds: 12));
       if (res.statusCode != 200) {
         throw Exception("Status ${res.statusCode}");
       }
@@ -326,7 +329,8 @@ class _SettingsPageState extends State<SettingsPage> {
         return;
       }
       final url = Uri.parse("${ApiConfig.baseUrl}/fitbit/status?user_id=$userId");
-      final response = await http.get(url);
+      final headers = await AccountStorage.getAuthHeaders();
+      final response = await http.get(url, headers: headers);
       if (response.statusCode != 200) {
         setState(() => _fitbitLinked = false);
         return;
@@ -347,7 +351,14 @@ class _SettingsPageState extends State<SettingsPage> {
     }
     setState(() => _whoopLoading = true);
     try {
-      final url = "${ApiConfig.baseUrl}/auth/whoop/login?user_id=$userId";
+      final token = await AccountStorage.getAccessToken();
+      final t = token?.trim();
+      if (t == null || t.isEmpty) {
+        AppToast.show(context, "Please log in again.", type: AppToastType.info);
+        return;
+      }
+      final url =
+          "${ApiConfig.baseUrl}/auth/whoop/login?user_id=$userId&token=$t";
       final result = await FlutterWebAuth2.authenticate(
         url: url,
         callbackUrlScheme: 'taqa',
@@ -358,6 +369,7 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() => _whoopLinked = ok);
       if (ok) {
         AccountStorage.notifyWhoopChanged();
+        AccountStorage.notifyAccountChanged();
       }
       AppToast.show(
         context,
@@ -385,7 +397,14 @@ class _SettingsPageState extends State<SettingsPage> {
     _fitbitAuthInFlight = true;
     setState(() => _fitbitLoading = true);
     try {
-      final url = "${ApiConfig.baseUrl}/auth/fitbit/login?user_id=$userId";
+      final token = await AccountStorage.getAccessToken();
+      final t = token?.trim();
+      if (t == null || t.isEmpty) {
+        AppToast.show(context, "Please log in again.", type: AppToastType.info);
+        return;
+      }
+      final url =
+          "${ApiConfig.baseUrl}/auth/fitbit/login?user_id=$userId&token=$t";
       final result = await FlutterWebAuth2.authenticate(
         url: url,
         callbackUrlScheme: 'taqa',
@@ -393,6 +412,9 @@ class _SettingsPageState extends State<SettingsPage> {
       final uri = Uri.tryParse(result);
       final ok = uri != null && uri.scheme == 'taqa' && uri.host == 'fitbit';
       setState(() => _fitbitLinked = ok);
+      if (ok) {
+        AccountStorage.notifyAccountChanged();
+      }
       AppToast.show(
         context,
         ok ? "Fitbit connected successfully." : "Fitbit connect failed.",
@@ -422,8 +444,10 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() => _fitbitLoading = true);
     try {
       final url = Uri.parse("${ApiConfig.baseUrl}/fitbit/disconnect?user_id=$userId");
-      await http.post(url);
+      final headers = await AccountStorage.getAuthHeaders();
+      await http.post(url, headers: headers);
       setState(() => _fitbitLinked = false);
+      AccountStorage.notifyAccountChanged();
       AppToast.show(context, "Fitbit disconnected.", type: AppToastType.success);
     } catch (e) {
       AppToast.show(context, "Fitbit disconnect failed: $e", type: AppToastType.error);
@@ -458,13 +482,16 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() => _whoopLoading = true);
     try {
       final url = Uri.parse("${ApiConfig.baseUrl}/whoop/disconnect?user_id=$userId");
-      final res = await http.post(url).timeout(const Duration(seconds: 12));
+      final headers = await AccountStorage.getAuthHeaders();
+      final res =
+          await http.post(url, headers: headers).timeout(const Duration(seconds: 12));
       if (res.statusCode != 200) {
         throw Exception("Status ${res.statusCode}");
       }
       if (!mounted) return;
       setState(() => _whoopLinked = false);
       AccountStorage.notifyWhoopChanged();
+      AccountStorage.notifyAccountChanged();
       AppToast.show(context, "Whoop disconnected.", type: AppToastType.success);
     } catch (e) {
       if (!mounted) return;

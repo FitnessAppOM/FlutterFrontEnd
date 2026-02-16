@@ -30,6 +30,10 @@ import '../../widgets/dashboard/fitbit_heart_card.dart';
 import '../../widgets/dashboard/fitbit_heart_sheet.dart';
 import '../../widgets/dashboard/fitbit_sleep_card.dart';
 import '../../widgets/dashboard/fitbit_sleep_sheet.dart';
+import '../../widgets/dashboard/fitbit_vitals_card.dart';
+import '../../widgets/dashboard/fitbit_vitals_sheet.dart';
+import '../../widgets/dashboard/fitbit_body_card.dart';
+import '../../widgets/dashboard/fitbit_body_sheet.dart';
 import '../../widgets/dashboard/fitbit_extras_card.dart';
 import '../../widgets/dashboard/edit_mode_bubble.dart';
 import '../../widgets/dashboard/widget_library_sheet.dart';
@@ -53,6 +57,9 @@ import '../../services/health/water_service.dart';
 import '../../services/fitbit/fitbit_activity_service.dart';
 import '../../services/fitbit/fitbit_heart_service.dart';
 import '../../services/fitbit/fitbit_sleep_service.dart';
+import '../../services/fitbit/fitbit_vitals_service.dart';
+import '../../services/fitbit/fitbit_body_service.dart';
+import '../../services/fitbit/fitbit_summary_service.dart';
 import '../../screens/sleep_detail_page.dart';
 import '../../screens/steps_detail_page.dart';
 import '../../screens/calories_detail_page.dart';
@@ -137,6 +144,12 @@ class DashboardPageState extends State<DashboardPage>
   bool _fitbitSleepLoading = false;
   FitbitSleepSummary? _fitbitSleep;
   FitbitSleepSummary? _fitbitSleepLast;
+  bool _fitbitVitalsLoading = false;
+  FitbitVitalsSummary? _fitbitVitals;
+  FitbitVitalsSummary? _fitbitVitalsLast;
+  bool _fitbitBodyLoading = false;
+  FitbitBodySummary? _fitbitBody;
+  FitbitBodySummary? _fitbitBodyLast;
   DateTime _selectedDate = DateTime.now();
   int _weeklyDaysCount = 7;
   int? _exerciseTotal;
@@ -180,10 +193,7 @@ class DashboardPageState extends State<DashboardPage>
     _loadTrendCalories();
     _loadExerciseProgress();
     _loadWhoopRecovery();
-    _loadFitbitActivity();
-    _loadFitbitSleep();
-    _loadFitbitHeart();
-    _loadFitbitSleep();
+    _loadFitbitSummary();
   }
 
   void _openDateSheet() {
@@ -251,7 +261,8 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   void _onWhoopChanged() {
-    _refreshAll();
+    _loadWhoopRecovery();
+    _loadWhoopBody();
   }
 
   void _onAccountChanged() {
@@ -421,6 +432,24 @@ class DashboardPageState extends State<DashboardPage>
           accentColor: const Color(0xFF0C6A73),
         ),
       );
+      all.add(
+        WidgetLibraryOption(
+          keyName: 'fitbit_vitals',
+          title: "Fitbit Health Metrics",
+          subtitle: "SpO₂, temp, breathing, ECG",
+          icon: Icons.health_and_safety,
+          accentColor: const Color(0xFF0C6A73),
+        ),
+      );
+      all.add(
+        WidgetLibraryOption(
+          keyName: 'fitbit_body',
+          title: "Fitbit Body",
+          subtitle: "Weight",
+          icon: Icons.monitor_weight,
+          accentColor: const Color(0xFF0C6A73),
+        ),
+      );
     }
     if (_whoopLinked) {
       all.addAll([
@@ -497,6 +526,8 @@ class DashboardPageState extends State<DashboardPage>
           'fitbit_activity',
           'fitbit_heart',
           'fitbit_sleep',
+          'fitbit_vitals',
+          'fitbit_body',
           'whoop_sleep',
           'whoop_recovery',
           'whoop_cycle',
@@ -537,6 +568,8 @@ class DashboardPageState extends State<DashboardPage>
   bool get _hasFitbitActivityWidget => _statOrder.contains('fitbit_activity');
   bool get _hasFitbitHeartWidget => _statOrder.contains('fitbit_heart');
   bool get _hasFitbitSleepWidget => _statOrder.contains('fitbit_sleep');
+  bool get _hasFitbitVitalsWidget => _statOrder.contains('fitbit_vitals');
+  bool get _hasFitbitBodyWidget => _statOrder.contains('fitbit_body');
   bool get _hasWhoopSleepWidget => _statOrder.contains('whoop_sleep');
   bool get _hasAnyWhoopWidget =>
       _statOrder.contains('whoop_sleep') ||
@@ -557,6 +590,8 @@ class DashboardPageState extends State<DashboardPage>
       if (_statOrder.remove('fitbit_activity')) changed = true;
       if (_statOrder.remove('fitbit_heart')) changed = true;
       if (_statOrder.remove('fitbit_sleep')) changed = true;
+      if (_statOrder.remove('fitbit_vitals')) changed = true;
+      if (_statOrder.remove('fitbit_body')) changed = true;
     }
     if (!_whoopLinked) {
       const whoopKeys = [
@@ -594,7 +629,11 @@ class DashboardPageState extends State<DashboardPage>
       }
     }
 
-    if (key == 'fitbit_activity' || key == 'fitbit_heart' || key == 'fitbit_sleep') {
+    if (key == 'fitbit_activity' ||
+        key == 'fitbit_heart' ||
+        key == 'fitbit_sleep' ||
+        key == 'fitbit_vitals' ||
+        key == 'fitbit_body') {
       if (!_fitbitLinked) {
         AppToast.show(context, "Connect Fitbit first", type: AppToastType.info);
         return;
@@ -619,13 +658,19 @@ class DashboardPageState extends State<DashboardPage>
       _loadWhoopBody();
     }
     if (key == 'fitbit_activity') {
-      _loadFitbitActivity();
+      _loadFitbitSummary();
     }
     if (key == 'fitbit_heart') {
-      _loadFitbitHeart();
+      _loadFitbitSummary();
     }
     if (key == 'fitbit_sleep') {
-      _loadFitbitSleep();
+      _loadFitbitSummary();
+    }
+    if (key == 'fitbit_vitals') {
+      _loadFitbitSummary();
+    }
+    if (key == 'fitbit_body') {
+      _loadFitbitSummary();
     }
   }
 
@@ -634,9 +679,11 @@ class DashboardPageState extends State<DashboardPage>
       case 'steps':
         return 'steps';
       case 'sleep':
+      case 'fitbit_sleep':
       case 'whoop_sleep':
         return 'sleep';
       case 'body':
+      case 'fitbit_body':
       case 'whoop_body':
         return 'body';
       default:
@@ -892,10 +939,8 @@ class DashboardPageState extends State<DashboardPage>
       _loadWhoopBody(),
     ]);
     if (!mounted) return;
-    _loadFitbitStatus();
-    _loadFitbitActivity();
-    _loadFitbitHeart();
-    _loadFitbitSleep();
+    await _loadFitbitStatus();
+    _loadFitbitSummary();
   }
 
   Future<void> _refreshAll() async {
@@ -917,10 +962,8 @@ class DashboardPageState extends State<DashboardPage>
       _loadWhoopRecovery(),
       _loadWhoopBody(),
     ]);
-    _loadFitbitStatus();
-    _loadFitbitActivity();
-    _loadFitbitHeart();
-    _loadFitbitSleep();
+    await _loadFitbitStatus();
+    _loadFitbitSummary();
   }
 
   Future<void> _loadFitbitStatus({int attempt = 0}) async {
@@ -939,7 +982,9 @@ class DashboardPageState extends State<DashboardPage>
     }
     try {
       final statusUrl = Uri.parse("${ApiConfig.baseUrl}/fitbit/status?user_id=$userId");
-      final statusRes = await http.get(statusUrl).timeout(const Duration(seconds: 12));
+      final headers = await AccountStorage.getAuthHeaders();
+      final statusRes =
+          await http.get(statusUrl, headers: headers).timeout(const Duration(seconds: 12));
       if (!mounted) return;
       if (statusRes.statusCode != 200) {
         setState(() => _fitbitLinked = false);
@@ -1523,7 +1568,9 @@ class DashboardPageState extends State<DashboardPage>
     setState(() => _whoopLoading = true);
     try {
       final statusUrl = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId");
-      final statusRes = await http.get(statusUrl).timeout(const Duration(seconds: 12));
+      final headers = await AccountStorage.getAuthHeaders();
+      final statusRes =
+          await http.get(statusUrl, headers: headers).timeout(const Duration(seconds: 12));
       if (requestId != _whoopReqId) return;
       if (statusRes.statusCode != 200) {
         throw Exception("Status ${statusRes.statusCode}");
@@ -1572,7 +1619,8 @@ class DashboardPageState extends State<DashboardPage>
       final dataUrl = Uri.parse(
         "${ApiConfig.baseUrl}/whoop/day?user_id=$userId&date=$dateParam",
       );
-      final dataRes = await http.get(dataUrl).timeout(const Duration(seconds: 20));
+      final dataRes =
+          await http.get(dataUrl, headers: headers).timeout(const Duration(seconds: 20));
       if (requestId != _whoopReqId) return;
       if (dataRes.statusCode != 200) {
         throw Exception("Status ${dataRes.statusCode}");
@@ -1606,7 +1654,8 @@ class DashboardPageState extends State<DashboardPage>
       final yUrl = Uri.parse(
         "${ApiConfig.baseUrl}/whoop/day?user_id=$userId&date=$yParam",
       );
-      final yRes = await http.get(yUrl).timeout(const Duration(seconds: 20));
+      final yRes =
+          await http.get(yUrl, headers: headers).timeout(const Duration(seconds: 20));
       if (requestId != _whoopReqId) return;
       if (yRes.statusCode == 200) {
         final yData = jsonDecode(yRes.body) as Map<String, dynamic>;
@@ -1640,7 +1689,8 @@ class DashboardPageState extends State<DashboardPage>
       );
       double? cycleStrain;
       try {
-        final cycleRes = await http.get(cycleUrl).timeout(const Duration(seconds: 20));
+        final cycleRes =
+            await http.get(cycleUrl, headers: headers).timeout(const Duration(seconds: 20));
         if (requestId != _whoopReqId) return;
         if (cycleRes.statusCode == 200) {
           final cycleData = jsonDecode(cycleRes.body) as Map<String, dynamic>;
@@ -1883,6 +1933,205 @@ class DashboardPageState extends State<DashboardPage>
       if (!mounted) return;
       if (_fitbitSleepLoading) {
         setState(() => _fitbitSleepLoading = false);
+      }
+    }
+  }
+
+  Future<void> _loadFitbitSummary({int attempt = 0}) async {
+    final userId = await AccountStorage.getUserId();
+    if (!mounted) return;
+    if (userId == null || userId == 0) {
+      if (attempt < 2) {
+        await Future.delayed(Duration(milliseconds: 400 + (attempt * 400)));
+        if (!mounted) return;
+        return _loadFitbitSummary(attempt: attempt + 1);
+      }
+      if (!mounted) return;
+      setState(() {
+        _fitbitLinked = false;
+        _fitbitActivity = null;
+        _fitbitHeart = null;
+        _fitbitSleep = null;
+        _fitbitVitals = null;
+        _fitbitBody = null;
+        _fitbitActivityLoading = false;
+        _fitbitHeartLoading = false;
+        _fitbitSleepLoading = false;
+        _fitbitVitalsLoading = false;
+        _fitbitBodyLoading = false;
+      });
+      return;
+    }
+
+    await _loadFitbitStatus();
+    if (!_fitbitLinked) return;
+
+    final hasAnyFitbitWidget = _statOrder.any((k) => k.startsWith('fitbit_'));
+    if (!hasAnyFitbitWidget) return;
+
+    setState(() {
+      _fitbitActivityLoading = true;
+      _fitbitHeartLoading = true;
+      _fitbitSleepLoading = true;
+      _fitbitVitalsLoading = true;
+      _fitbitBodyLoading = true;
+    });
+
+    try {
+      if (!_fitbitLinked) {
+        if (!mounted) return;
+        setState(() {
+          _fitbitActivity = null;
+          _fitbitHeart = null;
+          _fitbitSleep = null;
+          _fitbitVitals = null;
+          _fitbitBody = null;
+          _fitbitActivityLoading = false;
+          _fitbitHeartLoading = false;
+          _fitbitSleepLoading = false;
+          _fitbitVitalsLoading = false;
+          _fitbitBodyLoading = false;
+        });
+        return;
+      }
+
+      final bundle = await FitbitSummaryService().fetchSummary(
+        DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day),
+      );
+      if (!mounted) return;
+      setState(() {
+        _fitbitActivity = bundle?.activity;
+        _fitbitActivityLast = bundle?.activity ?? _fitbitActivityLast;
+        _fitbitHeart = bundle?.heart;
+        _fitbitHeartLast = bundle?.heart ?? _fitbitHeartLast;
+        _fitbitSleep = bundle?.sleep;
+        _fitbitSleepLast = bundle?.sleep ?? _fitbitSleepLast;
+        _fitbitVitals = bundle?.vitals;
+        _fitbitVitalsLast = bundle?.vitals ?? _fitbitVitalsLast;
+        _fitbitBody = bundle?.body;
+        _fitbitBodyLast = bundle?.body ?? _fitbitBodyLast;
+        _fitbitActivityLoading = false;
+        _fitbitHeartLoading = false;
+        _fitbitSleepLoading = false;
+        _fitbitVitalsLoading = false;
+        _fitbitBodyLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _fitbitActivityLoading = false;
+        _fitbitHeartLoading = false;
+        _fitbitSleepLoading = false;
+        _fitbitVitalsLoading = false;
+        _fitbitBodyLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadFitbitVitals({int attempt = 0}) async {
+    if (_fitbitVitalsLoading) return;
+    final userId = await AccountStorage.getUserId();
+    if (!mounted) return;
+    if (userId == null || userId == 0) {
+      if (attempt < 2) {
+        await Future.delayed(Duration(milliseconds: 400 + (attempt * 400)));
+        if (!mounted) return;
+        return _loadFitbitVitals(attempt: attempt + 1);
+      }
+      if (!mounted) return;
+      setState(() {
+        _fitbitVitals = null;
+        _fitbitVitalsLoading = false;
+        _fitbitLinked = false;
+      });
+      return;
+    }
+
+    if (!_hasFitbitVitalsWidget) return;
+    setState(() => _fitbitVitalsLoading = true);
+    try {
+      await _loadFitbitStatus();
+      if (!_fitbitLinked) {
+        if (!mounted) return;
+        setState(() {
+          _fitbitVitals = null;
+          _fitbitVitalsLoading = false;
+        });
+        return;
+      }
+      final summary = await FitbitVitalsService().fetchSummary(
+        DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day),
+      );
+      if (!mounted) return;
+      setState(() {
+        _fitbitVitals = summary;
+        _fitbitVitalsLast = summary;
+        _fitbitVitalsLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _fitbitVitals = null;
+        _fitbitVitalsLoading = false;
+      });
+    } finally {
+      if (!mounted) return;
+      if (_fitbitVitalsLoading) {
+        setState(() => _fitbitVitalsLoading = false);
+      }
+    }
+  }
+
+  Future<void> _loadFitbitBody({int attempt = 0}) async {
+    if (_fitbitBodyLoading) return;
+    final userId = await AccountStorage.getUserId();
+    if (!mounted) return;
+    if (userId == null || userId == 0) {
+      if (attempt < 2) {
+        await Future.delayed(Duration(milliseconds: 400 + (attempt * 400)));
+        if (!mounted) return;
+        return _loadFitbitBody(attempt: attempt + 1);
+      }
+      if (!mounted) return;
+      setState(() {
+        _fitbitBody = null;
+        _fitbitBodyLoading = false;
+        _fitbitLinked = false;
+      });
+      return;
+    }
+
+    if (!_hasFitbitBodyWidget) return;
+    setState(() => _fitbitBodyLoading = true);
+    try {
+      await _loadFitbitStatus();
+      if (!_fitbitLinked) {
+        if (!mounted) return;
+        setState(() {
+          _fitbitBody = null;
+          _fitbitBodyLoading = false;
+        });
+        return;
+      }
+      final summary = await FitbitBodyService().fetchSummary(
+        DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day),
+      );
+      if (!mounted) return;
+      setState(() {
+        _fitbitBody = summary;
+        _fitbitBodyLast = summary;
+        _fitbitBodyLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _fitbitBody = null;
+        _fitbitBodyLoading = false;
+      });
+    } finally {
+      if (!mounted) return;
+      if (_fitbitBodyLoading) {
+        setState(() => _fitbitBodyLoading = false);
       }
     }
   }
@@ -2856,6 +3105,44 @@ class DashboardPageState extends State<DashboardPage>
                                 );
                               },
                             );
+                          case 'fitbit_vitals':
+                            final vitals = _fitbitVitalsLoading
+                                ? (_fitbitVitalsLast ?? _fitbitVitals)
+                                : _fitbitVitals;
+                            final loading = _fitbitVitalsLoading && vitals == null;
+                            return FitbitVitalsCard(
+                              loading: loading,
+                              spo2Percent: vitals?.spo2Percent,
+                              skinTempC: vitals?.skinTempC,
+                              breathingRate: vitals?.breathingRate,
+                              ecgSummary: vitals?.ecgSummary,
+                              ecgAvgHr: vitals?.ecgAvgHr,
+                              onTap: () async {
+                                await showModalBottomSheet(
+                                  context: context,
+                                  backgroundColor: Colors.transparent,
+                                  isScrollControlled: true,
+                                  builder: (_) => FitbitVitalsSheet(summary: vitals),
+                                );
+                              },
+                            );
+                          case 'fitbit_body':
+                            final body = _fitbitBodyLoading
+                                ? (_fitbitBodyLast ?? _fitbitBody)
+                                : _fitbitBody;
+                            final loading = _fitbitBodyLoading && body == null;
+                            return FitbitBodyCard(
+                              loading: loading,
+                              weightKg: body?.weightKg,
+                              onTap: () async {
+                                await showModalBottomSheet(
+                                  context: context,
+                                  backgroundColor: Colors.transparent,
+                                  isScrollControlled: true,
+                                  builder: (_) => FitbitBodySheet(summary: body),
+                                );
+                              },
+                            );
                           case 'calories':
                           default:
                             return StatCard(
@@ -2948,7 +3235,9 @@ class DashboardPageState extends State<DashboardPage>
                   if (_fitbitLinked) ...[
                     if (!(_statOrder.contains('fitbit_activity') &&
                         _statOrder.contains('fitbit_heart') &&
-                        _statOrder.contains('fitbit_sleep'))) ...[
+                        _statOrder.contains('fitbit_sleep') &&
+                        _statOrder.contains('fitbit_vitals') &&
+                        _statOrder.contains('fitbit_body'))) ...[
                       FitbitExtrasCard(
                         onTap: _wiggling
                             ? null
@@ -2959,6 +3248,10 @@ class DashboardPageState extends State<DashboardPage>
                                       activityLoading: _fitbitActivityLoading,
                                       heartLoading: _fitbitHeartLoading,
                                       sleepLoading: _fitbitSleepLoading,
+                                      vitals: _fitbitVitals,
+                                      vitalsLast: _fitbitVitalsLast,
+                                      body: _fitbitBody,
+                                      bodyLast: _fitbitBodyLast,
                                       activity: _fitbitActivity,
                                       activityLast: _fitbitActivityLast,
                                       heart: _fitbitHeart,
@@ -2969,6 +3262,8 @@ class DashboardPageState extends State<DashboardPage>
                                       hideActivity: _statOrder.contains('fitbit_activity'),
                                       hideHeart: _statOrder.contains('fitbit_heart'),
                                       hideSleep: _statOrder.contains('fitbit_sleep'),
+                                      hideVitals: _statOrder.contains('fitbit_vitals'),
+                                      hideBody: _statOrder.contains('fitbit_body'),
                                     ),
                                   ),
                                 );

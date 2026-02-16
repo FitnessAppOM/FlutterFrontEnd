@@ -52,7 +52,8 @@ class FitbitSleepService {
     if (userId == null) return null;
     final dateStr = _dateParam(date);
     final url = Uri.parse("${ApiConfig.baseUrl}/fitbit/sleep?user_id=$userId&date=$dateStr");
-    final res = await http.get(url);
+    final headers = await AccountStorage.getAuthHeaders();
+    final res = await http.get(url, headers: headers);
     if (res.statusCode != 200) {
       throw Exception("Failed to load Fitbit sleep");
     }

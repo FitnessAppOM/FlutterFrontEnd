@@ -16,7 +16,8 @@ class WhoopCycleService {
       "&start=${Uri.encodeComponent(start.toIso8601String())}"
       "&end=${Uri.encodeComponent(end.toIso8601String())}",
     );
-    final res = await http.get(url).timeout(const Duration(seconds: 20));
+    final headers = await AccountStorage.getAuthHeaders();
+    final res = await http.get(url, headers: headers).timeout(const Duration(seconds: 20));
     if (res.statusCode != 200) {
       throw Exception("Status ${res.statusCode}");
     }

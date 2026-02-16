@@ -3,12 +3,19 @@ import '../theme/app_theme.dart';
 import '../services/fitbit/fitbit_activity_service.dart';
 import '../services/fitbit/fitbit_heart_service.dart';
 import '../services/fitbit/fitbit_sleep_service.dart';
+import '../services/fitbit/fitbit_summary_service.dart';
+import '../services/fitbit/fitbit_vitals_service.dart';
+import '../services/fitbit/fitbit_body_service.dart';
 import '../widgets/dashboard/fitbit_daily_activity_card.dart';
 import '../widgets/dashboard/fitbit_daily_activity_sheet.dart';
 import '../widgets/dashboard/fitbit_heart_card.dart';
 import '../widgets/dashboard/fitbit_heart_sheet.dart';
 import '../widgets/dashboard/fitbit_sleep_card.dart';
 import '../widgets/dashboard/fitbit_sleep_sheet.dart';
+import '../widgets/dashboard/fitbit_vitals_card.dart';
+import '../widgets/dashboard/fitbit_vitals_sheet.dart';
+import '../widgets/dashboard/fitbit_body_card.dart';
+import '../widgets/dashboard/fitbit_body_sheet.dart';
 
 class FitbitInsightsPage extends StatefulWidget {
   const FitbitInsightsPage({
@@ -22,10 +29,16 @@ class FitbitInsightsPage extends StatefulWidget {
     required this.heartLast,
     required this.sleep,
     required this.sleepLast,
+    required this.vitals,
+    required this.vitalsLast,
+    required this.body,
+    required this.bodyLast,
     required this.date,
     this.hideActivity = false,
     this.hideHeart = false,
     this.hideSleep = false,
+    this.hideVitals = false,
+    this.hideBody = false,
   });
 
   final bool activityLoading;
@@ -37,10 +50,16 @@ class FitbitInsightsPage extends StatefulWidget {
   final FitbitHeartSummary? heartLast;
   final FitbitSleepSummary? sleep;
   final FitbitSleepSummary? sleepLast;
+  final FitbitVitalsSummary? vitals;
+  final FitbitVitalsSummary? vitalsLast;
+  final FitbitBodySummary? body;
+  final FitbitBodySummary? bodyLast;
   final DateTime date;
   final bool hideActivity;
   final bool hideHeart;
   final bool hideSleep;
+  final bool hideVitals;
+  final bool hideBody;
 
   @override
   State<FitbitInsightsPage> createState() => _FitbitInsightsPageState();
@@ -53,9 +72,15 @@ class _FitbitInsightsPageState extends State<FitbitInsightsPage> {
   FitbitHeartSummary? _heartLast;
   FitbitSleepSummary? _sleep;
   FitbitSleepSummary? _sleepLast;
+  FitbitVitalsSummary? _vitals;
+  FitbitVitalsSummary? _vitalsLast;
+  FitbitBodySummary? _body;
+  FitbitBodySummary? _bodyLast;
   bool _activityLoading = false;
   bool _heartLoading = false;
   bool _sleepLoading = false;
+  bool _vitalsLoading = false;
+  bool _bodyLoading = false;
 
   @override
   void initState() {
@@ -66,24 +91,70 @@ class _FitbitInsightsPageState extends State<FitbitInsightsPage> {
     _heartLast = widget.heartLast;
     _sleep = widget.sleep;
     _sleepLast = widget.sleepLast;
+    _vitals = widget.vitals;
+    _vitalsLast = widget.vitalsLast;
+    _body = widget.body;
+    _bodyLast = widget.bodyLast;
     _activityLoading = widget.activityLoading;
     _heartLoading = widget.heartLoading;
     _sleepLoading = widget.sleepLoading;
+    _vitalsLoading = false;
+    _bodyLoading = false;
     _refreshOnOpen();
   }
 
   Future<void> _refreshOnOpen() async {
-    final futures = <Future<void>>[];
-    if (!widget.hideActivity) {
-      futures.add(_loadActivity());
+    await _loadSummary();
+  }
+
+  Future<void> _loadSummary() async {
+    setState(() {
+      if (!widget.hideActivity) _activityLoading = true;
+      if (!widget.hideHeart) _heartLoading = true;
+      if (!widget.hideSleep) _sleepLoading = true;
+      if (!widget.hideVitals) _vitalsLoading = true;
+      if (!widget.hideBody) _bodyLoading = true;
+    });
+    try {
+      final bundle = await FitbitSummaryService().fetchSummary(widget.date);
+      if (!mounted) return;
+      setState(() {
+        if (!widget.hideActivity) {
+          _activity = bundle?.activity;
+          _activityLast = bundle?.activity ?? _activityLast;
+          _activityLoading = false;
+        }
+        if (!widget.hideHeart) {
+          _heart = bundle?.heart;
+          _heartLast = bundle?.heart ?? _heartLast;
+          _heartLoading = false;
+        }
+        if (!widget.hideSleep) {
+          _sleep = bundle?.sleep;
+          _sleepLast = bundle?.sleep ?? _sleepLast;
+          _sleepLoading = false;
+        }
+        if (!widget.hideVitals) {
+          _vitals = bundle?.vitals;
+          _vitalsLast = bundle?.vitals ?? _vitalsLast;
+          _vitalsLoading = false;
+        }
+        if (!widget.hideBody) {
+          _body = bundle?.body;
+          _bodyLast = bundle?.body ?? _bodyLast;
+          _bodyLoading = false;
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        if (!widget.hideActivity) _activityLoading = false;
+        if (!widget.hideHeart) _heartLoading = false;
+        if (!widget.hideSleep) _sleepLoading = false;
+        if (!widget.hideVitals) _vitalsLoading = false;
+        if (!widget.hideBody) _bodyLoading = false;
+      });
     }
-    if (!widget.hideHeart) {
-      futures.add(_loadHeart());
-    }
-    if (!widget.hideSleep) {
-      futures.add(_loadSleep());
-    }
-    await Future.wait(futures);
   }
 
   Future<void> _loadActivity() async {
@@ -134,6 +205,38 @@ class _FitbitInsightsPageState extends State<FitbitInsightsPage> {
     }
   }
 
+  Future<void> _loadVitals() async {
+    setState(() => _vitalsLoading = true);
+    try {
+      final summary = await FitbitVitalsService().fetchSummary(widget.date);
+      if (!mounted) return;
+      setState(() {
+        _vitals = summary;
+        _vitalsLast = summary ?? _vitalsLast;
+      });
+    } catch (_) {
+      // ignore fetch errors; keep last
+    } finally {
+      if (mounted) setState(() => _vitalsLoading = false);
+    }
+  }
+
+  Future<void> _loadBody() async {
+    setState(() => _bodyLoading = true);
+    try {
+      final summary = await FitbitBodyService().fetchSummary(widget.date);
+      if (!mounted) return;
+      setState(() {
+        _body = summary;
+        _bodyLast = summary ?? _bodyLast;
+      });
+    } catch (_) {
+      // ignore fetch errors; keep last
+    } finally {
+      if (mounted) setState(() => _bodyLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final activitySummary = _activityLoading ? (_activityLast ?? _activity) : _activity;
@@ -142,6 +245,10 @@ class _FitbitInsightsPageState extends State<FitbitInsightsPage> {
     final heartBusy = _heartLoading && heartSummary == null;
     final sleepSummary = _sleepLoading ? (_sleepLast ?? _sleep) : _sleep;
     final sleepBusy = _sleepLoading && sleepSummary == null;
+    final vitalsSummary = _vitalsLoading ? (_vitalsLast ?? _vitals) : _vitals;
+    final vitalsBusy = _vitalsLoading && vitalsSummary == null;
+    final bodySummary = _bodyLoading ? (_bodyLast ?? _body) : _body;
+    final bodyBusy = _bodyLoading && bodySummary == null;
 
     return Scaffold(
       appBar: AppBar(
@@ -214,6 +321,40 @@ class _FitbitInsightsPageState extends State<FitbitInsightsPage> {
                       summary: sleepSummary,
                       date: widget.date,
                     ),
+                  );
+                },
+              ),
+            ],
+            if (!widget.hideVitals) ...[
+              const SizedBox(height: 12),
+              FitbitVitalsCard(
+                loading: vitalsBusy,
+                spo2Percent: vitalsSummary?.spo2Percent,
+                skinTempC: vitalsSummary?.skinTempC,
+                breathingRate: vitalsSummary?.breathingRate,
+                ecgSummary: vitalsSummary?.ecgSummary,
+                ecgAvgHr: vitalsSummary?.ecgAvgHr,
+                onTap: () async {
+                  await showModalBottomSheet(
+                    context: context,
+                    backgroundColor: Colors.transparent,
+                    isScrollControlled: true,
+                    builder: (_) => FitbitVitalsSheet(summary: vitalsSummary),
+                  );
+                },
+              ),
+            ],
+            if (!widget.hideBody) ...[
+              const SizedBox(height: 12),
+              FitbitBodyCard(
+                loading: bodyBusy,
+                weightKg: bodySummary?.weightKg,
+                onTap: () async {
+                  await showModalBottomSheet(
+                    context: context,
+                    backgroundColor: Colors.transparent,
+                    isScrollControlled: true,
+                    builder: (_) => FitbitBodySheet(summary: bodySummary),
                   );
                 },
               ),

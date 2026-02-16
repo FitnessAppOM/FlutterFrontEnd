@@ -24,7 +24,11 @@ class WhoopLatestService {
     if (_inFlight != null) return _inFlight;
 
     final url = Uri.parse("${ApiConfig.baseUrl}/whoop/latest?user_id=$userId");
-    final future = http.get(url).timeout(const Duration(seconds: 20)).then((res) {
+    final headers = await AccountStorage.getAuthHeaders();
+    final future = http
+        .get(url, headers: headers)
+        .timeout(const Duration(seconds: 20))
+        .then((res) {
       if (res.statusCode != 200) {
         throw Exception("Status ${res.statusCode}");
       }

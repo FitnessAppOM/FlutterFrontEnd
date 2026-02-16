@@ -21,7 +21,9 @@ class WhoopDailySync {
 
     // Only proceed if WHOOP is linked.
     final statusUrl = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId");
-    final statusRes = await http.get(statusUrl).timeout(const Duration(seconds: 12));
+    final headers = await AccountStorage.getAuthHeaders();
+    final statusRes =
+        await http.get(statusUrl, headers: headers).timeout(const Duration(seconds: 12));
     if (statusRes.statusCode != 200) return;
     final status = jsonDecode(statusRes.body);
     if (status is! Map || status["linked"] != true) return;
@@ -37,7 +39,8 @@ class WhoopDailySync {
     final rangeUrl = Uri.parse(
       "${ApiConfig.baseUrl}/whoop/daily-metrics/range?user_id=$userId&start=$startStr&end=$endStr",
     );
-    final rangeRes = await http.get(rangeUrl).timeout(const Duration(seconds: 20));
+    final rangeRes =
+        await http.get(rangeUrl, headers: headers).timeout(const Duration(seconds: 20));
     if (rangeRes.statusCode != 200) return;
 
     final List<dynamic> rows = jsonDecode(rangeRes.body) as List<dynamic>;
@@ -62,7 +65,7 @@ class WhoopDailySync {
       final url = Uri.parse(
         "${ApiConfig.baseUrl}/whoop/day?user_id=$userId&date=$day&persist=1",
       );
-      await http.get(url).timeout(const Duration(seconds: 25));
+      await http.get(url, headers: headers).timeout(const Duration(seconds: 25));
     }
 
     await sp.setString(lastKey, todayKey);
