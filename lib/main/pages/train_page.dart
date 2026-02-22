@@ -203,10 +203,16 @@ class _TrainPageState extends State<TrainPage> {
     String? _str(dynamic v) => v == null ? null : v.toString().toLowerCase();
 
     final name = _str(ex['exercise_name']) ?? '';
+    final animationName = _str(ex['animation_name']) ?? '';
     final category = _str(ex['category']) ?? _str(ex['exercise_type']) ?? _str(ex['type']) ?? '';
     final modality = _str(ex['modality']) ?? _str(ex['training_type']) ?? '';
     final primary = _str(ex['primary_muscles']) ?? '';
     final equipment = _str(ex['equipment']) ?? '';
+
+    // Trust explicit cardio tag in animation_name (e.g., "Cardio - ...")
+    if (animationName.startsWith('cardio -')) {
+      return true;
+    }
 
     final haystack = [name, category, modality, primary, equipment].where((s) => s.isNotEmpty).join(' ');
 
