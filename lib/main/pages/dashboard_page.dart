@@ -2635,9 +2635,8 @@ class DashboardPageState extends State<DashboardPage>
       if (file.existsSync()) {
         return Image.file(
           file,
-          cacheWidth: 128,
-          cacheHeight: 128,
           fit: BoxFit.cover,
+          alignment: Alignment.center,
           errorBuilder: (_, __, ___) => const Icon(Icons.person, color: Colors.white),
         );
       }
@@ -2646,9 +2645,8 @@ class DashboardPageState extends State<DashboardPage>
     if (_avatarUrl != null && _avatarUrl!.isNotEmpty) {
       return Image.network(
         _fullUrl(_avatarUrl!),
-        cacheWidth: 128,
-        cacheHeight: 128,
         fit: BoxFit.cover,
+        alignment: Alignment.center,
         errorBuilder: (_, __, ___) => const Icon(Icons.person, color: Colors.white),
       );
     }

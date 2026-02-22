@@ -247,9 +247,12 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
       return;
     }
 
-    final selfieUrl = _c("selfie_file_url").text.trim().isEmpty
-        ? "test-selfie-placeholder"
-        : _c("selfie_file_url").text.trim();
+    final selfieRaw = _c("selfie_file_url").text.trim();
+    if (selfieRaw.isEmpty) {
+      _toast("Please upload a selfie.");
+      return;
+    }
+    final selfieUrl = selfieRaw;
     final certFileUrl =
         certChoice == "No" ? "" : _certFileCtrl.text.trim();
 
