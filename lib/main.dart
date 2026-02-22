@@ -18,6 +18,7 @@ import 'services/core/navigation_service.dart';
 import 'services/metrics/daily_metrics_sync.dart';
 import 'services/whoop/whoop_daily_sync.dart';
 import 'services/training/exercise_action_queue.dart';
+import 'services/training/cardio_session_queue.dart';
 import 'core/account_storage.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
@@ -171,6 +172,7 @@ class _MyAppState extends State<MyApp> {
     // Sync queued exercise actions when app resumes
     try {
       await ExerciseActionQueue.syncQueue();
+      await CardioSessionQueue.syncQueue();
     } catch (e) {
       // ignore: avoid_print
       print("ExerciseActionQueue sync skipped: $e");

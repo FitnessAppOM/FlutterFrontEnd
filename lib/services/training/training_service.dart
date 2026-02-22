@@ -131,6 +131,31 @@ class TrainingService {
         }));
     await AccountStorage.handle401(res.statusCode);
   }
+
+  static Future<void> saveCardioSession({
+    int? programExerciseId,
+    int? exerciseId,
+    required double distanceKm,
+    required double avgSpeedKmh,
+    required int durationSeconds,
+    DateTime? entryDate,
+  }) async {
+    final url = Uri.parse('$baseUrl/training/cardio/finish');
+    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
+    final body = <String, dynamic>{
+      'distance_km': distanceKm,
+      'avg_speed_kmh': avgSpeedKmh,
+      'duration_seconds': durationSeconds,
+    };
+    if (programExerciseId != null) body['program_exercise_id'] = programExerciseId;
+    if (exerciseId != null) body['exercise_id'] = exerciseId;
+    if (entryDate != null) body['entry_date'] = _dateParam(entryDate);
+    final res = await http.post(url, headers: headers, body: json.encode(body));
+    await AccountStorage.handle401(res.statusCode);
+    if (res.statusCode != 200) {
+      throw Exception("Failed to save cardio session");
+    }
+  }
   static Future<List<dynamic>> getFeedbackQuestions(String exerciseName) async {
     try {
       final safeName = Uri.encodeComponent(exerciseName);

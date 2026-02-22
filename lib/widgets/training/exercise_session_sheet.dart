@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/training/training_service.dart';
+import '../../services/training/cardio_session_queue.dart';
 import 'exercise_feedback_sheet.dart';
 import 'exercise_instruction_dialog.dart';
 import '../../widgets/app_toast.dart';
@@ -35,6 +36,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
   bool startRecorded = false;
   bool _feedbackHandled = false;
   bool _cardioMapExpanded = false;
+  double _cardioDistanceMeters = 0;
+  double _cardioSpeedKmh = 0;
   bool _showCardioStartButton = true;
   bool _paused = false;
 
@@ -293,6 +296,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
         int.tryParse(repsCtrl.text) ?? (widget.exercise['reps'] ?? 0);
 
     final double? weight = double.tryParse(weightCtrl.text);
+    final bool isCardio = _isCardioExercise();
 
     // Try to sync with server, but queue if offline
     if (programExerciseId != null) try {
@@ -355,6 +359,35 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
     } catch (e) {
       // If all fails, queue everything
       needsSync = true;
+    }
+
+    // Save cardio session metrics (distance/speed/time)
+    if (isCardio) {
+      final rawExerciseId = widget.exercise['exercise_id'];
+      final int? exerciseId = rawExerciseId is int
+          ? rawExerciseId
+          : int.tryParse(rawExerciseId?.toString() ?? '');
+      final payload = {
+        "program_exercise_id": programExerciseId,
+        "exercise_id": exerciseId,
+        "distance_km": _cardioDistanceMeters / 1000.0,
+        "avg_speed_kmh": _cardioSpeedKmh,
+        "duration_seconds": seconds,
+        "entry_date": "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
+      };
+      try {
+        await TrainingService.saveCardioSession(
+          programExerciseId: programExerciseId,
+          exerciseId: exerciseId,
+          distanceKm: _cardioDistanceMeters / 1000.0,
+          avgSpeedKmh: _cardioSpeedKmh,
+          durationSeconds: seconds,
+          entryDate: now,
+        );
+      } catch (_) {
+        await CardioSessionQueue.queueSession(payload);
+        needsSync = true;
+      }
     }
 
     // Show message if queued for sync
@@ -526,6 +559,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
                       hasToken: hasToken,
                       expanded: _cardioMapExpanded,
                       height: MediaQuery.of(context).size.height * 0.9,
+                      onMetrics: (m) {
+                        _cardioDistanceMeters = m.distanceMeters;
+                        _cardioSpeedKmh = m.speedKmh;
+                      },
                       onStart: _startExercise,
                       onPause: _pauseExercise,
                       onFinish: _finishExercise,

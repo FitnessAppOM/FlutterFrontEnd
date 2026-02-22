@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
@@ -14,6 +15,7 @@ class CardioMap extends StatefulWidget {
     this.onStart,
     this.onPause,
     this.onFinish,
+    this.onMetrics,
   });
 
   final bool hasToken;
@@ -22,6 +24,7 @@ class CardioMap extends StatefulWidget {
   final VoidCallback? onStart;
   final VoidCallback? onPause;
   final VoidCallback? onFinish;
+  final ValueChanged<CardioMetrics>? onMetrics;
 
   @override
   State<CardioMap> createState() => _CardioMapState();
@@ -30,10 +33,19 @@ class CardioMap extends StatefulWidget {
 class _CardioMapState extends State<CardioMap> {
   MapboxMap? _map;
   bool _disposed = false;
+  StreamSubscription<geo.Position>? _positionSub;
+  PolylineAnnotationManager? _polylineManager;
+  PolylineAnnotation? _routeLine;
+  final List<Position> _routePositions = [];
+  geo.Position? _lastPosition;
+  double _distanceMeters = 0;
+  double _speedKmh = 0;
+  bool _tracking = false;
 
   @override
   void dispose() {
     _disposed = true;
+    _positionSub?.cancel();
     super.dispose();
   }
 
@@ -110,9 +122,20 @@ class _CardioMapState extends State<CardioMap> {
             right: 12,
             bottom: 12,
             child: CardioMapControls(
-              onStart: widget.onStart,
-              onPause: widget.onPause,
-              onFinish: widget.onFinish,
+              distanceKm: _distanceMeters / 1000.0,
+              speedKmh: _speedKmh,
+              onStart: () {
+                _startTracking();
+                widget.onStart?.call();
+              },
+              onPause: () {
+                _pauseTracking();
+                widget.onPause?.call();
+              },
+              onFinish: () {
+                widget.onFinish?.call();
+                _finishTracking();
+              },
             ),
           ),
         ],
@@ -128,7 +151,7 @@ class _CardioMapState extends State<CardioMap> {
         LocationComponentSettings(
           enabled: true,
           pulsingEnabled: true,
-          showAccuracyRing: true,
+          showAccuracyRing: false,
           puckBearingEnabled: true,
         ),
       );
@@ -174,6 +197,107 @@ class _CardioMapState extends State<CardioMap> {
     }
   }
 
+  Future<bool> _ensureLocationPermission() async {
+    var perm = await geo.Geolocator.checkPermission();
+    if (perm == geo.LocationPermission.denied) {
+      perm = await geo.Geolocator.requestPermission();
+    }
+    return perm == geo.LocationPermission.always ||
+        perm == geo.LocationPermission.whileInUse;
+  }
+
+  Future<void> _startTracking() async {
+    if (_tracking || _disposed) return;
+    final ok = await _ensureLocationPermission();
+    if (!ok || _disposed) return;
+    _distanceMeters = 0;
+    _speedKmh = 0;
+    _routePositions.clear();
+    _lastPosition = null;
+    await _clearRouteLine();
+    _tracking = true;
+    _positionSub?.cancel();
+    _positionSub = geo.Geolocator.getPositionStream(
+      locationSettings: const geo.LocationSettings(
+        accuracy: geo.LocationAccuracy.high,
+        distanceFilter: 5,
+      ),
+    ).listen(_onPositionUpdate);
+  }
+
+  void _pauseTracking() {
+    _tracking = false;
+    _positionSub?.cancel();
+    _positionSub = null;
+  }
+
+  void _finishTracking() {
+    _tracking = false;
+    _positionSub?.cancel();
+    _positionSub = null;
+    _clearRouteLine();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _ensurePolylineManager() async {
+    final map = _map;
+    if (map == null || _polylineManager != null || _disposed) return;
+    _polylineManager = await map.annotations.createPolylineAnnotationManager();
+  }
+
+  Future<void> _clearRouteLine() async {
+    if (_polylineManager != null && _routeLine != null) {
+      await _polylineManager!.delete(_routeLine!);
+      _routeLine = null;
+    }
+  }
+
+  Future<void> _updateRouteLine() async {
+    if (_disposed) return;
+    if (_routePositions.length < 2) return;
+    await _ensurePolylineManager();
+    if (_polylineManager == null) return;
+    final lineString = LineString(coordinates: List<Position>.from(_routePositions));
+    if (_routeLine == null) {
+      _routeLine = await _polylineManager!.create(
+        PolylineAnnotationOptions(
+          geometry: lineString,
+          lineColor: const Color(0xFF2D7CFF).value,
+          lineOpacity: 0.85,
+          lineWidth: 4.5,
+          lineJoin: LineJoin.ROUND,
+          lineCap: LineCap.ROUND,
+        ),
+      );
+    } else {
+      _routeLine!.geometry = lineString;
+      await _polylineManager!.update(_routeLine!);
+    }
+  }
+
+  void _onPositionUpdate(geo.Position position) {
+    if (_disposed || !_tracking) return;
+    final last = _lastPosition;
+    if (last != null) {
+      _distanceMeters += geo.Geolocator.distanceBetween(
+        last.latitude,
+        last.longitude,
+        position.latitude,
+        position.longitude,
+      );
+    }
+    _lastPosition = position;
+    _speedKmh = position.speed >= 0 ? position.speed * 3.6 : 0;
+    _routePositions.add(Position(position.longitude, position.latitude));
+    _updateRouteLine();
+    widget.onMetrics?.call(
+      CardioMetrics(distanceMeters: _distanceMeters, speedKmh: _speedKmh),
+    );
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   Future<void> _recenterWithRetry() async {
     await Future.delayed(const Duration(milliseconds: 200));
     await _moveCameraToUser();
@@ -209,4 +333,14 @@ class _CardioMapState extends State<CardioMap> {
       ),
     );
   }
+}
+
+class CardioMetrics {
+  final double distanceMeters;
+  final double speedKmh;
+
+  const CardioMetrics({
+    required this.distanceMeters,
+    required this.speedKmh,
+  });
 }

@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import '../../widgets/training/exercise_card.dart';
 import '../../widgets/cardio/cardio_map.dart';
+import '../../services/training/cardio_session_queue.dart';
 
 class CardioTab extends StatefulWidget {
   const CardioTab({
@@ -167,6 +168,12 @@ class _CardioTabState extends State<CardioTab> {
       "primary_muscles": "Cardio",
     },
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    CardioSessionQueue.syncQueue();
+  }
 
   @override
   Widget build(BuildContext context) {
