@@ -59,8 +59,7 @@ class DietPageState extends State<DietPage> {
   @override
   void initState() {
     super.initState();
-    _loadTargets();
-    _loadMeals();
+    _loadBootstrap();
     _updateTrainingLockFromCompletion();
     DietService.onTargetsUpdatedAfterBurn = _onTargetsUpdatedAfterBurn;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -144,8 +143,7 @@ class DietPageState extends State<DietPage> {
   /// Refetch targets and meals from backend so surplus (from calories burned) is visible without manual refresh.
   /// Refreshes silently in the background — existing data stays visible (no spinners).
   Future<void> refreshTargetsAndMeals() async {
-    await _loadTargets(forceNetwork: true);
-    if (mounted) await _loadMeals();
+    await _loadBootstrap(silent: true);
   }
 
   Future<void> _updateTrainingLockFromCompletion() async {
@@ -161,6 +159,106 @@ class DietPageState extends State<DietPage> {
       if (didComplete) _modeIndex = 1;
     });
     if (didComplete) _loadMeals(clearExisting: true);
+  }
+
+  static String? _readSectionError(Map<String, dynamic> payload, String section) {
+    final keys = <String>[
+      '${section}_error',
+      '${section}Error',
+      '${section}_detail',
+      '${section}Detail',
+    ];
+    for (final k in keys) {
+      final v = payload[k];
+      if (v != null && v.toString().trim().isNotEmpty) {
+        return v.toString().trim();
+      }
+    }
+    return null;
+  }
+
+  Future<void> _loadBootstrap({bool silent = false}) async {
+    _mealsRequestId++;
+    final requestId = _mealsRequestId;
+    final hasExistingTargets = _targets != null;
+    final hasExistingMeals = _meals != null;
+    setState(() {
+      if (!silent && !hasExistingTargets) _loading = true;
+      if (!silent && !hasExistingMeals) _mealsLoading = true;
+      _error = null;
+      _mealsError = null;
+      _targetsFromCache = false;
+      _mealsFromCache = false;
+    });
+
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null) {
+        throw Exception("User not found");
+      }
+
+      final trainingDayId = _modeIndex == 1
+          ? _asInt(_selectedTrainingDay?["day_id"], fallback: 0)
+          : null;
+      final effectiveTdId = (trainingDayId != null && trainingDayId > 0) ? trainingDayId : null;
+
+      final payload = await DietService.fetchDietBootstrap(
+        userId,
+        date: _mealDate,
+        autoGenerateTargets: true,
+        autoOpenMeals: true,
+        trainingDayId: effectiveTdId,
+      );
+      if (!mounted || requestId != _mealsRequestId) return;
+
+      final targets = payload["targets"];
+      final meals = payload["meals"];
+      final targetsData = targets is Map ? targets.cast<String, dynamic>() : null;
+      final mealsData = meals is Map ? meals.cast<String, dynamic>() : null;
+      final targetsErr = _readSectionError(payload, 'targets');
+      final mealsErr = _readSectionError(payload, 'meals');
+
+      if (mealsData != null && mealsData["day_summary"] == null) {
+        try {
+          final summary = await DietService.fetchDaySummary(
+            userId,
+            date: _mealDate,
+            trainingDayId: effectiveTdId,
+          );
+          mealsData["day_summary"] = summary;
+        } catch (_) {
+          // Ignore summary fetch errors.
+        }
+      }
+
+      if (!mounted || requestId != _mealsRequestId) return;
+      setState(() {
+        if (targetsData != null) {
+          _targets = targetsData;
+          _selectedTrainingDayIndex = 0;
+        }
+        _loading = false;
+        _error = targetsData == null ? (targetsErr ?? _error) : null;
+        _targetsFromCache = false;
+
+        if (mealsData != null) {
+          _meals = mealsData;
+        }
+        _mealsLoading = false;
+        _mealsError = mealsData == null ? (mealsErr ?? _mealsError) : null;
+        _mealsFromCache = false;
+      });
+
+      // Keep meal widgets usable even if targets section is unavailable.
+      if (targetsData == null && mealsData != null) {
+        return;
+      }
+    } catch (_) {
+      // Bootstrap failed: keep existing fallback loaders.
+      await _loadMeals();
+      if (!mounted) return;
+      await _loadTargets(forceNetwork: true);
+    }
   }
 
   Future<void> _loadTargets({bool forceNetwork = true}) async {

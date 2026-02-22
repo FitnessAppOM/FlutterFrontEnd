@@ -48,8 +48,15 @@ class DietService {
 
   /// Fetch current diet targets from backend and cache them locally.
   /// Backend returns targets for "today" including surplus from calories burned.
-  static Future<Map<String, dynamic>> fetchCurrentTargets(int userId) async {
-    final url = Uri.parse('$baseUrl/diet/current/$userId');
+  static Future<Map<String, dynamic>> fetchCurrentTargets(
+    int userId, {
+    bool autoGenerate = true,
+  }) async {
+    final url = Uri.parse('$baseUrl/diet/current/$userId').replace(
+      queryParameters: <String, String>{
+        'auto_generate': autoGenerate.toString(),
+      },
+    );
     final headers = await AccountStorage.getAuthHeaders();
     final response = await http.get(url, headers: headers);
 
@@ -66,6 +73,65 @@ class DietService {
       // Ignore cache errors
     }
     return targets;
+  }
+
+  /// Fetch first-render diet payload for a date:
+  /// {
+  ///   "targets": {...},
+  ///   "meals": {...}
+  /// }
+  /// Backend can return partial payloads, so callers should handle missing keys.
+  static Future<Map<String, dynamic>> fetchDietBootstrap(
+    int userId, {
+    DateTime? date,
+    bool autoGenerateTargets = true,
+    bool autoOpenMeals = true,
+    int? trainingDayId,
+  }) async {
+    final d = date ?? DateTime.now();
+    final qp = <String, String>{
+      'meal_date': _dateParam(d),
+      'auto_generate_targets': autoGenerateTargets.toString(),
+      'auto_open_meals': autoOpenMeals.toString(),
+      if (trainingDayId != null) 'training_day_id': trainingDayId.toString(),
+    };
+    final url = Uri.parse('$baseUrl/diet/bootstrap/$userId').replace(queryParameters: qp);
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.get(url, headers: headers);
+
+    await AccountStorage.handle401(response.statusCode);
+    if (response.statusCode != 200) {
+      final body = response.body.isNotEmpty ? json.decode(response.body) : {};
+      throw Exception(body['detail'] ?? 'Failed to load diet bootstrap');
+    }
+
+    final parsed = response.body.isNotEmpty
+        ? (json.decode(response.body) as Map<String, dynamic>)
+        : <String, dynamic>{};
+
+    try {
+      final targets = parsed['targets'];
+      if (targets is Map) {
+        await DietTargetsStorage.saveTargets(targets.cast<String, dynamic>());
+      }
+    } catch (_) {
+      // Ignore targets cache errors
+    }
+
+    try {
+      final meals = parsed['meals'];
+      if (meals is Map) {
+        await DietMealsStorage.saveMealsForDate(
+          d,
+          meals.cast<String, dynamic>(),
+          trainingDayId: trainingDayId,
+        );
+      }
+    } catch (_) {
+      // Ignore meals cache errors
+    }
+
+    return parsed;
   }
 
   /// Fetch current diet targets from cache (for offline use)
