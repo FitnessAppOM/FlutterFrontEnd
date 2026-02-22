@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'training_foreground_task_handler.dart';
 
 class TrainingActivityService {
@@ -8,6 +9,14 @@ class TrainingActivityService {
   static int _lastUpdateSecond = -1;
   static const MethodChannel _liveActivityChannel = MethodChannel('training_live_activity');
   static String? _liveActivitySessionId;
+  static int? _sessionStartMs;
+  static const _kSessionActive = 'training_session_active';
+  static const _kSessionStartMs = 'training_session_start_ms';
+  static const _kSessionName = 'training_session_name';
+  static const _kSessionSets = 'training_session_sets';
+  static const _kSessionReps = 'training_session_reps';
+  static const _kSessionDistance = 'training_session_distance';
+  static const _kSessionSpeed = 'training_session_speed';
 
   static String _buildTitle(String exerciseName) {
     return "Training • $exerciseName";
@@ -41,6 +50,15 @@ class TrainingActivityService {
     if (!_active) {
       _active = true;
       _lastUpdateSecond = seconds;
+      _sessionStartMs ??= DateTime.now().millisecondsSinceEpoch;
+      await _persistSession(
+        exerciseName: exerciseName,
+        sets: sets,
+        reps: reps,
+        distanceKm: distanceKm,
+        speedKmh: speedKmh,
+        startMs: _sessionStartMs!,
+      );
       if (Platform.isIOS) {
         _liveActivitySessionId = DateTime.now().millisecondsSinceEpoch.toString();
         await _startLiveActivity(
@@ -50,6 +68,7 @@ class TrainingActivityService {
           seconds: seconds,
           distanceKm: distanceKm,
           speedKmh: speedKmh,
+          startMs: _sessionStartMs,
         );
       }
       await _startForegroundService(
@@ -71,6 +90,7 @@ class TrainingActivityService {
       seconds: seconds,
       distanceKm: distanceKm,
       speedKmh: speedKmh,
+      startMs: _sessionStartMs,
     );
   }
 
@@ -81,10 +101,19 @@ class TrainingActivityService {
     required int seconds,
     double? distanceKm,
     double? speedKmh,
+    int? startMs,
   }) async {
     if (!_active) return;
     if (seconds == _lastUpdateSecond) return;
     _lastUpdateSecond = seconds;
+    _sessionStartMs ??= startMs;
+    await _persistSession(
+      exerciseName: exerciseName,
+      sets: sets,
+      reps: reps,
+      distanceKm: distanceKm,
+      speedKmh: speedKmh,
+    );
 
     if (Platform.isAndroid) {
       await FlutterForegroundTask.updateService(
@@ -106,6 +135,7 @@ class TrainingActivityService {
         seconds: seconds,
         distanceKm: distanceKm,
         speedKmh: speedKmh,
+        startMs: _sessionStartMs,
       );
     }
   }
@@ -114,6 +144,8 @@ class TrainingActivityService {
     if (!_active) return;
     _active = false;
     _lastUpdateSecond = -1;
+    _sessionStartMs = null;
+    await _clearSession();
     if (Platform.isAndroid) {
       await FlutterForegroundTask.stopService();
     }
@@ -143,6 +175,7 @@ class TrainingActivityService {
     required int seconds,
     double? distanceKm,
     double? speedKmh,
+    int? startMs,
   }) async {
     try {
       final ok = await _liveActivityChannel.invokeMethod('start', {
@@ -153,6 +186,7 @@ class TrainingActivityService {
         'seconds': seconds,
         'distanceKm': distanceKm,
         'speedKmh': speedKmh,
+        'startMs': startMs,
       });
       // ignore: avoid_print
       print('[LiveActivity] start result: $ok');
@@ -166,6 +200,7 @@ class TrainingActivityService {
     required int seconds,
     double? distanceKm,
     double? speedKmh,
+    int? startMs,
   }) async {
     try {
       final ok = await _liveActivityChannel.invokeMethod('update', {
@@ -176,6 +211,7 @@ class TrainingActivityService {
         'seconds': seconds,
         'distanceKm': distanceKm,
         'speedKmh': speedKmh,
+        'startMs': startMs,
       });
       // ignore: avoid_print
       print('[LiveActivity] update result: $ok');
@@ -189,5 +225,42 @@ class TrainingActivityService {
       print('[LiveActivity] stop result: $ok');
     } catch (_) {}
     _liveActivitySessionId = null;
+  }
+
+  static Future<void> _persistSession({
+    required String exerciseName,
+    required int sets,
+    required int reps,
+    double? distanceKm,
+    double? speedKmh,
+    int? startMs,
+  }) async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setBool(_kSessionActive, true);
+    if (startMs != null) {
+      await sp.setInt(_kSessionStartMs, startMs);
+    } else if (!sp.containsKey(_kSessionStartMs)) {
+      await sp.setInt(_kSessionStartMs, DateTime.now().millisecondsSinceEpoch);
+    }
+    await sp.setString(_kSessionName, exerciseName);
+    await sp.setInt(_kSessionSets, sets);
+    await sp.setInt(_kSessionReps, reps);
+    if (distanceKm != null) {
+      await sp.setDouble(_kSessionDistance, distanceKm);
+    }
+    if (speedKmh != null) {
+      await sp.setDouble(_kSessionSpeed, speedKmh);
+    }
+  }
+
+  static Future<void> _clearSession() async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.remove(_kSessionActive);
+    await sp.remove(_kSessionStartMs);
+    await sp.remove(_kSessionName);
+    await sp.remove(_kSessionSets);
+    await sp.remove(_kSessionReps);
+    await sp.remove(_kSessionDistance);
+    await sp.remove(_kSessionSpeed);
   }
 }

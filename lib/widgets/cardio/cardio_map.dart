@@ -16,6 +16,8 @@ class CardioMap extends StatefulWidget {
     this.onPause,
     this.onFinish,
     this.onMetrics,
+    this.onRoute,
+    this.steps,
   });
 
   final bool hasToken;
@@ -25,6 +27,8 @@ class CardioMap extends StatefulWidget {
   final VoidCallback? onPause;
   final VoidCallback? onFinish;
   final ValueChanged<CardioMetrics>? onMetrics;
+  final ValueChanged<List<CardioPoint>>? onRoute;
+  final int? steps;
 
   @override
   State<CardioMap> createState() => _CardioMapState();
@@ -38,9 +42,11 @@ class _CardioMapState extends State<CardioMap> {
   PolylineAnnotation? _routeLine;
   final List<Position> _routePositions = [];
   geo.Position? _lastPosition;
+  DateTime? _lastPositionTime;
   double _distanceMeters = 0;
   double _speedKmh = 0;
   bool _tracking = false;
+  double _movedMetersSinceStart = 0;
 
   @override
   void dispose() {
@@ -124,6 +130,7 @@ class _CardioMapState extends State<CardioMap> {
             child: CardioMapControls(
               distanceKm: _distanceMeters / 1000.0,
               speedKmh: _speedKmh,
+              steps: widget.steps,
               onStart: () {
                 _startTracking();
                 widget.onStart?.call();
@@ -212,6 +219,7 @@ class _CardioMapState extends State<CardioMap> {
     if (!ok || _disposed) return;
     _distanceMeters = 0;
     _speedKmh = 0;
+    _movedMetersSinceStart = 0;
     _routePositions.clear();
     _lastPosition = null;
     await _clearRouteLine();
@@ -266,7 +274,6 @@ class _CardioMapState extends State<CardioMap> {
           lineOpacity: 0.85,
           lineWidth: 4.5,
           lineJoin: LineJoin.ROUND,
-          lineCap: LineCap.ROUND,
         ),
       );
     } else {
@@ -277,22 +284,86 @@ class _CardioMapState extends State<CardioMap> {
 
   void _onPositionUpdate(geo.Position position) {
     if (_disposed || !_tracking) return;
+    final now = DateTime.now();
     final last = _lastPosition;
     if (last != null) {
-      _distanceMeters += geo.Geolocator.distanceBetween(
+      final segMeters = geo.Geolocator.distanceBetween(
         last.latitude,
         last.longitude,
         position.latitude,
         position.longitude,
       );
+      // Ignore tiny GPS jitter to avoid speed spikes/drops
+      if (segMeters >= 1.0) {
+        _distanceMeters += segMeters;
+        _movedMetersSinceStart += segMeters;
+      }
     }
+    // Compute speed: prefer sensor speed if reliable, otherwise derive from distance/time
+    final double sensorSpeedKmh =
+        position.speed >= 0 ? position.speed * 3.6 : 0.0;
+    final bool sensorReliable = position.speedAccuracy > 0
+        ? position.speedAccuracy <= 2.5
+        : position.accuracy <= 15;
+    double derivedSpeedKmh = 0;
+    if (last != null && _lastPositionTime != null) {
+      final dt = now.difference(_lastPositionTime!).inMilliseconds / 1000.0;
+      if (dt >= 1.2 && position.accuracy <= 25) {
+        final segMeters = geo.Geolocator.distanceBetween(
+          last.latitude,
+          last.longitude,
+          position.latitude,
+          position.longitude,
+        );
+        derivedSpeedKmh = (segMeters / dt) * 3.6;
+      }
+    }
+    double nextSpeed = 0;
+    if (sensorReliable && sensorSpeedKmh >= 0.5) {
+      nextSpeed = sensorSpeedKmh;
+    } else {
+      nextSpeed = derivedSpeedKmh;
+    }
+    // Drop spikes when GPS accuracy is poor or movement is implausible
+    if (position.accuracy > 25 && nextSpeed > 6) {
+      nextSpeed = 0;
+    }
+    if (_lastPositionTime != null) {
+      final dt = now.difference(_lastPositionTime!).inMilliseconds / 1000.0;
+      if (dt > 0 && _lastPosition != null) {
+        final segMeters = geo.Geolocator.distanceBetween(
+          _lastPosition!.latitude,
+          _lastPosition!.longitude,
+          position.latitude,
+          position.longitude,
+        );
+        if (segMeters > 20 && dt < 2.0) {
+          // Large jump in short time -> GPS glitch
+          nextSpeed = 0;
+        }
+      }
+    }
+    if (nextSpeed.isNaN || nextSpeed < 0.2) nextSpeed = 0;
+
+    // Avoid non-zero speed before user actually moves a bit
+    if (_movedMetersSinceStart < 3.0) {
+      nextSpeed = 0;
+    }
+
+    // Smooth speed to reduce 0 km/h spikes while walking
+    const alpha = 0.2;
+    _speedKmh = (_speedKmh * (1 - alpha)) + (nextSpeed * alpha);
+
     _lastPosition = position;
-    _speedKmh = position.speed >= 0 ? position.speed * 3.6 : 0;
+    _lastPositionTime = now;
     _routePositions.add(Position(position.longitude, position.latitude));
     _updateRouteLine();
     widget.onMetrics?.call(
       CardioMetrics(distanceMeters: _distanceMeters, speedKmh: _speedKmh),
     );
+    widget.onRoute?.call(_routePositions
+        .map((p) => CardioPoint(lat: p.lat.toDouble(), lng: p.lng.toDouble()))
+        .toList());
     if (mounted) {
       setState(() {});
     }
@@ -343,4 +414,11 @@ class CardioMetrics {
     required this.distanceMeters,
     required this.speedKmh,
   });
+}
+
+class CardioPoint {
+  final double lat;
+  final double lng;
+
+  const CardioPoint({required this.lat, required this.lng});
 }

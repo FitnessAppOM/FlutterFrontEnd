@@ -202,50 +202,9 @@ class _TrainPageState extends State<TrainPage> {
   bool _isCardioExercise(Map<String, dynamic> ex) {
     String? _str(dynamic v) => v == null ? null : v.toString().toLowerCase();
 
-    final name = _str(ex['exercise_name']) ?? '';
     final animationName = _str(ex['animation_name']) ?? '';
-    final category = _str(ex['category']) ?? _str(ex['exercise_type']) ?? _str(ex['type']) ?? '';
-    final modality = _str(ex['modality']) ?? _str(ex['training_type']) ?? '';
-    final primary = _str(ex['primary_muscles']) ?? '';
-    final equipment = _str(ex['equipment']) ?? '';
-
     // Trust explicit cardio tag in animation_name (e.g., "Cardio - ...")
-    if (animationName.startsWith('cardio -')) {
-      return true;
-    }
-
-    final haystack = [name, category, modality, primary, equipment].where((s) => s.isNotEmpty).join(' ');
-
-    const cardioKeywords = [
-      'cardio',
-      'run',
-      'running',
-      'jog',
-      'jogging',
-      'bike',
-      'biking',
-      'cycling',
-      'cycle',
-      'row',
-      'rowing',
-      'swim',
-      'swimming',
-      'treadmill',
-      'elliptical',
-      'stair',
-      'stepmill',
-      'jump rope',
-      'jumping rope',
-      'burpee',
-      'hiit',
-      'air bike',
-      'spin',
-      'sprint',
-      'walk',
-      'walking',
-    ];
-
-    return cardioKeywords.any((k) => haystack.contains(k));
+    return animationName.startsWith('cardio -');
   }
 
   Widget _tabButton({

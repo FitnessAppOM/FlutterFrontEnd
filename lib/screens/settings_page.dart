@@ -883,12 +883,6 @@ class _SettingsPageState extends State<SettingsPage> {
             },
           ),
           _SettingsTile(
-            title: "Show JWT Token",
-            subtitle: "View and copy your current session token",
-            icon: Icons.key,
-            onTap: _showJwtTokenDialog,
-          ),
-          _SettingsTile(
             title: t.translate("settings_delete_account"),
             subtitle: t.translate("settings_delete_account_sub"),
             icon: _deletingAccount ? Icons.hourglass_bottom : Icons.delete_forever,

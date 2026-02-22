@@ -9,6 +9,7 @@ class CardioMapControls extends StatefulWidget {
     this.onFinish,
     this.distanceKm,
     this.speedKmh,
+    this.steps,
   });
 
   final VoidCallback? onStart;
@@ -16,6 +17,7 @@ class CardioMapControls extends StatefulWidget {
   final VoidCallback? onFinish;
   final double? distanceKm;
   final double? speedKmh;
+  final int? steps;
 
   @override
   State<CardioMapControls> createState() => _CardioMapControlsState();
@@ -74,6 +76,7 @@ class _CardioMapControlsState extends State<CardioMapControls> {
   Widget build(BuildContext context) {
     final distanceLabel = (widget.distanceKm ?? 0).toStringAsFixed(2);
     final speedLabel = (widget.speedKmh ?? 0).toStringAsFixed(1);
+    final stepsLabel = widget.steps?.toString() ?? "0";
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -107,6 +110,10 @@ class _CardioMapControlsState extends State<CardioMapControls> {
                   _StatPill(label: "Distance", value: "$distanceLabel km"),
                   const SizedBox(width: 8),
                   _StatPill(label: "Speed", value: "$speedLabel km/h"),
+                  if (widget.steps != null) ...[
+                    const SizedBox(width: 8),
+                    _StatPill(label: "Steps", value: stepsLabel),
+                  ],
                 ],
               ),
             ),

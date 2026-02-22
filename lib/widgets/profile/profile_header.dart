@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../../localization/app_localizations.dart';
 import '../../theme/app_theme.dart';
@@ -13,15 +15,18 @@ class ProfileHeader extends StatelessWidget {
     this.name,
     this.occupation,
     this.avatarUrl,
+    this.avatarPath,
   });
 
   final String? name;
   final String? occupation;
   final String? avatarUrl;
+  final String? avatarPath;
 
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final ImageProvider? avatarImage = _resolveAvatarImage();
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -29,10 +34,8 @@ class ProfileHeader extends StatelessWidget {
         CircleAvatar(
           radius: 38,
           backgroundColor: AppColors.greyDark,
-          backgroundImage: (avatarUrl != null && avatarUrl!.isNotEmpty)
-              ? NetworkImage(_fullUrl(avatarUrl!)) as ImageProvider
-              : null,
-          child: (avatarUrl == null || avatarUrl!.isEmpty)
+          backgroundImage: avatarImage,
+          child: avatarImage == null
               ? const Icon(Icons.person, size: 48, color: Colors.white)
               : null,
         ),
@@ -99,5 +102,18 @@ class ProfileHeader extends StatelessWidget {
   String _fullUrl(String path) {
     if (path.startsWith("http")) return path;
     return "${ApiConfig.baseUrl}$path";
+  }
+
+  ImageProvider? _resolveAvatarImage() {
+    if (avatarPath != null && avatarPath!.isNotEmpty) {
+      final file = File(avatarPath!);
+      if (file.existsSync()) {
+        return FileImage(file);
+      }
+    }
+    if (avatarUrl != null && avatarUrl!.isNotEmpty) {
+      return NetworkImage(_fullUrl(avatarUrl!));
+    }
+    return null;
   }
 }

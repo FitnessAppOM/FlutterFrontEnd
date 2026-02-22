@@ -16,6 +16,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION"/>
 
     <!-- Camera (for profile picture / scanning) -->
     <uses-permission android:name="android.permission.CAMERA"/>

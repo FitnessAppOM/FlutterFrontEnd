@@ -13,6 +13,8 @@ import '../../services/training/training_completion_storage.dart';
 import '../../services/training/training_activity_service.dart';
 import '../../core/account_storage.dart';
 import '../../widgets/cardio/cardio_map.dart';
+import '../../screens/training/cardio_achievement_sheet.dart';
+import 'package:pedometer/pedometer.dart';
 
 class ExerciseSessionSheet extends StatefulWidget {
   final Map<String, dynamic> exercise;
@@ -38,6 +40,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
   bool _cardioMapExpanded = false;
   double _cardioDistanceMeters = 0;
   double _cardioSpeedKmh = 0;
+  List<CardioPoint> _cardioRoute = const [];
+  int? _cardioSteps;
+  int? _cardioStartSteps;
+  StreamSubscription<StepCount>? _stepSub;
   bool _showCardioStartButton = true;
   bool _paused = false;
 
@@ -209,16 +215,39 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
       if (_isCardioExercise() || seconds % 5 == 0) {
         final sets = _currentSets();
         final reps = _currentReps();
+        final isCardio = _isCardioExercise();
+        final distanceKm = isCardio ? (_cardioDistanceMeters / 1000.0) : null;
+        final speedKmh = isCardio ? _cardioSpeedKmh : null;
         TrainingActivityService.updateSession(
           exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
           sets: sets,
           reps: reps,
           seconds: seconds,
-          distanceKm: _isCardioExercise() ? 0.0 : null,
-          speedKmh: _isCardioExercise() ? 0.0 : null,
+          distanceKm: distanceKm,
+          speedKmh: speedKmh,
         );
       }
     });
+  }
+
+  Future<void> _startCardioStepsTracking() async {
+    if (!_isCardioExercise()) return;
+    _cardioSteps ??= 0;
+    if (mounted) setState(() {});
+    _stepSub?.cancel();
+    _stepSub = Pedometer.stepCountStream.listen(
+      (event) {
+        _cardioStartSteps ??= event.steps;
+        _cardioSteps = event.steps - (_cardioStartSteps ?? event.steps);
+        if (mounted) setState(() {});
+      },
+      onError: (_) {},
+    );
+  }
+
+  void _stopCardioStepsTracking() {
+    _stepSub?.cancel();
+    _stepSub = null;
   }
 
   String get _time =>
@@ -230,13 +259,14 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
         setState(() => _paused = false);
         _startTimer();
       }
+      await _startCardioStepsTracking();
       await TrainingActivityService.startSession(
         exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
         sets: _currentSets(),
         reps: _currentReps(),
         seconds: seconds,
-        distanceKm: _isCardioExercise() ? 0.0 : null,
-        speedKmh: _isCardioExercise() ? 0.0 : null,
+        distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
+        speedKmh: _isCardioExercise() ? _cardioSpeedKmh : null,
       );
       return;
     }
@@ -245,13 +275,14 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
       _paused = false;
     });
     _startTimer();
+    await _startCardioStepsTracking();
     await TrainingActivityService.startSession(
       exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
       sets: _currentSets(),
       reps: _currentReps(),
       seconds: seconds,
-      distanceKm: _isCardioExercise() ? 0.0 : null,
-      speedKmh: _isCardioExercise() ? 0.0 : null,
+      distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
+      speedKmh: _isCardioExercise() ? _cardioSpeedKmh : null,
     );
     
     // Queue start action for sync (non-blocking)
@@ -280,6 +311,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
 
     setState(() => submitting = true);
     timer?.cancel();
+    _stopCardioStepsTracking();
     await TrainingActivityService.stopSession();
 
     final t = AppLocalizations.of(context);
@@ -399,6 +431,27 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
       );
     }
 
+    // Show cardio achievement sheet before feedback (non-blocking if not cardio)
+    if (isCardio && mounted) {
+      final name = await AccountStorage.getName();
+      await showModalBottomSheet(
+        context: context,
+        isDismissible: true,
+        enableDrag: true,
+        isScrollControlled: true,
+        useRootNavigator: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => CardioAchievementSheet(
+          durationSeconds: seconds,
+          distanceKm: _cardioDistanceMeters / 1000.0,
+          avgSpeedKmh: _cardioSpeedKmh,
+          steps: _cardioSteps ?? 0,
+          route: _cardioRoute,
+          userName: name,
+        ),
+      );
+    }
+
     // Record that user completed an exercise today (diet page can auto-set "training day" and lock "rest day")
     await TrainingCompletionStorage.recordExerciseCompletedToday();
     AccountStorage.notifyTrainingChanged();
@@ -448,12 +501,14 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
   void _pauseExercise() {
     if (!started) return;
     timer?.cancel();
+    _stopCardioStepsTracking();
     setState(() => _paused = true);
   }
 
   @override
   void dispose() {
     timer?.cancel();
+    _stepSub?.cancel();
     TrainingActivityService.stopSession();
     weightCtrl.dispose();
     setsCtrl.dispose();
@@ -559,9 +614,13 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
                       hasToken: hasToken,
                       expanded: _cardioMapExpanded,
                       height: MediaQuery.of(context).size.height * 0.9,
+                      steps: _cardioSteps,
                       onMetrics: (m) {
                         _cardioDistanceMeters = m.distanceMeters;
                         _cardioSpeedKmh = m.speedKmh;
+                      },
+                      onRoute: (route) {
+                        _cardioRoute = route;
                       },
                       onStart: _startExercise,
                       onPause: _pauseExercise,

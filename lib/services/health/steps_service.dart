@@ -126,6 +126,32 @@ class StepsService {
     return map[start] ?? 0;
   }
 
+  Future<int> fetchStepsBetween(DateTime start, DateTime end) async {
+    final granted = await ConsentManager.requestAllHealth();
+    if (!granted) return 0;
+
+    try {
+      final total = await _health.getTotalStepsInInterval(start, end);
+      if (total != null) return total;
+    } catch (_) {
+      // Fall back to manual sum below
+    }
+
+    try {
+      final data = await _health.getHealthDataFromTypes(
+        startTime: start,
+        endTime: end,
+        types: const [HealthDataType.STEPS],
+      );
+      final steps = data
+          .where((e) => e.type == HealthDataType.STEPS)
+          .fold<int>(0, (sum, e) => sum + _valueToNum(e.value).toInt());
+      return steps;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   Future<void> saveManualEntry(DateTime day, int steps) async {
     final sp = await SharedPreferences.getInstance();
     final existing = await _loadManualEntries();

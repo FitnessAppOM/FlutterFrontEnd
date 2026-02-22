@@ -21,6 +21,7 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _loading = true;
   String? _error;
   String? _avatarUrl;
+  String? _avatarPath;
   bool _didLoadProfile = false;
 
   @override
@@ -62,6 +63,7 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final lang = AppLocalizations.of(context).locale.languageCode;
       final avatar = await AccountStorage.getAvatarUrl();
+      final avatarPath = await AccountStorage.getAvatarPath();
       final userId = await AccountStorage.getUserId();
       if (userId == null || userId == 0) {
         if (!mounted) return;
@@ -69,6 +71,7 @@ class _ProfilePageState extends State<ProfilePage> {
           _error = "user_missing";
           _loading = false;
           _avatarUrl = avatar;
+          _avatarPath = avatarPath;
         });
         return;
       }
@@ -78,6 +81,7 @@ class _ProfilePageState extends State<ProfilePage> {
         _profile = data;
         _loading = false;
         _avatarUrl = data["avatar_url"]?.toString() ?? avatar;
+        _avatarPath = avatarPath;
       });
     } catch (e) {
       if (!mounted) return;
@@ -254,11 +258,12 @@ class _ProfilePageState extends State<ProfilePage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            ProfileHeader(
-                              name: _display(name),
-                              occupation: _display(affiliationDisplay.isNotEmpty ? affiliationDisplay : null),
-                              avatarUrl: _avatarUrl,
-                            ),
+    ProfileHeader(
+      name: _display(name),
+      occupation: _display(affiliationDisplay.isNotEmpty ? affiliationDisplay : null),
+      avatarUrl: _avatarUrl,
+      avatarPath: _avatarPath,
+    ),
                             const SizedBox(height: 24),
                             ProfileInfoSection(
                               age: _display(age),
