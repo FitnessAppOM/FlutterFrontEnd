@@ -163,9 +163,13 @@ class _ProfilePageState extends State<ProfilePage> {
       final normalizedEn = _normalizeValue(en.translate(key));
       final normalizedAr = _normalizeValue(ar.translate(key));
 
-      final matches = _matches(normalized, normalizedKey) ||
-          _matches(normalized, normalizedEn) ||
-          _matches(normalized, normalizedAr);
+      final matches = field == "sex"
+          ? (normalized == normalizedKey ||
+              normalized == normalizedEn ||
+              normalized == normalizedAr)
+          : (_matches(normalized, normalizedKey) ||
+              _matches(normalized, normalizedEn) ||
+              _matches(normalized, normalizedAr));
 
       if (matches) {
         // Preserve custom "other" text; otherwise translate to current locale

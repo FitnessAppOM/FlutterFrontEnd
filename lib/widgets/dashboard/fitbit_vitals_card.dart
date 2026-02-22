@@ -85,7 +85,7 @@ class FitbitVitalsCard extends StatelessWidget {
       final hr = ecgAvgHr != null ? " ${ecgAvgHr} bpm" : "";
       parts.add("ECG $ecgSummary$hr");
     }
-    return parts.isEmpty ? "No data yet" : parts.join(" • ");
+    return parts.isEmpty ? null : parts.join(" • ");
   }
 
   String _fmtTemp(double v) {

@@ -21,19 +21,14 @@ class _MainLayoutState extends State<MainLayout> {
   final GlobalKey<DashboardPageState> _dashboardKey = GlobalKey<DashboardPageState>();
   final GlobalKey<DietPageState> _dietKey = GlobalKey<DietPageState>();
 
-  late final List<Widget> pages = [
-    DashboardPage(key: _dashboardKey),
-    const TrainPage(),
-    DietPage(key: _dietKey),
-    const CommunityPage(),
-    const ProfilePage(),
-  ];
+  late final List<Widget?> _pages = List<Widget?>.filled(5, null);
 
   @override
   void initState() {
     super.initState();
     final idx = widget.initialIndex;
-    _index = (idx >= 0 && idx < pages.length) ? idx : 0;
+    _index = (idx >= 0 && idx < 5) ? idx : 0;
+    _pages[_index] = _buildPage(_index);
   }
 
   @override
@@ -42,7 +37,10 @@ class _MainLayoutState extends State<MainLayout> {
       backgroundColor: AppColors.black,
       body: IndexedStack(
         index: _index,
-        children: pages,
+        children: List.generate(
+          5,
+          (i) => _pages[i] ?? const SizedBox.shrink(),
+        ),
       ),
       bottomNavigationBar: _buildBottomNav(),
     );
@@ -73,10 +71,10 @@ class _MainLayoutState extends State<MainLayout> {
 
     return GestureDetector(
       onTap: () {
-        setState(() => _index = idx);
-        if (idx == 0) {
-          _dashboardKey.currentState?.refreshExerciseProgress();
-        }
+        setState(() {
+          _index = idx;
+          _pages[idx] ??= _buildPage(idx);
+        });
         if (idx == 2) {
           _dietKey.currentState?.refreshTrainingLock();
           // Refetch targets and day summary so surplus from calories burned shows without manual refresh.
@@ -97,5 +95,21 @@ class _MainLayoutState extends State<MainLayout> {
         ),
       ),
     );
+  }
+
+  Widget _buildPage(int index) {
+    switch (index) {
+      case 0:
+        return DashboardPage(key: _dashboardKey);
+      case 1:
+        return const TrainPage();
+      case 2:
+        return DietPage(key: _dietKey);
+      case 3:
+        return const CommunityPage();
+      case 4:
+      default:
+        return const ProfilePage();
+    }
   }
 }

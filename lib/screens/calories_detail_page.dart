@@ -230,7 +230,13 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
     final entries = _prepareEntries();
     final maxVal = entries.fold<int>(0, (m, e) => e.value > m ? e.value : m);
     final safeMax = maxVal == 0 ? 1 : maxVal;
-    const barWidth = 52.0;
+    final isDense = _range != 'weekly';
+    final barSpacing = isDense ? 2.0 : 4.0;
+    const yAxisWidth = 42.0;
+    const yAxisGap = 8.0;
+    final avgVal = entries.isEmpty
+        ? 0.0
+        : entries.fold<double>(0, (m, e) => m + e.value) / entries.length;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -239,63 +245,129 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.18)),
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: entries.map((e) {
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final barAreaHeight = constraints.maxHeight;
+          final barAreaWidth =
+              (constraints.maxWidth - yAxisWidth - yAxisGap).clamp(0.0, double.infinity);
+          final barSlot = isDense
+              ? (barAreaWidth / (entries.isEmpty ? 1 : entries.length))
+              : null;
+          final barWidth = isDense
+              ? (barSlot! - (barSpacing * 2)).clamp(0.0, double.infinity)
+              : null;
+
+          final bars = entries.map((e) {
             final heightFactor = (e.value / safeMax).clamp(0.0, 1.0);
-            final label = e.key;
-            return SizedBox(
+            final bar = Container(
+              height: barAreaHeight * heightFactor,
               width: barWidth,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.bottomCenter,
-                        child: Container(
-                          height: 140 * heightFactor,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            gradient: const LinearGradient(
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                              colors: [
-                                Color(0xFFFF8A00),
-                                Color(0xFFFFC266),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      e.value.toStringAsFixed(0),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      label,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white54,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                gradient: const LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    Color(0xFFFF8A00),
+                    Color(0xFFFFC266),
                   ],
                 ),
               ),
             );
-          }).toList(),
-        ),
+
+            final content = Align(
+              alignment: Alignment.bottomCenter,
+              child: bar,
+            );
+
+            if (isDense) {
+              return SizedBox(
+                width: barSlot,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: barSpacing),
+                  child: content,
+                ),
+              );
+            }
+
+            return Expanded(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: barSpacing),
+                child: content,
+              ),
+            );
+          }).toList();
+
+          final yAxisHeight = constraints.maxHeight;
+          double _yForValue(num v) {
+            final ratio = (v / safeMax).clamp(0.0, 1.0);
+            return (1.0 - ratio) * yAxisHeight;
+          }
+
+          final yAxis = SizedBox(
+            width: yAxisWidth,
+            child: Stack(
+              children: [
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Text(
+                    _fmtCalories(safeMax),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.white54,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 0,
+                  top: (_yForValue(avgVal) - 6).clamp(0.0, yAxisHeight - 12),
+                  child: Text(
+                    _fmtCalories(avgVal),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.white54,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Text(
+                    "0",
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.white54,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              yAxis,
+              const SizedBox(width: yAxisGap),
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: bars,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
+  }
+
+  String _fmtCalories(num value) {
+    if (value >= 1000) {
+      return "${(value / 1000).toStringAsFixed(1)}k";
+    }
+    return value.toStringAsFixed(0);
   }
 
   List<MapEntry<String, int>> _prepareEntries() {

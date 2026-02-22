@@ -8,12 +8,14 @@ class WhoopRecoveryCard extends StatelessWidget {
     required this.loading,
     required this.linked,
     required this.score,
+    this.delta,
     this.onTap,
   });
 
   final bool loading;
   final bool linked;
   final int? score;
+  final int? delta;
   final VoidCallback? onTap;
 
   @override
@@ -23,7 +25,7 @@ class WhoopRecoveryCard extends StatelessWidget {
         ? (score != null ? "$score%" : (loading ? "…" : "—"))
         : "Not connected";
     final subtitle = linked
-        ? (score != null ? "Last recovery score" : "No data yet for today")
+        ? (score != null ? "Recovery" : "No data")
         : "Connect Whoop";
 
     return Stack(
@@ -37,6 +39,7 @@ class WhoopRecoveryCard extends StatelessWidget {
           accentColor: const Color(0xFF4CD964),
           borderColor: whoopBlue,
           borderWidth: 2.5,
+          deltaPercent: delta,
           onTap: onTap,
         ),
         Positioned(

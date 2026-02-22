@@ -5,6 +5,7 @@ class WaterIntakeCard extends StatelessWidget {
   final bool loading;
   final double intakeLiters;
   final double goalLiters;
+  final int? deltaPercent;
   final VoidCallback? onTap;
 
   const WaterIntakeCard({
@@ -12,6 +13,7 @@ class WaterIntakeCard extends StatelessWidget {
     required this.loading,
     required this.intakeLiters,
     required this.goalLiters,
+    this.deltaPercent,
     this.onTap,
   });
 
@@ -26,6 +28,7 @@ class WaterIntakeCard extends StatelessWidget {
       subtitle: subtitle,
       icon: Icons.water_drop,
       accentColor: const Color(0xFF00BFA6),
+      deltaPercent: deltaPercent,
       onTap: onTap,
     );
   }

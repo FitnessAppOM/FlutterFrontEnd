@@ -44,6 +44,8 @@ class DietPageState extends State<DietPage> {
   bool _manualEntrySheetOpen = false;
   bool _photoEntrySheetOpen = false;
   bool _dietRecommendationShown = false;
+  bool _dietRecommendationCancelled = false;
+  DialogRoute<bool>? _dietRecommendationDialogRoute;
 
   int _modeIndex = 0; // 0 = Rest, 1 = Training
   int _selectedTrainingDayIndex = 0;
@@ -75,20 +77,38 @@ class DietPageState extends State<DietPage> {
     final shouldShow = NavigationService.consumeDietNotification();
     if (!shouldShow) return;
     _dietRecommendationShown = true;
+    _dietRecommendationCancelled = false;
 
     if (mounted) {
-      showDietRecommendationLoadingDialog(context: context);
+      showDietRecommendationLoadingDialog(
+        context: context,
+        onRouteReady: (route) => _dietRecommendationDialogRoute = route,
+      ).then((value) {
+        _dietRecommendationDialogRoute = null;
+        if (value == true) {
+          _dietRecommendationCancelled = true;
+        }
+      });
+    }
+
+    void closeLoadingDialogIfOpen() {
+      final route = _dietRecommendationDialogRoute;
+      if (route == null) return;
+      _dietRecommendationDialogRoute = null;
+      if (route.isActive) {
+        route.navigator?.removeRoute(route);
+      }
     }
 
     try {
       final userId = await AccountStorage.getUserId();
       if (userId == null || !mounted) {
-        if (mounted) Navigator.of(context, rootNavigator: true).pop();
+        closeLoadingDialogIfOpen();
         return;
       }
       final data = await DietService.fetchRemainingRecommendations(userId);
-      if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
+      if (!mounted || _dietRecommendationCancelled) return;
+      closeLoadingDialogIfOpen();
       final rec = (data["recommendation"] is Map) ? data["recommendation"] as Map : const {};
       final message = (rec["message"] ?? "Here are a few ideas to finish your day.").toString();
       final optionsRaw = rec["options"];
@@ -103,9 +123,7 @@ class DietPageState extends State<DietPage> {
         options: options,
       );
     } catch (_) {
-      if (mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
+      closeLoadingDialogIfOpen();
       // Best-effort: no dialog if recommendation fails.
     }
   }

@@ -130,7 +130,37 @@ class _ExerciseFeedbackSheetState extends State<ExerciseFeedbackSheet> {
     Widget body;
 
     if (loading) {
-      body = const Center(child: CircularProgressIndicator());
+      body = Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.emoji_events, color: cs.primary),
+              const SizedBox(width: 10),
+              Text(
+                t.translate("training_feedback_title"),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          LinearProgressIndicator(
+            backgroundColor: cs.surfaceVariant.withOpacity(0.4),
+            color: cs.primary,
+            minHeight: 4,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            t.translate("loading") ?? "Loading...",
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: cs.onSurface.withOpacity(0.7),
+            ),
+          ),
+        ],
+      );
     } else if (error != null || questions.isEmpty) {
       // Show message if no questions available
       body = Center(
@@ -246,7 +276,10 @@ class _ExerciseFeedbackSheetState extends State<ExerciseFeedbackSheet> {
             children: [
               Expanded(
                 child: TextButton(
-                  onPressed: () => Navigator.of(context).maybePop(),
+                  onPressed: () {
+                    widget.onDone();
+                    Navigator.of(context).maybePop();
+                  },
                   child: Text(t.translate("common_cancel")),
                 ),
               ),

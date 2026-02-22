@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/training/training_service.dart';
 import 'exercise_feedback_sheet.dart';
@@ -9,6 +10,8 @@ import '../../widgets/app_toast.dart';
 import '../../services/training/exercise_action_queue.dart';
 import '../../services/training/training_completion_storage.dart';
 import '../../services/training/training_activity_service.dart';
+import '../../core/account_storage.dart';
+import '../../widgets/cardio/cardio_map.dart';
 
 class ExerciseSessionSheet extends StatefulWidget {
   final Map<String, dynamic> exercise;
@@ -30,6 +33,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
   bool started = false;
   bool submitting = false;
   bool startRecorded = false;
+  bool _feedbackHandled = false;
+  bool _cardioMapExpanded = false;
+  bool _showCardioStartButton = true;
+  bool _paused = false;
 
   int seconds = 0;
   Timer? timer;
@@ -48,6 +55,17 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _openInstructionDialog();
+      });
+    }
+    if (_isCardioExercise()) {
+      _showCardioStartButton = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() => _cardioMapExpanded = true);
+      });
+      Future.delayed(const Duration(milliseconds: 520), () {
+        if (!mounted) return;
+        setState(() => _showCardioStartButton = true);
       });
     }
   }
@@ -128,6 +146,21 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
     return !_hasExistingEntry(widget.exercise);
   }
 
+  bool _isCardioExercise() {
+    String _lower(dynamic v) => (v ?? '').toString().trim().toLowerCase();
+    final category = _lower(widget.exercise['category']);
+    final exType = _lower(widget.exercise['exercise_type']);
+    final animName = _lower(widget.exercise['animation_name']);
+    final name = _lower(widget.exercise['exercise_name']);
+    return [
+          category,
+          exType,
+          animName,
+          name,
+        ].any((v) => v.contains('cardio')) ||
+        animName.startsWith('cardio -');
+  }
+
   bool _hasExistingEntry(Map<String, dynamic> exercise) {
     final entries = [
       exercise['program_compliance'],
@@ -170,7 +203,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
   void _startTimer() {
     timer = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() => seconds++);
-      if (seconds % 5 == 0) {
+      if (_isCardioExercise() || seconds % 5 == 0) {
         final sets = _currentSets();
         final reps = _currentReps();
         TrainingActivityService.updateSession(
@@ -178,6 +211,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
           sets: sets,
           reps: reps,
           seconds: seconds,
+          distanceKm: _isCardioExercise() ? 0.0 : null,
+          speedKmh: _isCardioExercise() ? 0.0 : null,
         );
       }
     });
@@ -187,17 +222,40 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
       "${(seconds ~/ 60).toString().padLeft(2, '0')}:${(seconds % 60).toString().padLeft(2, '0')}";
 
   Future<void> _startExercise() async {
-    setState(() => started = true);
+    if (started) {
+      if (_paused) {
+        setState(() => _paused = false);
+        _startTimer();
+      }
+      await TrainingActivityService.startSession(
+        exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
+        sets: _currentSets(),
+        reps: _currentReps(),
+        seconds: seconds,
+        distanceKm: _isCardioExercise() ? 0.0 : null,
+        speedKmh: _isCardioExercise() ? 0.0 : null,
+      );
+      return;
+    }
+    setState(() {
+      started = true;
+      _paused = false;
+    });
     _startTimer();
     await TrainingActivityService.startSession(
       exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
       sets: _currentSets(),
       reps: _currentReps(),
       seconds: seconds,
+      distanceKm: _isCardioExercise() ? 0.0 : null,
+      speedKmh: _isCardioExercise() ? 0.0 : null,
     );
     
     // Queue start action for sync (non-blocking)
-    final programExerciseId = widget.exercise['program_exercise_id'];
+    final rawProgramExerciseId = widget.exercise['program_exercise_id'];
+    final int? programExerciseId = rawProgramExerciseId is int
+        ? rawProgramExerciseId
+        : int.tryParse(rawProgramExerciseId?.toString() ?? '');
     if (programExerciseId != null) {
       try {
         // Try to start on server immediately
@@ -222,19 +280,22 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
     await TrainingActivityService.stopSession();
 
     final t = AppLocalizations.of(context);
-    final programExerciseId = widget.exercise['program_exercise_id'];
+    final rawProgramExerciseId = widget.exercise['program_exercise_id'];
+    final int? programExerciseId = rawProgramExerciseId is int
+        ? rawProgramExerciseId
+        : int.tryParse(rawProgramExerciseId?.toString() ?? '');
     bool needsSync = false;
     final now = DateTime.now(); // device local
 
     final int finalSets =
-        int.tryParse(setsCtrl.text) ?? widget.exercise['sets'];
+        int.tryParse(setsCtrl.text) ?? (widget.exercise['sets'] ?? 0);
     final int finalReps =
-        int.tryParse(repsCtrl.text) ?? widget.exercise['reps'];
+        int.tryParse(repsCtrl.text) ?? (widget.exercise['reps'] ?? 0);
 
     final double? weight = double.tryParse(weightCtrl.text);
 
     // Try to sync with server, but queue if offline
-    try {
+    if (programExerciseId != null) try {
       // Start exercise if not already started
       if (!startRecorded) {
         try {
@@ -307,11 +368,21 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
 
     // Record that user completed an exercise today (diet page can auto-set "training day" and lock "rest day")
     await TrainingCompletionStorage.recordExerciseCompletedToday();
+    AccountStorage.notifyTrainingChanged();
 
     // Show feedback sheet (works offline)
     if (mounted) {
+      if (submitting) {
+        setState(() => submitting = false);
+      }
+      if (programExerciseId == null) {
+        widget.onFinished();
+        Navigator.pop(context); // close ExerciseSessionSheet
+        return;
+      }
       showModalBottomSheet(
         context: context,
+        useRootNavigator: true,
         isScrollControlled: true,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -320,11 +391,18 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
           programExerciseId: programExerciseId,
           exerciseName: widget.exercise['exercise_name'],
           onDone: () {
+            _feedbackHandled = true;
             widget.onFinished();
             Navigator.pop(context); // close ExerciseSessionSheet
           },
         ),
-      );
+      ).whenComplete(() {
+        if (!mounted) return;
+        if (_feedbackHandled) return;
+        _feedbackHandled = true;
+        widget.onFinished();
+        Navigator.pop(context); // close ExerciseSessionSheet
+      });
     }
   }
 
@@ -332,6 +410,12 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
     timer?.cancel();
     TrainingActivityService.stopSession();
     Navigator.of(context).maybePop();
+  }
+
+  void _pauseExercise() {
+    if (!started) return;
+    timer?.cancel();
+    setState(() => _paused = true);
   }
 
   @override
@@ -366,6 +450,11 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isCardio = _isCardioExercise();
+    final token =
+        dotenv.isInitialized ? dotenv.maybeGet('MAPBOX_PUBLIC_KEY') : null;
+    final hasToken = token != null && token.trim().isNotEmpty;
+
     final String? animPath = widget.exercise['animation_rel_path'];
     final String instructions = widget.exercise['instructions'] ?? '';
     final viewInsets = MediaQuery.of(context).viewInsets;
@@ -384,6 +473,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
       compliance?['performed_rir'] ?? widget.exercise['performed_rir'],
     );
     final String rirLabel = overrideRir ?? widget.exercise['rir'].toString();
+    final contentPadding = isCardio
+        ? EdgeInsets.fromLTRB(0, 0, 0, 18 + viewInsets.bottom)
+        : EdgeInsets.fromLTRB(18, 18, 18, 18 + viewInsets.bottom);
 
     Widget animationWidget = const Icon(
       Icons.fitness_center,
@@ -391,9 +483,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
       color: Colors.grey,
     );
 
-    if (animPath != null && animPath.isNotEmpty) {
-      final String gifUrl =
-          "${TrainingService.baseUrl}/static/$animPath";
+    if (!isCardio && animPath != null && animPath.isNotEmpty) {
+      final String gifUrl = "${TrainingService.baseUrl}/static/$animPath";
 
       animationWidget = SizedBox(
         height: 160,
@@ -424,80 +515,99 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
           behavior: HitTestBehavior.opaque,
           onTap: () => FocusScope.of(context).unfocus(),
           child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              18,
-              18,
-              18,
-              18 + viewInsets.bottom,
-            ),
+            padding: contentPadding,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF162447), Color(0xFF0D1325)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                if (isCardio) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: CardioMap(
+                      hasToken: hasToken,
+                      expanded: _cardioMapExpanded,
+                      height: MediaQuery.of(context).size.height * 0.9,
+                      onStart: _startExercise,
+                      onPause: _pauseExercise,
+                      onFinish: _finishExercise,
                     ),
-                    border: Border.all(color: Colors.white.withOpacity(0.05)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.45),
-                        blurRadius: 18,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
                   ),
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.04),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: animationWidget,
+                  // const SizedBox(height: 12),
+                  // Text(
+                  //   widget.exercise['exercise_name'] ?? '',
+                  //   textAlign: TextAlign.center,
+                  //   style: const TextStyle(
+                  //     fontSize: 19,
+                  //     fontWeight: FontWeight.w800,
+                  //     color: Colors.white,
+                  //   ),
+                  // ),
+                ] else ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF162447), Color(0xFF0D1325)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      const SizedBox(height: 14),
-                      Text(
-                        widget.exercise['exercise_name'] ?? '',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
+                      border: Border.all(color: Colors.white.withOpacity(0.05)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.45),
+                          blurRadius: 18,
+                          offset: const Offset(0, 10),
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 8,
-                        alignment: WrapAlignment.center,
-                        children: [
-                          _SessionChip(
-                            icon: Icons.repeat,
-                            label: "$setsLabel x $repsLabel",
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.04),
+                            borderRadius: BorderRadius.circular(18),
                           ),
-                          _SessionChip(
-                            icon: Icons.bolt,
-                            label: "${t.translate("training_rir_label")} $rirLabel",
+                          child: animationWidget,
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          widget.exercise['exercise_name'] ?? '',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
                           ),
-                          if (started)
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 8,
+                          alignment: WrapAlignment.center,
+                          children: [
                             _SessionChip(
-                              icon: Icons.timer,
-                              label: _time,
-                              accent: Colors.blueAccent,
+                              icon: Icons.repeat,
+                              label: "$setsLabel x $repsLabel",
                             ),
-                        ],
-                      ),
-                    ],
+                            _SessionChip(
+                              icon: Icons.bolt,
+                              label: "${t.translate("training_rir_label")} $rirLabel",
+                            ),
+                            if (started)
+                              _SessionChip(
+                                icon: Icons.timer,
+                                label: _time,
+                                accent: Colors.blueAccent,
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                ],
                 const SizedBox(height: 18),
-                if (!started)
+                if (!started && !isCardio)
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.greenAccent.shade400,
@@ -514,7 +624,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
                     ),
                     onPressed: _startExercise,
                   ),
-                if (started) ...[
+                if (started && !isCardio) ...[
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
@@ -542,11 +652,12 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
                               label: _time,
                               accent: Colors.blueAccent,
                             ),
-                            _SessionChip(
-                              icon: Icons.monitor_weight,
-                              label: t.translate("training_log_weight_reps"),
-                              accent: Colors.purpleAccent,
-                            ),
+                            if (!isCardio)
+                              _SessionChip(
+                                icon: Icons.monitor_weight,
+                                label: t.translate("training_log_weight_reps"),
+                                accent: Colors.purpleAccent,
+                              ),
                           ],
                         ),
                         const SizedBox(height: 12),
@@ -558,46 +669,48 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
                           decoration:
                               _inputStyle(t.translate("training_weight_label")),
                         ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: setsCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration:
-                              _inputStyle(t.translate("training_performed_sets")),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: repsCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration:
-                              _inputStyle(t.translate("training_performed_reps")),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              t.translate("training_rir_label"),
-                              style: const TextStyle(color: Colors.white70),
-                            ),
-                            Text(
-                              rir.round().toString(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
+                        if (!isCardio) ...[
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: setsCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration:
+                                _inputStyle(t.translate("training_performed_sets")),
+                          ),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: repsCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration:
+                                _inputStyle(t.translate("training_performed_reps")),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                t.translate("training_rir_label"),
+                                style: const TextStyle(color: Colors.white70),
                               ),
-                            ),
-                          ],
-                        ),
-                        Slider(
-                          min: 0,
-                          max: 3,
-                          divisions: 3,
-                          value: rir,
-                          activeColor: Colors.greenAccent,
-                          inactiveColor: Colors.white24,
-                          onChanged: (v) => setState(() => rir = v),
-                        ),
+                              Text(
+                                rir.round().toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Slider(
+                            min: 0,
+                            max: 3,
+                            divisions: 3,
+                            value: rir,
+                            activeColor: Colors.greenAccent,
+                            inactiveColor: Colors.white24,
+                            onChanged: (v) => setState(() => rir = v),
+                          ),
+                        ],
                         const SizedBox(height: 10),
                         Row(
                           children: [

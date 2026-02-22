@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-Future<void> showDietRecommendationLoadingDialog({
+Future<bool?> showDietRecommendationLoadingDialog({
   required BuildContext context,
   String title = "Diet Suggestions",
   String message = "Please wait a bit while we prepare your recommendations...",
+  void Function(DialogRoute<bool> route)? onRouteReady,
 }) {
-  return showDialog<void>(
+  final route = DialogRoute<bool>(
     context: context,
     barrierDismissible: false,
     builder: (ctx) {
@@ -32,7 +33,7 @@ Future<void> showDietRecommendationLoadingDialog({
                     ),
                   ),
                   IconButton(
-                    onPressed: () => Navigator.pop(ctx),
+                    onPressed: () => Navigator.pop(ctx, true),
                     icon: const Icon(Icons.close, color: Colors.white70, size: 20),
                     splashRadius: 18,
                   ),
@@ -55,6 +56,10 @@ Future<void> showDietRecommendationLoadingDialog({
       );
     },
   );
+  if (onRouteReady != null) {
+    onRouteReady(route);
+  }
+  return Navigator.of(context, rootNavigator: true).push(route);
 }
 
 Future<void> showDietRecommendationDialog({

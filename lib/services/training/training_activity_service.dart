@@ -17,9 +17,16 @@ class TrainingActivityService {
     required int seconds,
     required int sets,
     required int reps,
+    double? distanceKm,
+    double? speedKmh,
   }) {
     final mm = (seconds ~/ 60).toString().padLeft(2, '0');
     final ss = (seconds % 60).toString().padLeft(2, '0');
+    if (distanceKm != null || speedKmh != null) {
+      final d = (distanceKm ?? 0).toStringAsFixed(2);
+      final s = (speedKmh ?? 0).toStringAsFixed(1);
+      return "Timer $mm:$ss • $d km • $s km/h";
+    }
     return "Timer $mm:$ss • $sets x $reps";
   }
 
@@ -28,6 +35,8 @@ class TrainingActivityService {
     required int sets,
     required int reps,
     required int seconds,
+    double? distanceKm,
+    double? speedKmh,
   }) async {
     if (!_active) {
       _active = true;
@@ -39,11 +48,19 @@ class TrainingActivityService {
           sets: sets,
           reps: reps,
           seconds: seconds,
+          distanceKm: distanceKm,
+          speedKmh: speedKmh,
         );
       }
       await _startForegroundService(
         title: _buildTitle(exerciseName),
-        body: _buildBody(seconds: seconds, sets: sets, reps: reps),
+        body: _buildBody(
+          seconds: seconds,
+          sets: sets,
+          reps: reps,
+          distanceKm: distanceKm,
+          speedKmh: speedKmh,
+        ),
       );
       return;
     }
@@ -52,6 +69,8 @@ class TrainingActivityService {
       sets: sets,
       reps: reps,
       seconds: seconds,
+      distanceKm: distanceKm,
+      speedKmh: speedKmh,
     );
   }
 
@@ -60,6 +79,8 @@ class TrainingActivityService {
     required int sets,
     required int reps,
     required int seconds,
+    double? distanceKm,
+    double? speedKmh,
   }) async {
     if (!_active) return;
     if (seconds == _lastUpdateSecond) return;
@@ -68,7 +89,13 @@ class TrainingActivityService {
     if (Platform.isAndroid) {
       await FlutterForegroundTask.updateService(
         notificationTitle: _buildTitle(exerciseName),
-        notificationText: _buildBody(seconds: seconds, sets: sets, reps: reps),
+        notificationText: _buildBody(
+          seconds: seconds,
+          sets: sets,
+          reps: reps,
+          distanceKm: distanceKm,
+          speedKmh: speedKmh,
+        ),
       );
     }
     if (Platform.isIOS) {
@@ -77,6 +104,8 @@ class TrainingActivityService {
         sets: sets,
         reps: reps,
         seconds: seconds,
+        distanceKm: distanceKm,
+        speedKmh: speedKmh,
       );
     }
   }
@@ -112,6 +141,8 @@ class TrainingActivityService {
     required int sets,
     required int reps,
     required int seconds,
+    double? distanceKm,
+    double? speedKmh,
   }) async {
     try {
       final ok = await _liveActivityChannel.invokeMethod('start', {
@@ -120,6 +151,8 @@ class TrainingActivityService {
         'sets': sets,
         'reps': reps,
         'seconds': seconds,
+        'distanceKm': distanceKm,
+        'speedKmh': speedKmh,
       });
       // ignore: avoid_print
       print('[LiveActivity] start result: $ok');
@@ -131,6 +164,8 @@ class TrainingActivityService {
     required int sets,
     required int reps,
     required int seconds,
+    double? distanceKm,
+    double? speedKmh,
   }) async {
     try {
       final ok = await _liveActivityChannel.invokeMethod('update', {
@@ -139,6 +174,8 @@ class TrainingActivityService {
         'sets': sets,
         'reps': reps,
         'seconds': seconds,
+        'distanceKm': distanceKm,
+        'speedKmh': speedKmh,
       });
       // ignore: avoid_print
       print('[LiveActivity] update result: $ok');

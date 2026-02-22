@@ -37,6 +37,7 @@ class FitbitDailyActivityCard extends StatelessWidget {
           accentColor: fitbitDark,
           borderColor: fitbitDark,
           borderWidth: 2.2,
+          footerRight: null,
           onTap: onTap,
         ),
         Positioned(

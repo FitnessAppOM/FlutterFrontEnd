@@ -437,10 +437,10 @@ class NotificationService {
         return null;
       }
       if (tarCal > 0 && remCal >= 0) {
-        return "You still have $remCal kcal left!";
+        return "You still have $remCal kcal left. Tap to log your food.";
       }
       if (tarCal > 0) {
-        return "You still have calories left!";
+        return "You still have calories left. Tap to log your food.";
       }
     } catch (_) {
       // Best effort: fall back to generic message.

@@ -6,8 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
 
-class WhoopDailySync {
-  static const _lastPushKey = "whoop_daily_last_push_date";
+class FitbitDailySync {
+  static const _lastPushKey = "fitbit_daily_last_push_date";
 
   Future<void> pushIfNewDay() async {
     final userId = await AccountStorage.getUserId();
@@ -19,8 +19,8 @@ class WhoopDailySync {
     final todayKey = _dateKey(DateTime.now());
     if (last == todayKey) return;
 
-    // Only proceed if WHOOP is linked.
-    final statusUrl = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId");
+    // Only proceed if Fitbit is linked.
+    final statusUrl = Uri.parse("${ApiConfig.baseUrl}/fitbit/status?user_id=$userId");
     final headers = await AccountStorage.getAuthHeaders();
     final statusRes =
         await http.get(statusUrl, headers: headers).timeout(const Duration(seconds: 12));
@@ -37,7 +37,7 @@ class WhoopDailySync {
     final startStr = _dateKey(start);
     final endStr = _dateKey(end);
     final rangeUrl = Uri.parse(
-      "${ApiConfig.baseUrl}/whoop/daily-metrics/range?user_id=$userId&start=$startStr&end=$endStr",
+      "${ApiConfig.baseUrl}/fitbit/daily-metrics/range?user_id=$userId&start=$startStr&end=$endStr",
     );
     final rangeRes =
         await http.get(rangeUrl, headers: headers).timeout(const Duration(seconds: 20));
@@ -63,7 +63,7 @@ class WhoopDailySync {
 
     for (final day in missingDates) {
       final url = Uri.parse(
-        "${ApiConfig.baseUrl}/whoop/day?user_id=$userId&date=$day&persist=1",
+        "${ApiConfig.baseUrl}/fitbit/day?user_id=$userId&date=$day&persist=1",
       );
       await http.get(url, headers: headers).timeout(const Duration(seconds: 25));
     }
@@ -75,8 +75,8 @@ class WhoopDailySync {
     final userId = await AccountStorage.getUserId();
     if (userId == null || userId == 0) return;
 
-    // Only proceed if WHOOP is linked.
-    final statusUrl = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId");
+    // Only proceed if Fitbit is linked.
+    final statusUrl = Uri.parse("${ApiConfig.baseUrl}/fitbit/status?user_id=$userId");
     final headers = await AccountStorage.getAuthHeaders();
     final statusRes =
         await http.get(statusUrl, headers: headers).timeout(const Duration(seconds: 12));
@@ -93,7 +93,7 @@ class WhoopDailySync {
     final startStr = _dateKey(start);
     final endStr = _dateKey(end);
     final rangeUrl = Uri.parse(
-      "${ApiConfig.baseUrl}/whoop/daily-metrics/range?user_id=$userId&start=$startStr&end=$endStr",
+      "${ApiConfig.baseUrl}/fitbit/daily-metrics/range?user_id=$userId&start=$startStr&end=$endStr",
     );
     final rangeRes =
         await http.get(rangeUrl, headers: headers).timeout(const Duration(seconds: 20));
@@ -112,7 +112,7 @@ class WhoopDailySync {
       final key = _dateKey(cursor);
       if (!existingDates.contains(key)) {
         final url = Uri.parse(
-          "${ApiConfig.baseUrl}/whoop/day?user_id=$userId&date=$key&persist=1",
+          "${ApiConfig.baseUrl}/fitbit/day?user_id=$userId&date=$key&persist=1",
         );
         await http.get(url, headers: headers).timeout(const Duration(seconds: 25));
       }

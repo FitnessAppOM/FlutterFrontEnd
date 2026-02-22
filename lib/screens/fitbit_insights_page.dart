@@ -100,11 +100,6 @@ class _FitbitInsightsPageState extends State<FitbitInsightsPage> {
     _sleepLoading = widget.sleepLoading;
     _vitalsLoading = false;
     _bodyLoading = false;
-    _refreshOnOpen();
-  }
-
-  Future<void> _refreshOnOpen() async {
-    await _loadSummary();
   }
 
   Future<void> _loadSummary() async {

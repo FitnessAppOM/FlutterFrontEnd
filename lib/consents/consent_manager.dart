@@ -116,12 +116,23 @@ class ConsentManager {
   // LOCATION — JIT on features that need it
   // ---------------------------------------------------------------------------
   static Future<bool> requestLocationJIT() async {
-    if (!await Geolocator.isLocationServiceEnabled()) return false;
-    var perm = await Geolocator.checkPermission();
-    if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
-      perm = await Geolocator.requestPermission();
+    try {
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
+        perm = await Geolocator.requestPermission();
+      }
+
+      final granted = perm == LocationPermission.always ||
+          perm == LocationPermission.whileInUse;
+      if (!granted) return false;
+
+      // If services are disabled, we can't get a fix.
+      if (!await Geolocator.isLocationServiceEnabled()) return false;
+
+      return true;
+    } catch (_) {
+      return false;
     }
-    return perm == LocationPermission.always || perm == LocationPermission.whileInUse;
   }
 
   // ---------------------------------------------------------------------------

@@ -8,6 +8,8 @@ struct TrainingActivityAttributes: ActivityAttributes {
         var sets: Int
         var reps: Int
         var seconds: Int
+        var distanceKm: Double?
+        var speedKmh: Double?
     }
 
     var sessionId: String
@@ -48,8 +50,13 @@ struct TrainingLiveActivityWidget: Widget {
                             .monospacedDigit()
                     }
                     HStack(spacing: 8) {
-                        badge("\(context.state.sets) sets")
-                        badge("\(context.state.reps) reps")
+                        if let dist = context.state.distanceKm, let speed = context.state.speedKmh {
+                            badge(String(format: "%.2f km", dist))
+                            badge(String(format: "%.1f km/h", speed))
+                        } else {
+                            badge("\(context.state.sets) sets")
+                            badge("\(context.state.reps) reps")
+                        }
                         Spacer()
                         Text("Live")
                             .font(.caption2)
@@ -81,9 +88,15 @@ struct TrainingLiveActivityWidget: Widget {
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack(spacing: 8) {
-                        Text("\(context.state.sets) sets")
-                        Text("•")
-                        Text("\(context.state.reps) reps")
+                        if let dist = context.state.distanceKm, let speed = context.state.speedKmh {
+                            Text(String(format: "%.2f km", dist))
+                            Text("•")
+                            Text(String(format: "%.1f km/h", speed))
+                        } else {
+                            Text("\(context.state.sets) sets")
+                            Text("•")
+                            Text("\(context.state.reps) reps")
+                        }
                     }
                     .font(.caption2)
                     .foregroundStyle(.secondary)

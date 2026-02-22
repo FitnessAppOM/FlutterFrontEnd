@@ -19,6 +19,9 @@ import '../config/base_url.dart';
 import '../consents/consent_manager.dart';
 import '../auth/expert_questionnaire.dart';
 import '../services/core/notification_service.dart';
+import '../services/whoop/whoop_daily_sync.dart';
+import '../services/whoop/whoop_latest_service.dart';
+import '../services/fitbit/fitbit_daily_sync.dart';
 import '../screens/welcome.dart';
 import '../widgets/Main/card_container.dart';
 
@@ -370,6 +373,12 @@ class _SettingsPageState extends State<SettingsPage> {
       if (ok) {
         AccountStorage.notifyWhoopChanged();
         AccountStorage.notifyAccountChanged();
+        try {
+          await WhoopDailySync().forceBackfillRecent();
+          await WhoopDailySync().pushIfNewDay();
+          WhoopLatestService.clear();
+          AccountStorage.notifyWhoopChanged();
+        } catch (_) {}
       }
       AppToast.show(
         context,
@@ -414,6 +423,11 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() => _fitbitLinked = ok);
       if (ok) {
         AccountStorage.notifyAccountChanged();
+        try {
+          await FitbitDailySync().forceBackfillRecent();
+          await FitbitDailySync().pushIfNewDay();
+          AccountStorage.notifyAccountChanged();
+        } catch (_) {}
       }
       AppToast.show(
         context,

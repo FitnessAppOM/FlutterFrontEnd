@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import 'localization/app_localizations.dart';
 import 'screens/welcome.dart';
@@ -50,6 +52,29 @@ void main() async {
   // Firebase (REQUIRED for Google Sign-In)
   await Firebase.initializeApp();
   print('[Main] Firebase initialized');
+
+  // Load env (Mapbox token, etc.)
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    if (kDebugMode) {
+      print('[Main] dotenv load failed: $e');
+    }
+  }
+
+  // Configure Mapbox access token if present.
+  try {
+    if (dotenv.isInitialized) {
+      final token = dotenv.maybeGet('MAPBOX_PUBLIC_KEY');
+      if (token != null && token.trim().isNotEmpty) {
+        MapboxOptions.setAccessToken(token.trim());
+      }
+    }
+  } catch (e) {
+    if (kDebugMode) {
+      print('[Main] Mapbox token init failed: $e');
+    }
+  }
 
   // Ads (safe to init early)
   await MobileAds.instance.initialize();

@@ -7,6 +7,32 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+fun loadDotEnv(rootDir: File): Map<String, String> {
+    val envFile = File(rootDir, ".env")
+    if (!envFile.exists()) return emptyMap()
+
+    val map = mutableMapOf<String, String>()
+    envFile.forEachLine { rawLine ->
+        val line = rawLine.trim()
+        if (line.isEmpty() || line.startsWith("#")) return@forEachLine
+        val idx = line.indexOf("=")
+        if (idx <= 0) return@forEachLine
+        val key = line.substring(0, idx).trim()
+        var value = line.substring(idx + 1).trim()
+        if ((value.startsWith("\"") && value.endsWith("\"")) ||
+            (value.startsWith("'") && value.endsWith("'"))
+        ) {
+            value = value.substring(1, value.length - 1)
+        }
+        map[key] = value
+    }
+    return map
+}
+
+val dotEnv = loadDotEnv(rootProject.projectDir)
+val mapboxToken =
+    (dotEnv["MAPBOX_PUBLIC_KEY"] ?: System.getenv("MAPBOX_PUBLIC_KEY") ?: "").trim()
+
 android {
     namespace = "com.example.taqaproject"
 
@@ -35,6 +61,10 @@ android {
 
         versionCode = 1
         versionName = flutter.versionName
+
+        // Mapbox access token from .env
+        manifestPlaceholders["MAPBOX_ACCESS_TOKEN"] = mapboxToken
+        resValue("string", "mapbox_access_token", mapboxToken)
     }
 
     buildTypes {

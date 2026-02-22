@@ -50,6 +50,19 @@ class ExerciseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String _lower(dynamic v) => (v ?? '').toString().trim().toLowerCase();
+    final category = _lower(exercise['category']);
+    final exType = _lower(exercise['exercise_type']);
+    final animName = _lower(exercise['animation_name']);
+    final name = _lower(exercise['exercise_name']);
+    final isCardio = [
+      category,
+      exType,
+      animName,
+      name,
+    ].any((v) => v.contains('cardio')) ||
+        animName.startsWith('cardio -');
+
     DateTime? _parseDate(dynamic value) {
       if (value is DateTime) return value;
       if (value is String && value.isNotEmpty) return DateTime.tryParse(value);
@@ -291,25 +304,26 @@ class ExerciseCard extends StatelessWidget {
                           const SizedBox(width: 6),
                           if (statusChip != null) statusChip,
                           const SizedBox(width: 6),
-                          if (!completed) replaceChip,
+                          if (!completed && !isCardio) replaceChip,
 
                         ],
                       ),
                       const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 6,
-                        children: [
-                          _StatChip(
-                            icon: Icons.repeat,
-                            label: "$setsLabel x $repsLabel",
-                          ),
-                          _StatChip(
-                            icon: Icons.bolt,
-                            label: "RIR $rirLabel",
-                          ),
-                        ],
-                      ),
+                      if (!isCardio)
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            _StatChip(
+                              icon: Icons.repeat,
+                              label: "$setsLabel x $repsLabel",
+                            ),
+                            _StatChip(
+                              icon: Icons.bolt,
+                              label: "RIR $rirLabel",
+                            ),
+                          ],
+                        ),
                       if ((exercise['primary_muscles'] ?? '').toString().isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Row(

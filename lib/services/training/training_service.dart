@@ -52,6 +52,25 @@ class TrainingService {
     return program;
   }
 
+  static Future<Map<String, dynamic>> fetchTrainingProgress({
+    required int userId,
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final startParam = _dateParam(start);
+    final endParam = _dateParam(end);
+    final url = Uri.parse(
+      '$baseUrl/training/progress/$userId?start=$startParam&end=$endParam',
+    );
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.get(url, headers: headers);
+    await AccountStorage.handle401(response.statusCode);
+    if (response.statusCode != 200) {
+      throw Exception("Failed to load training progress");
+    }
+    return json.decode(response.body) as Map<String, dynamic>;
+  }
+
   /// Fetch program from cache (for offline use)
   static Future<Map<String, dynamic>?> fetchActiveProgramFromCache() async {
     return await TrainingProgramStorage.loadProgram();

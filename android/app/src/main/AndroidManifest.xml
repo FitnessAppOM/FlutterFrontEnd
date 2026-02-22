@@ -40,6 +40,10 @@
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true">
 
+        <meta-data
+            android:name="MAPBOX_ACCESS_TOKEN"
+            android:value="${MAPBOX_ACCESS_TOKEN}" />
+
 
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"

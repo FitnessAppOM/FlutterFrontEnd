@@ -48,7 +48,10 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
   @override
   Widget build(BuildContext context) {
     final dayKey = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-    final metrics = _daily[dayKey];
+    final bool isToday = _isToday(dayKey);
+    final bool isPastDay = _isPastDay(dayKey);
+    final fallbackEntry = isToday ? _latestAvailableOnOrBefore(dayKey) : null;
+    final metrics = _daily[dayKey] ?? fallbackEntry?.value;
     return Scaffold(
       appBar: AppBar(
         title: const Text("Daily Cycle"),
@@ -62,7 +65,7 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
           children: [
             _header(dayKey),
             const SizedBox(height: 14),
-            _metricsGrid(metrics, isLoading: _loading),
+            _metricsGrid(metrics, isLoading: _loading, showEmptyAsDash: isPastDay),
             if (!_hideTrendForNoData(metrics)) ...[
               const SizedBox(height: 16),
               Center(
@@ -104,11 +107,15 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
     );
   }
 
-  Widget _metricsGrid(Map<String, dynamic>? metrics, {required bool isLoading}) {
+  Widget _metricsGrid(
+    Map<String, dynamic>? metrics, {
+    required bool isLoading,
+    required bool showEmptyAsDash,
+  }) {
     if (metrics == null && isLoading) {
       return const SizedBox.shrink();
     }
-    if (metrics == null && !isLoading) {
+    if (metrics == null && !isLoading && !showEmptyAsDash) {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -193,6 +200,60 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
           ],
         ),
       ],
+      );
+    }
+
+    if (metrics == null && showEmptyAsDash) {
+      return Column(
+        children: [
+          Row(
+            children: const [
+              Expanded(
+                child: RecoveryMetricCard(
+                  title: "Strain",
+                  value: "—",
+                  unit: "",
+                  icon: Icons.bolt,
+                  accent: Color(0xFFFF8A00),
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: RecoveryMetricCard(
+                  title: "Avg HR",
+                  value: "—",
+                  unit: "bpm",
+                  icon: Icons.favorite,
+                  accent: Color(0xFFE84C4F),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          Row(
+            children: const [
+              Expanded(
+                child: RecoveryMetricCard(
+                  title: "Max HR",
+                  value: "—",
+                  unit: "bpm",
+                  icon: Icons.show_chart,
+                  accent: Color(0xFF7BD4FF),
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: RecoveryMetricCard(
+                  title: "Energy",
+                  value: "—",
+                  unit: "kJ",
+                  icon: Icons.local_fire_department,
+                  accent: Color(0xFFB8E91E),
+                ),
+              ),
+            ],
+          ),
+        ],
       );
     }
 
@@ -331,6 +392,26 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
     final todayOnly = DateTime(today.year, today.month, today.day);
     final selected = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
     return selected.isBefore(todayOnly);
+  }
+
+  bool _isToday(DateTime d) {
+    final now = DateTime.now();
+    return d.year == now.year && d.month == now.month && d.day == now.day;
+  }
+
+  bool _isPastDay(DateTime d) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return d.isBefore(today);
+  }
+
+  MapEntry<DateTime, Map<String, dynamic>>? _latestAvailableOnOrBefore(DateTime dayKey) {
+    if (_daily.isEmpty) return null;
+    final candidates = _daily.entries
+        .where((e) => !e.key.isAfter(dayKey))
+        .where((e) => e.value.isNotEmpty);
+    if (candidates.isEmpty) return null;
+    return candidates.reduce((a, b) => a.key.isAfter(b.key) ? a : b);
   }
 
   String _monthName(int m) {

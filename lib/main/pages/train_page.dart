@@ -9,6 +9,8 @@ import '../../services/training/training_service.dart';
 import '../../widgets/training/replace_exercise_sheet.dart';
 import '../../widgets/app_toast.dart';
 import '../../services/training/exercise_action_queue.dart';
+import '../../screens/cardio/cardio_tab.dart';
+import '../../consents/consent_manager.dart';
 
 class TrainPage extends StatefulWidget {
   const TrainPage({super.key});
@@ -23,6 +25,7 @@ class _TrainPageState extends State<TrainPage> {
   bool loading = true;
   bool isOffline = false;
   Set<String> completedExerciseNames = {};
+  int _tabIndex = 0; // 0 = Train, 1 = Cardio
 
   int? _userId;
 
@@ -156,6 +159,19 @@ class _TrainPageState extends State<TrainPage> {
     });
   }
 
+  Future<void> _openCardioTab() async {
+    final ok = await ConsentManager.requestLocationJIT();
+    if (!ok && mounted) {
+      AppToast.show(
+        context,
+        "Location permission is required to show your position on the cardio map.",
+        type: AppToastType.info,
+      );
+    }
+    if (!mounted) return;
+    setState(() => _tabIndex = 1);
+  }
+
   Future<void> _openReplaceSheet(Map<String, dynamic> ex) async {
     final userId = _userId;
     if (userId == null) return;
@@ -181,6 +197,85 @@ class _TrainPageState extends State<TrainPage> {
       }
       await _loadProgram();
     }
+  }
+
+  bool _isCardioExercise(Map<String, dynamic> ex) {
+    String? _str(dynamic v) => v == null ? null : v.toString().toLowerCase();
+
+    final name = _str(ex['exercise_name']) ?? '';
+    final category = _str(ex['category']) ?? _str(ex['exercise_type']) ?? _str(ex['type']) ?? '';
+    final modality = _str(ex['modality']) ?? _str(ex['training_type']) ?? '';
+    final primary = _str(ex['primary_muscles']) ?? '';
+    final equipment = _str(ex['equipment']) ?? '';
+
+    final haystack = [name, category, modality, primary, equipment].where((s) => s.isNotEmpty).join(' ');
+
+    const cardioKeywords = [
+      'cardio',
+      'run',
+      'running',
+      'jog',
+      'jogging',
+      'bike',
+      'biking',
+      'cycling',
+      'cycle',
+      'row',
+      'rowing',
+      'swim',
+      'swimming',
+      'treadmill',
+      'elliptical',
+      'stair',
+      'stepmill',
+      'jump rope',
+      'jumping rope',
+      'burpee',
+      'hiit',
+      'air bike',
+      'spin',
+      'sprint',
+      'walk',
+      'walking',
+    ];
+
+    return cardioKeywords.any((k) => haystack.contains(k));
+  }
+
+  Widget _tabButton({
+    required String label,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFF2D7CFF) : Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: active ? const Color(0xFF2D7CFF) : Colors.white24,
+          ),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Center(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: active ? Colors.white : Colors.white70,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -211,6 +306,19 @@ class _TrainPageState extends State<TrainPage> {
 
     final currentDay = days[selectedDay];
     final List exercises = currentDay['exercises'] ?? [];
+    final List<Map<String, dynamic>> trainExercises = [];
+    final List<Map<String, dynamic>> cardioExercises = [];
+    for (final ex in exercises) {
+      if (ex is Map<String, dynamic>) {
+        if (_isCardioExercise(ex)) {
+          cardioExercises.add(ex);
+        } else {
+          trainExercises.add(ex);
+        }
+      }
+    }
+    final List<Map<String, dynamic>> visibleExercises =
+        _tabIndex == 1 ? cardioExercises : trainExercises;
 
     return Container(
       color: Colors.black,
@@ -220,6 +328,7 @@ class _TrainPageState extends State<TrainPage> {
           backgroundColor: Colors.black87,
           onRefresh: _loadProgram,
           child: ListView(
+            key: ValueKey(_tabIndex),
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(20),
             children: [
@@ -255,50 +364,77 @@ class _TrainPageState extends State<TrainPage> {
                 ),
               ),
               const SizedBox(height: 12),
-              DaySelector(
-                labels: days.map<String>((d) => d['day_label'].toString()).toList(),
-                selectedIndex: selectedDay,
-                onSelect: (i) => setState(() => selectedDay = i),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                t.translate("training_exercise_list_title"),
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                t.translate("training_exercise_list_sub"),
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white.withOpacity(0.7),
-                ),
+              Row(
+                children: [
+                  _tabButton(
+                    label: "Train",
+                    active: _tabIndex == 0,
+                    onTap: () => setState(() => _tabIndex = 0),
+                  ),
+                  const SizedBox(width: 10),
+                  _tabButton(
+                    label: "Cardio",
+                    active: _tabIndex == 1,
+                    onTap: _openCardioTab,
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
-              if (exercises.isEmpty)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 40),
-                    child: Text(
-                      t.translate("rest_day"),
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
+              if (_tabIndex == 0) ...[
+                DaySelector(
+                  labels: days.map<String>((d) => d['day_label'].toString()).toList(),
+                  selectedIndex: selectedDay,
+                  onSelect: (i) => setState(() => selectedDay = i),
+                ),
+                const SizedBox(height: 24),
+              ] else
+                const SizedBox(height: 8),
+              if (_tabIndex == 1)
+                CardioTab(
+                  exercises: cardioExercises,
+                  onStart: _startExerciseFlow,
+                  onReplace: _openReplaceSheet,
+                )
+              else ...[
+                Text(
+                  t.translate("training_exercise_list_title"),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  t.translate("training_exercise_list_sub"),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.white.withOpacity(0.7),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (visibleExercises.isEmpty)
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 40),
+                      child: Text(
+                        t.translate("rest_day"),
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Colors.white,
+                        ),
                       ),
                     ),
-                  ),
-                )
-              else
-                ...exercises.map<Widget>((ex) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: ExerciseCard(
-                      exercise: ex,
-                      onTap: () => _startExerciseFlow(ex),
-                      onReplace: () => _openReplaceSheet(ex),
-                    ),
-                  );
-                }).toList(),
+                  )
+                else
+                  ...visibleExercises.map<Widget>((ex) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: ExerciseCard(
+                        exercise: ex,
+                        onTap: () => _startExerciseFlow(ex),
+                        onReplace: () => _openReplaceSheet(ex),
+                      ),
+                    );
+                  }).toList(),
+              ],
             ],
           ),
         ),

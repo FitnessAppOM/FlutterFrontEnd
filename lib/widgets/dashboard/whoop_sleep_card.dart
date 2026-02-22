@@ -50,43 +50,18 @@ class WhoopSleepCard extends StatelessWidget {
           borderColor: whoopBlue,
           borderWidth: 2.5,
           onTap: onTap,
-        ),
-        if (showEfficiency && efficiency != null)
-          Positioned(
-            bottom: 10,
-            left: 14,
-            child: Text(
-              "Efficiency: ${efficiency.toStringAsFixed(0)}%",
-              style: const TextStyle(
-                color: Colors.white60,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        if (deltaValue != null)
-          Positioned(
-            bottom: 10,
-            right: 14,
-            child: Row(
-              children: [
-                Icon(
-                  deltaValue >= 0 ? Icons.arrow_upward : Icons.arrow_downward,
-                  size: 12,
-                  color: deltaValue >= 0 ? const Color(0xFF4CD964) : const Color(0xFFFF8A00),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  "${deltaValue.abs()}%",
-                  style: TextStyle(
-                    color: deltaValue >= 0 ? const Color(0xFF4CD964) : const Color(0xFFFF8A00),
+          deltaPercent: deltaValue,
+          footerLeft: showEfficiency && efficiency != null
+              ? Text(
+                  "Efficiency: ${efficiency.toStringAsFixed(0)}%",
+                  style: const TextStyle(
+                    color: Colors.white60,
                     fontSize: 11,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
-                ),
-              ],
-            ),
-          ),
+                )
+              : null,
+        ),
         Positioned(
           top: -10,
           right: 10,

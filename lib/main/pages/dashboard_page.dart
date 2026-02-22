@@ -117,6 +117,10 @@ class DashboardPageState extends State<DashboardPage>
   double? _waterGoal;
   double? _waterIntake;
   bool _waterLoading = false;
+  int? _stepsDelta;
+  int? _sleepDelta;
+  int? _caloriesDelta;
+  int? _waterDelta;
   int? _weeklySteps;
   bool _weeklyStepsLoading = false;
   List<double> _trendSleep = const [];
@@ -130,6 +134,7 @@ class DashboardPageState extends State<DashboardPage>
   double? _whoopSleepHours;
   int? _whoopSleepScore;
   int? _whoopSleepDelta;
+  int? _whoopRecoveryDelta;
   double? _whoopCycleStrain;
   double? _whoopCycleStrainLast;
   double? _whoopBodyWeightKg;
@@ -155,6 +160,8 @@ class DashboardPageState extends State<DashboardPage>
   int? _exerciseTotal;
   int? _exerciseCompleted;
   bool _exerciseLoading = false;
+  bool _exerciseLoadedOnce = false;
+  String? _exerciseProgramMode;
 
   static const _stepsGoalKey = "dashboard_steps_goal";
   static const _sleepGoalKey = "dashboard_sleep_goal";
@@ -183,7 +190,13 @@ class DashboardPageState extends State<DashboardPage>
     final today = DateTime.now();
     final todayOnly = DateTime(today.year, today.month, today.day);
     if (next.isAfter(todayOnly)) return;
-    setState(() => _selectedDate = next);
+    setState(() {
+      _selectedDate = next;
+      _exerciseLoadedOnce = false;
+      _exerciseTotal = null;
+      _exerciseCompleted = null;
+      // Keep existing Fitbit values while new date loads to avoid zero/empty flicker.
+    });
     _loadSteps();
     _loadSleep();
     _loadCalories();
@@ -256,8 +269,10 @@ class DashboardPageState extends State<DashboardPage>
     _ensureWiggle();
     AccountStorage.whoopChange.addListener(_onWhoopChanged);
     AccountStorage.accountChange.addListener(_onAccountChanged);
+    AccountStorage.trainingChange.addListener(_onTrainingChanged);
     _loadStatOrder();
     _loadInitialData();
+    _loadExerciseProgress();
   }
 
   void _onWhoopChanged() {
@@ -267,6 +282,11 @@ class DashboardPageState extends State<DashboardPage>
 
   void _onAccountChanged() {
     _refreshAll();
+    _loadExerciseProgress(force: true);
+  }
+
+  void _onTrainingChanged() {
+    _loadExerciseProgress(force: true);
   }
 
   @override
@@ -274,6 +294,7 @@ class DashboardPageState extends State<DashboardPage>
     _wiggleController?.dispose();
     AccountStorage.whoopChange.removeListener(_onWhoopChanged);
     AccountStorage.accountChange.removeListener(_onAccountChanged);
+    AccountStorage.trainingChange.removeListener(_onTrainingChanged);
     super.dispose();
   }
 
@@ -934,7 +955,6 @@ class DashboardPageState extends State<DashboardPage>
       _loadWeeklySteps(),
       _loadTrendSleep(),
       _loadTrendCalories(),
-      _loadExerciseProgress(),
       _loadWhoopRecovery(),
       _loadWhoopBody(),
     ]);
@@ -1171,7 +1191,8 @@ class DashboardPageState extends State<DashboardPage>
     return null;
   }
 
-  Future<void> _loadExerciseProgress() async {
+  Future<void> _loadExerciseProgress({bool force = false}) async {
+    if (!force && _exerciseLoading) return;
     setState(() => _exerciseLoading = true);
     try {
       final userId = await AccountStorage.getUserId();
@@ -1183,53 +1204,35 @@ class DashboardPageState extends State<DashboardPage>
         return;
       }
 
-      final program = await TrainingService.fetchActiveProgram(userId);
       final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
       final weekStart = anchor.subtract(Duration(days: anchor.weekday - 1));
       final weekEnd = weekStart.add(const Duration(days: 6));
-      int total = 0;
-      int done = 0;
-
-      final days = program['days'];
-      bool hasDatedDays = false;
-      if (days is List) {
-        for (final day in days) {
-          if (_parseDayDate(day) != null) {
-            hasDatedDays = true;
-            break;
-          }
-        }
-      }
-      if (days is List) {
-        for (final day in days) {
-          final dayDate = _parseDayDate(day);
-          if (hasDatedDays) {
-            if (dayDate == null) continue;
-            if (dayDate.isBefore(weekStart) || dayDate.isAfter(weekEnd)) continue;
-          }
-
-          total++;
-          final exercises = day is Map ? day['exercises'] : null;
-          if (exercises is List) {
-            final completedDay = exercises.any((ex) {
-              if (ex is! Map<String, dynamic>) return false;
-              return _isExerciseCompletedForWeek(ex, weekStart, weekEnd);
-            });
-            if (completedDay) done++;
-          }
-        }
-      }
+      final progress = await TrainingService.fetchTrainingProgress(
+        userId: userId,
+        start: weekStart,
+        end: weekEnd,
+      );
+      final total = (progress["total"] ?? 0) as int;
+      final done = (progress["completed"] ?? 0) as int;
+      final mode = progress["program_mode"] as String?;
+      debugPrint(
+        "Training progress db: user=$userId start=${weekStart.toIso8601String().split('T').first} "
+        "end=${weekEnd.toIso8601String().split('T').first} completed=$done total=$total",
+      );
 
       if (!mounted) return;
       setState(() {
         _exerciseTotal = total;
         _exerciseCompleted = done;
+        _exerciseLoadedOnce = true;
+        _exerciseProgramMode = mode;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _exerciseTotal = null;
         _exerciseCompleted = null;
+        _exerciseLoadedOnce = true;
       });
     } finally {
       if (mounted) {
@@ -1239,59 +1242,6 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   Future<void> refreshExerciseProgress() => _loadExerciseProgress();
-
-  Future<void> _preloadExerciseGifsForWeek() async {
-    try {
-      final userId = await AccountStorage.getUserId();
-      if (userId == null || !mounted) return;
-
-      final program = await TrainingService.fetchActiveProgram(userId);
-      if (!mounted) return;
-
-      final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-      final weekStart = anchor.subtract(Duration(days: anchor.weekday - 1));
-      final weekEnd = weekStart.add(const Duration(days: 6));
-
-      final days = program['days'];
-      bool hasDatedDays = false;
-      if (days is List) {
-        for (final day in days) {
-          if (_parseDayDate(day) != null) {
-            hasDatedDays = true;
-            break;
-          }
-        }
-      }
-
-      if (days is List) {
-        for (final day in days) {
-          final dayDate = _parseDayDate(day);
-          if (hasDatedDays) {
-            if (dayDate == null) continue;
-            if (dayDate.isBefore(weekStart) || dayDate.isAfter(weekEnd)) continue;
-          }
-
-          final exercises = day is Map ? day['exercises'] : null;
-          if (exercises is List) {
-            for (final ex in exercises) {
-              if (!mounted) return;
-              if (ex is! Map<String, dynamic>) continue;
-              final animPath = ex['animation_rel_path'];
-              if (animPath is! String || animPath.trim().isEmpty) continue;
-              final url = "${TrainingService.baseUrl}/static/$animPath";
-              try {
-                await precacheImage(NetworkImage(url), context);
-              } catch (_) {
-                // Ignore individual preload failures.
-              }
-            }
-          }
-        }
-      }
-    } catch (_) {
-      // Ignore preload failures to avoid blocking dashboard load.
-    }
-  }
 
   Future<void> _loadSteps() async {
     setState(() {
@@ -1312,7 +1262,24 @@ class DashboardPageState extends State<DashboardPage>
         }
       }
       if (!mounted) return;
-      setState(() => _todaySteps = steps);
+      int? delta;
+      if (steps != null) {
+        final userId = await AccountStorage.getUserId();
+        if (userId != null) {
+          try {
+            final yesterday = _selectedDate.subtract(const Duration(days: 1));
+            final entry = await DailyMetricsApi.fetchForDate(userId, yesterday);
+            final ySteps = entry?.steps;
+            if (ySteps != null) {
+              delta = steps - ySteps;
+            }
+          } catch (_) {}
+        }
+      }
+      setState(() {
+        _todaySteps = steps;
+        _stepsDelta = delta;
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() => _todaySteps = null);
@@ -1342,7 +1309,24 @@ class DashboardPageState extends State<DashboardPage>
         }
       }
       if (!mounted) return;
-      setState(() => _sleepHours = hours);
+      int? delta;
+      if (hours != null) {
+        final userId = await AccountStorage.getUserId();
+        if (userId != null) {
+          try {
+            final yesterday = _selectedDate.subtract(const Duration(days: 1));
+            final entry = await DailyMetricsApi.fetchForDate(userId, yesterday);
+            final ySleep = entry?.sleepHours;
+            if (ySleep != null) {
+              delta = _percentDelta(hours, ySleep);
+            }
+          } catch (_) {}
+        }
+      }
+      setState(() {
+        _sleepHours = hours;
+        _sleepDelta = delta;
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() => _sleepHours = null);
@@ -1372,7 +1356,24 @@ class DashboardPageState extends State<DashboardPage>
         }
       }
       if (!mounted) return;
-      setState(() => _todayCalories = kcal);
+      int? delta;
+      if (kcal != null) {
+        final userId = await AccountStorage.getUserId();
+        if (userId != null) {
+          try {
+            final yesterday = _selectedDate.subtract(const Duration(days: 1));
+            final entry = await DailyMetricsApi.fetchForDate(userId, yesterday);
+            final yCal = entry?.calories;
+            if (yCal != null) {
+              delta = kcal - yCal;
+            }
+          } catch (_) {}
+        }
+      }
+      setState(() {
+        _todayCalories = kcal;
+        _caloriesDelta = delta;
+      });
       // Submit burn for this date whenever we have a value (no run limit). When user
       // lowers calories burned, backend reduces surplus and targets for that date.
       if (kcal != null) {
@@ -1424,9 +1425,24 @@ class DashboardPageState extends State<DashboardPage>
         }
       }
       if (!mounted) return;
+      int? delta;
+      if (intake != null) {
+        final userId = await AccountStorage.getUserId();
+        if (userId != null) {
+          try {
+            final yesterday = _selectedDate.subtract(const Duration(days: 1));
+            final entry = await DailyMetricsApi.fetchForDate(userId, yesterday);
+            final yWater = entry?.waterLiters;
+            if (yWater != null) {
+              delta = _percentDelta(intake, yWater);
+            }
+          } catch (_) {}
+        }
+      }
       setState(() {
         _waterGoal = goal;
         _waterIntake = intake;
+        _waterDelta = delta;
       });
     } catch (_) {
       if (!mounted) return;
@@ -1468,6 +1484,11 @@ class DashboardPageState extends State<DashboardPage>
       }
     }
     return null;
+  }
+
+  int? _percentDelta(num current, num previous) {
+    if (previous == 0) return null;
+    return (((current - previous) / previous) * 100).round();
   }
 
   int? _parseWhoopSleepScore(Map<String, dynamic> data) {
@@ -1547,6 +1568,7 @@ class DashboardPageState extends State<DashboardPage>
     final int requestId = ++_whoopReqId;
     final userId = await AccountStorage.getUserId();
     if (!mounted) return;
+    final bool isCurrentDay = _isToday();
     if (userId == null || userId == 0) {
       if (requestId != _whoopReqId) return;
           setState(() {
@@ -1567,23 +1589,40 @@ class DashboardPageState extends State<DashboardPage>
     }
     setState(() => _whoopLoading = true);
     try {
-      final statusUrl = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId");
       final headers = await AccountStorage.getAuthHeaders();
-      final statusRes =
-          await http.get(statusUrl, headers: headers).timeout(const Duration(seconds: 12));
-      if (requestId != _whoopReqId) return;
-      if (statusRes.statusCode != 200) {
-        throw Exception("Status ${statusRes.statusCode}");
+      if (!isCurrentDay && _whoopLinkedKnown) {
+        if (!_whoopLinked) {
+          if (!mounted) return;
+          if (requestId != _whoopReqId) return;
+          setState(() {
+            _whoopLinked = false;
+            _whoopRecovery = null;
+            _whoopSleepHours = null;
+            _whoopSleepScore = null;
+            _whoopLoading = false;
+            _whoopBodyWeightKg = null;
+          });
+          _pruneDeviceWidgets();
+          return;
+        }
+      } else {
+        final statusUrl = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId");
+        final statusRes =
+            await http.get(statusUrl, headers: headers).timeout(const Duration(seconds: 12));
+        if (requestId != _whoopReqId) return;
+        if (statusRes.statusCode != 200) {
+          throw Exception("Status ${statusRes.statusCode}");
+        }
+        final statusData = jsonDecode(statusRes.body) as Map<String, dynamic>;
+        final linked = statusData["linked"] == true;
+        if (!mounted) return;
+        if (requestId != _whoopReqId) return;
+        setState(() {
+          _whoopLinked = linked;
+          _whoopLinkedKnown = true;
+        });
       }
-      final statusData = jsonDecode(statusRes.body) as Map<String, dynamic>;
-      final linked = statusData["linked"] == true;
-      if (!mounted) return;
-      if (requestId != _whoopReqId) return;
-      setState(() {
-        _whoopLinked = linked;
-        _whoopLinkedKnown = true;
-      });
-      if (!linked) {
+      if (!_whoopLinked) {
         if (!mounted) return;
         if (requestId != _whoopReqId) return;
         setState(() {
@@ -1646,6 +1685,7 @@ class DashboardPageState extends State<DashboardPage>
         }
       }
       int? efficiencyDelta;
+      int? recoveryDelta;
       final yesterday = _selectedDate.subtract(const Duration(days: 1));
       final yParam =
           "${yesterday.year.toString().padLeft(4, '0')}"
@@ -1678,40 +1718,28 @@ class DashboardPageState extends State<DashboardPage>
         if (efficiency != null && yEfficiency != null) {
           efficiencyDelta = efficiency - yEfficiency;
         }
+        final yRecovery = yData["recovery_score"] is num
+            ? (yData["recovery_score"] as num).round()
+            : int.tryParse("${yData["recovery_score"]}");
+        // We will compute recoveryDelta after score is available.
+        if (yRecovery != null) {
+          recoveryDelta = -yRecovery;
+        }
       }
       final recoveryScore = data["recovery_score"] is num
           ? (data["recovery_score"] as num).round()
           : int.tryParse("${data["recovery_score"]}");
       final int? score = recoveryScore;
-
-      final cycleUrl = Uri.parse(
-        "${ApiConfig.baseUrl}/whoop/cycle-day?user_id=$userId&date=$dateParam",
-      );
-      double? cycleStrain;
-      try {
-        final cycleRes =
-            await http.get(cycleUrl, headers: headers).timeout(const Duration(seconds: 20));
-        if (requestId != _whoopReqId) return;
-        if (cycleRes.statusCode == 200) {
-          final cycleData = jsonDecode(cycleRes.body) as Map<String, dynamic>;
-          final cycle = cycleData["cycle"];
-          if (cycle is Map<String, dynamic>) {
-            final scoreNode = cycle["score"];
-            if (scoreNode is Map<String, dynamic>) {
-              final raw = scoreNode["strain"] ?? scoreNode["value"];
-              if (raw is num) cycleStrain = raw.toDouble();
-              if (raw is String) cycleStrain = double.tryParse(raw);
-            }
-            if (cycleStrain == null) {
-              final raw = cycle["strain"];
-              if (raw is num) cycleStrain = raw.toDouble();
-              if (raw is String) cycleStrain = double.tryParse(raw);
-            }
-          }
-        }
-      } catch (_) {
-        // ignore cycle fetch errors
+      if (score != null && recoveryDelta != null) {
+        recoveryDelta = score + recoveryDelta;
+      } else {
+        recoveryDelta = null;
       }
+
+      double? cycleStrain;
+      final rawCycle = data["cycle_strain"];
+      if (rawCycle is num) cycleStrain = rawCycle.toDouble();
+      if (rawCycle is String) cycleStrain = double.tryParse(rawCycle);
 
       if (!mounted) return;
       if (requestId != _whoopReqId) return;
@@ -1721,14 +1749,17 @@ class DashboardPageState extends State<DashboardPage>
         _whoopSleepHours = sleepHours;
         _whoopSleepScore = efficiency;
         _whoopSleepDelta = efficiencyDelta;
+        _whoopRecoveryDelta = recoveryDelta;
         _whoopLoading = false;
-        if (cycleStrain != null) {
-          _whoopCycleStrain = cycleStrain;
+        _whoopCycleStrain = cycleStrain;
+        if (cycleStrain != null && isCurrentDay) {
           _whoopCycleStrainLast = cycleStrain;
         }
       });
       _pruneDeviceWidgets();
-      _loadWhoopBody();
+      if (isCurrentDay) {
+        _loadWhoopBody();
+      }
       if (!_trendSleepLoading) {
         _loadTrendSleep();
       }
@@ -1940,6 +1971,10 @@ class DashboardPageState extends State<DashboardPage>
   Future<void> _loadFitbitSummary({int attempt = 0}) async {
     final userId = await AccountStorage.getUserId();
     if (!mounted) return;
+    final today = DateTime.now();
+    final todayOnly = DateTime(today.year, today.month, today.day);
+    final selectedDay = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final isToday = selectedDay == todayOnly;
     if (userId == null || userId == 0) {
       if (attempt < 2) {
         await Future.delayed(Duration(milliseconds: 400 + (attempt * 400)));
@@ -1966,8 +2001,7 @@ class DashboardPageState extends State<DashboardPage>
     await _loadFitbitStatus();
     if (!_fitbitLinked) return;
 
-    final hasAnyFitbitWidget = _statOrder.any((k) => k.startsWith('fitbit_'));
-    if (!hasAnyFitbitWidget) return;
+    // Always load Fitbit summaries when linked, even if widgets are currently hidden.
 
     setState(() {
       _fitbitActivityLoading = true;
@@ -2001,15 +2035,15 @@ class DashboardPageState extends State<DashboardPage>
       if (!mounted) return;
       setState(() {
         _fitbitActivity = bundle?.activity;
-        _fitbitActivityLast = bundle?.activity ?? _fitbitActivityLast;
+        _fitbitActivityLast = isToday ? (bundle?.activity ?? _fitbitActivityLast) : null;
         _fitbitHeart = bundle?.heart;
-        _fitbitHeartLast = bundle?.heart ?? _fitbitHeartLast;
+        _fitbitHeartLast = isToday ? (bundle?.heart ?? _fitbitHeartLast) : null;
         _fitbitSleep = bundle?.sleep;
-        _fitbitSleepLast = bundle?.sleep ?? _fitbitSleepLast;
+        _fitbitSleepLast = isToday ? (bundle?.sleep ?? _fitbitSleepLast) : null;
         _fitbitVitals = bundle?.vitals;
-        _fitbitVitalsLast = bundle?.vitals ?? _fitbitVitalsLast;
+        _fitbitVitalsLast = isToday ? (bundle?.vitals ?? _fitbitVitalsLast) : null;
         _fitbitBody = bundle?.body;
-        _fitbitBodyLast = bundle?.body ?? _fitbitBodyLast;
+        _fitbitBodyLast = isToday ? (bundle?.body ?? _fitbitBodyLast) : null;
         _fitbitActivityLoading = false;
         _fitbitHeartLoading = false;
         _fitbitSleepLoading = false;
@@ -2684,723 +2718,851 @@ class DashboardPageState extends State<DashboardPage>
             : DateFormat('MMM d, y', locale).format(_selectedDate);
     final bool isCurrentDay = _isToday();
 
+    final listView = ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    t("dash_welcome_back"),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.white70,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _displayName == null || _displayName!.isEmpty
+                        ? t("dash_dashboard")
+                        : t("dash_hi_name").replaceAll("{name}", _displayName!),
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              height: 44,
+              width: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: (_avatarUrl == null || _avatarUrl!.isEmpty) &&
+                        (_avatarPath == null || _avatarPath!.isEmpty)
+                    ? const LinearGradient(
+                        colors: [Color(0xFF35B6FF), AppColors.accent],
+                      )
+                    : null,
+                border: Border.all(
+                  color: const Color(0xFFD4AF37).withValues(alpha: 0.35),
+                  width: 1,
+                ),
+              ),
+              child: ClipOval(
+                child: _buildAvatar(),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (_loading)
+          const CardContainer(
+            child: Padding(
+              padding: EdgeInsets.all(12.0),
+              child: Center(
+                child: SizedBox(
+                  height: 28,
+                  width: 28,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ),
+          )
+        else if (noEntriesForSelectedDate)
+          CardContainer(
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Center(
+                child: Text(
+                  t("no_entries"),
+                  style: const TextStyle(color: Colors.white70),
+                ),
+              ),
+            ),
+          )
+        else ...[
+          if (_todaySteps == null &&
+              _sleepHours == null &&
+              _todayCalories == null &&
+              _waterIntake == null)
+            CardContainer(
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Center(
+                  child: Text(
+                    t("no_entries"),
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                ),
+              ),
+            ),
+          if (_error != null)
+            CardContainer(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(t("dash_news_tag"),
+                      style: const TextStyle(color: Colors.white)),
+                  const SizedBox(height: 6),
+                  Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ],
+              ),
+            )
+          else
+            IgnorePointer(
+              ignoring: _wiggling,
+              child: NewsCarousel(slides: slides),
+            ),
+        ],
+        const SizedBox(height: 16),
+        CardContainer(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                SizedBox(
+                  height: 72,
+                  width: 72,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      CircularProgressIndicator(
+                        value: 1,
+                        strokeWidth: 8,
+                        valueColor: AlwaysStoppedAnimation(
+                          Colors.white.withOpacity(0.08),
+                        ),
+                      ),
+                      CircularProgressIndicator(
+                        value: (_exerciseTotal != null && _exerciseTotal != 0)
+                            ? ((_exerciseCompleted ?? 0) /
+                                    (_exerciseTotal!.toDouble()))
+                                .clamp(0.0, 1.0)
+                            : 0.0,
+                        strokeWidth: 8,
+                        valueColor:
+                            const AlwaysStoppedAnimation(AppColors.accent),
+                        backgroundColor: Colors.transparent,
+                      ),
+                      Center(
+                        child: _exerciseLoading
+                            ? const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.accent,
+                                ),
+                              )
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    (_exerciseCompleted ?? 0).toString(),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                  ),
+                                  Text(
+                                    _exerciseTotal == null
+                                        ? "—"
+                                        : "/ ${_exerciseTotal.toString()}",
+                                    style: const TextStyle(
+                                        color: Colors.white70, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Training progress",
+                        style:
+                            Theme.of(context).textTheme.titleSmall?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _exerciseTotal == null
+                            ? t("dash_exercise_unavailable")
+                            : _exerciseProgramMode == "old"
+                                ? "${(_exerciseCompleted ?? 0).toString()} / ${_exerciseTotal.toString()} old program days"
+                                : "${(_exerciseCompleted ?? 0).toString()} / ${_exerciseTotal.toString()} days done",
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 13),
+                      ),
+                      if (_exerciseProgramMode == "old")
+                        const Padding(
+                          padding: EdgeInsets.only(top: 4),
+                          child: Text(
+                            "Old program",
+                            style: TextStyle(color: Colors.white54, fontSize: 11),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (!_loading && !noEntriesForSelectedDate) ...[
+          const SizedBox(height: 20),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              Widget buildTileForKey(String key) {
+                switch (key) {
+                  case 'steps':
+                    return StatCard(
+                      title: t("dash_today_steps"),
+                      value:
+                          (_stepsLoading && _todaySteps == null)
+                              ? "…"
+                              : "${todaysStepsDisplay.toString()}",
+                      subtitle:
+                          "${t("dash_goal")} ${(_stepsGoal ?? 10000).toString()}",
+                      icon: Icons.directions_walk,
+                      accentColor: const Color(0xFF35B6FF),
+                      footerRight: _stepsDelta == null
+                          ? null
+                          : Row(
+                              children: [
+                                Icon(
+                                  _stepsDelta! >= 0
+                                      ? Icons.arrow_upward
+                                      : Icons.arrow_downward,
+                                  size: 12,
+                                  color: _stepsDelta! >= 0
+                                      ? const Color(0xFF4CD964)
+                                      : const Color(0xFFFF8A00),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _stepsDelta!.abs().toString(),
+                                  style: TextStyle(
+                                    color: _stepsDelta! >= 0
+                                        ? const Color(0xFF4CD964)
+                                        : const Color(0xFFFF8A00),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.directions_walk,
+                                  size: 12,
+                                  color: _stepsDelta! >= 0
+                                      ? const Color(0xFF4CD964)
+                                      : const Color(0xFFFF8A00),
+                                ),
+                              ],
+                            ),
+                      onTap: isCurrentDay
+                          ? () async {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const StepsDetailPage(),
+                                ),
+                              );
+                              await _loadGoals();
+                              await _loadSteps();
+                            }
+                          : null,
+                    );
+                  case 'sleep':
+                    return StatCard(
+                      title: t("dash_today_sleep"),
+                      value: (_sleepLoading && _sleepHours == null)
+                          ? "…"
+                          : "${averageSleep.toStringAsFixed(1)} ${t("dash_unit_hrs")}",
+                      subtitle:
+                          "${t("dash_goal")} ${(_sleepGoal ?? 8.0).toStringAsFixed(1)} ${t("dash_unit_hrs")}",
+                      icon: Icons.nights_stay,
+                      accentColor: const Color(0xFF9B8CFF),
+                      deltaPercent: _sleepDelta,
+                      onTap: isCurrentDay
+                          ? () async {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const SleepDetailPage(),
+                                ),
+                              );
+                              await _loadGoals();
+                              await _loadSleep();
+                            }
+                          : null,
+                    );
+                  case 'whoop_sleep':
+                    return WhoopSleepCard(
+                      loading: _whoopLoading,
+                      linked: _whoopLinked,
+                      linkedKnown: _whoopLinkedKnown,
+                      hours: _whoopSleepHours,
+                      score: _whoopSleepScore,
+                      goal: _sleepGoal,
+                      delta: _whoopSleepDelta,
+                      onTap: isCurrentDay
+                          ? () async {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const SleepDetailPage(useWhoop: true),
+                                ),
+                              );
+                            }
+                          : null,
+                    );
+                  case 'whoop_recovery':
+                    return WhoopRecoveryCard(
+                      loading: _whoopLoading,
+                      linked: _whoopLinked,
+                      score: _whoopRecovery,
+                      delta: _whoopRecoveryDelta,
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const WhoopRecoveryDetailPage(),
+                          ),
+                        );
+                      },
+                    );
+                  case 'whoop_cycle':
+                    final strain = isCurrentDay
+                        ? (_whoopCycleStrain ?? _whoopCycleStrainLast)
+                        : _whoopCycleStrain;
+                    return WhoopCycleCard(
+                      loading: _whoopLoading,
+                      linked: _whoopLinked,
+                      strain: strain,
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const WhoopCycleDetailPage(),
+                          ),
+                        );
+                      },
+                    );
+                  case 'whoop_body':
+                    return WhoopBodyCard(
+                      loading: _whoopLoading,
+                      linked: _whoopLinked,
+                      weightKg: _whoopBodyWeightKg,
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const WhoopBodyDetailPage(),
+                          ),
+                        );
+                      },
+                    );
+                  case 'water':
+                    return WaterIntakeCard(
+                      loading: _waterLoading && _waterIntake == null,
+                      intakeLiters: waterIntake,
+                      goalLiters: waterGoal,
+                      deltaPercent: _waterDelta,
+                      onTap: isCurrentDay ? _openWaterSheet : null,
+                    );
+                  case 'body':
+                    return BodyMeasurementsCard(
+                      heightCm: _heightCm,
+                      weightKg: _weightKg,
+                      onTap: () async {
+                        await showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => BodyMeasurementsSheet(
+                            initialHeightCm: _heightCm,
+                            initialWeightKg: _weightKg,
+                            onSaved: (res) {
+                              setState(() {
+                                if (res.heightCm != null)
+                                  _heightCm = res.heightCm;
+                                if (res.weightKg != null)
+                                  _weightKg = res.weightKg;
+                              });
+                            },
+                          ),
+                        );
+                      },
+                    );
+                  case 'fitbit_activity':
+                    final summary = _fitbitActivityLoading
+                        ? (_fitbitActivityLast ?? _fitbitActivity)
+                        : _fitbitActivity;
+                    final loading = _fitbitActivityLoading && summary == null;
+                    return FitbitDailyActivityCard(
+                      loading: loading,
+                      steps: summary?.steps,
+                      distanceKm: summary?.distance,
+                      calories: summary?.calories,
+                      activeMinutes: summary?.activeMinutes,
+                      onTap: summary == null
+                          ? null
+                          : () async {
+                              await showModalBottomSheet(
+                                context: context,
+                                backgroundColor: Colors.transparent,
+                                isScrollControlled: true,
+                                builder: (_) => FitbitDailyActivitySheet(
+                                  summary: summary,
+                                  date: _selectedDate,
+                                ),
+                              );
+                            },
+                    );
+                  case 'fitbit_heart':
+                    final heart = _fitbitHeartLoading
+                        ? (_fitbitHeartLast ?? _fitbitHeart)
+                        : _fitbitHeart;
+                    final loading = _fitbitHeartLoading && heart == null;
+                    return FitbitHeartCard(
+                      loading: loading,
+                      restingHr: heart?.restingHr,
+                      hrvRmssd: heart?.hrvRmssd,
+                      vo2Max: heart?.vo2Max,
+                      onTap: () async {
+                        await showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          isScrollControlled: true,
+                          builder: (_) => FitbitHeartSheet(
+                            restingHr: heart?.restingHr,
+                            hrvRmssd: heart?.hrvRmssd,
+                            vo2Max: heart?.vo2Max,
+                            zones: heart?.zones ?? const [],
+                            date: _selectedDate,
+                          ),
+                        );
+                      },
+                    );
+                  case 'fitbit_sleep':
+                    final sleep = _fitbitSleepLoading
+                        ? (_fitbitSleepLast ?? _fitbitSleep)
+                        : _fitbitSleep;
+                    final loading = _fitbitSleepLoading && sleep == null;
+                    return FitbitSleepCard(
+                      loading: loading,
+                      minutesAsleep: sleep?.totalMinutesAsleep,
+                      minutesInBed: sleep?.totalTimeInBed,
+                      goalMinutes: sleep?.sleepGoalMinutes,
+                      onTap: () async {
+                        await showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          isScrollControlled: true,
+                          builder: (_) => FitbitSleepSheet(
+                            summary: sleep,
+                            date: _selectedDate,
+                          ),
+                        );
+                      },
+                    );
+                  case 'fitbit_vitals':
+                    final vitals = _fitbitVitalsLoading
+                        ? (_fitbitVitalsLast ?? _fitbitVitals)
+                        : _fitbitVitals;
+                    final loading = _fitbitVitalsLoading && vitals == null;
+                    return FitbitVitalsCard(
+                      loading: loading,
+                      spo2Percent: vitals?.spo2Percent,
+                      skinTempC: vitals?.skinTempC,
+                      breathingRate: vitals?.breathingRate,
+                      ecgSummary: vitals?.ecgSummary,
+                      ecgAvgHr: vitals?.ecgAvgHr,
+                      onTap: () async {
+                        await showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          isScrollControlled: true,
+                          builder: (_) => FitbitVitalsSheet(summary: vitals),
+                        );
+                      },
+                    );
+                  case 'fitbit_body':
+                    final body = _fitbitBodyLoading
+                        ? (_fitbitBodyLast ?? _fitbitBody)
+                        : _fitbitBody;
+                    final loading = _fitbitBodyLoading && body == null;
+                    return FitbitBodyCard(
+                      loading: loading,
+                      weightKg: body?.weightKg,
+                      onTap: () async {
+                        await showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          isScrollControlled: true,
+                          builder: (_) => FitbitBodySheet(summary: body),
+                        );
+                      },
+                    );
+                  case 'calories':
+                  default:
+                    return StatCard(
+                      title: t("dash_calories_burned"),
+                      value: (_caloriesLoading && _todayCalories == null)
+                          ? "…"
+                          : "${todaysCaloriesDisplay.toString()} ${t("dash_unit_kcal")}",
+                      subtitle:
+                          "${t("dash_goal")} ${(_caloriesGoal ?? 500).toString()}",
+                      icon: Icons.local_fire_department,
+                      accentColor: const Color(0xFFFF8A00),
+                      footerRight: _caloriesDelta == null
+                          ? null
+                          : Row(
+                              children: [
+                                Icon(
+                                  _caloriesDelta! >= 0
+                                      ? Icons.arrow_upward
+                                      : Icons.arrow_downward,
+                                  size: 12,
+                                  color: _caloriesDelta! >= 0
+                                      ? const Color(0xFF4CD964)
+                                      : const Color(0xFFFF8A00),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "${_caloriesDelta!.abs()} ${t("dash_unit_kcal")}",
+                                  style: TextStyle(
+                                    color: _caloriesDelta! >= 0
+                                        ? const Color(0xFF4CD964)
+                                        : const Color(0xFFFF8A00),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                      onTap: isCurrentDay
+                          ? () async {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const CaloriesDetailPage(),
+                                ),
+                              );
+                              await _loadGoals();
+                              await _loadCalories();
+                            }
+                          : null,
+                    );
+                }
+              }
+
+              final maxWidth = constraints.maxWidth;
+              const crossAxisCount = 2;
+              const spacing = 12.0;
+              const aspectRatio = 1.10;
+              final tileWidth = (maxWidth - spacing) / crossAxisCount;
+              final tileHeight = tileWidth / aspectRatio;
+              final rows = (_statOrder.length / crossAxisCount).ceil();
+              final height = rows > 0
+                  ? rows * tileHeight + (rows - 1) * spacing
+                  : 0.0;
+
+              return SizedBox(
+                height: height,
+                child: Stack(
+                  children: [
+                    for (int i = 0; i < _statOrder.length; i++)
+                      AnimatedPositioned(
+                        key: ValueKey(_statOrder[i]),
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeOutCubic,
+                        left: (i % crossAxisCount) * (tileWidth + spacing),
+                        top: (i ~/ crossAxisCount) * (tileHeight + spacing),
+                        width: tileWidth,
+                        height: tileHeight,
+                        child: _buildStatTile(
+                          _statOrder[i],
+                          buildTileForKey(_statOrder[i]),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          if (_whoopLinked) ...[
+            WhoopExtrasCard(
+              onTap: _wiggling
+                  ? null
+                  : () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => WhoopInsightsPage(
+                            loading: _whoopLoading,
+                            linked: _whoopLinked,
+                            linkedKnown: _whoopLinkedKnown,
+                            recoveryScore: _whoopRecovery,
+                            weightKg: _whoopBodyWeightKg,
+                            sleepHours: _whoopSleepHours,
+                            sleepScore: _whoopSleepScore,
+                            sleepGoal: _sleepGoal,
+                            sleepDelta: _whoopSleepDelta,
+                            cycleStrain:
+                                _whoopCycleStrainLast ?? _whoopCycleStrain,
+                            hideSleep: _statOrder.contains('whoop_sleep'),
+                            hideRecovery:
+                                _statOrder.contains('whoop_recovery'),
+                            hideCycle: _statOrder.contains('whoop_cycle'),
+                            hideBody: _statOrder.contains('whoop_body'),
+                          ),
+                        ),
+                      );
+                    },
+            ),
+            const SizedBox(height: 16),
+          ],
+          if (_fitbitLinked) ...[
+            if (!(_statOrder.contains('fitbit_activity') &&
+                _statOrder.contains('fitbit_heart') &&
+                _statOrder.contains('fitbit_sleep') &&
+                _statOrder.contains('fitbit_vitals') &&
+                _statOrder.contains('fitbit_body'))) ...[
+              FitbitExtrasCard(
+                onTap: _wiggling
+                    ? null
+                    : () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => FitbitInsightsPage(
+                              activityLoading: _fitbitActivityLoading,
+                              heartLoading: _fitbitHeartLoading,
+                              sleepLoading: _fitbitSleepLoading,
+                              vitals: _fitbitVitals,
+                              vitalsLast: _fitbitVitalsLast,
+                              body: _fitbitBody,
+                              bodyLast: _fitbitBodyLast,
+                              activity: _fitbitActivity,
+                              activityLast: _fitbitActivityLast,
+                              heart: _fitbitHeart,
+                              heartLast: _fitbitHeartLast,
+                              sleep: _fitbitSleep,
+                              sleepLast: _fitbitSleepLast,
+                              date: _selectedDate,
+                              hideActivity:
+                                  _statOrder.contains('fitbit_activity'),
+                              hideHeart: _statOrder.contains('fitbit_heart'),
+                              hideSleep: _statOrder.contains('fitbit_sleep'),
+                              hideVitals: _statOrder.contains('fitbit_vitals'),
+                              hideBody: _statOrder.contains('fitbit_body'),
+                            ),
+                          ),
+                        );
+                      },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ],
+          ProgressMeter(
+            title: t("dash_weekly_goal"),
+            progress: weeklyProgress,
+            targetLabel:
+                "${t("dash_target")}: $weeklyStepGoalTotal ${t("dash_steps_week")}",
+            trailingLabel: _weeklyStepsLoading
+                ? t("dash_loading")
+                : "$weeklySteps ${t("dash_steps_label")}",
+            accentColor: const Color(0xFF35B6FF),
+            onTap: _wiggling ? null : _loadWeeklySteps,
+          ),
+          const SizedBox(height: 16),
+          CardContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  t("dash_7day_trends"),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _TrendTile(
+                        title: t("dash_sleep_hrs"),
+                        data: _trendSleep,
+                        loading: _trendSleepLoading,
+                        accentColor: const Color(0xFF9B8CFF),
+                        emptyLabel: t("dash_no_sleep_data"),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _TrendTile(
+                        title: t("dash_calories_scaled"),
+                        data: _trendCalories.map((e) => e / 100).toList(),
+                        loading: _trendCaloriesLoading,
+                        accentColor: const Color(0xFFFF8A00),
+                        emptyLabel: t("dash_no_calories_data"),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _PlaceholderMetricCard(
+            title: t("dash_fueling"),
+            subtitle: t("dash_placeholder"),
+            icon: Icons.restaurant_menu,
+            accentColor: const Color(0xFF00BFA6),
+          ),
+          const SizedBox(height: 12),
+          _PlaceholderMetricCard(
+            title: t("dash_muscle"),
+            subtitle: t("dash_placeholder"),
+            icon: Icons.fitness_center,
+            accentColor: const Color(0xFFFF8A00),
+          ),
+          const SizedBox(height: 12),
+          _PlaceholderMetricCard(
+            title: t("dash_taqa_score"),
+            subtitle: t("dash_placeholder"),
+            icon: Icons.bolt,
+            accentColor: const Color(0xFF6A5AE0),
+          ),
+          const SizedBox(height: 60),
+        ],
+      ],
+    );
+  
+
     return SafeArea(
       child: RefreshIndicator(
         color: AppColors.accent,
         backgroundColor: AppColors.cardDark,
-        onRefresh: _wiggling ? () async {} : _refreshAll,
+        notificationPredicate: (_) => isCurrentDay,
+        onRefresh: (!_wiggling && isCurrentDay) ? _refreshAll : () async {},
         child: GestureDetector(
           behavior: HitTestBehavior.translucent,
           onTap: _stopWiggle,
           child: Stack(
             children: [
-              ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            t("dash_welcome_back"),
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Colors.white70,
-                                ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _displayName == null || _displayName!.isEmpty
-                                ? t("dash_dashboard")
-                                : t("dash_hi_name").replaceAll("{name}", _displayName!),
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      height: 44,
-                      width: 44,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: (_avatarUrl == null || _avatarUrl!.isEmpty) &&
-                                (_avatarPath == null || _avatarPath!.isEmpty)
-                            ? const LinearGradient(
-                                colors: [Color(0xFF35B6FF), AppColors.accent],
-                              )
-                            : null,
-                        border: Border.all(
-                          color: const Color(0xFFD4AF37).withValues(alpha: 0.35),
-                          width: 1,
-                        ),
-                      ),
-                      child: ClipOval(
-                        child: _buildAvatar(),
-                      ),
-                    ),
-                  ],
+              listView,
+              Positioned(
+                left: 20,
+                bottom: 20 + bottomInset,
+                child: EditModeBubble(
+                  visible: _wiggling && isCurrentDay,
+                  onTap: _openWidgetLibrary,
                 ),
-                const SizedBox(height: 16),
-                if (_loading)
-                  const CardContainer(
-                    child: Padding(
-                      padding: EdgeInsets.all(12.0),
-                      child: Center(
-                        child: SizedBox(
-                          height: 28,
-                          width: 28,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
-                    ),
-                  )
-                else if (noEntriesForSelectedDate)
-                  CardContainer(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Center(
-                        child: Text(
-                          t("no_entries"),
-                          style: const TextStyle(color: Colors.white70),
-                        ),
-                      ),
-                    ),
-                  )
-                else ...[
-                  if (_todaySteps == null &&
-                      _sleepHours == null &&
-                      _todayCalories == null &&
-                      _waterIntake == null)
-                    CardContainer(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Center(
-                          child: Text(
-                            t("no_entries"),
-                            style: const TextStyle(color: Colors.white70),
+              ),
+              Positioned(
+                right: 20,
+                bottom: 20 + bottomInset,
+                child: IgnorePointer(
+                  ignoring: _wiggling,
+                  child: AnimatedOpacity(
+                    opacity: _wiggling ? 0.0 : 1.0,
+                    duration: const Duration(milliseconds: 160),
+                    child: AnimatedScale(
+                      scale: _wiggling ? 0.96 : 1.0,
+                      duration: const Duration(milliseconds: 160),
+                      child: GestureDetector(
+                        onTap: _openDateSheet,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.accent.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(
+                              color: AppColors.accent.withValues(alpha: 0.35),
+                            ),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black54,
+                                blurRadius: 12,
+                                offset: Offset(0, 6),
+                              ),
+                            ],
                           ),
-                        ),
-                      ),
-                    ),
-                  if (_error != null)
-                    CardContainer(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(t("dash_news_tag"), style: const TextStyle(color: Colors.white)),
-                          const SizedBox(height: 6),
-                          Text(
-                            _error!,
-                            style: const TextStyle(color: Colors.white70, fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    IgnorePointer(
-                      ignoring: _wiggling,
-                      child: NewsCarousel(slides: slides),
-                    ),
-                ],
-                const SizedBox(height: 16),
-                CardContainer(
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Row(
-                      children: [
-                        SizedBox(
-                          height: 72,
-                          width: 72,
-                          child: Stack(
-                            fit: StackFit.expand,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              CircularProgressIndicator(
-                                value: 1,
-                                strokeWidth: 8,
-                                valueColor: AlwaysStoppedAnimation(
-                                  Colors.white.withOpacity(0.08),
-                                ),
-                              ),
-                              CircularProgressIndicator(
-                                value: (_exerciseTotal != null && _exerciseTotal != 0)
-                                    ? ((_exerciseCompleted ?? 0) / (_exerciseTotal!.toDouble()))
-                                        .clamp(0.0, 1.0)
-                                    : 0.0,
-                                strokeWidth: 8,
-                                valueColor: const AlwaysStoppedAnimation(AppColors.accent),
-                                backgroundColor: Colors.transparent,
-                              ),
-                              Center(
-                                child: _exerciseLoading
-                                    ? const SizedBox(
-                                        height: 18,
-                                        width: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: AppColors.accent,
+                              const Icon(Icons.calendar_today,
+                                  size: 16, color: Colors.white),
+                              const SizedBox(width: 8),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    isCurrentDay
+                                        ? t("date_today")
+                                        : DateFormat('EEE', locale)
+                                            .format(_selectedDate),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelLarge
+                                        ?.copyWith(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
                                         ),
-                                      )
-                                    : Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            (_exerciseCompleted ?? 0).toString(),
-                                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.w800,
-                                                ),
-                                          ),
-                                          Text(
-                                            _exerciseTotal == null
-                                                ? "—"
-                                                : "/ ${_exerciseTotal.toString()}",
-                                            style: const TextStyle(color: Colors.white70, fontSize: 12),
-                                          ),
-                                        ],
-                                      ),
+                                  ),
+                                  Text(
+                                    DateFormat('MMM d, y', locale)
+                                        .format(_selectedDate),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall
+                                        ?.copyWith(
+                                          color: Colors.white70,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Training progress",
-                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                _exerciseTotal == null
-                                    ? t("dash_exercise_unavailable")
-                                    : "${(_exerciseCompleted ?? 0).toString()} / ${_exerciseTotal.toString()} days done",
-                                style: const TextStyle(color: Colors.white70, fontSize: 13),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                if (!_loading && !noEntriesForSelectedDate) ...[
-                  const SizedBox(height: 20),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      Widget buildTileForKey(String key) {
-                        switch (key) {
-                          case 'steps':
-                            return StatCard(
-                              title: t("dash_today_steps"),
-                              value: _stepsLoading ? "…" : "${todaysStepsDisplay.toString()}",
-                              subtitle:
-                                  "${t("dash_goal")} ${(_stepsGoal ?? 10000).toString()}",
-                              icon: Icons.directions_walk,
-                              accentColor: const Color(0xFF35B6FF),
-                              onTap: isCurrentDay
-                                  ? () async {
-                                      await Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) => const StepsDetailPage(),
-                                        ),
-                                      );
-                                      await _loadGoals();
-                                      await _loadSteps();
-                                    }
-                                  : null,
-                            );
-                          case 'sleep':
-                            return StatCard(
-                              title: t("dash_today_sleep"),
-                              value: _sleepLoading
-                                  ? "…"
-                                  : "${averageSleep.toStringAsFixed(1)} ${t("dash_unit_hrs")}",
-                              subtitle:
-                                  "${t("dash_goal")} ${(_sleepGoal ?? 8.0).toStringAsFixed(1)} ${t("dash_unit_hrs")}",
-                              icon: Icons.nights_stay,
-                              accentColor: const Color(0xFF9B8CFF),
-                              onTap: isCurrentDay
-                                  ? () async {
-                                      await Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) => const SleepDetailPage(),
-                                        ),
-                                      );
-                                      await _loadGoals();
-                                      await _loadSleep();
-                                    }
-                                  : null,
-                            );
-                          case 'whoop_sleep':
-                            return WhoopSleepCard(
-                              loading: _whoopLoading,
-                              linked: _whoopLinked,
-                              linkedKnown: _whoopLinkedKnown,
-                              hours: _whoopSleepHours,
-                              score: _whoopSleepScore,
-                              goal: _sleepGoal,
-                              delta: _whoopSleepDelta,
-                              onTap: isCurrentDay
-                                  ? () async {
-                                      await Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              const SleepDetailPage(useWhoop: true),
-                                        ),
-                                      );
-                                    }
-                                  : null,
-                            );
-                          case 'whoop_recovery':
-                            return WhoopRecoveryCard(
-                              loading: _whoopLoading,
-                              linked: _whoopLinked,
-                              score: _whoopRecovery,
-                              onTap: () async {
-                                await Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const WhoopRecoveryDetailPage(),
-                                  ),
-                                );
-                              },
-                            );
-                          case 'whoop_cycle':
-                            final strain = _whoopCycleStrain ?? _whoopCycleStrainLast;
-                            return WhoopCycleCard(
-                                loading: _whoopLoading,
-                                linked: _whoopLinked,
-                                strain: strain,
-                                onTap: () async {
-                                  await Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const WhoopCycleDetailPage(),
-                                  ),
-                                );
-                              },
-                            );
-                          case 'whoop_body':
-                            return WhoopBodyCard(
-                              loading: _whoopLoading,
-                              linked: _whoopLinked,
-                              weightKg: _whoopBodyWeightKg,
-                              onTap: () async {
-                                await Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const WhoopBodyDetailPage(),
-                                  ),
-                                );
-                              },
-                            );
-                          case 'water':
-                            return WaterIntakeCard(
-                              loading: _waterLoading,
-                              intakeLiters: waterIntake,
-                              goalLiters: waterGoal,
-                              onTap: isCurrentDay ? _openWaterSheet : null,
-                            );
-                          case 'body':
-                            return BodyMeasurementsCard(
-                              heightCm: _heightCm,
-                              weightKg: _weightKg,
-                              onTap: () async {
-                                await showModalBottomSheet(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  backgroundColor: Colors.transparent,
-                                  builder: (_) => BodyMeasurementsSheet(
-                                    initialHeightCm: _heightCm,
-                                    initialWeightKg: _weightKg,
-                                    onSaved: (res) {
-                                      setState(() {
-                                        if (res.heightCm != null) _heightCm = res.heightCm;
-                                        if (res.weightKg != null) _weightKg = res.weightKg;
-                                      });
-                                    },
-                                  ),
-                                );
-                              },
-                            );
-                          case 'fitbit_activity':
-                            final summary = _fitbitActivityLoading
-                                ? (_fitbitActivityLast ?? _fitbitActivity)
-                                : _fitbitActivity;
-                            final loading = _fitbitActivityLoading && summary == null;
-                            return FitbitDailyActivityCard(
-                              loading: loading,
-                              steps: summary?.steps,
-                              distanceKm: summary?.distance,
-                              calories: summary?.calories,
-                              activeMinutes: summary?.activeMinutes,
-                              onTap: summary == null
-                                  ? null
-                                  : () async {
-                                      await showModalBottomSheet(
-                                        context: context,
-                                        backgroundColor: Colors.transparent,
-                                        isScrollControlled: true,
-                                        builder: (_) => FitbitDailyActivitySheet(
-                                          summary: summary,
-                                          date: _selectedDate,
-                                        ),
-                                      );
-                                    },
-                            );
-                          case 'fitbit_heart':
-                            final heart = _fitbitHeartLoading
-                                ? (_fitbitHeartLast ?? _fitbitHeart)
-                                : _fitbitHeart;
-                            final loading = _fitbitHeartLoading && heart == null;
-                            return FitbitHeartCard(
-                              loading: loading,
-                              restingHr: heart?.restingHr,
-                              hrvRmssd: heart?.hrvRmssd,
-                              vo2Max: heart?.vo2Max,
-                              onTap: () async {
-                                await showModalBottomSheet(
-                                  context: context,
-                                  backgroundColor: Colors.transparent,
-                                  isScrollControlled: true,
-                                  builder: (_) => FitbitHeartSheet(
-                                    restingHr: heart?.restingHr,
-                                    hrvRmssd: heart?.hrvRmssd,
-                                    vo2Max: heart?.vo2Max,
-                                    zones: heart?.zones ?? const [],
-                                    date: _selectedDate,
-                                  ),
-                                );
-                              },
-                            );
-                          case 'fitbit_sleep':
-                            final sleep = _fitbitSleepLoading
-                                ? (_fitbitSleepLast ?? _fitbitSleep)
-                                : _fitbitSleep;
-                            final loading = _fitbitSleepLoading && sleep == null;
-                            return FitbitSleepCard(
-                              loading: loading,
-                              minutesAsleep: sleep?.totalMinutesAsleep,
-                              minutesInBed: sleep?.totalTimeInBed,
-                              goalMinutes: sleep?.sleepGoalMinutes,
-                              onTap: () async {
-                                await showModalBottomSheet(
-                                  context: context,
-                                  backgroundColor: Colors.transparent,
-                                  isScrollControlled: true,
-                                  builder: (_) => FitbitSleepSheet(
-                                    summary: sleep,
-                                    date: _selectedDate,
-                                  ),
-                                );
-                              },
-                            );
-                          case 'fitbit_vitals':
-                            final vitals = _fitbitVitalsLoading
-                                ? (_fitbitVitalsLast ?? _fitbitVitals)
-                                : _fitbitVitals;
-                            final loading = _fitbitVitalsLoading && vitals == null;
-                            return FitbitVitalsCard(
-                              loading: loading,
-                              spo2Percent: vitals?.spo2Percent,
-                              skinTempC: vitals?.skinTempC,
-                              breathingRate: vitals?.breathingRate,
-                              ecgSummary: vitals?.ecgSummary,
-                              ecgAvgHr: vitals?.ecgAvgHr,
-                              onTap: () async {
-                                await showModalBottomSheet(
-                                  context: context,
-                                  backgroundColor: Colors.transparent,
-                                  isScrollControlled: true,
-                                  builder: (_) => FitbitVitalsSheet(summary: vitals),
-                                );
-                              },
-                            );
-                          case 'fitbit_body':
-                            final body = _fitbitBodyLoading
-                                ? (_fitbitBodyLast ?? _fitbitBody)
-                                : _fitbitBody;
-                            final loading = _fitbitBodyLoading && body == null;
-                            return FitbitBodyCard(
-                              loading: loading,
-                              weightKg: body?.weightKg,
-                              onTap: () async {
-                                await showModalBottomSheet(
-                                  context: context,
-                                  backgroundColor: Colors.transparent,
-                                  isScrollControlled: true,
-                                  builder: (_) => FitbitBodySheet(summary: body),
-                                );
-                              },
-                            );
-                          case 'calories':
-                          default:
-                            return StatCard(
-                              title: t("dash_calories_burned"),
-                              value: _caloriesLoading
-                                  ? "…"
-                                  : "${todaysCaloriesDisplay.toString()} ${t("dash_unit_kcal")}",
-                              subtitle: "${t("dash_goal")} ${(_caloriesGoal ?? 500).toString()}",
-                              icon: Icons.local_fire_department,
-                              accentColor: const Color(0xFFFF8A00),
-                              onTap: isCurrentDay
-                                  ? () async {
-                                      await Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) => const CaloriesDetailPage(),
-                                        ),
-                                      );
-                                      await _loadGoals();
-                                      await _loadCalories();
-                                    }
-                                  : null,
-                            );
-                        }
-                      }
-
-                      final maxWidth = constraints.maxWidth;
-                      const crossAxisCount = 2;
-                      const spacing = 12.0;
-                      const aspectRatio = 1.10;
-                      final tileWidth = (maxWidth - spacing) / crossAxisCount;
-                      final tileHeight = tileWidth / aspectRatio;
-                      final rows = (_statOrder.length / crossAxisCount).ceil();
-                      final height = rows > 0
-                          ? rows * tileHeight + (rows - 1) * spacing
-                          : 0.0;
-
-                      return SizedBox(
-                        height: height,
-                        child: Stack(
-                          children: [
-                            for (int i = 0; i < _statOrder.length; i++)
-                              AnimatedPositioned(
-                                key: ValueKey(_statOrder[i]),
-                                duration: const Duration(milliseconds: 220),
-                                curve: Curves.easeOutCubic,
-                                left: (i % crossAxisCount) * (tileWidth + spacing),
-                                top: (i ~/ crossAxisCount) * (tileHeight + spacing),
-                                width: tileWidth,
-                                height: tileHeight,
-                                child: _buildStatTile(
-                                  _statOrder[i],
-                                  buildTileForKey(_statOrder[i]),
-                                ),
-                              ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  if (_whoopLinked) ...[
-                    WhoopExtrasCard(
-                      onTap: _wiggling
-                          ? null
-                          : () async {
-                        await Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => WhoopInsightsPage(
-                              loading: _whoopLoading,
-                              linked: _whoopLinked,
-                              linkedKnown: _whoopLinkedKnown,
-                              recoveryScore: _whoopRecovery,
-                              weightKg: _whoopBodyWeightKg,
-                              sleepHours: _whoopSleepHours,
-                              sleepScore: _whoopSleepScore,
-                              sleepGoal: _sleepGoal,
-                              sleepDelta: _whoopSleepDelta,
-                              cycleStrain: _whoopCycleStrainLast ?? _whoopCycleStrain,
-                              hideSleep: _statOrder.contains('whoop_sleep'),
-                              hideRecovery: _statOrder.contains('whoop_recovery'),
-                              hideCycle: _statOrder.contains('whoop_cycle'),
-                              hideBody: _statOrder.contains('whoop_body'),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  if (_fitbitLinked) ...[
-                    if (!(_statOrder.contains('fitbit_activity') &&
-                        _statOrder.contains('fitbit_heart') &&
-                        _statOrder.contains('fitbit_sleep') &&
-                        _statOrder.contains('fitbit_vitals') &&
-                        _statOrder.contains('fitbit_body'))) ...[
-                      FitbitExtrasCard(
-                        onTap: _wiggling
-                            ? null
-                            : () async {
-                                await Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => FitbitInsightsPage(
-                                      activityLoading: _fitbitActivityLoading,
-                                      heartLoading: _fitbitHeartLoading,
-                                      sleepLoading: _fitbitSleepLoading,
-                                      vitals: _fitbitVitals,
-                                      vitalsLast: _fitbitVitalsLast,
-                                      body: _fitbitBody,
-                                      bodyLast: _fitbitBodyLast,
-                                      activity: _fitbitActivity,
-                                      activityLast: _fitbitActivityLast,
-                                      heart: _fitbitHeart,
-                                      heartLast: _fitbitHeartLast,
-                                      sleep: _fitbitSleep,
-                                      sleepLast: _fitbitSleepLast,
-                                      date: _selectedDate,
-                                      hideActivity: _statOrder.contains('fitbit_activity'),
-                                      hideHeart: _statOrder.contains('fitbit_heart'),
-                                      hideSleep: _statOrder.contains('fitbit_sleep'),
-                                      hideVitals: _statOrder.contains('fitbit_vitals'),
-                                      hideBody: _statOrder.contains('fitbit_body'),
-                                    ),
-                                  ),
-                                );
-                              },
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                  ],
-                  ProgressMeter(
-                    title: t("dash_weekly_goal"),
-                    progress: weeklyProgress,
-                    targetLabel: "${t("dash_target")}: $weeklyStepGoalTotal ${t("dash_steps_week")}",
-                    trailingLabel: _weeklyStepsLoading ? t("dash_loading") : "$weeklySteps ${t("dash_steps_label")}",
-                    accentColor: const Color(0xFF35B6FF),
-                    onTap: _wiggling ? null : _loadWeeklySteps,
-                  ),
-                  const SizedBox(height: 16),
-                  CardContainer(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          t("dash_7day_trends"),
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _TrendTile(
-                                title: t("dash_sleep_hrs"),
-                                data: _trendSleep,
-                                loading: _trendSleepLoading,
-                                accentColor: const Color(0xFF9B8CFF),
-                                emptyLabel: t("dash_no_sleep_data"),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _TrendTile(
-                                title: t("dash_calories_scaled"),
-                                data: _trendCalories.map((e) => e / 100).toList(),
-                                loading: _trendCaloriesLoading,
-                                accentColor: const Color(0xFFFF8A00),
-                                emptyLabel: t("dash_no_calories_data"),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _PlaceholderMetricCard(
-                    title: t("dash_fueling"),
-                    subtitle: t("dash_placeholder"),
-                    icon: Icons.restaurant_menu,
-                    accentColor: const Color(0xFF00BFA6),
-                  ),
-                  const SizedBox(height: 12),
-                  _PlaceholderMetricCard(
-                    title: t("dash_muscle"),
-                    subtitle: t("dash_placeholder"),
-                    icon: Icons.fitness_center,
-                    accentColor: const Color(0xFFFF8A00),
-                  ),
-                  const SizedBox(height: 12),
-                  _PlaceholderMetricCard(
-                    title: t("dash_taqa_score"),
-                    subtitle: t("dash_placeholder"),
-                    icon: Icons.bolt,
-                    accentColor: const Color(0xFF6A5AE0),
-                  ),
-                  const SizedBox(height: 60),
-                ],
-              ],
-            ),
-            Positioned(
-              right: 20,
-              bottom: 20 + bottomInset,
-              child: GestureDetector(
-                onTap: _wiggling ? null : _openDateSheet,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: AppColors.accent.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(32),
-                    border: Border.all(color: AppColors.accent.withValues(alpha: 0.35)),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black54,
-                        blurRadius: 12,
-                        offset: Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.calendar_month, color: Colors.white, size: 22),
-                      const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            relativeDateLabel,
-                            style: AppTextStyles.small.copyWith(color: Colors.white70),
-                          ),
-                          Text(
-                            DateFormat('dd/MM', locale).format(_selectedDate),
-                            style: AppTextStyles.subtitle.copyWith(color: Colors.white),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 6),
-                      const Icon(Icons.expand_more, color: Colors.white70, size: 22),
-                    ],
-                  ),
-                ),
               ),
-            ),
-            Positioned(
-              left: 20,
-              bottom: 20 + bottomInset,
-              child: EditModeBubble(
-                visible: _isToday() && (_wiggling || _statOrder.isEmpty),
-                onTap: _openWidgetLibrary,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
   }
 }
 

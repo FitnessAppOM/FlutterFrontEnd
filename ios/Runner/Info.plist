@@ -57,6 +57,8 @@
 	<string></string>
 	<key>NSLiveActivityUsageDescription</key>
 	<string>Show your active training timer on the Lock Screen and Dynamic Island.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We use your location to show your position on the cardio map.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>We need permission to save your chosen avatar to your library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
