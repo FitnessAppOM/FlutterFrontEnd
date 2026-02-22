@@ -14,6 +14,7 @@ import '../core/account_storage.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/confirm_dialog.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import '../config/base_url.dart';
 import '../consents/consent_manager.dart';
 import '../auth/expert_questionnaire.dart';
@@ -478,7 +479,16 @@ class _SettingsPageState extends State<SettingsPage> {
       final url = await ProfileApi.uploadAvatar(userId, picked.path);
       final stamp = DateTime.now().millisecondsSinceEpoch;
       final cacheBusted = url.contains("?") ? "$url&v=$stamp" : "$url?v=$stamp";
-      await AccountStorage.setAvatarPath(picked.path);
+      try {
+        final dir = await getApplicationDocumentsDirectory();
+        final ext = picked.path.split('.').last;
+        final localPath = "${dir.path}/avatar_${userId}_$stamp.$ext";
+        final saved = await File(picked.path).copy(localPath);
+        await AccountStorage.setAvatarPath(saved.path);
+      } catch (_) {
+        // Fallback to picker path if copy fails
+        await AccountStorage.setAvatarPath(picked.path);
+      }
       await AccountStorage.setAvatarUrl(cacheBusted);
       AccountStorage.notifyAccountChanged();
       if (!mounted) return;
