@@ -7,7 +7,8 @@ class ProfileApi {
   static Future<Map<String, dynamic>> fetchProfile(int userId, {String? lang}) async {
     final langQuery = (lang != null && lang.isNotEmpty) ? "?lang=$lang" : "";
     final url = Uri.parse("${ApiConfig.baseUrl}/profile/$userId$langQuery");
-    final res = await http.get(url);
+    final headers = await AccountStorage.getAuthHeaders();
+    final res = await http.get(url, headers: headers);
 
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body) as Map<String, dynamic>;

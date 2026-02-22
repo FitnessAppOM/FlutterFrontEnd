@@ -60,18 +60,24 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _loadProfile() async {
     _didLoadProfile = true;
     if (mounted) setState(() { _error = null; _loading = true; });
+    final cachedAvatar = await AccountStorage.getAvatarUrl();
+    final cachedAvatarPath = await AccountStorage.getAvatarPath();
+    if (mounted) {
+      setState(() {
+        _avatarUrl = cachedAvatar;
+        _avatarPath = cachedAvatarPath;
+      });
+    }
     try {
       final lang = AppLocalizations.of(context).locale.languageCode;
-      final avatar = await AccountStorage.getAvatarUrl();
-      final avatarPath = await AccountStorage.getAvatarPath();
       final userId = await AccountStorage.getUserId();
       if (userId == null || userId == 0) {
         if (!mounted) return;
         setState(() {
           _error = "user_missing";
           _loading = false;
-          _avatarUrl = avatar;
-          _avatarPath = avatarPath;
+          _avatarUrl = cachedAvatar;
+          _avatarPath = cachedAvatarPath;
         });
         return;
       }
@@ -80,14 +86,16 @@ class _ProfilePageState extends State<ProfilePage> {
       setState(() {
         _profile = data;
         _loading = false;
-        _avatarUrl = data["avatar_url"]?.toString() ?? avatar;
-        _avatarPath = avatarPath;
+        _avatarUrl = data["avatar_url"]?.toString() ?? cachedAvatar;
+        _avatarPath = cachedAvatarPath;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _error = e.toString();
         _loading = false;
+        _avatarUrl = cachedAvatar;
+        _avatarPath = cachedAvatarPath;
       });
     }
   }
