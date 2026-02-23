@@ -136,17 +136,19 @@ class TrainingService {
     int? programExerciseId,
     int? exerciseId,
     required double distanceKm,
-    required double avgSpeedKmh,
+    required double avgPaceMinKm,
     required int durationSeconds,
+    int? steps,
     DateTime? entryDate,
   }) async {
     final url = Uri.parse('$baseUrl/training/cardio/finish');
     final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
     final body = <String, dynamic>{
       'distance_km': distanceKm,
-      'avg_speed_kmh': avgSpeedKmh,
+      'avg_pace_min_km': avgPaceMinKm,
       'duration_seconds': durationSeconds,
     };
+    if (steps != null) body['steps'] = steps;
     if (programExerciseId != null) body['program_exercise_id'] = programExerciseId;
     if (exerciseId != null) body['exercise_id'] = exerciseId;
     if (entryDate != null) body['entry_date'] = _dateParam(entryDate);

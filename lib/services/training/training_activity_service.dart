@@ -17,6 +17,8 @@ class TrainingActivityService {
   static const _kSessionReps = 'training_session_reps';
   static const _kSessionDistance = 'training_session_distance';
   static const _kSessionSpeed = 'training_session_speed';
+  static const _kSessionPaused = 'training_session_paused';
+  static const _kSessionPausedSeconds = 'training_session_paused_seconds';
 
   static String _buildTitle(String exerciseName) {
     return "Training • $exerciseName";
@@ -33,10 +35,20 @@ class TrainingActivityService {
     final ss = (seconds % 60).toString().padLeft(2, '0');
     if (distanceKm != null || speedKmh != null) {
       final d = (distanceKm ?? 0).toStringAsFixed(2);
-      final s = (speedKmh ?? 0).toStringAsFixed(1);
-      return "Timer $mm:$ss • $d km • $s km/h";
+      final pace = _paceLabel(speedKmh);
+      return "Timer $mm:$ss • $d km • $pace";
     }
     return "Timer $mm:$ss • $sets x $reps";
+  }
+
+  static String _paceLabel(double? speedKmh) {
+    if (speedKmh == null || speedKmh <= 0.1) return "--:-- /km";
+    final paceMin = 60.0 / speedKmh;
+    final paceMinutes = paceMin.floor();
+    final paceSeconds = ((paceMin - paceMinutes) * 60).round().clamp(0, 59);
+    final mm = paceMinutes.toString().padLeft(2, '0');
+    final ss = paceSeconds.toString().padLeft(2, '0');
+    return "$mm:$ss /km";
   }
 
   static Future<void> startSession({
@@ -69,6 +81,7 @@ class TrainingActivityService {
           distanceKm: distanceKm,
           speedKmh: speedKmh,
           startMs: _sessionStartMs,
+          paused: false,
         );
       }
       await _startForegroundService(
@@ -107,6 +120,7 @@ class TrainingActivityService {
     if (seconds == _lastUpdateSecond) return;
     _lastUpdateSecond = seconds;
     _sessionStartMs ??= startMs;
+    await _setPaused(false, null);
     await _persistSession(
       exerciseName: exerciseName,
       sets: sets,
@@ -136,12 +150,16 @@ class TrainingActivityService {
         distanceKm: distanceKm,
         speedKmh: speedKmh,
         startMs: _sessionStartMs,
+        paused: false,
       );
     }
   }
 
   static Future<void> stopSession() async {
-    if (!_active) return;
+    if (!_active) {
+      await _clearSession();
+      return;
+    }
     _active = false;
     _lastUpdateSecond = -1;
     _sessionStartMs = null;
@@ -152,6 +170,99 @@ class TrainingActivityService {
     if (Platform.isIOS) {
       await _stopLiveActivity();
     }
+  }
+
+  static Future<void> pauseSession({
+    required String exerciseName,
+    required int sets,
+    required int reps,
+    required int seconds,
+    double? distanceKm,
+    double? speedKmh,
+  }) async {
+    if (!_active) return;
+    _lastUpdateSecond = seconds;
+    await _setPaused(true, seconds);
+    await _persistSession(
+      exerciseName: exerciseName,
+      sets: sets,
+      reps: reps,
+      distanceKm: distanceKm,
+      speedKmh: speedKmh,
+      startMs: null,
+    );
+
+    if (Platform.isAndroid) {
+      await FlutterForegroundTask.updateService(
+        notificationTitle: _buildTitle(exerciseName),
+        notificationText: _buildBody(
+          seconds: seconds,
+          sets: sets,
+          reps: reps,
+          distanceKm: distanceKm,
+          speedKmh: speedKmh,
+        ),
+      );
+    }
+    if (Platform.isIOS) {
+      await _updateLiveActivity(
+        exerciseName: exerciseName,
+        sets: sets,
+        reps: reps,
+        seconds: seconds,
+        distanceKm: distanceKm,
+        speedKmh: speedKmh,
+        startMs: null,
+        paused: true,
+      );
+    }
+  }
+
+  static Future<void> resumeSession({
+    required String exerciseName,
+    required int sets,
+    required int reps,
+    required int seconds,
+    double? distanceKm,
+    double? speedKmh,
+  }) async {
+    if (!_active) return;
+    _lastUpdateSecond = seconds;
+    _sessionStartMs = DateTime.now().millisecondsSinceEpoch - (seconds * 1000);
+    await _setPaused(false, null);
+    await _persistSession(
+      exerciseName: exerciseName,
+      sets: sets,
+      reps: reps,
+      distanceKm: distanceKm,
+      speedKmh: speedKmh,
+      startMs: _sessionStartMs,
+    );
+    await updateSession(
+      exerciseName: exerciseName,
+      sets: sets,
+      reps: reps,
+      seconds: seconds,
+      distanceKm: distanceKm,
+      speedKmh: speedKmh,
+      startMs: _sessionStartMs,
+    );
+  }
+
+  static Future<Map<String, dynamic>?> getActiveSession() async {
+    final sp = await SharedPreferences.getInstance();
+    final active = sp.getBool(_kSessionActive) ?? false;
+    if (!active) return null;
+    return {
+      'startMs': sp.getInt(_kSessionStartMs),
+      'name': sp.getString(_kSessionName),
+      'sets': sp.getInt(_kSessionSets),
+      'reps': sp.getInt(_kSessionReps),
+      'distanceKm': sp.getDouble(_kSessionDistance),
+      'speedKmh': sp.getDouble(_kSessionSpeed),
+      'paused': sp.getBool(_kSessionPaused) ?? false,
+      'pausedSeconds': sp.getInt(_kSessionPausedSeconds),
+    };
   }
 
   static Future<void> _startForegroundService({
@@ -176,6 +287,7 @@ class TrainingActivityService {
     double? distanceKm,
     double? speedKmh,
     int? startMs,
+    required bool paused,
   }) async {
     try {
       final ok = await _liveActivityChannel.invokeMethod('start', {
@@ -187,6 +299,7 @@ class TrainingActivityService {
         'distanceKm': distanceKm,
         'speedKmh': speedKmh,
         'startMs': startMs,
+        'paused': paused,
       });
       // ignore: avoid_print
       print('[LiveActivity] start result: $ok');
@@ -201,6 +314,7 @@ class TrainingActivityService {
     double? distanceKm,
     double? speedKmh,
     int? startMs,
+    required bool paused,
   }) async {
     try {
       final ok = await _liveActivityChannel.invokeMethod('update', {
@@ -212,6 +326,7 @@ class TrainingActivityService {
         'distanceKm': distanceKm,
         'speedKmh': speedKmh,
         'startMs': startMs,
+        'paused': paused,
       });
       // ignore: avoid_print
       print('[LiveActivity] update result: $ok');
@@ -253,6 +368,16 @@ class TrainingActivityService {
     }
   }
 
+  static Future<void> _setPaused(bool paused, int? seconds) async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setBool(_kSessionPaused, paused);
+    if (seconds != null) {
+      await sp.setInt(_kSessionPausedSeconds, seconds);
+    } else {
+      await sp.remove(_kSessionPausedSeconds);
+    }
+  }
+
   static Future<void> _clearSession() async {
     final sp = await SharedPreferences.getInstance();
     await sp.remove(_kSessionActive);
@@ -262,5 +387,7 @@ class TrainingActivityService {
     await sp.remove(_kSessionReps);
     await sp.remove(_kSessionDistance);
     await sp.remove(_kSessionSpeed);
+    await sp.remove(_kSessionPaused);
+    await sp.remove(_kSessionPausedSeconds);
   }
 }

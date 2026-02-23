@@ -18,6 +18,9 @@ class CardioMap extends StatefulWidget {
     this.onMetrics,
     this.onRoute,
     this.steps,
+    this.elapsedSeconds,
+    this.running,
+    this.trackingEnabled = true,
   });
 
   final bool hasToken;
@@ -29,6 +32,9 @@ class CardioMap extends StatefulWidget {
   final ValueChanged<CardioMetrics>? onMetrics;
   final ValueChanged<List<CardioPoint>>? onRoute;
   final int? steps;
+  final int? elapsedSeconds;
+  final bool? running;
+  final bool trackingEnabled;
 
   @override
   State<CardioMap> createState() => _CardioMapState();
@@ -60,6 +66,9 @@ class _CardioMapState extends State<CardioMap> {
     super.didUpdateWidget(oldWidget);
     if (widget.expanded && !oldWidget.expanded) {
       _recenterWithRetry();
+    }
+    if (!widget.trackingEnabled && oldWidget.trackingEnabled) {
+      _pauseTracking();
     }
   }
 
@@ -131,6 +140,8 @@ class _CardioMapState extends State<CardioMap> {
               distanceKm: _distanceMeters / 1000.0,
               speedKmh: _speedKmh,
               steps: widget.steps,
+              elapsedSeconds: widget.elapsedSeconds,
+              running: widget.running,
               onStart: () {
                 _startTracking();
                 widget.onStart?.call();
@@ -215,6 +226,7 @@ class _CardioMapState extends State<CardioMap> {
 
   Future<void> _startTracking() async {
     if (_tracking || _disposed) return;
+    if (!widget.trackingEnabled) return;
     final ok = await _ensureLocationPermission();
     if (!ok || _disposed) return;
     _distanceMeters = 0;
@@ -284,8 +296,15 @@ class _CardioMapState extends State<CardioMap> {
 
   void _onPositionUpdate(geo.Position position) {
     if (_disposed || !_tracking) return;
+    if (!widget.trackingEnabled) return;
     final now = DateTime.now();
     final last = _lastPosition;
+    if (position.accuracy > 40) {
+      return;
+    }
+    if (position.speedAccuracy > 0 && position.speedAccuracy > 5.0) {
+      return;
+    }
     if (last != null) {
       final segMeters = geo.Geolocator.distanceBetween(
         last.latitude,
@@ -293,6 +312,12 @@ class _CardioMapState extends State<CardioMap> {
         position.latitude,
         position.longitude,
       );
+      final dtMs = _lastPositionTime != null
+          ? now.difference(_lastPositionTime!).inMilliseconds
+          : 0;
+      if (dtMs > 0 && dtMs < 500) {
+        return;
+      }
       // Ignore tiny GPS jitter to avoid speed spikes/drops
       if (segMeters >= 1.0) {
         _distanceMeters += segMeters;

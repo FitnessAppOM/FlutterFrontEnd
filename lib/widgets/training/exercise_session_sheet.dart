@@ -32,7 +32,8 @@ class ExerciseSessionSheet extends StatefulWidget {
   State<ExerciseSessionSheet> createState() => _ExerciseSessionSheetState();
 }
 
-class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
+class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
+    with WidgetsBindingObserver {
   bool started = false;
   bool submitting = false;
   bool startRecorded = false;
@@ -49,6 +50,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
 
   int seconds = 0;
   Timer? timer;
+  int? _sessionStartMs;
 
   final weightCtrl = TextEditingController();
   final setsCtrl = TextEditingController();
@@ -59,7 +61,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _prefillFromLastEntry();
+    _restoreActiveSession();
     if (_shouldAutoShowInstructions()) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -76,6 +80,46 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
         if (!mounted) return;
         setState(() => _showCardioStartButton = true);
       });
+    }
+  }
+
+  Future<void> _restoreActiveSession() async {
+    final session = await TrainingActivityService.getActiveSession();
+    if (!mounted || session == null) return;
+    final currentName =
+        (widget.exercise['exercise_name'] ?? '').toString().trim().toLowerCase();
+    final sessionName =
+        (session['name'] ?? '').toString().trim().toLowerCase();
+    if (currentName.isEmpty || sessionName != currentName) return;
+    final paused = session['paused'] == true;
+    final pausedSeconds = session['pausedSeconds'] as int?;
+    _sessionStartMs = paused ? null : session['startMs'] as int?;
+    _syncElapsedFromStart();
+    if (!started) {
+      setState(() {
+        started = true;
+        _paused = paused;
+        if (paused && pausedSeconds != null) {
+          seconds = pausedSeconds;
+        }
+      });
+      if (!paused) {
+        _startTimer();
+        if (_isCardioExercise()) {
+          await _startCardioStepsTracking();
+        }
+      }
+    }
+  }
+
+  void _syncElapsedFromStart() {
+    if (_paused) return;
+    final startMs = _sessionStartMs;
+    if (startMs == null) return;
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final elapsed = ((nowMs - startMs) / 1000).round();
+    if (elapsed != seconds) {
+      setState(() => seconds = elapsed);
     }
   }
 
@@ -210,6 +254,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
   }
 
   void _startTimer() {
+    timer?.cancel();
     timer = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() => seconds++);
       if (_isCardioExercise() || seconds % 5 == 0) {
@@ -218,13 +263,14 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
         final isCardio = _isCardioExercise();
         final distanceKm = isCardio ? (_cardioDistanceMeters / 1000.0) : null;
         final speedKmh = isCardio ? _cardioSpeedKmh : null;
+        final pace = speedKmh != null ? _paceMinPerKm(speedKmh) : null;
         TrainingActivityService.updateSession(
           exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
           sets: sets,
           reps: reps,
           seconds: seconds,
           distanceKm: distanceKm,
-          speedKmh: speedKmh,
+          speedKmh: pace,
         );
       }
     });
@@ -253,11 +299,27 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
   String get _time =>
       "${(seconds ~/ 60).toString().padLeft(2, '0')}:${(seconds % 60).toString().padLeft(2, '0')}";
 
+  double _paceMinPerKm(double speedKmh) {
+    if (speedKmh <= 0.1) return 0;
+    return 60.0 / speedKmh;
+  }
+
   Future<void> _startExercise() async {
     if (started) {
       if (_paused) {
         setState(() => _paused = false);
+        _sessionStartMs ??=
+            DateTime.now().millisecondsSinceEpoch - (seconds * 1000);
+        _syncElapsedFromStart();
         _startTimer();
+        await TrainingActivityService.resumeSession(
+          exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
+          sets: _currentSets(),
+          reps: _currentReps(),
+          seconds: seconds,
+          distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
+          speedKmh: _isCardioExercise() ? _paceMinPerKm(_cardioSpeedKmh) : null,
+        );
       }
       await _startCardioStepsTracking();
       await TrainingActivityService.startSession(
@@ -266,7 +328,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
         reps: _currentReps(),
         seconds: seconds,
         distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
-        speedKmh: _isCardioExercise() ? _cardioSpeedKmh : null,
+        speedKmh: _isCardioExercise() ? _paceMinPerKm(_cardioSpeedKmh) : null,
       );
       return;
     }
@@ -274,6 +336,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
       started = true;
       _paused = false;
     });
+    _sessionStartMs ??= DateTime.now().millisecondsSinceEpoch;
+    _syncElapsedFromStart();
     _startTimer();
     await _startCardioStepsTracking();
     await TrainingActivityService.startSession(
@@ -282,7 +346,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
       reps: _currentReps(),
       seconds: seconds,
       distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
-      speedKmh: _isCardioExercise() ? _cardioSpeedKmh : null,
+      speedKmh: _isCardioExercise() ? _paceMinPerKm(_cardioSpeedKmh) : null,
     );
     
     // Queue start action for sync (non-blocking)
@@ -310,6 +374,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
     if (submitting) return;
 
     setState(() => submitting = true);
+    _syncElapsedFromStart();
     timer?.cancel();
     _stopCardioStepsTracking();
     await TrainingActivityService.stopSession();
@@ -403,8 +468,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
         "program_exercise_id": programExerciseId,
         "exercise_id": exerciseId,
         "distance_km": _cardioDistanceMeters / 1000.0,
-        "avg_speed_kmh": _cardioSpeedKmh,
+        "avg_pace_min_km": _paceMinPerKm(_cardioSpeedKmh),
         "duration_seconds": seconds,
+        "steps": _cardioSteps ?? 0,
         "entry_date": "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
       };
       try {
@@ -412,8 +478,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
           programExerciseId: programExerciseId,
           exerciseId: exerciseId,
           distanceKm: _cardioDistanceMeters / 1000.0,
-          avgSpeedKmh: _cardioSpeedKmh,
+          avgPaceMinKm: _paceMinPerKm(_cardioSpeedKmh),
           durationSeconds: seconds,
+          steps: _cardioSteps ?? 0,
           entryDate: now,
         );
       } catch (_) {
@@ -500,19 +567,51 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
 
   void _pauseExercise() {
     if (!started) return;
+    _syncElapsedFromStart();
     timer?.cancel();
     _stopCardioStepsTracking();
     setState(() => _paused = true);
+    _sessionStartMs = null;
+    TrainingActivityService.pauseSession(
+      exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
+      sets: _currentSets(),
+      reps: _currentReps(),
+      seconds: seconds,
+      distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
+      speedKmh: _isCardioExercise() ? _cardioSpeedKmh : null,
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      timer?.cancel();
+      _stopCardioStepsTracking();
+      return;
+    }
+    if (state == AppLifecycleState.resumed) {
+      _syncElapsedFromStart();
+      if (started && !_paused) {
+        _startTimer();
+        if (_isCardioExercise()) {
+          _startCardioStepsTracking();
+        }
+      }
+    }
   }
 
   @override
   void dispose() {
     timer?.cancel();
     _stepSub?.cancel();
-    TrainingActivityService.stopSession();
+    if (!_paused) {
+      TrainingActivityService.stopSession();
+    }
     weightCtrl.dispose();
     setsCtrl.dispose();
     repsCtrl.dispose();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -615,6 +714,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet> {
                       expanded: _cardioMapExpanded,
                       height: MediaQuery.of(context).size.height * 0.9,
                       steps: _cardioSteps,
+                      elapsedSeconds: seconds,
+                      running: started && !_paused,
+                      trackingEnabled: started,
                       onMetrics: (m) {
                         _cardioDistanceMeters = m.distanceMeters;
                         _cardioSpeedKmh = m.speedKmh;

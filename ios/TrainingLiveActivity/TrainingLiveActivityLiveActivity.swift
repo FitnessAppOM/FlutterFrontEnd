@@ -11,6 +11,7 @@ struct TrainingActivityAttributes: ActivityAttributes {
         var distanceKm: Double?
         var speedKmh: Double?
         var startMs: Int?
+        var paused: Bool
     }
 
     var sessionId: String
@@ -21,13 +22,15 @@ struct TrainingLiveActivityWidget: Widget {
         ActivityConfiguration(for: TrainingActivityAttributes.self) { context in
             TimelineView(.periodic(from: Date(), by: 1)) { timeline in
                 let elapsed = elapsedSeconds(from: context.state.startMs, now: timeline.date, fallback: context.state.seconds)
-                let startDate = startDateFromMs(context.state.startMs, fallbackSeconds: elapsed, now: timeline.date)
-                let timerText: Text = {
-                    if let startDate {
-                        return Text(startDate, style: .timer)
-                    }
-                    return Text(formatTime(elapsed))
-                }()
+                let startDate = startDateFromMs(context.state.startMs, fallbackSeconds: elapsed, now: timeline.date, paused: context.state.paused)
+                let timerText = timerView(
+                    elapsed: elapsed,
+                    startDate: startDate,
+                    paused: context.state.paused,
+                    short: false,
+                    width: 72,
+                    font: .system(size: 18, weight: .bold, design: .rounded)
+                )
                 ZStack {
                     LinearGradient(
                         colors: [Color(red: 0.05, green: 0.10, blue: 0.12), Color(red: 0.02, green: 0.04, blue: 0.05)],
@@ -55,14 +58,11 @@ struct TrainingLiveActivityWidget: Widget {
                             }
                             Spacer()
                             timerText
-                                .font(.system(size: 18, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-                                .monospacedDigit()
                         }
                         HStack(spacing: 8) {
                             if let dist = context.state.distanceKm, let speed = context.state.speedKmh {
                                 badge(String(format: "%.2f km", dist))
-                                badge(String(format: "%.1f km/h", speed))
+                                badge(paceLabel(speed))
                             } else {
                                 badge("\(context.state.sets) sets")
                                 badge("\(context.state.reps) reps")
@@ -95,16 +95,16 @@ struct TrainingLiveActivityWidget: Widget {
                 DynamicIslandExpandedRegion(.trailing) {
                     TimelineView(.periodic(from: Date(), by: 1)) { timeline in
                         let elapsed = elapsedSeconds(from: context.state.startMs, now: timeline.date, fallback: context.state.seconds)
-                        let startDate = startDateFromMs(context.state.startMs, fallbackSeconds: elapsed, now: timeline.date)
-                        let timerText: Text = {
-                            if let startDate {
-                                return Text(startDate, style: .timer)
-                            }
-                            return Text(formatTime(elapsed))
-                        }()
+                        let startDate = startDateFromMs(context.state.startMs, fallbackSeconds: elapsed, now: timeline.date, paused: context.state.paused)
+                        let timerText = timerView(
+                            elapsed: elapsed,
+                            startDate: startDate,
+                            paused: context.state.paused,
+                            short: false,
+                            width: 52,
+                            font: .caption
+                        )
                         timerText
-                            .font(.caption)
-                            .monospacedDigit()
                     }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
@@ -112,7 +112,7 @@ struct TrainingLiveActivityWidget: Widget {
                         if let dist = context.state.distanceKm, let speed = context.state.speedKmh {
                             Text(String(format: "%.2f km", dist))
                             Text("•")
-                            Text(String(format: "%.1f km/h", speed))
+                            Text(paceLabel(speed))
                         } else {
                             Text("\(context.state.sets) sets")
                             Text("•")
@@ -127,28 +127,30 @@ struct TrainingLiveActivityWidget: Widget {
             } compactTrailing: {
                 TimelineView(.periodic(from: Date(), by: 1)) { timeline in
                     let elapsed = elapsedSeconds(from: context.state.startMs, now: timeline.date, fallback: context.state.seconds)
-                    let startDate = startDateFromMs(context.state.startMs, fallbackSeconds: elapsed, now: timeline.date)
-                    let timerText: Text = {
-                        if let startDate {
-                            return Text(startDate, style: .timer)
-                        }
-                        return Text(shortTime(elapsed))
-                    }()
+                    let startDate = startDateFromMs(context.state.startMs, fallbackSeconds: elapsed, now: timeline.date, paused: context.state.paused)
+                    let timerText = timerView(
+                        elapsed: elapsed,
+                        startDate: startDate,
+                        paused: context.state.paused,
+                        short: true,
+                        width: 44,
+                        font: .caption2
+                    )
                     timerText
-                        .monospacedDigit()
                 }
             } minimal: {
                 TimelineView(.periodic(from: Date(), by: 1)) { timeline in
                     let elapsed = elapsedSeconds(from: context.state.startMs, now: timeline.date, fallback: context.state.seconds)
-                    let startDate = startDateFromMs(context.state.startMs, fallbackSeconds: elapsed, now: timeline.date)
-                    let timerText: Text = {
-                        if let startDate {
-                            return Text(startDate, style: .timer)
-                        }
-                        return Text(shortTime(elapsed))
-                    }()
+                    let startDate = startDateFromMs(context.state.startMs, fallbackSeconds: elapsed, now: timeline.date, paused: context.state.paused)
+                    let timerText = timerView(
+                        elapsed: elapsed,
+                        startDate: startDate,
+                        paused: context.state.paused,
+                        short: true,
+                        width: 44,
+                        font: .caption2
+                    )
                     timerText
-                        .monospacedDigit()
                 }
             }
         }
@@ -176,6 +178,15 @@ struct TrainingLiveActivityWidget: Widget {
         return "\(m)m\(s)"
     }
 
+    private func paceLabel(_ speedKmh: Double) -> String {
+        if speedKmh <= 0.1 { return "--:-- /km" }
+        let paceMin = 60.0 / speedKmh
+        let minutes = Int(paceMin)
+        let rawSeconds = Int((paceMin - Double(minutes)) * 60.0)
+        let seconds = max(0, min(59, rawSeconds))
+        return String(format: "%02d:%02d /km", minutes, seconds)
+    }
+
     private func elapsedSeconds(from startMs: Int?, now: Date, fallback: Int) -> Int {
         guard let startMs else { return fallback }
         let startDate = Date(timeIntervalSince1970: Double(startMs) / 1000.0)
@@ -183,7 +194,10 @@ struct TrainingLiveActivityWidget: Widget {
         return max(0, elapsed)
     }
 
-    private func startDateFromMs(_ startMs: Int?, fallbackSeconds: Int, now: Date) -> Date? {
+    private func startDateFromMs(_ startMs: Int?, fallbackSeconds: Int, now: Date, paused: Bool) -> Date? {
+        if paused {
+            return nil
+        }
         if let startMs {
             return Date(timeIntervalSince1970: Double(startMs) / 1000.0)
         }
@@ -192,6 +206,32 @@ struct TrainingLiveActivityWidget: Widget {
         }
         return nil
     }
+
+    private func timerView(
+        elapsed: Int,
+        startDate: Date?,
+        paused: Bool,
+        short: Bool,
+        width: CGFloat,
+        font: Font
+    ) -> some View {
+        let text: Text = {
+            if paused {
+                return Text(short ? shortTime(elapsed) : formatTime(elapsed))
+            }
+            if let startDate {
+                return Text(startDate, style: .timer)
+            }
+            return Text(short ? shortTime(elapsed) : formatTime(elapsed))
+        }()
+
+        return text
+            .font(font)
+            .foregroundStyle(.white)
+            .monospacedDigit()
+            .frame(width: width, alignment: .trailing)
+    }
+
 }
 
 @main

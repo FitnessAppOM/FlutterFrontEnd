@@ -4,6 +4,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../widgets/training/exercise_card.dart';
 import '../../widgets/cardio/cardio_map.dart';
 import '../../services/training/cardio_session_queue.dart';
+import '../../services/training/training_activity_service.dart';
+import '../../widgets/cardio/cardio_resume_banner.dart';
 
 class CardioTab extends StatefulWidget {
   const CardioTab({
@@ -21,7 +23,7 @@ class CardioTab extends StatefulWidget {
   State<CardioTab> createState() => _CardioTabState();
 }
 
-class _CardioTabState extends State<CardioTab> {
+class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
   static const List<Map<String, dynamic>> _cardioLibrary = [
     {
       "exercise_id": 4148,
@@ -172,7 +174,81 @@ class _CardioTabState extends State<CardioTab> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     CardioSessionQueue.syncQueue();
+    _loadPausedSession();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadPausedSession();
+  }
+
+  @override
+  void didUpdateWidget(covariant CardioTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _loadPausedSession();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadPausedSession();
+    }
+  }
+
+  bool _hasPausedSession = false;
+  String? _pausedExerciseName;
+
+  Future<void> _loadPausedSession() async {
+    final session = await TrainingActivityService.getActiveSession();
+    final paused = session != null && session['paused'] == true;
+    if (!mounted) return;
+    setState(() {
+      _hasPausedSession = paused;
+      _pausedExerciseName = paused ? (session?['name'] as String?) : null;
+    });
+  }
+
+  void _continuePausedSession(List<Map<String, dynamic>> list) {
+    final targetName = _pausedExerciseName?.trim().toLowerCase();
+    if (targetName == null || targetName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Couldn't find the paused cardio session.")),
+      );
+      return;
+    }
+    Map<String, dynamic>? match;
+    for (final ex in list) {
+      final name = (ex['exercise_name'] ?? '').toString().trim().toLowerCase();
+      if (name == targetName) {
+        match = ex;
+        break;
+      }
+    }
+    if (match == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Paused cardio not found. Cancel to start a new one.")),
+      );
+      return;
+    }
+    widget.onStart(match);
+  }
+
+  Future<void> _cancelPausedSession() async {
+    await TrainingActivityService.stopSession();
+    if (!mounted) return;
+    setState(() {
+      _hasPausedSession = false;
+      _pausedExerciseName = null;
+    });
   }
 
   @override
@@ -202,6 +278,11 @@ class _CardioTabState extends State<CardioTab> {
               ),
         ),
         const SizedBox(height: 16),
+        if (_hasPausedSession)
+          CardioResumeBanner(
+            onContinue: () => _continuePausedSession(list),
+            onCancel: _cancelPausedSession,
+          ),
         if (list.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 16),
@@ -218,6 +299,7 @@ class _CardioTabState extends State<CardioTab> {
               padding: const EdgeInsets.only(bottom: 14),
               child: ExerciseCard(
                 exercise: ex,
+                disabled: _hasPausedSession,
                 onTap: () => widget.onStart(ex),
                 onReplace: () {
                   if (!hasProgramCardio && ex['program_exercise_id'] == null) {
@@ -228,6 +310,7 @@ class _CardioTabState extends State<CardioTab> {
                     );
                     return;
                   }
+                  if (_hasPausedSession) return;
                   widget.onReplace(ex);
                 },
               ),

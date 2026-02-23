@@ -12,6 +12,7 @@ struct TrainingActivityAttributes: ActivityAttributes {
         var distanceKm: Double?
         var speedKmh: Double?
         var startMs: Int?
+        var paused: Bool
     }
 
     var sessionId: String
@@ -57,6 +58,7 @@ final class TrainingLiveActivityChannel {
         let distanceKm = (args["distanceKm"] as? NSNumber)?.doubleValue ?? (args["distanceKm"] as? Double)
         let speedKmh = (args["speedKmh"] as? NSNumber)?.doubleValue ?? (args["speedKmh"] as? Double)
         let startMs = (args["startMs"] as? Int) ?? (args["startMs"] as? NSNumber)?.intValue
+        let paused = (args["paused"] as? Bool) ?? false
         let sessionId = (args["sessionId"] as? String) ?? UUID().uuidString
 
         let attributes = TrainingActivityAttributes(sessionId: sessionId)
@@ -67,7 +69,8 @@ final class TrainingLiveActivityChannel {
             seconds: seconds,
             distanceKm: distanceKm,
             speedKmh: speedKmh,
-            startMs: startMs
+            startMs: startMs,
+            paused: paused
         )
 
         do {
@@ -104,6 +107,7 @@ final class TrainingLiveActivityChannel {
         let distanceKm = (args["distanceKm"] as? NSNumber)?.doubleValue ?? (args["distanceKm"] as? Double)
         let speedKmh = (args["speedKmh"] as? NSNumber)?.doubleValue ?? (args["speedKmh"] as? Double)
         let startMs = (args["startMs"] as? Int) ?? (args["startMs"] as? NSNumber)?.intValue
+        let paused = (args["paused"] as? Bool) ?? false
 
         let contentState = TrainingActivityAttributes.ContentState(
             exerciseName: exerciseName,
@@ -112,7 +116,8 @@ final class TrainingLiveActivityChannel {
             seconds: seconds,
             distanceKm: distanceKm,
             speedKmh: speedKmh,
-            startMs: startMs
+            startMs: startMs,
+            paused: paused
         )
         Task {
             await activity.update(using: contentState)

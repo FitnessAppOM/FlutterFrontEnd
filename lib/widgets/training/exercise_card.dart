@@ -7,6 +7,7 @@ class ExerciseCard extends StatelessWidget {
   final Map<String, dynamic> exercise;
   final VoidCallback onTap;
   final VoidCallback onReplace;
+  final bool disabled;
 
 
   const ExerciseCard({
@@ -14,6 +15,7 @@ class ExerciseCard extends StatelessWidget {
     required this.exercise,
     required this.onTap,
     required this.onReplace,
+    this.disabled = false,
   });
 
   Map<String, dynamic>? _extractCompliance(dynamic value) {
@@ -211,13 +213,13 @@ class ExerciseCard extends StatelessWidget {
         : null;
     final replaceChip = GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: onReplace,
+      onTap: disabled ? null : onReplace,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.06),
+          color: Colors.white.withOpacity(disabled ? 0.03 : 0.06),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white24),
+          border: Border.all(color: Colors.white24.withOpacity(disabled ? 0.5 : 1)),
         ),
         child: const Row(
           mainAxisSize: MainAxisSize.min,
@@ -238,120 +240,125 @@ class ExerciseCard extends StatelessWidget {
     );
 
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: Ink(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: gradientColors,
-            ),
-            border: Border.all(color: borderColor),
-            boxShadow: [
-              BoxShadow(
-                color: shadowColor,
-                blurRadius: completed ? 18 : 14,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    width: 74,
-                    height: 66,
-                    color: Colors.black26,
-                    child: (exercise['animation_rel_path'] == null ||
-                            (exercise['animation_rel_path'] as String).isEmpty)
-                        ? const Icon(Icons.fitness_center, color: Colors.white70)
-                        : Image.network(
-                            "${TrainingService.baseUrl}/static/${exercise['animation_rel_path']}",
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                                const Icon(Icons.fitness_center, color: Colors.white70),
-                          ),
-                  ),
+    return Opacity(
+      opacity: disabled ? 0.45 : 1,
+      child: AbsorbPointer(
+        absorbing: disabled,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: disabled ? null : onTap,
+            child: Ink(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: gradientColors,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                border: Border.all(color: borderColor),
+                boxShadow: [
+                  BoxShadow(
+                    color: shadowColor,
+                    blurRadius: completed ? 18 : 14,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        width: 74,
+                        height: 66,
+                        color: Colors.black26,
+                        child: (exercise['animation_rel_path'] == null ||
+                                (exercise['animation_rel_path'] as String).isEmpty)
+                            ? const Icon(Icons.fitness_center, color: Colors.white70)
+                            : Image.network(
+                                "${TrainingService.baseUrl}/static/${exercise['animation_rel_path']}",
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    const Icon(Icons.fitness_center, color: Colors.white70),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Text(
-                              exercise['exercise_name'] ?? '',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                color: completed ? Colors.greenAccent : Colors.white,
-                                fontSize: 15,
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  exercise['exercise_name'] ?? '',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    color: completed ? Colors.greenAccent : Colors.white,
+                                    fontSize: 15,
+                                  ),
+                                ),
                               ),
-                            ),
+                              const SizedBox(width: 6),
+                              if (statusChip != null) statusChip,
+                              const SizedBox(width: 6),
+                              if (!completed && !isCardio) replaceChip,
+                            ],
                           ),
-                          const SizedBox(width: 6),
-                          if (statusChip != null) statusChip,
-                          const SizedBox(width: 6),
-                          if (!completed && !isCardio) replaceChip,
-
+                          const SizedBox(height: 6),
+                          if (!isCardio)
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                _StatChip(
+                                  icon: Icons.repeat,
+                                  label: "$setsLabel x $repsLabel",
+                                ),
+                                _StatChip(
+                                  icon: Icons.bolt,
+                                  label: "RIR $rirLabel",
+                                ),
+                              ],
+                            ),
+                          if ((exercise['primary_muscles'] ?? '').toString().isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(Icons.fiber_manual_record,
+                                    size: 10, color: cs.secondary.withOpacity(0.85)),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    exercise['primary_muscles'],
+                                    style: TextStyle(
+                                      color: cs.secondary.withOpacity(0.85),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
-                      const SizedBox(height: 6),
-                      if (!isCardio)
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 6,
-                          children: [
-                            _StatChip(
-                              icon: Icons.repeat,
-                              label: "$setsLabel x $repsLabel",
-                            ),
-                            _StatChip(
-                              icon: Icons.bolt,
-                              label: "RIR $rirLabel",
-                            ),
-                          ],
-                        ),
-                      if ((exercise['primary_muscles'] ?? '').toString().isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Icon(Icons.fiber_manual_record,
-                                size: 10, color: cs.secondary.withOpacity(0.85)),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                exercise['primary_muscles'],
-                                style: TextStyle(
-                                  color: cs.secondary.withOpacity(0.85),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(Icons.chevron_right, color: Colors.white54),
+                  ],
                 ),
-                const SizedBox(width: 6),
-                const Icon(Icons.chevron_right, color: Colors.white54),
-              ],
+              ),
             ),
           ),
         ),

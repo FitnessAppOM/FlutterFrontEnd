@@ -46,8 +46,11 @@ class CardioSessionQueue {
           programExerciseId: item["program_exercise_id"] as int?,
           exerciseId: item["exercise_id"] as int?,
           distanceKm: (item["distance_km"] as num?)?.toDouble() ?? 0,
-          avgSpeedKmh: (item["avg_speed_kmh"] as num?)?.toDouble() ?? 0,
+          avgPaceMinKm: (item["avg_pace_min_km"] as num?)?.toDouble() ??
+              (item["avg_speed_kmh"] as num?)?.toDouble() ??
+              0,
           durationSeconds: item["duration_seconds"] as int? ?? 0,
+          steps: item["steps"] as int?,
           entryDate: item["entry_date"] != null
               ? DateTime.tryParse(item["entry_date"] as String)
               : null,

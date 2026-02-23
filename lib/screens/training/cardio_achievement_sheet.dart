@@ -46,6 +46,14 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
     return "$mm:$ss";
   }
 
+  String _paceLabel(double speedKmh) {
+    if (speedKmh <= 0.1) return "--:-- /km";
+    final paceMin = 60.0 / speedKmh;
+    final paceMinutes = paceMin.floor();
+    final paceSeconds = ((paceMin - paceMinutes) * 60).round().clamp(0, 59);
+    return "${paceMinutes.toString().padLeft(2, '0')}:${paceSeconds.toString().padLeft(2, '0')} /km";
+  }
+
   String _buildSnapshotUrl() {
     final token = dotenv.maybeGet('MAPBOX_PUBLIC_KEY') ?? '';
     if (token.isEmpty || widget.route.isEmpty) return '';
@@ -263,7 +271,7 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                         children: [
                           _MetricChip(label: 'Time', value: _formatTime(widget.durationSeconds)),
                           _MetricChip(label: 'Distance', value: '${widget.distanceKm.toStringAsFixed(2)} km'),
-                          _MetricChip(label: 'Speed', value: '${widget.avgSpeedKmh.toStringAsFixed(1)} km/h'),
+                          _MetricChip(label: 'Pace', value: _paceLabel(widget.avgSpeedKmh)),
                           _MetricChip(label: 'Steps', value: '${widget.steps}'),
                         ],
                       ),
