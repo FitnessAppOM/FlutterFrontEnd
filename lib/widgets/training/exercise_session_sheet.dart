@@ -471,6 +471,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         "avg_pace_min_km": _paceMinPerKm(_cardioSpeedKmh),
         "duration_seconds": seconds,
         "steps": _cardioSteps ?? 0,
+        "route_points": _cardioRoute
+            .map((p) => {"lat": p.lat, "lng": p.lng})
+            .toList(),
         "entry_date": "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
       };
       try {
@@ -481,6 +484,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           avgPaceMinKm: _paceMinPerKm(_cardioSpeedKmh),
           durationSeconds: seconds,
           steps: _cardioSteps ?? 0,
+          routePoints: _cardioRoute
+              .map((p) => {"lat": p.lat, "lng": p.lng})
+              .toList(),
           entryDate: now,
         );
       } catch (_) {

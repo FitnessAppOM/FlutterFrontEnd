@@ -51,6 +51,9 @@ class CardioSessionQueue {
               0,
           durationSeconds: item["duration_seconds"] as int? ?? 0,
           steps: item["steps"] as int?,
+          routePoints: (item["route_points"] as List?)
+              ?.map((e) => Map<String, dynamic>.from(e as Map))
+              .toList(),
           entryDate: item["entry_date"] != null
               ? DateTime.tryParse(item["entry_date"] as String)
               : null,

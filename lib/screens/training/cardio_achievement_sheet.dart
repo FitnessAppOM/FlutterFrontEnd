@@ -1,14 +1,10 @@
-import 'dart:io';
+import 'dart:async';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:share_plus/share_plus.dart';
+import '../../services/share/cardio_share_service.dart';
 
 import '../../widgets/cardio/cardio_map.dart';
 
@@ -39,6 +35,7 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
   bool _saving = false;
   bool _snapshotReady = false;
   bool _sharing = false;
+  bool _hideMapForCapture = false;
 
   String _formatTime(int seconds) {
     final mm = (seconds ~/ 60).toString().padLeft(2, '0');
@@ -63,18 +60,11 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
         '$path/auto/800x480?access_token=$token';
   }
 
-  Future<bool> _ensurePhotoPermission() async {
-    final photos = await Permission.photos.request();
-    if (photos.isGranted) return true;
-    final storage = await Permission.storage.request();
-    return storage.isGranted;
-  }
-
   Future<void> _saveScreenshot() async {
     if (_saving) return;
     setState(() => _saving = true);
     try {
-      final ok = await _ensurePhotoPermission();
+      final ok = await CardioShareService.ensurePhotoPermission();
       if (!ok) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -86,9 +76,9 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
       final boundary = _captureKey.currentContext?.findRenderObject()
           as RenderRepaintBoundary?;
       if (boundary == null) return;
-      final bytes = await _capturePng(boundary);
-      if (bytes == null) return;
-      await ImageGallerySaver.saveImage(bytes, quality: 100, name: 'cardio_achievement');
+      final output = await _buildExportBytes(boundary);
+      if (output == null) return;
+      await CardioShareService.savePngBytes(output);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Saved to Photos')),
@@ -99,11 +89,46 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
     }
   }
 
-  Future<Uint8List?> _capturePng(RenderRepaintBoundary boundary) async {
-    final image = await boundary.toImage(pixelRatio: 3.0);
-    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-    return byteData?.buffer.asUint8List();
+  Future<Uint8List?> _capturePng(RenderRepaintBoundary boundary) {
+    return CardioShareService.capturePng(boundary);
   }
+
+  Future<Uint8List?> _buildExportBytes(RenderRepaintBoundary boundary) async {
+    final bytes = await _capturePngWithOptionalHideMap(boundary);
+    if (bytes == null) return null;
+    final flattened = await CardioShareService.flattenPngOnBackground(
+      bytes,
+      const Color(0xFF0B0F1A),
+      cornerRadius: 22,
+    );
+    return flattened ?? bytes;
+  }
+
+  Future<Uint8List?> _capturePngWithOptionalHideMap(
+    RenderRepaintBoundary boundary,
+  ) async {
+    final snapshotUrl = _buildSnapshotUrl();
+    final shouldHideMap = snapshotUrl.isEmpty;
+    if (!shouldHideMap) {
+      return _capturePng(boundary);
+    }
+    if (mounted) {
+      setState(() => _hideMapForCapture = true);
+    }
+    await _nextFrame();
+    final bytes = await _capturePng(boundary);
+    if (mounted) {
+      setState(() => _hideMapForCapture = false);
+    }
+    return bytes;
+  }
+
+  Future<void> _nextFrame() {
+    final completer = Completer<void>();
+    WidgetsBinding.instance.addPostFrameCallback((_) => completer.complete());
+    return completer.future;
+  }
+
 
   Future<void> _shareScreenshot() async {
     if (_sharing) return;
@@ -112,20 +137,9 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
       final boundary = _captureKey.currentContext?.findRenderObject()
           as RenderRepaintBoundary?;
       if (boundary == null) return;
-      final bytes = await _capturePng(boundary);
-      if (bytes == null) return;
-      final dir = await getTemporaryDirectory();
-      final filePath = '${dir.path}/cardio_achievement.png';
-      final file = await File(filePath).writeAsBytes(bytes, flush: true);
-      final box = context.findRenderObject() as RenderBox?;
-      final origin = box == null
-          ? Rect.fromLTWH(0, 0, 1, 1)
-          : box.localToGlobal(Offset.zero) & box.size;
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: 'Hey! Check out my latest cardio session on TaqaFitness.',
-        sharePositionOrigin: origin,
-      );
+      final output = await _buildExportBytes(boundary);
+      if (output == null) return;
+      await CardioShareService.sharePngBytes(context, output);
     } finally {
       if (mounted) setState(() => _sharing = false);
     }
@@ -159,24 +173,26 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
             ),
             RepaintBoundary(
               key: _captureKey,
-              child: Container(
-                color: const Color(0xFF0B0F1A),
-                padding: const EdgeInsets.all(6),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(22),
                 child: Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF0E1A33), Color(0xFF0B0F1A)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                  color: const Color(0xFF0B0F1A),
+                  padding: const EdgeInsets.all(6),
+                  child: Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF0E1A33), Color(0xFF0B0F1A)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: Colors.white10),
                     ),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: Colors.white10),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
                               children: [
                                 Container(
                                   width: 42,
@@ -229,56 +245,82 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                                 ),
                               ],
                             ),
-                      const SizedBox(height: 14),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: snapshotUrl.isEmpty
-                            ? Container(
-                                height: 220,
-                                color: Colors.white12,
-                                alignment: Alignment.center,
-                                child: const Text(
-                                  'Route unavailable',
-                                  style: TextStyle(color: Colors.white70),
-                                ),
-                              )
-                            : Image.network(
-                                snapshotUrl,
-                                height: 220,
-                                fit: BoxFit.cover,
-                                loadingBuilder: (context, child, progress) {
-                                  if (progress == null) {
-                                    if (!_snapshotReady) {
-                                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                                        if (mounted) setState(() => _snapshotReady = true);
-                                      });
+                      if (!_hideMapForCapture) ...[
+                        const SizedBox(height: 14),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: snapshotUrl.isEmpty
+                              ? Container(
+                                  height: 220,
+                                  color: Colors.white12,
+                                  alignment: Alignment.center,
+                                  child: const Text(
+                                    'Route unavailable',
+                                    style: TextStyle(color: Colors.white70),
+                                  ),
+                                )
+                              : Image.network(
+                                  snapshotUrl,
+                                  height: 220,
+                                  fit: BoxFit.cover,
+                                  loadingBuilder: (context, child, progress) {
+                                    if (progress == null) {
+                                      if (!_snapshotReady) {
+                                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                                          if (mounted) setState(() => _snapshotReady = true);
+                                        });
+                                      }
+                                      return child;
                                     }
-                                    return child;
-                                  }
-                                  return Container(
-                                    height: 220,
-                                    color: Colors.white10,
-                                    alignment: Alignment.center,
-                                    child: const CircularProgressIndicator(),
-                                  );
-                                },
-                              ),
-                      ),
-                      const SizedBox(height: 14),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
+                                    return Container(
+                                      height: 220,
+                                      color: Colors.white10,
+                                      alignment: Alignment.center,
+                                      child: const CircularProgressIndicator(),
+                                    );
+                                  },
+                                ),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+                      if (_hideMapForCapture) const SizedBox(height: 8),
+                      Row(
                         children: [
-                          _MetricChip(label: 'Time', value: _formatTime(widget.durationSeconds)),
-                          _MetricChip(label: 'Distance', value: '${widget.distanceKm.toStringAsFixed(2)} km'),
-                          _MetricChip(label: 'Pace', value: _paceLabel(widget.avgSpeedKmh)),
-                          _MetricChip(label: 'Steps', value: '${widget.steps}'),
+                          Expanded(
+                            child: _MetricChip(
+                              label: 'Time',
+                              value: _formatTime(widget.durationSeconds),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _MetricChip(
+                              label: 'Distance',
+                              value: '${widget.distanceKm.toStringAsFixed(2)} km',
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _MetricChip(
+                              label: 'Pace',
+                              value: _paceLabel(widget.avgSpeedKmh),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _MetricChip(
+                              label: 'Steps',
+                              value: '${widget.steps}',
+                            ),
+                          ),
                         ],
                       ),
-                    ],
+                        ],
+                    ),
                   ),
                 ),
               ),
+            ),
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -331,22 +373,30 @@ class _MetricChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label.toUpperCase(),
-            style: const TextStyle(
-              color: Colors.white60,
-              fontSize: 10,
-              letterSpacing: 0.8,
-              fontWeight: FontWeight.w700,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              label.toUpperCase(),
+              style: const TextStyle(
+                color: Colors.white60,
+                fontSize: 10,
+                letterSpacing: 0.8,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ],

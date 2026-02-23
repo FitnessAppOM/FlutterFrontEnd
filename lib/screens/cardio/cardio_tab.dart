@@ -6,6 +6,7 @@ import '../../widgets/cardio/cardio_map.dart';
 import '../../services/training/cardio_session_queue.dart';
 import '../../services/training/training_activity_service.dart';
 import '../../widgets/cardio/cardio_resume_banner.dart';
+import 'cardio_history_page.dart';
 
 class CardioTab extends StatefulWidget {
   const CardioTab({
@@ -263,12 +264,37 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Map hidden for now.
-        Text(
-          "Cardio session",
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                "Cardio session",
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
+            ),
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CardioHistoryPage()),
+                );
+              },
+              icon: const Icon(Icons.history, size: 18),
+              label: const Text("History"),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.white.withOpacity(0.08),
+                side: BorderSide(color: Colors.white.withOpacity(0.2)),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: const StadiumBorder(),
+                textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 4),
         Text(

@@ -139,6 +139,7 @@ class TrainingService {
     required double avgPaceMinKm,
     required int durationSeconds,
     int? steps,
+    List<Map<String, dynamic>>? routePoints,
     DateTime? entryDate,
   }) async {
     final url = Uri.parse('$baseUrl/training/cardio/finish');
@@ -151,12 +152,49 @@ class TrainingService {
     if (steps != null) body['steps'] = steps;
     if (programExerciseId != null) body['program_exercise_id'] = programExerciseId;
     if (exerciseId != null) body['exercise_id'] = exerciseId;
+    if (routePoints != null) body['route_points'] = routePoints;
     if (entryDate != null) body['entry_date'] = _dateParam(entryDate);
     final res = await http.post(url, headers: headers, body: json.encode(body));
     await AccountStorage.handle401(res.statusCode);
     if (res.statusCode != 200) {
       throw Exception("Failed to save cardio session");
     }
+  }
+
+  static Future<List<Map<String, dynamic>>> fetchCardioHistory({
+    required int userId,
+    int limit = 100,
+  }) async {
+    final url = Uri.parse('$baseUrl/training/cardio/history/$userId?limit=$limit');
+    final headers = await AccountStorage.getAuthHeaders();
+    final res = await http.get(url, headers: headers);
+    await AccountStorage.handle401(res.statusCode);
+    if (res.statusCode != 200) {
+      throw Exception("Failed to load cardio history");
+    }
+    final data = json.decode(res.body);
+    if (data is List) {
+      return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    }
+    return const [];
+  }
+
+  static Future<Map<String, dynamic>> fetchCardioHistoryDetail({
+    required int userId,
+    required int sessionId,
+  }) async {
+    final url = Uri.parse('$baseUrl/training/cardio/history/$userId/detail/$sessionId');
+    final headers = await AccountStorage.getAuthHeaders();
+    final res = await http.get(url, headers: headers);
+    await AccountStorage.handle401(res.statusCode);
+    if (res.statusCode != 200) {
+      throw Exception("Failed to load cardio history detail");
+    }
+    final data = json.decode(res.body);
+    if (data is Map) {
+      return Map<String, dynamic>.from(data as Map);
+    }
+    return {};
   }
   static Future<List<dynamic>> getFeedbackQuestions(String exerciseName) async {
     try {

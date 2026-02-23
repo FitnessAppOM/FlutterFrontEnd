@@ -2502,7 +2502,11 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   Future<void> _loadUserInfo() async {
-    final storedAvatar = await AccountStorage.getAvatarUrl();
+    final storedAvatarRaw = await AccountStorage.getAvatarUrl();
+    final storedAvatar =
+        (storedAvatarRaw != null && storedAvatarRaw.trim().isNotEmpty)
+            ? storedAvatarRaw
+            : null;
     final storedAvatarPath = await AccountStorage.getAvatarPath();
     final storedName = await AccountStorage.getName();
     final userId = await AccountStorage.getUserId();

@@ -83,10 +83,15 @@ class _ProfilePageState extends State<ProfilePage> {
       }
       final data = await ProfileApi.fetchProfile(userId, lang: lang);
       if (!mounted) return;
+      final remoteAvatar = data["avatar_url"]?.toString();
+      final normalizedAvatar =
+          (remoteAvatar != null && remoteAvatar.trim().isNotEmpty)
+              ? remoteAvatar
+              : cachedAvatar;
       setState(() {
         _profile = data;
         _loading = false;
-        _avatarUrl = data["avatar_url"]?.toString() ?? cachedAvatar;
+        _avatarUrl = normalizedAvatar;
         _avatarPath = cachedAvatarPath;
       });
     } catch (e) {
