@@ -193,7 +193,7 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Row(
-                              children: [
+                          children: [
                                 Container(
                                   width: 42,
                                   height: 42,
@@ -243,8 +243,8 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                                     style: const TextStyle(color: Colors.white70, fontSize: 12),
                                   ),
                                 ),
-                              ],
-                            ),
+                          ],
+                        ),
                       if (!_hideMapForCapture) ...[
                         const SizedBox(height: 14),
                         ClipRRect(
@@ -315,12 +315,11 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                           ),
                         ],
                       ),
-                        ],
+                      ],
                     ),
                   ),
                 ),
               ),
-            ),
             ),
             const SizedBox(height: 16),
             SizedBox(
