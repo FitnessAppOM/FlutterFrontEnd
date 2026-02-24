@@ -182,15 +182,40 @@ class _CardioMapControlsState extends State<CardioMapControls> {
             alignment: Alignment.center,
             children: [
               if (!_running && _countdown == null)
-                GradientBubbleButton(
-                  icon: Icons.play_arrow_rounded,
-                  gradient: const LinearGradient(
-                    colors: [Color(0x33FFFFFF), Color(0x55D1E9FF)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  onTap: _handleStart,
-                )
+                (_showStats
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GradientBubbleButton(
+                            icon: Icons.play_arrow_rounded,
+                            gradient: const LinearGradient(
+                              colors: [Color(0x33FFFFFF), Color(0x55D1E9FF)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            onTap: _handleStart,
+                          ),
+                          const SizedBox(width: 12),
+                          GradientBubbleButton(
+                            icon: Icons.check_rounded,
+                            gradient: const LinearGradient(
+                              colors: [Color(0x33FFFFFF), Color(0x55D1E9FF)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            onTap: _handleFinish,
+                          ),
+                        ],
+                      )
+                    : GradientBubbleButton(
+                        icon: Icons.play_arrow_rounded,
+                        gradient: const LinearGradient(
+                          colors: [Color(0x33FFFFFF), Color(0x55D1E9FF)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        onTap: _handleStart,
+                      ))
               else if (_countdown != null)
                 GradientBubbleButton(
                   child: Text(

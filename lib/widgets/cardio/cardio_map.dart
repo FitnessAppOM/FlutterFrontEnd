@@ -111,6 +111,18 @@ class _CardioMapState extends State<CardioMap> {
             ),
             onMapCreated: (mapboxMap) {
               _map = mapboxMap;
+              try {
+                mapboxMap.gestures.updateSettings(
+                  GesturesSettings(
+                    scrollEnabled: true,
+                    pinchToZoomEnabled: true,
+                    rotateEnabled: true,
+                    pitchEnabled: true,
+                  ),
+                );
+              } catch (_) {
+                // Ignore if gestures settings are not available.
+              }
               _enableUserLocation();
               _recenterWithRetry();
             },

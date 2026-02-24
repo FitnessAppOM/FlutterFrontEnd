@@ -263,7 +263,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         final isCardio = _isCardioExercise();
         final distanceKm = isCardio ? (_cardioDistanceMeters / 1000.0) : null;
         final speedKmh = isCardio ? _cardioSpeedKmh : null;
-        final pace = speedKmh != null ? _paceMinPerKm(speedKmh) : null;
+        final pace = distanceKm != null
+            ? _paceMinPerKmFromDistance(distanceKm, seconds)
+            : (speedKmh != null ? _paceMinPerKm(speedKmh) : null);
         TrainingActivityService.updateSession(
           exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
           sets: sets,
@@ -304,6 +306,11 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     return 60.0 / speedKmh;
   }
 
+  double _paceMinPerKmFromDistance(double distanceKm, int durationSeconds) {
+    if (distanceKm <= 0.001 || durationSeconds <= 0) return 0;
+    return (durationSeconds / 60.0) / distanceKm;
+  }
+
   Future<void> _startExercise() async {
     if (started) {
       if (_paused) {
@@ -318,7 +325,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           reps: _currentReps(),
           seconds: seconds,
           distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
-          speedKmh: _isCardioExercise() ? _paceMinPerKm(_cardioSpeedKmh) : null,
+          speedKmh: _isCardioExercise()
+              ? _paceMinPerKmFromDistance(_cardioDistanceMeters / 1000.0, seconds)
+              : null,
         );
       }
       await _startCardioStepsTracking();
@@ -328,7 +337,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         reps: _currentReps(),
         seconds: seconds,
         distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
-        speedKmh: _isCardioExercise() ? _paceMinPerKm(_cardioSpeedKmh) : null,
+        speedKmh: _isCardioExercise()
+            ? _paceMinPerKmFromDistance(_cardioDistanceMeters / 1000.0, seconds)
+            : null,
       );
       return;
     }
@@ -346,7 +357,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       reps: _currentReps(),
       seconds: seconds,
       distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
-      speedKmh: _isCardioExercise() ? _paceMinPerKm(_cardioSpeedKmh) : null,
+      speedKmh: _isCardioExercise()
+          ? _paceMinPerKmFromDistance(_cardioDistanceMeters / 1000.0, seconds)
+          : null,
     );
     
     // Queue start action for sync (non-blocking)
@@ -468,7 +481,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         "program_exercise_id": programExerciseId,
         "exercise_id": exerciseId,
         "distance_km": _cardioDistanceMeters / 1000.0,
-        "avg_pace_min_km": _paceMinPerKm(_cardioSpeedKmh),
+        "avg_pace_min_km":
+            _paceMinPerKmFromDistance(_cardioDistanceMeters / 1000.0, seconds),
         "duration_seconds": seconds,
         "steps": _cardioSteps ?? 0,
         "route_points": _cardioRoute
@@ -481,7 +495,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           programExerciseId: programExerciseId,
           exerciseId: exerciseId,
           distanceKm: _cardioDistanceMeters / 1000.0,
-          avgPaceMinKm: _paceMinPerKm(_cardioSpeedKmh),
+          avgPaceMinKm:
+              _paceMinPerKmFromDistance(_cardioDistanceMeters / 1000.0, seconds),
           durationSeconds: seconds,
           steps: _cardioSteps ?? 0,
           routePoints: _cardioRoute
