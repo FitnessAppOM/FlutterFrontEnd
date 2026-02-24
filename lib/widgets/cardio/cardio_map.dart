@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
@@ -53,6 +55,7 @@ class _CardioMapState extends State<CardioMap> {
   double _speedKmh = 0;
   bool _tracking = false;
   double _movedMetersSinceStart = 0;
+  final List<_TimedPosition> _recentPositions = [];
 
   @override
   void dispose() {
@@ -105,6 +108,9 @@ class _CardioMapState extends State<CardioMap> {
         children: [
           MapWidget(
             key: const ValueKey("cardio-map"),
+            gestureRecognizers: {
+              Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer()),
+            },
             cameraOptions: CameraOptions(
               center: Point(coordinates: Position(2.3522, 48.8566)),
               zoom: 11.5,
@@ -238,13 +244,13 @@ class _CardioMapState extends State<CardioMap> {
 
   Future<void> _startTracking() async {
     if (_tracking || _disposed) return;
-    if (!widget.trackingEnabled) return;
     final ok = await _ensureLocationPermission();
     if (!ok || _disposed) return;
     _distanceMeters = 0;
     _speedKmh = 0;
     _movedMetersSinceStart = 0;
     _routePositions.clear();
+    _recentPositions.clear();
     _lastPosition = null;
     await _clearRouteLine();
     _tracking = true;
@@ -268,6 +274,7 @@ class _CardioMapState extends State<CardioMap> {
     _positionSub?.cancel();
     _positionSub = null;
     _clearRouteLine();
+    _recentPositions.clear();
     if (mounted) setState(() {});
   }
 
@@ -336,50 +343,34 @@ class _CardioMapState extends State<CardioMap> {
         _movedMetersSinceStart += segMeters;
       }
     }
-    // Compute speed: prefer sensor speed if reliable, otherwise derive from distance/time
-    final double sensorSpeedKmh =
-        position.speed >= 0 ? position.speed * 3.6 : 0.0;
-    final bool sensorReliable = position.speedAccuracy > 0
-        ? position.speedAccuracy <= 2.5
-        : position.accuracy <= 15;
-    double derivedSpeedKmh = 0;
-    if (last != null && _lastPositionTime != null) {
-      final dt = now.difference(_lastPositionTime!).inMilliseconds / 1000.0;
-      if (dt >= 1.2 && position.accuracy <= 25) {
-        final segMeters = geo.Geolocator.distanceBetween(
-          last.latitude,
-          last.longitude,
-          position.latitude,
-          position.longitude,
+    // Compute rolling 10-second speed window from recent positions.
+    _recentPositions.add(_TimedPosition(position: position, time: now));
+    final cutoff = now.subtract(const Duration(seconds: 10));
+    while (_recentPositions.length > 2 &&
+        _recentPositions.first.time.isBefore(cutoff)) {
+      _recentPositions.removeAt(0);
+    }
+    double windowMeters = 0;
+    if (_recentPositions.length >= 2) {
+      for (var i = 1; i < _recentPositions.length; i++) {
+        final a = _recentPositions[i - 1].position;
+        final b = _recentPositions[i].position;
+        windowMeters += geo.Geolocator.distanceBetween(
+          a.latitude,
+          a.longitude,
+          b.latitude,
+          b.longitude,
         );
-        derivedSpeedKmh = (segMeters / dt) * 3.6;
       }
     }
-    double nextSpeed = 0;
-    if (sensorReliable && sensorSpeedKmh >= 0.5) {
-      nextSpeed = sensorSpeedKmh;
-    } else {
-      nextSpeed = derivedSpeedKmh;
-    }
-    // Drop spikes when GPS accuracy is poor or movement is implausible
-    if (position.accuracy > 25 && nextSpeed > 6) {
-      nextSpeed = 0;
-    }
-    if (_lastPositionTime != null) {
-      final dt = now.difference(_lastPositionTime!).inMilliseconds / 1000.0;
-      if (dt > 0 && _lastPosition != null) {
-        final segMeters = geo.Geolocator.distanceBetween(
-          _lastPosition!.latitude,
-          _lastPosition!.longitude,
-          position.latitude,
-          position.longitude,
-        );
-        if (segMeters > 20 && dt < 2.0) {
-          // Large jump in short time -> GPS glitch
-          nextSpeed = 0;
-        }
-      }
-    }
+    final windowSeconds = _recentPositions.length >= 2
+        ? _recentPositions.last.time
+                .difference(_recentPositions.first.time)
+                .inMilliseconds /
+            1000.0
+        : 0.0;
+    double nextSpeed =
+        (windowSeconds > 0) ? (windowMeters / windowSeconds) * 3.6 : 0.0;
     if (nextSpeed.isNaN || nextSpeed < 0.2) nextSpeed = 0;
 
     // Avoid non-zero speed before user actually moves a bit
@@ -458,4 +449,11 @@ class CardioPoint {
   final double lng;
 
   const CardioPoint({required this.lat, required this.lng});
+}
+
+class _TimedPosition {
+  final geo.Position position;
+  final DateTime time;
+
+  const _TimedPosition({required this.position, required this.time});
 }

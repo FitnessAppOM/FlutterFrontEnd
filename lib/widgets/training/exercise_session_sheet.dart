@@ -44,6 +44,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   List<CardioPoint> _cardioRoute = const [];
   int? _cardioSteps;
   int? _cardioStartSteps;
+  int? _cardioRawSteps;
+  int? _cardioPausedAtSteps;
+  bool _adjustStepsOnResume = false;
   StreamSubscription<StepCount>? _stepSub;
   bool _showCardioStartButton = true;
   bool _paused = false;
@@ -285,6 +288,13 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     _stepSub?.cancel();
     _stepSub = Pedometer.stepCountStream.listen(
       (event) {
+        _cardioRawSteps = event.steps;
+        if (_adjustStepsOnResume && _cardioPausedAtSteps != null) {
+          final pausedDelta = event.steps - (_cardioPausedAtSteps ?? event.steps);
+          _cardioStartSteps = (_cardioStartSteps ?? event.steps) + pausedDelta;
+          _adjustStepsOnResume = false;
+          _cardioPausedAtSteps = null;
+        }
         _cardioStartSteps ??= event.steps;
         _cardioSteps = event.steps - (_cardioStartSteps ?? event.steps);
         if (mounted) setState(() {});
@@ -347,6 +357,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       started = true;
       _paused = false;
     });
+    _cardioStartSteps = null;
+    _cardioPausedAtSteps = null;
+    _adjustStepsOnResume = false;
     _sessionStartMs ??= DateTime.now().millisecondsSinceEpoch;
     _syncElapsedFromStart();
     _startTimer();
@@ -590,6 +603,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     if (!started) return;
     _syncElapsedFromStart();
     timer?.cancel();
+    _cardioPausedAtSteps = _cardioRawSteps;
+    _adjustStepsOnResume = true;
     _stopCardioStepsTracking();
     setState(() => _paused = true);
     _sessionStartMs = null;
@@ -723,6 +738,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           behavior: HitTestBehavior.opaque,
           onTap: () => FocusScope.of(context).unfocus(),
           child: SingleChildScrollView(
+            physics: isCardio ? const NeverScrollableScrollPhysics() : null,
             padding: contentPadding,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
