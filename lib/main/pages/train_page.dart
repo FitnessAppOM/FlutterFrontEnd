@@ -127,9 +127,11 @@ class _TrainPageState extends State<TrainPage> {
         for (final ex in exercises) {
           if (!mounted) return;
           if (ex is! Map<String, dynamic>) continue;
-          final animPath = ex['animation_rel_path'];
-          if (animPath is! String || animPath.trim().isEmpty) continue;
-          final url = "${TrainingService.baseUrl}/static/$animPath";
+          final url = TrainingService.animationImageUrl(
+            ex['animation_url']?.toString(),
+            ex['animation_rel_path']?.toString(),
+          );
+          if (url.isEmpty) continue;
           try {
             await precacheImage(NetworkImage(url), context);
           } catch (_) {

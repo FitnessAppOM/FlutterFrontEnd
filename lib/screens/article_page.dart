@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/news_item.dart';
 import '../theme/app_theme.dart';
-import '../config/base_url.dart';
 
 class ArticlePage extends StatelessWidget {
   final NewsItem item;
@@ -78,7 +77,7 @@ class ArticlePage extends StatelessWidget {
                       ],
                       if (item.contentUrl.isNotEmpty) ...[
                         const SizedBox(height: 14),
-                        _PdfButton(url: _fullUrl(item.contentUrl)),
+                        _PdfButton(url: item.contentUrl),
                       ],
                       const SizedBox(height: 18),
                       if (paragraphs.isEmpty)
@@ -112,10 +111,6 @@ class ArticlePage extends StatelessWidget {
     );
   }
 
-  String _fullUrl(String path) {
-    if (path.startsWith("http")) return path;
-    return "${ApiConfig.baseUrl}$path";
-  }
 }
 
 class _PdfButton extends StatelessWidget {

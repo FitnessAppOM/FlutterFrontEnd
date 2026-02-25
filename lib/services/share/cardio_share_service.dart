@@ -5,7 +5,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
+import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
@@ -57,7 +57,7 @@ class CardioShareService {
   }
 
   static Future<void> savePngBytes(Uint8List bytes, {String name = 'cardio_achievement'}) async {
-    await ImageGallerySaver.saveImage(bytes, quality: 100, name: name);
+    await ImageGallerySaverPlus.saveImage(bytes, quality: 100, name: name);
   }
 
   static Future<void> sharePngBytes(

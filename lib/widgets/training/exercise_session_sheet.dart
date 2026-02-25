@@ -720,7 +720,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         dotenv.isInitialized ? dotenv.maybeGet('MAPBOX_PUBLIC_KEY') : null;
     final hasToken = token != null && token.trim().isNotEmpty;
 
-    final String? animPath = widget.exercise['animation_rel_path'];
+    final animationUrl = (widget.exercise['animation_url'] ?? '').toString().trim();
+    final animPath = (widget.exercise['animation_rel_path'] ?? '').toString().trim();
     final String instructions = widget.exercise['instructions'] ?? '';
     final viewInsets = MediaQuery.of(context).viewInsets;
     final t = AppLocalizations.of(context);
@@ -748,8 +749,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       color: Colors.grey,
     );
 
-    if (!isCardio && animPath != null && animPath.isNotEmpty) {
-      final String gifUrl = "${TrainingService.baseUrl}/static/$animPath";
+    if (!isCardio && (animationUrl.isNotEmpty || animPath.isNotEmpty)) {
+      final String gifUrl =
+          TrainingService.animationImageUrl(animationUrl, animPath);
 
       animationWidget = SizedBox(
         height: 160,

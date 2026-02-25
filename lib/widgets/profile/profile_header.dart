@@ -5,7 +5,6 @@ import '../../localization/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../screens/welcome.dart';
 import '../../screens/settings_page.dart';
-import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
 import '../../services/core/notification_service.dart';
 
@@ -99,11 +98,6 @@ class ProfileHeader extends StatelessWidget {
     );
   }
 
-  String _fullUrl(String path) {
-    if (path.startsWith("http")) return path;
-    return "${ApiConfig.baseUrl}$path";
-  }
-
   ImageProvider? _resolveAvatarImage() {
     if (avatarPath != null && avatarPath!.isNotEmpty) {
       final file = File(avatarPath!);
@@ -112,7 +106,7 @@ class ProfileHeader extends StatelessWidget {
       }
     }
     if (avatarUrl != null && avatarUrl!.isNotEmpty) {
-      return NetworkImage(_fullUrl(avatarUrl!));
+      return NetworkImage(avatarUrl!);
     }
     return null;
   }

@@ -412,14 +412,18 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
     );
   }
 
-  Widget _thumbRelPath(String? animRelPath) {
-    final p = (animRelPath ?? '').trim();
-    if (p.isEmpty) return const Icon(Icons.fitness_center);
+  Widget _thumb({
+    String? animationUrl,
+    String? animRelPath,
+  }) {
+    final src =
+        TrainingService.animationImageUrl(animationUrl, animRelPath);
+    if (src.isEmpty) return const Icon(Icons.fitness_center);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
       child: Image.network(
-        "${TrainingService.baseUrl}/static/$p",
+        src,
         width: 54,
         height: 54,
         fit: BoxFit.cover,
@@ -475,12 +479,16 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
 
         final name = (s['exercise_name'] ?? '').toString().trim();
         final animRel = (s['animation_rel_path'] ?? '').toString().trim();
+        final animUrl = (s['animation_url'] ?? '').toString().trim();
         final id = _asInt(s['exercise_id']);
 
         final canTap = id != null && !submitting;
 
         return ListTile(
-          leading: _thumbRelPath(animRel),
+          leading: _thumb(
+            animationUrl: animUrl,
+            animRelPath: animRel,
+          ),
           title: Text(name.isEmpty ? "Unnamed exercise" : name),
           trailing: submitting
               ? const SizedBox(

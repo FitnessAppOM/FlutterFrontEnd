@@ -2648,7 +2648,7 @@ class DashboardPageState extends State<DashboardPage>
 
     if (_avatarUrl != null && _avatarUrl!.isNotEmpty) {
       return Image.network(
-        _fullUrl(_avatarUrl!),
+        _avatarUrl!,
         fit: BoxFit.cover,
         alignment: Alignment.center,
         errorBuilder: (_, __, ___) => const Icon(Icons.person, color: Colors.white),
@@ -2656,11 +2656,6 @@ class DashboardPageState extends State<DashboardPage>
     }
 
     return const Center(child: Icon(Icons.person, color: Colors.white));
-  }
-
-  String _fullUrl(String path) {
-    if (path.startsWith("http")) return path;
-    return "${ApiConfig.baseUrl}$path";
   }
 
   @override

@@ -8,6 +8,20 @@ import '../core/feedback_questions_storage.dart';
 class TrainingService {
   static String baseUrl = ApiConfig.baseUrl;
 
+  /// Prefer full [animationUrl] (e.g. GCS); else build /static/ URL from [animationRelPath] with encoded path.
+  static String animationImageUrl(String? animationUrl, String? animationRelPath) {
+    final direct = (animationUrl ?? '').trim();
+    if (direct.isNotEmpty &&
+        (direct.startsWith('http://') || direct.startsWith('https://'))) {
+      return direct;
+    }
+    final path = (animationRelPath ?? '').trim();
+    if (path.isEmpty) return '';
+    final encoded =
+        path.split('/').map((s) => Uri.encodeComponent(s)).join('/');
+    return '$baseUrl/static/$encoded';
+  }
+
   static String _dateParam(DateTime d) {
     final yyyy = d.year.toString().padLeft(4, '0');
     final mm = d.month.toString().padLeft(2, '0');

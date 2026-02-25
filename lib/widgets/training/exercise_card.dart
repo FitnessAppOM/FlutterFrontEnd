@@ -276,11 +276,14 @@ class ExerciseCard extends StatelessWidget {
                         width: 74,
                         height: 66,
                         color: Colors.black26,
-                        child: (exercise['animation_rel_path'] == null ||
-                                (exercise['animation_rel_path'] as String).isEmpty)
+                        child: ((((exercise['animation_url'] ?? '').toString().trim()).isEmpty) &&
+                                (((exercise['animation_rel_path'] ?? '').toString().trim()).isEmpty))
                             ? const Icon(Icons.fitness_center, color: Colors.white70)
                             : Image.network(
-                                "${TrainingService.baseUrl}/static/${exercise['animation_rel_path']}",
+                                TrainingService.animationImageUrl(
+                                  exercise['animation_url']?.toString(),
+                                  exercise['animation_rel_path']?.toString(),
+                                ),
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) =>
                                     const Icon(Icons.fitness_center, color: Colors.white70),
