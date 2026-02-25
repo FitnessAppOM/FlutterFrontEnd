@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
@@ -71,7 +72,12 @@ class _CardioMapState extends State<CardioMap> {
   void didUpdateWidget(covariant CardioMap oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.expanded && !oldWidget.expanded) {
-      _recenterWithRetry();
+      if (widget.trackingEnabled) {
+        _recenterWithRetry();
+      }
+    }
+    if (widget.trackingEnabled != oldWidget.trackingEnabled) {
+      _setLocationEnabled(widget.trackingEnabled);
     }
     if (!widget.trackingEnabled && oldWidget.trackingEnabled) {
       _pauseTracking();
@@ -132,8 +138,14 @@ class _CardioMapState extends State<CardioMap> {
               } catch (_) {
                 // Ignore if gestures settings are not available.
               }
-              _enableUserLocation();
-              _recenterWithRetry();
+              if (widget.trackingEnabled) {
+                _enableUserLocation();
+              } else {
+                _setLocationEnabled(false);
+              }
+              if (widget.trackingEnabled) {
+                _recenterWithRetry();
+              }
             },
           ),
           IgnorePointer(
@@ -197,12 +209,16 @@ class _CardioMapState extends State<CardioMap> {
   }
 
   Future<void> _enableUserLocation() async {
+    await _setLocationEnabled(true);
+  }
+
+  Future<void> _setLocationEnabled(bool enabled) async {
     final map = _map;
     if (map == null || _disposed) return;
     try {
       await map.location.updateSettings(
         LocationComponentSettings(
-          enabled: true,
+          enabled: enabled,
           pulsingEnabled: true,
           showAccuracyRing: false,
           puckBearingEnabled: true,
@@ -272,11 +288,35 @@ class _CardioMapState extends State<CardioMap> {
     await _clearRouteLine();
     _tracking = true;
     _positionSub?.cancel();
-    _positionSub = geo.Geolocator.getPositionStream(
-      locationSettings: const geo.LocationSettings(
+    final geo.LocationSettings settings;
+    if (Platform.isAndroid) {
+      settings = geo.AndroidSettings(
         accuracy: geo.LocationAccuracy.high,
         distanceFilter: 5,
-      ),
+        intervalDuration: const Duration(seconds: 1),
+        foregroundNotificationConfig: const geo.ForegroundNotificationConfig(
+          notificationTitle: "Cardio session running",
+          notificationText: "Tracking your route in the background",
+          enableWakeLock: true,
+          setOngoing: true,
+        ),
+      );
+    } else if (Platform.isIOS) {
+      settings = geo.AppleSettings(
+        accuracy: geo.LocationAccuracy.high,
+        distanceFilter: 5,
+        pauseLocationUpdatesAutomatically: false,
+        allowBackgroundLocationUpdates: true,
+        showBackgroundLocationIndicator: true,
+      );
+    } else {
+      settings = const geo.LocationSettings(
+        accuracy: geo.LocationAccuracy.high,
+        distanceFilter: 5,
+      );
+    }
+    _positionSub = geo.Geolocator.getPositionStream(
+      locationSettings: settings,
     ).listen(_onPositionUpdate);
   }
 
@@ -415,6 +455,7 @@ class _CardioMapState extends State<CardioMap> {
   }
 
   Future<void> _recenterWithRetry() async {
+    if (!widget.trackingEnabled) return;
     await Future.delayed(const Duration(milliseconds: 200));
     await _moveCameraToUser();
     await Future.delayed(const Duration(milliseconds: 800));

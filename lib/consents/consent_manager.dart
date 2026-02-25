@@ -136,6 +136,43 @@ class ConsentManager {
   }
 
   // ---------------------------------------------------------------------------
+  // LOCATION — Background (iOS/Android). Requires foreground permission first.
+  // ---------------------------------------------------------------------------
+  static Future<bool> requestBackgroundLocationJIT() async {
+    final ok = await requestLocationJIT();
+    if (!ok) return false;
+
+    if (Platform.isAndroid) {
+      final bgStatus = await Permission.locationAlways.status;
+      if (bgStatus.isGranted) return true;
+      final res = await Permission.locationAlways.request();
+      return res.isGranted;
+    }
+
+    if (Platform.isIOS) {
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.whileInUse) {
+        perm = await Geolocator.requestPermission();
+      }
+      return perm == LocationPermission.always;
+    }
+
+    return true;
+  }
+
+  static Future<bool> hasBackgroundLocationPermission() async {
+    if (Platform.isAndroid) {
+      final bg = await Permission.locationAlways.status;
+      return bg.isGranted;
+    }
+    if (Platform.isIOS) {
+      final perm = await Geolocator.checkPermission();
+      return perm == LocationPermission.always;
+    }
+    return true;
+  }
+
+  // ---------------------------------------------------------------------------
   // ACTIVITY RECOGNITION (Android steps via sensors; some devices require it)
   // Android 10+ requires runtime ACTIVITY_RECOGNITION.
   // ---------------------------------------------------------------------------

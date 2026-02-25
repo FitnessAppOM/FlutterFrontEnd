@@ -59,6 +59,8 @@
 	<string>Show your active training timer on the Lock Screen and Dynamic Island.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We use your location to show your position on the cardio map.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>We use your location to track cardio routes in the background.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>We use motion data to count steps during cardio sessions.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
@@ -73,6 +75,10 @@
 	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
 	<key>UISupportedInterfaceOrientations</key>

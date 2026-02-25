@@ -6,6 +6,7 @@ import '../../widgets/cardio/cardio_map.dart';
 import '../../services/training/cardio_session_queue.dart';
 import '../../services/training/training_activity_service.dart';
 import '../../widgets/cardio/cardio_resume_banner.dart';
+import '../../core/account_storage.dart';
 import 'cardio_history_page.dart';
 
 class CardioTab extends StatefulWidget {
@@ -178,6 +179,7 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     CardioSessionQueue.syncQueue();
     _loadPausedSession();
+    AccountStorage.trainingChange.addListener(_handleTrainingChange);
   }
 
   @override
@@ -194,8 +196,15 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    AccountStorage.trainingChange.removeListener(_handleTrainingChange);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _handleTrainingChange() {
+    if (!mounted) return;
+    setState(() => _showPausedOverlay = true);
+    _loadPausedSession();
   }
 
   @override
@@ -207,6 +216,7 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
 
   bool _hasPausedSession = false;
   String? _pausedExerciseName;
+  bool _showPausedOverlay = false;
 
   Future<void> _loadPausedSession() async {
     final session = await TrainingActivityService.getActiveSession();
@@ -215,6 +225,7 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
     setState(() {
       _hasPausedSession = paused;
       _pausedExerciseName = paused ? (session?['name'] as String?) : null;
+      _showPausedOverlay = false;
     });
   }
 
@@ -260,9 +271,11 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
     final List<Map<String, dynamic>> list =
         hasProgramCardio ? widget.exercises : List<Map<String, dynamic>>.from(_cardioLibrary);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Stack(
       children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
         // Map hidden for now.
         Row(
           children: [
@@ -342,6 +355,14 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
               ),
             );
           }).toList(),
+          ],
+        ),
+        if (_showPausedOverlay)
+          const Positioned.fill(
+            child: ColoredBox(
+              color: Colors.black54,
+            ),
+          ),
       ],
     );
   }

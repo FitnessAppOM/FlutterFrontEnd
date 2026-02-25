@@ -11,6 +11,7 @@ import '../../widgets/app_toast.dart';
 import '../../services/training/exercise_action_queue.dart';
 import '../../services/training/training_completion_storage.dart';
 import '../../services/training/training_activity_service.dart';
+import '../../consents/consent_manager.dart';
 import '../../core/account_storage.dart';
 import '../../widgets/cardio/cardio_map.dart';
 import '../../screens/training/cardio_achievement_sheet.dart';
@@ -353,6 +354,19 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       );
       return;
     }
+    if (_isCardioExercise()) {
+      final hasBg = await ConsentManager.hasBackgroundLocationPermission();
+      if (!hasBg) {
+        if (mounted) {
+          AppToast.show(
+            context,
+            "Allow 'Always' location to start cardio tracking.",
+            type: AppToastType.info,
+          );
+        }
+        return;
+      }
+    }
     setState(() {
       started = true;
       _paused = false;
@@ -605,6 +619,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   }
 
   void _pauseExercise() {
+    _pauseExerciseCore();
+  }
+
+  Future<void> _pauseExerciseCore() async {
     if (!started) return;
     _syncElapsedFromStart();
     timer?.cancel();
@@ -613,7 +631,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     _stopCardioStepsTracking();
     setState(() => _paused = true);
     _sessionStartMs = null;
-    TrainingActivityService.pauseSession(
+    await TrainingActivityService.pauseSession(
       exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
       sets: _currentSets(),
       reps: _currentReps(),
@@ -623,17 +641,23 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     );
   }
 
-  void _pauseAndClose() {
-    _pauseExercise();
-    Navigator.of(context).maybePop();
+  Future<void> _pauseAndClose() async {
+    await _pauseExerciseCore();
+    AccountStorage.notifyTrainingChanged();
+    if (mounted) {
+      Navigator.of(context).maybePop();
+    }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
-      timer?.cancel();
-      _stopCardioStepsTracking();
+      // Keep tracking alive for active cardio sessions (background updates).
+      if (!(started && !_paused && _isCardioExercise())) {
+        timer?.cancel();
+        _stopCardioStepsTracking();
+      }
       return;
     }
     if (state == AppLifecycleState.resumed) {
@@ -643,6 +667,14 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         if (_isCardioExercise()) {
           _startCardioStepsTracking();
         }
+        TrainingActivityService.updateSession(
+          exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
+          sets: _currentSets(),
+          reps: _currentReps(),
+          seconds: seconds,
+          distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
+          speedKmh: _isCardioExercise() ? _cardioSpeedKmh : null,
+        );
       }
     }
   }
@@ -773,6 +805,16 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                       onMetrics: (m) {
                         _cardioDistanceMeters = m.distanceMeters;
                         _cardioSpeedKmh = m.speedKmh;
+                        if (started && !_paused) {
+                          TrainingActivityService.updateSession(
+                            exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
+                            sets: _currentSets(),
+                            reps: _currentReps(),
+                            seconds: seconds,
+                            distanceKm: _cardioDistanceMeters / 1000.0,
+                            speedKmh: _cardioSpeedKmh,
+                          );
+                        }
                       },
                       onRoute: (route) {
                         _cardioRoute = route;

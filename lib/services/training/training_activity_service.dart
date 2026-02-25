@@ -7,6 +7,8 @@ import 'training_foreground_task_handler.dart';
 class TrainingActivityService {
   static bool _active = false;
   static int _lastUpdateSecond = -1;
+  static double? _lastDistanceKm;
+  static double? _lastSpeedKmh;
   static const MethodChannel _liveActivityChannel = MethodChannel('training_live_activity');
   static String? _liveActivitySessionId;
   static int? _sessionStartMs;
@@ -117,8 +119,12 @@ class TrainingActivityService {
     int? startMs,
   }) async {
     if (!_active) return;
-    if (seconds == _lastUpdateSecond) return;
+    final distanceChanged = _hasSignificantDelta(_lastDistanceKm, distanceKm, 0.01);
+    final speedChanged = _hasSignificantDelta(_lastSpeedKmh, speedKmh, 0.1);
+    if (seconds == _lastUpdateSecond && !distanceChanged && !speedChanged) return;
     _lastUpdateSecond = seconds;
+    _lastDistanceKm = distanceKm ?? _lastDistanceKm;
+    _lastSpeedKmh = speedKmh ?? _lastSpeedKmh;
     _sessionStartMs ??= startMs;
     await _setPaused(false, null);
     await _persistSession(
@@ -162,6 +168,8 @@ class TrainingActivityService {
     }
     _active = false;
     _lastUpdateSecond = -1;
+    _lastDistanceKm = null;
+    _lastSpeedKmh = null;
     _sessionStartMs = null;
     await _clearSession();
     if (Platform.isAndroid) {
@@ -182,6 +190,8 @@ class TrainingActivityService {
   }) async {
     if (!_active) return;
     _lastUpdateSecond = seconds;
+    _lastDistanceKm = distanceKm ?? _lastDistanceKm;
+    _lastSpeedKmh = speedKmh ?? _lastSpeedKmh;
     await _setPaused(true, seconds);
     await _persistSession(
       exerciseName: exerciseName,
@@ -228,6 +238,8 @@ class TrainingActivityService {
   }) async {
     if (!_active) return;
     _lastUpdateSecond = seconds;
+    _lastDistanceKm = distanceKm ?? _lastDistanceKm;
+    _lastSpeedKmh = speedKmh ?? _lastSpeedKmh;
     _sessionStartMs = DateTime.now().millisecondsSinceEpoch - (seconds * 1000);
     await _setPaused(false, null);
     await _persistSession(
@@ -389,5 +401,11 @@ class TrainingActivityService {
     await sp.remove(_kSessionSpeed);
     await sp.remove(_kSessionPaused);
     await sp.remove(_kSessionPausedSeconds);
+  }
+
+  static bool _hasSignificantDelta(double? prev, double? next, double threshold) {
+    if (next == null) return false;
+    if (prev == null) return true;
+    return (next - prev).abs() >= threshold;
   }
 }

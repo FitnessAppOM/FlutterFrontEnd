@@ -160,7 +160,7 @@ class _TrainPageState extends State<TrainPage> {
   }
 
   Future<void> _openCardioTab() async {
-    final ok = await ConsentManager.requestLocationJIT();
+    final ok = await ConsentManager.requestBackgroundLocationJIT();
     if (!ok && mounted) {
       AppToast.show(
         context,
