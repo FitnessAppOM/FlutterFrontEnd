@@ -14,6 +14,7 @@ import '../../services/training/training_activity_service.dart';
 import '../../consents/consent_manager.dart';
 import '../../core/account_storage.dart';
 import '../../widgets/cardio/cardio_map.dart';
+import '../../widgets/common/gradient_bubble_button.dart';
 import '../../screens/training/cardio_achievement_sheet.dart';
 import 'package:pedometer/pedometer.dart';
 
@@ -793,36 +794,45 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                 if (isCardio) ...[
                   SizedBox(
                     width: double.infinity,
-                    child: CardioMap(
-                      hasToken: hasToken,
-                      expanded: _cardioMapExpanded,
-                      height: MediaQuery.of(context).size.height * 0.9,
-                      steps: _cardioSteps,
-                      elapsedSeconds: seconds,
-                      running: started && !_paused,
-                      trackingEnabled: started,
-                      onClose: _pauseAndClose,
-                      onMetrics: (m) {
-                        _cardioDistanceMeters = m.distanceMeters;
-                        _cardioSpeedKmh = m.speedKmh;
-                        if (started && !_paused) {
-                          TrainingActivityService.updateSession(
-                            exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
-                            sets: _currentSets(),
-                            reps: _currentReps(),
-                            seconds: seconds,
-                            distanceKm: _cardioDistanceMeters / 1000.0,
-                            speedKmh: _cardioSpeedKmh,
-                          );
-                        }
-                      },
-                      onRoute: (route) {
-                        _cardioRoute = route;
-                      },
-                      onStart: _startExercise,
-                      onPause: _pauseExercise,
-                      onFinish: _finishExercise,
-                    ),
+                    child: (started || _paused)
+                        ? CardioMap(
+                            hasToken: hasToken,
+                            expanded: _cardioMapExpanded,
+                            height: MediaQuery.of(context).size.height * 0.9,
+                            steps: _cardioSteps,
+                            elapsedSeconds: seconds,
+                            running: started && !_paused,
+                            trackingEnabled: started,
+                            onClose: _pauseAndClose,
+                            onMetrics: (m) {
+                              _cardioDistanceMeters = m.distanceMeters;
+                              _cardioSpeedKmh = m.speedKmh;
+                              if (started && !_paused) {
+                                TrainingActivityService.updateSession(
+                                  exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
+                                  sets: _currentSets(),
+                                  reps: _currentReps(),
+                                  seconds: seconds,
+                                  distanceKm: _cardioDistanceMeters / 1000.0,
+                                  speedKmh: _cardioSpeedKmh,
+                                );
+                              }
+                            },
+                            onRoute: (route) {
+                              _cardioRoute = route;
+                            },
+                            onStart: _startExercise,
+                            onPause: _pauseExercise,
+                            onFinish: _finishExercise,
+                          )
+                        : Container(
+                            height: MediaQuery.of(context).size.height * 0.9,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0B0F1A),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: Colors.white.withOpacity(0.08)),
+                            ),
+                          ),
                   ),
                   // const SizedBox(height: 12),
                   // Text(
