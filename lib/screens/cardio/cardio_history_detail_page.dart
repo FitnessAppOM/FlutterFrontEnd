@@ -4,6 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../core/account_storage.dart';
 import '../../services/training/training_service.dart';
 import '../../widgets/cardio/cardio_map.dart';
+import '../../widgets/cardio/cardio_route_utils.dart';
 import '../training/cardio_achievement_sheet.dart';
 
 class CardioHistoryDetailPage extends StatefulWidget {
@@ -240,11 +241,13 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
 
   String _buildSnapshotUrl(List<CardioPoint> route) {
     final token = dotenv.maybeGet('MAPBOX_PUBLIC_KEY') ?? '';
-    if (token.isEmpty || route.isEmpty) return '';
-    final encoded = _encodePolyline(route);
-    final path = Uri.encodeComponent('path-5+2D7CFF-0.85($encoded)');
-    return 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/'
-        '$path/auto/900x540?access_token=$token';
+    return buildCardioSnapshotUrl(
+      token: token,
+      route: route,
+      width: 900,
+      height: 540,
+      padding: 70,
+    );
   }
 
   List<CardioPoint> _parseRoute(dynamic raw) {
@@ -324,30 +327,4 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
   }
 }
 
-String _encodePolyline(List<CardioPoint> points) {
-  int lastLat = 0;
-  int lastLng = 0;
-  final StringBuffer result = StringBuffer();
-
-  for (final p in points) {
-    final lat = (p.lat * 1e5).round();
-    final lng = (p.lng * 1e5).round();
-    final dLat = lat - lastLat;
-    final dLng = lng - lastLng;
-    _encodeValue(dLat, result);
-    _encodeValue(dLng, result);
-    lastLat = lat;
-    lastLng = lng;
-  }
-  return result.toString();
-}
-
-void _encodeValue(int value, StringBuffer out) {
-  int v = value < 0 ? ~(value << 1) : (value << 1);
-  while (v >= 0x20) {
-    final char = (0x20 | (v & 0x1f)) + 63;
-    out.writeCharCode(char);
-    v >>= 5;
-  }
-  out.writeCharCode(v + 63);
-}
+ 

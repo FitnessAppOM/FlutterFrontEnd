@@ -7,6 +7,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../services/share/cardio_share_service.dart';
 
 import '../../widgets/cardio/cardio_map.dart';
+import '../../widgets/cardio/cardio_route_utils.dart';
 
 class CardioAchievementSheet extends StatefulWidget {
   const CardioAchievementSheet({
@@ -53,11 +54,13 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
 
   String _buildSnapshotUrl() {
     final token = dotenv.maybeGet('MAPBOX_PUBLIC_KEY') ?? '';
-    if (token.isEmpty || widget.route.isEmpty) return '';
-    final encoded = _encodePolyline(widget.route);
-    final path = Uri.encodeComponent('path-5+2D7CFF-0.85($encoded)');
-    return 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/'
-        '$path/auto/800x480?access_token=$token';
+    return buildCardioSnapshotUrl(
+      token: token,
+      route: widget.route,
+      width: 800,
+      height: 480,
+      padding: 60,
+    );
   }
 
   Future<void> _saveScreenshot() async {
@@ -172,13 +175,13 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                 borderRadius: BorderRadius.circular(99),
               ),
             ),
-            RepaintBoundary(
-              key: _captureKey,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(22),
-                child: Container(
-                  color: const Color(0xFF0B0F1A),
-                  padding: const EdgeInsets.all(6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(22),
+              child: Container(
+                color: const Color(0xFF0B0F1A),
+                padding: const EdgeInsets.all(6),
+                child: RepaintBoundary(
+                  key: _captureKey,
                   child: Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
@@ -405,30 +408,4 @@ class _MetricChip extends StatelessWidget {
   }
 }
 
-String _encodePolyline(List<CardioPoint> points) {
-  int lastLat = 0;
-  int lastLng = 0;
-  final StringBuffer result = StringBuffer();
-
-  for (final p in points) {
-    final lat = (p.lat * 1e5).round();
-    final lng = (p.lng * 1e5).round();
-    final dLat = lat - lastLat;
-    final dLng = lng - lastLng;
-    _encodeValue(dLat, result);
-    _encodeValue(dLng, result);
-    lastLat = lat;
-    lastLng = lng;
-  }
-  return result.toString();
-}
-
-void _encodeValue(int value, StringBuffer out) {
-  int v = value < 0 ? ~(value << 1) : (value << 1);
-  while (v >= 0x20) {
-    final char = (0x20 | (v & 0x1f)) + 63;
-    out.writeCharCode(char);
-    v >>= 5;
-  }
-  out.writeCharCode(v + 63);
-}
+ 

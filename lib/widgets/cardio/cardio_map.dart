@@ -60,6 +60,7 @@ class _CardioMapState extends State<CardioMap> {
   bool _tracking = false;
   double _movedMetersSinceStart = 0;
   final List<_TimedPosition> _recentPositions = [];
+  bool _hasTrackingData = false;
 
   @override
   void dispose() {
@@ -264,13 +265,12 @@ class _CardioMapState extends State<CardioMap> {
     if (_tracking || _disposed) return;
     final ok = await _ensureLocationPermission();
     if (!ok || _disposed) return;
-    _distanceMeters = 0;
-    _speedKmh = 0;
-    _movedMetersSinceStart = 0;
-    _routePositions.clear();
-    _recentPositions.clear();
-    _lastPosition = null;
-    await _clearRouteLine();
+    final elapsed = widget.elapsedSeconds ?? 0;
+    final isResume = elapsed > 0 || _hasTrackingData;
+    if (!isResume) {
+      _resetTrackingState();
+      await _clearRouteLine();
+    }
     _tracking = true;
     _positionSub?.cancel();
     final geo.LocationSettings settings;
@@ -315,8 +315,8 @@ class _CardioMapState extends State<CardioMap> {
     _tracking = false;
     _positionSub?.cancel();
     _positionSub = null;
+    _resetTrackingState();
     _clearRouteLine();
-    _recentPositions.clear();
     if (mounted) setState(() {});
   }
 
@@ -428,6 +428,7 @@ class _CardioMapState extends State<CardioMap> {
     _lastPositionTime = now;
     _routePositions.add(Position(position.longitude, position.latitude));
     _updateRouteLine();
+    _hasTrackingData = true;
     widget.onMetrics?.call(
       CardioMetrics(distanceMeters: _distanceMeters, speedKmh: _speedKmh),
     );
@@ -437,6 +438,17 @@ class _CardioMapState extends State<CardioMap> {
     if (mounted) {
       setState(() {});
     }
+  }
+
+  void _resetTrackingState() {
+    _distanceMeters = 0;
+    _speedKmh = 0;
+    _movedMetersSinceStart = 0;
+    _routePositions.clear();
+    _recentPositions.clear();
+    _lastPosition = null;
+    _lastPositionTime = null;
+    _hasTrackingData = false;
   }
 
   Future<void> _recenterWithRetry() async {
