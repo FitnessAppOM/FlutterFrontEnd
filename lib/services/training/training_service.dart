@@ -8,18 +8,15 @@ import '../core/feedback_questions_storage.dart';
 class TrainingService {
   static String baseUrl = ApiConfig.baseUrl;
 
-  /// Prefer full [animationUrl] (e.g. GCS); else build /static/ URL from [animationRelPath] with encoded path.
+  /// Prefer full [animationUrl] (e.g. GCS). If missing, return empty string
+  /// and let the UI show a placeholder instead of falling back to local /static.
   static String animationImageUrl(String? animationUrl, String? animationRelPath) {
     final direct = (animationUrl ?? '').trim();
     if (direct.isNotEmpty &&
         (direct.startsWith('http://') || direct.startsWith('https://'))) {
       return direct;
     }
-    final path = (animationRelPath ?? '').trim();
-    if (path.isEmpty) return '';
-    final encoded =
-        path.split('/').map((s) => Uri.encodeComponent(s)).join('/');
-    return '$baseUrl/static/$encoded';
+    return '';
   }
 
   static String _dateParam(DateTime d) {
