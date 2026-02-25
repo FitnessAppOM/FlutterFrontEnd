@@ -48,6 +48,456 @@ class DietPageState extends State<DietPage> {
   DialogRoute<bool>? _dietRecommendationDialogRoute;
 
   int _modeIndex = 0; // 0 = Rest, 1 = Training
+  bool _editingTargets = false;
+
+  Future<void> _openEditTargetsSheet() async {
+    if (_targets == null || _editingTargets) return;
+    final t = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    final restCalories = _asInt(_targets?["rest_calories"]);
+    final restP = _asInt(_targets?["rest_protein_g"]);
+    final restC = _asInt(_targets?["rest_carbs_g"]);
+    final restF = _asInt(_targets?["rest_fat_g"]);
+
+    final days = _trainingDays;
+
+    final restCalCtrl = TextEditingController(text: restCalories > 0 ? "$restCalories" : "");
+    final restPCtrl = TextEditingController(text: restP > 0 ? "$restP" : "");
+    final restCCtrl = TextEditingController(text: restC > 0 ? "$restC" : "");
+    final restFCtrl = TextEditingController(text: restF > 0 ? "$restF" : "");
+
+    final reasonCtrl = TextEditingController();
+    String? reasonCode;
+
+    setState(() {
+      _editingTargets = true;
+    });
+
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: cs.surface,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (ctx) {
+          final viewInsets = MediaQuery.of(ctx).viewInsets;
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 16,
+              bottom: 16 + viewInsets.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        t.translate("diet_edit_targets"),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white70),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  t.translate("diet_rest_day"),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: restCalCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: t.translate("diet_kcal_label"),
+                          labelStyle: const TextStyle(color: Colors.white70),
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: restPCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: "P (g)",
+                          labelStyle: TextStyle(color: Colors.white70),
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: restCCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: "C (g)",
+                          labelStyle: TextStyle(color: Colors.white70),
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: restFCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: "F (g)",
+                          labelStyle: TextStyle(color: Colors.white70),
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (days.isNotEmpty) ...[
+                  Text(
+                    t.translate("diet_training_day"),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  for (final d in days) ...[
+                    const SizedBox(height: 8),
+                    _buildTrainingDayTargetRow(theme, d),
+                  ],
+                  const SizedBox(height: 16),
+                ],
+                Text(
+                  t.translate("diet_edit_reason_title"),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _reasonChip(
+                      code: "more_hungry",
+                      label: t.translate("diet_edit_reason_more_hungry"),
+                      current: reasonCode,
+                      onChanged: (c) {
+                        reasonCode = c;
+                      },
+                    ),
+                    _reasonChip(
+                      code: "less_hungry",
+                      label: t.translate("diet_edit_reason_less_hungry"),
+                      current: reasonCode,
+                      onChanged: (c) {
+                        reasonCode = c;
+                      },
+                    ),
+                    _reasonChip(
+                      code: "performance",
+                      label: t.translate("diet_edit_reason_performance"),
+                      current: reasonCode,
+                      onChanged: (c) {
+                        reasonCode = c;
+                      },
+                    ),
+                    _reasonChip(
+                      code: "body_comp",
+                      label: t.translate("diet_edit_reason_body_comp"),
+                      current: reasonCode,
+                      onChanged: (c) {
+                        reasonCode = c;
+                      },
+                    ),
+                    _reasonChip(
+                      code: "doctor_order",
+                      label: t.translate("diet_edit_reason_doctor"),
+                      current: reasonCode,
+                      onChanged: (c) {
+                        reasonCode = c;
+                      },
+                    ),
+                    _reasonChip(
+                      code: "other",
+                      label: t.translate("diet_edit_reason_other"),
+                      current: reasonCode,
+                      onChanged: (c) {
+                        reasonCode = c;
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: reasonCtrl,
+                  maxLines: 3,
+                  maxLength: 500,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: t.translate("diet_edit_reason_hint"),
+                    labelStyle: const TextStyle(color: Colors.white70),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white70,
+                        ),
+                        child: Text(t.translate("diet_edit_targets_cancel")),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          await _submitEditedTargets(
+                            restCalCtrl: restCalCtrl,
+                            restPCtrl: restPCtrl,
+                            restCCtrl: restCCtrl,
+                            restFCtrl: restFCtrl,
+                            reasonCode: reasonCode,
+                            reasonText: reasonCtrl.text,
+                          );
+                          if (mounted) {
+                            Navigator.of(ctx).pop();
+                          }
+                        },
+                        child: Text(t.translate("diet_edit_targets_save")),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    } finally {
+      restCalCtrl.dispose();
+      restPCtrl.dispose();
+      restCCtrl.dispose();
+      restFCtrl.dispose();
+      reasonCtrl.dispose();
+      if (mounted) {
+        setState(() {
+          _editingTargets = false;
+        });
+      } else {
+        _editingTargets = false;
+      }
+    }
+  }
+
+  Widget _buildTrainingDayTargetRow(ThemeData theme, Map<String, dynamic> day) {
+    final t = AppLocalizations.of(context);
+    final label = _asString(day["day_label"]);
+    final dayId = _asInt(day["day_id"], fallback: 0);
+    final cal = _asInt(day["train_calories"]);
+    final p = _asInt(day["train_protein_g"]);
+    final c = _asInt(day["train_carbs_g"]);
+    final f = _asInt(day["train_fat_g"]);
+
+    final calCtrl = TextEditingController(text: cal > 0 ? "$cal" : "");
+    final pCtrl = TextEditingController(text: p > 0 ? "$p" : "");
+    final cCtrl = TextEditingController(text: c > 0 ? "$c" : "");
+    final fCtrl = TextEditingController(text: f > 0 ? "$f" : "");
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.isNotEmpty ? label : "${t.translate("diet_day")} $dayId",
+          style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: calCtrl,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: t.translate("diet_kcal_label"),
+                  labelStyle: const TextStyle(color: Colors.white70),
+                ),
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: pCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: "P (g)",
+                  labelStyle: TextStyle(color: Colors.white70),
+                ),
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: cCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: "C (g)",
+                  labelStyle: TextStyle(color: Colors.white70),
+                ),
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: fCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: "F (g)",
+                  labelStyle: TextStyle(color: Colors.white70),
+                ),
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _reasonChip({
+    required String code,
+    required String label,
+    required String? current,
+    required void Function(String?) onChanged,
+  }) {
+    final selected = current == code;
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onChanged(selected ? null : code),
+    );
+  }
+
+  Future<void> _submitEditedTargets({
+    required TextEditingController restCalCtrl,
+    required TextEditingController restPCtrl,
+    required TextEditingController restCCtrl,
+    required TextEditingController restFCtrl,
+    String? reasonCode,
+    String? reasonText,
+  }) async {
+    final t = AppLocalizations.of(context);
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null) return;
+
+      Map<String, dynamic>? rest;
+      int? parseInt(String s) {
+        final trimmed = s.trim();
+        if (trimmed.isEmpty) return null;
+        return int.tryParse(trimmed);
+      }
+
+      final rCal = parseInt(restCalCtrl.text);
+      final rP = parseInt(restPCtrl.text);
+      final rC = parseInt(restCCtrl.text);
+      final rF = parseInt(restFCtrl.text);
+      if (rCal != null || rP != null || rC != null || rF != null) {
+        rest = {
+          if (rCal != null) "calories": rCal,
+          if (rP != null) "protein_g": rP,
+          if (rC != null) "carbs_g": rC,
+          if (rF != null) "fat_g": rF,
+        };
+      }
+
+      final days = _trainingDays;
+      final trainingDays = <Map<String, dynamic>>[];
+      for (final d in days) {
+        final dayId = _asInt(d["day_id"], fallback: 0);
+        if (dayId <= 0) continue;
+        // Re-read from current targets so we don't lose values; the text fields are only for overrides.
+        final cal = parseInt("${d["train_calories"] ?? ""}");
+        final p = parseInt("${d["train_protein_g"] ?? ""}");
+        final c = parseInt("${d["train_carbs_g"] ?? ""}");
+        final f = parseInt("${d["train_fat_g"] ?? ""}");
+        final patch = <String, dynamic>{"day_id": dayId};
+        if (cal != null) patch["calories"] = cal;
+        if (p != null) patch["protein_g"] = p;
+        if (c != null) patch["carbs_g"] = c;
+        if (f != null) patch["fat_g"] = f;
+        if (patch.length > 1) {
+          trainingDays.add(patch);
+        }
+      }
+
+      if (rest == null && trainingDays.isEmpty && (reasonCode == null || reasonCode.isEmpty)) {
+        return;
+      }
+
+      final updated = await DietService.patchTargets(
+        userId: userId,
+        rest: rest,
+        trainingDays: trainingDays.isEmpty ? null : trainingDays,
+        reasonCode: reasonCode,
+        reasonText: reasonText,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _targets = updated;
+      });
+
+      // Also refresh day summary / remaining via bootstrap or day-summary
+      await _loadMeals(clearExisting: true);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(t.translate("diet_edit_targets_save"))),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst("Exception: ", ""))),
+      );
+    }
+  }
   int _selectedTrainingDayIndex = 0;
   /// When true, user completed an exercise today so we force "training day" and disable switching to "rest day".
   bool _trainDayLockedByExercise = false;
@@ -1305,6 +1755,13 @@ class DietPageState extends State<DietPage> {
                           tooltip: t.translate("diet_refresh"),
                           onPressed: _loading ? null : () => _loadTargets(forceNetwork: true),
                           icon: const Icon(Icons.refresh, color: Colors.white70),
+                        ),
+                        IconButton(
+                          tooltip: t.translate("diet_edit_targets"),
+                          onPressed: _loading || _targets == null || DietRegenerationFlag.isRegenerating
+                              ? null
+                              : () => _openEditTargetsSheet(),
+                          icon: const Icon(Icons.tune, color: Colors.white70),
                         ),
                       ],
                     ),

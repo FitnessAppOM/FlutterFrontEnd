@@ -75,6 +75,62 @@ class DietService {
     return targets;
   }
 
+  /// Patch diet targets (rest and/or training days) with optional reason.
+  /// Mirrors PATCH /diet/targets/{user_id} and returns updated targets JSON.
+  static Future<Map<String, dynamic>> patchTargets({
+    required int userId,
+    Map<String, dynamic>? rest,
+    List<Map<String, dynamic>>? trainingDays,
+    String? reasonCode,
+    String? reasonText,
+  }) async {
+    final url = Uri.parse('$baseUrl/diet/targets/$userId');
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
+
+    final body = <String, dynamic>{};
+    if (rest != null) body['rest'] = rest;
+    if (trainingDays != null) body['training_days'] = trainingDays;
+    if (reasonCode != null && reasonCode.trim().isNotEmpty) {
+      body['reason_code'] = reasonCode.trim();
+    }
+    if (reasonText != null && reasonText.trim().isNotEmpty) {
+      body['reason_text'] = reasonText.trim();
+    }
+
+    final response = await http.patch(
+      url,
+      headers: headers,
+      body: json.encode(body),
+    );
+
+    await AccountStorage.handle401(response.statusCode);
+    if (response.statusCode != 200) {
+      final raw = response.body;
+      try {
+        final parsed = raw.isNotEmpty ? json.decode(raw) : {};
+        final msg = (parsed is Map && parsed['detail'] != null)
+            ? parsed['detail'].toString()
+            : 'Failed to update diet targets';
+        throw Exception(msg);
+      } catch (_) {
+        throw Exception('Failed to update diet targets (${response.statusCode})');
+      }
+    }
+
+    final updated = response.body.isNotEmpty
+        ? (json.decode(response.body) as Map<String, dynamic>)
+        : <String, dynamic>{};
+    try {
+      await DietTargetsStorage.saveTargets(updated);
+    } catch (_) {
+      // Ignore cache errors
+    }
+    return updated;
+  }
+
   /// Fetch first-render diet payload for a date:
   /// {
   ///   "targets": {...},
