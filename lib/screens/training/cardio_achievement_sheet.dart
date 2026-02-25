@@ -148,8 +148,7 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
   @override
   Widget build(BuildContext context) {
     final snapshotUrl = _buildSnapshotUrl();
-    final hasMap = snapshotUrl.isNotEmpty;
-    if (!hasMap && !_snapshotReady) {
+    if (snapshotUrl.isEmpty && !_snapshotReady) {
       _snapshotReady = true;
     }
 
@@ -247,31 +246,41 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                                 ),
                           ],
                         ),
-                      if (!_hideMapForCapture && hasMap) ...[
+                      if (!_hideMapForCapture) ...[
                         const SizedBox(height: 14),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(16),
-                          child: Image.network(
-                            snapshotUrl,
-                            height: 220,
-                            fit: BoxFit.cover,
-                            loadingBuilder: (context, child, progress) {
-                              if (progress == null) {
-                                if (!_snapshotReady) {
-                                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                                    if (mounted) setState(() => _snapshotReady = true);
-                                  });
-                                }
-                                return child;
-                              }
-                              return Container(
-                                height: 220,
-                                color: Colors.white10,
-                                alignment: Alignment.center,
-                                child: const CircularProgressIndicator(),
-                              );
-                            },
-                          ),
+                          child: snapshotUrl.isEmpty
+                              ? Container(
+                                  height: 220,
+                                  color: Colors.white12,
+                                  alignment: Alignment.center,
+                                  child: const Text(
+                                    'Route unavailable',
+                                    style: TextStyle(color: Colors.white70),
+                                  ),
+                                )
+                              : Image.network(
+                                  snapshotUrl,
+                                  height: 220,
+                                  fit: BoxFit.cover,
+                                  loadingBuilder: (context, child, progress) {
+                                    if (progress == null) {
+                                      if (!_snapshotReady) {
+                                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                                          if (mounted) setState(() => _snapshotReady = true);
+                                        });
+                                      }
+                                      return child;
+                                    }
+                                    return Container(
+                                      height: 220,
+                                      color: Colors.white10,
+                                      alignment: Alignment.center,
+                                      child: const CircularProgressIndicator(),
+                                    );
+                                  },
+                                ),
                         ),
                         const SizedBox(height: 14),
                       ],
