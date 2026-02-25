@@ -532,11 +532,15 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       );
     }
 
-    // Show cardio achievement sheet before feedback (non-blocking if not cardio)
+    // For cardio: close this sheet, then show achievement sheet from root.
     if (isCardio && mounted) {
       final name = await AccountStorage.getName();
+      final rootNav = Navigator.of(context, rootNavigator: true);
+      final rootContext = rootNav.context;
+      Navigator.of(context).maybePop(); // close ExerciseSessionSheet
+      await Future.delayed(const Duration(milliseconds: 50));
       await showModalBottomSheet(
-        context: context,
+        context: rootContext,
         isDismissible: true,
         enableDrag: true,
         isScrollControlled: true,
@@ -551,6 +555,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           userName: name,
         ),
       );
+      return;
     }
 
     // Record that user completed an exercise today (diet page can auto-set "training day" and lock "rest day")
@@ -616,6 +621,11 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
       speedKmh: _isCardioExercise() ? _cardioSpeedKmh : null,
     );
+  }
+
+  void _pauseAndClose() {
+    _pauseExercise();
+    Navigator.of(context).maybePop();
   }
 
   @override
@@ -726,23 +736,28 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     }
 
     return SafeArea(
-      child: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF0D1325), Color(0xFF0B0F1A)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => FocusScope.of(context).unfocus(),
-          child: SingleChildScrollView(
-            physics: isCardio ? const NeverScrollableScrollPhysics() : null,
-            padding: contentPadding,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+      bottom: false,
+      child: Stack(
+        children: [
+          IgnorePointer(
+            ignoring: submitting,
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF0D1325), Color(0xFF0B0F1A)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => FocusScope.of(context).unfocus(),
+                child: SingleChildScrollView(
+                  physics: isCardio ? const NeverScrollableScrollPhysics() : null,
+                  padding: contentPadding,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
                 if (isCardio) ...[
                   SizedBox(
                     width: double.infinity,
@@ -754,6 +769,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                       elapsedSeconds: seconds,
                       running: started && !_paused,
                       trackingEnabled: started,
+                      onClose: _pauseAndClose,
                       onMetrics: (m) {
                         _cardioDistanceMeters = m.distanceMeters;
                         _cardioSpeedKmh = m.speedKmh;
@@ -1016,10 +1032,19 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                   ),
                 ),
                 ],
-              ],
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
+          if (submitting)
+            const Positioned.fill(
+              child: AbsorbPointer(
+                child: ColoredBox(color: Colors.transparent),
+              ),
+            ),
+        ],
       ),
     );
   }

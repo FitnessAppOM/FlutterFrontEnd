@@ -148,11 +148,13 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
   @override
   Widget build(BuildContext context) {
     final snapshotUrl = _buildSnapshotUrl();
-    if (snapshotUrl.isEmpty && !_snapshotReady) {
+    final hasMap = snapshotUrl.isNotEmpty;
+    if (!hasMap && !_snapshotReady) {
       _snapshotReady = true;
     }
 
     return SafeArea(
+      bottom: false,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: const BoxDecoration(
@@ -245,41 +247,31 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                                 ),
                           ],
                         ),
-                      if (!_hideMapForCapture) ...[
+                      if (!_hideMapForCapture && hasMap) ...[
                         const SizedBox(height: 14),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(16),
-                          child: snapshotUrl.isEmpty
-                              ? Container(
-                                  height: 220,
-                                  color: Colors.white12,
-                                  alignment: Alignment.center,
-                                  child: const Text(
-                                    'Route unavailable',
-                                    style: TextStyle(color: Colors.white70),
-                                  ),
-                                )
-                              : Image.network(
-                                  snapshotUrl,
-                                  height: 220,
-                                  fit: BoxFit.cover,
-                                  loadingBuilder: (context, child, progress) {
-                                    if (progress == null) {
-                                      if (!_snapshotReady) {
-                                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                                          if (mounted) setState(() => _snapshotReady = true);
-                                        });
-                                      }
-                                      return child;
-                                    }
-                                    return Container(
-                                      height: 220,
-                                      color: Colors.white10,
-                                      alignment: Alignment.center,
-                                      child: const CircularProgressIndicator(),
-                                    );
-                                  },
-                                ),
+                          child: Image.network(
+                            snapshotUrl,
+                            height: 220,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, progress) {
+                              if (progress == null) {
+                                if (!_snapshotReady) {
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    if (mounted) setState(() => _snapshotReady = true);
+                                  });
+                                }
+                                return child;
+                              }
+                              return Container(
+                                height: 220,
+                                color: Colors.white10,
+                                alignment: Alignment.center,
+                                child: const CircularProgressIndicator(),
+                              );
+                            },
+                          ),
                         ),
                         const SizedBox(height: 14),
                       ],

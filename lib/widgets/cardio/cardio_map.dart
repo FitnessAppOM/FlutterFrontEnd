@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart' as geo;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import '../../theme/app_theme.dart';
+import '../common/gradient_bubble_button.dart';
 import 'cardio_map_controls.dart';
 
 class CardioMap extends StatefulWidget {
@@ -17,6 +18,7 @@ class CardioMap extends StatefulWidget {
     this.onStart,
     this.onPause,
     this.onFinish,
+    this.onClose,
     this.onMetrics,
     this.onRoute,
     this.steps,
@@ -31,6 +33,7 @@ class CardioMap extends StatefulWidget {
   final VoidCallback? onStart;
   final VoidCallback? onPause;
   final VoidCallback? onFinish;
+  final VoidCallback? onClose;
   final ValueChanged<CardioMetrics>? onMetrics;
   final ValueChanged<List<CardioPoint>>? onRoute;
   final int? steps;
@@ -172,6 +175,20 @@ class _CardioMapState extends State<CardioMap> {
                 widget.onFinish?.call();
                 _finishTracking();
               },
+            ),
+          ),
+          Positioned(
+            top: 12,
+            right: 12,
+            child: GradientBubbleButton(
+              icon: Icons.close_rounded,
+              size: 42,
+              gradient: const LinearGradient(
+                colors: [Color(0x33FFFFFF), Color(0x55D1E9FF)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              onTap: widget.onClose,
             ),
           ),
         ],
