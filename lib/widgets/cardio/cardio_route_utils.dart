@@ -1,5 +1,22 @@
 import 'cardio_map.dart';
 
+const int kCardioSnapshotWidth = 900;
+const int kCardioSnapshotHeight = 540;
+const int kCardioSnapshotPadding = 70;
+
+String buildCardioSnapshotUrlDefault({
+  required String token,
+  required List<CardioPoint> route,
+}) {
+  return buildCardioSnapshotUrl(
+    token: token,
+    route: route,
+    width: kCardioSnapshotWidth,
+    height: kCardioSnapshotHeight,
+    padding: kCardioSnapshotPadding,
+  );
+}
+
 String buildCardioSnapshotUrl({
   required String token,
   required List<CardioPoint> route,
@@ -13,12 +30,25 @@ String buildCardioSnapshotUrl({
 }) {
   if (token.isEmpty || route.isEmpty) return '';
   final safePadding = _clampPadding(padding, width, height);
+  final start = route.first;
+  final end = route.last;
+  final startMarker = _markerOverlay(
+    label: 's',
+    color: '00C853',
+    point: start,
+  );
+  final endMarker = _markerOverlay(
+    label: 'f',
+    color: '111111',
+    point: end,
+  );
   final encoded = encodeCardioPolyline(sampleCardioRoute(route));
   final path = Uri.encodeComponent(
     'path-$lineWidth+$lineColor-$lineOpacity($encoded)',
   );
+  final overlays = <String>[startMarker, endMarker, path].join(',');
   return 'https://api.mapbox.com/styles/v1/$style/static/'
-      '$path/auto/${width}x$height?access_token=$token&padding=$safePadding';
+      '$overlays/auto/${width}x$height?access_token=$token&padding=$safePadding';
 }
 
 List<CardioPoint> sampleCardioRoute(List<CardioPoint> route) {
@@ -80,4 +110,21 @@ int _clampPadding(int padding, int width, int height) {
   final maxPad = maxPadX < maxPadY ? maxPadX : maxPadY;
   if (padding > maxPad) return maxPad;
   return padding;
+}
+
+String _markerOverlay({
+  required String? label,
+  required String color,
+  required CardioPoint point,
+}) {
+  final lng = _formatCoord(point.lng);
+  final lat = _formatCoord(point.lat);
+  final marker = label == null || label.trim().isEmpty
+      ? 'pin-s'
+      : 'pin-s-${label.toLowerCase()}';
+  return '$marker+$color($lng,$lat)';
+}
+
+String _formatCoord(double value) {
+  return value.toStringAsFixed(6);
 }

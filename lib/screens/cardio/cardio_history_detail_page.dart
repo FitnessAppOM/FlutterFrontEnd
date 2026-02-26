@@ -101,6 +101,7 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
                   steps: steps,
                   route: route,
                   userName: null,
+                  snapshotUrl: snapshotUrl,
                 ),
               );
             },
@@ -241,12 +242,9 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
 
   String _buildSnapshotUrl(List<CardioPoint> route) {
     final token = dotenv.maybeGet('MAPBOX_PUBLIC_KEY') ?? '';
-    return buildCardioSnapshotUrl(
+    return buildCardioSnapshotUrlDefault(
       token: token,
       route: route,
-      width: 900,
-      height: 540,
-      padding: 70,
     );
   }
 

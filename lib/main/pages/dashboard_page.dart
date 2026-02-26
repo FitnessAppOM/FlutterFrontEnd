@@ -2795,7 +2795,8 @@ class DashboardPageState extends State<DashboardPage>
             ),
           )
         else ...[
-          if (_todaySteps == null &&
+          if (!_isToday() &&
+              _todaySteps == null &&
               _sleepHours == null &&
               _todayCalories == null &&
               _waterIntake == null)

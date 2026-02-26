@@ -18,6 +18,7 @@ class CardioAchievementSheet extends StatefulWidget {
     required this.steps,
     required this.route,
     this.userName,
+    this.snapshotUrl,
   });
 
   final int durationSeconds;
@@ -26,6 +27,7 @@ class CardioAchievementSheet extends StatefulWidget {
   final int steps;
   final List<CardioPoint> route;
   final String? userName;
+  final String? snapshotUrl;
 
   @override
   State<CardioAchievementSheet> createState() => _CardioAchievementSheetState();
@@ -53,13 +55,13 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
   }
 
   String _buildSnapshotUrl() {
+    if (widget.snapshotUrl != null && widget.snapshotUrl!.trim().isNotEmpty) {
+      return widget.snapshotUrl!;
+    }
     final token = dotenv.maybeGet('MAPBOX_PUBLIC_KEY') ?? '';
-    return buildCardioSnapshotUrl(
+    return buildCardioSnapshotUrlDefault(
       token: token,
       route: widget.route,
-      width: 800,
-      height: 480,
-      padding: 60,
     );
   }
 

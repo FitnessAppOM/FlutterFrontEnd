@@ -323,14 +323,16 @@ class _TrainPageState extends State<TrainPage> {
                 ),
               SectionHeader(title: t.translate("training")),
               const SizedBox(height: 12),
-              Text(
-                currentDay['day_label'] ?? "",
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
+              if (_tabIndex == 0) ...[
+                Text(
+                  currentDay['day_label'] ?? "",
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
+                const SizedBox(height: 12),
+              ],
               Row(
                 children: [
                   _tabButton(
