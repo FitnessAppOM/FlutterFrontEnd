@@ -5,6 +5,8 @@ import '../../widgets/training/exercise_card.dart';
 import '../../widgets/cardio/cardio_map.dart';
 import '../../services/training/cardio_session_queue.dart';
 import '../../services/training/training_activity_service.dart';
+import '../../services/training/training_service.dart';
+import '../../services/training/cardio_exercises_storage.dart';
 import '../../widgets/cardio/cardio_resume_banner.dart';
 import '../../core/account_storage.dart';
 import 'cardio_history_page.dart';
@@ -26,7 +28,7 @@ class CardioTab extends StatefulWidget {
 }
 
 class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
-  static const List<Map<String, dynamic>> _cardioLibrary = [
+  static const List<Map<String, dynamic>> _fallbackCardioLibrary = [
     {
       "exercise_id": 4148,
       "exercise_name": "Assault Bike Run",
@@ -179,6 +181,8 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     CardioSessionQueue.syncQueue();
     _loadPausedSession();
+    _loadCardioLibraryFromCache();
+    _loadCardioLibrary();
     AccountStorage.trainingChange.addListener(_handleTrainingChange);
   }
 
@@ -192,6 +196,9 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
   void didUpdateWidget(covariant CardioTab oldWidget) {
     super.didUpdateWidget(oldWidget);
     _loadPausedSession();
+    if (widget.exercises != oldWidget.exercises) {
+      _precacheGifs(widget.exercises);
+    }
   }
 
   @override
@@ -217,6 +224,8 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
   bool _hasPausedSession = false;
   String? _pausedExerciseName;
   bool _showPausedOverlay = false;
+  List<Map<String, dynamic>> _cardioLibrary = const [];
+  bool _loadingCardioLibrary = false;
 
   Future<void> _loadPausedSession() async {
     final session = await TrainingActivityService.getActiveSession();
@@ -227,6 +236,69 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
       _pausedExerciseName = paused ? (session?['name'] as String?) : null;
       _showPausedOverlay = false;
     });
+  }
+
+  Future<void> _loadCardioLibraryFromCache() async {
+    final cached = await CardioExercisesStorage.loadList();
+    if (!mounted || cached == null || cached.isEmpty) return;
+    setState(() => _cardioLibrary = cached);
+  }
+
+  Future<void> _loadCardioLibrary() async {
+    if (_loadingCardioLibrary) return;
+    setState(() => _loadingCardioLibrary = true);
+    try {
+      final items = await TrainingService.fetchCardioExercises();
+      if (!mounted) return;
+      final base = _cardioLibrary.isNotEmpty
+          ? _cardioLibrary
+          : List<Map<String, dynamic>>.from(_fallbackCardioLibrary);
+      final merged = _mergeCardioLibrary(base, items);
+      setState(() {
+        _cardioLibrary = merged;
+        _loadingCardioLibrary = false;
+      });
+      _precacheGifs(merged);
+      CardioExercisesStorage.saveList(merged);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loadingCardioLibrary = false;
+      });
+    }
+  }
+
+  void _precacheGifs(List<Map<String, dynamic>> items) {
+    if (!mounted) return;
+    for (final ex in items) {
+      final url = TrainingService.animationImageUrl(
+        ex['animation_url']?.toString(),
+        ex['animation_rel_path']?.toString(),
+      );
+      if (url.isEmpty) continue;
+      precacheImage(NetworkImage(url), context).catchError((_) {});
+    }
+  }
+
+  List<Map<String, dynamic>> _mergeCardioLibrary(
+      List<Map<String, dynamic>> base, List<Map<String, dynamic>> remote) {
+    if (remote.isEmpty) return base;
+    final byId = <String, Map<String, dynamic>>{};
+    for (final r in remote) {
+      final key = (r['exercise_id'] ?? r['exercise_name'] ?? '').toString().toLowerCase();
+      if (key.isNotEmpty) byId[key] = r;
+    }
+    return base.map((local) {
+      final key = (local['exercise_id'] ?? local['exercise_name'] ?? '').toString().toLowerCase();
+      final match = byId[key];
+      if (match == null) return local;
+      return {
+        ...local,
+        if (match['animation_url'] != null) 'animation_url': match['animation_url'],
+        if (match['animation_rel_path'] != null)
+          'animation_rel_path': match['animation_rel_path'],
+      };
+    }).toList();
   }
 
   void _continuePausedSession(List<Map<String, dynamic>> list) {
@@ -268,8 +340,11 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
     final token = dotenv.isInitialized ? dotenv.maybeGet('MAPBOX_PUBLIC_KEY') : null;
     final hasToken = token != null && token.trim().isNotEmpty;
     final bool hasProgramCardio = widget.exercises.isNotEmpty;
-    final List<Map<String, dynamic>> list =
-        hasProgramCardio ? widget.exercises : List<Map<String, dynamic>>.from(_cardioLibrary);
+    final List<Map<String, dynamic>> list = hasProgramCardio
+        ? widget.exercises
+        : (_cardioLibrary.isNotEmpty
+            ? _cardioLibrary
+            : List<Map<String, dynamic>>.from(_fallbackCardioLibrary));
 
     return Stack(
       children: [
@@ -368,4 +443,5 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
   }
 
   // Map UI moved to CardioMap widget.
+
 }

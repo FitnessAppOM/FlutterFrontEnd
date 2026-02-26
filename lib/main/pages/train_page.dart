@@ -295,7 +295,6 @@ class _TrainPageState extends State<TrainPage> {
           backgroundColor: Colors.black87,
           onRefresh: _loadProgram,
           child: ListView(
-            key: ValueKey(_tabIndex),
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(20),
             children: [
@@ -349,61 +348,76 @@ class _TrainPageState extends State<TrainPage> {
                 ],
               ),
               const SizedBox(height: 16),
-              if (_tabIndex == 0) ...[
-                DaySelector(
-                  labels: days.map<String>((d) => d['day_label'].toString()).toList(),
-                  selectedIndex: selectedDay,
-                  onSelect: (i) => setState(() => selectedDay = i),
-                ),
-                const SizedBox(height: 24),
-              ] else
-                const SizedBox(height: 8),
-              if (_tabIndex == 1)
-                CardioTab(
-                  exercises: cardioExercises,
-                  onStart: _startExerciseFlow,
-                  onReplace: _openReplaceSheet,
-                )
-              else ...[
-                Text(
-                  t.translate("training_exercise_list_title"),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  t.translate("training_exercise_list_sub"),
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withOpacity(0.7),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                if (visibleExercises.isEmpty)
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 40),
-                      child: Text(
-                        t.translate("rest_day"),
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: Colors.white,
-                        ),
+              Visibility(
+                visible: _tabIndex == 0,
+                maintainState: true,
+                maintainAnimation: true,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DaySelector(
+                      labels: days.map<String>((d) => d['day_label'].toString()).toList(),
+                      selectedIndex: selectedDay,
+                      onSelect: (i) => setState(() => selectedDay = i),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      t.translate("training_exercise_list_title"),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                  )
-                else
-                  ...visibleExercises.map<Widget>((ex) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
-                      child: ExerciseCard(
-                        exercise: ex,
-                        onTap: () => _startExerciseFlow(ex),
-                        onReplace: () => _openReplaceSheet(ex),
+                    const SizedBox(height: 4),
+                    Text(
+                      t.translate("training_exercise_list_sub"),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.white.withOpacity(0.7),
                       ),
-                    );
-                  }).toList(),
-              ],
+                    ),
+                    const SizedBox(height: 16),
+                    if (visibleExercises.isEmpty)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 40),
+                          child: Text(
+                            t.translate("rest_day"),
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      ...visibleExercises.map<Widget>((ex) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: ExerciseCard(
+                            exercise: ex,
+                            onTap: () => _startExerciseFlow(ex),
+                            onReplace: () => _openReplaceSheet(ex),
+                          ),
+                        );
+                      }).toList(),
+                  ],
+                ),
+              ),
+              Visibility(
+                visible: _tabIndex == 1,
+                maintainState: true,
+                maintainAnimation: true,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 8),
+                    CardioTab(
+                      exercises: cardioExercises,
+                      onStart: _startExerciseFlow,
+                      onReplace: _openReplaceSheet,
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
