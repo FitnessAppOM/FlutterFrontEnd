@@ -8,7 +8,7 @@ class TrainingActivityService {
   static bool _active = false;
   static int _lastUpdateSecond = -1;
   static double? _lastDistanceKm;
-  static double? _lastSpeedKmh;
+  static double? _lastPaceMinKm;
   static const MethodChannel _liveActivityChannel = MethodChannel('training_live_activity');
   static String? _liveActivitySessionId;
   static int? _sessionStartMs;
@@ -18,7 +18,7 @@ class TrainingActivityService {
   static const _kSessionSets = 'training_session_sets';
   static const _kSessionReps = 'training_session_reps';
   static const _kSessionDistance = 'training_session_distance';
-  static const _kSessionSpeed = 'training_session_speed';
+  static const _kSessionPace = 'training_session_speed';
   static const _kSessionPaused = 'training_session_paused';
   static const _kSessionPausedSeconds = 'training_session_paused_seconds';
 
@@ -31,21 +31,21 @@ class TrainingActivityService {
     required int sets,
     required int reps,
     double? distanceKm,
-    double? speedKmh,
+    double? paceMinKm,
   }) {
     final mm = (seconds ~/ 60).toString().padLeft(2, '0');
     final ss = (seconds % 60).toString().padLeft(2, '0');
-    if (distanceKm != null || speedKmh != null) {
+    if (distanceKm != null || paceMinKm != null) {
       final d = (distanceKm ?? 0).toStringAsFixed(2);
-      final pace = _paceLabel(speedKmh);
+      final pace = _paceLabel(paceMinKm);
       return "Timer $mm:$ss • $d km • $pace";
     }
     return "Timer $mm:$ss • $sets x $reps";
   }
 
-  static String _paceLabel(double? speedKmh) {
-    if (speedKmh == null || speedKmh <= 0.1) return "--:-- /km";
-    final paceMin = 60.0 / speedKmh;
+  static String _paceLabel(double? paceMinKm) {
+    if (paceMinKm == null || paceMinKm <= 0.1) return "--:-- /km";
+    final paceMin = paceMinKm;
     final paceMinutes = paceMin.floor();
     final paceSeconds = ((paceMin - paceMinutes) * 60).round().clamp(0, 59);
     final mm = paceMinutes.toString().padLeft(2, '0');
@@ -59,7 +59,7 @@ class TrainingActivityService {
     required int reps,
     required int seconds,
     double? distanceKm,
-    double? speedKmh,
+    double? paceMinKm,
   }) async {
     if (!_active) {
       _active = true;
@@ -70,7 +70,7 @@ class TrainingActivityService {
         sets: sets,
         reps: reps,
         distanceKm: distanceKm,
-        speedKmh: speedKmh,
+        paceMinKm: paceMinKm,
         startMs: _sessionStartMs!,
       );
       if (Platform.isIOS) {
@@ -81,7 +81,7 @@ class TrainingActivityService {
           reps: reps,
           seconds: seconds,
           distanceKm: distanceKm,
-          speedKmh: speedKmh,
+          paceMinKm: paceMinKm,
           startMs: _sessionStartMs,
           paused: false,
         );
@@ -93,7 +93,7 @@ class TrainingActivityService {
           sets: sets,
           reps: reps,
           distanceKm: distanceKm,
-          speedKmh: speedKmh,
+          paceMinKm: paceMinKm,
         ),
       );
       return;
@@ -104,7 +104,7 @@ class TrainingActivityService {
       reps: reps,
       seconds: seconds,
       distanceKm: distanceKm,
-      speedKmh: speedKmh,
+      paceMinKm: paceMinKm,
       startMs: _sessionStartMs,
     );
   }
@@ -115,16 +115,16 @@ class TrainingActivityService {
     required int reps,
     required int seconds,
     double? distanceKm,
-    double? speedKmh,
+    double? paceMinKm,
     int? startMs,
   }) async {
     if (!_active) return;
     final distanceChanged = _hasSignificantDelta(_lastDistanceKm, distanceKm, 0.01);
-    final speedChanged = _hasSignificantDelta(_lastSpeedKmh, speedKmh, 0.1);
-    if (seconds == _lastUpdateSecond && !distanceChanged && !speedChanged) return;
+    final paceChanged = _hasSignificantDelta(_lastPaceMinKm, paceMinKm, 0.1);
+    if (seconds == _lastUpdateSecond && !distanceChanged && !paceChanged) return;
     _lastUpdateSecond = seconds;
     _lastDistanceKm = distanceKm ?? _lastDistanceKm;
-    _lastSpeedKmh = speedKmh ?? _lastSpeedKmh;
+    _lastPaceMinKm = paceMinKm ?? _lastPaceMinKm;
     _sessionStartMs ??= startMs;
     await _setPaused(false, null);
     await _persistSession(
@@ -132,7 +132,7 @@ class TrainingActivityService {
       sets: sets,
       reps: reps,
       distanceKm: distanceKm,
-      speedKmh: speedKmh,
+      paceMinKm: paceMinKm,
     );
 
     if (Platform.isAndroid) {
@@ -143,7 +143,7 @@ class TrainingActivityService {
           sets: sets,
           reps: reps,
           distanceKm: distanceKm,
-          speedKmh: speedKmh,
+          paceMinKm: paceMinKm,
         ),
       );
     }
@@ -154,7 +154,7 @@ class TrainingActivityService {
         reps: reps,
         seconds: seconds,
         distanceKm: distanceKm,
-        speedKmh: speedKmh,
+        paceMinKm: paceMinKm,
         startMs: _sessionStartMs,
         paused: false,
       );
@@ -169,7 +169,7 @@ class TrainingActivityService {
     _active = false;
     _lastUpdateSecond = -1;
     _lastDistanceKm = null;
-    _lastSpeedKmh = null;
+    _lastPaceMinKm = null;
     _sessionStartMs = null;
     await _clearSession();
     if (Platform.isAndroid) {
@@ -186,19 +186,19 @@ class TrainingActivityService {
     required int reps,
     required int seconds,
     double? distanceKm,
-    double? speedKmh,
+    double? paceMinKm,
   }) async {
     if (!_active) return;
     _lastUpdateSecond = seconds;
     _lastDistanceKm = distanceKm ?? _lastDistanceKm;
-    _lastSpeedKmh = speedKmh ?? _lastSpeedKmh;
+    _lastPaceMinKm = paceMinKm ?? _lastPaceMinKm;
     await _setPaused(true, seconds);
     await _persistSession(
       exerciseName: exerciseName,
       sets: sets,
       reps: reps,
       distanceKm: distanceKm,
-      speedKmh: speedKmh,
+      paceMinKm: paceMinKm,
       startMs: null,
     );
 
@@ -210,7 +210,7 @@ class TrainingActivityService {
           sets: sets,
           reps: reps,
           distanceKm: distanceKm,
-          speedKmh: speedKmh,
+          paceMinKm: paceMinKm,
         ),
       );
     }
@@ -221,7 +221,7 @@ class TrainingActivityService {
         reps: reps,
         seconds: seconds,
         distanceKm: distanceKm,
-        speedKmh: speedKmh,
+        paceMinKm: paceMinKm,
         startMs: null,
         paused: true,
       );
@@ -234,12 +234,12 @@ class TrainingActivityService {
     required int reps,
     required int seconds,
     double? distanceKm,
-    double? speedKmh,
+    double? paceMinKm,
   }) async {
     if (!_active) return;
     _lastUpdateSecond = seconds;
     _lastDistanceKm = distanceKm ?? _lastDistanceKm;
-    _lastSpeedKmh = speedKmh ?? _lastSpeedKmh;
+    _lastPaceMinKm = paceMinKm ?? _lastPaceMinKm;
     _sessionStartMs = DateTime.now().millisecondsSinceEpoch - (seconds * 1000);
     await _setPaused(false, null);
     await _persistSession(
@@ -247,7 +247,7 @@ class TrainingActivityService {
       sets: sets,
       reps: reps,
       distanceKm: distanceKm,
-      speedKmh: speedKmh,
+      paceMinKm: paceMinKm,
       startMs: _sessionStartMs,
     );
     await updateSession(
@@ -256,7 +256,7 @@ class TrainingActivityService {
       reps: reps,
       seconds: seconds,
       distanceKm: distanceKm,
-      speedKmh: speedKmh,
+      paceMinKm: paceMinKm,
       startMs: _sessionStartMs,
     );
   }
@@ -271,7 +271,7 @@ class TrainingActivityService {
       'sets': sp.getInt(_kSessionSets),
       'reps': sp.getInt(_kSessionReps),
       'distanceKm': sp.getDouble(_kSessionDistance),
-      'speedKmh': sp.getDouble(_kSessionSpeed),
+      'paceMinKm': sp.getDouble(_kSessionPace),
       'paused': sp.getBool(_kSessionPaused) ?? false,
       'pausedSeconds': sp.getInt(_kSessionPausedSeconds),
     };
@@ -297,7 +297,7 @@ class TrainingActivityService {
     required int reps,
     required int seconds,
     double? distanceKm,
-    double? speedKmh,
+    double? paceMinKm,
     int? startMs,
     required bool paused,
   }) async {
@@ -309,7 +309,7 @@ class TrainingActivityService {
         'reps': reps,
         'seconds': seconds,
         'distanceKm': distanceKm,
-        'speedKmh': speedKmh,
+        'speedKmh': paceMinKm,
         'startMs': startMs,
         'paused': paused,
       });
@@ -324,7 +324,7 @@ class TrainingActivityService {
     required int reps,
     required int seconds,
     double? distanceKm,
-    double? speedKmh,
+    double? paceMinKm,
     int? startMs,
     required bool paused,
   }) async {
@@ -336,7 +336,7 @@ class TrainingActivityService {
         'reps': reps,
         'seconds': seconds,
         'distanceKm': distanceKm,
-        'speedKmh': speedKmh,
+        'speedKmh': paceMinKm,
         'startMs': startMs,
         'paused': paused,
       });
@@ -359,7 +359,7 @@ class TrainingActivityService {
     required int sets,
     required int reps,
     double? distanceKm,
-    double? speedKmh,
+    double? paceMinKm,
     int? startMs,
   }) async {
     final sp = await SharedPreferences.getInstance();
@@ -375,8 +375,8 @@ class TrainingActivityService {
     if (distanceKm != null) {
       await sp.setDouble(_kSessionDistance, distanceKm);
     }
-    if (speedKmh != null) {
-      await sp.setDouble(_kSessionSpeed, speedKmh);
+    if (paceMinKm != null) {
+      await sp.setDouble(_kSessionPace, paceMinKm);
     }
   }
 
@@ -398,7 +398,7 @@ class TrainingActivityService {
     await sp.remove(_kSessionSets);
     await sp.remove(_kSessionReps);
     await sp.remove(_kSessionDistance);
-    await sp.remove(_kSessionSpeed);
+    await sp.remove(_kSessionPace);
     await sp.remove(_kSessionPaused);
     await sp.remove(_kSessionPausedSeconds);
   }

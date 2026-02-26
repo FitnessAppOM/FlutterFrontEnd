@@ -266,17 +266,14 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         final reps = _currentReps();
         final isCardio = _isCardioExercise();
         final distanceKm = isCardio ? (_cardioDistanceMeters / 1000.0) : null;
-        final speedKmh = isCardio ? _cardioSpeedKmh : null;
-        final pace = distanceKm != null
-            ? _paceMinPerKmFromDistance(distanceKm, seconds)
-            : (speedKmh != null ? _paceMinPerKm(speedKmh) : null);
+        final paceMinKm = isCardio ? _currentPaceMinPerKm() : null;
         TrainingActivityService.updateSession(
           exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
           sets: sets,
           reps: reps,
           seconds: seconds,
           distanceKm: distanceKm,
-          speedKmh: pace,
+          paceMinKm: paceMinKm,
         );
       }
     });
@@ -322,6 +319,14 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     return (durationSeconds / 60.0) / distanceKm;
   }
 
+  double _currentPaceMinPerKm() {
+    final distanceKm = _cardioDistanceMeters / 1000.0;
+    if (distanceKm > 0 && seconds > 0) {
+      return _paceMinPerKmFromDistance(distanceKm, seconds);
+    }
+    return _paceMinPerKm(_cardioSpeedKmh);
+  }
+
   Future<void> _startExercise() async {
     if (started) {
       if (_paused) {
@@ -336,9 +341,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           reps: _currentReps(),
           seconds: seconds,
           distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
-          speedKmh: _isCardioExercise()
-              ? _paceMinPerKmFromDistance(_cardioDistanceMeters / 1000.0, seconds)
-              : null,
+          paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
         );
       }
       await _startCardioStepsTracking();
@@ -348,9 +351,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         reps: _currentReps(),
         seconds: seconds,
         distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
-        speedKmh: _isCardioExercise()
-            ? _paceMinPerKmFromDistance(_cardioDistanceMeters / 1000.0, seconds)
-            : null,
+        paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
       );
       return;
     }
@@ -384,9 +385,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       reps: _currentReps(),
       seconds: seconds,
       distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
-      speedKmh: _isCardioExercise()
-          ? _paceMinPerKmFromDistance(_cardioDistanceMeters / 1000.0, seconds)
-          : null,
+      paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
     );
     
     // Queue start action for sync (non-blocking)
@@ -637,7 +636,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       reps: _currentReps(),
       seconds: seconds,
       distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
-      speedKmh: _isCardioExercise() ? _cardioSpeedKmh : null,
+      paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
     );
   }
 
@@ -673,7 +672,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           reps: _currentReps(),
           seconds: seconds,
           distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
-          speedKmh: _isCardioExercise() ? _cardioSpeedKmh : null,
+          paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
         );
       }
     }
@@ -814,7 +813,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                             reps: _currentReps(),
                             seconds: seconds,
                             distanceKm: _cardioDistanceMeters / 1000.0,
-                            speedKmh: _cardioSpeedKmh,
+                            paceMinKm: _currentPaceMinPerKm(),
                           );
                         }
                       },

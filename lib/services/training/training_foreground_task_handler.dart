@@ -21,12 +21,12 @@ class TrainingForegroundTaskHandler extends TaskHandler {
     final sets = sp.getInt('training_session_sets') ?? 0;
     final reps = sp.getInt('training_session_reps') ?? 0;
     final distance = sp.getDouble('training_session_distance');
-    final speed = sp.getDouble('training_session_speed');
+    final paceMinKm = sp.getDouble('training_session_speed');
 
     final mm = (elapsedSec ~/ 60).toString().padLeft(2, '0');
     final ss = (elapsedSec % 60).toString().padLeft(2, '0');
-    final body = (distance != null || speed != null)
-        ? 'Timer $mm:$ss • ${(distance ?? 0).toStringAsFixed(2)} km • ${_paceLabel(speed)}'
+    final body = (distance != null || paceMinKm != null)
+        ? 'Timer $mm:$ss • ${(distance ?? 0).toStringAsFixed(2)} km • ${_paceLabel(paceMinKm)}'
         : 'Timer $mm:$ss • $sets x $reps';
 
     await FlutterForegroundTask.updateService(
@@ -43,9 +43,9 @@ class TrainingForegroundTaskHandler extends TaskHandler {
     FlutterForegroundTask.launchApp("/");
   }
 
-  String _paceLabel(double? speedKmh) {
-    if (speedKmh == null || speedKmh <= 0.1) return "--:-- /km";
-    final paceMin = 60.0 / speedKmh;
+  String _paceLabel(double? paceMinKm) {
+    if (paceMinKm == null || paceMinKm <= 0.1) return "--:-- /km";
+    final paceMin = paceMinKm;
     final paceMinutes = paceMin.floor();
     final paceSeconds = ((paceMin - paceMinutes) * 60).round().clamp(0, 59);
     final mm = paceMinutes.toString().padLeft(2, '0');
