@@ -285,6 +285,11 @@ class ExerciseCard extends StatelessWidget {
                                   exercise['animation_rel_path']?.toString(),
                                 ),
                                 fit: BoxFit.cover,
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return const SizedBox.shrink();
+                                },
+                                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                               ),
                       ),
                     ),
