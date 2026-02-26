@@ -290,136 +290,147 @@ class _TrainPageState extends State<TrainPage> {
     return Container(
       color: Colors.black,
       child: SafeArea(
-        child: RefreshIndicator(
-          color: Colors.blueAccent,
-          backgroundColor: Colors.black87,
-          onRefresh: _loadProgram,
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(20),
-            children: [
-              if (isOffline)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.orange),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.cloud_off, color: Colors.orange, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          t.translate("offline_mode") ?? "Offline Mode",
-                          style: const TextStyle(color: Colors.orange),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              SectionHeader(title: t.translate("training")),
-              const SizedBox(height: 12),
-              if (_tabIndex == 0) ...[
-                Text(
-                  currentDay['day_label'] ?? "",
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-              Row(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _tabButton(
-                    label: "Train",
-                    active: _tabIndex == 0,
-                    onTap: () => setState(() => _tabIndex = 0),
-                  ),
-                  const SizedBox(width: 10),
-                  _tabButton(
-                    label: "Cardio",
-                    active: _tabIndex == 1,
-                    onTap: _openCardioTab,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Visibility(
-                visible: _tabIndex == 0,
-                maintainState: true,
-                maintainAnimation: true,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    DaySelector(
-                      labels: days.map<String>((d) => d['day_label'].toString()).toList(),
-                      selectedIndex: selectedDay,
-                      onSelect: (i) => setState(() => selectedDay = i),
+                  if (isOffline)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.cloud_off, color: Colors.orange, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              t.translate("offline_mode") ?? "Offline Mode",
+                              style: const TextStyle(color: Colors.orange),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 24),
+                  SectionHeader(title: t.translate("training")),
+                  const SizedBox(height: 12),
+                  if (_tabIndex == 0) ...[
                     Text(
-                      t.translate("training_exercise_list_title"),
+                      currentDay['day_label'] ?? "",
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      t.translate("training_exercise_list_sub"),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.7),
+                    const SizedBox(height: 12),
+                  ],
+                  Row(
+                    children: [
+                      _tabButton(
+                        label: "Train",
+                        active: _tabIndex == 0,
+                        onTap: () => setState(() => _tabIndex = 0),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    if (visibleExercises.isEmpty)
-                      Center(
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 40),
-                          child: Text(
-                            t.translate("rest_day"),
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: Colors.white,
-                            ),
-                          ),
+                      const SizedBox(width: 10),
+                      _tabButton(
+                        label: "Cardio",
+                        active: _tabIndex == 1,
+                        onTap: _openCardioTab,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+            Expanded(
+              child: IndexedStack(
+                index: _tabIndex,
+                children: [
+                  RefreshIndicator(
+                    color: Colors.blueAccent,
+                    backgroundColor: Colors.black87,
+                    onRefresh: _loadProgram,
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                      children: [
+                        DaySelector(
+                          labels:
+                              days.map<String>((d) => d['day_label'].toString()).toList(),
+                          selectedIndex: selectedDay,
+                          onSelect: (i) => setState(() => selectedDay = i),
                         ),
-                      )
-                    else
-                      ...visibleExercises.map<Widget>((ex) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 14),
-                          child: ExerciseCard(
-                            exercise: ex,
-                            onTap: () => _startExerciseFlow(ex),
-                            onReplace: () => _openReplaceSheet(ex),
-                          ),
-                        );
-                      }).toList(),
-                  ],
-                ),
-              ),
-              Visibility(
-                visible: _tabIndex == 1,
-                maintainState: true,
-                maintainAnimation: true,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 8),
-                    CardioTab(
-                      exercises: cardioExercises,
-                      onStart: _startExerciseFlow,
-                      onReplace: _openReplaceSheet,
+                        const SizedBox(height: 24),
+                        Text(
+                          t.translate("training_exercise_list_title"),
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          t.translate("training_exercise_list_sub"),
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Colors.white.withOpacity(0.7),
+                              ),
+                        ),
+                        const SizedBox(height: 16),
+                        if (visibleExercises.isEmpty)
+                          Center(
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 40),
+                              child: Text(
+                                t.translate("rest_day"),
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      color: Colors.white,
+                                    ),
+                              ),
+                            ),
+                          )
+                        else
+                          ...visibleExercises.map<Widget>((ex) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 14),
+                              child: ExerciseCard(
+                                exercise: ex,
+                                onTap: () => _startExerciseFlow(ex),
+                                onReplace: () => _openReplaceSheet(ex),
+                              ),
+                            );
+                          }).toList(),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  RefreshIndicator(
+                    color: Colors.blueAccent,
+                    backgroundColor: Colors.black87,
+                    onRefresh: _loadProgram,
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                      children: [
+                        const SizedBox(height: 8),
+                        CardioTab(
+                          exercises: cardioExercises,
+                          onStart: _startExerciseFlow,
+                          onReplace: _openReplaceSheet,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
