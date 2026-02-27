@@ -1585,20 +1585,6 @@ class DashboardPageState extends State<DashboardPage>
     }
     setState(() => _whoopLoading = true);
     try {
-      if (!_useWhoop && !_hasAnyWhoopWidget) {
-        if (!mounted) return;
-        if (requestId != _whoopReqId) return;
-        setState(() {
-          _whoopLinked = true;
-          _whoopRecovery = null;
-          _whoopSleepHours = null;
-          _whoopSleepScore = null;
-          _whoopLoading = false;
-          _whoopBodyWeightKg = null;
-        });
-        return;
-      }
-
       final snapshot = await WhoopWidgetDataService().fetchForDate(_selectedDate);
       if (requestId != _whoopReqId) return;
 
