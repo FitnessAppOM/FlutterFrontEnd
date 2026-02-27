@@ -19,6 +19,7 @@ import 'services/metrics/daily_metrics_sync.dart';
 import 'services/whoop/whoop_daily_sync.dart';
 import 'services/training/exercise_action_queue.dart';
 import 'services/training/cardio_session_queue.dart';
+import 'services/training/training_activity_service.dart';
 import 'core/account_storage.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
@@ -53,6 +54,13 @@ void main() async {
   // Firebase (REQUIRED for Google Sign-In)
   await Firebase.initializeApp();
   print('[Main] Firebase initialized');
+
+  // Cancel any stale training/cardio session on cold start.
+  try {
+    await TrainingActivityService.stopSession();
+  } catch (_) {
+    // ignore
+  }
 
   // Load env (Mapbox token, etc.)
   try {

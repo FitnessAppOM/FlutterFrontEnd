@@ -292,10 +292,9 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
       final key = (local['exercise_id'] ?? local['exercise_name'] ?? '').toString().toLowerCase();
       final match = byId[key];
       if (match == null) return local;
-      final localUrl = (local['animation_url'] ?? '').toString().trim();
       return {
         ...local,
-        if (localUrl.isEmpty && match['animation_url'] != null)
+        if (match['animation_url'] != null)
           'animation_url': match['animation_url'],
         if (match['animation_rel_path'] != null)
           'animation_rel_path': match['animation_rel_path'],

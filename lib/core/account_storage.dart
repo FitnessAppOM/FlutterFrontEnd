@@ -201,6 +201,7 @@ class AccountStorage {
     return sp.getString(_kAvatarUrl);
   }
 
+
 static Future<void> clearSession() async {
   final sp = await SharedPreferences.getInstance();
 

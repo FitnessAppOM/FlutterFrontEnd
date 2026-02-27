@@ -178,9 +178,10 @@ struct TrainingLiveActivityWidget: Widget {
         return "\(m)m\(s)"
     }
 
-    private func paceLabel(_ speedKmh: Double) -> String {
-        if speedKmh <= 0.1 { return "--:-- /km" }
-        let paceMin = 60.0 / speedKmh
+    // NOTE: We now send pace (min/km) from Flutter, but keep the field name for compatibility.
+    private func paceLabel(_ paceMinKm: Double) -> String {
+        if paceMinKm <= 0.1 { return "--:-- /km" }
+        let paceMin = paceMinKm
         let minutes = Int(paceMin)
         let rawSeconds = Int((paceMin - Double(minutes)) * 60.0)
         let seconds = max(0, min(59, rawSeconds))

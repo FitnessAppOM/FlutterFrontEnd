@@ -65,7 +65,7 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
           children: [
             _header(headerDate),
             const SizedBox(height: 12),
-            if (metrics.recoveryScore == null && !_loading) ...[
+            if (metrics.recoveryScore == null && !_loading && _daily.isEmpty) ...[
               _noDataCard(),
             ] else ...[
               Center(child: RecoveryGauge(score: metrics.recoveryScore)),
@@ -73,10 +73,10 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
               _metricsGrid(metrics),
             ],
             const SizedBox(height: 16),
-            if (metrics.recoveryScore != null || _loading) ...[
+            if (metrics.recoveryScore != null || _daily.isNotEmpty || _loading) ...[
               Center(child: _sectionTitle("Recovery Trend (7 Days)")),
               const SizedBox(height: 8),
-              _loading
+              _loading && _daily.isEmpty
                   ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
                   : Center(
                       child: ConstrainedBox(

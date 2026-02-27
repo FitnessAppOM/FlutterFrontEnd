@@ -48,10 +48,8 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
   @override
   Widget build(BuildContext context) {
     final dayKey = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-    final bool isToday = _isToday(dayKey);
     final bool isPastDay = _isPastDay(dayKey);
-    final fallbackEntry = isToday ? _latestAvailableOnOrBefore(dayKey) : null;
-    final metrics = _daily[dayKey] ?? fallbackEntry?.value;
+    final metrics = _daily[dayKey];
     return Scaffold(
       appBar: AppBar(
         title: const Text("Daily Cycle"),

@@ -114,6 +114,7 @@ class _TrainPageState extends State<TrainPage> {
     }
   }
 
+
   Future<void> _preloadExerciseGifsFromProgram() async {
     if (!mounted) return;
     final data = program;

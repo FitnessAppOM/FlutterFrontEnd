@@ -17,6 +17,7 @@ class CardioMap extends StatefulWidget {
     required this.expanded,
     this.height,
     this.onStart,
+    this.onCountdownStart,
     this.onPause,
     this.onFinish,
     this.onClose,
@@ -32,6 +33,7 @@ class CardioMap extends StatefulWidget {
   final bool expanded;
   final double? height;
   final VoidCallback? onStart;
+  final VoidCallback? onCountdownStart;
   final VoidCallback? onPause;
   final VoidCallback? onFinish;
   final VoidCallback? onClose;
@@ -165,6 +167,7 @@ class _CardioMapState extends State<CardioMap> {
               steps: widget.steps,
               elapsedSeconds: widget.elapsedSeconds,
               running: widget.running,
+              onCountdownStart: widget.onCountdownStart,
               onStart: () {
                 _startTracking();
                 widget.onStart?.call();

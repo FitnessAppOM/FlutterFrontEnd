@@ -50,7 +50,7 @@ import '../../config/base_url.dart';
 import '../../services/health/steps_service.dart';
 import '../../services/health/sleep_service.dart';
 import '../../services/whoop/whoop_sleep_service.dart';
-import '../../services/whoop/whoop_latest_service.dart';
+import '../../services/whoop/whoop_widget_data_service.dart';
 import '../../services/diet/calories_service.dart';
 import '../../services/diet/diet_service.dart';
 import '../../services/health/water_service.dart';
@@ -277,7 +277,6 @@ class DashboardPageState extends State<DashboardPage>
 
   void _onWhoopChanged() {
     _loadWhoopRecovery();
-    _loadWhoopBody();
   }
 
   void _onAccountChanged() {
@@ -676,7 +675,6 @@ class DashboardPageState extends State<DashboardPage>
 
     if (key.startsWith('whoop_')) {
       _loadWhoopRecovery();
-      _loadWhoopBody();
     }
     if (key == 'fitbit_activity') {
       _loadFitbitSummary();
@@ -956,7 +954,6 @@ class DashboardPageState extends State<DashboardPage>
       _loadTrendSleep(),
       _loadTrendCalories(),
       _loadWhoopRecovery(),
-      _loadWhoopBody(),
     ]);
     if (!mounted) return;
     await _loadFitbitStatus();
@@ -980,7 +977,6 @@ class DashboardPageState extends State<DashboardPage>
       _loadTrendCalories(),
       _loadExerciseProgress(),
       _loadWhoopRecovery(),
-      _loadWhoopBody(),
     ]);
     await _loadFitbitStatus();
     _loadFitbitSummary();
@@ -1589,54 +1585,6 @@ class DashboardPageState extends State<DashboardPage>
     }
     setState(() => _whoopLoading = true);
     try {
-      final headers = await AccountStorage.getAuthHeaders();
-      if (!isCurrentDay && _whoopLinkedKnown) {
-        if (!_whoopLinked) {
-          if (!mounted) return;
-          if (requestId != _whoopReqId) return;
-          setState(() {
-            _whoopLinked = false;
-            _whoopRecovery = null;
-            _whoopSleepHours = null;
-            _whoopSleepScore = null;
-            _whoopLoading = false;
-            _whoopBodyWeightKg = null;
-          });
-          _pruneDeviceWidgets();
-          return;
-        }
-      } else {
-        final statusUrl = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId");
-        final statusRes =
-            await http.get(statusUrl, headers: headers).timeout(const Duration(seconds: 12));
-        if (requestId != _whoopReqId) return;
-        if (statusRes.statusCode != 200) {
-          throw Exception("Status ${statusRes.statusCode}");
-        }
-        final statusData = jsonDecode(statusRes.body) as Map<String, dynamic>;
-        final linked = statusData["linked"] == true;
-        if (!mounted) return;
-        if (requestId != _whoopReqId) return;
-        setState(() {
-          _whoopLinked = linked;
-          _whoopLinkedKnown = true;
-        });
-      }
-      if (!_whoopLinked) {
-        if (!mounted) return;
-        if (requestId != _whoopReqId) return;
-        setState(() {
-          _whoopLinked = false;
-          _whoopRecovery = null;
-          _whoopSleepHours = null;
-          _whoopSleepScore = null;
-          _whoopLoading = false;
-          _whoopBodyWeightKg = null;
-        });
-        _pruneDeviceWidgets();
-        return;
-      }
-
       if (!_useWhoop && !_hasAnyWhoopWidget) {
         if (!mounted) return;
         if (requestId != _whoopReqId) return;
@@ -1651,115 +1599,27 @@ class DashboardPageState extends State<DashboardPage>
         return;
       }
 
-      final dateParam =
-          "${_selectedDate.year.toString().padLeft(4, '0')}"
-          "-${_selectedDate.month.toString().padLeft(2, '0')}"
-          "-${_selectedDate.day.toString().padLeft(2, '0')}";
-      final dataUrl = Uri.parse(
-        "${ApiConfig.baseUrl}/whoop/day?user_id=$userId&date=$dateParam",
-      );
-      final dataRes =
-          await http.get(dataUrl, headers: headers).timeout(const Duration(seconds: 20));
+      final snapshot = await WhoopWidgetDataService().fetchForDate(_selectedDate);
       if (requestId != _whoopReqId) return;
-      if (dataRes.statusCode != 200) {
-        throw Exception("Status ${dataRes.statusCode}");
-      }
-      final data = jsonDecode(dataRes.body) as Map<String, dynamic>;
-      final sleepHours = data["sleep_hours"] is num
-          ? (data["sleep_hours"] as num).toDouble()
-          : double.tryParse("${data["sleep_hours"]}");
-      int? efficiency;
-      final sleep = data["sleep"];
-      if (sleep is Map<String, dynamic>) {
-        final scoreNode = sleep["score"];
-        final stage = scoreNode is Map<String, dynamic> ? scoreNode["stage_summary"] : null;
-        if (stage is Map<String, dynamic>) {
-          final totalBed = stage["total_in_bed_time_milli"];
-          final light = stage["total_light_sleep_time_milli"];
-          final slow = stage["total_slow_wave_sleep_time_milli"];
-          final rem = stage["total_rem_sleep_time_milli"];
-          if (totalBed is num && light is num && slow is num && rem is num && totalBed > 0) {
-            final sleepMs = light + slow + rem;
-            efficiency = ((sleepMs / totalBed) * 100).round();
-          }
-        }
-      }
-      int? efficiencyDelta;
-      int? recoveryDelta;
-      final yesterday = _selectedDate.subtract(const Duration(days: 1));
-      final yParam =
-          "${yesterday.year.toString().padLeft(4, '0')}"
-          "-${yesterday.month.toString().padLeft(2, '0')}"
-          "-${yesterday.day.toString().padLeft(2, '0')}";
-      final yUrl = Uri.parse(
-        "${ApiConfig.baseUrl}/whoop/day?user_id=$userId&date=$yParam",
-      );
-      final yRes =
-          await http.get(yUrl, headers: headers).timeout(const Duration(seconds: 20));
-      if (requestId != _whoopReqId) return;
-      if (yRes.statusCode == 200) {
-        final yData = jsonDecode(yRes.body) as Map<String, dynamic>;
-        final ySleep = yData["sleep"];
-        int? yEfficiency;
-        if (ySleep is Map<String, dynamic>) {
-          final scoreNode = ySleep["score"];
-          final stage = scoreNode is Map<String, dynamic> ? scoreNode["stage_summary"] : null;
-          if (stage is Map<String, dynamic>) {
-            final totalBed = stage["total_in_bed_time_milli"];
-            final light = stage["total_light_sleep_time_milli"];
-            final slow = stage["total_slow_wave_sleep_time_milli"];
-            final rem = stage["total_rem_sleep_time_milli"];
-            if (totalBed is num && light is num && slow is num && rem is num && totalBed > 0) {
-              final sleepMs = light + slow + rem;
-              yEfficiency = ((sleepMs / totalBed) * 100).round();
-            }
-          }
-        }
-        if (efficiency != null && yEfficiency != null) {
-          efficiencyDelta = efficiency - yEfficiency;
-        }
-        final yRecovery = yData["recovery_score"] is num
-            ? (yData["recovery_score"] as num).round()
-            : int.tryParse("${yData["recovery_score"]}");
-        // We will compute recoveryDelta after score is available.
-        if (yRecovery != null) {
-          recoveryDelta = -yRecovery;
-        }
-      }
-      final recoveryScore = data["recovery_score"] is num
-          ? (data["recovery_score"] as num).round()
-          : int.tryParse("${data["recovery_score"]}");
-      final int? score = recoveryScore;
-      if (score != null && recoveryDelta != null) {
-        recoveryDelta = score + recoveryDelta;
-      } else {
-        recoveryDelta = null;
-      }
-
-      double? cycleStrain;
-      final rawCycle = data["cycle_strain"];
-      if (rawCycle is num) cycleStrain = rawCycle.toDouble();
-      if (rawCycle is String) cycleStrain = double.tryParse(rawCycle);
 
       if (!mounted) return;
       if (requestId != _whoopReqId) return;
       setState(() {
-        _whoopLinked = true;
-        _whoopRecovery = score;
-        _whoopSleepHours = sleepHours;
-        _whoopSleepScore = efficiency;
-        _whoopSleepDelta = efficiencyDelta;
-        _whoopRecoveryDelta = recoveryDelta;
+        _whoopLinked = snapshot.linked;
+        _whoopLinkedKnown = snapshot.linkedKnown;
+        _whoopRecovery = snapshot.recoveryScore;
+        _whoopSleepHours = snapshot.sleepHours;
+        _whoopSleepScore = snapshot.sleepScore;
+        _whoopSleepDelta = snapshot.sleepDelta;
+        _whoopRecoveryDelta = snapshot.recoveryDelta;
         _whoopLoading = false;
-        _whoopCycleStrain = cycleStrain;
-        if (cycleStrain != null && isCurrentDay) {
-          _whoopCycleStrainLast = cycleStrain;
+        _whoopCycleStrain = snapshot.cycleStrain;
+        _whoopBodyWeightKg = snapshot.bodyWeightKg;
+        if (snapshot.cycleStrain != null && isCurrentDay) {
+          _whoopCycleStrainLast = snapshot.cycleStrain;
         }
       });
       _pruneDeviceWidgets();
-      if (isCurrentDay) {
-        _loadWhoopBody();
-      }
       if (!_trendSleepLoading) {
         _loadTrendSleep();
       }
@@ -1775,36 +1635,6 @@ class DashboardPageState extends State<DashboardPage>
     }
   }
 
-  Future<void> _loadWhoopBody() async {
-    final userId = await AccountStorage.getUserId();
-    if (!mounted) return;
-    if (userId == null || userId == 0) {
-      setState(() {
-        _whoopBodyWeightKg = null;
-      });
-      return;
-    }
-    if (!_whoopLinked && !_hasAnyWhoopWidget) return;
-    try {
-      final data = await WhoopLatestService.fetch();
-      final body = data?["body_measurement"];
-      double? weightKg;
-      if (body is Map<String, dynamic>) {
-        final raw = body["weight_kilogram"];
-        if (raw is num) weightKg = raw.toDouble();
-        if (raw is String) weightKg = double.tryParse(raw);
-      }
-      if (!mounted) return;
-      setState(() {
-        _whoopBodyWeightKg = weightKg;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _whoopBodyWeightKg = null;
-      });
-    }
-  }
 
   Future<void> _loadFitbitActivity({int attempt = 0}) async {
     if (_fitbitActivityLoading) return;

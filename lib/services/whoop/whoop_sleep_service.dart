@@ -259,4 +259,58 @@ class WhoopSleepService {
     final data = jsonDecode(res.body) as Map<String, dynamic>;
     return data;
   }
+
+  Future<Map<String, dynamic>?> fetchSleepDayDetailsFromDb(DateTime day) async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null || userId == 0) return null;
+
+    final dateParam =
+        "${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}";
+    final url = Uri.parse(
+      "${ApiConfig.baseUrl}/whoop/daily-metrics/range?user_id=$userId&start=$dateParam&end=$dateParam",
+    );
+    final headers = await AccountStorage.getAuthHeaders();
+    final res = await http.get(url, headers: headers).timeout(const Duration(seconds: 20));
+    if (res.statusCode != 200) {
+      return null;
+    }
+    final data = jsonDecode(res.body);
+    if (data is! List || data.isEmpty) return null;
+    final row = data.first;
+    if (row is! Map) return null;
+
+    double? _toDouble(dynamic v) {
+      if (v is num) return v.toDouble();
+      if (v is String) return double.tryParse(v);
+      return null;
+    }
+
+    final totalSleepMinutes = _toDouble(row["total_sleep_minutes"]);
+    final timeInBedMinutes = _toDouble(row["time_in_bed_minutes"]);
+    if (totalSleepMinutes == null || timeInBedMinutes == null) return null;
+
+    final sleepMs = (totalSleepMinutes * 60000).round();
+    final bedMs = (timeInBedMinutes * 60000).round();
+    final sleepPayload = {
+      "score": {
+        "stage_summary": {
+          "total_in_bed_time_milli": bedMs,
+          "total_light_sleep_time_milli": sleepMs,
+          "total_slow_wave_sleep_time_milli": 0,
+          "total_rem_sleep_time_milli": 0,
+          "total_awake_time_milli": 0,
+          "total_no_data_time_milli": 0,
+          "disturbance_count": 0,
+          "sleep_cycle_count": 0,
+        }
+      }
+    };
+
+    return {
+      "date": dateParam,
+      "sleep": sleepPayload,
+      "nap_count": null,
+      "nap_hours": null,
+    };
+  }
 }

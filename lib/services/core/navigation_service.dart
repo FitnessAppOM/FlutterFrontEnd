@@ -34,6 +34,7 @@ class NavigationService {
     );
   }
 
+
   static bool consumeDietNotification() {
     final pending = _dietNotificationPending;
     _dietNotificationPending = false;

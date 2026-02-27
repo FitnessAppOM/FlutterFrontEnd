@@ -60,11 +60,16 @@ class TrainingActivityService {
     required int seconds,
     double? distanceKm,
     double? paceMinKm,
+    bool paused = false,
+    int? pausedSeconds,
   }) async {
     if (!_active) {
       _active = true;
       _lastUpdateSecond = seconds;
       _sessionStartMs ??= DateTime.now().millisecondsSinceEpoch;
+      if (paused) {
+        await _setPaused(true, pausedSeconds ?? seconds);
+      }
       await _persistSession(
         exerciseName: exerciseName,
         sets: sets,
@@ -83,7 +88,7 @@ class TrainingActivityService {
           distanceKm: distanceKm,
           paceMinKm: paceMinKm,
           startMs: _sessionStartMs,
-          paused: false,
+          paused: paused,
         );
       }
       await _startForegroundService(

@@ -146,7 +146,13 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     final requestId = ++_metricsReqId;
     setState(() => _metricsLoading = true);
     try {
-      final details = await WhoopSleepService().fetchSleepDayDetails(_metricsDate);
+      final now = DateTime.now();
+      final isToday = _metricsDate.year == now.year &&
+          _metricsDate.month == now.month &&
+          _metricsDate.day == now.day;
+      final details = isToday
+          ? await WhoopSleepService().fetchSleepDayDetails(_metricsDate)
+          : await WhoopSleepService().fetchSleepDayDetailsFromDb(_metricsDate);
       if (!mounted) return;
       if (requestId != _metricsReqId) return;
       final sleep = details?["sleep"];
@@ -179,9 +185,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     required DateTime start,
     required DateTime end,
   }) async {
-    final range = await WhoopSleepService().fetchDailySleep(start: start, end: end);
-    if (range.isNotEmpty) return range;
-    return WhoopSleepService().fetchLatestSleepDaily();
+    return WhoopSleepService().fetchDailySleepFromDb(start: start, end: end);
   }
 
   @override

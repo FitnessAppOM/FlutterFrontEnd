@@ -6,6 +6,7 @@ class CardioMapControls extends StatefulWidget {
   const CardioMapControls({
     super.key,
     this.onStart,
+    this.onCountdownStart,
     this.onPause,
     this.onFinish,
     this.distanceKm,
@@ -16,6 +17,7 @@ class CardioMapControls extends StatefulWidget {
   });
 
   final VoidCallback? onStart;
+  final VoidCallback? onCountdownStart;
   final VoidCallback? onPause;
   final VoidCallback? onFinish;
   final double? distanceKm;
@@ -79,6 +81,7 @@ class _CardioMapControlsState extends State<CardioMapControls> {
         _showStats = true;
         _countdown = 3;
       });
+      widget.onCountdownStart?.call();
       _countdownTimer?.cancel();
       _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
         if (!mounted) return;
