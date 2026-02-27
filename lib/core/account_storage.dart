@@ -13,6 +13,9 @@ class AccountStorage {
   static const _kAvatarPath = 'avatar_path';
   static const _kAvatarUrl = 'avatar_url';
   static const _kAuthProvider = 'auth_provider';
+  static const _kWhoopLinked = 'whoop_linked';
+  static String _whoopLinkedKey(int? userId) =>
+      userId == null ? _kWhoopLinked : "${_kWhoopLinked}_u$userId";
   static const _kMetricsKeys = [
     "manual_steps_entries",
     "manual_calories_entries",
@@ -37,6 +40,20 @@ class AccountStorage {
 
   static void notifyTrainingChanged() {
     trainingChange.value++;
+  }
+
+  static Future<void> setWhoopLinked(bool linked) async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    await sp.setBool(_whoopLinkedKey(userId), linked);
+  }
+
+  static Future<bool?> getWhoopLinked() async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    final key = _whoopLinkedKey(userId);
+    if (!sp.containsKey(key)) return null;
+    return sp.getBool(key);
   }
 
   // Save everything after login (do not call with userId <= 0 or empty token)
@@ -204,6 +221,7 @@ class AccountStorage {
 
 static Future<void> clearSession() async {
   final sp = await SharedPreferences.getInstance();
+  final currentUserId = sp.getInt(_kUserId);
 
   // Only remove session-related values
   await sp.remove(_kUserId);     // logged-in identity
@@ -214,6 +232,10 @@ static Future<void> clearSession() async {
   await sp.remove(_kExpertQuestionnaireDone);
   await sp.remove(_kAvatarUrl);
   await sp.remove(_kAvatarPath);
+  if (currentUserId != null) {
+    await sp.remove(_whoopLinkedKey(currentUserId));
+  }
+  await sp.remove(_kWhoopLinked);
 
   notifyAccountChanged();
 
@@ -221,14 +243,20 @@ static Future<void> clearSession() async {
 
 static Future<void> clearSessionOnly() async {
   final sp = await SharedPreferences.getInstance();
+  final currentUserId = sp.getInt(_kUserId);
   await sp.remove(_kToken);
   await sp.remove(_kUserId);
+  if (currentUserId != null) {
+    await sp.remove(_whoopLinkedKey(currentUserId));
+  }
+  await sp.remove(_kWhoopLinked);
   // Keep email + name + verified → so “Login as…” still works
   notifyAccountChanged();
 }
 
   static Future<void> clear() async {
     final sp = await SharedPreferences.getInstance();
+    final currentUserId = sp.getInt(_kUserId);
     await sp.remove(_kUserId);
     await sp.remove(_kEmail);
     await sp.remove(_kName);
@@ -240,6 +268,10 @@ static Future<void> clearSessionOnly() async {
     await sp.remove(_kExpertQuestionnaireDone);
     await sp.remove(_kAvatarUrl);
     await sp.remove(_kAvatarPath);
+    if (currentUserId != null) {
+      await sp.remove(_whoopLinkedKey(currentUserId));
+    }
+    await sp.remove(_kWhoopLinked);
     notifyAccountChanged();
   }
 }

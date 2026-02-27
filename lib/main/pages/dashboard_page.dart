@@ -129,6 +129,7 @@ class DashboardPageState extends State<DashboardPage>
   bool _trendCaloriesLoading = false;
   bool _whoopLinked = false;
   bool _whoopLinkedKnown = false;
+  bool? _whoopLinkedHint;
   bool _whoopLoading = false;
   int? _whoopRecovery;
   double? _whoopSleepHours;
@@ -271,15 +272,17 @@ class DashboardPageState extends State<DashboardPage>
     AccountStorage.accountChange.addListener(_onAccountChanged);
     AccountStorage.trainingChange.addListener(_onTrainingChanged);
     _loadStatOrder();
+    _loadWhoopLinkedHint();
     _loadInitialData();
     _loadExerciseProgress();
   }
 
   void _onWhoopChanged() {
-    _loadWhoopRecovery();
+    _loadWhoopLinkedHint();
   }
 
   void _onAccountChanged() {
+    _loadWhoopLinkedHint();
     _refreshAll();
     _loadExerciseProgress(force: true);
   }
@@ -471,7 +474,7 @@ class DashboardPageState extends State<DashboardPage>
         ),
       );
     }
-    if (_whoopLinked) {
+    if (_whoopLinked || _whoopLinkedHint == true) {
       all.addAll([
         WidgetLibraryOption(
           keyName: 'whoop_sleep',
@@ -570,14 +573,45 @@ class DashboardPageState extends State<DashboardPage>
           }
           pruned.add(item);
         }
+        final hasWhoop = pruned.any((item) => item.startsWith('whoop_'));
         setState(() {
           _statOrder
             ..clear()
             ..addAll(pruned);
         });
+        if (hasWhoop) {
+          _loadWhoopRecovery();
+        }
       }
     } catch (_) {
       // ignore parse errors
+    }
+  }
+
+  Future<void> _loadWhoopLinkedHint() async {
+    final hint = await AccountStorage.getWhoopLinked();
+    if (!mounted) return;
+    if (hint == null) {
+      setState(() => _whoopLinkedHint = null);
+      return;
+    }
+    setState(() {
+      _whoopLinkedHint = hint;
+      _whoopLinked = hint;
+      _whoopLinkedKnown = true;
+      if (!hint) {
+        _whoopRecovery = null;
+        _whoopSleepHours = null;
+        _whoopSleepScore = null;
+        _whoopSleepDelta = null;
+        _whoopRecoveryDelta = null;
+        _whoopCycleStrain = null;
+        _whoopBodyWeightKg = null;
+        _whoopLoading = false;
+      }
+    });
+    if (hint && _hasAnyWhoopWidget) {
+      _loadWhoopRecovery();
     }
   }
 
@@ -613,7 +647,7 @@ class DashboardPageState extends State<DashboardPage>
       if (_statOrder.remove('fitbit_vitals')) changed = true;
       if (_statOrder.remove('fitbit_body')) changed = true;
     }
-    if (!_whoopLinked) {
+    if (_whoopLinkedKnown && !_whoopLinked) {
       const whoopKeys = [
         'whoop_sleep',
         'whoop_recovery',
@@ -1567,16 +1601,52 @@ class DashboardPageState extends State<DashboardPage>
     final bool isCurrentDay = _isToday();
     if (userId == null || userId == 0) {
       if (requestId != _whoopReqId) return;
-          setState(() {
-            _whoopLinked = false;
-            _whoopLinkedKnown = true;
-            _whoopRecovery = null;
-            _whoopSleepHours = null;
-            _whoopSleepScore = null;
-            _whoopLoading = false;
-            _whoopBodyWeightKg = null;
-          });
-          return;
+      setState(() {
+        _whoopLinked = false;
+        _whoopLinkedKnown = true;
+        _whoopRecovery = null;
+        _whoopSleepHours = null;
+        _whoopSleepScore = null;
+        _whoopSleepDelta = null;
+        _whoopRecoveryDelta = null;
+        _whoopCycleStrain = null;
+        _whoopLoading = false;
+        _whoopBodyWeightKg = null;
+      });
+      return;
+    }
+    if (!_hasAnyWhoopWidget) {
+      if (requestId != _whoopReqId) return;
+      setState(() {
+        _whoopLinked = _whoopLinkedHint == true;
+        _whoopLinkedKnown = _whoopLinkedHint != null;
+        _whoopRecovery = null;
+        _whoopSleepHours = null;
+        _whoopSleepScore = null;
+        _whoopSleepDelta = null;
+        _whoopRecoveryDelta = null;
+        _whoopCycleStrain = null;
+        _whoopLoading = false;
+        _whoopBodyWeightKg = null;
+      });
+      return;
+    }
+    if (_whoopLinkedHint == false) {
+      if (requestId != _whoopReqId) return;
+      setState(() {
+        _whoopLinked = false;
+        _whoopLinkedKnown = true;
+        _whoopRecovery = null;
+        _whoopSleepHours = null;
+        _whoopSleepScore = null;
+        _whoopSleepDelta = null;
+        _whoopRecoveryDelta = null;
+        _whoopCycleStrain = null;
+        _whoopLoading = false;
+        _whoopBodyWeightKg = null;
+      });
+      _pruneDeviceWidgets();
+      return;
     }
 
     // Preserve last known strain before refresh so UI doesn't drop to "—".
@@ -1593,6 +1663,7 @@ class DashboardPageState extends State<DashboardPage>
       setState(() {
         _whoopLinked = snapshot.linked;
         _whoopLinkedKnown = snapshot.linkedKnown;
+        _whoopLinkedHint = snapshot.linked;
         _whoopRecovery = snapshot.recoveryScore;
         _whoopSleepHours = snapshot.sleepHours;
         _whoopSleepScore = snapshot.sleepScore;
@@ -1605,6 +1676,7 @@ class DashboardPageState extends State<DashboardPage>
           _whoopCycleStrainLast = snapshot.cycleStrain;
         }
       });
+      AccountStorage.setWhoopLinked(snapshot.linked);
       _pruneDeviceWidgets();
       if (!_trendSleepLoading) {
         _loadTrendSleep();

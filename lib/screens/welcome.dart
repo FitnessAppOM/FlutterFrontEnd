@@ -21,7 +21,6 @@ import '../services/core/navigation_service.dart';
 import '../services/core/notification_service.dart';
 import '../services/metrics/daily_metrics_sync.dart';
 import '../services/whoop/whoop_daily_sync.dart';
-import '../services/fitbit/fitbit_daily_sync.dart';
 import '../services/auth/auth_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -290,7 +289,7 @@ class _WelcomePageState extends State<WelcomePage> {
       NotificationService.refreshDailyJournalRemindersForCurrentUser();
       DailyMetricsSync().pushIfNewDay().catchError((_) {});
       WhoopDailySync().pushIfNewDay().catchError((_) {});
-      FitbitDailySync().pushIfNewDay().catchError((_) {});
+      // Fitbit backfill now happens only on connect (backend).
     } finally {
       if (mounted) setState(() => _googleLoggingIn = false);
     }

@@ -12,6 +12,8 @@ class WhoopDailySync {
   Future<void> pushIfNewDay() async {
     final userId = await AccountStorage.getUserId();
     if (userId == null || userId == 0) return;
+    final linkedHint = await AccountStorage.getWhoopLinked();
+    if (linkedHint != true) return;
 
     final sp = await SharedPreferences.getInstance();
     final lastKey = _userScopedKey(userId);
@@ -74,6 +76,8 @@ class WhoopDailySync {
   Future<void> forceBackfillRecent({int days = 7}) async {
     final userId = await AccountStorage.getUserId();
     if (userId == null || userId == 0) return;
+    final linkedHint = await AccountStorage.getWhoopLinked();
+    if (linkedHint != true) return;
 
     // Only proceed if WHOOP is linked.
     final statusUrl = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId");

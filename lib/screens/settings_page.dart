@@ -22,7 +22,6 @@ import '../auth/expert_questionnaire.dart';
 import '../services/core/notification_service.dart';
 import '../services/whoop/whoop_daily_sync.dart';
 import '../services/whoop/whoop_latest_service.dart';
-import '../services/fitbit/fitbit_daily_sync.dart';
 import '../screens/welcome.dart';
 import '../widgets/Main/card_container.dart';
 
@@ -232,7 +231,9 @@ class _SettingsPageState extends State<SettingsPage> {
       }
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       if (!mounted) return;
-      setState(() => _whoopLinked = data["linked"] == true);
+      final linked = data["linked"] == true;
+      setState(() => _whoopLinked = linked);
+      await AccountStorage.setWhoopLinked(linked);
     } catch (_) {
       if (!mounted) return;
       setState(() => _whoopLinked = false);
@@ -286,6 +287,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (!mounted) return;
       setState(() => _whoopLinked = ok);
       if (ok) {
+        await AccountStorage.setWhoopLinked(true);
         AccountStorage.notifyWhoopChanged();
         AccountStorage.notifyAccountChanged();
         try {
@@ -338,11 +340,6 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() => _fitbitLinked = ok);
       if (ok) {
         AccountStorage.notifyAccountChanged();
-        try {
-          await FitbitDailySync().forceBackfillRecent();
-          await FitbitDailySync().pushIfNewDay();
-          AccountStorage.notifyAccountChanged();
-        } catch (_) {}
       }
       AppToast.show(
         context,
@@ -419,6 +416,7 @@ class _SettingsPageState extends State<SettingsPage> {
       }
       if (!mounted) return;
       setState(() => _whoopLinked = false);
+      await AccountStorage.setWhoopLinked(false);
       AccountStorage.notifyWhoopChanged();
       AccountStorage.notifyAccountChanged();
       AppToast.show(context, "Whoop disconnected.", type: AppToastType.success);
