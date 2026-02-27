@@ -17,6 +17,7 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
   DateTime _selectedDate = DateTime.now();
   Map<DateTime, Map<String, dynamic>> _daily = {};
   int _reqId = 0;
+  bool _transitionFromTodayToYesterday = false;
 
   @override
   void initState() {
@@ -49,6 +50,8 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
   Widget build(BuildContext context) {
     final dayKey = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
     final bool isPastDay = _isPastDay(dayKey);
+    final bool isToday = _isToday(dayKey);
+    final bool showLoadingPlaceholders = _loading && (isToday || _transitionFromTodayToYesterday);
     final metrics = _daily[dayKey];
     return Scaffold(
       appBar: AppBar(
@@ -63,7 +66,12 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
           children: [
             _header(dayKey),
             const SizedBox(height: 14),
-            _metricsGrid(metrics, isLoading: _loading, showEmptyAsDash: isPastDay),
+            _metricsGrid(
+              metrics,
+              isLoading: _loading,
+              showLoadingPlaceholders: showLoadingPlaceholders,
+              showEmptyAsDash: isPastDay,
+            ),
             if (!_hideTrendForNoData(metrics)) ...[
               const SizedBox(height: 16),
               Center(
@@ -108,12 +116,18 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
   Widget _metricsGrid(
     Map<String, dynamic>? metrics, {
     required bool isLoading,
+    required bool showLoadingPlaceholders,
     required bool showEmptyAsDash,
   }) {
+    if (showLoadingPlaceholders) {
+      return _dashMetricsGrid();
+    }
+
     if (metrics == null && isLoading) {
       return const SizedBox.shrink();
     }
-    if (metrics == null && !isLoading && !showEmptyAsDash) {
+
+    if (metrics == null && !showEmptyAsDash) {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -147,112 +161,8 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
       );
     }
 
-    if (metrics == null && isLoading) {
-      return Column(
-        children: [
-          Row(
-          children: [
-            Expanded(
-              child: RecoveryMetricCard(
-                title: "Strain",
-                value: isLoading ? "…" : _fmt(metrics?["strain"]),
-                unit: "",
-                icon: Icons.bolt,
-                accent: const Color(0xFFFF8A00),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: RecoveryMetricCard(
-                title: "Avg HR",
-                value: isLoading ? "…" : _fmt(metrics?["avg_hr"]),
-                unit: "bpm",
-                icon: Icons.favorite,
-                accent: const Color(0xFFE84C4F),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: RecoveryMetricCard(
-                title: "Max HR",
-                value: isLoading ? "…" : _fmt(metrics?["max_hr"]),
-                unit: "bpm",
-                icon: Icons.show_chart,
-                accent: const Color(0xFF7BD4FF),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: RecoveryMetricCard(
-                title: "Energy",
-                value: isLoading ? "…" : _fmt(metrics?["kilojoules"]),
-                unit: "kJ",
-                icon: Icons.local_fire_department,
-                accent: const Color(0xFFB8E91E),
-              ),
-            ),
-          ],
-        ),
-      ],
-      );
-    }
-
     if (metrics == null && showEmptyAsDash) {
-      return Column(
-        children: [
-          Row(
-            children: const [
-              Expanded(
-                child: RecoveryMetricCard(
-                  title: "Strain",
-                  value: "—",
-                  unit: "",
-                  icon: Icons.bolt,
-                  accent: Color(0xFFFF8A00),
-                ),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: RecoveryMetricCard(
-                  title: "Avg HR",
-                  value: "—",
-                  unit: "bpm",
-                  icon: Icons.favorite,
-                  accent: Color(0xFFE84C4F),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12),
-          Row(
-            children: const [
-              Expanded(
-                child: RecoveryMetricCard(
-                  title: "Max HR",
-                  value: "—",
-                  unit: "bpm",
-                  icon: Icons.show_chart,
-                  accent: Color(0xFF7BD4FF),
-                ),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: RecoveryMetricCard(
-                  title: "Energy",
-                  value: "—",
-                  unit: "kJ",
-                  icon: Icons.local_fire_department,
-                  accent: Color(0xFFB8E91E),
-                ),
-              ),
-            ],
-          ),
-        ],
-      );
+      return _dashMetricsGrid();
     }
 
     return Column(
@@ -300,6 +210,60 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
                 unit: "kJ",
                 icon: Icons.local_fire_department,
                 accent: const Color(0xFFB8E91E),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _dashMetricsGrid() {
+    return Column(
+      children: [
+        Row(
+          children: const [
+            Expanded(
+              child: RecoveryMetricCard(
+                title: "Strain",
+                value: "—",
+                unit: "",
+                icon: Icons.bolt,
+                accent: Color(0xFFFF8A00),
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: RecoveryMetricCard(
+                title: "Avg HR",
+                value: "—",
+                unit: "bpm",
+                icon: Icons.favorite,
+                accent: Color(0xFFE84C4F),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 12),
+        Row(
+          children: const [
+            Expanded(
+              child: RecoveryMetricCard(
+                title: "Max HR",
+                value: "—",
+                unit: "bpm",
+                icon: Icons.show_chart,
+                accent: Color(0xFF7BD4FF),
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: RecoveryMetricCard(
+                title: "Energy",
+                value: "—",
+                unit: "kJ",
+                icon: Icons.local_fire_department,
+                accent: Color(0xFFB8E91E),
               ),
             ),
           ],
@@ -381,7 +345,14 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
     final today = DateTime.now();
     final todayOnly = DateTime(today.year, today.month, today.day);
     if (next.isAfter(todayOnly)) return;
-    setState(() => _selectedDate = next);
+    final prev = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final yesterday = todayOnly.subtract(const Duration(days: 1));
+    final fromTodayToYesterday =
+        _isSameDay(prev, todayOnly) && _isSameDay(next, yesterday);
+    setState(() {
+      _selectedDate = next;
+      _transitionFromTodayToYesterday = fromTodayToYesterday;
+    });
     _loadRange();
   }
 
@@ -395,6 +366,10 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
   bool _isToday(DateTime d) {
     final now = DateTime.now();
     return d.year == now.year && d.month == now.month && d.day == now.day;
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
   bool _isPastDay(DateTime d) {
