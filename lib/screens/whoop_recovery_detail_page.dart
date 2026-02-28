@@ -18,6 +18,7 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
   bool _loading = true;
   Map<DateTime, Map<String, dynamic>> _daily = {};
   DateTime _selectedDate = DateTime.now();
+  int _reqId = 0;
 
   @override
   void initState() {
@@ -26,6 +27,7 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
   }
 
   Future<void> _loadRange() async {
+    final requestId = ++_reqId;
     setState(() => _loading = true);
     try {
       final day = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
@@ -36,12 +38,14 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
         end: end,
       );
       if (!mounted) return;
+      if (requestId != _reqId) return;
       setState(() {
-        _daily = data;
+        _daily.addAll(data);
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
+      if (requestId != _reqId) return;
       setState(() => _loading = false);
     }
   }

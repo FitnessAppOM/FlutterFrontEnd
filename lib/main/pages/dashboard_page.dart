@@ -67,6 +67,7 @@ import '../../localization/app_localizations.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/common/date_header.dart';
 import '../../services/training/training_service.dart';
+import '../../services/training/training_progress_storage.dart';
 import '../../widgets/primary_button.dart';
 import '../../screens/whoop_test_page.dart';
 import 'dart:math' as math;
@@ -1273,6 +1274,32 @@ class DashboardPageState extends State<DashboardPage>
       final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
       final weekStart = anchor.subtract(Duration(days: anchor.weekday - 1));
       final weekEnd = weekStart.add(const Duration(days: 6));
+
+      // Prefer local progress (persistent) to avoid extra API calls.
+      final cachedProgram = await TrainingService.fetchActiveProgramFromCache();
+      final local = await TrainingProgressStorage.getProgressForWeek(anchor);
+      int? totalFromProgram;
+      if (cachedProgram is Map<String, dynamic>) {
+        final raw = cachedProgram['training_days_per_week'];
+        if (raw is int) {
+          totalFromProgram = raw;
+        } else if (raw is num) {
+          totalFromProgram = raw.round();
+        } else if (raw is String) {
+          totalFromProgram = int.tryParse(raw);
+        }
+      }
+      if (local != null) {
+        if (!mounted) return;
+        setState(() {
+          _exerciseTotal = (local.total > 0 ? local.total : (totalFromProgram ?? 0));
+          _exerciseCompleted = local.completed;
+          _exerciseLoadedOnce = true;
+          _exerciseProgramMode = "local";
+        });
+        return;
+      }
+
       final progress = await TrainingService.fetchTrainingProgress(
         userId: userId,
         start: weekStart,

@@ -167,7 +167,10 @@ class _CardioMapState extends State<CardioMap> {
               steps: widget.steps,
               elapsedSeconds: widget.elapsedSeconds,
               running: widget.running,
-              onCountdownStart: widget.onCountdownStart,
+              onCountdownStart: () {
+                _startTracking();
+                widget.onCountdownStart?.call();
+              },
               onStart: () {
                 _startTracking();
                 widget.onStart?.call();

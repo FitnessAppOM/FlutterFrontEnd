@@ -19,6 +19,7 @@ class CardioAchievementSheet extends StatefulWidget {
     required this.route,
     this.userName,
     this.snapshotUrl,
+    this.sessionDate,
   });
 
   final int durationSeconds;
@@ -28,6 +29,7 @@ class CardioAchievementSheet extends StatefulWidget {
   final List<CardioPoint> route;
   final String? userName;
   final String? snapshotUrl;
+  final DateTime? sessionDate;
 
   @override
   State<CardioAchievementSheet> createState() => _CardioAchievementSheetState();
@@ -63,6 +65,11 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
       token: token,
       route: widget.route,
     );
+  }
+
+  String _sessionDateLabel() {
+    final dt = (widget.sessionDate ?? DateTime.now()).toLocal();
+    return dt.toString().split(' ').first;
   }
 
   Future<void> _saveScreenshot() async {
@@ -245,7 +252,7 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                                     border: Border.all(color: Colors.white12),
                                   ),
                                   child: Text(
-                                    DateTime.now().toLocal().toString().split(' ').first,
+                                    _sessionDateLabel(),
                                     style: const TextStyle(color: Colors.white70, fontSize: 12),
                                   ),
                                 ),

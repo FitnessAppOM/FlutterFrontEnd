@@ -84,6 +84,10 @@ class WhoopWidgetDataService {
 
     int? sleepDelta;
     int? recoveryDelta;
+    final recoveryScore = data["recovery_score"] is num
+        ? (data["recovery_score"] as num).round()
+        : int.tryParse("${data["recovery_score"]}");
+
     final yesterday = date.subtract(const Duration(days: 1));
     final yParam =
         "${yesterday.year.toString().padLeft(4, '0')}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}";
@@ -121,9 +125,6 @@ class WhoopWidgetDataService {
       }
     }
 
-    final recoveryScore = data["recovery_score"] is num
-        ? (data["recovery_score"] as num).round()
-        : int.tryParse("${data["recovery_score"]}");
     if (recoveryScore != null && recoveryDelta != null) {
       recoveryDelta = recoveryScore + recoveryDelta;
     } else {

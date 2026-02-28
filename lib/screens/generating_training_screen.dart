@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/training/training_service.dart';
+import '../services/training/training_progress_storage.dart';
 import '../core/account_storage.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/training_loading_indicator.dart';
@@ -55,6 +56,20 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
       await TrainingService.generateProgram(userId)
           .timeout(_timeout);
 
+      // Refresh local program cache to reset progress for the new plan.
+      bool synced = false;
+      try {
+        await TrainingService.fetchActiveProgram(userId)
+            .timeout(const Duration(seconds: 20));
+        synced = true;
+      } catch (_) {
+        // ignore; we'll clear progress cache below
+      }
+      if (!synced) {
+        await TrainingProgressStorage.clearAll();
+      }
+      AccountStorage.notifyTrainingChanged();
+
       if (!mounted) return;
 
       Navigator.pushAndRemoveUntil(
@@ -106,6 +121,7 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
     try {
       await TrainingService.fetchActiveProgram(userId)
           .timeout(const Duration(seconds: 20));
+      AccountStorage.notifyTrainingChanged();
       if (!mounted) return true;
       Navigator.pushAndRemoveUntil(
         context,

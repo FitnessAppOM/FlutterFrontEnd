@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
 import 'training_program_storage.dart';
+import 'training_progress_storage.dart';
 import '../core/feedback_questions_storage.dart';
 
 class TrainingApiException implements Exception {
@@ -71,6 +72,7 @@ class TrainingService {
     
     // Cache program locally for offline access
     await TrainingProgramStorage.saveProgram(program);
+    await TrainingProgressStorage.syncProgram(program);
     
     return program;
   }
@@ -96,7 +98,11 @@ class TrainingService {
 
   /// Fetch program from cache (for offline use)
   static Future<Map<String, dynamic>?> fetchActiveProgramFromCache() async {
-    return await TrainingProgramStorage.loadProgram();
+    final program = await TrainingProgramStorage.loadProgram();
+    if (program != null) {
+      await TrainingProgressStorage.syncProgram(program);
+    }
+    return program;
   }
 
   /// Start an exercise and (optionally) record entry_date (user local date) on backend.

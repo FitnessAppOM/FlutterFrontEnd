@@ -36,7 +36,7 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
       if (!mounted) return;
       if (requestId != _reqId) return;
       setState(() {
-        _daily = data;
+        _daily.addAll(data);
         _loading = false;
       });
     } catch (_) {

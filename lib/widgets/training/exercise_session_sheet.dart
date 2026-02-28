@@ -10,6 +10,7 @@ import 'exercise_instruction_dialog.dart';
 import '../../widgets/app_toast.dart';
 import '../../services/training/exercise_action_queue.dart';
 import '../../services/training/training_completion_storage.dart';
+import '../../services/training/training_progress_storage.dart';
 import '../../services/training/training_activity_service.dart';
 import '../../consents/consent_manager.dart';
 import '../../core/account_storage.dart';
@@ -611,6 +612,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
 
     // Record that user completed an exercise today (diet page can auto-set "training day" and lock "rest day")
     await TrainingCompletionStorage.recordExerciseCompletedToday();
+    await TrainingProgressStorage.recordTrainingDayCompleted(now);
     AccountStorage.notifyTrainingChanged();
 
     // Show feedback sheet (works offline)
@@ -839,10 +841,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                       steps: _cardioSteps,
                       elapsedSeconds: seconds,
                       running: started && !_paused,
-                      trackingEnabled: started,
+                      trackingEnabled: started || _countdownSessionStarted,
                       onCountdownStart: () {
                         if (!started) {
-                          _countdownSessionStarted = true;
+                          setState(() => _countdownSessionStarted = true);
                           TrainingActivityService.startSession(
                             exerciseName:
                                 (widget.exercise['exercise_name'] ?? '').toString(),

@@ -8,6 +8,7 @@ import '../services/auth/profile_service.dart';
 import '../services/diet/diet_service.dart';
 import '../services/diet/diet_targets_storage.dart';
 import '../services/training/training_service.dart';
+import '../services/training/training_progress_storage.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/training_loading_indicator.dart';
 
@@ -60,6 +61,20 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
       // 2) Regenerate training (AI); diet is generated in background
       await TrainingService.generateProgram(userId).timeout(_timeout);
       if (!mounted) return;
+
+      // Refresh local program cache to reset progress for the new plan.
+      bool synced = false;
+      try {
+        await TrainingService.fetchActiveProgram(userId)
+            .timeout(const Duration(seconds: 20));
+        synced = true;
+      } catch (_) {
+        // ignore; we'll clear progress cache below
+      }
+      if (!synced) {
+        await TrainingProgressStorage.clearAll();
+      }
+      AccountStorage.notifyTrainingChanged();
 
       // 3) Pre-open / fetch today's meals (best-effort)
       try {
@@ -118,6 +133,7 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
   Future<bool> _tryNavigateIfReady(int userId) async {
     try {
       await TrainingService.fetchActiveProgram(userId).timeout(const Duration(seconds: 20));
+      AccountStorage.notifyTrainingChanged();
       if (!mounted) return true;
       DietRegenerationFlag.setRegenerating();
       await DietTargetsStorage.clearTargets();
@@ -276,4 +292,3 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
     );
   }
 }
-

@@ -33,6 +33,10 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
   int? _napCount;
   double? _napHours;
   bool _metricsHasData = false;
+  final Map<DateTime, _WhoopSleepMetrics?> _metricsCache = {};
+  final Map<DateTime, int?> _napCountCache = {};
+  final Map<DateTime, double?> _napHoursCache = {};
+  final Map<DateTime, bool> _metricsHasDataCache = {};
 
   static const _sleepGoalKey = "dashboard_sleep_goal";
 
@@ -144,7 +148,25 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
 
   Future<void> _loadWhoopMetrics() async {
     final requestId = ++_metricsReqId;
-    setState(() => _metricsLoading = true);
+    final dayKey = DateTime(_metricsDate.year, _metricsDate.month, _metricsDate.day);
+    final cachedHasData = _metricsHasDataCache[dayKey];
+    final cachedMetrics = _metricsCache[dayKey];
+    final hasCache = cachedMetrics != null || cachedHasData != null;
+    setState(() {
+      if (hasCache) {
+        _whoopMetrics = cachedMetrics;
+        _napCount = _napCountCache[dayKey];
+        _napHours = _napHoursCache[dayKey];
+        _metricsHasData = cachedHasData ?? cachedMetrics != null;
+        _metricsLoading = false;
+      } else {
+        _whoopMetrics = null;
+        _napCount = null;
+        _napHours = null;
+        _metricsHasData = false;
+        _metricsLoading = true;
+      }
+    });
     try {
       final now = DateTime.now();
       final isToday = _metricsDate.year == now.year &&
@@ -161,16 +183,24 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       final napCount = details?["nap_count"];
       final napHours = details?["nap_hours"];
       final hasData = metrics != null;
+      _metricsCache[dayKey] = metrics;
+      _napCountCache[dayKey] = napCount is num ? napCount.round() : int.tryParse("$napCount");
+      _napHoursCache[dayKey] = napHours is num ? napHours.toDouble() : double.tryParse("$napHours");
+      _metricsHasDataCache[dayKey] = hasData;
       setState(() {
         _whoopMetrics = metrics;
-        _napCount = napCount is num ? napCount.round() : int.tryParse("$napCount");
-        _napHours = napHours is num ? napHours.toDouble() : double.tryParse("$napHours");
+        _napCount = _napCountCache[dayKey];
+        _napHours = _napHoursCache[dayKey];
         _metricsHasData = hasData;
         _metricsLoading = false;
       });
     } catch (_) {
       if (!mounted) return;
       if (requestId != _metricsReqId) return;
+      if (hasCache) {
+        setState(() => _metricsLoading = false);
+        return;
+      }
       setState(() {
         _whoopMetrics = null;
         _napCount = null;
@@ -457,22 +487,11 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
         ),
       );
     }
-    if (m == null) {
-      return SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _metricsDateHeader(),
-            const SizedBox(height: 12),
-            _metricsNoDataCard(theme, loading: isLoading),
-          ],
-        ),
-      );
-    }
-    final sleepHours = (m.sleepTimeMs / 3600000.0);
-    final bedHours = (m.totalInBedMs / 3600000.0);
-    final efficiency = m.efficiency;
-    final stage = m.stagePercentages;
+    final hasMetrics = m != null;
+    final sleepHours = hasMetrics ? (m.sleepTimeMs / 3600000.0) : 0.0;
+    final bedHours = hasMetrics ? (m.totalInBedMs / 3600000.0) : 0.0;
+    final efficiency = hasMetrics ? m.efficiency : 0.0;
+    final stage = hasMetrics ? m.stagePercentages : <String, double>{};
 
     return SingleChildScrollView(
       child: Column(
@@ -495,7 +514,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
               Expanded(
                 child: SleepMetricTile(
                   title: "Total sleep",
-                  value: isLoading ? "…" : _formatHours(sleepHours),
+                  value: (isLoading || !hasMetrics) ? "—" : _formatHours(sleepHours),
                   subtitle: "Light + Deep + REM",
                   accentColor: const Color(0xFF9B8CFF),
                   icon: Icons.nights_stay,
@@ -505,7 +524,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
               Expanded(
                 child: SleepMetricTile(
                   title: "Time in bed",
-                  value: isLoading ? "…" : _formatHours(bedHours),
+                  value: (isLoading || !hasMetrics) ? "—" : _formatHours(bedHours),
                   subtitle: "Total in bed",
                   accentColor: const Color(0xFF35B6FF),
                   icon: Icons.king_bed,
@@ -516,11 +535,13 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
           const SizedBox(height: 12),
           SleepMetricTile(
             title: "Sleep efficiency",
-            value: isLoading ? "…" : "${(efficiency * 100).toStringAsFixed(0)}%",
+            value: (isLoading || !hasMetrics)
+                ? "—"
+                : "${(efficiency * 100).toStringAsFixed(0)}%",
             subtitle: "Sleep time / time in bed",
             accentColor: const Color(0xFF00BFA6),
             icon: Icons.speed,
-            child: SleepProgressBar(value: isLoading ? 0 : efficiency),
+            child: SleepProgressBar(value: (isLoading || !hasMetrics) ? 0 : efficiency),
           ),
           const SizedBox(height: 12),
           Row(
@@ -528,7 +549,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
               Expanded(
                 child: SleepMetricTile(
                   title: "Disturbances",
-                  value: isLoading ? "…" : m.disturbances.toString(),
+                  value: (isLoading || !hasMetrics) ? "—" : m.disturbances.toString(),
                   subtitle: "Night disruptions",
                   accentColor: const Color(0xFFFF8A00),
                   icon: Icons.bolt,
@@ -538,7 +559,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
               Expanded(
                 child: SleepMetricTile(
                   title: "Sleep cycles",
-                  value: isLoading ? "…" : m.cycles.toString(),
+                  value: (isLoading || !hasMetrics) ? "—" : m.cycles.toString(),
                   subtitle: "Completed cycles",
                   accentColor: const Color(0xFF6A5AE0),
                   icon: Icons.loop,
@@ -549,8 +570,8 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
           const SizedBox(height: 12),
           SleepMetricTile(
             title: "Naps",
-            value: isLoading
-                ? "…"
+            value: (isLoading || !hasMetrics)
+                ? "—"
                 : (napCount == null ? "—" : "$napCount nap${napCount == 1 ? '' : 's'}"),
             subtitle: isLoading
                 ? ""
@@ -568,9 +589,9 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
             child: Row(
               children: [
                 SleepStageRing(
-                  lightPct: isLoading ? 0 : (stage["light"] ?? 0),
-                  deepPct: isLoading ? 0 : (stage["slow_wave"] ?? 0),
-                  remPct: isLoading ? 0 : (stage["rem"] ?? 0),
+                  lightPct: (isLoading || !hasMetrics) ? 0 : (stage["light"] ?? 0),
+                  deepPct: (isLoading || !hasMetrics) ? 0 : (stage["slow_wave"] ?? 0),
+                  remPct: (isLoading || !hasMetrics) ? 0 : (stage["rem"] ?? 0),
                   size: 120,
                 ),
                 const SizedBox(width: 16),
@@ -581,24 +602,24 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                       _stageLegend(
                         color: const Color(0xFF7BD4FF),
                         label: "Light",
-                        value: isLoading
-                            ? "…"
+                        value: (isLoading || !hasMetrics)
+                            ? "—"
                             : "${((stage["light"] ?? 0) * 100).toStringAsFixed(0)}%",
                       ),
                       const SizedBox(height: 6),
                       _stageLegend(
                         color: const Color(0xFF9B8CFF),
                         label: "Deep",
-                        value: isLoading
-                            ? "…"
+                        value: (isLoading || !hasMetrics)
+                            ? "—"
                             : "${((stage["slow_wave"] ?? 0) * 100).toStringAsFixed(0)}%",
                       ),
                       const SizedBox(height: 6),
                       _stageLegend(
                         color: const Color(0xFF00BFA6),
                         label: "REM",
-                        value: isLoading
-                            ? "…"
+                        value: (isLoading || !hasMetrics)
+                            ? "—"
                             : "${((stage["rem"] ?? 0) * 100).toStringAsFixed(0)}%",
                       ),
                     ],

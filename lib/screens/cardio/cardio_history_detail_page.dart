@@ -87,6 +87,7 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
             icon: const Icon(Icons.ios_share),
             onPressed: () async {
               final speedKmh = pace > 0.01 ? 60.0 / pace : 0.0;
+              final sessionDate = _parseDate(entryDate);
               await showModalBottomSheet(
                 context: context,
                 isDismissible: true,
@@ -102,6 +103,7 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
                   route: route,
                   userName: null,
                   snapshotUrl: snapshotUrl,
+                  sessionDate: sessionDate,
                 ),
               );
             },
@@ -261,6 +263,15 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
       }
     }
     return points;
+  }
+
+  DateTime? _parseDate(String? isoDate) {
+    if (isoDate == null || isoDate.trim().isEmpty) return null;
+    try {
+      return DateTime.parse(isoDate);
+    } catch (_) {
+      return null;
+    }
   }
 
   String _formatDate(String? isoDate) {
