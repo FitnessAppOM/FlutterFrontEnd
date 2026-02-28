@@ -47,7 +47,7 @@ class _WhoopTestPageState extends State<WhoopTestPage> {
     if (_userId == null || _userId == 0) return;
     try {
       final url = Uri.parse(
-        "${ApiConfig.baseUrl}/whoop/status?user_id=$_userId",
+        "${ApiConfig.baseUrl}/whoop/status?user_id=$_userId&backfill=0",
       );
       final response = await http.get(url).timeout(const Duration(seconds: 12));
       if (response.statusCode != 200) {

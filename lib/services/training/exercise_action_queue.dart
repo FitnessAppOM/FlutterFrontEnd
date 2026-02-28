@@ -6,6 +6,7 @@ import 'training_service.dart';
 /// Queues exercise actions for offline sync
 class ExerciseActionQueue {
   static const _key = "exercise_action_queue";
+  static bool _syncing = false;
 
   /// Action types
   static const String actionStart = "start";
@@ -65,33 +66,49 @@ class ExerciseActionQueue {
 
   /// Process and sync all queued actions
   static Future<void> syncQueue() async {
-    final queue = await loadQueue();
-    if (queue.isEmpty) return;
+    if (_syncing) return;
+    _syncing = true;
+    try {
+      final queue = await loadQueue();
+      if (queue.isEmpty) return;
 
-    final userId = await AccountStorage.getUserId();
-    if (userId == null) return;
+      final userId = await AccountStorage.getUserId();
+      if (userId == null) return;
 
-    final sp = await SharedPreferences.getInstance();
-    final queueKey = "${_key}_u$userId";
-    
-    final List<Map<String, dynamic>> failed = [];
-    
-    for (final action in queue) {
-      try {
-        await _processAction(action);
-      } catch (e) {
-        // If sync fails, keep action in queue
-        failed.add(action);
-        // ignore: avoid_print
-        print("Failed to sync exercise action: $e");
+      final sp = await SharedPreferences.getInstance();
+      final queueKey = "${_key}_u$userId";
+
+      final List<Map<String, dynamic>> failed = [];
+
+      for (final action in queue) {
+        try {
+          await _processAction(action);
+        } catch (e) {
+          final actionType = action["action"] as String?;
+          // Drop non-retryable replace errors (e.g., started/completed)
+          if (actionType == actionReplace &&
+              e is TrainingApiException &&
+              !e.isRetryable) {
+            // ignore: avoid_print
+            print("Dropping replace action (non-retryable): $e");
+            continue;
+          }
+
+          // If sync fails, keep action in queue
+          failed.add(action);
+          // ignore: avoid_print
+          print("Failed to sync exercise action: $e");
+        }
       }
-    }
-    
-    // Save remaining failed actions (or clear if all succeeded)
-    if (failed.isEmpty) {
-      await sp.remove(queueKey);
-    } else {
-      await sp.setString(queueKey, jsonEncode(failed));
+
+      // Save remaining failed actions (or clear if all succeeded)
+      if (failed.isEmpty) {
+        await sp.remove(queueKey);
+      } else {
+        await sp.setString(queueKey, jsonEncode(failed));
+      }
+    } finally {
+      _syncing = false;
     }
   }
 

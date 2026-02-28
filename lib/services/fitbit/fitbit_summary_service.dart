@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import 'fitbit_db_service.dart';
 import 'fitbit_activity_service.dart';
 import 'fitbit_heart_service.dart';
 import 'fitbit_sleep_service.dart';
@@ -34,7 +35,15 @@ class FitbitSummaryService {
     return "$yyyy-$mm-$dd";
   }
 
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year && date.month == now.month && date.day == now.day;
+  }
+
   Future<FitbitSummaryBundle?> fetchSummary(DateTime date) async {
+    if (!_isToday(date)) {
+      return _fetchSummaryFromDb(date);
+    }
     final userId = await AccountStorage.getUserId();
     if (userId == null) return null;
     final dateStr = _dateParam(date);
@@ -200,6 +209,102 @@ class FitbitSummaryService {
           ? bodyNode["weight"] as Map<String, dynamic>
           : null;
       body = _parseBody(weight);
+    }
+
+    return FitbitSummaryBundle(
+      activity: activity,
+      heart: heart,
+      sleep: sleep,
+      vitals: vitals,
+      body: body,
+    );
+  }
+
+  Future<FitbitSummaryBundle?> _fetchSummaryFromDb(DateTime date) async {
+    final row = await FitbitDailyMetricsDbService().fetchRow(date);
+    if (row == null) return null;
+
+    int? _int(dynamic v) {
+      if (v == null) return null;
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      return int.tryParse(v.toString());
+    }
+
+    double? _double(dynamic v) {
+      if (v == null) return null;
+      if (v is double) return v;
+      if (v is num) return v.toDouble();
+      return double.tryParse(v.toString());
+    }
+
+    FitbitActivitySummary? activity;
+    if (row["steps"] != null ||
+        row["distance_km"] != null ||
+        row["calories_out"] != null ||
+        row["floors"] != null ||
+        row["active_minutes"] != null) {
+      activity = FitbitActivitySummary(
+        steps: _int(row["steps"]),
+        distance: _double(row["distance_km"]),
+        calories: _int(row["calories_out"]),
+        floors: _int(row["floors"]),
+        activeMinutes: _int(row["active_minutes"]),
+        goalSteps: _int(row["steps_goal"]),
+        goalDistance: _double(row["distance_goal_km"]),
+        goalCalories: _int(row["calories_goal"]),
+        goalFloors: _int(row["floors_goal"]),
+        goalActiveMinutes: _int(row["active_minutes_goal"]),
+      );
+    }
+
+    FitbitSleepSummary? sleep;
+    if (row["sleep_minutes_asleep"] != null || row["sleep_time_in_bed"] != null) {
+      sleep = FitbitSleepSummary(
+        totalMinutesAsleep: _int(row["sleep_minutes_asleep"]),
+        totalTimeInBed: _int(row["sleep_time_in_bed"]),
+        sleepGoalMinutes: null,
+        logs: const [],
+      );
+    }
+
+    FitbitHeartSummary? heart;
+    if (row["resting_hr"] != null ||
+        row["hrv_daily_rmssd"] != null ||
+        row["cardio_vo2max"] != null ||
+        row["heart_zones"] != null) {
+      final zonesRaw = row["heart_zones"];
+      final zones = zonesRaw is List ? zonesRaw : const [];
+      final vo2 = row["cardio_vo2max"]?.toString();
+      heart = FitbitHeartSummary(
+        restingHr: _int(row["resting_hr"]),
+        hrvRmssd: _double(row["hrv_daily_rmssd"]),
+        vo2Max: vo2,
+        zones: zones,
+      );
+    }
+
+    FitbitVitalsSummary? vitals;
+    final vitalsCandidate = FitbitVitalsSummary(
+      spo2Percent: _double(row["spo2_avg"]),
+      spo2Min: _double(row["spo2_min"]),
+      spo2Max: _double(row["spo2_max"]),
+      skinTempC: _double(row["skin_temp_c"]),
+      breathingRate: _double(row["breathing_rate"]),
+      ecgSummary: row["ecg_summary"]?.toString(),
+      ecgAvgHr: _int(row["ecg_avg_hr"]),
+    );
+    if (vitalsCandidate.hasAny) {
+      vitals = vitalsCandidate;
+    }
+
+    FitbitBodySummary? body;
+    if (row["weight_kg"] != null) {
+      body = FitbitBodySummary(weightKg: _double(row["weight_kg"]));
+    }
+
+    if (activity == null && heart == null && sleep == null && vitals == null && body == null) {
+      return null;
     }
 
     return FitbitSummaryBundle(

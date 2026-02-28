@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import 'fitbit_db_service.dart';
 
 class FitbitVitalsSummary {
   final double? spo2Percent;
@@ -40,7 +41,40 @@ class FitbitVitalsService {
     return "$yyyy-$mm-$dd";
   }
 
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year && date.month == now.month && date.day == now.day;
+  }
+
   Future<FitbitVitalsSummary?> fetchSummary(DateTime date) async {
+    if (!_isToday(date)) {
+      final row = await FitbitDailyMetricsDbService().fetchRow(date);
+      if (row == null) return null;
+      double? _double(dynamic v) {
+        if (v == null) return null;
+        if (v is double) return v;
+        if (v is num) return v.toDouble();
+        return double.tryParse(v.toString());
+      }
+
+      int? _int(dynamic v) {
+        if (v == null) return null;
+        if (v is int) return v;
+        if (v is num) return v.toInt();
+        return int.tryParse(v.toString());
+      }
+
+      final summary = FitbitVitalsSummary(
+        spo2Percent: _double(row["spo2_avg"]),
+        spo2Min: _double(row["spo2_min"]),
+        spo2Max: _double(row["spo2_max"]),
+        skinTempC: _double(row["skin_temp_c"]),
+        breathingRate: _double(row["breathing_rate"]),
+        ecgSummary: row["ecg_summary"]?.toString(),
+        ecgAvgHr: _int(row["ecg_avg_hr"]),
+      );
+      return summary.hasAny ? summary : null;
+    }
     final userId = await AccountStorage.getUserId();
     if (userId == null) return null;
     final dateStr = _dateParam(date);

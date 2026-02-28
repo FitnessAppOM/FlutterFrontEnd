@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import 'fitbit_db_service.dart';
 
 class FitbitSleepLog {
   final DateTime? start;
@@ -47,7 +48,32 @@ class FitbitSleepService {
     return "$yyyy-$mm-$dd";
   }
 
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year && date.month == now.month && date.day == now.day;
+  }
+
   Future<FitbitSleepSummary?> fetchSummary(DateTime date) async {
+    if (!_isToday(date)) {
+      final row = await FitbitDailyMetricsDbService().fetchRow(date);
+      if (row == null) return null;
+      int? _int(dynamic v) {
+        if (v == null) return null;
+        if (v is int) return v;
+        if (v is num) return v.toInt();
+        return int.tryParse(v.toString());
+      }
+
+      final minutesAsleep = _int(row["sleep_minutes_asleep"]);
+      final timeInBed = _int(row["sleep_time_in_bed"]);
+      if (minutesAsleep == null && timeInBed == null) return null;
+      return FitbitSleepSummary(
+        totalMinutesAsleep: minutesAsleep,
+        totalTimeInBed: timeInBed,
+        sleepGoalMinutes: null,
+        logs: const [],
+      );
+    }
     final userId = await AccountStorage.getUserId();
     if (userId == null) return null;
     final dateStr = _dateParam(date);

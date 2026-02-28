@@ -8,8 +8,12 @@ import '../../core/account_storage.dart';
 
 class FitbitDailySync {
   static const _lastPushKey = "fitbit_daily_last_push_date";
+  static bool _syncInFlight = false;
 
   Future<void> pushIfNewDay() async {
+    if (_syncInFlight) return;
+    _syncInFlight = true;
+    try {
     final userId = await AccountStorage.getUserId();
     if (userId == null || userId == 0) return;
 
@@ -69,9 +73,15 @@ class FitbitDailySync {
     }
 
     await sp.setString(lastKey, todayKey);
+    } finally {
+      _syncInFlight = false;
+    }
   }
 
   Future<void> forceBackfillRecent({int days = 7}) async {
+    if (_syncInFlight) return;
+    _syncInFlight = true;
+    try {
     final userId = await AccountStorage.getUserId();
     if (userId == null || userId == 0) return;
 
@@ -117,6 +127,9 @@ class FitbitDailySync {
         await http.get(url, headers: headers).timeout(const Duration(seconds: 25));
       }
       cursor = cursor.subtract(const Duration(days: 1));
+    }
+    } finally {
+      _syncInFlight = false;
     }
   }
 

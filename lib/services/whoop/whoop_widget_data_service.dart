@@ -37,7 +37,7 @@ class WhoopWidgetDataService {
     }
 
     final headers = await AccountStorage.getAuthHeaders();
-    final statusUrl = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId");
+    final statusUrl = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId&backfill=0");
     final statusRes =
         await http.get(statusUrl, headers: headers).timeout(const Duration(seconds: 12));
     if (statusRes.statusCode != 200) {

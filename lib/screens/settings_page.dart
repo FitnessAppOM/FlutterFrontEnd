@@ -221,7 +221,7 @@ class _SettingsPageState extends State<SettingsPage> {
       return;
     }
     try {
-      final url = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId");
+      final url = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId&backfill=0");
       final headers = await AccountStorage.getAuthHeaders();
       final res = await http
           .get(url, headers: headers)
@@ -255,7 +255,9 @@ class _SettingsPageState extends State<SettingsPage> {
         return;
       }
       final data = json.decode(response.body);
-      setState(() => _fitbitLinked = data["linked"] == true);
+      final linked = data["linked"] == true;
+      setState(() => _fitbitLinked = linked);
+      await AccountStorage.setFitbitLinked(linked);
     } catch (_) {
       setState(() => _fitbitLinked = false);
     }
@@ -339,6 +341,9 @@ class _SettingsPageState extends State<SettingsPage> {
       final ok = uri != null && uri.scheme == 'taqa' && uri.host == 'fitbit';
       setState(() => _fitbitLinked = ok);
       if (ok) {
+        await AccountStorage.setFitbitLinked(true);
+      }
+      if (ok) {
         AccountStorage.notifyAccountChanged();
       }
       AppToast.show(
@@ -373,6 +378,7 @@ class _SettingsPageState extends State<SettingsPage> {
       final headers = await AccountStorage.getAuthHeaders();
       await http.post(url, headers: headers);
       setState(() => _fitbitLinked = false);
+      await AccountStorage.setFitbitLinked(false);
       AccountStorage.notifyAccountChanged();
       AppToast.show(context, "Fitbit disconnected.", type: AppToastType.success);
     } catch (e) {
@@ -929,45 +935,57 @@ class _SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1E1E1E),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: const Color(0xFF1E1E1E),
+        shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white10),
+          side: const BorderSide(color: Colors.white10),
         ),
-        child: Row(
-          children: [
-            leading ?? Icon(icon, color: color ?? AppColors.accent),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: color ?? Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          splashFactory: InkRipple.splashFactory,
+          splashColor: Colors.white.withValues(alpha: 0.08),
+          highlightColor: Colors.white.withValues(alpha: 0.08),
+          overlayColor: MaterialStateProperty.resolveWith(
+            (states) => states.contains(MaterialState.pressed)
+                ? Colors.white.withValues(alpha: 0.08)
+                : null,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                leading ?? Icon(icon, color: color ?? AppColors.accent),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          color: color ?? Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                const Icon(Icons.chevron_right, color: Colors.white54),
+              ],
             ),
-            const Icon(Icons.chevron_right, color: Colors.white54),
-          ],
+          ),
         ),
       ),
     );

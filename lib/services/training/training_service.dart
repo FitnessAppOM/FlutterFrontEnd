@@ -5,6 +5,18 @@ import '../../core/account_storage.dart';
 import 'training_program_storage.dart';
 import '../core/feedback_questions_storage.dart';
 
+class TrainingApiException implements Exception {
+  final int statusCode;
+  final String detail;
+
+  TrainingApiException(this.statusCode, this.detail);
+
+  bool get isRetryable => statusCode >= 500 || statusCode == 408 || statusCode == 429;
+
+  @override
+  String toString() => detail;
+}
+
 class TrainingService {
   static String baseUrl = ApiConfig.baseUrl;
 
@@ -342,7 +354,10 @@ class TrainingService {
     await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
       final body = response.body.isNotEmpty ? json.decode(response.body) : {};
-      throw Exception(body['detail'] ?? "Replace failed");
+      final detail = body is Map<String, dynamic>
+          ? (body['detail']?.toString() ?? "Replace failed")
+          : "Replace failed";
+      throw TrainingApiException(response.statusCode, detail);
     }
   }
 

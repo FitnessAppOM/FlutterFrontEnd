@@ -23,15 +23,18 @@ import '../services/metrics/daily_metrics_sync.dart';
 import '../services/whoop/whoop_daily_sync.dart';
 import '../services/auth/auth_service.dart';
 import 'package:http/http.dart' as http;
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 
 // -----------------------------------------------------------------------------
 // FIX: Model must be OUTSIDE the widget
 // -----------------------------------------------------------------------------
 class UserCheckResult {
-  final int id;
-  UserCheckResult(this.id);
+  final int? id;
+  final bool offline;
+  const UserCheckResult({this.id, this.offline = false});
 }
 
 
@@ -77,28 +80,38 @@ class _WelcomePageState extends State<WelcomePage> {
   // -----------------------------------------------------------------------------
   // CHECK USER IN BACKEND
   // -----------------------------------------------------------------------------
-  Future<UserCheckResult?> checkUserExistsBackend(String email) async {
+  static const Duration _checkTimeout = Duration(seconds: 6);
+
+  Future<UserCheckResult> checkUserExistsBackend(String email) async {
     try {
       final url = Uri.parse("${ApiConfig.baseUrl}/auth/check-user");
-      final res = await http.post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"email": email}),
-      );
+      final res = await http
+          .post(
+            url,
+            headers: {"Content-Type": "application/json"},
+            body: jsonEncode({"email": email}),
+          )
+          .timeout(_checkTimeout);
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        if (data is! Map) return null;
+        if (data is! Map) return const UserCheckResult();
         final id = data["user_id"];
-        if (id == null) return null;
+        if (id == null) return const UserCheckResult();
         final userId = id is int ? id : int.tryParse(id.toString());
-        if (userId == null) return null;
-        return UserCheckResult(userId);
+        if (userId == null) return const UserCheckResult();
+        return UserCheckResult(id: userId);
       }
 
-      return null;
+      return const UserCheckResult();
+    } on SocketException {
+      return const UserCheckResult(offline: true);
+    } on TimeoutException {
+      return const UserCheckResult(offline: true);
+    } on http.ClientException {
+      return const UserCheckResult(offline: true);
     } catch (_) {
-      return null;
+      return const UserCheckResult();
     }
   }
 
@@ -113,6 +126,12 @@ class _WelcomePageState extends State<WelcomePage> {
     final qDone = await AccountStorage.isQuestionnaireDone();
     final qExpertDone = await AccountStorage.isExpertQuestionnaireDone();
     final provider = await AccountStorage.getAuthProvider();
+    final savedUserId = await AccountStorage.getUserId();
+    final token = await AccountStorage.getAccessToken();
+    final hasSession = savedUserId != null &&
+        savedUserId > 0 &&
+        token != null &&
+        token.trim().isNotEmpty;
 
   if (!mounted) return;
 
@@ -148,13 +167,19 @@ class _WelcomePageState extends State<WelcomePage> {
   // Auto-redirect only if verified AND questionnaire was completed
   final questionnaireDone = qDone || qExpertDone;
   if (e != null && e.isNotEmpty && v == true && questionnaireDone) {
-    final exists = await checkUserExistsBackend(e);
-    if (exists != null) {
-      await _navigatePostAuth(
-        userId: exists.id,
-        isExpert: isExpert,
-      );
-      return;
+    if (hasSession) {
+      final exists = await checkUserExistsBackend(e);
+      if (exists.offline) {
+        await _navigateOfflineMain();
+        return;
+      }
+      if (exists.id != null) {
+        await _navigatePostAuth(
+          userId: exists.id!,
+          isExpert: isExpert,
+        );
+        return;
+      }
     }
   }
 
@@ -210,6 +235,27 @@ class _WelcomePageState extends State<WelcomePage> {
         (route) => false,
       );
     }
+  }
+
+  Future<void> _navigateOfflineMain() async {
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const MainLayout()),
+      (route) => false,
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 150), () {
+        final ctx = NavigationService.navigatorKey.currentContext;
+        if (ctx == null) return;
+        final t = AppLocalizations.of(ctx);
+        AppToast.show(
+          ctx,
+          t.translate("offline_mode") ?? "Offline Mode",
+          type: AppToastType.info,
+        );
+      });
+    });
   }
 
   Future<void> _handleGoogleQuickLogin() async {

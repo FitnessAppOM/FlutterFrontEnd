@@ -202,7 +202,19 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
       
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      // Network failed - queue for offline sync
+      // Don't queue if server rejected (e.g., already started/completed)
+      if (e is TrainingApiException && !e.isRetryable) {
+        if (!mounted) return;
+        setState(() => submitting = false);
+        AppToast.show(
+          context,
+          e.toString(),
+          type: AppToastType.error,
+        );
+        return;
+      }
+
+      // Network failed or retryable error - queue for offline sync
       try {
         await ExerciseActionQueue.queueAction(
           action: ExerciseActionQueue.actionReplace,
@@ -214,17 +226,17 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
             "reason": reason.trim(),
           },
         );
-        
+
         if (!mounted) return;
         setState(() => submitting = false);
-        
+
         // Show success message with offline notice
         AppToast.show(
           context,
           t.translate("exercise_replace_queued") ?? "Exercise will be replaced when you're back online.",
           type: AppToastType.info,
         );
-        
+
         Navigator.pop(context, true); // Close sheet even when offline
       } catch (queueError) {
         // Queue failed too

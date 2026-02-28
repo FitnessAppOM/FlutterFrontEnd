@@ -22,7 +22,7 @@ class WhoopDailySync {
     if (last == todayKey) return;
 
     // Only proceed if WHOOP is linked.
-    final statusUrl = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId");
+    final statusUrl = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId&backfill=1");
     final headers = await AccountStorage.getAuthHeaders();
     final statusRes =
         await http.get(statusUrl, headers: headers).timeout(const Duration(seconds: 12));
@@ -80,7 +80,7 @@ class WhoopDailySync {
     if (linkedHint != true) return;
 
     // Only proceed if WHOOP is linked.
-    final statusUrl = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId");
+    final statusUrl = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId&backfill=1");
     final headers = await AccountStorage.getAuthHeaders();
     final statusRes =
         await http.get(statusUrl, headers: headers).timeout(const Duration(seconds: 12));

@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import 'fitbit_db_service.dart';
 
 class FitbitActivitySummary {
   final int? steps;
@@ -40,7 +41,42 @@ class FitbitActivityService {
     return "$yyyy-$mm-$dd";
   }
 
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year && date.month == now.month && date.day == now.day;
+  }
+
   Future<FitbitActivitySummary?> fetchActivity(DateTime date) async {
+    if (!_isToday(date)) {
+      final row = await FitbitDailyMetricsDbService().fetchRow(date);
+      if (row == null) return null;
+      int? _int(dynamic v) {
+        if (v == null) return null;
+        if (v is int) return v;
+        if (v is num) return v.toInt();
+        return int.tryParse(v.toString());
+      }
+
+      double? _double(dynamic v) {
+        if (v == null) return null;
+        if (v is double) return v;
+        if (v is num) return v.toDouble();
+        return double.tryParse(v.toString());
+      }
+
+      return FitbitActivitySummary(
+        steps: _int(row["steps"]),
+        distance: _double(row["distance_km"]),
+        calories: _int(row["calories_out"]),
+        floors: _int(row["floors"]),
+        activeMinutes: _int(row["active_minutes"]),
+        goalSteps: _int(row["steps_goal"]),
+        goalDistance: _double(row["distance_goal_km"]),
+        goalCalories: _int(row["calories_goal"]),
+        goalFloors: _int(row["floors_goal"]),
+        goalActiveMinutes: _int(row["active_minutes_goal"]),
+      );
+    }
     final userId = await AccountStorage.getUserId();
     if (userId == null) return null;
     final dateStr = _dateParam(date);

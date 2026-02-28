@@ -140,6 +140,8 @@ class DashboardPageState extends State<DashboardPage>
   double? _whoopCycleStrainLast;
   double? _whoopBodyWeightKg;
   int _whoopReqId = 0;
+
+  bool? _fitbitLinkedHint;
   bool _fitbitLinked = false;
   bool _fitbitActivityLoading = false;
   FitbitActivitySummary? _fitbitActivity;
@@ -273,6 +275,7 @@ class DashboardPageState extends State<DashboardPage>
     AccountStorage.trainingChange.addListener(_onTrainingChanged);
     _loadStatOrder();
     _loadWhoopLinkedHint();
+    _loadFitbitLinkedHint();
     _loadInitialData();
     _loadExerciseProgress();
   }
@@ -283,6 +286,7 @@ class DashboardPageState extends State<DashboardPage>
 
   void _onAccountChanged() {
     _loadWhoopLinkedHint();
+    _loadFitbitLinkedHint();
     _refreshAll();
     _loadExerciseProgress(force: true);
   }
@@ -612,6 +616,31 @@ class DashboardPageState extends State<DashboardPage>
     });
     if (hint && _hasAnyWhoopWidget) {
       _loadWhoopRecovery();
+    }
+  }
+
+  Future<void> _loadFitbitLinkedHint() async {
+    final hint = await AccountStorage.getFitbitLinked();
+    if (!mounted) return;
+    if (hint == null) return;
+    setState(() {
+      _fitbitLinkedHint = hint;
+      _fitbitLinked = hint;
+      if (!hint) {
+        _fitbitActivity = null;
+        _fitbitHeart = null;
+        _fitbitSleep = null;
+        _fitbitVitals = null;
+        _fitbitBody = null;
+        _fitbitActivityLoading = false;
+        _fitbitHeartLoading = false;
+        _fitbitSleepLoading = false;
+        _fitbitVitalsLoading = false;
+        _fitbitBodyLoading = false;
+      }
+    });
+    if (hint) {
+      _loadFitbitSummary();
     }
   }
 
@@ -1037,7 +1066,9 @@ class DashboardPageState extends State<DashboardPage>
           await http.get(statusUrl, headers: headers).timeout(const Duration(seconds: 12));
       if (!mounted) return;
       if (statusRes.statusCode != 200) {
+        if (_fitbitLinkedHint == true) return;
         setState(() => _fitbitLinked = false);
+        AccountStorage.setFitbitLinked(false);
         _pruneDeviceWidgets();
         return;
       }
@@ -1045,10 +1076,15 @@ class DashboardPageState extends State<DashboardPage>
       final linked = statusData["linked"] == true;
       if (!mounted) return;
       setState(() => _fitbitLinked = linked);
+      _fitbitLinkedHint = linked;
+      AccountStorage.setFitbitLinked(linked);
       _pruneDeviceWidgets();
     } catch (_) {
       if (!mounted) return;
+      if (_fitbitLinkedHint == true) return;
       setState(() => _fitbitLinked = false);
+      _fitbitLinkedHint = false;
+      AccountStorage.setFitbitLinked(false);
       _pruneDeviceWidgets();
     }
   }

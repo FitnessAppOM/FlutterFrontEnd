@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import 'fitbit_db_service.dart';
 
 class FitbitBodySummary {
   final double? weightKg;
@@ -23,7 +24,26 @@ class FitbitBodyService {
     return "$yyyy-$mm-$dd";
   }
 
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year && date.month == now.month && date.day == now.day;
+  }
+
   Future<FitbitBodySummary?> fetchSummary(DateTime date) async {
+    if (!_isToday(date)) {
+      final row = await FitbitDailyMetricsDbService().fetchRow(date);
+      if (row == null) return null;
+      double? _double(dynamic v) {
+        if (v == null) return null;
+        if (v is double) return v;
+        if (v is num) return v.toDouble();
+        return double.tryParse(v.toString());
+      }
+
+      final weightKg = _double(row["weight_kg"]);
+      if (weightKg == null) return null;
+      return FitbitBodySummary(weightKg: weightKg);
+    }
     final userId = await AccountStorage.getUserId();
     if (userId == null) return null;
     final dateStr = _dateParam(date);

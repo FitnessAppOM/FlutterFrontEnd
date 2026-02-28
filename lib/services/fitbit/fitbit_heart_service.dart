@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import 'fitbit_db_service.dart';
 
 class FitbitHeartSummary {
   final int? restingHr;
@@ -27,7 +28,40 @@ class FitbitHeartService {
     return "$yyyy-$mm-$dd";
   }
 
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year && date.month == now.month && date.day == now.day;
+  }
+
   Future<FitbitHeartSummary?> fetchSummary(DateTime date) async {
+    if (!_isToday(date)) {
+      final row = await FitbitDailyMetricsDbService().fetchRow(date);
+      if (row == null) return null;
+      int? _int(dynamic v) {
+        if (v == null) return null;
+        if (v is int) return v;
+        if (v is num) return v.toInt();
+        return int.tryParse(v.toString());
+      }
+
+      double? _double(dynamic v) {
+        if (v == null) return null;
+        if (v is double) return v;
+        if (v is num) return v.toDouble();
+        return double.tryParse(v.toString());
+      }
+
+      final zonesRaw = row["heart_zones"];
+      final zones = zonesRaw is List ? zonesRaw : const [];
+      final vo2 = row["cardio_vo2max"]?.toString();
+
+      return FitbitHeartSummary(
+        restingHr: _int(row["resting_hr"]),
+        hrvRmssd: _double(row["hrv_daily_rmssd"]),
+        vo2Max: vo2,
+        zones: zones,
+      );
+    }
     final userId = await AccountStorage.getUserId();
     if (userId == null) return null;
     final dateStr = _dateParam(date);

@@ -17,6 +17,7 @@ import 'screens/daily_journal.dart';
 import 'services/core/navigation_service.dart';
 import 'services/metrics/daily_metrics_sync.dart';
 import 'services/whoop/whoop_daily_sync.dart';
+import 'services/fitbit/fitbit_daily_sync.dart';
 import 'services/training/exercise_action_queue.dart';
 import 'services/training/cardio_session_queue.dart';
 import 'services/training/training_activity_service.dart';
@@ -108,6 +109,7 @@ void main() async {
   try {
     await DailyMetricsSync().pushIfNewDay();
     await WhoopDailySync().pushIfNewDay();
+    await FitbitDailySync().pushIfNewDay();
   } catch (e) {
     // ignore: avoid_print
     print("DailyMetricsSync daily push skipped: $e");
@@ -172,6 +174,7 @@ class _MyAppState extends State<MyApp> {
     try {
       await DailyMetricsSync().pushIfNewDay();
       await WhoopDailySync().pushIfNewDay();
+      await FitbitDailySync().pushIfNewDay();
     } catch (e) {
       // ignore: avoid_print
       print("DailyMetricsSync resume push skipped: $e");
@@ -189,6 +192,7 @@ class _MyAppState extends State<MyApp> {
 
   void _handleAccountChange() {
     NotificationService.refreshDailyJournalRemindersForCurrentUser();
+    FitbitDailySync().pushIfNewDay().catchError((_) {});
   }
 
   @override
