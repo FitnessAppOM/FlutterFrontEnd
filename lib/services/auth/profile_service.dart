@@ -64,7 +64,7 @@ class ProfileApi {
     throw Exception(msg);
   }
 
-  static Future<void> updateProfile(Map<String, dynamic> payload) async {
+  static Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> payload) async {
     final url = Uri.parse("${ApiConfig.baseUrl}/profile/update");
     final headers = {"Content-Type": "application/json", ...await AccountStorage.getAuthHeaders()};
     final res = await http.post(
@@ -75,7 +75,12 @@ class ProfileApi {
 
     await AccountStorage.handle401(res.statusCode);
     if (res.statusCode == 200) {
-      return;
+      if (res.body.isEmpty) return <String, dynamic>{};
+      try {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      } catch (_) {
+        return <String, dynamic>{};
+      }
     }
 
     String msg = "Failed to update profile";

@@ -760,6 +760,45 @@ class DietPageState extends State<DietPage> {
       }
 
       if (!mounted || requestId != _mealsRequestId) return;
+
+      // Check if targets are stale (diet regenerating in background)
+      final isStale = targetsData != null && targetsData['stale'] == true;
+
+      if (mealsData != null) {
+        setState(() {
+          _meals = mealsData;
+          _mealsLoading = false;
+          _mealsError = null;
+          _mealsFromCache = false;
+        });
+      } else {
+        setState(() {
+          _mealsLoading = false;
+          _mealsError = mealsErr ?? _mealsError;
+        });
+      }
+
+      if (isStale) {
+        // Show stale targets immediately, then refresh in the background.
+        setState(() {
+          _targets = targetsData;
+          _selectedTrainingDayIndex = 0;
+          _loading = false;
+          _error = null;
+          _targetsFromCache = false;
+        });
+        _targetsPollTimer?.cancel();
+        _targetsPollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+          if (!mounted) return;
+          _loadTargets(forceNetwork: true);
+        });
+        return;
+      }
+
+      if (targetsData != null && !isStale) {
+        DietRegenerationFlag.clear();
+      }
+
       setState(() {
         if (targetsData != null) {
           _targets = targetsData;
@@ -768,13 +807,6 @@ class DietPageState extends State<DietPage> {
         _loading = false;
         _error = targetsData == null ? (targetsErr ?? _error) : null;
         _targetsFromCache = false;
-
-        if (mealsData != null) {
-          _meals = mealsData;
-        }
-        _mealsLoading = false;
-        _mealsError = mealsData == null ? (mealsErr ?? _mealsError) : null;
-        _mealsFromCache = false;
       });
 
       // Keep meal widgets usable even if targets section is unavailable.
@@ -806,18 +838,24 @@ class DietPageState extends State<DietPage> {
 
       final data = await DietService.fetchCurrentTargets(userId);
       if (!mounted) return;
-      // While diet was just regenerated (e.g. after training days change), don't
-      // accept the first response — it may still be old. Wait and keep polling.
-      if (DietRegenerationFlag.isRegenerating && !DietRegenerationFlag.canAcceptTargets) {
+
+      final isStale = data['stale'] == true;
+
+      // While diet is regenerating in background, keep polling until backend
+      // reports fresh targets.
+      if (isStale) {
+        // Keep stale targets visible while polling for fresh data.
         _targetsPollTimer?.cancel();
         _targetsPollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
           if (!mounted) return;
           _loadTargets(forceNetwork: true);
         });
         setState(() {
-          _loading = true;
+          _targets = data;
+          _loading = false;
           _error = null;
           _targetsFromCache = false;
+          _selectedTrainingDayIndex = 0;
         });
         return;
       }
@@ -832,29 +870,27 @@ class DietPageState extends State<DietPage> {
         _selectedTrainingDayIndex = 0;
       });
     } catch (e) {
-      // Cache fallback (offline-friendly) — but never show old cache while diet is regenerating
-      if (!DietRegenerationFlag.isRegenerating) {
-        try {
-          final cached = await DietService.fetchCurrentTargetsFromCache();
-          if (!mounted) return;
-          if (cached != null) {
-            _targetsPollTimer?.cancel();
-            _targetsPollTimer = null;
-            setState(() {
-              _targets = cached;
-              _loading = false;
-              _error = null;
-              _targetsFromCache = true;
-              _selectedTrainingDayIndex = 0;
-            });
-            return;
-          }
-        } catch (_) {
-          // ignore cache load errors
+      // Cache fallback (offline-friendly)
+      try {
+        final cached = await DietService.fetchCurrentTargetsFromCache();
+        if (!mounted) return;
+        if (cached != null) {
+          _targetsPollTimer?.cancel();
+          _targetsPollTimer = null;
+          setState(() {
+            _targets = cached;
+            _loading = false;
+            _error = null;
+            _targetsFromCache = true;
+            _selectedTrainingDayIndex = 0;
+          });
+          return;
         }
+      } catch (_) {
+        // ignore cache load errors
       }
 
-      // Diet still generating in background: keep loading and poll until ready
+      // Keep existing targets visible and retry in background.
       if (!mounted) return;
       _targetsPollTimer?.cancel();
       _targetsPollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
@@ -862,7 +898,7 @@ class DietPageState extends State<DietPage> {
         _loadTargets(forceNetwork: true);
       });
       setState(() {
-        _loading = true;
+        _loading = _targets == null;
         _error = null;
         _targetsFromCache = false;
       });
@@ -1836,7 +1872,7 @@ class DietPageState extends State<DietPage> {
                         ),
                         IconButton(
                           tooltip: t.translate("diet_edit_targets"),
-                          onPressed: _loading || _targets == null || DietRegenerationFlag.isRegenerating
+                          onPressed: _loading || _targets == null
                               ? null
                               : () => _openEditTargetsSheet(),
                           icon: const Icon(Icons.tune, color: Colors.white70),
@@ -1847,7 +1883,7 @@ class DietPageState extends State<DietPage> {
                 ),
                 const SizedBox(height: 14),
 
-                if (_loading || _targets == null || DietRegenerationFlag.isRegenerating) ...[
+                if (_loading || _targets == null) ...[
                   Center(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16),

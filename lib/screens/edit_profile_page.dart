@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../core/account_storage.dart';
+import '../../core/diet_regeneration_flag.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/auth/affiliation_service.dart';
 import '../../services/core/university_service.dart';
+import '../../services/diet/diet_targets_storage.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/primary_button.dart';
@@ -535,8 +537,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
 
     try {
-      await ProfileApi.updateProfile(payload);
+      final response = await ProfileApi.updateProfile(payload);
       if (!mounted) return;
+
+      final dietPending = response['diet_pending'] == true ||
+          response['diet_needs_regeneration'] == true;
+      if (dietPending) {
+        DietRegenerationFlag.setRegenerating();
+        await DietTargetsStorage.clearTargets();
+      }
 
       AppToast.show(
         context,

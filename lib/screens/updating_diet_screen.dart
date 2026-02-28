@@ -4,11 +4,13 @@ import '../core/account_storage.dart';
 import '../localization/app_localizations.dart';
 import '../services/auth/profile_service.dart';
 import '../services/diet/diet_service.dart';
+import '../services/diet/diet_targets_storage.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/training_loading_indicator.dart';
 
 /// Shown after editing profile when only goal or nutrition (diet type) changed.
-/// Saves the profile, then regenerates diet targets; training is unchanged.
+/// Saves the profile (backend regenerates diet in background), then polls until
+/// diet targets are no longer stale.
 class UpdatingDietScreen extends StatefulWidget {
   const UpdatingDietScreen({
     super.key,
@@ -28,9 +30,18 @@ class _UpdatingDietScreenState extends State<UpdatingDietScreen> {
   static const int _maxRetries = 3;
   static const Duration _timeout = Duration(seconds: 90);
   static const Duration _toastThreshold = Duration(minutes: 2);
+  static const Duration _pollInterval = Duration(seconds: 3);
+  static const Duration _pollTimeout = Duration(seconds: 45);
   final DateTime _startedAt = DateTime.now();
+  Timer? _pollTimer;
 
   bool get _showFinalError => _error != null && _retryCount >= _maxRetries;
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -49,13 +60,24 @@ class _UpdatingDietScreenState extends State<UpdatingDietScreen> {
       userId = await AccountStorage.getUserId();
       if (userId == null) throw Exception("User not found");
 
-      // 1) Save profile
-      await ProfileApi.updateProfile(widget.profilePayload).timeout(_timeout);
+      // 1) Save profile – backend regenerates diet in background
+      final response = await ProfileApi.updateProfile(widget.profilePayload).timeout(_timeout);
       if (!mounted) return;
 
-      // 2) Regenerate diet only
-      await DietService.generateTargets(userId).timeout(_timeout);
-      if (!mounted) return;
+      await DietTargetsStorage.clearTargets();
+
+      final dietPending = response['diet_pending'] == true ||
+          response['diet_needs_regeneration'] == true;
+
+      if (dietPending) {
+        // 2) Poll until targets are fresh (stale == false)
+        await _pollUntilFresh(userId);
+      } else {
+        // No diet regeneration needed – just fetch latest targets
+        try {
+          await DietService.fetchCurrentTargets(userId).timeout(const Duration(seconds: 15));
+        } catch (_) {}
+      }
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -88,6 +110,23 @@ class _UpdatingDietScreenState extends State<UpdatingDietScreen> {
       }
     } finally {
       if (mounted) setState(() => _isWorking = false);
+    }
+  }
+
+  Future<void> _pollUntilFresh(int userId) async {
+    final deadline = DateTime.now().add(_pollTimeout);
+    while (DateTime.now().isBefore(deadline)) {
+      if (!mounted) return;
+      await Future.delayed(_pollInterval);
+      if (!mounted) return;
+      try {
+        final targets = await DietService.fetchCurrentTargets(userId)
+            .timeout(const Duration(seconds: 10));
+        final stale = targets['stale'] == true;
+        if (!stale) return;
+      } catch (_) {
+        // Keep polling on transient errors
+      }
     }
   }
 

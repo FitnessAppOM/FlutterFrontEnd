@@ -5,8 +5,10 @@ import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/account_storage.dart';
+import '../../core/diet_regeneration_flag.dart';
 import '../../config/base_url.dart';
 import '../../services/auth/profile_service.dart';
+import '../../services/diet/diet_targets_storage.dart';
 import '../../theme/app_theme.dart';
 import '../app_toast.dart';
 
@@ -131,7 +133,13 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
     if (heightChanged) payload["height_cm"] = nextHeight;
     if (weightChanged) payload["weight_kg"] = nextWeight;
     try {
-      await ProfileApi.updateProfile(payload);
+      final response = await ProfileApi.updateProfile(payload);
+      final dietPending = response['diet_pending'] == true ||
+          response['diet_needs_regeneration'] == true;
+      if (dietPending) {
+        DietRegenerationFlag.setRegenerating();
+        await DietTargetsStorage.clearTargets();
+      }
     } catch (e) {
       if (mounted) {
         AppToast.show(context, "Failed to update profile: $e", type: AppToastType.error);

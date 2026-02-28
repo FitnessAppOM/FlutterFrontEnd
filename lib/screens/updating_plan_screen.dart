@@ -54,13 +54,19 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
       userId = await AccountStorage.getUserId();
       if (userId == null) throw Exception("User not found");
 
-      // 1) Save profile
-      await ProfileApi.updateProfile(widget.profilePayload).timeout(_timeout);
+      // 1) Save profile – backend regenerates training synchronously
+      //    and queues diet regeneration in background.
+      final response = await ProfileApi.updateProfile(widget.profilePayload).timeout(_timeout);
       if (!mounted) return;
 
-      // 2) Regenerate training (AI); diet is generated in background
-      await TrainingService.generateProgram(userId).timeout(_timeout);
-      if (!mounted) return;
+      final programRegenerated = response['program_regenerated'] == true;
+      final regenError = response['program_regeneration_error']?.toString();
+
+      // If backend didn't regenerate the program (older backend), do it explicitly.
+      if (!programRegenerated && regenError == null) {
+        await TrainingService.generateProgram(userId).timeout(_timeout);
+        if (!mounted) return;
+      }
 
       // Refresh local program cache to reset progress for the new plan.
       bool synced = false;
@@ -68,28 +74,31 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
         await TrainingService.fetchActiveProgram(userId)
             .timeout(const Duration(seconds: 20));
         synced = true;
-      } catch (_) {
-        // ignore; we'll clear progress cache below
-      }
+      } catch (_) {}
       if (!synced) {
         await TrainingProgressStorage.clearAll();
       }
       AccountStorage.notifyTrainingChanged();
 
-      // 3) Pre-open / fetch today's meals (best-effort)
+      // Pre-open / fetch today's meals (best-effort)
       try {
         await DietService.fetchMealsForDate(
           userId,
           date: DateTime.now(),
           autoOpen: true,
         ).timeout(const Duration(seconds: 20));
-      } catch (_) {
-        // ignore
-      }
+      } catch (_) {}
 
       if (!mounted) return;
-      DietRegenerationFlag.setRegenerating();
+
+      // Diet is regenerating in background
+      final dietPending = response['diet_pending'] == true ||
+          response['diet_needs_regeneration'] == true;
+      if (dietPending) {
+        DietRegenerationFlag.setRegenerating();
+      }
       await DietTargetsStorage.clearTargets();
+
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
@@ -99,7 +108,6 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
     } catch (e) {
       if (!mounted) return;
 
-      // If generation succeeded but response timed out, try verifying readiness.
       if (userId != null) {
         final navigated = await _tryNavigateIfReady(userId);
         if (navigated) return;
