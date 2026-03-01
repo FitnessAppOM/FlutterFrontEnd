@@ -1939,6 +1939,7 @@ class DietPageState extends State<DietPage> {
                             // ignore calendar mapping errors; diet endpoints may still fall back
                           }
                           _loadMeals(clearExisting: true);
+                          AccountStorage.notifyDietChanged();
                         },
                         borderRadius: BorderRadius.circular(14),
                         color: Colors.white70,

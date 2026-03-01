@@ -250,8 +250,8 @@ class _TrainPageState extends State<TrainPage> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
 
-    if (loading) {
-      return const Center(child: CircularProgressIndicator());
+    if (loading && program == null) {
+      return _buildLoadingSkeleton(context);
     }
 
     if (program == null) {
@@ -428,6 +428,95 @@ class _TrainPageState extends State<TrainPage> {
                       ],
                     ),
                   ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingSkeleton(BuildContext context) {
+    final t = AppLocalizations.of(context);
+
+    Widget skeletonLine({double width = 120, double height = 12}) {
+      return Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(6),
+        ),
+      );
+    }
+
+    Widget skeletonCard() {
+      return Container(
+        height: 86,
+        margin: const EdgeInsets.only(bottom: 14),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.06)),
+        ),
+      );
+    }
+
+    Widget skeletonPill({double width = 110}) {
+      return Container(
+        height: 36,
+        width: width,
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(14),
+        ),
+      );
+    }
+
+    return Container(
+      color: Colors.black,
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SectionHeader(title: t.translate("training")),
+                  const SizedBox(height: 12),
+                  skeletonLine(width: 140, height: 16),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      skeletonPill(width: 120),
+                      const SizedBox(width: 10),
+                      skeletonPill(width: 120),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                children: [
+                  Container(
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  skeletonLine(width: 180, height: 14),
+                  const SizedBox(height: 6),
+                  skeletonLine(width: 240, height: 12),
+                  const SizedBox(height: 16),
+                  for (int i = 0; i < 4; i++) skeletonCard(),
                 ],
               ),
             ),

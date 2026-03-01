@@ -674,6 +674,45 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     return names[m - 1];
   }
 
+  String _monthShort(int m) {
+    const names = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    return names[m - 1];
+  }
+
+  String _weekdayShort(int weekday) {
+    switch (weekday) {
+      case DateTime.monday:
+        return "Mon";
+      case DateTime.tuesday:
+        return "Tue";
+      case DateTime.wednesday:
+        return "Wed";
+      case DateTime.thursday:
+        return "Thu";
+      case DateTime.friday:
+        return "Fri";
+      case DateTime.saturday:
+        return "Sat";
+      case DateTime.sunday:
+        return "Sun";
+      default:
+        return "";
+    }
+  }
+
   Widget _stageLegend({
     required Color color,
     required String label,
@@ -784,134 +823,168 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     final midVal = actualMax / 2.0;
     const yAxisWidth = 45.0;
     const yAxisGap = 8.0;
-    const labelHeight = 20.0;
+    const labelHeight = 16.0;
+    const labelGap = 4.0;
 
     final isMonthly = _range == 'monthly';
-    final barSpacing = isMonthly ? 2.0 : 4.0;
+    final isYearly = _range == 'yearly';
+    final dense = entries.length > 12;
+    final barSpacing = dense ? 2.0 : 4.0;
+    final useFixedSlots = dense || isMonthly || isYearly;
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.18)),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final barMaxHeight = constraints.maxHeight - labelHeight;
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.cardDark,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.18)),
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final barMaxHeight = constraints.maxHeight - labelHeight - labelGap;
 
-          final barAreaWidth =
-              (constraints.maxWidth - yAxisWidth - yAxisGap).clamp(0.0, double.infinity);
-          final barSlot = isMonthly
-              ? (barAreaWidth / (entries.isEmpty ? 1 : entries.length))
-              : null;
-          final barWidth = isMonthly ? (barSlot! - (barSpacing * 2)).clamp(0.0, double.infinity) : null;
+              final barAreaWidth =
+                  (constraints.maxWidth - yAxisWidth - yAxisGap).clamp(0.0, double.infinity);
+              final barSlot = useFixedSlots
+                  ? (barAreaWidth / (entries.isEmpty ? 1 : entries.length))
+                  : null;
+              final barWidth = useFixedSlots
+                  ? (barSlot! - (barSpacing * 2)).clamp(4.0, double.infinity)
+                  : null;
 
-          final barWidgets = entries.map((e) {
-            // Use actual max for accurate bar heights
-            final heightFactor = (e.value / actualMax).clamp(0.0, 1.0);
-            final label = e.key;
-            final bar = Container(
-              height: barMaxHeight * heightFactor,
-              width: barWidth,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                gradient: const LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [
-                    Color(0xFF35B6FF),
-                    Color(0xFF9B8CFF),
+              final barWidgets = entries.map((e) {
+                // Use actual max for accurate bar heights
+                final heightFactor = (e.value / actualMax).clamp(0.0, 1.0);
+                final label = e.key;
+                final showLabel = label.isNotEmpty;
+                final bar = Container(
+                  height: barMaxHeight * heightFactor,
+                  width: barWidth,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    gradient: const LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Color(0xFF35B6FF),
+                        Color(0xFF9B8CFF),
+                      ],
+                    ),
+                  ),
+                );
+
+                final content = Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    bar,
+                    const SizedBox(height: labelGap),
+                    SizedBox(
+                      height: labelHeight,
+                      child: showLabel
+                          ? Text(
+                              label,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: Colors.white54,
+                              ),
+                              textAlign: TextAlign.center,
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                );
+
+                if (useFixedSlots) {
+                  return SizedBox(
+                    width: barSlot,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: barSpacing),
+                      child: content,
+                    ),
+                  );
+                }
+
+                return Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: barSpacing),
+                    child: content,
+                  ),
+                );
+              }).toList();
+
+              final yAxis = SizedBox(
+                width: yAxisWidth,
+                height: barMaxHeight,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      _formatHoursLabel(actualMax),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.white54,
+                        fontSize: 11,
+                      ),
+                    ),
+                    Text(
+                      _formatHoursLabel(midVal),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.white54,
+                        fontSize: 11,
+                      ),
+                    ),
+                    Text(
+                      _formatHoursLabel(0),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.white54,
+                        fontSize: 11,
+                      ),
+                    ),
                   ],
                 ),
-              ),
-            );
+              );
 
-            final content = Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                bar,
-                if (label.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    label,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.white54,
+              final gridLineColor = Colors.white.withValues(alpha: 0.06);
+              final barArea = SizedBox(
+                height: constraints.maxHeight,
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: 0,
+                      height: barMaxHeight,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(height: 1, color: gridLineColor),
+                          Container(height: 1, color: gridLineColor),
+                          Container(height: 1, color: gridLineColor),
+                        ],
+                      ),
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ],
-            );
-
-            if (isMonthly) {
-              return SizedBox(
-                width: barSlot,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: barSpacing),
-                  child: content,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: barWidgets,
+                    ),
+                  ],
                 ),
               );
-            }
 
-            return Expanded(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: barSpacing),
-                child: content,
-              ),
-            );
-          }).toList();
-
-          final yAxis = SizedBox(
-            width: yAxisWidth,
-            height: barMaxHeight,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  _formatHoursLabel(actualMax),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.white54,
-                    fontSize: 11,
-                  ),
-                ),
-                Text(
-                  _formatHoursLabel(midVal),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.white54,
-                    fontSize: 11,
-                  ),
-                ),
-                Text(
-                  _formatHoursLabel(0),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.white54,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          );
-
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              yAxis,
-              const SizedBox(width: yAxisGap),
-              Expanded(
-                child: SizedBox(
-                  height: constraints.maxHeight,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: barWidgets,
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  yAxis,
+                  const SizedBox(width: yAxisGap),
+                  Expanded(child: barArea),
+                ],
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -983,9 +1056,19 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       final items = <MapEntry<String, double>>[];
       var cursor = DateTime(start.year, start.month, start.day);
       final last = DateTime(end.year, end.month, end.day);
+      final lastDay = last.day;
       while (!cursor.isAfter(last)) {
         final key = DateTime(cursor.year, cursor.month, cursor.day);
-        items.add(MapEntry("", _daily[key] ?? 0));
+        String label = "";
+        if (_range == 'weekly') {
+          label = _weekdayShort(cursor.weekday);
+        } else {
+          final dayNum = cursor.day;
+          final showLabel =
+              dayNum == 1 || dayNum == lastDay || dayNum % 7 == 0;
+          label = showLabel ? dayNum.toString() : "";
+        }
+        items.add(MapEntry(label, _daily[key] ?? 0));
         cursor = cursor.add(const Duration(days: 1));
       }
       return items;
@@ -1014,7 +1097,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
           ? 0.0
           : values.reduce((a, b) => a + b) / values.length;
       entries.add(const MapEntry("", 0)); // placeholder, replaced below
-      entries[entries.length - 1] = MapEntry("", avg.toDouble());
+      entries[entries.length - 1] = MapEntry(_monthShort(cursor.month), avg.toDouble());
       cursor = DateTime(cursor.year, cursor.month + 1, 1);
     }
 

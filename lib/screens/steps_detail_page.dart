@@ -19,6 +19,8 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
   bool _loading = true;
   Map<DateTime, int> _daily = {};
   int? _goal;
+  DateTime? _rangeStart;
+  DateTime? _rangeEnd;
 
   static const _stepsGoalKey = "dashboard_steps_goal";
 
@@ -81,6 +83,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
     setState(() => _loading = true);
     try {
       final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
       DateTime start;
       switch (_range) {
         case 'monthly':
@@ -100,12 +103,16 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
       if (!mounted) return;
       setState(() {
         _daily = data;
+        _rangeStart = DateTime(start.year, start.month, start.day);
+        _rangeEnd = today;
         _loading = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _daily = {};
+        _rangeStart = null;
+        _rangeEnd = null;
         _loading = false;
       });
     }
@@ -231,70 +238,166 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
 
     final entries = _prepareEntries();
     final maxVal = entries.fold<int>(0, (m, e) => e.value > m ? e.value : m);
-    final safeMax = maxVal == 0 ? 1 : maxVal;
-    const barWidth = 52.0;
+    final actualMax = maxVal == 0 ? 1.0 : maxVal.toDouble();
+    final midVal = actualMax / 2.0;
+    const yAxisWidth = 45.0;
+    const yAxisGap = 8.0;
+    const labelHeight = 16.0;
+    const labelGap = 4.0;
+    final dense = entries.length > 12;
+    final barSpacing = dense ? 2.0 : 4.0;
+    final useFixedSlots = dense || _range != 'weekly';
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.18)),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: entries.map((e) {
-            final heightFactor = (e.value / safeMax).clamp(0.0, 1.0);
-            final label = e.key;
-            return SizedBox(
-              width: barWidth,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Column(
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.cardDark,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.18)),
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final barMaxHeight = constraints.maxHeight - labelHeight - labelGap;
+              final barAreaWidth =
+                  (constraints.maxWidth - yAxisWidth - yAxisGap).clamp(0.0, double.infinity);
+              final barSlot = useFixedSlots
+                  ? (barAreaWidth / (entries.isEmpty ? 1 : entries.length))
+                  : null;
+              final barWidth = useFixedSlots
+                  ? (barSlot! - (barSpacing * 2)).clamp(4.0, double.infinity)
+                  : null;
+
+              final barWidgets = entries.map((e) {
+                final heightFactor = (e.value / actualMax).clamp(0.0, 1.0);
+                final label = e.key;
+                final showLabel = label.isNotEmpty;
+                final bar = Container(
+                  height: barMaxHeight * heightFactor,
+                  width: barWidth,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    gradient: const LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Color(0xFF35B6FF),
+                        Color(0xFF9B8CFF),
+                      ],
+                    ),
+                  ),
+                );
+
+                final content = Column(
                   mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.bottomCenter,
-                        child: Container(
-                          height: 140 * heightFactor,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            gradient: const LinearGradient(
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                              colors: [
-                                Color(0xFF35B6FF),
-                                Color(0xFF9B8CFF),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
+                    bar,
+                    const SizedBox(height: labelGap),
+                    SizedBox(
+                      height: labelHeight,
+                      child: showLabel
+                          ? Text(
+                              label,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: Colors.white54,
+                              ),
+                              textAlign: TextAlign.center,
+                            )
+                          : const SizedBox.shrink(),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      e.value.toStringAsFixed(0),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  ],
+                );
+
+                if (useFixedSlots) {
+                  return SizedBox(
+                    width: barSlot,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: barSpacing),
+                      child: content,
                     ),
-                    const SizedBox(height: 4),
+                  );
+                }
+
+                return Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: barSpacing),
+                    child: content,
+                  ),
+                );
+              }).toList();
+
+              final yAxis = SizedBox(
+                width: yAxisWidth,
+                height: barMaxHeight,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
                     Text(
-                      label,
+                      _formatStepsAxis(actualMax),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: Colors.white54,
+                        fontSize: 11,
                       ),
-                      textAlign: TextAlign.center,
+                    ),
+                    Text(
+                      _formatStepsAxis(midVal),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.white54,
+                        fontSize: 11,
+                      ),
+                    ),
+                    Text(
+                      _formatStepsAxis(0),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.white54,
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),
-              ),
-            );
-          }).toList(),
+              );
+
+              final gridLineColor = Colors.white.withValues(alpha: 0.06);
+              final barArea = SizedBox(
+                height: constraints.maxHeight,
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: 0,
+                      height: barMaxHeight,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(height: 1, color: gridLineColor),
+                          Container(height: 1, color: gridLineColor),
+                          Container(height: 1, color: gridLineColor),
+                        ],
+                      ),
+                    ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: barWidgets,
+                    ),
+                  ],
+                ),
+              );
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  yAxis,
+                  const SizedBox(width: yAxisGap),
+                  Expanded(child: barArea),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -303,12 +406,37 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
   List<MapEntry<String, int>> _prepareEntries() {
     if (_daily.isEmpty) return [];
     if (_range != 'yearly') {
-      final entries = _daily.entries.toList()
-        ..sort((a, b) => a.key.compareTo(b.key));
-      return entries
-          .map((e) => MapEntry("${e.key.month}/${e.key.day}", e.value))
-          .toList();
+      final start = _rangeStart;
+      final end = _rangeEnd;
+      if (start == null || end == null) {
+        final entries = _daily.entries.toList()
+          ..sort((a, b) => a.key.compareTo(b.key));
+        return entries.map((e) => MapEntry("", e.value)).toList();
+      }
+      final items = <MapEntry<String, int>>[];
+      var cursor = DateTime(start.year, start.month, start.day);
+      final last = DateTime(end.year, end.month, end.day);
+      final lastDay = last.day;
+      while (!cursor.isAfter(last)) {
+        final key = DateTime(cursor.year, cursor.month, cursor.day);
+        String label = "";
+        if (_range == 'weekly') {
+          label = _weekdayShort(cursor.weekday);
+        } else {
+          final dayNum = cursor.day;
+          final showLabel =
+              dayNum == 1 || dayNum == lastDay || dayNum % 7 == 0;
+          label = showLabel ? dayNum.toString() : "";
+        }
+        items.add(MapEntry(label, _daily[key] ?? 0));
+        cursor = cursor.add(const Duration(days: 1));
+      }
+      return items;
     }
+
+    final start = _rangeStart;
+    final end = _rangeEnd;
+    if (start == null || end == null) return [];
 
     final Map<String, List<int>> buckets = {};
     _daily.forEach((day, steps) {
@@ -316,12 +444,17 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
       buckets.putIfAbsent(label, () => []).add(steps);
     });
 
-    final entries = buckets.entries.map<MapEntry<String, int>>((e) {
+    final entries = <MapEntry<String, int>>[];
+    var cursor = DateTime(start.year, start.month, 1);
+    final last = DateTime(end.year, end.month, 1);
+    while (!cursor.isAfter(last)) {
+      final key = "${cursor.year}-${cursor.month.toString().padLeft(2, '0')}";
+      final values = buckets[key] ?? const <int>[];
       final avg =
-          e.value.isEmpty ? 0 : e.value.reduce((a, b) => a + b) ~/ e.value.length;
-      return MapEntry(e.key, avg);
-    }).toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
+          values.isEmpty ? 0 : values.reduce((a, b) => a + b) ~/ values.length;
+      entries.add(MapEntry(_monthShort(cursor.month), avg));
+      cursor = DateTime(cursor.year, cursor.month + 1, 1);
+    }
 
     return entries;
   }
@@ -354,6 +487,54 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
       default:
         return t("range_last7");
     }
+  }
+
+  String _monthShort(int m) {
+    const names = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    return names[m - 1];
+  }
+
+  String _weekdayShort(int weekday) {
+    switch (weekday) {
+      case DateTime.monday:
+        return "Mon";
+      case DateTime.tuesday:
+        return "Tue";
+      case DateTime.wednesday:
+        return "Wed";
+      case DateTime.thursday:
+        return "Thu";
+      case DateTime.friday:
+        return "Fri";
+      case DateTime.saturday:
+        return "Sat";
+      case DateTime.sunday:
+        return "Sun";
+      default:
+        return "";
+    }
+  }
+
+  String _formatStepsAxis(double value) {
+    if (value >= 1000) {
+      final k = value / 1000.0;
+      final digits = k >= 10 ? 0 : 1;
+      return "${k.toStringAsFixed(digits)}k";
+    }
+    return value.toStringAsFixed(0);
   }
 
   int _todaySteps() {

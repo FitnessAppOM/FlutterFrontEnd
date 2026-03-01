@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -35,6 +36,7 @@ import '../../widgets/dashboard/fitbit_vitals_sheet.dart';
 import '../../widgets/dashboard/fitbit_body_card.dart';
 import '../../widgets/dashboard/fitbit_body_sheet.dart';
 import '../../widgets/dashboard/fitbit_extras_card.dart';
+import '../../widgets/dashboard/diet_progress_card.dart';
 import '../../widgets/dashboard/edit_mode_bubble.dart';
 import '../../widgets/dashboard/widget_library_sheet.dart';
 import '../../screens/whoop_insights_page.dart';
@@ -52,6 +54,7 @@ import '../../services/health/sleep_service.dart';
 import '../../services/whoop/whoop_sleep_service.dart';
 import '../../services/whoop/whoop_widget_data_service.dart';
 import '../../services/diet/calories_service.dart';
+import '../../services/diet/diet_day_summary_storage.dart';
 import '../../services/diet/diet_service.dart';
 import '../../services/health/water_service.dart';
 import '../../services/fitbit/fitbit_activity_service.dart';
@@ -166,6 +169,10 @@ class DashboardPageState extends State<DashboardPage>
   bool _exerciseLoading = false;
   bool _exerciseLoadedOnce = false;
   String? _exerciseProgramMode;
+  bool _dietProgressLoading = false;
+  int? _dietConsumedCalories;
+  int? _dietTargetCalories;
+  String? _dietDayType;
 
   static const _stepsGoalKey = "dashboard_steps_goal";
   static const _sleepGoalKey = "dashboard_sleep_goal";
@@ -205,6 +212,7 @@ class DashboardPageState extends State<DashboardPage>
     _loadSleep();
     _loadCalories();
     _loadWater();
+    _loadDietProgress();
     _loadWeeklySteps();
     _loadTrendSleep();
     _loadTrendCalories();
@@ -274,6 +282,7 @@ class DashboardPageState extends State<DashboardPage>
     AccountStorage.whoopChange.addListener(_onWhoopChanged);
     AccountStorage.accountChange.addListener(_onAccountChanged);
     AccountStorage.trainingChange.addListener(_onTrainingChanged);
+    AccountStorage.dietChange.addListener(_onDietChanged);
     _loadStatOrder();
     _loadWhoopLinkedHint();
     _loadFitbitLinkedHint();
@@ -294,6 +303,11 @@ class DashboardPageState extends State<DashboardPage>
 
   void _onTrainingChanged() {
     _loadExerciseProgress(force: true);
+    _loadDietProgress();
+  }
+
+  void _onDietChanged() {
+    _loadDietProgress();
   }
 
   @override
@@ -302,6 +316,7 @@ class DashboardPageState extends State<DashboardPage>
     AccountStorage.whoopChange.removeListener(_onWhoopChanged);
     AccountStorage.accountChange.removeListener(_onAccountChanged);
     AccountStorage.trainingChange.removeListener(_onTrainingChanged);
+    AccountStorage.dietChange.removeListener(_onDietChanged);
     super.dispose();
   }
 
@@ -1014,6 +1029,7 @@ class DashboardPageState extends State<DashboardPage>
       _loadSleep(),
       _loadCalories(),
       _loadWater(),
+      _loadDietProgress(),
       _loadWeeklySteps(),
       _loadTrendSleep(),
       _loadTrendCalories(),
@@ -1036,6 +1052,7 @@ class DashboardPageState extends State<DashboardPage>
       _loadSleep(),
       _loadCalories(),
       _loadWater(),
+      _loadDietProgress(),
       _loadWeeklySteps(),
       _loadTrendSleep(),
       _loadTrendCalories(),
@@ -1258,6 +1275,12 @@ class DashboardPageState extends State<DashboardPage>
     return null;
   }
 
+  bool _isOfflineError(Object error) {
+    return error is SocketException ||
+        error is TimeoutException ||
+        error is http.ClientException;
+  }
+
   Future<void> _loadExerciseProgress({bool force = false}) async {
     if (!force && _exerciseLoading) return;
     setState(() => _exerciseLoading = true);
@@ -1275,7 +1298,33 @@ class DashboardPageState extends State<DashboardPage>
       final weekStart = anchor.subtract(Duration(days: anchor.weekday - 1));
       final weekEnd = weekStart.add(const Duration(days: 6));
 
-      // Prefer local progress (persistent) to avoid extra API calls.
+      try {
+        final progress = await TrainingService.fetchTrainingProgress(
+          userId: userId,
+          start: weekStart,
+          end: weekEnd,
+        );
+        final total = (progress["total"] ?? 0) as int;
+        final done = (progress["completed"] ?? 0) as int;
+        final mode = progress["program_mode"] as String?;
+        debugPrint(
+          "Training progress db: user=$userId start=${weekStart.toIso8601String().split('T').first} "
+          "end=${weekEnd.toIso8601String().split('T').first} completed=$done total=$total",
+        );
+
+        if (!mounted) return;
+        setState(() {
+          _exerciseTotal = total;
+          _exerciseCompleted = done;
+          _exerciseLoadedOnce = true;
+          _exerciseProgramMode = mode;
+        });
+        return;
+      } catch (e) {
+        if (!_isOfflineError(e)) rethrow;
+      }
+
+      // Offline fallback: use local progress storage.
       final cachedProgram = await TrainingService.fetchActiveProgramFromCache();
       final local = await TrainingProgressStorage.getProgressForWeek(anchor);
       int? totalFromProgram;
@@ -1300,25 +1349,12 @@ class DashboardPageState extends State<DashboardPage>
         return;
       }
 
-      final progress = await TrainingService.fetchTrainingProgress(
-        userId: userId,
-        start: weekStart,
-        end: weekEnd,
-      );
-      final total = (progress["total"] ?? 0) as int;
-      final done = (progress["completed"] ?? 0) as int;
-      final mode = progress["program_mode"] as String?;
-      debugPrint(
-        "Training progress db: user=$userId start=${weekStart.toIso8601String().split('T').first} "
-        "end=${weekEnd.toIso8601String().split('T').first} completed=$done total=$total",
-      );
-
       if (!mounted) return;
       setState(() {
-        _exerciseTotal = total;
-        _exerciseCompleted = done;
+        _exerciseTotal = null;
+        _exerciseCompleted = null;
         _exerciseLoadedOnce = true;
-        _exerciseProgramMode = mode;
+        _exerciseProgramMode = "local";
       });
     } catch (_) {
       if (!mounted) return;
@@ -1548,6 +1584,82 @@ class DashboardPageState extends State<DashboardPage>
         setState(() => _waterLoading = false);
       }
     }
+  }
+
+  Future<void> _loadDietProgress() async {
+    setState(() => _dietProgressLoading = true);
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null) {
+        if (!mounted) return;
+        setState(() {
+          _dietConsumedCalories = null;
+          _dietTargetCalories = null;
+          _dietDayType = null;
+          _dietProgressLoading = false;
+        });
+        return;
+      }
+
+      final summary = await DietService.fetchDaySummary(
+        userId,
+        date: _selectedDate,
+      );
+      try {
+        await DietDaySummaryStorage.saveSummaryForDate(_selectedDate, summary);
+      } catch (_) {
+        // Ignore cache errors
+      }
+
+      if (!mounted) return;
+      _applyDietSummary(summary);
+    } catch (e) {
+      if (_isOfflineError(e)) {
+        final cached = await DietDaySummaryStorage.loadSummaryForDate(_selectedDate);
+        if (!mounted) return;
+        if (cached != null) {
+          _applyDietSummary(cached);
+          return;
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _dietConsumedCalories = null;
+        _dietTargetCalories = null;
+        _dietDayType = null;
+        _dietProgressLoading = false;
+      });
+    }
+  }
+
+  void _applyDietSummary(Map<String, dynamic> summary) {
+    final liveRaw = summary["live"];
+    final live = liveRaw is Map ? liveRaw.cast<String, dynamic>() : null;
+    final target = (live?["target"] is Map)
+        ? (live?["target"] as Map).cast<String, dynamic>()
+        : null;
+    final consumed = (live?["consumed"] is Map)
+        ? (live?["consumed"] as Map).cast<String, dynamic>()
+        : null;
+    int? targetCal;
+    int? consumedCal;
+
+    int? _asInt(dynamic v) {
+      if (v is int) return v;
+      if (v is num) return v.round();
+      if (v is String) return int.tryParse(v);
+      return null;
+    }
+
+    targetCal = _asInt(target?["calories"]);
+    consumedCal = _asInt(consumed?["calories"]);
+
+    setState(() {
+      _dietConsumedCalories = consumedCal;
+      _dietTargetCalories = targetCal;
+      _dietDayType = live?["day_type"]?.toString();
+      _dietProgressLoading = false;
+    });
   }
 
   double? _parseWhoopSleepHours(Map<String, dynamic> data) {
@@ -3266,7 +3378,15 @@ class DashboardPageState extends State<DashboardPage>
             },
           ),
           const SizedBox(height: 16),
-          if (_whoopLinked) ...[
+          DietProgressCard(
+            loading: _dietProgressLoading,
+            consumedCalories: _dietConsumedCalories,
+            targetCalories: _dietTargetCalories,
+            dayType: _dietDayType,
+          ),
+          const SizedBox(height: 16),
+          // Insights cards temporarily disabled.
+          if (false && _whoopLinked) ...[
             WhoopExtrasCard(
               onTap: _wiggling
                   ? null
@@ -3297,7 +3417,7 @@ class DashboardPageState extends State<DashboardPage>
             ),
             const SizedBox(height: 16),
           ],
-          if (_fitbitLinked) ...[
+          if (false && _fitbitLinked) ...[
             if (!(_statOrder.contains('fitbit_activity') &&
                 _statOrder.contains('fitbit_heart') &&
                 _statOrder.contains('fitbit_sleep') &&

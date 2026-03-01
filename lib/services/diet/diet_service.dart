@@ -16,6 +16,10 @@ class DietService {
     onTargetsUpdatedAfterBurn?.call();
   }
 
+  static void _notifyDietChanged() {
+    AccountStorage.notifyDietChanged();
+  }
+
   /// Generates diet targets for a user and persists them on the backend.
   /// Returns the generated targets JSON (and caches it locally).
   static Future<Map<String, dynamic>> generateTargets(int userId) async {
@@ -35,6 +39,7 @@ class DietService {
       } catch (_) {
         // Ignore cache errors
       }
+      _notifyDietChanged();
       return parsed;
     }
 
@@ -128,6 +133,7 @@ class DietService {
     } catch (_) {
       // Ignore cache errors
     }
+    _notifyDietChanged();
     return updated;
   }
 
@@ -224,6 +230,7 @@ class DietService {
     } catch (_) {
       // Ignore cache errors
     }
+    _notifyDietChanged();
     return parsed;
   }
 
@@ -291,6 +298,7 @@ class DietService {
     } catch (_) {
       // Ignore cache errors
     }
+    _notifyDietChanged();
     return parsed;
   }
 
@@ -322,9 +330,11 @@ class DietService {
       throw Exception(body['detail'] ?? 'Failed to create meal');
     }
 
-    return response.body.isNotEmpty
+    final parsed = response.body.isNotEmpty
         ? (json.decode(response.body) as Map<String, dynamic>)
         : <String, dynamic>{};
+    _notifyDietChanged();
+    return parsed;
   }
 
   /// Delete a meal (and its items) for a given meal id.
@@ -347,9 +357,11 @@ class DietService {
       throw Exception(body['detail'] ?? 'Failed to delete meal');
     }
 
-    return response.body.isNotEmpty
+    final parsed = response.body.isNotEmpty
         ? (json.decode(response.body) as Map<String, dynamic>)
         : <String, dynamic>{};
+    _notifyDietChanged();
+    return parsed;
   }
 
   /// Delete a single item from a meal.
@@ -377,6 +389,7 @@ class DietService {
       final body = response.body.isNotEmpty ? json.decode(response.body) : {};
       throw Exception(body['detail'] ?? 'Failed to delete meal item');
     }
+    _notifyDietChanged();
   }
 
   static Future<Map<String, dynamic>?> fetchMealsForDateFromCache(
@@ -413,9 +426,11 @@ class DietService {
       throw Exception(body['detail'] ?? 'Failed to add item');
     }
 
-    return response.body.isNotEmpty
+    final parsed = response.body.isNotEmpty
         ? (json.decode(response.body) as Map<String, dynamic>)
         : <String, dynamic>{};
+    _notifyDietChanged();
+    return parsed;
   }
 
   /// Add an item to a meal from nutrition_local_restaurants (quantity required).
@@ -445,9 +460,11 @@ class DietService {
       throw Exception(body['detail'] ?? 'Failed to add item');
     }
 
-    return response.body.isNotEmpty
+    final parsed = response.body.isNotEmpty
         ? (json.decode(response.body) as Map<String, dynamic>)
         : <String, dynamic>{};
+    _notifyDietChanged();
+    return parsed;
   }
 
   static Future<Map<String, dynamic>> fetchDaySummary(
@@ -547,9 +564,11 @@ class DietService {
       throw Exception(respBody['detail'] ?? 'Failed to save manual entry');
     }
 
-    return response.body.isNotEmpty
+    final parsed = response.body.isNotEmpty
         ? (json.decode(response.body) as Map<String, dynamic>)
         : <String, dynamic>{};
+    _notifyDietChanged();
+    return parsed;
   }
 
   /// Update a meal: title, notes and/or totals_override.
@@ -583,9 +602,11 @@ class DietService {
       throw Exception(respBody['detail'] ?? 'Failed to update meal');
     }
 
-    return response.body.isNotEmpty
+    final parsed = response.body.isNotEmpty
         ? (json.decode(response.body) as Map<String, dynamic>)
         : <String, dynamic>{};
+    _notifyDietChanged();
+    return parsed;
   }
 
   /// Preview a manual item from Foods Master (returns macros for grams).
@@ -611,9 +632,10 @@ class DietService {
       throw Exception(body['detail'] ?? 'Failed to preview food');
     }
 
-    return response.body.isNotEmpty
+    final parsed = response.body.isNotEmpty
         ? (json.decode(response.body) as Map<String, dynamic>)
         : <String, dynamic>{};
+    return parsed;
   }
 
   /// Add ingredients to an existing meal item.
@@ -636,9 +658,11 @@ class DietService {
       throw Exception(body['detail'] ?? 'Failed to add ingredients');
     }
 
-    return response.body.isNotEmpty
+    final parsed = response.body.isNotEmpty
         ? (json.decode(response.body) as Map<String, dynamic>)
         : <String, dynamic>{};
+    _notifyDietChanged();
+    return parsed;
   }
 
   /// Create a favorite meal from current meal items.
@@ -789,6 +813,8 @@ class DietService {
       throw Exception((decoded is Map && decoded['detail'] != null) ? decoded['detail'] : 'Failed to add photo item');
     }
 
-    return body.isNotEmpty ? (json.decode(body) as Map<String, dynamic>) : <String, dynamic>{};
+    final parsed = body.isNotEmpty ? (json.decode(body) as Map<String, dynamic>) : <String, dynamic>{};
+    _notifyDietChanged();
+    return parsed;
   }
 }
