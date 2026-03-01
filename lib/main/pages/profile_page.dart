@@ -7,6 +7,7 @@ import '../../widgets/profile/profile_actions_section.dart';
 import '../../localization/app_localizations.dart';
 import '../../core/account_storage.dart';
 import '../../services/auth/profile_service.dart';
+import '../../services/auth/profile_storage.dart';
 import '../../screens/edit_profile_page.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -59,7 +60,12 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _loadProfile() async {
     _didLoadProfile = true;
-    if (mounted) setState(() { _error = null; _loading = true; });
+    if (mounted) {
+      setState(() {
+        _error = null;
+        if (_profile == null) _loading = true;
+      });
+    }
     final cachedAvatar = await AccountStorage.getAvatarUrl();
     final cachedAvatarPath = await AccountStorage.getAvatarPath();
     if (mounted) {
@@ -68,6 +74,18 @@ class _ProfilePageState extends State<ProfilePage> {
         _avatarPath = cachedAvatarPath;
       });
     }
+    // Hydrate from cache first to avoid blank UI.
+    try {
+      if (_profile == null) {
+        final cachedProfile = await ProfileStorage.loadProfile();
+        if (cachedProfile != null && mounted) {
+          setState(() {
+            _profile = cachedProfile;
+            _loading = false;
+          });
+        }
+      }
+    } catch (_) {}
     try {
       final lang = AppLocalizations.of(context).locale.languageCode;
       final userId = await AccountStorage.getUserId();
@@ -97,7 +115,9 @@ class _ProfilePageState extends State<ProfilePage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        if (_profile == null) {
+          _error = e.toString();
+        }
         _loading = false;
         _avatarUrl = cachedAvatar;
         _avatarPath = cachedAvatarPath;
@@ -249,69 +269,74 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         backgroundColor: AppColors.black,
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.accent),
+      body: (_error != null && _profile == null)
+          ? Center(
+              child: Text(
+                _error == "user_missing"
+                    ? t.translate("user_missing")
+                    : t.translate("network_error"),
+                style: const TextStyle(color: Colors.white70),
+              ),
             )
-          : _error != null
-              ? Center(
-                  child: Text(
-                    _error == "user_missing"
-                        ? t.translate("user_missing")
-                        : t.translate("network_error"),
-                    style: const TextStyle(color: Colors.white70),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _loadProfile,
-                  color: AppColors.accent,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-    ProfileHeader(
-      name: _display(name),
-      occupation: _display(affiliationDisplay.isNotEmpty ? affiliationDisplay : null),
-      avatarUrl: _avatarUrl,
-      avatarPath: _avatarPath,
-    ),
-                            const SizedBox(height: 24),
-                            ProfileInfoSection(
-                              age: _display(age),
-                              sex: _display(sex),
-                              height: _displayWithUnit(height, "cm"),
-                              occupation: _display(occupation),
-                              weight: _displayWithUnit(weight, "kg"),
-                            ),
-                            const SizedBox(height: 24),
-                            ProfileGoalsSection(
-                              mainGoal: _display(mainGoal),
-                              workoutFreq: _displayDays(trainingDays),
-                              dietPref: _display(dietType),
-                              experience: _display(fitnessExperience),
-                            ),
-                            const SizedBox(height: 24),
-                        ProfileActionsSection(
-                          onEditProfile: () async {
-                            if (_profile == null) return;
-                            final updated = await Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => EditProfilePage(
-                                  profile: _profile!,
-                                ),
-                              ),
-                            );
-                            if (updated == true) {
-                              _loadProfile();
-                            }
-                          },
+          : RefreshIndicator(
+              onRefresh: _loadProfile,
+              color: AppColors.accent,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_loading)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 12),
+                        child: LinearProgressIndicator(
+                          color: AppColors.accent,
+                          backgroundColor: Colors.white12,
+                          minHeight: 2,
                         ),
-                      ],
+                      ),
+                    ProfileHeader(
+                      name: _display(name),
+                      occupation: _display(affiliationDisplay.isNotEmpty ? affiliationDisplay : null),
+                      avatarUrl: _avatarUrl,
+                      avatarPath: _avatarPath,
                     ),
-                  ),
+                    const SizedBox(height: 24),
+                    ProfileInfoSection(
+                      age: _display(age),
+                      sex: _display(sex),
+                      height: _displayWithUnit(height, "cm"),
+                      occupation: _display(occupation),
+                      weight: _displayWithUnit(weight, "kg"),
+                    ),
+                    const SizedBox(height: 24),
+                    ProfileGoalsSection(
+                      mainGoal: _display(mainGoal),
+                      workoutFreq: _displayDays(trainingDays),
+                      dietPref: _display(dietType),
+                      experience: _display(fitnessExperience),
+                    ),
+                    const SizedBox(height: 24),
+                    ProfileActionsSection(
+                      onEditProfile: () async {
+                        if (_profile == null) return;
+                        final updated = await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => EditProfilePage(
+                              profile: _profile!,
+                            ),
+                          ),
+                        );
+                        if (updated == true) {
+                          _loadProfile();
+                        }
+                      },
+                    ),
+                  ],
                 ),
+              ),
+            ),
     );
   }
 }

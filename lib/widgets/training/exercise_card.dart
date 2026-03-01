@@ -279,7 +279,7 @@ class ExerciseCard extends StatelessWidget {
                         child: ((((exercise['animation_url'] ?? '').toString().trim()).isEmpty) &&
                                 (((exercise['animation_rel_path'] ?? '').toString().trim()).isEmpty))
                             ? const SizedBox.shrink()
-                            : Image.network(
+                              : Image.network(
                                 TrainingService.animationImageUrl(
                                   exercise['animation_url']?.toString(),
                                   exercise['animation_rel_path']?.toString(),

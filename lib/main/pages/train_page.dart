@@ -41,9 +41,28 @@ class _TrainPageState extends State<TrainPage> {
   }
 
   Future<void> _loadProgram() async {
+    bool showedCache = false;
     try {
       final userId = _userId ?? await AccountStorage.getUserId();
       if (userId == null) throw Exception("User not found");
+
+      // Show cached program immediately if available (no blank UI).
+      if (program == null) {
+        try {
+          final cached = await TrainingService.fetchActiveProgramFromCache();
+          if (cached != null && mounted) {
+            setState(() {
+              program = cached;
+              loading = false;
+              isOffline = false;
+            });
+            showedCache = true;
+            _preloadExerciseGifsFromProgram();
+          }
+        } catch (_) {
+          // Ignore cache load errors.
+        }
+      }
 
       // Try to sync queued actions first (if online)
       try {
@@ -53,64 +72,45 @@ class _TrainPageState extends State<TrainPage> {
       }
 
       // Try to fetch from server first
+      final data = await TrainingService.fetchActiveProgram(userId);
+      Set<String> completed = {};
       try {
-        final data = await TrainingService.fetchActiveProgram(userId);
-        Set<String> completed = {};
-        try {
-          final names = await TrainingService.fetchCompletedExerciseNames(userId);
-          completed = names.map((e) => e.trim().toLowerCase()).where((e) => e.isNotEmpty).toSet();
-        } catch (_) {
-          // Ignore completed names fetch errors
-        }
-        if (!mounted) return;
-        setState(() {
-          program = data;
-          loading = false;
-          isOffline = false;
-          completedExerciseNames = completed;
-        });
-        _preloadExerciseGifsFromProgram();
-        return;
-      } catch (e) {
-        // Network failed, try loading from cache
-        final cached = await TrainingService.fetchActiveProgramFromCache();
-        if (cached != null) {
-          Set<String> completed = completedExerciseNames;
-          try {
-            final names = await TrainingService.fetchCompletedExerciseNames(userId);
-            completed = names.map((e) => e.trim().toLowerCase()).where((e) => e.isNotEmpty).toSet();
-          } catch (_) {
-            // Ignore completed names fetch errors
-          }
-          if (!mounted) return;
-          setState(() {
-            program = cached;
-            loading = false;
-            isOffline = true;
-            completedExerciseNames = completed;
-          });
-          _preloadExerciseGifsFromProgram();
-          // Show offline indicator
-          if (mounted) {
-            final t = AppLocalizations.of(context);
-            AppToast.show(
-              context,
-              t.translate("offline_mode_using_cached_data") ?? "Offline: Using cached data",
-              type: AppToastType.info,
-            );
-          }
-          return;
-        }
-        // No cache available, rethrow original error
-        rethrow;
+        final names = await TrainingService.fetchCompletedExerciseNames(userId);
+        completed = names.map((e) => e.trim().toLowerCase()).where((e) => e.isNotEmpty).toSet();
+      } catch (_) {
+        // Ignore completed names fetch errors
       }
-    } catch (_) {
       if (!mounted) return;
       setState(() {
+        program = data;
         loading = false;
-        program = null;
         isOffline = false;
+        completedExerciseNames = completed;
       });
+      _preloadExerciseGifsFromProgram();
+      return;
+    } catch (_) {
+      if (!mounted) return;
+      if (program != null || showedCache) {
+        setState(() {
+          loading = false;
+          isOffline = true;
+        });
+        if (showedCache) {
+          final t = AppLocalizations.of(context);
+          AppToast.show(
+            context,
+            t.translate("offline_mode_using_cached_data") ?? "Offline: Using cached data",
+            type: AppToastType.info,
+          );
+        }
+      } else {
+        setState(() {
+          loading = false;
+          program = null;
+          isOffline = false;
+        });
+      }
     }
   }
 

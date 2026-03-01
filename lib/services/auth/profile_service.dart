@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import 'profile_storage.dart';
 
 class ProfileApi {
   static Future<Map<String, dynamic>> fetchProfile(int userId, {String? lang}) async {
@@ -12,6 +13,9 @@ class ProfileApi {
 
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
+      try {
+        await ProfileStorage.saveProfile(data);
+      } catch (_) {}
       return data;
     }
 
@@ -77,7 +81,11 @@ class ProfileApi {
     if (res.statusCode == 200) {
       if (res.body.isEmpty) return <String, dynamic>{};
       try {
-        return jsonDecode(res.body) as Map<String, dynamic>;
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        try {
+          await ProfileStorage.saveProfile(data);
+        } catch (_) {}
+        return data;
       } catch (_) {
         return <String, dynamic>{};
       }

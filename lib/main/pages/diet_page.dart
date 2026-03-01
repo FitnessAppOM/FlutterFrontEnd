@@ -6,6 +6,8 @@ import '../../core/account_storage.dart';
 import '../../core/diet_regeneration_flag.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/diet/diet_service.dart';
+import '../../services/diet/diet_meals_storage.dart';
+import '../../services/diet/diet_day_summary_storage.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/diet_item_search_sheet.dart';
 import '../../widgets/diet_logging_options_sheet.dart';
@@ -587,12 +589,58 @@ class DietPageState extends State<DietPage> {
   @override
   void initState() {
     super.initState();
-    _loadBootstrap();
-    _updateTrainingLockFromCompletion();
+    _init();
     DietService.onTargetsUpdatedAfterBurn = _onTargetsUpdatedAfterBurn;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _maybeShowDietRecommendation();
     });
+  }
+
+  Future<void> _init() async {
+    await _hydrateFromCache();
+    await _loadBootstrap(silent: _targets != null || _meals != null);
+    await _updateTrainingLockFromCompletion();
+  }
+
+  Future<void> _hydrateFromCache() async {
+    try {
+      final cachedTargets = await DietService.fetchCurrentTargetsFromCache();
+      final trainingDayId = _modeIndex == 1
+          ? _asInt(_selectedTrainingDay?["day_id"], fallback: 0)
+          : null;
+      final effectiveTdId =
+          (trainingDayId != null && trainingDayId > 0) ? trainingDayId : null;
+      var cachedMeals = await DietService.fetchMealsForDateFromCache(
+        _mealDate,
+        trainingDayId: effectiveTdId,
+      );
+      if (cachedMeals != null && cachedMeals["day_summary"] == null) {
+        try {
+          final cachedSummary = await DietDaySummaryStorage.loadSummaryForDate(_mealDate);
+          if (cachedSummary != null) {
+            cachedMeals = Map<String, dynamic>.from(cachedMeals);
+            cachedMeals["day_summary"] = cachedSummary;
+          }
+        } catch (_) {
+          // Ignore cached summary errors
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        if (_targets == null && cachedTargets != null) {
+          _targets = cachedTargets;
+          _targetsFromCache = true;
+          _loading = false;
+        }
+        if (_meals == null && cachedMeals != null) {
+          _meals = cachedMeals;
+          _mealsFromCache = true;
+          _mealsLoading = false;
+        }
+      });
+    } catch (_) {
+      // ignore cache load errors
+    }
   }
 
   void _onTargetsUpdatedAfterBurn() {
@@ -754,6 +802,15 @@ class DietPageState extends State<DietPage> {
             trainingDayId: effectiveTdId,
           );
           mealsData["day_summary"] = summary;
+          try {
+            await DietMealsStorage.saveMealsForDate(
+              _mealDate,
+              mealsData.cast<String, dynamic>(),
+              trainingDayId: effectiveTdId,
+            );
+          } catch (_) {
+            // Ignore cache save errors
+          }
         } catch (_) {
           // Ignore summary fetch errors.
         }
@@ -929,16 +986,37 @@ class DietPageState extends State<DietPage> {
   Future<void> _loadMeals({bool clearExisting = false}) async {
     _mealsRequestId++;
     final requestId = _mealsRequestId;
-    final hasExistingData = _meals != null && !clearExisting;
+    // When in training mode, fetch meals for that training day so create/fetch match
+    final trainingDayId = _modeIndex == 1
+        ? _asInt(_selectedTrainingDay?["day_id"], fallback: 0)
+        : null;
+    final effectiveTdId = (trainingDayId != null && trainingDayId > 0) ? trainingDayId : null;
+
+    if (clearExisting) {
+      // Try to hydrate from cache for the target day/type before showing loading.
+      try {
+        final cached = await DietService.fetchMealsForDateFromCache(
+          _mealDate,
+          trainingDayId: effectiveTdId,
+        );
+        if (cached != null && mounted) {
+          setState(() {
+            _meals = cached;
+            _mealsFromCache = true;
+            _mealsLoading = false;
+          });
+        }
+      } catch (_) {
+        // ignore cache load errors
+      }
+    }
+
+    final hasExistingData = _meals != null;
     setState(() {
       // Only show loading spinner on first load or explicit clear;
       // otherwise refresh silently in the background to avoid widget flicker.
       if (!hasExistingData) _mealsLoading = true;
       _mealsError = null;
-      _mealsFromCache = false;
-      if (clearExisting) {
-        _meals = null;
-      }
     });
 
     try {
@@ -946,12 +1024,6 @@ class DietPageState extends State<DietPage> {
       if (userId == null) {
         throw Exception("User not found");
       }
-
-      // When in training mode, fetch meals for that training day so create/fetch match
-      final trainingDayId = _modeIndex == 1
-          ? _asInt(_selectedTrainingDay?["day_id"], fallback: 0)
-          : null;
-      final effectiveTdId = (trainingDayId != null && trainingDayId > 0) ? trainingDayId : null;
 
       final data = await DietService.fetchMealsForDate(
         userId,
@@ -969,6 +1041,15 @@ class DietPageState extends State<DietPage> {
             date: _mealDate,
           );
           data["day_summary"] = summary;
+          try {
+            await DietMealsStorage.saveMealsForDate(
+              _mealDate,
+              data.cast<String, dynamic>(),
+              trainingDayId: effectiveTdId,
+            );
+          } catch (_) {
+            // Ignore cache save errors
+          }
         } catch (_) {
           // Ignore if summary fetch fails
         }
