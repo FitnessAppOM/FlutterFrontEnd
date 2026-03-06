@@ -191,9 +191,7 @@ class _BootGateState extends State<BootGate> {
   Widget build(BuildContext context) {
     return const Scaffold(
       backgroundColor: AppColors.black,
-      body: Center(
-        child: CircularProgressIndicator(color: AppColors.accent),
-      ),
+      body: SizedBox.expand(),
     );
   }
 }

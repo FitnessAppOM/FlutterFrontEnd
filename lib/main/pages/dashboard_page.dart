@@ -2833,19 +2833,12 @@ class DashboardPageState extends State<DashboardPage>
         ),
         const SizedBox(height: 16),
         if (_loading)
-          const CardContainer(
-            child: Padding(
-              padding: EdgeInsets.all(12.0),
-              child: Center(
-                child: SizedBox(
-                  height: 28,
-                  width: 28,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-            ),
-          )
-        else if (noEntriesForSelectedDate)
+          const LinearProgressIndicator(
+            color: AppColors.accent,
+            backgroundColor: Colors.white12,
+            minHeight: 2,
+          ),
+        if (noEntriesForSelectedDate)
           CardContainer(
             child: Padding(
               padding: const EdgeInsets.all(12.0),
@@ -3000,7 +2993,7 @@ class DashboardPageState extends State<DashboardPage>
           ),
         ),
         const SizedBox(height: 16),
-        if (!_loading && !noEntriesForSelectedDate) ...[
+        if (!noEntriesForSelectedDate) ...[
           const SizedBox(height: 20),
           LayoutBuilder(
             builder: (context, constraints) {

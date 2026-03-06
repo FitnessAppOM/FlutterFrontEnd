@@ -124,10 +124,11 @@ class _CardioMapControlsState extends State<CardioMapControls> {
   String get _time =>
       "${_elapsed.inMinutes.toString().padLeft(2, '0')}:${(_elapsed.inSeconds % 60).toString().padLeft(2, '0')}";
 
-  String _paceLabel(double? speedKmh) {
+  String _paceLabel() {
     if (_elapsed.inSeconds < 30) return "--:-- /km";
-    if (speedKmh == null || speedKmh <= 0.1) return "--:-- /km";
-    final paceMin = 60.0 / speedKmh;
+    final distanceKm = widget.distanceKm ?? 0.0;
+    if (distanceKm <= 0.001) return "--:-- /km";
+    final paceMin = (_elapsed.inSeconds / 60.0) / distanceKm;
     final paceMinutes = paceMin.floor();
     final paceSeconds = ((paceMin - paceMinutes) * 60).round().clamp(0, 59);
     return "${paceMinutes.toString().padLeft(2, '0')}:${paceSeconds.toString().padLeft(2, '0')} /km";
@@ -136,7 +137,7 @@ class _CardioMapControlsState extends State<CardioMapControls> {
   @override
   Widget build(BuildContext context) {
     final distanceLabel = (widget.distanceKm ?? 0).toStringAsFixed(2);
-    final paceLabel = _paceLabel(widget.speedKmh);
+    final paceLabel = _paceLabel();
     final stepsLabel = widget.steps?.toString() ?? "0";
     return Column(
       mainAxisSize: MainAxisSize.min,

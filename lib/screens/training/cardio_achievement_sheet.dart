@@ -48,9 +48,10 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
     return "$mm:$ss";
   }
 
-  String _paceLabel(double speedKmh) {
-    if (speedKmh <= 0.1) return "--:-- /km";
-    final paceMin = 60.0 / speedKmh;
+  String _avgPaceLabel() {
+    if (widget.durationSeconds <= 0) return "--:-- /km";
+    if (widget.distanceKm <= 0.001) return "--:-- /km";
+    final paceMin = (widget.durationSeconds / 60.0) / widget.distanceKm;
     final paceMinutes = paceMin.floor();
     final paceSeconds = ((paceMin - paceMinutes) * 60).round().clamp(0, 59);
     return "${paceMinutes.toString().padLeft(2, '0')}:${paceSeconds.toString().padLeft(2, '0')} /km";
@@ -316,7 +317,7 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                           Expanded(
                             child: _MetricChip(
                               label: 'Pace',
-                              value: _paceLabel(widget.avgSpeedKmh),
+                              value: _avgPaceLabel(),
                             ),
                           ),
                           const SizedBox(width: 10),
