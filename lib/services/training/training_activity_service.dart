@@ -37,10 +37,17 @@ class TrainingActivityService {
     final ss = (seconds % 60).toString().padLeft(2, '0');
     if (distanceKm != null || paceMinKm != null) {
       final d = (distanceKm ?? 0).toStringAsFixed(2);
-      final pace = _paceLabel(paceMinKm);
+      final avgPace = _avgPaceMinKm(distanceKm, seconds) ?? paceMinKm;
+      final pace = _paceLabel(avgPace);
       return "Timer $mm:$ss • $d km • $pace";
     }
     return "Timer $mm:$ss • $sets x $reps";
+  }
+
+  static double? _avgPaceMinKm(double? distanceKm, int seconds) {
+    if (distanceKm == null || distanceKm <= 0.001) return null;
+    if (seconds <= 0) return null;
+    return (seconds / 60.0) / distanceKm;
   }
 
   static String _paceLabel(double? paceMinKm) {
@@ -307,6 +314,7 @@ class TrainingActivityService {
     required bool paused,
   }) async {
     try {
+      final avgPace = _avgPaceMinKm(distanceKm, seconds) ?? paceMinKm;
       final ok = await _liveActivityChannel.invokeMethod('start', {
         'sessionId': _liveActivitySessionId,
         'exerciseName': exerciseName,
@@ -314,7 +322,7 @@ class TrainingActivityService {
         'reps': reps,
         'seconds': seconds,
         'distanceKm': distanceKm,
-        'speedKmh': paceMinKm,
+        'speedKmh': avgPace,
         'startMs': startMs,
         'paused': paused,
       });
@@ -334,6 +342,7 @@ class TrainingActivityService {
     required bool paused,
   }) async {
     try {
+      final avgPace = _avgPaceMinKm(distanceKm, seconds) ?? paceMinKm;
       final ok = await _liveActivityChannel.invokeMethod('update', {
         'sessionId': _liveActivitySessionId,
         'exerciseName': exerciseName,
@@ -341,7 +350,7 @@ class TrainingActivityService {
         'reps': reps,
         'seconds': seconds,
         'distanceKm': distanceKm,
-        'speedKmh': paceMinKm,
+        'speedKmh': avgPace,
         'startMs': startMs,
         'paused': paused,
       });

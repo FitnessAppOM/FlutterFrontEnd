@@ -15,10 +15,13 @@ class AccountStorage {
   static const _kAuthProvider = 'auth_provider';
   static const _kWhoopLinked = 'whoop_linked';
   static const _kFitbitLinked = 'fitbit_linked';
+  static const _kStravaLinked = 'strava_linked';
   static String _whoopLinkedKey(int? userId) =>
       userId == null ? _kWhoopLinked : "${_kWhoopLinked}_u$userId";
   static String _fitbitLinkedKey(int? userId) =>
       userId == null ? _kFitbitLinked : "${_kFitbitLinked}_u$userId";
+  static String _stravaLinkedKey(int? userId) =>
+      userId == null ? _kStravaLinked : "${_kStravaLinked}_u$userId";
   static const _kMetricsKeys = [
     "manual_steps_entries",
     "manual_calories_entries",
@@ -74,6 +77,20 @@ class AccountStorage {
     final sp = await SharedPreferences.getInstance();
     final userId = sp.getInt(_kUserId);
     final key = _fitbitLinkedKey(userId);
+    if (!sp.containsKey(key)) return null;
+    return sp.getBool(key);
+  }
+
+  static Future<void> setStravaLinked(bool linked) async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    await sp.setBool(_stravaLinkedKey(userId), linked);
+  }
+
+  static Future<bool?> getStravaLinked() async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    final key = _stravaLinkedKey(userId);
     if (!sp.containsKey(key)) return null;
     return sp.getBool(key);
   }
@@ -257,9 +274,11 @@ static Future<void> clearSession() async {
   if (currentUserId != null) {
     await sp.remove(_whoopLinkedKey(currentUserId));
     await sp.remove(_fitbitLinkedKey(currentUserId));
+    await sp.remove(_stravaLinkedKey(currentUserId));
   }
   await sp.remove(_kWhoopLinked);
   await sp.remove(_kFitbitLinked);
+  await sp.remove(_kStravaLinked);
 
   notifyAccountChanged();
 
@@ -273,9 +292,11 @@ static Future<void> clearSessionOnly() async {
   if (currentUserId != null) {
     await sp.remove(_whoopLinkedKey(currentUserId));
     await sp.remove(_fitbitLinkedKey(currentUserId));
+    await sp.remove(_stravaLinkedKey(currentUserId));
   }
   await sp.remove(_kWhoopLinked);
   await sp.remove(_kFitbitLinked);
+  await sp.remove(_kStravaLinked);
   // Keep email + name + verified → so “Login as…” still works
   notifyAccountChanged();
 }
@@ -297,9 +318,11 @@ static Future<void> clearSessionOnly() async {
     if (currentUserId != null) {
       await sp.remove(_whoopLinkedKey(currentUserId));
       await sp.remove(_fitbitLinkedKey(currentUserId));
+      await sp.remove(_stravaLinkedKey(currentUserId));
     }
     await sp.remove(_kWhoopLinked);
     await sp.remove(_kFitbitLinked);
+    await sp.remove(_kStravaLinked);
     notifyAccountChanged();
   }
 }

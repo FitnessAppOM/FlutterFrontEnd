@@ -44,6 +44,9 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _fitbitLinked = false;
   bool _fitbitLoading = false;
   bool _fitbitAuthInFlight = false;
+  bool _stravaLinked = false;
+  bool _stravaLoading = false;
+  bool _stravaAuthInFlight = false;
 
   bool _isAuthCancelled(Object e) {
     if (e is PlatformException) {
@@ -69,6 +72,7 @@ class _SettingsPageState extends State<SettingsPage> {
     _loadExpertFlag();
     _loadWhoopStatus();
     _loadFitbitStatus();
+    _loadStravaStatus();
   }
 
   Future<void> _showSuccessDialog(String message) async {
@@ -263,6 +267,29 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<void> _loadStravaStatus() async {
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null) {
+        setState(() => _stravaLinked = false);
+        return;
+      }
+      final url = Uri.parse("${ApiConfig.baseUrl}/strava/status?user_id=$userId");
+      final headers = await AccountStorage.getAuthHeaders();
+      final response = await http.get(url, headers: headers);
+      if (response.statusCode != 200) {
+        setState(() => _stravaLinked = false);
+        return;
+      }
+      final data = json.decode(response.body);
+      final linked = data["linked"] == true;
+      setState(() => _stravaLinked = linked);
+      await AccountStorage.setStravaLinked(linked);
+    } catch (_) {
+      setState(() => _stravaLinked = false);
+    }
+  }
+
   Future<void> _connectWhoop() async {
     final userId = await AccountStorage.getUserId();
     if (!mounted) return;
@@ -362,6 +389,51 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<void> _connectStrava() async {
+    if (_stravaAuthInFlight) return;
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) {
+      AppToast.show(context, "Please log in to connect Strava.", type: AppToastType.info);
+      return;
+    }
+    _stravaAuthInFlight = true;
+    setState(() => _stravaLoading = true);
+    try {
+      final token = await AccountStorage.getAccessToken();
+      final t = token?.trim();
+      if (t == null || t.isEmpty) {
+        AppToast.show(context, "Please log in again.", type: AppToastType.info);
+        return;
+      }
+      final url =
+          "${ApiConfig.baseUrl}/auth/strava/login?user_id=$userId&token=$t";
+      final result = await FlutterWebAuth2.authenticate(
+        url: url,
+        callbackUrlScheme: 'taqa',
+      );
+      final uri = Uri.tryParse(result);
+      final ok = uri != null && uri.scheme == 'taqa' && uri.host == 'strava';
+      setState(() => _stravaLinked = ok);
+      if (ok) {
+        await AccountStorage.setStravaLinked(true);
+        AccountStorage.notifyAccountChanged();
+      }
+      AppToast.show(
+        context,
+        ok ? "Strava connected successfully." : "Strava connect failed.",
+        type: ok ? AppToastType.success : AppToastType.error,
+      );
+    } catch (e) {
+      if (_isAuthCancelled(e)) {
+        return;
+      }
+      AppToast.show(context, "Strava connect failed: $e", type: AppToastType.error);
+    } finally {
+      _stravaAuthInFlight = false;
+      if (mounted) setState(() => _stravaLoading = false);
+    }
+  }
+
   Future<void> _disconnectFitbit() async {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return;
@@ -388,12 +460,47 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<void> _disconnectStrava() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return;
+    final ok = await showConfirmDialog(
+      context: context,
+      title: "Disconnect Strava",
+      message: "Are you sure you want to disconnect Strava?",
+      confirmText: "Disconnect",
+    );
+    if (ok != true) return;
+    setState(() => _stravaLoading = true);
+    try {
+      final url = Uri.parse("${ApiConfig.baseUrl}/strava/disconnect?user_id=$userId");
+      final headers = await AccountStorage.getAuthHeaders();
+      await http.post(url, headers: headers);
+      setState(() => _stravaLinked = false);
+      await AccountStorage.setStravaLinked(false);
+      AccountStorage.notifyAccountChanged();
+      AppToast.show(context, "Strava disconnected.", type: AppToastType.success);
+    } catch (e) {
+      AppToast.show(context, "Strava disconnect failed: $e", type: AppToastType.error);
+    } finally {
+      if (mounted) setState(() => _stravaLoading = false);
+    }
+  }
+
   Future<void> _handleFitbitTap() async {
     if (_fitbitLoading) return;
     if (_fitbitLinked) {
       await _disconnectFitbit();
     } else {
       await _connectFitbit();
+    }
+  }
+
+  Future<void> _handleStravaTap() async {
+    if (_stravaLoading) return;
+    if (_stravaLinked) {
+      await _disconnectStrava();
+    } else {
+      await _connectStrava();
     }
   }
 
@@ -873,6 +980,31 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               child: const Text(
                 "F",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+          _SettingsTile(
+            title: _stravaLinked ? "Strava connected" : "Connect Strava",
+            subtitle:
+                _stravaLinked ? "Disconnect your Strava" : "Link your Strava account",
+            icon: _stravaLoading ? Icons.hourglass_bottom : Icons.directions_bike,
+            onTap: _stravaLoading ? null : _handleStravaTap,
+            color: _stravaLinked ? const Color(0xFF4CD964) : null,
+            leading: Container(
+              height: 28,
+              width: 28,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFC4C02),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                "S",
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w800,
