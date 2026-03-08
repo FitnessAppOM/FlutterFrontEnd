@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,6 +7,7 @@ import 'training_foreground_task_handler.dart';
 
 class TrainingActivityService {
   static bool _active = false;
+  static bool _androidServiceRunning = false;
   static int _lastUpdateSecond = -1;
   static double? _lastDistanceKm;
   static double? _lastPaceMinKm;
@@ -148,16 +150,27 @@ class TrainingActivityService {
     );
 
     if (Platform.isAndroid) {
-      await FlutterForegroundTask.updateService(
-        notificationTitle: _buildTitle(exerciseName),
-        notificationText: _buildBody(
-          seconds: seconds,
-          sets: sets,
-          reps: reps,
-          distanceKm: distanceKm,
-          paceMinKm: paceMinKm,
-        ),
+      final title = _buildTitle(exerciseName);
+      final body = _buildBody(
+        seconds: seconds,
+        sets: sets,
+        reps: reps,
+        distanceKm: distanceKm,
+        paceMinKm: paceMinKm,
       );
+      if (!_androidServiceRunning) {
+        await _startForegroundService(title: title, body: body);
+      }
+      if (_androidServiceRunning) {
+        try {
+          await FlutterForegroundTask.updateService(
+            notificationTitle: title,
+            notificationText: body,
+          );
+        } catch (_) {
+          _androidServiceRunning = false;
+        }
+      }
     }
     if (Platform.isIOS) {
       await _updateLiveActivity(
@@ -185,7 +198,14 @@ class TrainingActivityService {
     _sessionStartMs = null;
     await _clearSession();
     if (Platform.isAndroid) {
-      await FlutterForegroundTask.stopService();
+      if (_androidServiceRunning) {
+        try {
+          await FlutterForegroundTask.stopService();
+        } catch (_) {
+          // ignore
+        }
+      }
+      _androidServiceRunning = false;
     }
     if (Platform.isIOS) {
       await _stopLiveActivity();
@@ -215,16 +235,27 @@ class TrainingActivityService {
     );
 
     if (Platform.isAndroid) {
-      await FlutterForegroundTask.updateService(
-        notificationTitle: _buildTitle(exerciseName),
-        notificationText: _buildBody(
-          seconds: seconds,
-          sets: sets,
-          reps: reps,
-          distanceKm: distanceKm,
-          paceMinKm: paceMinKm,
-        ),
+      final title = _buildTitle(exerciseName);
+      final body = _buildBody(
+        seconds: seconds,
+        sets: sets,
+        reps: reps,
+        distanceKm: distanceKm,
+        paceMinKm: paceMinKm,
       );
+      if (!_androidServiceRunning) {
+        await _startForegroundService(title: title, body: body);
+      }
+      if (_androidServiceRunning) {
+        try {
+          await FlutterForegroundTask.updateService(
+            notificationTitle: title,
+            notificationText: body,
+          );
+        } catch (_) {
+          _androidServiceRunning = false;
+        }
+      }
     }
     if (Platform.isIOS) {
       await _updateLiveActivity(
@@ -296,11 +327,23 @@ class TrainingActivityService {
     if (!Platform.isAndroid) {
       return;
     }
-    await FlutterForegroundTask.startService(
-      notificationTitle: title,
-      notificationText: body,
-      callback: trainingStartCallback,
-    );
+    if (!_isAndroidInForeground()) return;
+    try {
+      await FlutterForegroundTask.startService(
+        notificationTitle: title,
+        notificationText: body,
+        callback: trainingStartCallback,
+      );
+      _androidServiceRunning = true;
+    } catch (_) {
+      // Android 14+ may reject start when app is backgrounded by system policy.
+      _androidServiceRunning = false;
+    }
+  }
+
+  static bool _isAndroidInForeground() {
+    final state = WidgetsBinding.instance.lifecycleState;
+    return state == null || state == AppLifecycleState.resumed;
   }
 
   static Future<void> _startLiveActivity({

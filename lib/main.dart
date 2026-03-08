@@ -23,6 +23,7 @@ import 'services/training/cardio_session_queue.dart';
 import 'services/training/training_activity_service.dart';
 import 'core/account_storage.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'dart:io' show Platform;
 
 void main() async {
   print('[Main] Entry');
@@ -30,7 +31,8 @@ void main() async {
   // Keep larger GIFs in memory to avoid reloads when opening sheets.
   final imageCache = PaintingBinding.instance.imageCache;
   imageCache.maximumSize = 2000;
-  imageCache.maximumSizeBytes = 300 << 20; // 300 MB
+  // On Android use a smaller cache to reduce memory pressure and OOM kills (e.g. cardio screen). iOS unchanged.
+  imageCache.maximumSizeBytes = (Platform.isAndroid ? 120 : 300) << 20;
 
   print('[Main] Starting app bootstrap');
   FlutterForegroundTask.init(
