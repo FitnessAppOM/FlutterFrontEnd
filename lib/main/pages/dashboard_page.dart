@@ -74,6 +74,7 @@ import '../../services/training/training_progress_storage.dart';
 import '../../widgets/primary_button.dart';
 import '../../screens/whoop_test_page.dart';
 import '../../widgets/update_notice.dart';
+import '../../widgets/release_notes_notice.dart';
 import 'dart:math' as math;
 
 class DashboardPage extends StatefulWidget {
@@ -290,8 +291,13 @@ class DashboardPageState extends State<DashboardPage>
     _loadInitialData();
     _loadExerciseProgress();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      UpdateNotice.showIfNeeded(context);
+      _showUpdateAndReleaseNotes();
     });
+  }
+
+  Future<void> _showUpdateAndReleaseNotes() async {
+    await UpdateNotice.showIfNeeded(context);
+    await ReleaseNotesNotice.showIfNeeded(context);
   }
 
   void _onWhoopChanged() {
