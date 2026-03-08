@@ -276,21 +276,28 @@ class ExerciseCard extends StatelessWidget {
                         width: 74,
                         height: 66,
                         color: Colors.black26,
-                        child: ((((exercise['animation_url'] ?? '').toString().trim()).isEmpty) &&
-                                (((exercise['animation_rel_path'] ?? '').toString().trim()).isEmpty))
-                            ? const SizedBox.shrink()
-                              : Image.network(
-                                TrainingService.animationImageUrl(
-                                  exercise['animation_url']?.toString(),
-                                  exercise['animation_rel_path']?.toString(),
-                                ),
-                                fit: BoxFit.cover,
-                                loadingBuilder: (context, child, loadingProgress) {
-                                  if (loadingProgress == null) return child;
-                                  return const SizedBox.shrink();
-                                },
-                                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                              ),
+                        child: () {
+                          final dpr = MediaQuery.of(context).devicePixelRatio;
+                          final cacheW = (74 * dpr).round();
+                          final cacheH = (66 * dpr).round();
+                          final url = TrainingService.animationImageUrl(
+                            exercise['animation_url']?.toString(),
+                            exercise['animation_rel_path']?.toString(),
+                          );
+                          if (url.isEmpty) {
+                            return const Icon(
+                              Icons.fitness_center,
+                              size: 20,
+                              color: Colors.white24,
+                            );
+                          }
+                          return _ExerciseGifThumb(
+                            key: ValueKey(url),
+                            url: url,
+                            cacheWidth: cacheW,
+                            cacheHeight: cacheH,
+                          );
+                        }(),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -369,6 +376,115 @@ class ExerciseCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ExerciseGifThumb extends StatefulWidget {
+  const _ExerciseGifThumb({
+    super.key,
+    required this.url,
+    required this.cacheWidth,
+    required this.cacheHeight,
+  });
+
+  final String url;
+  final int cacheWidth;
+  final int cacheHeight;
+
+  @override
+  State<_ExerciseGifThumb> createState() => _ExerciseGifThumbState();
+}
+
+class _ExerciseGifThumbState extends State<_ExerciseGifThumb> {
+  bool _hasFrame = false;
+  ImageStream? _stream;
+  ImageStreamListener? _listener;
+
+  ImageProvider get _provider => TrainingService.gifProvider(
+        widget.url,
+        cacheWidth: widget.cacheWidth,
+        cacheHeight: widget.cacheHeight,
+      );
+
+  void _attachStream() {
+    final stream = _provider.resolve(createLocalImageConfiguration(context));
+    _stream = stream;
+    _listener = ImageStreamListener((info, _) {
+      TrainingService.cacheGifFrame(
+        widget.url,
+        info,
+        cacheWidth: widget.cacheWidth,
+        cacheHeight: widget.cacheHeight,
+      );
+      if (!_hasFrame && mounted) {
+        setState(() => _hasFrame = true);
+      }
+    });
+    stream.addListener(_listener!);
+  }
+
+  void _detachStream() {
+    if (_stream != null && _listener != null) {
+      _stream!.removeListener(_listener!);
+    }
+    _stream = null;
+    _listener = null;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _detachStream();
+    _attachStream();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ExerciseGifThumb oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url) {
+      _hasFrame = false;
+      _detachStream();
+      _attachStream();
+    }
+  }
+
+  @override
+  void dispose() {
+    _detachStream();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cached = TrainingService.getGifFrame(
+      widget.url,
+      cacheWidth: widget.cacheWidth,
+      cacheHeight: widget.cacheHeight,
+    );
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (cached != null)
+          RawImage(
+            image: cached.image,
+            scale: cached.scale,
+            fit: BoxFit.cover,
+          )
+        else
+          const Icon(
+            Icons.fitness_center,
+            size: 20,
+            color: Colors.white24,
+          ),
+        Image(
+          image: _provider,
+          fit: BoxFit.cover,
+          gaplessPlayback: true,
+          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+        ),
+      ],
     );
   }
 }

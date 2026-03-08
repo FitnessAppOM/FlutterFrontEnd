@@ -16,7 +16,7 @@ class AppLocalizations {
       'login': 'Log in',
       'login_with_another': 'Log in using another account',
       'login_as': 'Log in as',
-      'new_to_taqa': 'New to TAQA? ',
+      'new_to_taqa': 'New to TaqaFitness? ',
       'signup': 'Sign up',
 
       'verification_title': 'Verify Email',
@@ -732,7 +732,7 @@ class AppLocalizations {
       'login': 'تسجيل الدخول',
       'login_with_another': 'تسجيل الدخول باستخدام حساب آخر',
       'login_as': 'تسجيل الدخول باسم',
-      'new_to_taqa': 'هل أنت جديد في TAQA؟ ',
+      'new_to_taqa': 'هل أنت جديد في TaqaFitness؟ ',
       'signup': 'إنشاء حساب',
 
       'verification_title': 'تأكيد البريد الإلكتروني',

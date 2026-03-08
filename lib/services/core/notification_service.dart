@@ -409,6 +409,26 @@ class NotificationService {
     }
   }
 
+  /// Debug helper: show both journal + diet notifications immediately.
+  static Future<void> showDebugJournalAndDietNow() async {
+    // ignore: avoid_print
+    print('[Notif] showDebugJournalAndDietNow()');
+    await _plugin.show(
+      910001,
+      'Daily Journal (Test)',
+      'Tap to open your journal.',
+      _defaultDetails,
+      payload: dailyJournalPayload,
+    );
+    await _plugin.show(
+      910002,
+      'Diet check-in (Test)',
+      'Tap to open your diet module.',
+      _defaultDetails,
+      payload: dietPayload,
+    );
+  }
+
   static int _toInt(dynamic v) {
     if (v is int) return v;
     if (v is double) return v.round();

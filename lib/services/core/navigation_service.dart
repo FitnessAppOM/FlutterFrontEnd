@@ -5,11 +5,32 @@ class NavigationService {
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
   static bool launchedFromNotificationPayload = false;
+  static bool isOnJournalPage = false;
+  static bool _journalNotificationPending = false;
   static bool _dietNotificationPending = false;
+
+  static bool get journalNotificationPending => _journalNotificationPending;
+  static bool get dietNotificationPending => _dietNotificationPending;
+
+  static void markJournalNotificationPending() {
+    _journalNotificationPending = true;
+    launchedFromNotificationPayload = true;
+  }
+
+  static void markDietNotificationPending() {
+    _dietNotificationPending = true;
+  }
+
+  static bool consumeJournalNotification() {
+    final pending = _journalNotificationPending;
+    _journalNotificationPending = false;
+    launchedFromNotificationPayload = false;
+    return pending;
+  }
 
   static Future<void> navigateToJournal({bool fromNotification = false}) async {
     if (fromNotification) {
-      launchedFromNotificationPayload = true;
+      markJournalNotificationPending();
     }
 
     final nav = navigatorKey.currentState;

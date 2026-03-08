@@ -22,12 +22,14 @@ class ExerciseSessionSheet extends StatefulWidget {
   final Map<String, dynamic> exercise;
   final Set<String> completedExerciseNames;
   final VoidCallback onFinished;
+  final ImageProvider? previewProvider;
 
   const ExerciseSessionSheet({
     super.key,
     required this.exercise,
     required this.completedExerciseNames,
     required this.onFinished,
+    this.previewProvider,
   });
 
   @override
@@ -792,19 +794,43 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       final String gifUrl =
           TrainingService.animationImageUrl(animationUrl, animPath);
 
+      final dpr = MediaQuery.of(context).devicePixelRatio;
+      final cacheH = (160 * dpr).round();
+
       animationWidget = SizedBox(
         height: 160,
-        child: Image.network(
-          gifUrl,
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) {
-            return const Icon(
-              Icons.fitness_center,
-              size: 80,
-              color: Colors.grey,
-            );
-          },
-        ),
+        child: gifUrl.isEmpty
+            ? const Icon(
+                Icons.fitness_center,
+                size: 80,
+                color: Colors.grey,
+              )
+            : Stack(
+                alignment: Alignment.center,
+                children: [
+                  if (widget.previewProvider != null)
+                    Image(
+                      image: widget.previewProvider!,
+                      fit: BoxFit.contain,
+                      gaplessPlayback: true,
+                    ),
+                  Image(
+                    image: TrainingService.gifProvider(
+                      gifUrl,
+                      cacheHeight: cacheH,
+                    ),
+                    fit: BoxFit.contain,
+                    gaplessPlayback: true,
+                    errorBuilder: (_, __, ___) {
+                      return const Icon(
+                        Icons.fitness_center,
+                        size: 80,
+                        color: Colors.grey,
+                      );
+                    },
+                  ),
+                ],
+              ),
       );
     }
 

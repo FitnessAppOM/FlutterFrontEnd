@@ -26,6 +26,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
   bool _isSubmitting = false;
   bool _formHidden = false;
   DateTime _selectedDate = _dateOnly(DateTime.now());
+  late final bool _fromNotification;
 
   final _sleepHoursCtrl = TextEditingController();
   final _caffeineCupsCtrl = TextEditingController();
@@ -48,6 +49,8 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
   @override
   void initState() {
     super.initState();
+    NavigationService.isOnJournalPage = true;
+    _fromNotification = NavigationService.consumeJournalNotification();
     _refresh();
   }
 
@@ -69,6 +72,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
 
   @override
   void dispose() {
+    NavigationService.isOnJournalPage = false;
     _sleepHoursCtrl.dispose();
     _caffeineCupsCtrl.dispose();
     _alcoholDrinksCtrl.dispose();
@@ -299,7 +303,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
       appBar: AppBar(
         title: Text(t("journal_title")),
         automaticallyImplyLeading: true,
-        leading: NavigationService.launchedFromNotificationPayload
+        leading: _fromNotification
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () {

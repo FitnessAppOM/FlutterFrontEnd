@@ -73,6 +73,7 @@ import '../../services/training/training_service.dart';
 import '../../services/training/training_progress_storage.dart';
 import '../../widgets/primary_button.dart';
 import '../../screens/whoop_test_page.dart';
+import '../../widgets/update_notice.dart';
 import 'dart:math' as math;
 
 class DashboardPage extends StatefulWidget {
@@ -288,6 +289,9 @@ class DashboardPageState extends State<DashboardPage>
     _loadFitbitLinkedHint();
     _loadInitialData();
     _loadExerciseProgress();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateNotice.showIfNeeded(context);
+    });
   }
 
   void _onWhoopChanged() {

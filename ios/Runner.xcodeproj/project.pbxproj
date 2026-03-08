@@ -43,14 +43,14 @@
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		F6ABC1234567890ABCDEF012 /* Embed App Extensions */ = {
+		F6ABC1234567890ABCDEF012 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
 			);
-			name = "Embed App Extensions";
+			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -87,31 +87,6 @@
 		F63E9A0A2EDB974500CB237B /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		F6ABC1234567890ABCDEF002 /* TrainingLiveActivityChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingLiveActivityChannel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
-
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		F622C8652F428293001B6EBA /* Exceptions for "TrainingLiveActivity" folder in "TrainingLiveActivityExtension" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = F622C84A2F428292001B6EBA /* TrainingLiveActivityExtension */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
-/* Begin PBXFileSystemSynchronizedRootGroup section */
-		F622C8502F428292001B6EBA /* TrainingLiveActivity */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				F622C8652F428293001B6EBA /* Exceptions for "TrainingLiveActivity" folder in "TrainingLiveActivityExtension" target */,
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = TrainingLiveActivity;
-			sourceTree = "<group>";
-		};
-/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		97C146EB1CF9000F007C117D /* Frameworks */ = {
@@ -227,6 +202,13 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		F622C8502F428292001B6EBA /* TrainingLiveActivity */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = TrainingLiveActivity;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -259,7 +241,7 @@
 				97C146EB1CF9000F007C117D /* Frameworks */,
 				97C146EC1CF9000F007C117D /* Resources */,
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
-				F6ABC1234567890ABCDEF012 /* Embed App Extensions */,
+				F6ABC1234567890ABCDEF012 /* Embed Foundation Extensions */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				7809B50C75818250B96090E9 /* [CP] Embed Pods Frameworks */,
 				0E0B919A9C37B2E5E8DE7A2D /* [CP] Copy Pods Resources */,
@@ -284,9 +266,6 @@
 			buildRules = (
 			);
 			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				F622C8502F428292001B6EBA /* TrainingLiveActivity */,
 			);
 			name = TrainingLiveActivityExtension;
 			productName = TrainingLiveActivityExtension;
@@ -567,6 +546,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 6X6WNV6997;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -581,6 +561,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALIDATE_PRODUCT = YES;
@@ -595,7 +576,6 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				DEVELOPMENT_TEAM = 6X6WNV6997;
 				ENABLE_BITCODE = NO;
 				ENABLE_EXTRACT_APP_INTENTS_METADATA = NO;
 				EXTRACT_APP_INTENTS_METADATA = NO;
@@ -619,7 +599,6 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 6X6WNV6997;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.taqafitness.app.RunnerTests;
@@ -638,7 +617,6 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 6X6WNV6997;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.taqafitness.app.RunnerTests;
@@ -655,7 +633,6 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 6X6WNV6997;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.taqafitness.app.RunnerTests;
@@ -697,6 +674,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 6X6WNV6997;
 				ENABLE_EXTRACT_APP_INTENTS_METADATA = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -719,6 +697,7 @@
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -755,6 +734,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 6X6WNV6997;
 				ENABLE_EXTRACT_APP_INTENTS_METADATA = NO;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -770,6 +750,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
@@ -786,7 +767,6 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				DEVELOPMENT_TEAM = 6X6WNV6997;
 				ENABLE_BITCODE = NO;
 				ENABLE_EXTRACT_APP_INTENTS_METADATA = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -811,7 +791,6 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				DEVELOPMENT_TEAM = 6X6WNV6997;
 				ENABLE_BITCODE = NO;
 				ENABLE_EXTRACT_APP_INTENTS_METADATA = NO;
 				EXTRACT_APP_INTENTS_METADATA = NO;
@@ -835,7 +814,6 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 6X6WNV6997;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TrainingLiveActivity/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TrainingLiveActivity;
@@ -861,7 +839,6 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 6X6WNV6997;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TrainingLiveActivity/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TrainingLiveActivity;
@@ -886,7 +863,6 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 6X6WNV6997;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TrainingLiveActivity/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TrainingLiveActivity;

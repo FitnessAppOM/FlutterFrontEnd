@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
@@ -20,16 +21,120 @@ class TrainingApiException implements Exception {
 
 class TrainingService {
   static String baseUrl = ApiConfig.baseUrl;
+  static final Map<String, ImageProvider> _gifProviders = {};
+  static final Set<String> _gifEverLoaded = <String>{};
+  static final Map<String, ImageInfo> _gifFrames = {};
+  static const bool _prefer360pGifs = false;
 
   /// Prefer full [animationUrl] (e.g. GCS). If missing, return empty string
   /// and let the UI show a placeholder instead of falling back to local /static.
   static String animationImageUrl(String? animationUrl, String? animationRelPath) {
-    final direct = (animationUrl ?? '').trim();
-    if (direct.isNotEmpty &&
-        (direct.startsWith('http://') || direct.startsWith('https://'))) {
-      return direct;
+    String joinBase(String path) {
+      final base = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+      final normalized = path.startsWith('/') ? path : "/$path";
+      return "$base$normalized";
     }
+
+    String normalizeAbsolute(String raw) {
+      final v = raw.trim();
+      if (v.isEmpty) return '';
+      if (v.startsWith('http://') || v.startsWith('https://')) return v;
+      if (v.startsWith('//')) return "https:$v";
+      if (v.startsWith('/')) return joinBase(v);
+      return '';
+    }
+
+    String adjustResolution(String raw) {
+      if (!_prefer360pGifs) return raw;
+      if (raw.isEmpty) return raw;
+      var adjusted = raw;
+      adjusted = adjusted.replaceAll('/1080/', '/360/');
+      final pattern = RegExp(r'([_-])1080(?=\\.gif(?:$|\\?))', caseSensitive: false);
+      adjusted = adjusted.replaceAllMapped(pattern, (m) => '${m.group(1)}360');
+      return adjusted;
+    }
+
+    final relRaw = adjustResolution((animationRelPath ?? '').trim());
+    if (relRaw.isNotEmpty) {
+      final relAbsolute = normalizeAbsolute(relRaw);
+      if (relAbsolute.isNotEmpty) return relAbsolute;
+
+      final normalized = relRaw.startsWith('/') ? relRaw.substring(1) : relRaw;
+      if (normalized.startsWith('static/')) {
+        return joinBase(normalized);
+      }
+      return joinBase("static/$normalized");
+    }
+
+    final direct = normalizeAbsolute(adjustResolution(animationUrl ?? ''));
+    if (direct.isNotEmpty) return direct;
     return '';
+  }
+
+  static String _gifKey(String url, int? cacheWidth, int? cacheHeight) {
+    final w = cacheWidth?.toString() ?? '';
+    final h = cacheHeight?.toString() ?? '';
+    return "$url|$w|$h";
+  }
+
+  static ImageProvider gifProvider(
+    String url, {
+    int? cacheWidth,
+    int? cacheHeight,
+  }) {
+    final key = _gifKey(url, cacheWidth, cacheHeight);
+    final existing = _gifProviders[key];
+    if (existing != null) return existing;
+
+    ImageProvider provider = NetworkImage(url);
+    if (cacheWidth != null || cacheHeight != null) {
+      provider = ResizeImage(
+        provider,
+        width: cacheWidth,
+        height: cacheHeight,
+      );
+    }
+    _gifProviders[key] = provider;
+    return provider;
+  }
+
+  static bool gifEverLoaded(String url) => _gifEverLoaded.contains(url);
+
+  static void markGifLoaded(String url) {
+    _gifEverLoaded.add(url);
+  }
+
+  static ImageInfo? getGifFrame(
+    String url, {
+    int? cacheWidth,
+    int? cacheHeight,
+  }) {
+    final key = _gifKey(url, cacheWidth, cacheHeight);
+    return _gifFrames[key];
+  }
+
+  static void cacheGifFrame(
+    String url,
+    ImageInfo info, {
+    int? cacheWidth,
+    int? cacheHeight,
+  }) {
+    final key = _gifKey(url, cacheWidth, cacheHeight);
+    _gifFrames[key] = info;
+  }
+
+  static Future<void> warmGif(
+    BuildContext context,
+    String url, {
+    int? cacheWidth,
+    int? cacheHeight,
+  }) async {
+    final provider = gifProvider(
+      url,
+      cacheWidth: cacheWidth,
+      cacheHeight: cacheHeight,
+    );
+    await precacheImage(provider, context);
   }
 
   static String _dateParam(DateTime d) {

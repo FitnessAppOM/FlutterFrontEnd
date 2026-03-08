@@ -27,6 +27,10 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 void main() async {
   print('[Main] Entry');
   WidgetsFlutterBinding.ensureInitialized();
+  // Keep larger GIFs in memory to avoid reloads when opening sheets.
+  final imageCache = PaintingBinding.instance.imageCache;
+  imageCache.maximumSize = 2000;
+  imageCache.maximumSizeBytes = 300 << 20; // 300 MB
 
   print('[Main] Starting app bootstrap');
   FlutterForegroundTask.init(
@@ -99,11 +103,9 @@ void main() async {
     // ignore: avoid_print
     print('[Main] NotificationService.init() ERROR: $e\n$st');
   }
-  if (kDebugMode) {
-    // Fire a few test notifications so you can verify delivery quickly.
-    print('[Main] Scheduling debug notifications');
-    await NotificationService.scheduleDebugNotificationsEveryTenSeconds(count: 3);
-  }
+  // // Fire test notifications immediately so you can verify delivery quickly.
+  // print('[Main] Showing debug notifications');
+  // await NotificationService.showDebugJournalAndDietNow();
   await NotificationService.refreshDailyJournalRemindersForCurrentUser();
   // Push health metrics for yesterday once per day (on app start) if not already sent today.
   try {
@@ -115,8 +117,11 @@ void main() async {
     print("DailyMetricsSync daily push skipped: $e");
   }
   final launchPayload = await NotificationService.getLaunchPayload();
-  NavigationService.launchedFromNotificationPayload =
-      launchPayload == NotificationService.dailyJournalPayload;
+  if (launchPayload == NotificationService.dailyJournalPayload) {
+    NavigationService.markJournalNotificationPending();
+  } else if (launchPayload == NotificationService.dietPayload) {
+    NavigationService.markDietNotificationPending();
+  }
 
   // When backend returns 401, clear session and send user to welcome (login).
   AccountStorage.onUnauthorized = () {

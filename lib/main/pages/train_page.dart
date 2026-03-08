@@ -26,6 +26,10 @@ class _TrainPageState extends State<TrainPage> {
   bool isOffline = false;
   Set<String> completedExerciseNames = {};
   int _tabIndex = 0; // 0 = Train, 1 = Cardio
+  bool _cardioBuilt = false;
+  List<Map<String, dynamic>> _trainExercises = const [];
+  List<Map<String, dynamic>> _cardioExercises = const [];
+  final Set<String> _preloadedThumbs = <String>{};
 
   int? _userId;
 
@@ -55,9 +59,10 @@ class _TrainPageState extends State<TrainPage> {
               program = cached;
               loading = false;
               isOffline = false;
+              _rebuildExerciseLists();
             });
             showedCache = true;
-            _preloadExerciseGifsFromProgram();
+            _preloadExerciseGifsForCurrentDay();
           }
         } catch (_) {
           // Ignore cache load errors.
@@ -86,8 +91,9 @@ class _TrainPageState extends State<TrainPage> {
         loading = false;
         isOffline = false;
         completedExerciseNames = completed;
+        _rebuildExerciseLists();
       });
-      _preloadExerciseGifsFromProgram();
+      _preloadExerciseGifsForCurrentDay();
       return;
     } catch (_) {
       if (!mounted) return;
@@ -109,35 +115,72 @@ class _TrainPageState extends State<TrainPage> {
           loading = false;
           program = null;
           isOffline = false;
+          _rebuildExerciseLists();
         });
       }
     }
   }
 
-
-  Future<void> _preloadExerciseGifsFromProgram() async {
-    if (!mounted) return;
+  void _rebuildExerciseLists() {
     final data = program;
-    if (data == null) return;
-    try {
-      final days = data['days'];
-      if (days is! List) return;
-      for (final day in days) {
-        final exercises = day is Map ? day['exercises'] : null;
-        if (exercises is! List) continue;
-        for (final ex in exercises) {
-          if (!mounted) return;
-          if (ex is! Map<String, dynamic>) continue;
-          final url = TrainingService.animationImageUrl(
-            ex['animation_url']?.toString(),
-            ex['animation_rel_path']?.toString(),
-          );
-          if (url.isEmpty) continue;
-          try {
-            await precacheImage(NetworkImage(url), context);
-          } catch (_) {
-            // Ignore individual preload failures.
+    if (data == null) {
+      _trainExercises = const [];
+      _cardioExercises = const [];
+      return;
+    }
+    final days = data['days'];
+    if (days is! List || days.isEmpty) {
+      _trainExercises = const [];
+      _cardioExercises = const [];
+      return;
+    }
+    if (selectedDay >= days.length) {
+      selectedDay = 0;
+    }
+    final currentDay = days[selectedDay];
+    final exercises = currentDay is Map ? currentDay['exercises'] : null;
+    final List<Map<String, dynamic>> train = [];
+    final List<Map<String, dynamic>> cardio = [];
+    if (exercises is List) {
+      for (final ex in exercises) {
+        if (ex is Map<String, dynamic>) {
+          if (_isCardioExercise(ex)) {
+            cardio.add(ex);
+          } else {
+            train.add(ex);
           }
+        }
+      }
+    }
+    _trainExercises = train;
+    _cardioExercises = cardio;
+  }
+
+  Future<void> _preloadExerciseGifsForCurrentDay() async {
+    if (!mounted) return;
+    try {
+      final dpr = WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
+      final thumbW = (74 * dpr).round();
+      final thumbH = (66 * dpr).round();
+      for (final ex in _trainExercises) {
+        if (!mounted) return;
+        final url = TrainingService.animationImageUrl(
+          ex['animation_url']?.toString(),
+          ex['animation_rel_path']?.toString(),
+        );
+        if (url.isEmpty) continue;
+        final key = "$url|$thumbW|$thumbH";
+        if (_preloadedThumbs.contains(key)) continue;
+        _preloadedThumbs.add(key);
+        try {
+          await TrainingService.warmGif(
+            context,
+            url,
+            cacheWidth: thumbW,
+            cacheHeight: thumbH,
+          );
+        } catch (_) {
+          // Ignore individual preload failures.
         }
       }
     } catch (_) {
@@ -146,6 +189,24 @@ class _TrainPageState extends State<TrainPage> {
   }
 
   void _startExerciseFlow(Map<String, dynamic> ex) {
+    final dpr = MediaQuery.of(context).devicePixelRatio;
+    final thumbW = (74 * dpr).round();
+    final thumbH = (66 * dpr).round();
+    final sheetH = (160 * dpr).round();
+    final gifUrl = TrainingService.animationImageUrl(
+      ex['animation_url']?.toString(),
+      ex['animation_rel_path']?.toString(),
+    );
+    final ImageProvider? previewProvider =
+        gifUrl.isEmpty ? null : TrainingService.gifProvider(
+          gifUrl,
+          cacheWidth: thumbW,
+          cacheHeight: thumbH,
+        );
+    if (gifUrl.isNotEmpty) {
+      // Warm the sheet size without blocking UI.
+      TrainingService.warmGif(context, gifUrl, cacheHeight: sheetH).catchError((_) {});
+    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -156,10 +217,9 @@ class _TrainPageState extends State<TrainPage> {
         exercise: ex,
         completedExerciseNames: completedExerciseNames,
         onFinished: _loadProgram,
+        previewProvider: previewProvider,
       ),
-    ).whenComplete(() {
-      _loadProgram();
-    });
+    );
   }
 
   Future<void> _openCardioTab() async {
@@ -172,7 +232,10 @@ class _TrainPageState extends State<TrainPage> {
       );
     }
     if (!mounted) return;
-    setState(() => _tabIndex = 1);
+    setState(() {
+      _tabIndex = 1;
+      _cardioBuilt = true;
+    });
   }
 
   Future<void> _openReplaceSheet(Map<String, dynamic> ex) async {
@@ -273,20 +336,6 @@ class _TrainPageState extends State<TrainPage> {
     }
 
     final currentDay = days[selectedDay];
-    final List exercises = currentDay['exercises'] ?? [];
-    final List<Map<String, dynamic>> trainExercises = [];
-    final List<Map<String, dynamic>> cardioExercises = [];
-    for (final ex in exercises) {
-      if (ex is Map<String, dynamic>) {
-        if (_isCardioExercise(ex)) {
-          cardioExercises.add(ex);
-        } else {
-          trainExercises.add(ex);
-        }
-      }
-    }
-    final List<Map<String, dynamic>> visibleExercises =
-        _tabIndex == 1 ? cardioExercises : trainExercises;
 
     return Container(
       color: Colors.black,
@@ -367,7 +416,13 @@ class _TrainPageState extends State<TrainPage> {
                           labels:
                               days.map<String>((d) => d['day_label'].toString()).toList(),
                           selectedIndex: selectedDay,
-                          onSelect: (i) => setState(() => selectedDay = i),
+                          onSelect: (i) {
+                            setState(() {
+                              selectedDay = i;
+                              _rebuildExerciseLists();
+                            });
+                            _preloadExerciseGifsForCurrentDay();
+                          },
                         ),
                         const SizedBox(height: 24),
                         Text(
@@ -385,7 +440,7 @@ class _TrainPageState extends State<TrainPage> {
                               ),
                         ),
                         const SizedBox(height: 16),
-                        if (visibleExercises.isEmpty)
+                        if (_trainExercises.isEmpty)
                           Center(
                             child: Padding(
                               padding: const EdgeInsets.only(top: 40),
@@ -398,8 +453,15 @@ class _TrainPageState extends State<TrainPage> {
                             ),
                           )
                         else
-                          ...visibleExercises.map<Widget>((ex) {
+                          ..._trainExercises.asMap().entries.map<Widget>((entry) {
+                            final ex = entry.value;
+                            final rawId = ex['program_exercise_id'] ??
+                                ex['exercise_id'] ??
+                                ex['exercise_name'] ??
+                                entry.key;
+                            final exKey = ValueKey("train_ex_$rawId");
                             return Padding(
+                              key: exKey,
                               padding: const EdgeInsets.only(bottom: 14),
                               child: ExerciseCard(
                                 exercise: ex,
@@ -415,18 +477,20 @@ class _TrainPageState extends State<TrainPage> {
                     color: Colors.blueAccent,
                     backgroundColor: Colors.black87,
                     onRefresh: _loadProgram,
-                    child: ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                      children: [
-                        const SizedBox(height: 8),
-                        CardioTab(
-                          exercises: cardioExercises,
-                          onStart: _startExerciseFlow,
-                          onReplace: _openReplaceSheet,
-                        ),
-                      ],
-                    ),
+                    child: _cardioBuilt
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                            children: [
+                              const SizedBox(height: 8),
+                              CardioTab(
+                                exercises: _cardioExercises,
+                                onStart: _startExerciseFlow,
+                                onReplace: _openReplaceSheet,
+                              ),
+                            ],
+                          )
+                        : const SizedBox.shrink(),
                   ),
                 ],
               ),

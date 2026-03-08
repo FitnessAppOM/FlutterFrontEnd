@@ -270,13 +270,21 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
 
   void _precacheGifs(List<Map<String, dynamic>> items) {
     if (!mounted) return;
+    final dpr = WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
+    final cacheW = (74 * dpr).round();
+    final cacheH = (66 * dpr).round();
     for (final ex in items) {
       final url = TrainingService.animationImageUrl(
         ex['animation_url']?.toString(),
         ex['animation_rel_path']?.toString(),
       );
       if (url.isEmpty) continue;
-      precacheImage(NetworkImage(url), context).catchError((_) {});
+      TrainingService.warmGif(
+        context,
+        url,
+        cacheWidth: cacheW,
+        cacheHeight: cacheH,
+      ).catchError((_) {});
     }
   }
 

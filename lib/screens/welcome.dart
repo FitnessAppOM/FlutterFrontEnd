@@ -11,6 +11,7 @@ import '../widgets/divider_with_label.dart';
 import '../widgets/saved_account_tile.dart';
 import '../localization/app_localizations.dart';
 import '../main/main_layout.dart';
+import 'daily_journal.dart';
 import '../core/locale_controller.dart';
 import '../config/base_url.dart';
 import '../services/auth/profile_service.dart';
@@ -149,20 +150,6 @@ class _WelcomePageState extends State<WelcomePage> {
     return;
   }
 
-  // Skip auto-redirect when app was launched from a notification deep link.
-  if (NavigationService.launchedFromNotificationPayload) {
-    setState(() {
-      lastEmail = e;
-      lastVerified = v;
-      lastIsExpert = isExpert;
-      lastQuestionnaireDone = qDone;
-      lastExpertQuestionnaireDone = qExpertDone;
-      lastName = v ? n : null;
-      lastAuthProvider = provider;
-    });
-    return;
-  }
-
   // Normal auto-redirect
   // Auto-redirect only if verified AND questionnaire was completed
   final questionnaireDone = qDone || qExpertDone;
@@ -206,10 +193,18 @@ class _WelcomePageState extends State<WelcomePage> {
       await AccountStorage.setQuestionnaireDone(serverDone);
       await AccountStorage.setExpertQuestionnaireDone(serverDone);
       if (!mounted) return;
+      if (NavigationService.isOnJournalPage) {
+        return;
+      }
       if (hasData) {
+        final target = NavigationService.journalNotificationPending
+            ? const DailyJournalPage()
+            : (NavigationService.dietNotificationPending
+                ? const MainLayout(initialIndex: 2)
+                : const MainLayout());
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (_) => const MainLayout()),
+          MaterialPageRoute(builder: (_) => target),
           (route) => false,
         );
       } else {

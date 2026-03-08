@@ -434,11 +434,16 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
-      child: Image.network(
-        src,
+      child: Image(
+        image: TrainingService.gifProvider(
+          src,
+          cacheWidth: (54 * MediaQuery.of(context).devicePixelRatio).round(),
+          cacheHeight: (54 * MediaQuery.of(context).devicePixelRatio).round(),
+        ),
         width: 54,
         height: 54,
         fit: BoxFit.cover,
+        gaplessPlayback: true,
         errorBuilder: (_, __, ___) => const Icon(Icons.fitness_center),
       ),
     );

@@ -10,6 +10,7 @@ import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
 import '../../core/locale_controller.dart';
 import '../../main/main_layout.dart';
+import '../../screens/daily_journal.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/core/navigation_service.dart';
 import '../../services/core/notification_service.dart';
@@ -96,10 +97,18 @@ class _BootGateState extends State<BootGate> {
     await AccountStorage.setQuestionnaireDone(serverDone);
     await AccountStorage.setExpertQuestionnaireDone(serverDone);
     if (!mounted) return;
+    if (NavigationService.isOnJournalPage) {
+      return;
+    }
     if (hasData) {
+      final target = NavigationService.journalNotificationPending
+          ? const DailyJournalPage()
+          : (NavigationService.dietNotificationPending
+              ? const MainLayout(initialIndex: 2)
+              : const MainLayout());
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const MainLayout()),
+        MaterialPageRoute(builder: (_) => target),
         (route) => false,
       );
     } else {
@@ -137,18 +146,6 @@ class _BootGateState extends State<BootGate> {
   }
 
   Future<void> _boot() async {
-    // Skip auto-redirect when app was launched from a notification deep link.
-    if (NavigationService.launchedFromNotificationPayload) {
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => WelcomePage(onChangeLanguage: localeController.setLocale),
-        ),
-      );
-      return;
-    }
-
     final email = await AccountStorage.getEmail();
     final verified = await AccountStorage.isVerified();
     final isExpert = await AccountStorage.isExpert();

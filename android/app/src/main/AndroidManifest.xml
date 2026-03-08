@@ -37,7 +37,7 @@
 
 
     <application
-        android:label="taqaproject"
+        android:label="TaqaFitness"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true">

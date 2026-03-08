@@ -15,12 +15,14 @@ import '../widgets/saved_account_tile.dart';
 import '../localization/app_localizations.dart';
 import '../screens/ForgetPassword/forgot_password_page.dart';
 import '../main/main_layout.dart';           // <-- MAIN PAGE
+import '../screens/daily_journal.dart';
 import 'email_verification_page.dart';
 import '../services/auth/profile_service.dart';
 import 'questionnaire.dart';
 import 'expert_questionnaire.dart';
 import '../widgets/app_toast.dart';
 import '../services/core/notification_service.dart';
+import '../services/core/navigation_service.dart';
 import '../services/metrics/daily_metrics_sync.dart';
 import '../services/whoop/whoop_daily_sync.dart';
 
@@ -99,10 +101,18 @@ class _LoginPageState extends State<LoginPage> {
       await AccountStorage.setQuestionnaireDone(serverDone);
       await AccountStorage.setExpertQuestionnaireDone(serverDone);
       if (!mounted) return;
+      if (NavigationService.isOnJournalPage) {
+        return;
+      }
       if (hasData) {
+        final target = NavigationService.journalNotificationPending
+            ? const DailyJournalPage()
+            : (NavigationService.dietNotificationPending
+                ? const MainLayout(initialIndex: 2)
+                : const MainLayout());
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (_) => const MainLayout()),
+          MaterialPageRoute(builder: (_) => target),
           (route) => false,
         );
       } else {
