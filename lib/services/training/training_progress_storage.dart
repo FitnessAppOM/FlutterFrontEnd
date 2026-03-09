@@ -30,7 +30,9 @@ class TrainingProgressStorage {
 
   static DateTime _weekStart(DateTime d) {
     final day = DateTime(d.year, d.month, d.day);
-    return day.subtract(Duration(days: day.weekday - 1));
+    // Sunday 00:00 as week start (aligns with exercise cards).
+    final daysSinceSunday = day.weekday % 7;
+    return day.subtract(Duration(days: daysSinceSunday));
   }
 
   static String _userKey(int userId, String key) => '${_keyPrefix}_${key}_u$userId';
