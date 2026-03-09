@@ -22,6 +22,7 @@ import 'package:health/health.dart';
 
 class ConsentManager {
   static bool? _healthAvailable; // cache Health Connect / platform availability
+  static bool _healthPermissionRequestInFlight = false;
   // ---------------------------------------------------------------------------
   // STARTUP (call once)
   // ---------------------------------------------------------------------------
@@ -30,6 +31,9 @@ class ConsentManager {
     await _requestGDPRIfRequired();       // UMP (if you’ll personalize/ads)
     await _requestNotifications();        // Push permission
     await ensureHealthConnectInstalled(); // Prompt Health Connect on Android if missing
+    if (Platform.isAndroid) {
+      await requestAllHealth(); // Prompt Health Connect permissions on Android at startup
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -195,14 +199,14 @@ class ConsentManager {
   }) async {
     final types = <HealthDataType>[];
     if (steps) types.add(HealthDataType.STEPS);
-    if (sleep) {
-      // Request both sleep types together so iOS shows a single HealthKit sheet.
+    if (calories) types.add(HealthDataType.ACTIVE_ENERGY_BURNED);
+    if (sleep && Platform.isIOS) {
+      // iOS supports these sleep types via HealthKit.
       types.addAll([
         HealthDataType.SLEEP_ASLEEP,
         HealthDataType.SLEEP_IN_BED,
       ]);
     }
-    if (calories) types.add(HealthDataType.ACTIVE_ENERGY_BURNED);
 
     if (types.isEmpty) return true;
 
@@ -232,6 +236,10 @@ class ConsentManager {
       }
     }
 
+    if (_healthPermissionRequestInFlight) {
+      return false;
+    }
+    _healthPermissionRequestInFlight = true;
     try {
       final has = await health.hasPermissions(types, permissions: permissions) ?? false;
       if (has) return true;
@@ -243,6 +251,8 @@ class ConsentManager {
         print("Health permission check failed (possibly missing Health Connect): $e");
       }
       return false;
+    } finally {
+      _healthPermissionRequestInFlight = false;
     }
   }
 
@@ -251,8 +261,26 @@ class ConsentManager {
       requestHealthPermissionsJIT(steps: true, sleep: true);
 
   /// Convenience helper to request steps + sleep + calories in one prompt.
-  static Future<bool> requestAllHealth() =>
-      requestHealthPermissionsJIT(steps: true, sleep: true, calories: true);
+  static Future<bool> requestAllHealth() async {
+    if (Platform.isAndroid) {
+      // Health Connect permission flow is more reliable when requesting
+      // a focused set first (steps + active calories).
+      final granted = await requestHealthPermissionsJIT(
+        steps: true,
+        sleep: false,
+        calories: true,
+      );
+      if (granted) return true;
+      // Fallback to steps-only so Android prompt keeps working even on
+      // devices/providers that don't expose active calories.
+      return requestHealthPermissionsJIT(
+        steps: true,
+        sleep: false,
+        calories: false,
+      );
+    }
+    return requestHealthPermissionsJIT(steps: true, sleep: true, calories: true);
+  }
 
   // ---------------------------------------------------------------------------
   // HEALTH CONNECT INSTALL PROMPT (Android)

@@ -139,10 +139,12 @@ void main() async {
 
 
   //  Delay consent request to avoid iOS freeze
-  Future.delayed(
-    const Duration(milliseconds: 300),
-        () async => await ConsentManager.requestStartupConsents(),
-  );
+  if (Platform.isIOS) {
+    Future.delayed(
+      const Duration(milliseconds: 300),
+          () async => await ConsentManager.requestStartupConsents(),
+    );
+  }
 }
 
 class MyApp extends StatefulWidget {
@@ -156,6 +158,8 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final AppLifecycleListener _lifecycleListener = AppLifecycleListener();
+  bool _androidHealthPermissionInFlight = false;
+  bool _androidHealthPermissionGranted = false;
 
   @override
   void initState() {
@@ -163,6 +167,9 @@ class _MyAppState extends State<MyApp> {
     localeController.addListener(_handleLocaleChange);
     _lifecycleListener.add(_handleLifecycle);
     AccountStorage.accountChange.addListener(_handleAccountChange);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeRequestAndroidHealthPermission();
+    });
   }
 
   @override
@@ -178,6 +185,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _handleLifecycle() async {
+    _maybeRequestAndroidHealthPermission();
     try {
       await DailyMetricsSync().pushIfNewDay();
       await WhoopDailySync().pushIfNewDay();
@@ -200,6 +208,28 @@ class _MyAppState extends State<MyApp> {
   void _handleAccountChange() {
     NotificationService.refreshDailyJournalRemindersForCurrentUser();
     FitbitDailySync().pushIfNewDay().catchError((_) {});
+    _maybeRequestAndroidHealthPermission();
+  }
+
+  Future<void> _maybeRequestAndroidHealthPermission() async {
+    if (!Platform.isAndroid || _androidHealthPermissionGranted || _androidHealthPermissionInFlight) {
+      return;
+    }
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return;
+
+    _androidHealthPermissionInFlight = true;
+    try {
+      // Wait a beat so startup/login transitions settle before launching
+      // Health Connect's permission activity.
+      await Future.delayed(const Duration(milliseconds: 600));
+      final granted = await ConsentManager.requestAllHealth();
+      if (granted) {
+        _androidHealthPermissionGranted = true;
+      }
+    } finally {
+      _androidHealthPermissionInFlight = false;
+    }
   }
 
   @override
