@@ -426,10 +426,9 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
 
   Widget _thumb({
     String? animationUrl,
-    String? animRelPath,
   }) {
     final src =
-        TrainingService.animationImageUrl(animationUrl, animRelPath);
+        TrainingService.animationImageUrl(animationUrl, null);
     if (src.isEmpty) return const Icon(Icons.fitness_center);
 
     return ClipRRect(
@@ -495,7 +494,6 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
         if (s is! Map<String, dynamic>) return const SizedBox.shrink();
 
         final name = (s['exercise_name'] ?? '').toString().trim();
-        final animRel = (s['animation_rel_path'] ?? '').toString().trim();
         final animUrl = (s['animation_url'] ?? '').toString().trim();
         final id = _asInt(s['exercise_id']);
 
@@ -504,7 +502,6 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
         return ListTile(
           leading: _thumb(
             animationUrl: animUrl,
-            animRelPath: animRel,
           ),
           title: Text(name.isEmpty ? "Unnamed exercise" : name),
           trailing: submitting

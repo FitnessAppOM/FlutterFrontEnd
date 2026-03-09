@@ -282,7 +282,7 @@ class ExerciseCard extends StatelessWidget {
                           final cacheH = (66 * dpr).round();
                           final url = TrainingService.animationImageUrl(
                             exercise['animation_url']?.toString(),
-                            exercise['animation_rel_path']?.toString(),
+                            null,
                           );
                           if (url.isEmpty) {
                             return const Icon(

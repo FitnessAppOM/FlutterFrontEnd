@@ -276,7 +276,7 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
     for (final ex in items) {
       final url = TrainingService.animationImageUrl(
         ex['animation_url']?.toString(),
-        ex['animation_rel_path']?.toString(),
+        null,
       );
       if (url.isEmpty) continue;
       TrainingService.warmGif(
@@ -304,8 +304,7 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
         ...local,
         if (match['animation_url'] != null)
           'animation_url': match['animation_url'],
-        if (match['animation_rel_path'] != null)
-          'animation_rel_path': match['animation_rel_path'],
+        'animation_rel_path': null,
       };
     }).toList();
   }

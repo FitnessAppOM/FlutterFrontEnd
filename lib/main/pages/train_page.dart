@@ -166,7 +166,7 @@ class _TrainPageState extends State<TrainPage> {
         if (!mounted) return;
         final url = TrainingService.animationImageUrl(
           ex['animation_url']?.toString(),
-          ex['animation_rel_path']?.toString(),
+          null,
         );
         if (url.isEmpty) continue;
         final key = "$url|$thumbW|$thumbH";
@@ -195,7 +195,7 @@ class _TrainPageState extends State<TrainPage> {
     final sheetH = (160 * dpr).round();
     final gifUrl = TrainingService.animationImageUrl(
       ex['animation_url']?.toString(),
-      ex['animation_rel_path']?.toString(),
+      null,
     );
     final ImageProvider? previewProvider =
         gifUrl.isEmpty ? null : TrainingService.gifProvider(

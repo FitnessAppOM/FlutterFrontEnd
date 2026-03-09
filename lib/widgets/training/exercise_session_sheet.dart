@@ -762,7 +762,6 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     final hasToken = token != null && token.trim().isNotEmpty;
 
     final animationUrl = (widget.exercise['animation_url'] ?? '').toString().trim();
-    final animPath = (widget.exercise['animation_rel_path'] ?? '').toString().trim();
     final String instructions = widget.exercise['instructions'] ?? '';
     final viewInsets = MediaQuery.of(context).viewInsets;
     final t = AppLocalizations.of(context);
@@ -790,9 +789,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       color: Colors.grey,
     );
 
-    if (!isCardio && (animationUrl.isNotEmpty || animPath.isNotEmpty)) {
+    if (!isCardio && animationUrl.isNotEmpty) {
       final String gifUrl =
-          TrainingService.animationImageUrl(animationUrl, animPath);
+          TrainingService.animationImageUrl(animationUrl, null);
 
       final dpr = MediaQuery.of(context).devicePixelRatio;
       final cacheH = (160 * dpr).round();
