@@ -1133,15 +1133,15 @@ class DashboardPageState extends State<DashboardPage>
   bool _complianceCompleted(dynamic compliance) {
     // Deprecated overload kept for back-compat; defaults to selected week.
     final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-    final weekStart = _weekStartSunday(anchor);
+    final weekStart = _weekStartMonday(anchor);
     final weekEnd = weekStart.add(const Duration(days: 6));
     return _complianceCompletedForWeek(compliance, weekStart, weekEnd);
   }
 
-  DateTime _weekStartSunday(DateTime d) {
+  DateTime _weekStartMonday(DateTime d) {
     final day = DateTime(d.year, d.month, d.day);
-    final daysSinceSunday = day.weekday % 7;
-    return day.subtract(Duration(days: daysSinceSunday));
+    final daysSinceMonday = (day.weekday + 6) % 7; // Monday=0 ... Sunday=6
+    return day.subtract(Duration(days: daysSinceMonday));
   }
 
   DateTime? _parseDateTime(dynamic value) {
@@ -1311,7 +1311,7 @@ class DashboardPageState extends State<DashboardPage>
       }
 
       final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-      final weekStart = _weekStartSunday(anchor);
+      final weekStart = _weekStartMonday(anchor);
       final weekEnd = weekStart.add(const Duration(days: 6));
 
       try {

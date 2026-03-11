@@ -81,15 +81,15 @@ class ExerciseCard extends StatelessWidget {
       return null;
     }
 
-    DateTime _startOfCurrentWeekSunday() {
+    DateTime _startOfCurrentWeekMonday() {
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
-      // In Dart, Sunday == 7. We want the most recent Sunday 00:00.
-      final daysSinceSunday = now.weekday % 7;
-      return today.subtract(Duration(days: daysSinceSunday));
+      // In Dart, Monday == 1. We want the most recent Monday 00:00.
+      final daysSinceMonday = (now.weekday + 6) % 7;
+      return today.subtract(Duration(days: daysSinceMonday));
     }
 
-    final DateTime _weekStart = _startOfCurrentWeekSunday();
+    final DateTime _weekStart = _startOfCurrentWeekMonday();
     final Map<String, dynamic>? compliance =
         _extractCompliance(exercise['program_compliance']) ??
             _extractCompliance(exercise['compliance']);

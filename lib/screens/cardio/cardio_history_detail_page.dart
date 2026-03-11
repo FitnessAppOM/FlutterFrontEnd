@@ -74,7 +74,9 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
     final steps = _toInt(_item['steps']);
     final route = _route;
 
-    final snapshotUrl = _buildSnapshotUrl(route);
+    final snapshotUrl = _buildSnapshotUrl(
+      route: route,
+    );
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F1014),
@@ -189,22 +191,28 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
       borderRadius: BorderRadius.circular(18),
       child: AspectRatio(
         aspectRatio: 16 / 9,
-        child: Image.network(
-          url,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) {
-            return Container(
-              color: Colors.white.withOpacity(0.05),
-              child: Center(
-                child: Text(
-                  "Map unavailable",
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.7),
-                      ),
-                ),
-              ),
-            );
-          },
+        child: ClipRect(
+          child: Transform.scale(
+            scale: 1.5,
+            child: Image.network(
+              url,
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+              errorBuilder: (_, __, ___) {
+                return Container(
+                  color: Colors.white.withOpacity(0.05),
+                  child: Center(
+                    child: Text(
+                      "Map unavailable",
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.white.withOpacity(0.7),
+                          ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
         ),
       ),
     );
@@ -243,9 +251,11 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
     );
   }
 
-  String _buildSnapshotUrl(List<CardioPoint> route) {
+  String _buildSnapshotUrl({
+    required List<CardioPoint> route,
+  }) {
     final token = dotenv.maybeGet('MAPBOX_PUBLIC_KEY') ?? '';
-    return buildCardioSnapshotUrlDefault(
+    return buildCardioSnapshotUrlMaster(
       token: token,
       route: route,
     );
