@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'localization/app_localizations.dart';
 import 'screens/welcome.dart';
@@ -60,7 +61,18 @@ void main() async {
 
   // Firebase (REQUIRED for Google Sign-In)
   await Firebase.initializeApp();
-  print('[Main] Firebase initialized');
+  try {
+    final opts = Firebase.app().options;
+    final pkg = await PackageInfo.fromPlatform();
+    print('[Main] Bundle: package=${pkg.packageName} version=${pkg.version}+${pkg.buildNumber}');
+    print('[Main] Firebase options: '
+        'projectId=${opts.projectId} appId=${opts.appId} '
+        'iosBundleId=${opts.iosBundleId} iosClientId=${opts.iosClientId} '
+        'apiKey=${opts.apiKey} messagingSenderId=${opts.messagingSenderId} '
+        'authDomain=${opts.authDomain} storageBucket=${opts.storageBucket}');
+  } catch (e) {
+    print('[Main] Firebase initialized (options unavailable): $e');
+  }
 
   // Cancel any stale training/cardio session on cold start.
   try {

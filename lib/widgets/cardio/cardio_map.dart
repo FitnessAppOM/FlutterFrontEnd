@@ -27,6 +27,7 @@ class CardioMap extends StatefulWidget {
     this.elapsedSeconds,
     this.running,
     this.trackingEnabled = true,
+    this.countdownActive = false,
   });
 
   final bool hasToken;
@@ -43,17 +44,18 @@ class CardioMap extends StatefulWidget {
   final int? elapsedSeconds;
   final bool? running;
   final bool trackingEnabled;
+  final bool countdownActive;
 
   @override
   State<CardioMap> createState() => _CardioMapState();
 }
 
-class _CardioMapState extends State<CardioMap> {
+class _CardioMapState extends State<CardioMap> with WidgetsBindingObserver {
   MapboxMap? _map;
   bool _disposed = false;
   StreamSubscription<geo.Position>? _positionSub;
   PolylineAnnotationManager? _polylineManager;
-  PolylineAnnotation? _routeLine;
+  final List<_RouteSegment> _segments = [];
   final List<Position> _routePositions = [];
   geo.Position? _lastPosition;
   DateTime? _lastPositionTime;
@@ -63,11 +65,22 @@ class _CardioMapState extends State<CardioMap> {
   double _movedMetersSinceStart = 0;
   final List<_TimedPosition> _recentPositions = [];
   bool _hasTrackingData = false;
+  bool _ignoreNextDistance = false;
+  bool _pausedTracking = false;
+  static const int _activeLineColor = 0xFF2D7CFF;
+  static const int _pausedLineColor = 0xFFE24B4B;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   @override
   void dispose() {
     _disposed = true;
     _positionSub?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -79,6 +92,38 @@ class _CardioMapState extends State<CardioMap> {
     }
     if (!widget.trackingEnabled && oldWidget.trackingEnabled) {
       _pauseTracking();
+    }
+    if (widget.running != oldWidget.running ||
+        widget.countdownActive != oldWidget.countdownActive) {
+      final nowRunning = widget.running ?? false;
+      final shouldPause =
+          !(nowRunning || widget.countdownActive) && widget.trackingEnabled;
+      _setPausedTracking(shouldPause);
+      if (nowRunning || widget.countdownActive) {
+        _ignoreNextDistance = true;
+      }
+    }
+    if (widget.trackingEnabled &&
+        (widget.running ?? false) &&
+        !_tracking) {
+      _ignoreNextDistance = true;
+      _startTracking();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_disposed) return;
+    if (state == AppLifecycleState.resumed) {
+      if (widget.expanded) {
+        _recenterWithRetry();
+      }
+      if (widget.trackingEnabled &&
+          ((widget.running ?? false) || widget.countdownActive || _tracking)) {
+        _ignoreNextDistance = true;
+        _pauseTracking();
+        _startTracking();
+      }
     }
   }
 
@@ -176,7 +221,7 @@ class _CardioMapState extends State<CardioMap> {
                 widget.onStart?.call();
               },
               onPause: () {
-                _pauseTracking();
+                _setPausedTracking(true);
                 widget.onPause?.call();
               },
               onFinish: () {
@@ -272,10 +317,13 @@ class _CardioMapState extends State<CardioMap> {
     final ok = await _ensureLocationPermission();
     if (!ok || _disposed) return;
     final elapsed = widget.elapsedSeconds ?? 0;
-    final isResume = elapsed > 0 || _hasTrackingData;
+    final isResume = (widget.running ?? false) || elapsed > 0 || _hasTrackingData;
     if (!isResume) {
       _resetTrackingState();
-      await _clearRouteLine();
+      await _clearRouteLines();
+    }
+    if (_segments.isEmpty) {
+      await _startNewSegment(paused: _pausedTracking);
     }
     _tracking = true;
     _positionSub?.cancel();
@@ -322,7 +370,7 @@ class _CardioMapState extends State<CardioMap> {
     _positionSub?.cancel();
     _positionSub = null;
     _resetTrackingState();
-    _clearRouteLine();
+    _clearRouteLines();
     if (mounted) setState(() {});
   }
 
@@ -332,32 +380,61 @@ class _CardioMapState extends State<CardioMap> {
     _polylineManager = await map.annotations.createPolylineAnnotationManager();
   }
 
-  Future<void> _clearRouteLine() async {
-    if (_polylineManager != null && _routeLine != null) {
-      await _polylineManager!.delete(_routeLine!);
-      _routeLine = null;
+  Future<void> _clearRouteLines() async {
+    if (_disposed) return;
+    if (_polylineManager != null) {
+      for (final segment in _segments) {
+        final line = segment.line;
+        if (line != null) {
+          await _polylineManager!.delete(line);
+        }
+      }
     }
+    _segments.clear();
   }
 
-  Future<void> _updateRouteLine() async {
+  Future<void> _startNewSegment({required bool paused}) async {
     if (_disposed) return;
-    if (_routePositions.length < 2) return;
     await _ensurePolylineManager();
     if (_polylineManager == null) return;
-    final lineString = LineString(coordinates: List<Position>.from(_routePositions));
-    if (_routeLine == null) {
-      _routeLine = await _polylineManager!.create(
+    final segment = _RouteSegment(paused: paused, points: []);
+    if (_routePositions.isNotEmpty) {
+      segment.points.add(_routePositions.last);
+    }
+    _segments.add(segment);
+  }
+
+  Future<void> _appendRoutePoint(Position point) async {
+    if (_disposed) return;
+    if (_segments.isEmpty) {
+      await _startNewSegment(paused: _pausedTracking);
+    }
+    if (_segments.isEmpty) return;
+    final segment = _segments.last;
+    segment.points.add(point);
+    await _updateSegmentLine(segment);
+  }
+
+  Future<void> _updateSegmentLine(_RouteSegment segment) async {
+    if (_disposed) return;
+    if (segment.points.length < 2) return;
+    await _ensurePolylineManager();
+    if (_polylineManager == null) return;
+    final lineString = LineString(coordinates: List<Position>.from(segment.points));
+    final color = segment.paused ? _pausedLineColor : _activeLineColor;
+    if (segment.line == null) {
+      segment.line = await _polylineManager!.create(
         PolylineAnnotationOptions(
           geometry: lineString,
-          lineColor: const Color(0xFF2D7CFF).value,
+          lineColor: color,
           lineOpacity: 0.85,
           lineWidth: 4.5,
           lineJoin: LineJoin.ROUND,
         ),
       );
     } else {
-      _routeLine!.geometry = lineString;
-      await _polylineManager!.update(_routeLine!);
+      segment.line!.geometry = lineString;
+      await _polylineManager!.update(segment.line!);
     }
   }
 
@@ -365,6 +442,23 @@ class _CardioMapState extends State<CardioMap> {
     if (_disposed || !_tracking) return;
     if (!widget.trackingEnabled) return;
     final now = DateTime.now();
+    if (_ignoreNextDistance) {
+      _ignoreNextDistance = false;
+      _lastPosition = position;
+      _lastPositionTime = now;
+      _recentPositions
+        ..clear()
+        ..add(_TimedPosition(position: position, time: now));
+      final routePoint = Position(position.longitude, position.latitude);
+      _routePositions.add(routePoint);
+      _hasTrackingData = true;
+      _appendRoutePoint(routePoint);
+      widget.onRoute?.call(_buildRoutePointsPayload());
+      if (mounted) {
+        setState(() {});
+      }
+      return;
+    }
     final last = _lastPosition;
     if (position.accuracy > 40) {
       return;
@@ -372,75 +466,78 @@ class _CardioMapState extends State<CardioMap> {
     if (position.speedAccuracy > 0 && position.speedAccuracy > 5.0) {
       return;
     }
-    if (last != null) {
-      final segMeters = geo.Geolocator.distanceBetween(
-        last.latitude,
-        last.longitude,
-        position.latitude,
-        position.longitude,
-      );
-      final dtMs = _lastPositionTime != null
-          ? now.difference(_lastPositionTime!).inMilliseconds
-          : 0;
-      if (dtMs > 0 && dtMs < 500) {
-        return;
-      }
-      // Ignore tiny GPS jitter to avoid speed spikes/drops
-      if (segMeters >= 1.0) {
-        _distanceMeters += segMeters;
-        _movedMetersSinceStart += segMeters;
-      }
-    }
-    // Compute rolling 10-second speed window from recent positions.
-    _recentPositions.add(_TimedPosition(position: position, time: now));
-    final cutoff = now.subtract(const Duration(seconds: 10));
-    while (_recentPositions.length > 2 &&
-        _recentPositions.first.time.isBefore(cutoff)) {
-      _recentPositions.removeAt(0);
-    }
-    double windowMeters = 0;
-    if (_recentPositions.length >= 2) {
-      for (var i = 1; i < _recentPositions.length; i++) {
-        final a = _recentPositions[i - 1].position;
-        final b = _recentPositions[i].position;
-        windowMeters += geo.Geolocator.distanceBetween(
-          a.latitude,
-          a.longitude,
-          b.latitude,
-          b.longitude,
+    if (!_pausedTracking) {
+      if (last != null) {
+        final segMeters = geo.Geolocator.distanceBetween(
+          last.latitude,
+          last.longitude,
+          position.latitude,
+          position.longitude,
         );
+        final dtMs = _lastPositionTime != null
+            ? now.difference(_lastPositionTime!).inMilliseconds
+            : 0;
+        if (dtMs > 0 && dtMs < 500) {
+          return;
+        }
+        // Ignore tiny GPS jitter to avoid speed spikes/drops
+        if (segMeters >= 1.0) {
+          _distanceMeters += segMeters;
+          _movedMetersSinceStart += segMeters;
+        }
       }
-    }
-    final windowSeconds = _recentPositions.length >= 2
-        ? _recentPositions.last.time
-                .difference(_recentPositions.first.time)
-                .inMilliseconds /
-            1000.0
-        : 0.0;
-    double nextSpeed =
-        (windowSeconds > 0) ? (windowMeters / windowSeconds) * 3.6 : 0.0;
-    if (nextSpeed.isNaN || nextSpeed < 0.2) nextSpeed = 0;
+      // Compute rolling 10-second speed window from recent positions.
+      _recentPositions.add(_TimedPosition(position: position, time: now));
+      final cutoff = now.subtract(const Duration(seconds: 10));
+      while (_recentPositions.length > 2 &&
+          _recentPositions.first.time.isBefore(cutoff)) {
+        _recentPositions.removeAt(0);
+      }
+      double windowMeters = 0;
+      if (_recentPositions.length >= 2) {
+        for (var i = 1; i < _recentPositions.length; i++) {
+          final a = _recentPositions[i - 1].position;
+          final b = _recentPositions[i].position;
+          windowMeters += geo.Geolocator.distanceBetween(
+            a.latitude,
+            a.longitude,
+            b.latitude,
+            b.longitude,
+          );
+        }
+      }
+      final windowSeconds = _recentPositions.length >= 2
+          ? _recentPositions.last.time
+                  .difference(_recentPositions.first.time)
+                  .inMilliseconds /
+              1000.0
+          : 0.0;
+      double nextSpeed =
+          (windowSeconds > 0) ? (windowMeters / windowSeconds) * 3.6 : 0.0;
+      if (nextSpeed.isNaN || nextSpeed < 0.2) nextSpeed = 0;
 
-    // Avoid non-zero speed before user actually moves a bit
-    if (_movedMetersSinceStart < 3.0) {
-      nextSpeed = 0;
-    }
+      // Avoid non-zero speed before user actually moves a bit
+      if (_movedMetersSinceStart < 3.0) {
+        nextSpeed = 0;
+      }
 
-    // Smooth speed to reduce 0 km/h spikes while walking
-    const alpha = 0.2;
-    _speedKmh = (_speedKmh * (1 - alpha)) + (nextSpeed * alpha);
+      // Smooth speed to reduce 0 km/h spikes while walking
+      const alpha = 0.2;
+      _speedKmh = (_speedKmh * (1 - alpha)) + (nextSpeed * alpha);
+    }
 
     _lastPosition = position;
     _lastPositionTime = now;
-    _routePositions.add(Position(position.longitude, position.latitude));
-    _updateRouteLine();
+    final routePoint = Position(position.longitude, position.latitude);
+    _routePositions.add(routePoint);
+    _appendRoutePoint(routePoint);
     _hasTrackingData = true;
-    widget.onMetrics?.call(
-      CardioMetrics(distanceMeters: _distanceMeters, speedKmh: _speedKmh),
-    );
-    widget.onRoute?.call(_routePositions
-        .map((p) => CardioPoint(lat: p.lat.toDouble(), lng: p.lng.toDouble()))
-        .toList());
+    if (!_pausedTracking) {
+      widget.onMetrics?.call(
+        CardioMetrics(distanceMeters: _distanceMeters, speedKmh: _speedKmh),
+      );
+    }
+    widget.onRoute?.call(_buildRoutePointsPayload());
     if (mounted) {
       setState(() {});
     }
@@ -455,6 +552,7 @@ class _CardioMapState extends State<CardioMap> {
     _lastPosition = null;
     _lastPositionTime = null;
     _hasTrackingData = false;
+    _pausedTracking = false;
   }
 
   Future<void> _recenterWithRetry() async {
@@ -492,6 +590,36 @@ class _CardioMapState extends State<CardioMap> {
       ),
     );
   }
+
+  void _setPausedTracking(bool paused) {
+    if (_pausedTracking == paused) return;
+    _pausedTracking = paused;
+    if (_tracking) {
+      _startNewSegment(paused: paused);
+    }
+    if (!paused) {
+      _ignoreNextDistance = true;
+    }
+  }
+
+  List<CardioPoint> _buildRoutePointsPayload() {
+    if (_segments.isEmpty) {
+      return _routePositions
+          .map((p) => CardioPoint(lat: p.lat.toDouble(), lng: p.lng.toDouble()))
+          .toList();
+    }
+    final points = <CardioPoint>[];
+    for (final segment in _segments) {
+      for (final p in segment.points) {
+        points.add(CardioPoint(
+          lat: p.lat.toDouble(),
+          lng: p.lng.toDouble(),
+          paused: segment.paused,
+        ));
+      }
+    }
+    return points;
+  }
 }
 
 class CardioMetrics {
@@ -507,8 +635,13 @@ class CardioMetrics {
 class CardioPoint {
   final double lat;
   final double lng;
+  final bool paused;
 
-  const CardioPoint({required this.lat, required this.lng});
+  const CardioPoint({
+    required this.lat,
+    required this.lng,
+    this.paused = false,
+  });
 }
 
 class _TimedPosition {
@@ -516,4 +649,16 @@ class _TimedPosition {
   final DateTime time;
 
   const _TimedPosition({required this.position, required this.time});
+}
+
+class _RouteSegment {
+  _RouteSegment({
+    required this.paused,
+    required this.points,
+    this.line,
+  });
+
+  final bool paused;
+  final List<Position> points;
+  PolylineAnnotation? line;
 }

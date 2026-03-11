@@ -553,7 +553,11 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         "duration_seconds": seconds,
         "steps": _cardioSteps ?? 0,
         "route_points": _cardioRoute
-            .map((p) => {"lat": p.lat, "lng": p.lng})
+            .map((p) => {
+                  "lat": p.lat,
+                  "lng": p.lng,
+                  if (p.paused) "paused": true,
+                })
             .toList(),
         "entry_date": "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
       };
@@ -567,7 +571,11 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           durationSeconds: seconds,
           steps: _cardioSteps ?? 0,
           routePoints: _cardioRoute
-              .map((p) => {"lat": p.lat, "lng": p.lng})
+              .map((p) => {
+                    "lat": p.lat,
+                    "lng": p.lng,
+                    if (p.paused) "paused": true,
+                  })
               .toList(),
           entryDate: now,
         );
@@ -866,6 +874,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                       steps: _cardioSteps,
                       elapsedSeconds: seconds,
                       running: started && !_paused,
+                      countdownActive: _countdownSessionStarted,
                       trackingEnabled: started || _countdownSessionStarted,
                       onCountdownStart: () {
                         if (!started) {

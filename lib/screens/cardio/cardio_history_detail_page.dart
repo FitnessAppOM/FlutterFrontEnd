@@ -88,6 +88,7 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
             onPressed: () async {
               final speedKmh = pace > 0.01 ? 60.0 / pace : 0.0;
               final sessionDate = _parseDate(entryDate);
+              final userName = await AccountStorage.getName();
               await showModalBottomSheet(
                 context: context,
                 isDismissible: true,
@@ -101,7 +102,7 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
                   avgSpeedKmh: speedKmh,
                   steps: steps,
                   route: route,
-                  userName: null,
+                  userName: userName,
                   snapshotUrl: snapshotUrl,
                   sessionDate: sessionDate,
                 ),
@@ -254,11 +255,26 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
     if (raw is! List) return const [];
     final List<CardioPoint> points = [];
     for (final item in raw) {
+      if (item is Map && item['points'] is List) {
+        final paused = item['paused'] == true;
+        final segPoints = item['points'] as List;
+        for (final p in segPoints) {
+          if (p is Map) {
+            final lat = _toDouble(p['lat']);
+            final lng = _toDouble(p['lng']);
+            if (lat != 0 && lng != 0) {
+              points.add(CardioPoint(lat: lat, lng: lng, paused: paused));
+            }
+          }
+        }
+        continue;
+      }
       if (item is Map) {
         final lat = _toDouble(item['lat']);
         final lng = _toDouble(item['lng']);
+        final paused = item['paused'] == true;
         if (lat != 0 && lng != 0) {
-          points.add(CardioPoint(lat: lat, lng: lng));
+          points.add(CardioPoint(lat: lat, lng: lng, paused: paused));
         }
       }
     }

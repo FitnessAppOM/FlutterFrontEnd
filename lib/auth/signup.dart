@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../config/base_url.dart';
@@ -258,6 +259,112 @@ class _SignupPageState extends State<SignupPage> {
     }
   }
 
+  Future<void> handleAppleSignup() async {
+    final t = AppLocalizations.of(context);
+
+    if (!mounted) return;
+    setState(() => loading = true);
+
+    final result = await signInWithApple();
+
+    if (!mounted) return;
+    setState(() => loading = false);
+
+    if (result == null) {
+      _showSnack(t.translate("apple_failed"));
+      return;
+    }
+
+    final rawId = result["user_id"] ?? result["id"];
+    final int userId =
+        rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
+    final accessToken = (result["access_token"] ??
+            result["accessToken"] ??
+            result["jwt"] ??
+            result["token"])
+        ?.toString()
+        ?.trim();
+
+    if (userId <= 0 || accessToken == null || accessToken.isEmpty) {
+      if (!mounted) return;
+      _showSnack(t.translate("apple_failed"));
+      return;
+    }
+
+    final email = (result["email"] ?? "").toString();
+    final name = (result["name"] ?? email.split('@').first).toString();
+
+    await AccountStorage.saveUserSession(
+      userId: userId,
+      email: email,
+      name: name,
+      verified: true,
+      token: accessToken,
+      isExpert: widget.isExpert,
+      questionnaireDone: false,
+      expertQuestionnaireDone: false,
+      authProvider: "apple",
+    );
+
+    final savedId = await AccountStorage.getUserId();
+    final savedToken = await AccountStorage.getAccessToken();
+    if (savedId == null || savedId <= 0 || savedToken == null || savedToken.isEmpty) {
+      if (!mounted) return;
+      _showSnack(t.translate("apple_failed"));
+      return;
+    }
+
+    await NotificationService.refreshDailyJournalRemindersForCurrentUser();
+    await DailyMetricsSync().pushIfNewDay();
+    await WhoopDailySync().pushIfNewDay();
+
+    if (!mounted) return;
+
+    _showSnack(
+      t.translate("apple_success_message"),
+      type: AppToastType.success,
+    );
+
+    // Same post-auth flow as Google sign-in: fetch profile, then MainLayout or questionnaire
+    try {
+      final lang = AppLocalizations.of(context).locale.languageCode;
+      final profile = await ProfileApi.fetchProfile(userId, lang: lang);
+      final serverDone = profile["filled_user_questionnaire"] == true;
+      final hasData = serverDone || _hasQuestionnaireData(profile);
+      await AccountStorage.setQuestionnaireDone(serverDone);
+      await AccountStorage.setExpertQuestionnaireDone(serverDone);
+      if (!mounted) return;
+      if (hasData) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const MainLayout()),
+          (route) => false,
+        );
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => widget.isExpert
+                ? const ExpertQuestionnairePage()
+                : const QuestionnairePage(),
+          ),
+          (route) => false,
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => widget.isExpert
+              ? const ExpertQuestionnairePage()
+              : const QuestionnairePage(),
+        ),
+        (route) => false,
+      );
+    }
+  }
+
   bool _hasQuestionnaireData(Map<String, dynamic> profile) {
     const keys = [
       "age",
@@ -403,12 +510,14 @@ class _SignupPageState extends State<SignupPage> {
             Gaps.h12,
 
             // Apple
-            SocialButton.apple(
-              icon: Icons.apple,
-              text: t.translate("apple_login"),
-              onPressed: () {},
-            ),
-            Gaps.h12,
+            if (Platform.isIOS) ...[
+              SocialButton.apple(
+                icon: Icons.apple,
+                text: t.translate("apple_login"),
+                onPressed: handleAppleSignup,
+              ),
+              Gaps.h12,
+            ],
 
             // Google
             SocialButton.dark(

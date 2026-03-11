@@ -65,6 +65,7 @@ class _WelcomePageState extends State<WelcomePage> {
   bool lastExpertQuestionnaireDone = false;
   String? lastAuthProvider;
   bool _googleLoggingIn = false;
+  bool _appleLoggingIn = false;
 
   void _changeLanguage(Locale locale) {
     final callback = widget.onChangeLanguage ?? localeController.setLocale;
@@ -336,6 +337,88 @@ class _WelcomePageState extends State<WelcomePage> {
     }
   }
 
+  Future<void> _handleAppleQuickLogin() async {
+    if (_appleLoggingIn) return;
+    final t = AppLocalizations.of(context);
+    setState(() => _appleLoggingIn = true);
+    try {
+      final result = await signInWithApple();
+      if (!mounted) return;
+      if (result == null) {
+        AppToast.show(
+          context,
+          t.translate("apple_failed"),
+          type: AppToastType.error,
+        );
+        return;
+      }
+
+      final rawId = result["user_id"] ?? result["id"];
+      final int userId =
+          rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
+      final accessToken = (result["access_token"] ??
+              result["accessToken"] ??
+              result["jwt"] ??
+              result["token"])
+          ?.toString()
+          ?.trim();
+
+      if (userId <= 0 || accessToken == null || accessToken.isEmpty) {
+        if (!mounted) return;
+        AppToast.show(
+          context,
+          t.translate("apple_failed"),
+          type: AppToastType.error,
+        );
+        return;
+      }
+
+      final email = (result["email"] ?? "").toString();
+      final name = (result["name"] ?? email.split("@").first).toString();
+
+      await AccountStorage.saveUserSession(
+        userId: userId,
+        email: email,
+        name: name,
+        verified: true,
+        token: accessToken,
+        isExpert: lastIsExpert,
+        questionnaireDone: await AccountStorage.isQuestionnaireDone(),
+        expertQuestionnaireDone:
+            await AccountStorage.isExpertQuestionnaireDone(),
+        authProvider: "apple",
+      );
+
+      final savedId = await AccountStorage.getUserId();
+      final savedToken = await AccountStorage.getAccessToken();
+      if (savedId == null ||
+          savedId <= 0 ||
+          savedToken == null ||
+          savedToken.isEmpty) {
+        if (!mounted) return;
+        AppToast.show(
+          context,
+          t.translate("apple_failed"),
+          type: AppToastType.error,
+        );
+        return;
+      }
+
+      if (!mounted) return;
+
+      await _navigatePostAuth(
+        userId: userId,
+        isExpert: lastIsExpert,
+      );
+
+      NotificationService.refreshDailyJournalRemindersForCurrentUser();
+      DailyMetricsSync().pushIfNewDay().catchError((_) {});
+      WhoopDailySync().pushIfNewDay().catchError((_) {});
+    } finally {
+      if (mounted) setState(() => _appleLoggingIn = false);
+    }
+  }
+
   bool _hasQuestionnaireData(Map<String, dynamic> profile) {
     const keys = [
       "age",
@@ -363,6 +446,7 @@ class _WelcomePageState extends State<WelcomePage> {
     final hasAccount = (lastEmail != null && lastEmail!.isNotEmpty);
     final hasVerifiedAccount = hasAccount && lastVerified;
     final isGoogleAccount = lastAuthProvider == "google";
+    final isAppleAccount = lastAuthProvider == "apple";
     final displayName = lastName ?? (lastEmail?.split('@').first ?? '');
 
     return Scaffold(
@@ -435,6 +519,10 @@ class _WelcomePageState extends State<WelcomePage> {
                       onTap: () {
                         if (isGoogleAccount) {
                           _handleGoogleQuickLogin();
+                          return;
+                        }
+                        if (isAppleAccount) {
+                          _handleAppleQuickLogin();
                           return;
                         }
                         // Email accounts: go to login with email prefilled so user enters password.

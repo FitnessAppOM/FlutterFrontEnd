@@ -26,6 +26,7 @@ String buildCardioSnapshotUrl({
   int lineWidth = 5,
   String lineColor = '2D7CFF',
   double lineOpacity = 0.85,
+  String pausedLineColor = 'E24B4B',
   String style = 'mapbox/streets-v12',
 }) {
   if (token.isEmpty || route.isEmpty) return '';
@@ -42,13 +43,27 @@ String buildCardioSnapshotUrl({
     color: '111111',
     point: end,
   );
-  final encoded = encodeCardioPolyline(sampleCardioRoute(route));
-  final path = Uri.encodeComponent(
-    'path-$lineWidth+$lineColor-$lineOpacity($encoded)',
-  );
-  final overlays = <String>[startMarker, endMarker, path].join(',');
+  final overlays = <String>[startMarker, endMarker];
+  final hasPaused = route.any((p) => p.paused);
+  if (hasPaused) {
+    final segments = splitCardioRouteSegments(route);
+    for (final segment in segments) {
+      if (segment.points.length < 2) continue;
+      final encoded = encodeCardioPolyline(sampleCardioRoute(segment.points));
+      final color = segment.paused ? pausedLineColor : lineColor;
+      overlays.add(Uri.encodeComponent(
+        'path-$lineWidth+$color-$lineOpacity($encoded)',
+      ));
+    }
+  } else {
+    final encoded = encodeCardioPolyline(sampleCardioRoute(route));
+    overlays.add(Uri.encodeComponent(
+      'path-$lineWidth+$lineColor-$lineOpacity($encoded)',
+    ));
+  }
+  final overlayString = overlays.join(',');
   return 'https://api.mapbox.com/styles/v1/$style/static/'
-      '$overlays/auto/${width}x$height?access_token=$token&padding=$safePadding';
+      '$overlayString/auto/${width}x$height?access_token=$token&padding=$safePadding';
 }
 
 List<CardioPoint> sampleCardioRoute(List<CardioPoint> route) {
@@ -73,6 +88,27 @@ List<CardioPoint> sampleCardioRoute(List<CardioPoint> route) {
     sampled.add(deduped.last);
   }
   return sampled;
+}
+
+List<CardioRouteSegment> splitCardioRouteSegments(List<CardioPoint> route) {
+  final segments = <CardioRouteSegment>[];
+  CardioRouteSegment? current;
+  for (final p in route) {
+    final paused = p.paused;
+    if (current == null || current.paused != paused) {
+      current = CardioRouteSegment(paused: paused, points: []);
+      segments.add(current);
+    }
+    current.points.add(p);
+  }
+  return segments;
+}
+
+class CardioRouteSegment {
+  final bool paused;
+  final List<CardioPoint> points;
+
+  CardioRouteSegment({required this.paused, required this.points});
 }
 
 String encodeCardioPolyline(List<CardioPoint> points) {
