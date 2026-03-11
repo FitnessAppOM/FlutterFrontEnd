@@ -41,7 +41,9 @@ class ReleaseNotesDialog extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _ReleaseNoteItem(text: 'apple sign up'),
-          _ReleaseNoteItem(text: 'android fixes'),
+          _ReleaseNoteItem(text: 'cardio tracing updates and bug fixes'),
+          _ReleaseNoteItem(text: 'cardio stickers and models'),
+          _ReleaseNoteItem(text: 'dashboard bug fix'),
         ],
       ),
       actions: [
