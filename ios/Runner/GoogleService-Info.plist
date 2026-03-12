@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>280853704980-ccloh5irudr9duhaqs3rbb7hv2ofl6gf.apps.googleusercontent.com</string>
+	<string>280853704980-h54cklq0hi40hmuvkhe4i8p5sedimgab.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.280853704980-ccloh5irudr9duhaqs3rbb7hv2ofl6gf</string>
+	<string>com.googleusercontent.apps.280853704980-h54cklq0hi40hmuvkhe4i8p5sedimgab</string>
 	<key>ANDROID_CLIENT_ID</key>
 	<string>280853704980-2msg1ce2ikr9i0gnrc2nn206uuguqbcg.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
@@ -15,7 +15,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.omar.taqaapp</string>
+	<string>com.taqafitness.app</string>
 	<key>PROJECT_ID</key>
 	<string>fitnessproj-30252</string>
 	<key>STORAGE_BUCKET</key>
@@ -31,6 +31,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:280853704980:ios:2f1f13c2d1568068985201</string>
+	<string>1:280853704980:ios:82e749698bba67b6985201</string>
 </dict>
 </plist>

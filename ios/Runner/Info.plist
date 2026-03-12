@@ -28,16 +28,25 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>taqa</string>
-				<string>com.googleusercontent.apps.280853704980-ccloh5irudr9duhaqs3rbb7hv2ofl6gf</string>
+				<string>com.googleusercontent.apps.280853704980-h54cklq0hi40hmuvkhe4i8p5sedimgab</string>
+				<string>fb1900846730624720</string>
 			</array>
 		</dict>
 	</array>
+	<key>FacebookAppID</key>
+	<string>1900846730624720</string>
+	<key>FacebookDisplayName</key>
+	<string>TaqaFitness</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-3940256099942544~1458002511</string>
 	<key>LSApplicationCategoryType</key>
 	<string></string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>instagram-stories</string>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>

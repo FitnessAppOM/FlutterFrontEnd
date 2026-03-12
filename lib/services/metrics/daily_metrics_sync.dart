@@ -25,18 +25,13 @@ class DailyMetricsSync {
     }
     final target = DateTime(day.year, day.month, day.day);
 
-    // Fetch in parallel where possible.
-    final results = await Future.wait([
-      _steps.fetchStepsForDay(target),
-      _calories.fetchCaloriesForDay(target),
-      _sleep.fetchSleepForDay(target),
-      _water.getIntakeForDay(target),
-    ]);
-
-    final steps = results[0] as int;
-    final calories = results[1] as int;
-    final sleepHours = results[2] as double;
-    final waterLiters = results[3] as double;
+    // Fetch health metrics sequentially.
+    // `ConsentManager.requestAllHealth()` uses a single in-flight guard; parallel
+    // reads can make some metric calls return "not granted" and produce zeros.
+    final steps = await _steps.fetchStepsForDay(target);
+    final calories = await _calories.fetchCaloriesForDay(target);
+    final sleepHours = await _sleep.fetchSleepForDay(target);
+    final waterLiters = await _water.getIntakeForDay(target);
 
     await DailyMetricsApi.upsert(
       userId: userId,
@@ -72,7 +67,6 @@ class DailyMetricsSync {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return;
 
-    final sp = await SharedPreferences.getInstance();
     final yesterday = DateTime.now().subtract(const Duration(days: 1));
     await pushForDate(yesterday);
   }

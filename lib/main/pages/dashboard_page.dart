@@ -48,6 +48,7 @@ import '../../theme/app_theme.dart';
 import '../../core/account_storage.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/metrics/daily_metrics_api.dart';
+import '../../services/metrics/daily_metrics_sync.dart';
 import '../../config/base_url.dart';
 import '../../services/health/steps_service.dart';
 import '../../services/health/sleep_service.dart';
@@ -63,6 +64,7 @@ import '../../services/fitbit/fitbit_sleep_service.dart';
 import '../../services/fitbit/fitbit_vitals_service.dart';
 import '../../services/fitbit/fitbit_body_service.dart';
 import '../../services/fitbit/fitbit_summary_service.dart';
+import '../../services/fitbit/fitbit_db_service.dart';
 import '../../screens/sleep_detail_page.dart';
 import '../../screens/steps_detail_page.dart';
 import '../../screens/calories_detail_page.dart';
@@ -73,7 +75,6 @@ import '../../services/training/training_service.dart';
 import '../../services/training/training_progress_storage.dart';
 import '../../widgets/primary_button.dart';
 import '../../screens/whoop_test_page.dart';
-import '../../widgets/update_notice.dart';
 import '../../widgets/release_notes_notice.dart';
 import 'dart:math' as math;
 
@@ -133,6 +134,7 @@ class DashboardPageState extends State<DashboardPage>
   List<double> _trendCalories = const [];
   bool _trendSleepLoading = false;
   bool _trendCaloriesLoading = false;
+  bool _trendSyncRefreshInFlight = false;
   bool _whoopLinked = false;
   bool _whoopLinkedKnown = false;
   bool? _whoopLinkedHint;
@@ -149,6 +151,7 @@ class DashboardPageState extends State<DashboardPage>
 
   bool? _fitbitLinkedHint;
   bool _fitbitLinked = false;
+  bool _fitbitSummaryLoading = false;
   bool _fitbitActivityLoading = false;
   FitbitActivitySummary? _fitbitActivity;
   FitbitActivitySummary? _fitbitActivityLast;
@@ -289,6 +292,7 @@ class DashboardPageState extends State<DashboardPage>
     _loadWhoopLinkedHint();
     _loadFitbitLinkedHint();
     _loadInitialData();
+    unawaited(_syncBackfillThenRefreshTrends());
     _loadExerciseProgress();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showUpdateAndReleaseNotes();
@@ -296,12 +300,12 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   Future<void> _showUpdateAndReleaseNotes() async {
-    await UpdateNotice.showIfNeeded(context);
     await ReleaseNotesNotice.showIfNeeded(context);
   }
 
   void _onWhoopChanged() {
     _loadWhoopLinkedHint();
+    _loadTrendSleep();
   }
 
   void _onAccountChanged() {
@@ -558,6 +562,9 @@ class DashboardPageState extends State<DashboardPage>
       _statOrder.remove(key);
     });
     _saveStatOrder();
+    if (_exclusiveGroupForKey(key) == 'sleep') {
+      _loadTrendSleep();
+    }
   }
 
   Future<void> _loadStatOrder() async {
@@ -670,6 +677,7 @@ class DashboardPageState extends State<DashboardPage>
     }
   }
 
+
   bool get _useWhoop {
     return false;
   }
@@ -695,10 +703,14 @@ class DashboardPageState extends State<DashboardPage>
 
   void _pruneDeviceWidgets() {
     var changed = false;
+    var sleepChanged = false;
     if (!_fitbitLinked) {
       if (_statOrder.remove('fitbit_activity')) changed = true;
       if (_statOrder.remove('fitbit_heart')) changed = true;
-      if (_statOrder.remove('fitbit_sleep')) changed = true;
+      if (_statOrder.remove('fitbit_sleep')) {
+        changed = true;
+        sleepChanged = true;
+      }
       if (_statOrder.remove('fitbit_vitals')) changed = true;
       if (_statOrder.remove('fitbit_body')) changed = true;
     }
@@ -712,12 +724,18 @@ class DashboardPageState extends State<DashboardPage>
       for (final key in whoopKeys) {
         if (_statOrder.remove(key)) {
           changed = true;
+          if (key == 'whoop_sleep') {
+            sleepChanged = true;
+          }
         }
       }
     }
     if (changed) {
       _saveStatOrder();
       if (mounted) setState(() {});
+      if (sleepChanged) {
+        _loadTrendSleep();
+      }
     }
   }
 
@@ -760,6 +778,9 @@ class DashboardPageState extends State<DashboardPage>
     if (!_statOrder.contains(key)) {
       setState(() => _statOrder.add(key));
       _saveStatOrder();
+    }
+    if (_exclusiveGroupForKey(key) == 'sleep') {
+      _loadTrendSleep();
     }
 
     if (key.startsWith('whoop_')) {
@@ -1046,8 +1067,25 @@ class DashboardPageState extends State<DashboardPage>
       _loadWhoopRecovery(),
     ]);
     if (!mounted) return;
-    await _loadFitbitStatus();
     _loadFitbitSummary();
+  }
+
+  Future<void> _syncBackfillThenRefreshTrends() async {
+    if (_trendSyncRefreshInFlight) return;
+    _trendSyncRefreshInFlight = true;
+    try {
+      await DailyMetricsSync().pushIfNewDay();
+      if (!mounted) return;
+      await Future.wait([
+        _loadWeeklySteps(),
+        _loadTrendSleep(),
+        _loadTrendCalories(),
+      ]);
+    } catch (_) {
+      // Keep dashboard usable even if sync/backfill fails.
+    } finally {
+      _trendSyncRefreshInFlight = false;
+    }
   }
 
   Future<void> _refreshAll() async {
@@ -1069,7 +1107,6 @@ class DashboardPageState extends State<DashboardPage>
       _loadExerciseProgress(),
       _loadWhoopRecovery(),
     ]);
-    await _loadFitbitStatus();
     _loadFitbitSummary();
   }
 
@@ -1084,6 +1121,14 @@ class DashboardPageState extends State<DashboardPage>
       }
       if (!mounted) return;
       setState(() => _fitbitLinked = false);
+      _pruneDeviceWidgets();
+      return;
+    }
+    // If user has not linked Fitbit, do not call the status endpoint.
+    if (_fitbitLinkedHint != true) {
+      if (_fitbitLinked) {
+        setState(() => _fitbitLinked = false);
+      }
       _pruneDeviceWidgets();
       return;
     }
@@ -1133,15 +1178,15 @@ class DashboardPageState extends State<DashboardPage>
   bool _complianceCompleted(dynamic compliance) {
     // Deprecated overload kept for back-compat; defaults to selected week.
     final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-    final weekStart = _weekStartSunday(anchor);
+    final weekStart = _weekStartMonday(anchor);
     final weekEnd = weekStart.add(const Duration(days: 6));
     return _complianceCompletedForWeek(compliance, weekStart, weekEnd);
   }
 
-  DateTime _weekStartSunday(DateTime d) {
+  DateTime _weekStartMonday(DateTime d) {
     final day = DateTime(d.year, d.month, d.day);
-    final daysSinceSunday = day.weekday % 7;
-    return day.subtract(Duration(days: daysSinceSunday));
+    final daysSinceMonday = (day.weekday + 6) % 7; // Monday=0 ... Sunday=6
+    return day.subtract(Duration(days: daysSinceMonday));
   }
 
   DateTime? _parseDateTime(dynamic value) {
@@ -1311,7 +1356,7 @@ class DashboardPageState extends State<DashboardPage>
       }
 
       final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-      final weekStart = _weekStartSunday(anchor);
+      final weekStart = _weekStartMonday(anchor);
       final weekEnd = weekStart.add(const Duration(days: 6));
 
       try {
@@ -2048,6 +2093,7 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   Future<void> _loadFitbitSummary({int attempt = 0}) async {
+    if (_fitbitSummaryLoading) return;
     final userId = await AccountStorage.getUserId();
     if (!mounted) return;
     final today = DateTime.now();
@@ -2077,67 +2123,72 @@ class DashboardPageState extends State<DashboardPage>
       return;
     }
 
-    await _loadFitbitStatus();
-    if (!_fitbitLinked) return;
-
-    // Always load Fitbit summaries when linked, even if widgets are currently hidden.
-
-    setState(() {
-      _fitbitActivityLoading = true;
-      _fitbitHeartLoading = true;
-      _fitbitSleepLoading = true;
-      _fitbitVitalsLoading = true;
-      _fitbitBodyLoading = true;
-    });
-
+    _fitbitSummaryLoading = true;
     try {
-      if (!_fitbitLinked) {
+      await _loadFitbitStatus();
+      if (!_fitbitLinked) return;
+
+      // Always load Fitbit summaries when linked, even if widgets are currently hidden.
+
+      setState(() {
+        _fitbitActivityLoading = true;
+        _fitbitHeartLoading = true;
+        _fitbitSleepLoading = true;
+        _fitbitVitalsLoading = true;
+        _fitbitBodyLoading = true;
+      });
+
+      try {
+        if (!_fitbitLinked) {
+          if (!mounted) return;
+          setState(() {
+            _fitbitActivity = null;
+            _fitbitHeart = null;
+            _fitbitSleep = null;
+            _fitbitVitals = null;
+            _fitbitBody = null;
+            _fitbitActivityLoading = false;
+            _fitbitHeartLoading = false;
+            _fitbitSleepLoading = false;
+            _fitbitVitalsLoading = false;
+            _fitbitBodyLoading = false;
+          });
+          return;
+        }
+
+        final bundle = await FitbitSummaryService().fetchSummary(
+          DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day),
+        );
         if (!mounted) return;
         setState(() {
-          _fitbitActivity = null;
-          _fitbitHeart = null;
-          _fitbitSleep = null;
-          _fitbitVitals = null;
-          _fitbitBody = null;
+          _fitbitActivity = bundle?.activity;
+          _fitbitActivityLast = isToday ? (bundle?.activity ?? _fitbitActivityLast) : null;
+          _fitbitHeart = bundle?.heart;
+          _fitbitHeartLast = isToday ? (bundle?.heart ?? _fitbitHeartLast) : null;
+          _fitbitSleep = bundle?.sleep;
+          _fitbitSleepLast = isToday ? (bundle?.sleep ?? _fitbitSleepLast) : null;
+          _fitbitVitals = bundle?.vitals;
+          _fitbitVitalsLast = isToday ? (bundle?.vitals ?? _fitbitVitalsLast) : null;
+          _fitbitBody = bundle?.body;
+          _fitbitBodyLast = isToday ? (bundle?.body ?? _fitbitBodyLast) : null;
           _fitbitActivityLoading = false;
           _fitbitHeartLoading = false;
           _fitbitSleepLoading = false;
           _fitbitVitalsLoading = false;
           _fitbitBodyLoading = false;
         });
-        return;
+      } catch (_) {
+        if (!mounted) return;
+        setState(() {
+          _fitbitActivityLoading = false;
+          _fitbitHeartLoading = false;
+          _fitbitSleepLoading = false;
+          _fitbitVitalsLoading = false;
+          _fitbitBodyLoading = false;
+        });
       }
-
-      final bundle = await FitbitSummaryService().fetchSummary(
-        DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day),
-      );
-      if (!mounted) return;
-      setState(() {
-        _fitbitActivity = bundle?.activity;
-        _fitbitActivityLast = isToday ? (bundle?.activity ?? _fitbitActivityLast) : null;
-        _fitbitHeart = bundle?.heart;
-        _fitbitHeartLast = isToday ? (bundle?.heart ?? _fitbitHeartLast) : null;
-        _fitbitSleep = bundle?.sleep;
-        _fitbitSleepLast = isToday ? (bundle?.sleep ?? _fitbitSleepLast) : null;
-        _fitbitVitals = bundle?.vitals;
-        _fitbitVitalsLast = isToday ? (bundle?.vitals ?? _fitbitVitalsLast) : null;
-        _fitbitBody = bundle?.body;
-        _fitbitBodyLast = isToday ? (bundle?.body ?? _fitbitBodyLast) : null;
-        _fitbitActivityLoading = false;
-        _fitbitHeartLoading = false;
-        _fitbitSleepLoading = false;
-        _fitbitVitalsLoading = false;
-        _fitbitBodyLoading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _fitbitActivityLoading = false;
-        _fitbitHeartLoading = false;
-        _fitbitSleepLoading = false;
-        _fitbitVitalsLoading = false;
-        _fitbitBodyLoading = false;
-      });
+    } finally {
+      _fitbitSummaryLoading = false;
     }
   }
 
@@ -2377,52 +2428,65 @@ class DashboardPageState extends State<DashboardPage>
     try {
       final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
       final start = anchor.subtract(const Duration(days: 6));
-      List<double> days;
+      final now = DateTime.now();
+      final todayKey = DateTime(now.year, now.month, now.day);
+      final dayKeys = List.generate(7, (i) {
+        final d = DateTime(anchor.year, anchor.month, anchor.day)
+            .subtract(Duration(days: 6 - i));
+        return DateTime(d.year, d.month, d.day);
+      });
+      final sleepToday = await SleepService().fetchSleepHoursLast24h();
+      List<double> days = const [];
       if (_hasWhoopSleepWidget && _whoopLinked) {
-        final data = await WhoopSleepService().fetchDailySleep(start: start, end: anchor);
-        final today = DateTime.now();
-        final todayKey = DateTime(today.year, today.month, today.day);
-        final anchorKey = DateTime(anchor.year, anchor.month, anchor.day);
-        if (anchorKey == todayKey) {
-          try {
-            final latest = await WhoopSleepService().fetchLatestSleepDaily();
-            if (latest.isNotEmpty) {
-              for (final entry in latest.entries) {
-                final key = DateTime(entry.key.year, entry.key.month, entry.key.day);
-                if (key.isBefore(start) || key.isAfter(anchor)) continue;
-                if (!data.containsKey(key)) {
-                  data[key] = entry.value;
-                }
-              }
+        final data =
+            await WhoopSleepService().fetchDailySleepFromDb(start: start, end: anchor);
+        days = dayKeys.map((key) {
+          if (key == todayKey) return sleepToday;
+          return data[key] ?? 0.0;
+        }).toList();
+      } else {
+        var usedFitbit = false;
+        if (_hasFitbitSleepWidget && _fitbitLinked) {
+          final data = await FitbitDailyMetricsDbService().fetchRange(
+            start: start,
+            end: anchor,
+          );
+          if (data.isNotEmpty) {
+            int? _int(dynamic v) {
+              if (v == null) return null;
+              if (v is int) return v;
+              if (v is num) return v.toInt();
+              return int.tryParse(v.toString());
             }
-          } catch (_) {
-            // ignore latest fetch errors
+
+            days = dayKeys.map((key) {
+              if (key == todayKey) return sleepToday;
+              final row = data[key];
+              final minutesAsleep = _int(row?["sleep_minutes_asleep"]);
+              final minutes = (minutesAsleep != null && minutesAsleep > 0)
+                  ? minutesAsleep
+                  : 0;
+              return minutes > 0 ? minutes / 60.0 : 0.0;
+            }).toList();
+
+            usedFitbit = days.any((v) => v > 0);
           }
         }
-        days = List.generate(7, (i) {
-          final d = DateTime(anchor.year, anchor.month, anchor.day)
-              .subtract(Duration(days: 6 - i));
-          final key = DateTime(d.year, d.month, d.day);
-          return data[key] ?? 0.0;
-        });
-      } else {
-        final metrics = await _fetchMetricsRange(start, anchor);
-        if (metrics.isNotEmpty) {
-          days = List.generate(7, (i) {
-            final d = DateTime(anchor.year, anchor.month, anchor.day)
-                .subtract(Duration(days: 6 - i));
-            final key = DateTime(d.year, d.month, d.day);
-            final entry = metrics[key];
-            return (entry?.sleepHours ?? 0.0).toDouble();
-          });
-        } else {
-          final data = await SleepService().fetchDailySleep(start: start, end: anchor);
-          days = List.generate(7, (i) {
-            final d = DateTime(anchor.year, anchor.month, anchor.day)
-                .subtract(Duration(days: 6 - i));
-            final key = DateTime(d.year, d.month, d.day);
-            return data[key] ?? 0.0;
-          });
+
+        if (!usedFitbit) {
+          final metrics = await _fetchMetricsRange(start, anchor);
+          if (metrics.isNotEmpty) {
+            days = dayKeys.map((key) {
+              if (key == todayKey) return sleepToday;
+              final entry = metrics[key];
+              return (entry?.sleepHours ?? 0.0).toDouble();
+            }).toList();
+          } else {
+            days = dayKeys.map((key) {
+              if (key == todayKey) return sleepToday;
+              return 0.0;
+            }).toList();
+          }
         }
       }
       final hasData = days.any((v) => v > 0);
@@ -2441,25 +2505,29 @@ class DashboardPageState extends State<DashboardPage>
     try {
       final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
       final start = anchor.subtract(const Duration(days: 6));
-      final metrics = await _fetchMetricsRange(start, anchor);
+      final dayKeys = List.generate(7, (i) {
+        final d = DateTime(anchor.year, anchor.month, anchor.day)
+            .subtract(Duration(days: 6 - i));
+        return DateTime(d.year, d.month, d.day);
+      });
+        final metrics = await _fetchMetricsRange(start, anchor);
       List<double> days;
       if (metrics.isNotEmpty) {
+        final needsLocal = dayKeys.any((key) => (metrics[key]?.calories ?? 0) <= 0);
+        final local = needsLocal
+            ? await CaloriesService().fetchDailyCalories(start: start, end: anchor)
+            : <DateTime, int>{};
         days = List.generate(7, (i) {
-          final d = DateTime(anchor.year, anchor.month, anchor.day)
-              .subtract(Duration(days: 6 - i));
-          final key = DateTime(d.year, d.month, d.day);
+          final key = dayKeys[i];
           final entry = metrics[key];
-          return (entry?.calories ?? 0).toDouble();
+          final metricValue = (entry?.calories ?? 0).toDouble();
+          if (metricValue > 0) return metricValue;
+          return (local[key] ?? 0).toDouble();
         });
       } else {
         final data =
             await CaloriesService().fetchDailyCalories(start: start, end: anchor);
-        days = List.generate(7, (i) {
-          final d = DateTime(anchor.year, anchor.month, anchor.day)
-              .subtract(Duration(days: 6 - i));
-          final key = DateTime(d.year, d.month, d.day);
-          return (data[key] ?? 0).toDouble();
-        });
+        days = dayKeys.map((key) => (data[key] ?? 0).toDouble()).toList();
       }
       final hasData = days.any((v) => v > 0);
       if (!mounted) return;

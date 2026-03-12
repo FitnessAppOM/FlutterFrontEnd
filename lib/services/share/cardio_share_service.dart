@@ -5,12 +5,16 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 
 class CardioShareService {
+  static const MethodChannel _instagramChannel = MethodChannel('instagram_share');
+
   static Future<bool> ensurePhotoPermission() async {
     final photos = await Permission.photos.request();
     if (photos.isGranted) return true;
@@ -77,6 +81,30 @@ class CardioShareService {
       text: text,
       sharePositionOrigin: origin,
     );
+  }
+
+  static Future<bool> shareInstagramSticker(Uint8List bytes) async {
+    final error = await shareInstagramStickerDetailed(bytes);
+    return error == null;
+  }
+
+  static Future<String?> shareInstagramStickerDetailed(Uint8List bytes) async {
+    if (!Platform.isIOS) return 'not_ios';
+    final appId = dotenv.maybeGet('INSTAGRAM_APP_ID') ??
+        dotenv.maybeGet('FACEBOOK_APP_ID') ??
+        '';
+    if (appId.trim().isEmpty) return 'missing_app_id';
+    try {
+      final ok = await _instagramChannel.invokeMethod<bool>('shareSticker', {
+        'image': bytes,
+        'appId': appId,
+      });
+      return ok == true ? null : 'failed';
+    } on PlatformException catch (e) {
+      return e.code.isNotEmpty ? e.code : 'platform_exception';
+    } catch (_) {
+      return 'unknown';
+    }
   }
 
   static Future<ui.Image> _decodeImage(Uint8List bytes) {

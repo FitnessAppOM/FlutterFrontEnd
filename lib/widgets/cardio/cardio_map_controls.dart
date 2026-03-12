@@ -37,6 +37,7 @@ class _CardioMapControlsState extends State<CardioMapControls> {
   bool _running = false;
   bool _showStats = false;
   int? _countdown;
+  bool _finishing = false;
 
   @override
   void didUpdateWidget(covariant CardioMapControls oldWidget) {
@@ -77,6 +78,17 @@ class _CardioMapControlsState extends State<CardioMapControls> {
   void _handleStart() {
     if (_countdown != null) return;
     if (!_running) {
+      if (_showStats) {
+        setState(() {
+          _countdown = null;
+          _running = true;
+        });
+        if (widget.elapsedSeconds == null) {
+          _startTimer();
+        }
+        widget.onStart?.call();
+        return;
+      }
       setState(() {
         _showStats = true;
         _countdown = 3;
@@ -111,14 +123,13 @@ class _CardioMapControlsState extends State<CardioMapControls> {
   }
 
   void _handleFinish() {
-    if (_countdown != null) return;
-    _timer?.cancel();
-    setState(() {
-      _running = false;
-      _showStats = false;
-      _elapsed = Duration.zero;
+    if (_countdown != null || _finishing) return;
+    _finishing = true;
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      _finishing = false;
+      widget.onFinish?.call();
     });
-    widget.onFinish?.call();
   }
 
   String get _time =>

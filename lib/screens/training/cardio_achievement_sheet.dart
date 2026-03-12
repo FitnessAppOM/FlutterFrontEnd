@@ -8,6 +8,7 @@ import '../../services/share/cardio_share_service.dart';
 
 import '../../widgets/cardio/cardio_map.dart';
 import '../../widgets/cardio/cardio_route_utils.dart';
+import 'other_models/other_models_page.dart';
 
 class CardioAchievementSheet extends StatefulWidget {
   const CardioAchievementSheet({
@@ -62,7 +63,7 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
       return widget.snapshotUrl!;
     }
     final token = dotenv.maybeGet('MAPBOX_PUBLIC_KEY') ?? '';
-    return buildCardioSnapshotUrlDefault(
+    return buildCardioSnapshotUrlMaster(
       token: token,
       route: widget.route,
     );
@@ -263,37 +264,43 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                         const SizedBox(height: 14),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(16),
-                          child: snapshotUrl.isEmpty
-                              ? Container(
-                                  height: 220,
-                                  color: Colors.white12,
-                                  alignment: Alignment.center,
-                                  child: const Text(
-                                    'Route unavailable',
-                                    style: TextStyle(color: Colors.white70),
+                          child: SizedBox(
+                            height: 220,
+                            child: snapshotUrl.isEmpty
+                                ? Container(
+                                    color: Colors.white12,
+                                    alignment: Alignment.center,
+                                    child: const Text(
+                                      'Route unavailable',
+                                      style: TextStyle(color: Colors.white70),
+                                    ),
+                                  )
+                                : ClipRect(
+                                    child: Transform.scale(
+                                      scale: 1.5,
+                                      child: Image.network(
+                                        snapshotUrl,
+                                        fit: BoxFit.cover,
+                                        gaplessPlayback: true,
+                                        loadingBuilder: (context, child, progress) {
+                                          if (progress == null) {
+                                            if (!_snapshotReady) {
+                                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                                if (mounted) setState(() => _snapshotReady = true);
+                                              });
+                                            }
+                                            return child;
+                                          }
+                                          return Container(
+                                            color: Colors.white10,
+                                            alignment: Alignment.center,
+                                            child: const CircularProgressIndicator(),
+                                          );
+                                        },
+                                      ),
+                                    ),
                                   ),
-                                )
-                              : Image.network(
-                                  snapshotUrl,
-                                  height: 220,
-                                  fit: BoxFit.cover,
-                                  loadingBuilder: (context, child, progress) {
-                                    if (progress == null) {
-                                      if (!_snapshotReady) {
-                                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                                          if (mounted) setState(() => _snapshotReady = true);
-                                        });
-                                      }
-                                      return child;
-                                    }
-                                    return Container(
-                                      height: 220,
-                                      color: Colors.white10,
-                                      alignment: Alignment.center,
-                                      child: const CircularProgressIndicator(),
-                                    );
-                                  },
-                                ),
+                          ),
                         ),
                         const SizedBox(height: 14),
                       ],
@@ -344,12 +351,38 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
               ),
             ),
             const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: (_sharing || !_snapshotReady) ? null : _shareScreenshot,
-                child: Text(_sharing ? 'Sharing...' : _snapshotReady ? 'Share' : 'Preparing...'),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: (_sharing || !_snapshotReady) ? null : _shareScreenshot,
+                    child: Text(_sharing ? 'Sharing...' : _snapshotReady ? 'Share' : 'Preparing...'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _snapshotReady
+                        ? () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => OtherModelsPage(
+                                  snapshotUrl: snapshotUrl,
+                                  route: widget.route,
+                                  durationLabel: _formatTime(widget.durationSeconds),
+                                  distanceLabel: "${widget.distanceKm.toStringAsFixed(2)} km",
+                                  paceLabel: _avgPaceLabel(),
+                                  userName: widget.userName,
+                                  dateLabel: _sessionDateLabel(),
+                                ),
+                              ),
+                            );
+                          }
+                        : null,
+                    child: const Text('Other models'),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             SizedBox(
@@ -417,5 +450,6 @@ class _MetricChip extends StatelessWidget {
     );
   }
 }
+
 
  

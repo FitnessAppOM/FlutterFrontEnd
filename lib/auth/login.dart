@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -386,6 +387,93 @@ class _LoginPageState extends State<LoginPage> {
     WhoopDailySync().pushIfNewDay().catchError((_) {});
   }
 
+  Future<void> handleAppleLogin() async {
+    final t = AppLocalizations.of(context);
+
+    if (!mounted) return;
+    setState(() => loading = true);
+
+    final result = await signInWithApple();
+
+    if (!mounted) return;
+    setState(() => loading = false);
+
+    if (result == null) {
+      AppToast.show(
+        context,
+        t.translate("apple_failed"),
+        type: AppToastType.error,
+      );
+      return;
+    }
+
+    final rawId = result["user_id"] ?? result["id"];
+    final int userId =
+        rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
+    final accessToken = (result["access_token"] ??
+            result["accessToken"] ??
+            result["jwt"] ??
+            result["token"])
+        ?.toString()
+        ?.trim();
+
+    if (userId <= 0 || accessToken == null || accessToken.isEmpty) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        t.translate("apple_failed"),
+        type: AppToastType.error,
+      );
+      return;
+    }
+
+    final email = (result["email"] ?? "").toString();
+    final name = (result["name"] ?? email.split("@").first).toString();
+
+    await AccountStorage.saveUserSession(
+      userId: userId,
+      email: email,
+      name: name,
+      verified: true,
+      token: accessToken,
+      isExpert: false,
+      questionnaireDone: await AccountStorage.isQuestionnaireDone(),
+      expertQuestionnaireDone:
+          await AccountStorage.isExpertQuestionnaireDone(),
+      authProvider: "apple",
+    );
+
+    final savedId = await AccountStorage.getUserId();
+    final savedToken = await AccountStorage.getAccessToken();
+    if (savedId == null || savedId <= 0 || savedToken == null || savedToken.isEmpty) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        t.translate("apple_failed"),
+        type: AppToastType.error,
+      );
+      return;
+    }
+
+    if (!mounted) return;
+
+    AppToast.show(
+      context,
+      t.translate("apple_success_message"),
+      type: AppToastType.success,
+    );
+
+    await _navigatePostAuth(
+      userId: userId,
+      isExpert: false,
+    );
+
+    // Fire-and-forget: do not block navigation if these fail.
+    NotificationService.refreshDailyJournalRemindersForCurrentUser();
+    DailyMetricsSync().pushIfNewDay().catchError((_) {});
+    WhoopDailySync().pushIfNewDay().catchError((_) {});
+  }
+
 
 
 
@@ -460,13 +548,15 @@ class _LoginPageState extends State<LoginPage> {
             DividerWithLabel(label: t.translate("or")),
             Gaps.h12,
 
-            SocialButton.apple(
-              icon: Icons.apple,
-              text: t.translate("apple_login"),
-              onPressed: () {},
-            ),
+            if (Platform.isIOS) ...[
+              SocialButton.apple(
+                icon: Icons.apple,
+                text: t.translate("apple_login"),
+                onPressed: handleAppleLogin,
+              ),
 
-            Gaps.h12,
+              Gaps.h12,
+            ],
 
             SocialButton.dark(
               icon: Icons.g_mobiledata,
@@ -478,13 +568,21 @@ class _LoginPageState extends State<LoginPage> {
 
             if (lastVerified &&
                 (lastEmail ?? '').isNotEmpty &&
-                lastAuthProvider == "google") ...[
+                (lastAuthProvider == "google" || lastAuthProvider == "apple")) ...[
               DividerWithLabel(label: t.translate("saved_accounts")),
               Gaps.h12,
               SavedAccountTile(
                 title:
                     "${t.translate("login_as")} ${lastName ?? lastEmail!.split('@').first}",
-                onTap: loading ? null : handleGoogleLogin,
+                onTap: loading
+                    ? null
+                    : () {
+                        if (lastAuthProvider == "apple") {
+                          handleAppleLogin();
+                          return;
+                        }
+                        handleGoogleLogin();
+                      },
                 onMenu: () {},
               ),
             ],

@@ -74,7 +74,9 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
     final steps = _toInt(_item['steps']);
     final route = _route;
 
-    final snapshotUrl = _buildSnapshotUrl(route);
+    final snapshotUrl = _buildSnapshotUrl(
+      route: route,
+    );
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F1014),
@@ -88,6 +90,7 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
             onPressed: () async {
               final speedKmh = pace > 0.01 ? 60.0 / pace : 0.0;
               final sessionDate = _parseDate(entryDate);
+              final userName = await AccountStorage.getName();
               await showModalBottomSheet(
                 context: context,
                 isDismissible: true,
@@ -101,7 +104,7 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
                   avgSpeedKmh: speedKmh,
                   steps: steps,
                   route: route,
-                  userName: null,
+                  userName: userName,
                   snapshotUrl: snapshotUrl,
                   sessionDate: sessionDate,
                 ),
@@ -188,22 +191,28 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
       borderRadius: BorderRadius.circular(18),
       child: AspectRatio(
         aspectRatio: 16 / 9,
-        child: Image.network(
-          url,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) {
-            return Container(
-              color: Colors.white.withOpacity(0.05),
-              child: Center(
-                child: Text(
-                  "Map unavailable",
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.7),
-                      ),
-                ),
-              ),
-            );
-          },
+        child: ClipRect(
+          child: Transform.scale(
+            scale: 1.5,
+            child: Image.network(
+              url,
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+              errorBuilder: (_, __, ___) {
+                return Container(
+                  color: Colors.white.withOpacity(0.05),
+                  child: Center(
+                    child: Text(
+                      "Map unavailable",
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.white.withOpacity(0.7),
+                          ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
         ),
       ),
     );
@@ -242,9 +251,11 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
     );
   }
 
-  String _buildSnapshotUrl(List<CardioPoint> route) {
+  String _buildSnapshotUrl({
+    required List<CardioPoint> route,
+  }) {
     final token = dotenv.maybeGet('MAPBOX_PUBLIC_KEY') ?? '';
-    return buildCardioSnapshotUrlDefault(
+    return buildCardioSnapshotUrlMaster(
       token: token,
       route: route,
     );
@@ -254,11 +265,26 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
     if (raw is! List) return const [];
     final List<CardioPoint> points = [];
     for (final item in raw) {
+      if (item is Map && item['points'] is List) {
+        final paused = item['paused'] == true;
+        final segPoints = item['points'] as List;
+        for (final p in segPoints) {
+          if (p is Map) {
+            final lat = _toDouble(p['lat']);
+            final lng = _toDouble(p['lng']);
+            if (lat != 0 && lng != 0) {
+              points.add(CardioPoint(lat: lat, lng: lng, paused: paused));
+            }
+          }
+        }
+        continue;
+      }
       if (item is Map) {
         final lat = _toDouble(item['lat']);
         final lng = _toDouble(item['lng']);
+        final paused = item['paused'] == true;
         if (lat != 0 && lng != 0) {
-          points.add(CardioPoint(lat: lat, lng: lng));
+          points.add(CardioPoint(lat: lat, lng: lng, paused: paused));
         }
       }
     }

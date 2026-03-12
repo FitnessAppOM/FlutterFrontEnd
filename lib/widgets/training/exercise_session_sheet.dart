@@ -540,40 +540,50 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
 
     // Save cardio session metrics (distance/speed/time)
     if (isCardio) {
+      final distanceKmValue = _cardioDistanceMeters / 1000.0;
+      final shouldPersistCardio = distanceKmValue >= 0.1;
       final rawExerciseId = widget.exercise['exercise_id'];
       final int? exerciseId = rawExerciseId is int
           ? rawExerciseId
           : int.tryParse(rawExerciseId?.toString() ?? '');
-      final payload = {
-        "program_exercise_id": programExerciseId,
-        "exercise_id": exerciseId,
-        "distance_km": _cardioDistanceMeters / 1000.0,
-        "avg_pace_min_km":
-            _paceMinPerKmFromDistance(_cardioDistanceMeters / 1000.0, seconds),
-        "duration_seconds": seconds,
-        "steps": _cardioSteps ?? 0,
-        "route_points": _cardioRoute
-            .map((p) => {"lat": p.lat, "lng": p.lng})
-            .toList(),
-        "entry_date": "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
-      };
-      try {
-        await TrainingService.saveCardioSession(
-          programExerciseId: programExerciseId,
-          exerciseId: exerciseId,
-          distanceKm: _cardioDistanceMeters / 1000.0,
-          avgPaceMinKm:
-              _paceMinPerKmFromDistance(_cardioDistanceMeters / 1000.0, seconds),
-          durationSeconds: seconds,
-          steps: _cardioSteps ?? 0,
-          routePoints: _cardioRoute
-              .map((p) => {"lat": p.lat, "lng": p.lng})
+      if (shouldPersistCardio) {
+        final payload = {
+          "program_exercise_id": programExerciseId,
+          "exercise_id": exerciseId,
+          "distance_km": distanceKmValue,
+          "avg_pace_min_km": _paceMinPerKmFromDistance(distanceKmValue, seconds),
+          "duration_seconds": seconds,
+          "steps": _cardioSteps ?? 0,
+          "route_points": _cardioRoute
+              .map((p) => {
+                    "lat": p.lat,
+                    "lng": p.lng,
+                    if (p.paused) "paused": true,
+                  })
               .toList(),
-          entryDate: now,
-        );
-      } catch (_) {
-        await CardioSessionQueue.queueSession(payload);
-        needsSync = true;
+          "entry_date": "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
+        };
+        try {
+          await TrainingService.saveCardioSession(
+            programExerciseId: programExerciseId,
+            exerciseId: exerciseId,
+            distanceKm: distanceKmValue,
+            avgPaceMinKm: _paceMinPerKmFromDistance(distanceKmValue, seconds),
+            durationSeconds: seconds,
+            steps: _cardioSteps ?? 0,
+            routePoints: _cardioRoute
+                .map((p) => {
+                      "lat": p.lat,
+                      "lng": p.lng,
+                      if (p.paused) "paused": true,
+                    })
+                .toList(),
+            entryDate: now,
+          );
+        } catch (_) {
+          await CardioSessionQueue.queueSession(payload);
+          needsSync = true;
+        }
       }
     }
 
@@ -866,6 +876,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                       steps: _cardioSteps,
                       elapsedSeconds: seconds,
                       running: started && !_paused,
+                      countdownActive: _countdownSessionStarted,
                       trackingEnabled: started || _countdownSessionStarted,
                       onCountdownStart: () {
                         if (!started) {
