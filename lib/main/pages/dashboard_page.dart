@@ -73,7 +73,6 @@ import '../../services/training/training_service.dart';
 import '../../services/training/training_progress_storage.dart';
 import '../../widgets/primary_button.dart';
 import '../../screens/whoop_test_page.dart';
-import '../../widgets/update_notice.dart';
 import '../../widgets/release_notes_notice.dart';
 import 'dart:math' as math;
 
@@ -296,7 +295,6 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   Future<void> _showUpdateAndReleaseNotes() async {
-    await UpdateNotice.showIfNeeded(context);
     await ReleaseNotesNotice.showIfNeeded(context);
   }
 
@@ -669,6 +667,7 @@ class DashboardPageState extends State<DashboardPage>
       _loadFitbitSummary();
     }
   }
+
 
   bool get _useWhoop {
     return false;
@@ -1084,6 +1083,14 @@ class DashboardPageState extends State<DashboardPage>
       }
       if (!mounted) return;
       setState(() => _fitbitLinked = false);
+      _pruneDeviceWidgets();
+      return;
+    }
+    // If user has not linked Fitbit, do not call the status endpoint.
+    if (_fitbitLinkedHint != true) {
+      if (_fitbitLinked) {
+        setState(() => _fitbitLinked = false);
+      }
       _pruneDeviceWidgets();
       return;
     }
