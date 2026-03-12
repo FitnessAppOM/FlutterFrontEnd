@@ -35,7 +35,8 @@ class SignupPage extends StatefulWidget {
 class _SignupPageState extends State<SignupPage> {
   final TextEditingController username = TextEditingController();
   final TextEditingController email = TextEditingController();
-  final TextEditingController fullname = TextEditingController();
+  final TextEditingController firstName = TextEditingController();
+  final TextEditingController lastName = TextEditingController();
   final TextEditingController password = TextEditingController();
 
   bool loading = false;
@@ -48,7 +49,8 @@ class _SignupPageState extends State<SignupPage> {
   void dispose() {
     username.dispose();
     email.dispose();
-    fullname.dispose();
+    firstName.dispose();
+    lastName.dispose();
     password.dispose();
     super.dispose();
   }
@@ -64,9 +66,14 @@ class _SignupPageState extends State<SignupPage> {
     final uname = username.text.trim();
     final mail = email.text.trim();
     final pass = password.text.trim();
-    final fname = fullname.text.trim();
+    final fname = firstName.text.trim();
+    final lname = lastName.text.trim();
 
-    if (uname.isEmpty || mail.isEmpty || fname.isEmpty || pass.isEmpty) {
+    if (uname.isEmpty ||
+        mail.isEmpty ||
+        fname.isEmpty ||
+        lname.isEmpty ||
+        pass.isEmpty) {
       _showSnack(t.translate("signup_required_fields"));
       return false;
     }
@@ -104,7 +111,8 @@ class _SignupPageState extends State<SignupPage> {
     final body = jsonEncode({
       "username": username.text.trim(),
       "email": email.text.trim(),
-      "full_name": fullname.text.trim(),
+      "first_name": firstName.text.trim(),
+      "last_name": lastName.text.trim(),
       "password": password.text.trim(),
     });
 
@@ -395,7 +403,8 @@ class _SignupPageState extends State<SignupPage> {
     final canSubmit = !loading &&
         username.text.trim().isNotEmpty &&
         email.text.trim().isNotEmpty &&
-        fullname.text.trim().isNotEmpty &&
+        firstName.text.trim().isNotEmpty &&
+        lastName.text.trim().isNotEmpty &&
         password.text.trim().isNotEmpty;
 
     return Scaffold(
@@ -459,13 +468,24 @@ class _SignupPageState extends State<SignupPage> {
             ),
             Gaps.h12,
 
-            // Full name
+            // First name
             TextField(
-              controller: fullname,
+              controller: firstName,
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
-                labelText: t.translate("signup_fullname"),
-                hintText: t.translate("signup_fullname_hint"),
+                labelText: t.translate("signup_first_name"),
+                hintText: t.translate("signup_first_name_hint"),
+              ),
+            ),
+            Gaps.h12,
+
+            // Last name
+            TextField(
+              controller: lastName,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: t.translate("signup_last_name"),
+                hintText: t.translate("signup_last_name_hint"),
               ),
             ),
             Gaps.h12,

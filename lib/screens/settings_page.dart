@@ -34,6 +34,7 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   final _usernameController = TextEditingController();
+  final RegExp _usernameRegex = RegExp(r'^[A-Za-z0-9._-]+$');
   bool _updatingUsername = false;
   bool _updatingAvatar = false;
   bool _deletingAccount = false;
@@ -666,7 +667,20 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _promptChangeUsername() async {
     final t = AppLocalizations.of(context);
-    _usernameController.text = await AccountStorage.getName() ?? "";
+    final userId = await AccountStorage.getUserId();
+    String currentUsername = "";
+    if (userId != null && userId > 0) {
+      try {
+        final profile = await ProfileApi.fetchProfile(userId);
+        currentUsername = (profile["username"] ?? "").toString().trim();
+      } catch (_) {
+        // Fallback to cached display name if profile request fails.
+      }
+    }
+    if (currentUsername.isEmpty) {
+      currentUsername = (await AccountStorage.getName() ?? "").trim();
+    }
+    _usernameController.text = currentUsername;
 
     await showDialog(
       context: context,
@@ -692,15 +706,38 @@ class _SettingsPageState extends State<SettingsPage> {
             TextButton(
               onPressed: _updatingUsername ? null : () async {
                 final newUsername = _usernameController.text.trim();
-                final currentUsername = await AccountStorage.getName() ?? "";
+                if (newUsername.length < 3) {
+                  AppToast.show(
+                    context,
+                    t.translate("signup_username_short"),
+                    type: AppToastType.error,
+                  );
+                  return;
+                }
+                if (newUsername.length > 50) {
+                  AppToast.show(
+                    context,
+                    t.translate("signup_username_long"),
+                    type: AppToastType.error,
+                  );
+                  return;
+                }
+                if (!_usernameRegex.hasMatch(newUsername)) {
+                  AppToast.show(
+                    context,
+                    t.translate("signup_username_invalid"),
+                    type: AppToastType.error,
+                  );
+                  return;
+                }
                 if (newUsername.isEmpty || newUsername == currentUsername) {
                   Navigator.pop(ctx);
                   return;
                 }
                 setState(() => _updatingUsername = true);
                 try {
-                  final userId = await AccountStorage.getUserId();
-                  if (userId == null) {
+                  final uid = await AccountStorage.getUserId();
+                  if (uid == null) {
                     if (!mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(t.translate("user_missing"))),
@@ -708,7 +745,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     setState(() => _updatingUsername = false);
                     return;
                   }
-                  final updated = await ProfileApi.updateUsername(userId, newUsername);
+                  final updated = await ProfileApi.updateUsername(uid, newUsername);
                   await AccountStorage.setName(updated);
                   await _showSuccessDialog(
                     "${t.translate("username_updated")}: $updated",

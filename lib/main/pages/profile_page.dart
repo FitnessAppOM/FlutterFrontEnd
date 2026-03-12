@@ -134,6 +134,26 @@ class _ProfilePageState extends State<ProfilePage> {
     }
     return v;
   }
+
+  String? _resolveDisplayName() {
+    if (_profile == null) return null;
+    final firstName = _profile?["first_name"]?.toString().trim() ?? "";
+    final lastName = _profile?["last_name"]?.toString().trim() ?? "";
+    final joined = [firstName, lastName].where((s) => s.isNotEmpty).join(" ");
+    if (joined.isNotEmpty) return joined;
+
+    final fullName = _profile?["full_name"]?.toString().trim() ?? "";
+    if (fullName.isNotEmpty) return fullName;
+
+    final name = _profile?["name"]?.toString().trim() ?? "";
+    if (name.isNotEmpty) return name;
+
+    final username = _profile?["username"]?.toString().trim() ?? "";
+    if (username.isNotEmpty) return username;
+
+    return null;
+  }
+
   String _displayWithUnit(String? value, String unit) {
     if (value == null || value.isEmpty) return "—";
     return "$value $unit";
@@ -236,7 +256,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context); // Translator
 
-    final name = _profile?["name"]?.toString();
+    final displayName = _resolveDisplayName();
     final occupation =
         _translateOption("daily_activity", _profile?["occupation"], t);
     final affiliationName = _profile?["affiliation_name"]?.toString();
@@ -297,7 +317,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                     ProfileHeader(
-                      name: _display(name),
+                      name: _display(displayName),
                       occupation: _display(affiliationDisplay.isNotEmpty ? affiliationDisplay : null),
                       avatarUrl: _avatarUrl,
                       avatarPath: _avatarPath,

@@ -2675,12 +2675,12 @@ class DashboardPageState extends State<DashboardPage>
     if (userId != null) {
       try {
         final profile = await ProfileApi.fetchProfile(userId);
-        final fullName = profile["full_name"]?.toString();
+        final resolvedName = _resolveDisplayName(profile);
         final remoteAvatar = profile["avatar_url"]?.toString();
         final height = profile["height_cm"];
         final weight = profile["weight_kg"];
-        if (fullName != null && fullName.trim().isNotEmpty) {
-          fetchedName = fullName;
+        if (resolvedName != null && resolvedName.trim().isNotEmpty) {
+          fetchedName = resolvedName;
         }
         if (remoteAvatar != null && remoteAvatar.trim().isNotEmpty) {
           fetchedAvatar = remoteAvatar;
@@ -2711,6 +2711,24 @@ class DashboardPageState extends State<DashboardPage>
     });
 
     await _loadBodyMeasurements();
+  }
+
+  String? _resolveDisplayName(Map<String, dynamic> profile) {
+    final firstName = profile["first_name"]?.toString().trim() ?? "";
+    final lastName = profile["last_name"]?.toString().trim() ?? "";
+    final joined = [firstName, lastName].where((s) => s.isNotEmpty).join(" ");
+    if (joined.isNotEmpty) return joined;
+
+    final fullName = profile["full_name"]?.toString().trim() ?? "";
+    if (fullName.isNotEmpty) return fullName;
+
+    final name = profile["name"]?.toString().trim() ?? "";
+    if (name.isNotEmpty) return name;
+
+    final username = profile["username"]?.toString().trim() ?? "";
+    if (username.isNotEmpty) return username;
+
+    return null;
   }
 
   Future<void> _loadBodyMeasurements() async {

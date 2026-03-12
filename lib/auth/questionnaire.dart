@@ -64,6 +64,14 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
               color: cs.onSurface.withValues(alpha: 0.7),
             ),
           ),
+          const SizedBox(height: 12),
+          Text(
+            t.translate("questionnaire_consent_notice"),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: cs.onSurface.withValues(alpha: 0.8),
+              height: 1.45,
+            ),
+          ),
           const SizedBox(height: 24),
 
           Wrap(

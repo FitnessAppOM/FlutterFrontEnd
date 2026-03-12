@@ -74,11 +74,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         _isPhysicalRehab = value == yes;
 
         if (_isPhysicalRehab == false) {
-          _selectedAffiliationCategory = null;
-          _affiliations = [];
-          _values.remove("affiliation_id");
-          _values.remove("affiliation_other_text");
-          _affiliationOtherCtrl.clear();
+          _values.remove("physical_rehab_area");
         }
       });
 
@@ -98,6 +94,9 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       if (_isUniversityStudent == true) {
         _loadUniversities();
       }
+    }
+    if (key == "event_deadline" && value == _t("no")) {
+      _values.remove("deadline_date");
     }
 
   }
@@ -224,6 +223,17 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         );
         return;
       }
+      final deadlineIsYes = (_values["event_deadline"] ?? "") == _t("yes");
+      final deadlineDate = (_values["deadline_date"] ?? "").trim();
+      if (deadlineIsYes && deadlineDate.isEmpty) {
+        if (!mounted) return;
+        AppToast.show(
+          context,
+          _t("deadline_date_required"),
+          type: AppToastType.error,
+        );
+        return;
+      }
     }
 
     if (_currentSection < _totalSections - 1) {
@@ -270,19 +280,27 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
 
 
   Future<void> _submit() async {
-    final consent = _values['consent'];
-
-    if (consent == 'No') {
-      if (!mounted) return;
-      AppToast.show(
-        context,
-        _t("consent_required"),
-        type: AppToastType.error,
-      );
-      return;
-    }
-
     final cleanedValues = Map<String, String>.from(_values);
+    // UI-only fields/removed questions: do not send to backend.
+    cleanedValues.remove("consent");
+    cleanedValues.remove("auto_recovery");
+    cleanedValues.remove("meal_plan");
+    cleanedValues.remove("physical_rehab_area");
+
+    // Keep backend payload stable while showing richer labels on UI.
+    cleanedValues["time_to_change"] =
+        _canonicalTimeToChange(cleanedValues["time_to_change"] ?? "");
+    cleanedValues["sleep_hours"] =
+        _canonicalSleepHours(cleanedValues["sleep_hours"] ?? "");
+    final deadlineDate = (cleanedValues["deadline_date"] ?? "").trim();
+    if (deadlineDate.isNotEmpty) {
+      // Always prioritize selected date text in backend field.
+      cleanedValues["event_deadline"] = deadlineDate;
+    } else if (_norm(cleanedValues["event_deadline"] ?? "") == _norm(_t("no"))) {
+      cleanedValues["event_deadline"] = "no";
+    }
+    // Avoid sending extra field unless backend explicitly adds it.
+    cleanedValues.remove("deadline_date");
     final isStudentRaw = (cleanedValues["is_university_student"] ?? "").trim().toLowerCase();
     final isStudent = isStudentRaw == "yes" || isStudentRaw == _t("yes").toLowerCase();
     cleanedValues["is_university_student"] = isStudent ? "true" : "false";
@@ -332,28 +350,24 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       "muscle_priority_upper": ["chest", "back", "shoulders"],
       "muscle_priority_lower": ["quads", "hamstrings", "glutes"],
       "time_to_change": ["4", "8", "12", "no_timeframe"],
-      "event_deadline": ["sport", "wedding", "birthday", "vacation", "other", "no"],
       "body_type": ["slender", "average", "muscular", "heavy"],
       "fitness_experience": ["beginner", "intermediate", "advanced"],
       "training_days": ["1", "2", "3", "4", "5", "6"],
       "preferred_time": ["morning", "noon", "afternoon", "evening", "flexible"],
       "training_location": ["gym", "home", "hybrid"],
       "train_mode": ["alone", "partner", "trainer"],
-      "auto_recovery": ["yes", "no"],
       "is_university_student": ["yes", "no"],
       "is_physical_rehabilitation": ["yes", "no"],
       "meals_per_day": ["2", "3", "4", "5", "6"],
       "food_habit": ["cook", "eat_out", "mix"],
       "kitchen_access": ["yes", "no"],
       "water_intake": ["<1l", "1–2l", "2–3l", ">3l"],
-      "meal_plan": ["low_budget", "moderate", "flexible"],
       "daily_activity": ["sedentary", "moderate", "active", "highly_active"],
       "sleep_hours": ["<6", "6–7", "7–8", ">8"],
       "sleep_consistency": ["regular", "irregular"],
       "wake_feeling": ["tired", "okay", "refreshed"],
       "stress_level": ["low", "moderate", "high"],
       "auto_adjust": ["yes", "no"],
-      "consent": ["yes", "no"],
     };
 
     const multiChoiceOptions = {
@@ -436,6 +450,28 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         .map((p) => _toEnglishChoice(p, keys))
         .toSet();
     return parts.join(", ");
+  }
+
+  String _canonicalTimeToChange(String value) {
+    final v = value.trim();
+    if (v.isEmpty) return v;
+    if (_norm(v) == _norm(_t("no_timeframe"))) {
+      return "no_timeframe";
+    }
+    if (v.startsWith("4")) return "4";
+    if (v.startsWith("8")) return "8";
+    if (v.startsWith("12")) return "12";
+    return v;
+  }
+
+  String _canonicalSleepHours(String value) {
+    final v = value.trim();
+    if (v.isEmpty) return v;
+    if (v.startsWith("<6")) return "<6";
+    if (v.startsWith("6")) return "6–7";
+    if (v.startsWith("7")) return "7–8";
+    if (v.startsWith(">8")) return ">8";
+    return v;
   }
 
   TextEditingController _otherControllerFor(String key) {
@@ -619,20 +655,43 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       _buildChoiceField(
         label: _t("time_change"),
         keyName: "time_to_change",
-        options: ["4", "8", "12", _t("no_timeframe")],
+        options: [
+          _t("time_4_weeks"),
+          _t("time_8_weeks"),
+          _t("time_12_weeks"),
+          _t("no_timeframe"),
+        ],
       ),
       _buildChoiceField(
         label: _t("deadline"),
         keyName: "event_deadline",
-        options: [
-          _t("sport"),
-          _t("wedding"),
-          _t("birthday"),
-          _t("vacation"),
-          _t("other"),
-          _t("no"),
-        ],
+        options: [_t("yes"), _t("no")],
       ),
+      if ((_values["event_deadline"] ?? "") == _t("yes")) ...[
+        GestureDetector(
+          onTap: () async {
+            final now = DateTime.now();
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: now,
+              firstDate: now.subtract(const Duration(days: 1)),
+              lastDate: now.add(const Duration(days: 3650)),
+            );
+            if (picked != null) {
+              final formatted =
+                  "${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+              setState(() => _values["deadline_date"] = formatted);
+            }
+          },
+          child: _simpleFieldRow(
+            _t("deadline_date"),
+            (_values["deadline_date"] ?? "").isNotEmpty
+                ? _values["deadline_date"]!
+                : _t("select_date"),
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
     ];
   }
 
@@ -693,16 +752,18 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
           _t("trainer"),
         ],
       ),
-      _buildChoiceField(
-        label: _t("auto_recovery"),
-        keyName: "auto_recovery",
-        options: [_t("yes"), _t("no")],
-      ),
     ];
   }
 
   List<Widget> _buildNutritionSection() {
     return [
+      Text(
+        _t("questionnaire_nutrition_intro"),
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.75),
+            ),
+      ),
+      const SizedBox(height: 8),
       _buildMultiChoiceField(
         label: _t("diet_type"),
         keyName: "diet_type",
@@ -758,11 +819,6 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         keyName: "water_intake",
         options: ["<1L", "1–2L", "2–3L", ">3L"],
       ),
-      _buildChoiceField(
-        label: _t("meal_plan"),
-        keyName: "meal_plan",
-        options: [_t("low_budget"), _t("moderate"), _t("flexible")],
-      ),
     ];
   }
 
@@ -776,7 +832,12 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       _buildChoiceField(
         label: _t("sleep_hours"),
         keyName: "sleep_hours",
-        options: ["<6", "6–7", "7–8", ">8"],
+        options: [
+          _t("sleep_lt6_hours"),
+          _t("sleep_6_7_hours"),
+          _t("sleep_7_8_hours"),
+          _t("sleep_gt8_hours"),
+        ],
       ),
       _buildChoiceField(
         label: _t("sleep_consistency"),
@@ -798,6 +859,19 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         keyName: "is_physical_rehabilitation",
         options: [_t("yes"), _t("no")],
       ),
+      if (_isPhysicalRehab == true)
+        _buildChoiceField(
+          label: _t("physical_rehab_area_question"),
+          keyName: "physical_rehab_area",
+          options: [
+            _t("shoulder"),
+            _t("back_muscle"),
+            _t("chest"),
+            _t("rehab_arms"),
+            _t("knee"),
+            _t("rehab_ankle_foot"),
+          ],
+        ),
     ];
   }
 
@@ -815,12 +889,6 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         keyName: "auto_adjust",
         options: [_t("yes"), _t("no")],
       ),
-      _buildChoiceField(
-        label: _t("consent_tracking"),
-        keyName: "consent",
-        options: [_t("yes"), _t("no")],
-      ),
-
     ];
   }
 
@@ -1205,13 +1273,16 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (subtitle != null) ...[
-            Text(
-              label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
+          Text(
+            label,
+            softWrap: true,
+            maxLines: null,
+            overflow: TextOverflow.visible,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w500,
             ),
+          ),
+          if (subtitle != null) ...[
             const SizedBox(height: 4),
             Text(
               subtitle,
@@ -1219,12 +1290,12 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                 color: theme.colorScheme.onSurface.withOpacity(0.7),
               ),
             ),
-            const SizedBox(height: 8),
           ],
+          const SizedBox(height: 8),
           DropdownButtonFormField<String?>(
             key: ValueKey(keyName),
             decoration: InputDecoration(
-              labelText: subtitle != null ? null : label,
+              labelText: null,
               hintText: _t("select_option"),
               border: const OutlineInputBorder(),
             ),
