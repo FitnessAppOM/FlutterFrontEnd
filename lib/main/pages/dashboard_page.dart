@@ -148,6 +148,7 @@ class DashboardPageState extends State<DashboardPage>
 
   bool? _fitbitLinkedHint;
   bool _fitbitLinked = false;
+  bool _fitbitSummaryLoading = false;
   bool _fitbitActivityLoading = false;
   FitbitActivitySummary? _fitbitActivity;
   FitbitActivitySummary? _fitbitActivityLast;
@@ -1045,7 +1046,6 @@ class DashboardPageState extends State<DashboardPage>
       _loadWhoopRecovery(),
     ]);
     if (!mounted) return;
-    await _loadFitbitStatus();
     _loadFitbitSummary();
   }
 
@@ -1068,7 +1068,6 @@ class DashboardPageState extends State<DashboardPage>
       _loadExerciseProgress(),
       _loadWhoopRecovery(),
     ]);
-    await _loadFitbitStatus();
     _loadFitbitSummary();
   }
 
@@ -2055,6 +2054,7 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   Future<void> _loadFitbitSummary({int attempt = 0}) async {
+    if (_fitbitSummaryLoading) return;
     final userId = await AccountStorage.getUserId();
     if (!mounted) return;
     final today = DateTime.now();
@@ -2084,67 +2084,72 @@ class DashboardPageState extends State<DashboardPage>
       return;
     }
 
-    await _loadFitbitStatus();
-    if (!_fitbitLinked) return;
-
-    // Always load Fitbit summaries when linked, even if widgets are currently hidden.
-
-    setState(() {
-      _fitbitActivityLoading = true;
-      _fitbitHeartLoading = true;
-      _fitbitSleepLoading = true;
-      _fitbitVitalsLoading = true;
-      _fitbitBodyLoading = true;
-    });
-
+    _fitbitSummaryLoading = true;
     try {
-      if (!_fitbitLinked) {
+      await _loadFitbitStatus();
+      if (!_fitbitLinked) return;
+
+      // Always load Fitbit summaries when linked, even if widgets are currently hidden.
+
+      setState(() {
+        _fitbitActivityLoading = true;
+        _fitbitHeartLoading = true;
+        _fitbitSleepLoading = true;
+        _fitbitVitalsLoading = true;
+        _fitbitBodyLoading = true;
+      });
+
+      try {
+        if (!_fitbitLinked) {
+          if (!mounted) return;
+          setState(() {
+            _fitbitActivity = null;
+            _fitbitHeart = null;
+            _fitbitSleep = null;
+            _fitbitVitals = null;
+            _fitbitBody = null;
+            _fitbitActivityLoading = false;
+            _fitbitHeartLoading = false;
+            _fitbitSleepLoading = false;
+            _fitbitVitalsLoading = false;
+            _fitbitBodyLoading = false;
+          });
+          return;
+        }
+
+        final bundle = await FitbitSummaryService().fetchSummary(
+          DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day),
+        );
         if (!mounted) return;
         setState(() {
-          _fitbitActivity = null;
-          _fitbitHeart = null;
-          _fitbitSleep = null;
-          _fitbitVitals = null;
-          _fitbitBody = null;
+          _fitbitActivity = bundle?.activity;
+          _fitbitActivityLast = isToday ? (bundle?.activity ?? _fitbitActivityLast) : null;
+          _fitbitHeart = bundle?.heart;
+          _fitbitHeartLast = isToday ? (bundle?.heart ?? _fitbitHeartLast) : null;
+          _fitbitSleep = bundle?.sleep;
+          _fitbitSleepLast = isToday ? (bundle?.sleep ?? _fitbitSleepLast) : null;
+          _fitbitVitals = bundle?.vitals;
+          _fitbitVitalsLast = isToday ? (bundle?.vitals ?? _fitbitVitalsLast) : null;
+          _fitbitBody = bundle?.body;
+          _fitbitBodyLast = isToday ? (bundle?.body ?? _fitbitBodyLast) : null;
           _fitbitActivityLoading = false;
           _fitbitHeartLoading = false;
           _fitbitSleepLoading = false;
           _fitbitVitalsLoading = false;
           _fitbitBodyLoading = false;
         });
-        return;
+      } catch (_) {
+        if (!mounted) return;
+        setState(() {
+          _fitbitActivityLoading = false;
+          _fitbitHeartLoading = false;
+          _fitbitSleepLoading = false;
+          _fitbitVitalsLoading = false;
+          _fitbitBodyLoading = false;
+        });
       }
-
-      final bundle = await FitbitSummaryService().fetchSummary(
-        DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day),
-      );
-      if (!mounted) return;
-      setState(() {
-        _fitbitActivity = bundle?.activity;
-        _fitbitActivityLast = isToday ? (bundle?.activity ?? _fitbitActivityLast) : null;
-        _fitbitHeart = bundle?.heart;
-        _fitbitHeartLast = isToday ? (bundle?.heart ?? _fitbitHeartLast) : null;
-        _fitbitSleep = bundle?.sleep;
-        _fitbitSleepLast = isToday ? (bundle?.sleep ?? _fitbitSleepLast) : null;
-        _fitbitVitals = bundle?.vitals;
-        _fitbitVitalsLast = isToday ? (bundle?.vitals ?? _fitbitVitalsLast) : null;
-        _fitbitBody = bundle?.body;
-        _fitbitBodyLast = isToday ? (bundle?.body ?? _fitbitBodyLast) : null;
-        _fitbitActivityLoading = false;
-        _fitbitHeartLoading = false;
-        _fitbitSleepLoading = false;
-        _fitbitVitalsLoading = false;
-        _fitbitBodyLoading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _fitbitActivityLoading = false;
-        _fitbitHeartLoading = false;
-        _fitbitSleepLoading = false;
-        _fitbitVitalsLoading = false;
-        _fitbitBodyLoading = false;
-      });
+    } finally {
+      _fitbitSummaryLoading = false;
     }
   }
 
