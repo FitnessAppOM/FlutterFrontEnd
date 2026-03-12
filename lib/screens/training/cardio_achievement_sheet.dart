@@ -228,7 +228,7 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'TaqaFitness',
+                                        'Taqa Fitness',
                                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                               color: Colors.white,
                                               fontWeight: FontWeight.w800,

@@ -48,7 +48,7 @@ struct TrainingLiveActivityWidget: Widget {
                                     .foregroundStyle(.white)
                             }
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("TaqaFitness")
+                                Text("Taqa Fitness")
                                     .font(.caption2)
                                     .foregroundStyle(Color.white.opacity(0.75))
                                 Text(context.state.exerciseName)
@@ -84,7 +84,7 @@ struct TrainingLiveActivityWidget: Widget {
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("TaqaFitness")
+                        Text("Taqa Fitness")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                         Text(context.state.exerciseName)

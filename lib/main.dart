@@ -252,7 +252,7 @@ class _MyAppState extends State<MyApp> {
             : '/';
 
     return MaterialApp(
-      title: 'TAQA Fitness',
+      title: 'Taqa Fitness',
       debugShowCheckedModeBanner: false,
       locale: localeController.locale,
       localizationsDelegates: const [

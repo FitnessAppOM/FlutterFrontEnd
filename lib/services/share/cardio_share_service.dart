@@ -67,7 +67,7 @@ class CardioShareService {
   static Future<void> sharePngBytes(
     BuildContext context,
     Uint8List bytes, {
-    String text = 'Hey! Check out my latest cardio session on TaqaFitness.',
+    String text = 'Hey! Check out my latest cardio session on Taqa Fitness.',
   }) async {
     final dir = await getTemporaryDirectory();
     final filePath = '${dir.path}/cardio_achievement.png';

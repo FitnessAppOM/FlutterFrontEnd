@@ -205,11 +205,11 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
       return;
     }
     if (_heardAbout == "Other" && _heardOtherCtrl.text.trim().isEmpty) {
-      _toast("Please specify how you heard about TAQA.");
+      _toast("Please specify how you heard about Taqa Fitness.");
       return;
     }
     if (_joinReason == "Other" && _joinOtherCtrl.text.trim().isEmpty) {
-      _toast("Please specify why you want to join TAQA.");
+      _toast("Please specify why you want to join Taqa Fitness.");
       return;
     }
 
@@ -429,14 +429,14 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
             ),
             _textField(_c("social_links"), "Professional social links", required: false),
             _dropdownWithOther(
-              label: "How did you hear about TAQA?",
+              label: "How did you hear about Taqa Fitness?",
               value: _heardAbout,
               options: _heardOpts,
               otherCtrl: _heardOtherCtrl,
               onChanged: (v) => setState(() => _heardAbout = v),
             ),
             _dropdownWithOther(
-              label: "Why do you want to join TAQA?",
+              label: "Why do you want to join Taqa Fitness?",
               value: _joinReason,
               options: _joinReasonOpts,
               otherCtrl: _joinOtherCtrl,

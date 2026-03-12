@@ -16,7 +16,7 @@ class AppLocalizations {
       'login': 'Log in',
       'login_with_another': 'Log in using another account',
       'login_as': 'Log in as',
-      'new_to_taqa': 'New to TaqaFitness? ',
+      'new_to_taqa': 'New to Taqa Fitness? ',
       'signup': 'Sign up',
 
       'verification_title': 'Verify Email',
@@ -631,7 +631,7 @@ class AppLocalizations {
 "dash_no_calories_data": "No calories data",
 "dash_fueling": "Fueling compliance",
 "dash_muscle": "Muscle stimulus",
-"dash_taqa_score": "Taqa Score",
+"dash_taqa_score": "Taqa Fitness Score",
 "dash_placeholder": "Placeholder",
 "journal_title": "Daily Journal",
 "journal_placeholder": "Journal placeholder",
@@ -726,7 +726,7 @@ class AppLocalizations {
 "invalid_number": "Enter a valid number",
       "university_student_question": "Are you currently a university student?",
           "select_university": "Select your university",
-          "physical_rehab_question": "Are you using TAQA for physical rehabilitation or physiotherapy?",
+          "physical_rehab_question": "Are you using Taqa Fitness for physical rehabilitation or physiotherapy?",
     },
 
     'ar': {
@@ -735,7 +735,7 @@ class AppLocalizations {
       'login': 'تسجيل الدخول',
       'login_with_another': 'تسجيل الدخول باستخدام حساب آخر',
       'login_as': 'تسجيل الدخول باسم',
-      'new_to_taqa': 'هل أنت جديد في TaqaFitness؟ ',
+      'new_to_taqa': 'هل أنت جديد في Taqa Fitness؟ ',
       'signup': 'إنشاء حساب',
 
       'verification_title': 'تأكيد البريد الإلكتروني',
@@ -1349,7 +1349,7 @@ class AppLocalizations {
 "dash_no_calories_data": "لا توجد بيانات سعرات",
 "dash_fueling": "الالتزام بالتغذية",
 "dash_muscle": "تحفيز العضلات",
-"dash_taqa_score": "درجة طاقة",
+"dash_taqa_score": "درجة Taqa Fitness",
 "dash_placeholder": "قريباً",
 "journal_title": "المفكرة اليومية",
 "journal_placeholder": "صفحة المفكرة",
@@ -1443,7 +1443,7 @@ class AppLocalizations {
 "no_changes": "لا توجد تغييرات للحفظ",
 "invalid_number": "أدخل رقماً صحيحاً",
       "university_student_question": "هل أنت طالب جامعي حالياً؟",
-      "physical_rehab_question": "هل تستخدم تطبيق طاقة لإعادة التأهيل الجسدي أو العلاج الفيزيائي؟",
+      "physical_rehab_question": "هل تستخدم تطبيق Taqa Fitness لإعادة التأهيل الجسدي أو العلاج الفيزيائي؟",
 "select_university": "اختر الجامعة",
     },
   };
