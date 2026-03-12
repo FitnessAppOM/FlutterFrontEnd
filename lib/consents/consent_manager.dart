@@ -23,6 +23,7 @@ import 'package:health/health.dart';
 class ConsentManager {
   static bool? _healthAvailable; // cache Health Connect / platform availability
   static bool _healthPermissionRequestInFlight = false;
+  static Future<bool>? _healthPermissionFuture;
   // ---------------------------------------------------------------------------
   // STARTUP (call once)
   // ---------------------------------------------------------------------------
@@ -236,24 +237,28 @@ class ConsentManager {
       }
     }
 
-    if (_healthPermissionRequestInFlight) {
-      return false;
+    if (_healthPermissionRequestInFlight && _healthPermissionFuture != null) {
+      return _healthPermissionFuture!;
     }
     _healthPermissionRequestInFlight = true;
-    try {
-      final has = await health.hasPermissions(types, permissions: permissions) ?? false;
-      if (has) return true;
+    _healthPermissionFuture = () async {
+      try {
+        final has = await health.hasPermissions(types, permissions: permissions) ?? false;
+        if (has) return true;
 
-      final granted = await health.requestAuthorization(types, permissions: permissions);
-      return granted;
-    } catch (e) {
-      if (kDebugMode) {
-        print("Health permission check failed (possibly missing Health Connect): $e");
+        final granted = await health.requestAuthorization(types, permissions: permissions);
+        return granted;
+      } catch (e) {
+        if (kDebugMode) {
+          print("Health permission check failed (possibly missing Health Connect): $e");
+        }
+        return false;
+      } finally {
+        _healthPermissionRequestInFlight = false;
+        _healthPermissionFuture = null;
       }
-      return false;
-    } finally {
-      _healthPermissionRequestInFlight = false;
-    }
+    }();
+    return _healthPermissionFuture!;
   }
 
   /// Convenience helper to request both steps + sleep at once.

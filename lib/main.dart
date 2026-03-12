@@ -276,6 +276,7 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
+
 class AppLifecycleListener with WidgetsBindingObserver {
   final List<VoidCallback> _callbacks = [];
 

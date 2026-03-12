@@ -73,6 +73,7 @@ class _SettingsPageState extends State<SettingsPage> {
     _loadWhoopStatus();
     _loadFitbitStatus();
     _loadStravaStatus();
+    AccountStorage.accountChange.addListener(_handleAccountChanged);
   }
 
   Future<void> _showSuccessDialog(String message) async {
@@ -198,7 +199,22 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void dispose() {
     _usernameController.dispose();
+    AccountStorage.accountChange.removeListener(_handleAccountChanged);
     super.dispose();
+  }
+
+  void _handleAccountChanged() {
+    if (!mounted) return;
+    setState(() {
+      _whoopLinked = false;
+      _fitbitLinked = false;
+      _stravaLinked = false;
+    });
+    _loadEmail();
+    _loadExpertFlag();
+    _loadWhoopStatus();
+    _loadFitbitStatus();
+    _loadStravaStatus();
   }
 
   Future<void> _loadEmail() async {
