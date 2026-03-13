@@ -1120,6 +1120,7 @@ class DietPageState extends State<DietPage> {
     int? remaining,
   }) {
     final hasTarget = target != null;
+    final completionLabel = _completionPercentLabel(grams, target);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
@@ -1133,7 +1134,9 @@ class DietPageState extends State<DietPage> {
           Icon(icon, size: 16, color: color),
           const SizedBox(width: 6),
           Text(
-            hasTarget ? "$label $grams / $target$unit" : "$label $grams$unit",
+            hasTarget
+                ? "$label $grams / $target$unit$completionLabel"
+                : "$label $grams$unit",
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w700,
@@ -1190,6 +1193,12 @@ class DietPageState extends State<DietPage> {
   }
 
   int _dsInt(Map<String, dynamic>? m, String key) => _asInt(m?[key], fallback: 0);
+
+  String _completionPercentLabel(int consumed, int? target) {
+    if (target == null || target <= 0) return "";
+    final percent = ((consumed / target) * 100).round();
+    return " ($percent%)";
+  }
 
   Future<void> _openAddIngredientDialog({
     required int mealItemId,
@@ -2073,6 +2082,13 @@ class DietPageState extends State<DietPage> {
                                     color: Colors.white70,
                                     fontWeight: FontWeight.w700,
                                     height: 1.0,
+                                  ),
+                                ),
+                                Text(
+                                  _completionPercentLabel(conCal, tarCal),
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    color: Colors.white70,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                               ],
