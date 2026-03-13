@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -36,9 +37,17 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
   int _index = 0;
   bool _saving = false;
   bool _sharing = false;
+  bool _mapReady = false;
+  bool _mapLoading = false;
   final GlobalKey _modelAKey = GlobalKey();
   final GlobalKey _modelBKey = GlobalKey();
   final GlobalKey _modelCKey = GlobalKey();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _precacheSnapshotIfNeeded();
+  }
 
   @override
   void dispose() {
@@ -46,7 +55,44 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
     super.dispose();
   }
 
+  Future<void> _precacheSnapshotIfNeeded() async {
+    if (_mapReady || _mapLoading) return;
+    final url = widget.snapshotUrl.trim();
+    if (url.isEmpty) {
+      _mapReady = true;
+      return;
+    }
+    _mapLoading = true;
+    try {
+      await precacheImage(NetworkImage(url), context);
+    } catch (_) {
+      // Ignore; we'll fall back to placeholder map.
+    } finally {
+      _mapLoading = false;
+      if (mounted) {
+        setState(() => _mapReady = true);
+      } else {
+        _mapReady = true;
+      }
+    }
+  }
+
+  Future<void> _nextFrame() {
+    final completer = Completer<void>();
+    WidgetsBinding.instance.addPostFrameCallback((_) => completer.complete());
+    return completer.future;
+  }
+
+  Future<void> _ensureMapReadyForCapture() async {
+    if (_index != 0) return;
+    if (!_mapReady) {
+      await _precacheSnapshotIfNeeded();
+    }
+    await _nextFrame();
+  }
+
   Future<Uint8List?> _captureCurrentPage({bool forceBackground = false}) async {
+    await _ensureMapReadyForCapture();
     final key = _index == 0
         ? _modelAKey
         : _index == 1
@@ -111,6 +157,7 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final bool mapReadyForCurrent = _index != 0 || _mapReady;
     return Scaffold(
       backgroundColor: const Color(0xFF0B0F1A),
       appBar: AppBar(
@@ -167,10 +214,13 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: _sharing ? null : _shareCurrentPage,
+                              onPressed:
+                                  (_sharing || !mapReadyForCurrent) ? null : _shareCurrentPage,
                               child: Text(
                                 _sharing
                                     ? 'Sharing...'
+                                    : !mapReadyForCurrent
+                                        ? 'Preparing map...'
                                     : 'Share',
                               ),
                             ),
@@ -178,8 +228,11 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: _sharing ? null : _shareInstagramOnly,
-                              child: const Text('IG Sticker'),
+                              onPressed:
+                                  (_sharing || !mapReadyForCurrent) ? null : _shareInstagramOnly,
+                              child: Text(
+                                !mapReadyForCurrent ? 'Preparing map...' : 'IG Sticker',
+                              ),
                             ),
                           ),
                         ],
@@ -188,10 +241,13 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: _saving ? null : _saveCurrentPage,
+                          onPressed:
+                              (_saving || !mapReadyForCurrent) ? null : _saveCurrentPage,
                           child: Text(
                             _saving
                                 ? 'Saving...'
+                                : !mapReadyForCurrent
+                                    ? 'Preparing map...'
                                 : 'Save to Photos',
                           ),
                         ),

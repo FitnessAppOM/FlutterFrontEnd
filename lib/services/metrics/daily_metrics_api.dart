@@ -187,4 +187,20 @@ class DailyMetricsApi {
       _rangeInFlight.remove(cacheKey);
     }
   }
+
+  static Future<int> fetchStreak(int userId) async {
+    final url = Uri.parse("${ApiConfig.baseUrl}/daily-metrics/$userId/streak");
+    final headers = await AccountStorage.getAuthHeaders();
+    final res = await http.get(url, headers: headers);
+    await AccountStorage.handle401(res.statusCode);
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      final v = data["streak"];
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      return int.tryParse(v?.toString() ?? "") ?? 0;
+    }
+    if (res.statusCode == 404) return 0;
+    throw Exception("Failed to fetch streak: ${res.body}");
+  }
 }

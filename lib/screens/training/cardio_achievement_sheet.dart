@@ -78,6 +78,7 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
     if (_saving) return;
     setState(() => _saving = true);
     try {
+      await _ensureSnapshotPainted();
       final ok = await CardioShareService.ensurePhotoPermission();
       if (!ok) {
         if (mounted) {
@@ -143,11 +144,21 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
     return completer.future;
   }
 
+  Future<void> _ensureSnapshotPainted() async {
+    if (!_snapshotReady) {
+      final deadline = DateTime.now().add(const Duration(seconds: 3));
+      while (!_snapshotReady && DateTime.now().isBefore(deadline)) {
+        await Future.delayed(const Duration(milliseconds: 50));
+      }
+    }
+    await _nextFrame();
+  }
 
   Future<void> _shareScreenshot() async {
     if (_sharing) return;
     setState(() => _sharing = true);
     try {
+      await _ensureSnapshotPainted();
       final boundary = _captureKey.currentContext?.findRenderObject()
           as RenderRepaintBoundary?;
       if (boundary == null) return;

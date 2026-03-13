@@ -619,6 +619,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           userName: name,
         ),
       );
+      AccountStorage.notifyTrainingChanged();
       return;
     }
 

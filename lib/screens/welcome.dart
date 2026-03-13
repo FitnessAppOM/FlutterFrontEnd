@@ -145,7 +145,8 @@ class _WelcomePageState extends State<WelcomePage> {
       lastIsExpert = isExpert;
       lastQuestionnaireDone = qDone;
       lastExpertQuestionnaireDone = qExpertDone;
-      lastName = v ? n : null;
+      final trimmedName = n?.trim() ?? '';
+      lastName = trimmedName.isNotEmpty ? trimmedName : null;
       lastAuthProvider = provider;
     });
     return;
@@ -177,7 +178,8 @@ class _WelcomePageState extends State<WelcomePage> {
     lastIsExpert = isExpert;
     lastQuestionnaireDone = qDone;
     lastExpertQuestionnaireDone = qExpertDone;
-    lastName = v ? n : null;
+    final trimmedName = n?.trim() ?? '';
+    lastName = trimmedName.isNotEmpty ? trimmedName : null;
     lastAuthProvider = provider;
   });
 }
@@ -447,7 +449,9 @@ class _WelcomePageState extends State<WelcomePage> {
     final hasVerifiedAccount = hasAccount && lastVerified;
     final isGoogleAccount = lastAuthProvider == "google";
     final isAppleAccount = lastAuthProvider == "apple";
-    final displayName = lastName ?? (lastEmail?.split('@').first ?? '');
+    final displayName = (lastName != null && lastName!.trim().isNotEmpty)
+        ? lastName!.trim()
+        : (lastEmail?.split('@').first.trim() ?? '');
 
     return Scaffold(
       backgroundColor: AppColors.black,

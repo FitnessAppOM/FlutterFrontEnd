@@ -82,6 +82,18 @@ import '../../services/metrics/daily_journal_service.dart';
 import '../../services/core/navigation_service.dart';
 import 'dart:math' as math;
 
+class _NextTrainingDayResult {
+  final String? label;
+  final bool allDone;
+  const _NextTrainingDayResult({this.label, this.allDone = false});
+}
+
+class _LocalTrainingProgress {
+  final int completed;
+  final int total;
+  const _LocalTrainingProgress({required this.completed, required this.total});
+}
+
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
@@ -202,9 +214,13 @@ class DashboardPageState extends State<DashboardPage>
   int _weeklyDaysCount = 7;
   int? _exerciseTotal;
   int? _exerciseCompleted;
+  String? _nextTrainingDayLabel;
+  bool _nextTrainingDayAllDone = false;
   bool _exerciseLoading = false;
   bool _exerciseLoadedOnce = false;
   String? _exerciseProgramMode;
+  int? _streakCount;
+  bool _streakLoading = false;
   bool _dietProgressLoading = false;
   int? _dietConsumedCalories;
   int? _dietTargetCalories;
@@ -352,10 +368,12 @@ class DashboardPageState extends State<DashboardPage>
   void _onTrainingChanged() {
     _loadExerciseProgress(force: true);
     _loadDietProgress();
+    _loadStreak();
   }
 
   void _onDietChanged() {
     _loadDietProgress();
+    _loadStreak();
   }
 
   @override
@@ -1169,6 +1187,7 @@ class DashboardPageState extends State<DashboardPage>
       _loadWeeklySteps(),
       _loadTrendSleep(),
       _loadTrendCalories(),
+      _loadStreak(),
       _loadWhoopRecovery(),
     ]);
     if (!mounted) return;
@@ -1209,6 +1228,7 @@ class DashboardPageState extends State<DashboardPage>
       _loadWeeklySteps(),
       _loadTrendSleep(),
       _loadTrendCalories(),
+      _loadStreak(),
       _loadExerciseProgress(),
       _loadWhoopRecovery(),
     ]);
@@ -1412,6 +1432,100 @@ class DashboardPageState extends State<DashboardPage>
     return flags.any(_flagTrue);
   }
 
+  bool _isDayCompletedForWeek(
+    Map<String, dynamic> day,
+    DateTime weekStart,
+    DateTime weekEnd,
+  ) {
+    if (_complianceCompletedForWeek(day['program_compliance'], weekStart, weekEnd) ||
+        _complianceCompletedForWeek(day['compliance'], weekStart, weekEnd)) {
+      return true;
+    }
+    final flags = [
+      day['is_completed'],
+      day['completed'],
+      day['program_compliance_completed'],
+    ];
+    if (flags.any(_flagTrue)) return true;
+
+    final exercises = day['exercises'];
+    if (exercises is! List || exercises.isEmpty) {
+      return false;
+    }
+    for (final ex in exercises) {
+      if (ex is Map<String, dynamic>) {
+        if (_isExerciseCompletedForWeek(ex, weekStart, weekEnd)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  String _dayLabelFor(Map<String, dynamic> day, int index) {
+    final raw = day['day_label'] ??
+        day['day_name'] ??
+        day['label'] ??
+        day['name'] ??
+        day['title'];
+    final label = raw?.toString().trim();
+    if (label != null && label.isNotEmpty) return label;
+    final dayId = day['day_id'] ?? day['id'];
+    if (dayId != null) return "Day $dayId";
+    return "Day ${index + 1}";
+  }
+
+  _NextTrainingDayResult _findNextUpTrainingDayLabel(
+    Map<String, dynamic> program,
+    DateTime weekStart,
+    DateTime weekEnd,
+  ) {
+    final days = program['days'];
+    if (days is! List || days.isEmpty) {
+      return const _NextTrainingDayResult();
+    }
+    var hasTrainingDay = false;
+    for (var i = 0; i < days.length; i++) {
+      final day = days[i];
+      if (day is! Map<String, dynamic>) continue;
+      final exercises = day['exercises'];
+      if (exercises is! List || exercises.isEmpty) {
+        // Skip rest days for "Next up".
+        continue;
+      }
+      hasTrainingDay = true;
+      if (!_isDayCompletedForWeek(day, weekStart, weekEnd)) {
+        return _NextTrainingDayResult(label: _dayLabelFor(day, i));
+      }
+    }
+    return _NextTrainingDayResult(allDone: hasTrainingDay);
+  }
+
+  _LocalTrainingProgress? _computeLocalTrainingProgress(
+    Map<String, dynamic> program,
+    DateTime weekStart,
+    DateTime weekEnd,
+  ) {
+    final days = program['days'];
+    if (days is! List || days.isEmpty) return null;
+    var total = 0;
+    var completed = 0;
+    for (final day in days) {
+      if (day is! Map<String, dynamic>) continue;
+      final exercises = day['exercises'];
+      if (exercises is! List || exercises.isEmpty) {
+        // Skip rest days for progress.
+        continue;
+      }
+      total += 1;
+      if (_isDayCompletedForWeek(day, weekStart, weekEnd)) {
+        completed += 1;
+      }
+    }
+    if (total <= 0) return null;
+    return _LocalTrainingProgress(completed: completed, total: total);
+  }
+
   DateTime? _parseDayDate(dynamic day) {
     if (day is Map) {
       for (final key in ['date', 'day_date', 'scheduled_date', 'training_date', 'day']) {
@@ -1485,6 +1599,12 @@ class DashboardPageState extends State<DashboardPage>
           _exerciseLoadedOnce = true;
           _exerciseProgramMode = mode;
         });
+        await _loadNextTrainingDayLabel(
+          userId: userId,
+          weekStart: weekStart,
+          weekEnd: weekEnd,
+          allowNetwork: true,
+        );
         return;
       } catch (e) {
         if (!_isOfflineError(e)) rethrow;
@@ -1512,6 +1632,12 @@ class DashboardPageState extends State<DashboardPage>
           _exerciseLoadedOnce = true;
           _exerciseProgramMode = "local";
         });
+        await _loadNextTrainingDayLabel(
+          userId: userId,
+          weekStart: weekStart,
+          weekEnd: weekEnd,
+          allowNetwork: false,
+        );
         return;
       }
 
@@ -1522,6 +1648,12 @@ class DashboardPageState extends State<DashboardPage>
         _exerciseLoadedOnce = true;
         _exerciseProgramMode = "local";
       });
+      await _loadNextTrainingDayLabel(
+        userId: userId,
+        weekStart: weekStart,
+        weekEnd: weekEnd,
+        allowNetwork: false,
+      );
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -1529,6 +1661,8 @@ class DashboardPageState extends State<DashboardPage>
         _exerciseCompleted = null;
         _exerciseLoadedOnce = true;
       });
+      _nextTrainingDayLabel = null;
+      _nextTrainingDayAllDone = false;
     } finally {
       if (mounted) {
         setState(() => _exerciseLoading = false);
@@ -1537,6 +1671,71 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   Future<void> refreshExerciseProgress() => _loadExerciseProgress();
+
+  Future<void> _loadNextTrainingDayLabel({
+    required int userId,
+    required DateTime weekStart,
+    required DateTime weekEnd,
+    required bool allowNetwork,
+  }) async {
+    try {
+      Map<String, dynamic>? program;
+      if (allowNetwork) {
+        try {
+          program = await TrainingService.fetchActiveProgram(userId);
+        } catch (e) {
+          if (!_isOfflineError(e)) rethrow;
+        }
+      }
+      if (program == null) {
+        try {
+          program = await TrainingService.fetchActiveProgramFromCache();
+        } catch (_) {}
+      }
+      final result = program == null
+          ? const _NextTrainingDayResult()
+          : _findNextUpTrainingDayLabel(program, weekStart, weekEnd);
+      final localProgress = program == null
+          ? null
+          : _computeLocalTrainingProgress(program, weekStart, weekEnd);
+      if (!mounted) return;
+      setState(() {
+        _nextTrainingDayLabel = result.label;
+        _nextTrainingDayAllDone = result.allDone;
+        if (localProgress != null) {
+          _exerciseCompleted = localProgress.completed;
+          _exerciseTotal = localProgress.total;
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _nextTrainingDayLabel = null;
+        _nextTrainingDayAllDone = false;
+      });
+    }
+  }
+
+  Future<void> _loadStreak() async {
+    if (_streakLoading) return;
+    setState(() => _streakLoading = true);
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null || userId == 0) {
+        if (!mounted) return;
+        setState(() => _streakCount = null);
+        return;
+      }
+      final streak = await DailyMetricsApi.fetchStreak(userId);
+      if (!mounted) return;
+      setState(() => _streakCount = streak);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _streakCount = null);
+    } finally {
+      if (mounted) setState(() => _streakLoading = false);
+    }
+  }
 
   Future<void> _loadSteps() async {
     setState(() {
@@ -3027,6 +3226,15 @@ class DashboardPageState extends State<DashboardPage>
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _streakLoading
+                        ? "Streak: …"
+                        : "Streak: ${(_streakCount ?? 0)}",
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.white70,
+                        ),
+                  ),
                 ],
               ),
             ),
@@ -3190,11 +3398,13 @@ class DashboardPageState extends State<DashboardPage>
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        _exerciseTotal == null
+                        (_exerciseTotal == null &&
+                                _nextTrainingDayLabel == null &&
+                                !_nextTrainingDayAllDone)
                             ? t("dash_exercise_unavailable")
-                            : _exerciseProgramMode == "old"
-                                ? "${(_exerciseCompleted ?? 0).toString()} / ${_exerciseTotal.toString()} old program days"
-                                : "${(_exerciseCompleted ?? 0).toString()} / ${_exerciseTotal.toString()} days done",
+                            : _nextTrainingDayAllDone
+                                ? "Done for the week"
+                                : "Next up: ${(_nextTrainingDayLabel ?? "…")}",
                         style: const TextStyle(
                             color: Colors.white70, fontSize: 13),
                       ),

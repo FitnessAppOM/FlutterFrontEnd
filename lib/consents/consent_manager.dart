@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 
@@ -23,6 +24,7 @@ import 'package:health/health.dart';
 class ConsentManager {
   static bool? _healthAvailable; // cache Health Connect / platform availability
   static bool _healthPermissionRequestInFlight = false;
+  static Completer<void>? _healthPermissionGate;
   // ---------------------------------------------------------------------------
   // STARTUP (call once)
   // ---------------------------------------------------------------------------
@@ -237,9 +239,13 @@ class ConsentManager {
     }
 
     if (_healthPermissionRequestInFlight) {
-      return false;
+      final gate = _healthPermissionGate;
+      if (gate != null) {
+        await gate.future;
+      }
     }
     _healthPermissionRequestInFlight = true;
+    _healthPermissionGate = Completer<void>();
     try {
       final has = await health.hasPermissions(types, permissions: permissions) ?? false;
       if (has) return true;
@@ -253,6 +259,8 @@ class ConsentManager {
       return false;
     } finally {
       _healthPermissionRequestInFlight = false;
+      _healthPermissionGate?.complete();
+      _healthPermissionGate = null;
     }
   }
 
