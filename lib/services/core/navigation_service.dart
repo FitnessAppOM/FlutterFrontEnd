@@ -33,6 +33,14 @@ class NavigationService {
       markJournalNotificationPending();
     }
 
+    if (isOnJournalPage) {
+      if (fromNotification) {
+        _journalNotificationPending = false;
+        launchedFromNotificationPayload = false;
+      }
+      return;
+    }
+
     final nav = navigatorKey.currentState;
     if (nav == null) return;
 

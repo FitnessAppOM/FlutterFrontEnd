@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/health/sleep_service.dart';
@@ -37,6 +39,8 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
   final Map<DateTime, int?> _napCountCache = {};
   final Map<DateTime, double?> _napHoursCache = {};
   final Map<DateTime, bool> _metricsHasDataCache = {};
+  int? _selectedBarIndex;
+  Timer? _barValueTimer;
 
   static const _sleepGoalKey = "dashboard_sleep_goal";
 
@@ -48,6 +52,12 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     }
     _loadGoal();
     _loadRange();
+  }
+
+  @override
+  void dispose() {
+    _barValueTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadGoal() async {
@@ -132,6 +142,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
         _daily = data;
         _rangeStart = start;
         _rangeEnd = end;
+        _selectedBarIndex = null;
         _loading = false;
       });
       if (widget.useWhoop) {
@@ -141,6 +152,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       if (!mounted) return;
       setState(() {
         _daily = {};
+        _selectedBarIndex = null;
         _loading = false;
       });
     }
@@ -798,7 +810,11 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       label: Text(label),
       selected: selected,
       onSelected: (_) {
-        setState(() => _range = value);
+        _barValueTimer?.cancel();
+        setState(() {
+          _range = value;
+          _selectedBarIndex = null;
+        });
         _loadRange();
       },
       selectedColor: AppColors.accent.withValues(alpha: 0.25),
@@ -842,8 +858,49 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.18)),
           ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                height: 34,
+                child: Center(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    child: (_selectedBarIndex == null ||
+                            _selectedBarIndex! < 0 ||
+                            _selectedBarIndex! >= entries.length)
+                        ? const SizedBox.shrink()
+                        : Container(
+                            key: ValueKey<int>(_selectedBarIndex!),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 7,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0F1826),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFF35B6FF).withValues(alpha: 0.45),
+                              ),
+                            ),
+                            child: Text(
+                              "${entries[_selectedBarIndex!].detailLabel}  ${entries[_selectedBarIndex!].value.toStringAsFixed(1)} h",
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
               final barMaxHeight = constraints.maxHeight - labelHeight - labelGap;
 
               final barAreaWidth =
@@ -855,20 +912,34 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                   ? (barSlot! - (barSpacing * 2)).clamp(4.0, double.infinity)
                   : null;
 
-              final barWidgets = entries.map((e) {
+              final barWidgets = entries.asMap().entries.map((pair) {
+                final index = pair.key;
+                final e = pair.value;
+                final isSelected = _selectedBarIndex == index;
                 // Use actual max for accurate bar heights
                 final heightFactor = (e.value / actualMax).clamp(0.0, 1.0);
-                final label = e.key;
+                final label = e.axisLabel;
                 final showLabel = label.isNotEmpty;
                 final bar = Container(
                   height: barMaxHeight * heightFactor,
                   width: barWidth,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
-                    gradient: const LinearGradient(
+                    border: isSelected
+                        ? Border.all(
+                            color: Colors.white.withValues(alpha: 0.75),
+                            width: 1.1,
+                          )
+                        : null,
+                    gradient: LinearGradient(
                       begin: Alignment.bottomCenter,
                       end: Alignment.topCenter,
-                      colors: [
+                      colors: isSelected
+                          ? const [
+                              Color(0xFF6BE1FF),
+                              Color(0xFFB7A9FF),
+                            ]
+                          : const [
                         Color(0xFF35B6FF),
                         Color(0xFF9B8CFF),
                       ],
@@ -902,7 +973,11 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                     width: barSlot,
                     child: Padding(
                       padding: EdgeInsets.symmetric(horizontal: barSpacing),
-                      child: content,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => _onBarTap(index),
+                        child: content,
+                      ),
                     ),
                   );
                 }
@@ -910,7 +985,11 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                 return Expanded(
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: barSpacing),
-                    child: content,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _onBarTap(index),
+                      child: content,
+                    ),
                   ),
                 );
               }).toList();
@@ -982,7 +1061,10 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                   Expanded(child: barArea),
                 ],
               );
-            },
+                  },
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1041,7 +1123,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
   /// Prepares chart entries based on range:
   /// - weekly/monthly: daily bars
   /// - yearly: grouped by month (average hours)
-  List<MapEntry<String, double>> _prepareEntries() {
+  List<_SleepBarEntry> _prepareEntries() {
     if (_daily.isEmpty) return [];
     if (_range != 'yearly') {
       final start = _rangeStart;
@@ -1050,10 +1132,16 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
         final entries = _daily.entries.toList()
           ..sort((a, b) => a.key.compareTo(b.key));
         return entries
-            .map((e) => MapEntry("", e.value))
+            .map(
+              (e) => _SleepBarEntry(
+                axisLabel: "",
+                detailLabel: "${e.key.day} ${_monthShort(e.key.month)}",
+                value: e.value,
+              ),
+            )
             .toList();
       }
-      final items = <MapEntry<String, double>>[];
+      final items = <_SleepBarEntry>[];
       var cursor = DateTime(start.year, start.month, start.day);
       final last = DateTime(end.year, end.month, end.day);
       final lastDay = last.day;
@@ -1068,7 +1156,16 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
               dayNum == 1 || dayNum == lastDay || dayNum % 7 == 0;
           label = showLabel ? dayNum.toString() : "";
         }
-        items.add(MapEntry(label, _daily[key] ?? 0));
+        final detail = _range == 'weekly'
+            ? "${_weekdayShort(cursor.weekday)}, ${cursor.day} ${_monthShort(cursor.month)}"
+            : "${cursor.day} ${_monthShort(cursor.month)}";
+        items.add(
+          _SleepBarEntry(
+            axisLabel: label,
+            detailLabel: detail,
+            value: _daily[key] ?? 0,
+          ),
+        );
         cursor = cursor.add(const Duration(days: 1));
       }
       return items;
@@ -1087,7 +1184,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       buckets.putIfAbsent(key, () => []).add(hours);
     });
 
-    final entries = <MapEntry<String, double>>[];
+    final entries = <_SleepBarEntry>[];
     var cursor = DateTime(start.year, start.month, 1);
     final last = DateTime(end.year, end.month, 1);
     while (!cursor.isAfter(last)) {
@@ -1096,12 +1193,27 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       final avg = values.isEmpty
           ? 0.0
           : values.reduce((a, b) => a + b) / values.length;
-      entries.add(const MapEntry("", 0)); // placeholder, replaced below
-      entries[entries.length - 1] = MapEntry(_monthShort(cursor.month), avg.toDouble());
+      entries.add(
+        _SleepBarEntry(
+          axisLabel: _monthShort(cursor.month),
+          detailLabel: "${_monthShort(cursor.month)} ${cursor.year}",
+          value: avg.toDouble(),
+        ),
+      );
       cursor = DateTime(cursor.year, cursor.month + 1, 1);
     }
 
     return entries;
+  }
+
+  void _onBarTap(int index) {
+    _barValueTimer?.cancel();
+    if (!mounted) return;
+    setState(() => _selectedBarIndex = index);
+    _barValueTimer = Timer(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      setState(() => _selectedBarIndex = null);
+    });
   }
 
   String? _rangeAxisLabel() {
@@ -1225,6 +1337,18 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     final dayKey = DateTime(today.year, today.month, today.day);
     return _daily[dayKey] ?? 0;
   }
+}
+
+class _SleepBarEntry {
+  const _SleepBarEntry({
+    required this.axisLabel,
+    required this.detailLabel,
+    required this.value,
+  });
+
+  final String axisLabel;
+  final String detailLabel;
+  final double value;
 }
 
 class _WhoopSleepMetrics {

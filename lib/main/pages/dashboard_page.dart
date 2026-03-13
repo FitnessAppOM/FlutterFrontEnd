@@ -68,14 +68,18 @@ import '../../services/fitbit/fitbit_db_service.dart';
 import '../../screens/sleep_detail_page.dart';
 import '../../screens/steps_detail_page.dart';
 import '../../screens/calories_detail_page.dart';
+import '../../screens/daily_journal.dart';
 import '../../localization/app_localizations.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/common/date_header.dart';
+import '../../widgets/confirm_dialog.dart';
 import '../../services/training/training_service.dart';
 import '../../services/training/training_progress_storage.dart';
 import '../../widgets/primary_button.dart';
 import '../../screens/whoop_test_page.dart';
 import '../../widgets/release_notes_notice.dart';
+import '../../services/metrics/daily_journal_service.dart';
+import '../../services/core/navigation_service.dart';
 import 'dart:math' as math;
 
 class DashboardPage extends StatefulWidget {
@@ -87,10 +91,36 @@ class DashboardPage extends StatefulWidget {
 
 class DashboardPageState extends State<DashboardPage>
     with SingleTickerProviderStateMixin {
+  static const int _journalResetHour = 6;
+  static const String _journalPromptShownKey =
+      "daily_journal_prompt_shown_date_6am";
+  static const List<String> _defaultStatOrder = [
+    'steps',
+    'sleep',
+    'water',
+    'calories',
+  ];
+  static const Set<String> _allowedStatKeys = {
+    'steps',
+    'sleep',
+    'water',
+    'calories',
+    'body',
+    'fitbit_activity',
+    'fitbit_heart',
+    'fitbit_sleep',
+    'fitbit_vitals',
+    'fitbit_body',
+    'whoop_sleep',
+    'whoop_recovery',
+    'whoop_cycle',
+    'whoop_body',
+  };
   AnimationController? _wiggleController;
   Animation<double>? _wiggleAnim;
   bool _wiggling = false;
-  final List<String> _statOrder = ['steps', 'sleep', 'water', 'calories'];
+  final List<String> _statOrder = List<String>.from(_defaultStatOrder);
+  int? _statOrderUserId;
   final Map<String, GlobalKey> _tileKeys = {};
   OverlayEntry? _dragOverlay;
   String? _dragKey;
@@ -135,6 +165,7 @@ class DashboardPageState extends State<DashboardPage>
   bool _trendSleepLoading = false;
   bool _trendCaloriesLoading = false;
   bool _trendSyncRefreshInFlight = false;
+  int _trendCaloriesReqId = 0;
   bool _whoopLinked = false;
   bool _whoopLinkedKnown = false;
   bool? _whoopLinkedHint;
@@ -301,6 +332,7 @@ class DashboardPageState extends State<DashboardPage>
 
   Future<void> _showUpdateAndReleaseNotes() async {
     await ReleaseNotesNotice.showIfNeeded(context);
+    await _maybeShowDailyJournalPrompt();
   }
 
   void _onWhoopChanged() {
@@ -309,10 +341,12 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   void _onAccountChanged() {
+    _loadStatOrder();
     _loadWhoopLinkedHint();
     _loadFitbitLinkedHint();
     _refreshAll();
     _loadExerciseProgress(force: true);
+    unawaited(_maybeShowDailyJournalPrompt());
   }
 
   void _onTrainingChanged() {
@@ -399,6 +433,62 @@ class DashboardPageState extends State<DashboardPage>
         );
       },
     );
+  }
+
+  DateTime _journalDay(DateTime date) {
+    final shifted =
+        date.subtract(const Duration(hours: DashboardPageState._journalResetHour));
+    return DateTime(shifted.year, shifted.month, shifted.day);
+  }
+
+  String _formatJournalDay(DateTime date) {
+    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+  }
+
+  Future<void> _maybeShowDailyJournalPrompt() async {
+    if (!mounted) return;
+    if (NavigationService.journalNotificationPending ||
+        NavigationService.launchedFromNotificationPayload ||
+        NavigationService.isOnJournalPage) {
+      return;
+    }
+    final now = DateTime.now();
+    if (now.hour < _journalResetHour) return;
+
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return;
+
+    final journalDay = _journalDay(now);
+    final dayKey = _formatJournalDay(journalDay);
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getString(_journalPromptShownKey) == dayKey) return;
+
+    try {
+      final entry = await DailyJournalApi.fetchForDate(userId, journalDay);
+      if (entry != null) {
+        await prefs.setString(_journalPromptShownKey, dayKey);
+        return;
+      }
+    } catch (_) {
+      // If we can't confirm, skip the prompt to avoid false positives.
+      return;
+    }
+
+    if (!mounted) return;
+    final confirmed = await showConfirmDialog(
+      context: context,
+      title: "Daily journal check-in",
+      message: "Take 60 seconds to log how you’re feeling today.",
+      cancelText: "Later",
+      confirmText: "Take me there",
+    );
+
+    await prefs.setString(_journalPromptShownKey, dayKey);
+    if (confirmed == true && mounted) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const DailyJournalPage()),
+      );
+    }
   }
 
   bool _isWidgetActive(String key) {
@@ -570,32 +660,35 @@ class DashboardPageState extends State<DashboardPage>
   Future<void> _loadStatOrder() async {
     final sp = await SharedPreferences.getInstance();
     final userId = await AccountStorage.getUserId();
-    final key = userId == null ? "dash_stat_order" : "dash_stat_order_u$userId";
-    final raw = sp.getString(key);
-    if (raw == null || raw.trim().isEmpty) return;
+    _statOrderUserId = userId;
+    final userKey = userId == null ? "dash_stat_order" : "dash_stat_order_u$userId";
+    const legacyKey = "dash_stat_order";
+
+    String? raw = sp.getString(userKey);
+    if ((raw == null || raw.trim().isEmpty) && userId != null) {
+      final legacy = sp.getString(legacyKey);
+      if (legacy != null && legacy.trim().isNotEmpty) {
+        raw = legacy;
+        await sp.setString(userKey, legacy);
+      }
+    }
+
+    if (raw == null || raw.trim().isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _statOrder
+          ..clear()
+          ..addAll(_defaultStatOrder);
+      });
+      return;
+    }
     try {
       final decoded = jsonDecode(raw);
       if (decoded is List) {
         final next = decoded.map((e) => e.toString()).toList();
-        final allowed = {
-          'steps',
-          'sleep',
-          'water',
-          'calories',
-          'body',
-          'fitbit_activity',
-          'fitbit_heart',
-          'fitbit_sleep',
-          'fitbit_vitals',
-          'fitbit_body',
-          'whoop_sleep',
-          'whoop_recovery',
-          'whoop_cycle',
-          'whoop_body',
-        };
         final filtered = <String>[];
         for (final item in next) {
-          if (allowed.contains(item) && !filtered.contains(item)) {
+          if (_allowedStatKeys.contains(item) && !filtered.contains(item)) {
             filtered.add(item);
           }
         }
@@ -610,7 +703,11 @@ class DashboardPageState extends State<DashboardPage>
           }
           pruned.add(item);
         }
+        if (pruned.isEmpty) {
+          pruned.addAll(_defaultStatOrder);
+        }
         final hasWhoop = pruned.any((item) => item.startsWith('whoop_'));
+        if (!mounted) return;
         setState(() {
           _statOrder
             ..clear()
@@ -621,7 +718,12 @@ class DashboardPageState extends State<DashboardPage>
         }
       }
     } catch (_) {
-      // ignore parse errors
+      if (!mounted) return;
+      setState(() {
+        _statOrder
+          ..clear()
+          ..addAll(_defaultStatOrder);
+      });
     }
   }
 
@@ -697,7 +799,10 @@ class DashboardPageState extends State<DashboardPage>
   Future<void> _saveStatOrder() async {
     final sp = await SharedPreferences.getInstance();
     final userId = await AccountStorage.getUserId();
-    final key = userId == null ? "dash_stat_order" : "dash_stat_order_u$userId";
+    final effectiveUserId = userId ?? _statOrderUserId;
+    final key = effectiveUserId == null
+        ? "dash_stat_order"
+        : "dash_stat_order_u$effectiveUserId";
     await sp.setString(key, jsonEncode(_statOrder));
   }
 
@@ -1695,7 +1800,14 @@ class DashboardPageState extends State<DashboardPage>
 
   void _applyDietSummary(Map<String, dynamic> summary) {
     final liveRaw = summary["live"];
-    final live = liveRaw is Map ? liveRaw.cast<String, dynamic>() : null;
+    Map<String, dynamic>? live = liveRaw is Map ? liveRaw.cast<String, dynamic>() : null;
+    if (live == null) {
+      if (summary["target"] is Map ||
+          summary["consumed"] is Map ||
+          summary["remaining"] is Map) {
+        live = summary;
+      }
+    }
     final target = (live?["target"] is Map)
         ? (live?["target"] as Map).cast<String, dynamic>()
         : null;
@@ -2501,7 +2613,10 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   Future<void> _loadTrendCalories() async {
-    setState(() => _trendCaloriesLoading = true);
+    final reqId = ++_trendCaloriesReqId;
+    if (mounted) {
+      setState(() => _trendCaloriesLoading = true);
+    }
     try {
       final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
       final start = anchor.subtract(const Duration(days: 6));
@@ -2531,12 +2646,16 @@ class DashboardPageState extends State<DashboardPage>
       }
       final hasData = days.any((v) => v > 0);
       if (!mounted) return;
+      if (reqId != _trendCaloriesReqId) return;
       setState(() => _trendCalories = hasData ? days : const []);
     } catch (_) {
       if (!mounted) return;
+      if (reqId != _trendCaloriesReqId) return;
       setState(() => _trendCalories = const []);
     } finally {
-      if (mounted) setState(() => _trendCaloriesLoading = false);
+      if (mounted && reqId == _trendCaloriesReqId) {
+        setState(() => _trendCaloriesLoading = false);
+      }
     }
   }
 
@@ -3096,7 +3215,20 @@ class DashboardPageState extends State<DashboardPage>
         ),
         const SizedBox(height: 16),
         if (!noEntriesForSelectedDate) ...[
-          const SizedBox(height: 20),
+          DietProgressCard(
+            loading: _dietProgressLoading,
+            consumedCalories: _dietConsumedCalories,
+            targetCalories: _dietTargetCalories,
+            dayType: _dietDayType,
+          ),
+          const SizedBox(height: 12),
+          _PlaceholderMetricCard(
+            title: t("dash_taqa_score"),
+            subtitle: t("dash_placeholder"),
+            icon: Icons.bolt,
+            accentColor: const Color(0xFF6A5AE0),
+          ),
+          const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, constraints) {
               Widget buildTileForKey(String key) {
@@ -3473,13 +3605,6 @@ class DashboardPageState extends State<DashboardPage>
             },
           ),
           const SizedBox(height: 16),
-          DietProgressCard(
-            loading: _dietProgressLoading,
-            consumedCalories: _dietConsumedCalories,
-            targetCalories: _dietTargetCalories,
-            dayType: _dietDayType,
-          ),
-          const SizedBox(height: 16),
           // Insights cards temporarily disabled.
           if (false && _whoopLinked) ...[
             WhoopExtrasCard(
@@ -3618,12 +3743,6 @@ class DashboardPageState extends State<DashboardPage>
             accentColor: const Color(0xFFFF8A00),
           ),
           const SizedBox(height: 12),
-          _PlaceholderMetricCard(
-            title: t("dash_taqa_score"),
-            subtitle: t("dash_placeholder"),
-            icon: Icons.bolt,
-            accentColor: const Color(0xFF6A5AE0),
-          ),
           const SizedBox(height: 60),
         ],
       ],

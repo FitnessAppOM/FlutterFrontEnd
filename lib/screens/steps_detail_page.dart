@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/health/steps_service.dart';
@@ -21,6 +23,8 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
   int? _goal;
   DateTime? _rangeStart;
   DateTime? _rangeEnd;
+  int? _selectedBarIndex;
+  Timer? _barValueTimer;
 
   static const _stepsGoalKey = "dashboard_steps_goal";
 
@@ -29,6 +33,12 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
     super.initState();
     _loadGoal();
     _loadRange();
+  }
+
+  @override
+  void dispose() {
+    _barValueTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadGoal() async {
@@ -105,6 +115,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
         _daily = data;
         _rangeStart = DateTime(start.year, start.month, start.day);
         _rangeEnd = today;
+        _selectedBarIndex = null;
         _loading = false;
       });
     } catch (_) {
@@ -113,6 +124,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
         _daily = {};
         _rangeStart = null;
         _rangeEnd = null;
+        _selectedBarIndex = null;
         _loading = false;
       });
     }
@@ -219,7 +231,11 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
       label: Text(label),
       selected: selected,
       onSelected: (_) {
-        setState(() => _range = value);
+        _barValueTimer?.cancel();
+        setState(() {
+          _range = value;
+          _selectedBarIndex = null;
+        });
         _loadRange();
       },
       selectedColor: AppColors.accent.withValues(alpha: 0.25),
@@ -258,8 +274,49 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.18)),
           ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                height: 34,
+                child: Center(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    child: (_selectedBarIndex == null ||
+                            _selectedBarIndex! < 0 ||
+                            _selectedBarIndex! >= entries.length)
+                        ? const SizedBox.shrink()
+                        : Container(
+                            key: ValueKey<int>(_selectedBarIndex!),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 7,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0F1826),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFF35B6FF).withValues(alpha: 0.45),
+                              ),
+                            ),
+                            child: Text(
+                              "${entries[_selectedBarIndex!].detailLabel}  ${entries[_selectedBarIndex!].value} steps",
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
               final barMaxHeight = constraints.maxHeight - labelHeight - labelGap;
               final barAreaWidth =
                   (constraints.maxWidth - yAxisWidth - yAxisGap).clamp(0.0, double.infinity);
@@ -270,19 +327,33 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                   ? (barSlot! - (barSpacing * 2)).clamp(4.0, double.infinity)
                   : null;
 
-              final barWidgets = entries.map((e) {
+              final barWidgets = entries.asMap().entries.map((pair) {
+                final index = pair.key;
+                final e = pair.value;
+                final isSelected = _selectedBarIndex == index;
                 final heightFactor = (e.value / actualMax).clamp(0.0, 1.0);
-                final label = e.key;
+                final label = e.axisLabel;
                 final showLabel = label.isNotEmpty;
                 final bar = Container(
                   height: barMaxHeight * heightFactor,
                   width: barWidth,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
-                    gradient: const LinearGradient(
+                    border: isSelected
+                        ? Border.all(
+                            color: Colors.white.withValues(alpha: 0.75),
+                            width: 1.1,
+                          )
+                        : null,
+                    gradient: LinearGradient(
                       begin: Alignment.bottomCenter,
                       end: Alignment.topCenter,
-                      colors: [
+                      colors: isSelected
+                          ? const [
+                              Color(0xFF6BE1FF),
+                              Color(0xFFB7A9FF),
+                            ]
+                          : const [
                         Color(0xFF35B6FF),
                         Color(0xFF9B8CFF),
                       ],
@@ -316,7 +387,11 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                     width: barSlot,
                     child: Padding(
                       padding: EdgeInsets.symmetric(horizontal: barSpacing),
-                      child: content,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => _onBarTap(index),
+                        child: content,
+                      ),
                     ),
                   );
                 }
@@ -324,7 +399,11 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                 return Expanded(
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: barSpacing),
-                    child: content,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _onBarTap(index),
+                      child: content,
+                    ),
                   ),
                 );
               }).toList();
@@ -396,14 +475,17 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                   Expanded(child: barArea),
                 ],
               );
-            },
+                  },
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  List<MapEntry<String, int>> _prepareEntries() {
+  List<_StepsBarEntry> _prepareEntries() {
     if (_daily.isEmpty) return [];
     if (_range != 'yearly') {
       final start = _rangeStart;
@@ -411,9 +493,17 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
       if (start == null || end == null) {
         final entries = _daily.entries.toList()
           ..sort((a, b) => a.key.compareTo(b.key));
-        return entries.map((e) => MapEntry("", e.value)).toList();
+        return entries
+            .map(
+              (e) => _StepsBarEntry(
+                axisLabel: "",
+                detailLabel: "${e.key.day} ${_monthShort(e.key.month)}",
+                value: e.value,
+              ),
+            )
+            .toList();
       }
-      final items = <MapEntry<String, int>>[];
+      final items = <_StepsBarEntry>[];
       var cursor = DateTime(start.year, start.month, start.day);
       final last = DateTime(end.year, end.month, end.day);
       final lastDay = last.day;
@@ -428,7 +518,16 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
               dayNum == 1 || dayNum == lastDay || dayNum % 7 == 0;
           label = showLabel ? dayNum.toString() : "";
         }
-        items.add(MapEntry(label, _daily[key] ?? 0));
+        final detail = _range == 'weekly'
+            ? "${_weekdayShort(cursor.weekday)}, ${cursor.day} ${_monthShort(cursor.month)}"
+            : "${cursor.day} ${_monthShort(cursor.month)}";
+        items.add(
+          _StepsBarEntry(
+            axisLabel: label,
+            detailLabel: detail,
+            value: _daily[key] ?? 0,
+          ),
+        );
         cursor = cursor.add(const Duration(days: 1));
       }
       return items;
@@ -444,7 +543,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
       buckets.putIfAbsent(label, () => []).add(steps);
     });
 
-    final entries = <MapEntry<String, int>>[];
+    final entries = <_StepsBarEntry>[];
     var cursor = DateTime(start.year, start.month, 1);
     final last = DateTime(end.year, end.month, 1);
     while (!cursor.isAfter(last)) {
@@ -452,11 +551,27 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
       final values = buckets[key] ?? const <int>[];
       final avg =
           values.isEmpty ? 0 : values.reduce((a, b) => a + b) ~/ values.length;
-      entries.add(MapEntry(_monthShort(cursor.month), avg));
+      entries.add(
+        _StepsBarEntry(
+          axisLabel: _monthShort(cursor.month),
+          detailLabel: "${_monthShort(cursor.month)} ${cursor.year}",
+          value: avg,
+        ),
+      );
       cursor = DateTime(cursor.year, cursor.month + 1, 1);
     }
 
     return entries;
+  }
+
+  void _onBarTap(int index) {
+    _barValueTimer?.cancel();
+    if (!mounted) return;
+    setState(() => _selectedBarIndex = index);
+    _barValueTimer = Timer(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      setState(() => _selectedBarIndex = null);
+    });
   }
 
   Widget _noDataCard(ThemeData theme) {
@@ -592,4 +707,16 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
       }
     }
   }
+}
+
+class _StepsBarEntry {
+  const _StepsBarEntry({
+    required this.axisLabel,
+    required this.detailLabel,
+    required this.value,
+  });
+
+  final String axisLabel;
+  final String detailLabel;
+  final int value;
 }

@@ -8,6 +8,7 @@ import 'navigation_service.dart';
 import '../diet/diet_service.dart';
 
 class NotificationService {
+  static const int _journalResetHour = 6;
   static final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   static const String dailyJournalPayload = 'daily_journal';
@@ -157,7 +158,7 @@ class NotificationService {
       return;
     }
     try {
-      final entry = await DailyJournalApi.fetchForDate(userId, DateTime.now());
+      final entry = await DailyJournalApi.fetchForDate(userId, _journalDay(DateTime.now()));
       if (entry != null) {
         await rescheduleDailyJournalRemindersForTomorrow();
         return;
@@ -237,7 +238,7 @@ class NotificationService {
     }
 
     try {
-      final entry = await DailyJournalApi.fetchForDate(userId, DateTime.now());
+      final entry = await DailyJournalApi.fetchForDate(userId, _journalDay(DateTime.now()));
       if (entry != null) {
         await rescheduleDailyJournalRemindersForTomorrow();
         return;
@@ -260,9 +261,13 @@ class NotificationService {
         ? AndroidScheduleMode.exactAllowWhileIdle
         : AndroidScheduleMode.inexactAllowWhileIdle;
 
-    final tz.TZDateTime nextSixAm = _nextInstanceAtHour(6, startTomorrow: true);
-    final tz.TZDateTime nextSixPm = _nextInstanceAtHour(18, startTomorrow: true);
-    final tz.TZDateTime nextNinePm = _nextInstanceAtHour(21, startTomorrow: true);
+    final startTomorrow = _shouldStartTomorrowForJournal();
+    final tz.TZDateTime nextSixAm =
+        _nextInstanceAtHour(6, startTomorrow: startTomorrow);
+    final tz.TZDateTime nextSixPm =
+        _nextInstanceAtHour(18, startTomorrow: startTomorrow);
+    final tz.TZDateTime nextNinePm =
+        _nextInstanceAtHour(21, startTomorrow: startTomorrow);
 
     await _plugin.zonedSchedule(
       2,
@@ -476,5 +481,15 @@ class NotificationService {
       return details?.notificationResponse?.payload;
     }
     return null;
+  }
+
+  static DateTime _journalDay(DateTime date) {
+    final shifted = date.subtract(const Duration(hours: _journalResetHour));
+    return DateTime(shifted.year, shifted.month, shifted.day);
+  }
+
+  static bool _shouldStartTomorrowForJournal() {
+    final now = DateTime.now();
+    return now.hour >= _journalResetHour;
   }
 }

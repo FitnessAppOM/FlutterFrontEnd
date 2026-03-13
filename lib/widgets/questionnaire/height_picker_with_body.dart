@@ -4,9 +4,13 @@ Future<int?> showHeightPickerPopup(
     BuildContext context, {
       required int initialHeight,
     }) {
+  const int minHeight = 120;
+  const int maxHeight = 240;
   int currentHeight = initialHeight;
+  if (currentHeight < minHeight) currentHeight = minHeight;
+  if (currentHeight > maxHeight) currentHeight = maxHeight;
 
-  return showModalBottomSheet<int>(
+  final sheet = showModalBottomSheet<int>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.grey,
@@ -16,6 +20,11 @@ Future<int?> showHeightPickerPopup(
     builder: (context) {
       return StatefulBuilder(
         builder: (context, setState) {
+          void updateFromSlider(double v) {
+            final next = v.toInt();
+            setState(() => currentHeight = next);
+          }
+
           return Padding(
             padding: EdgeInsets.only(
               bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -47,19 +56,36 @@ Future<int?> showHeightPickerPopup(
 
                 const SizedBox(height: 20),
 
-                // --- SLIDER ---
                 Text(
                   "$currentHeight cm",
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                Slider(
-                  value: currentHeight.toDouble(),
-                  min: 120,
-                  max: 240,
-                  divisions: 120,
-                  label: "$currentHeight",
-                  onChanged: (v) =>
-                      setState(() => currentHeight = v.toInt()),
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        final next = (currentHeight - 1).clamp(minHeight, maxHeight);
+                        setState(() => currentHeight = next);
+                      },
+                      icon: const Icon(Icons.remove),
+                    ),
+                    Expanded(
+                      child: Slider(
+                        value: currentHeight.toDouble(),
+                        min: minHeight.toDouble(),
+                        max: maxHeight.toDouble(),
+                        divisions: maxHeight - minHeight,
+                        onChanged: updateFromSlider,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        final next = (currentHeight + 1).clamp(minHeight, maxHeight);
+                        setState(() => currentHeight = next);
+                      },
+                      icon: const Icon(Icons.add),
+                    ),
+                  ],
                 ),
 
                 const SizedBox(height: 8),
@@ -86,4 +112,6 @@ Future<int?> showHeightPickerPopup(
       );
     },
   );
+
+  return sheet;
 }

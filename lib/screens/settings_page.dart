@@ -268,6 +268,11 @@ class _SettingsPageState extends State<SettingsPage> {
         setState(() => _fitbitLinked = false);
         return;
       }
+      final linkedHint = await AccountStorage.getFitbitLinked();
+      if (linkedHint != true) {
+        setState(() => _fitbitLinked = false);
+        return;
+      }
       final url = Uri.parse("${ApiConfig.baseUrl}/fitbit/status?user_id=$userId");
       final headers = await AccountStorage.getAuthHeaders();
       final response = await http.get(url, headers: headers);
@@ -849,7 +854,6 @@ class _SettingsPageState extends State<SettingsPage> {
       if (mounted) setState(() => _deletingAccount = false);
     }
   }
-
 
   @override
   Widget build(BuildContext context) {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -20,6 +22,8 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
   bool _loading = true;
   Map<DateTime, int> _daily = {};
   int? _goal;
+  int? _selectedBarIndex;
+  Timer? _barValueTimer;
 
   static const _caloriesGoalKey = "dashboard_calories_goal";
 
@@ -28,6 +32,12 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
     super.initState();
     _loadGoal();
     _loadRange();
+  }
+
+  @override
+  void dispose() {
+    _barValueTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadGoal() async {
@@ -100,12 +110,14 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
       if (!mounted) return;
       setState(() {
         _daily = data;
+        _selectedBarIndex = null;
         _loading = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _daily = {};
+        _selectedBarIndex = null;
         _loading = false;
       });
     }
@@ -210,7 +222,11 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
       label: Text(label),
       selected: selected,
       onSelected: (_) {
-        setState(() => _range = value);
+        _barValueTimer?.cancel();
+        setState(() {
+          _range = value;
+          _selectedBarIndex = null;
+        });
         _loadRange();
       },
       selectedColor: AppColors.accent.withValues(alpha: 0.25),
@@ -245,9 +261,50 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.18)),
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final barAreaHeight = constraints.maxHeight;
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: 34,
+            child: Center(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                child: (_selectedBarIndex == null ||
+                        _selectedBarIndex! < 0 ||
+                        _selectedBarIndex! >= entries.length)
+                    ? const SizedBox.shrink()
+                    : Container(
+                        key: ValueKey<int>(_selectedBarIndex!),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0F1826),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFF35B6FF).withValues(alpha: 0.45),
+                          ),
+                        ),
+                        child: Text(
+                          "${entries[_selectedBarIndex!].detailLabel}  ${entries[_selectedBarIndex!].value} kcal",
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final barAreaHeight = constraints.maxHeight;
           final barAreaWidth =
               (constraints.maxWidth - yAxisWidth - yAxisGap).clamp(0.0, double.infinity);
           final barSlot = isDense
@@ -257,20 +314,34 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
               ? (barSlot! - (barSpacing * 2)).clamp(0.0, double.infinity)
               : null;
 
-          final bars = entries.map((e) {
+          final bars = entries.asMap().entries.map((pair) {
+            final index = pair.key;
+            final e = pair.value;
+            final isSelected = _selectedBarIndex == index;
             final heightFactor = (e.value / safeMax).clamp(0.0, 1.0);
             final bar = Container(
               height: barAreaHeight * heightFactor,
               width: barWidth,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
-                gradient: const LinearGradient(
+                border: isSelected
+                    ? Border.all(
+                        color: Colors.white.withValues(alpha: 0.75),
+                        width: 1.1,
+                      )
+                    : null,
+                gradient: LinearGradient(
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
-                  colors: [
-                    Color(0xFFFF8A00),
-                    Color(0xFFFFC266),
-                  ],
+                  colors: isSelected
+                      ? const [
+                          Color(0xFFFFC266),
+                          Color(0xFFFFE1A6),
+                        ]
+                      : const [
+                          Color(0xFFFF8A00),
+                          Color(0xFFFFC266),
+                        ],
                 ),
               ),
             );
@@ -285,7 +356,11 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
                 width: barSlot,
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: barSpacing),
-                  child: content,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => _onBarTap(index),
+                    child: content,
+                  ),
                 ),
               );
             }
@@ -293,7 +368,11 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
             return Expanded(
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: barSpacing),
-                child: content,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _onBarTap(index),
+                  child: content,
+                ),
               ),
             );
           }).toList();
@@ -345,20 +424,45 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
             ),
           );
 
+          final gridLineColor = Colors.white.withValues(alpha: 0.06);
+          final barArea = SizedBox(
+            height: barAreaHeight,
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  height: barAreaHeight,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(height: 1, color: gridLineColor),
+                      Container(height: 1, color: gridLineColor),
+                      Container(height: 1, color: gridLineColor),
+                    ],
+                  ),
+                ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: bars,
+                ),
+              ],
+            ),
+          );
+
           return Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               yAxis,
               const SizedBox(width: yAxisGap),
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: bars,
-                ),
-              ),
+              Expanded(child: barArea),
             ],
           );
-        },
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -370,13 +474,19 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
     return value.toStringAsFixed(0);
   }
 
-  List<MapEntry<String, int>> _prepareEntries() {
+  List<_CaloriesBarEntry> _prepareEntries() {
     if (_daily.isEmpty) return [];
     if (_range != 'yearly') {
       final entries = _daily.entries.toList()
         ..sort((a, b) => a.key.compareTo(b.key));
       return entries
-          .map((e) => MapEntry("${e.key.month}/${e.key.day}", e.value))
+          .map(
+            (e) => _CaloriesBarEntry(
+              axisLabel: "",
+              detailLabel: "${e.key.month}/${e.key.day}",
+              value: e.value,
+            ),
+          )
           .toList();
     }
 
@@ -386,14 +496,31 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
       buckets.putIfAbsent(label, () => []).add(calories);
     });
 
-    final entries = buckets.entries.map<MapEntry<String, int>>((e) {
-      final avg =
-          e.value.isEmpty ? 0 : e.value.reduce((a, b) => a + b) ~/ e.value.length;
-      return MapEntry(e.key, avg);
-    }).toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
+    final entries = buckets.entries
+        .map<_CaloriesBarEntry>((e) {
+          final avg = e.value.isEmpty
+              ? 0
+              : e.value.reduce((a, b) => a + b) ~/ e.value.length;
+          return _CaloriesBarEntry(
+            axisLabel: "",
+            detailLabel: e.key,
+            value: avg,
+          );
+        })
+        .toList()
+      ..sort((a, b) => a.detailLabel.compareTo(b.detailLabel));
 
     return entries;
+  }
+
+  void _onBarTap(int index) {
+    _barValueTimer?.cancel();
+    if (!mounted) return;
+    setState(() => _selectedBarIndex = index);
+    _barValueTimer = Timer(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      setState(() => _selectedBarIndex = null);
+    });
   }
 
   Widget _noDataCard(ThemeData theme) {
@@ -498,4 +625,16 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
       }
     }
   }
+}
+
+class _CaloriesBarEntry {
+  const _CaloriesBarEntry({
+    required this.axisLabel,
+    required this.detailLabel,
+    required this.value,
+  });
+
+  final String axisLabel;
+  final String detailLabel;
+  final int value;
 }

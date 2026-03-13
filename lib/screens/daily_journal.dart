@@ -20,12 +20,14 @@ class DailyJournalPage extends StatefulWidget {
 }
 
 class _DailyJournalPageState extends State<DailyJournalPage> {
+  static const int _journalResetHour = 6;
+
   Future<DailyJournalEntry?>? _future;
   bool _seededFromRemote = false;
   bool _seededFromWidgets = false;
   bool _isSubmitting = false;
   bool _formHidden = false;
-  DateTime _selectedDate = _dateOnly(DateTime.now());
+  DateTime _selectedDate = _journalDay(DateTime.now());
   late final bool _fromNotification;
 
   final _sleepHoursCtrl = TextEditingController();
@@ -165,7 +167,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
     try {
       await DailyJournalApi.upsert(
         userId: userId,
-        entryDate: DateTime.now(),
+        entryDate: _selectedDate,
         sleepHours: _parseDouble(_sleepHoursCtrl),
         sleepQuality: _sleepQuality,
         caffeineYes: _caffeineYes,
@@ -233,7 +235,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
 
       await DailyJournalApi.upsert(
         userId: userId,
-        entryDate: DateTime.now(),
+        entryDate: _selectedDate,
         sleepHours: last.sleepHours,
         sleepQuality: last.sleepQuality,
         caffeineYes: last.caffeineYes,
@@ -280,7 +282,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
 
   void _changeDay(int deltaDays) {
     final nextDate = _dateOnly(_selectedDate.add(Duration(days: deltaDays)));
-    final todayDate = _dateOnly(DateTime.now());
+    final todayDate = _journalDay(DateTime.now());
     // Prevent navigating into the future
     if (nextDate.isAfter(todayDate)) {
       return;
@@ -780,11 +782,16 @@ String _formatCount(int? count, {required String singular, required String plura
 }
 
 bool _isToday(DateTime date) {
-  final now = DateTime.now();
+  final now = _journalDay(DateTime.now());
   return date.year == now.year && date.month == now.month && date.day == now.day;
 }
 
 DateTime _dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
+
+DateTime _journalDay(DateTime date) {
+  final shifted = date.subtract(const Duration(hours: _DailyJournalPageState._journalResetHour));
+  return DateTime(shifted.year, shifted.month, shifted.day);
+}
 
 class _InputCard extends StatelessWidget {
   final String title;

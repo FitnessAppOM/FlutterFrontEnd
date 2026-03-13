@@ -4,9 +4,13 @@ Future<int?> showWeightPickerPopup(
     BuildContext context, {
       required int initialWeight,
     }) {
+  const int minWeight = 30;
+  const int maxWeight = 200;
   int currentWeight = initialWeight;
+  if (currentWeight < minWeight) currentWeight = minWeight;
+  if (currentWeight > maxWeight) currentWeight = maxWeight;
 
-  return showModalBottomSheet<int>(
+  final sheet = showModalBottomSheet<int>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.grey,
@@ -16,6 +20,11 @@ Future<int?> showWeightPickerPopup(
     builder: (context) {
       return StatefulBuilder(
         builder: (context, setState) {
+          void updateFromSlider(double v) {
+            final next = v.toInt();
+            setState(() => currentWeight = next);
+          }
+
           return Padding(
             padding: EdgeInsets.only(
               bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -107,16 +116,32 @@ Future<int?> showWeightPickerPopup(
                   "$currentWeight kg",
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
-
-                Slider(
-                  value: currentWeight.toDouble(),
-                  min: 30,
-                  max: 200,
-                  divisions: 170,
-                  label: "$currentWeight kg",
-                  onChanged: (v) {
-                    setState(() => currentWeight = v.toInt());
-                  },
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        final next = (currentWeight - 1).clamp(minWeight, maxWeight);
+                        setState(() => currentWeight = next);
+                      },
+                      icon: const Icon(Icons.remove),
+                    ),
+                    Expanded(
+                      child: Slider(
+                        value: currentWeight.toDouble(),
+                        min: minWeight.toDouble(),
+                        max: maxWeight.toDouble(),
+                        divisions: maxWeight - minWeight,
+                        onChanged: updateFromSlider,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        final next = (currentWeight + 1).clamp(minWeight, maxWeight);
+                        setState(() => currentWeight = next);
+                      },
+                      icon: const Icon(Icons.add),
+                    ),
+                  ],
                 ),
 
                 const SizedBox(height: 10),
@@ -142,4 +167,6 @@ Future<int?> showWeightPickerPopup(
       );
     },
   );
+
+  return sheet;
 }
