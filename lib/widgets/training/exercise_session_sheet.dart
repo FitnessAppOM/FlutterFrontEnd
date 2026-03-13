@@ -344,6 +344,30 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     return _paceMinPerKm(_cardioSpeedKmh);
   }
 
+  void _mergeIncomingCardioRoute(List<CardioPoint> incoming) {
+    if (incoming.isEmpty) return;
+    if (_cardioRoute.isEmpty) {
+      _cardioRoute = List<CardioPoint>.from(incoming);
+      return;
+    }
+    // Normal case: tracker sends the full accumulated route.
+    if (incoming.length >= _cardioRoute.length) {
+      _cardioRoute = List<CardioPoint>.from(incoming);
+      return;
+    }
+    // Recovery case: tracker restarted after lifecycle transition and sent
+    // a shorter route. Keep existing trace and append new tail points.
+    final merged = List<CardioPoint>.from(_cardioRoute);
+    for (final point in incoming) {
+      final last = merged.last;
+      final samePoint = last.lat == point.lat &&
+          last.lng == point.lng &&
+          last.paused == point.paused;
+      if (!samePoint) merged.add(point);
+    }
+    _cardioRoute = merged;
+  }
+
   Future<void> _startExercise() async {
     if (started) {
       if (_paused) {
@@ -921,7 +945,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                         }
                       },
                       onRoute: (route) {
-                        _cardioRoute = route;
+                        _mergeIncomingCardioRoute(route);
                       },
                       onStart: _startExercise,
                       onPause: _pauseExercise,

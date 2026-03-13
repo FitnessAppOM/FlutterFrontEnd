@@ -8,6 +8,7 @@ import '../services/diet/calories_service.dart';
 import '../services/diet/diet_service.dart';
 import '../services/metrics/daily_metrics_api.dart';
 import '../theme/app_theme.dart';
+import '../widgets/charts/ranged_bar_chart.dart';
 import '../localization/app_localizations.dart';
 
 class CaloriesDetailPage extends StatefulWidget {
@@ -24,6 +25,8 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
   int? _goal;
   int? _selectedBarIndex;
   Timer? _barValueTimer;
+  DateTime? _rangeStart;
+  DateTime? _rangeEnd;
 
   static const _caloriesGoalKey = "dashboard_calories_goal";
 
@@ -54,7 +57,10 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: AppColors.cardDark,
-          title: const Text("Calories burn goal", style: TextStyle(color: Colors.white)),
+          title: const Text(
+            "Calories burn goal",
+            style: TextStyle(color: Colors.white),
+          ),
           content: TextField(
             controller: controller,
             keyboardType: TextInputType.number,
@@ -93,24 +99,34 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
     try {
       final now = DateTime.now();
       DateTime start;
+      DateTime end;
       switch (_range) {
         case 'monthly':
-          start = now.subtract(const Duration(days: 30));
+          start = DateTime(now.year, now.month, 1);
+          end = DateTime(now.year, now.month + 1, 0);
           break;
         case 'yearly':
           start = now.subtract(const Duration(days: 365));
+          end = now;
           break;
         case 'weekly':
         default:
-          start = now.subtract(const Duration(days: 7));
+          final today = DateTime(now.year, now.month, now.day);
+          start = today.subtract(Duration(days: today.weekday - 1));
+          end = start.add(const Duration(days: 6));
           break;
       }
-      final data =
-          await CaloriesService().fetchDailyCalories(start: start, end: now);
+      final effectiveEnd = now.isBefore(end) ? now : end;
+      final data = await CaloriesService().fetchDailyCalories(
+        start: start,
+        end: effectiveEnd,
+      );
       if (!mounted) return;
       setState(() {
         _daily = data;
         _selectedBarIndex = null;
+        _rangeStart = start;
+        _rangeEnd = end;
         _loading = false;
       });
     } catch (_) {
@@ -118,6 +134,8 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
       setState(() {
         _daily = {};
         _selectedBarIndex = null;
+        _rangeStart = null;
+        _rangeEnd = null;
         _loading = false;
       });
     }
@@ -159,7 +177,10 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.accent,
                     foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -172,14 +193,21 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.cardDark,
                     foregroundColor: Colors.white,
-                    side: BorderSide(color: AppColors.accent.withValues(alpha: 0.7)),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    side: BorderSide(
+                      color: AppColors.accent.withValues(alpha: 0.7),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   child: Text(
-                    t("calories_goal_btn").replaceAll("{value}", (_goal ?? 500).toString()),
+                    t(
+                      "calories_goal_btn",
+                    ).replaceAll("{value}", (_goal ?? 500).toString()),
                     style: const TextStyle(color: Colors.white),
                   ),
                 ),
@@ -207,8 +235,8 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
                       child: CircularProgressIndicator(color: AppColors.accent),
                     )
                   : !_daily.values.any((v) => v > 0)
-                      ? _noDataCard(theme)
-                      : bars,
+                  ? _noDataCard(theme)
+                  : bars,
             ),
           ],
         ),
@@ -253,13 +281,24 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
     final avgVal = entries.isEmpty
         ? 0.0
         : entries.fold<double>(0, (m, e) => m + e.value) / entries.length;
+    final showLabels = _range == 'weekly' || _range == 'yearly';
+    final chartEntries = entries
+        .map(
+          (e) => RangedBarChartEntry(
+            axisLabel: e.axisLabel,
+            value: e.value.toDouble(),
+          ),
+        )
+        .toList();
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.18)),
+        border: Border.all(
+          color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -269,7 +308,8 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
             child: Center(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 180),
-                child: (_selectedBarIndex == null ||
+                child:
+                    (_selectedBarIndex == null ||
                         _selectedBarIndex! < 0 ||
                         _selectedBarIndex! >= entries.length)
                     ? const SizedBox.shrink()
@@ -283,7 +323,9 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
                           color: const Color(0xFF0F1826),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: const Color(0xFF35B6FF).withValues(alpha: 0.45),
+                            color: const Color(
+                              0xFF35B6FF,
+                            ).withValues(alpha: 0.45),
                           ),
                         ),
                         child: Text(
@@ -302,164 +344,21 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
           ),
           const SizedBox(height: 10),
           Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final barAreaHeight = constraints.maxHeight;
-          final barAreaWidth =
-              (constraints.maxWidth - yAxisWidth - yAxisGap).clamp(0.0, double.infinity);
-          final barSlot = isDense
-              ? (barAreaWidth / (entries.isEmpty ? 1 : entries.length))
-              : null;
-          final barWidth = isDense
-              ? (barSlot! - (barSpacing * 2)).clamp(0.0, double.infinity)
-              : null;
-
-          final bars = entries.asMap().entries.map((pair) {
-            final index = pair.key;
-            final e = pair.value;
-            final isSelected = _selectedBarIndex == index;
-            final heightFactor = (e.value / safeMax).clamp(0.0, 1.0);
-            final bar = Container(
-              height: barAreaHeight * heightFactor,
-              width: barWidth,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                border: isSelected
-                    ? Border.all(
-                        color: Colors.white.withValues(alpha: 0.75),
-                        width: 1.1,
-                      )
-                    : null,
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: isSelected
-                      ? const [
-                          Color(0xFFFFC266),
-                          Color(0xFFFFE1A6),
-                        ]
-                      : const [
-                          Color(0xFFFF8A00),
-                          Color(0xFFFFC266),
-                        ],
-                ),
-              ),
-            );
-
-            final content = Align(
-              alignment: Alignment.bottomCenter,
-              child: bar,
-            );
-
-            if (isDense) {
-              return SizedBox(
-                width: barSlot,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: barSpacing),
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => _onBarTap(index),
-                    child: content,
-                  ),
-                ),
-              );
-            }
-
-            return Expanded(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: barSpacing),
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => _onBarTap(index),
-                  child: content,
-                ),
-              ),
-            );
-          }).toList();
-
-          final yAxisHeight = constraints.maxHeight;
-          double _yForValue(num v) {
-            final ratio = (v / safeMax).clamp(0.0, 1.0);
-            return (1.0 - ratio) * yAxisHeight;
-          }
-
-          final yAxis = SizedBox(
-            width: yAxisWidth,
-            child: Stack(
-              children: [
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: Text(
-                    _fmtCalories(safeMax),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.white54,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: 0,
-                  top: (_yForValue(avgVal) - 6).clamp(0.0, yAxisHeight - 12),
-                  child: Text(
-                    _fmtCalories(avgVal),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.white54,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: Text(
-                    "0",
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.white54,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-
-          final gridLineColor = Colors.white.withValues(alpha: 0.06);
-          final barArea = SizedBox(
-            height: barAreaHeight,
-            child: Stack(
-              children: [
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  height: barAreaHeight,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(height: 1, color: gridLineColor),
-                      Container(height: 1, color: gridLineColor),
-                      Container(height: 1, color: gridLineColor),
-                    ],
-                  ),
-                ),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: bars,
-                ),
-              ],
-            ),
-          );
-
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              yAxis,
-              const SizedBox(width: yAxisGap),
-              Expanded(child: barArea),
-            ],
-          );
-              },
+            child: RangedBarChart(
+              entries: chartEntries,
+              maxValue: safeMax.toDouble(),
+              midValue: avgVal,
+              formatValue: _fmtCalories,
+              gradient: const [Color(0xFFFF8A00), Color(0xFFFFC266)],
+              selectedGradient: const [Color(0xFFFFC266), Color(0xFFFFE1A6)],
+              selectedIndex: _selectedBarIndex,
+              onBarTap: _onBarTap,
+              showAxisLabels: showLabels,
+              useFixedSlots: isDense,
+              barSpacing: barSpacing,
+              minBarWidth: 0.0,
+              yAxisWidth: yAxisWidth,
+              yAxisGap: yAxisGap,
             ),
           ),
         ],
@@ -474,8 +373,63 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
     return value.toStringAsFixed(0);
   }
 
+  String _weekdayShort(int weekday) {
+    switch (weekday) {
+      case DateTime.monday:
+        return "Mon";
+      case DateTime.tuesday:
+        return "Tue";
+      case DateTime.wednesday:
+        return "Wed";
+      case DateTime.thursday:
+        return "Thu";
+      case DateTime.friday:
+        return "Fri";
+      case DateTime.saturday:
+        return "Sat";
+      case DateTime.sunday:
+        return "Sun";
+      default:
+        return "";
+    }
+  }
+
   List<_CaloriesBarEntry> _prepareEntries() {
     if (_daily.isEmpty) return [];
+    if (_range == 'weekly' || _range == 'monthly') {
+      final start = _rangeStart;
+      final end = _rangeEnd;
+      if (start != null && end != null) {
+        final items = <_CaloriesBarEntry>[];
+        var cursor = DateTime(start.year, start.month, start.day);
+        final last = DateTime(end.year, end.month, end.day);
+        final lastDay = last.day;
+        final midDay = (lastDay / 2).round();
+        while (!cursor.isAfter(last)) {
+          final key = DateTime(cursor.year, cursor.month, cursor.day);
+          String label = "";
+          if (_range == 'weekly') {
+            label = _weekdayShort(cursor.weekday);
+          } else {
+            final dayNum = cursor.day;
+            final showLabel =
+                dayNum == 1 || dayNum == midDay || dayNum == lastDay;
+            label = showLabel ? dayNum.toString() : "";
+          }
+          items.add(
+            _CaloriesBarEntry(
+              axisLabel: label,
+              detailLabel: _range == 'weekly'
+                  ? "$label ${cursor.month}/${cursor.day}"
+                  : "${cursor.month}/${cursor.day}",
+              value: _daily[key] ?? 0,
+            ),
+          );
+          cursor = cursor.add(const Duration(days: 1));
+        }
+        return items;
+      }
+    }
     if (_range != 'yearly') {
       final entries = _daily.entries.toList()
         ..sort((a, b) => a.key.compareTo(b.key));
@@ -496,19 +450,12 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
       buckets.putIfAbsent(label, () => []).add(calories);
     });
 
-    final entries = buckets.entries
-        .map<_CaloriesBarEntry>((e) {
-          final avg = e.value.isEmpty
-              ? 0
-              : e.value.reduce((a, b) => a + b) ~/ e.value.length;
-          return _CaloriesBarEntry(
-            axisLabel: "",
-            detailLabel: e.key,
-            value: avg,
-          );
-        })
-        .toList()
-      ..sort((a, b) => a.detailLabel.compareTo(b.detailLabel));
+    final entries = buckets.entries.map<_CaloriesBarEntry>((e) {
+      final avg = e.value.isEmpty
+          ? 0
+          : e.value.reduce((a, b) => a + b) ~/ e.value.length;
+      return _CaloriesBarEntry(axisLabel: "", detailLabel: e.key, value: avg);
+    }).toList()..sort((a, b) => a.detailLabel.compareTo(b.detailLabel));
 
     return entries;
   }
@@ -531,7 +478,9 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
       decoration: BoxDecoration(
         color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.18)),
+        border: Border.all(
+          color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
+        ),
       ),
       child: Text(
         AppLocalizations.of(context).translate("no_calories_range"),
@@ -544,7 +493,9 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
   String _rangeLabel(String Function(String) t) {
     switch (_range) {
       case 'monthly':
-        return t("range_last30");
+        final ref = _rangeStart ?? DateTime.now();
+        final days = DateTime(ref.year, ref.month + 1, 0).day;
+        return "Last $days days";
       case 'yearly':
         return t("range_last_year");
       case 'weekly':
@@ -568,7 +519,10 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: AppColors.cardDark,
-          title: const Text("Edit today's calories", style: TextStyle(color: Colors.white)),
+          title: const Text(
+            "Edit today's calories",
+            style: TextStyle(color: Colors.white),
+          ),
           content: TextField(
             controller: controller,
             keyboardType: TextInputType.number,
@@ -612,7 +566,9 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
             caloriesBurned: result,
             entryDate: day,
           );
-          if (day.year == today.year && day.month == today.month && day.day == today.day) {
+          if (day.year == today.year &&
+              day.month == today.month &&
+              day.day == today.day) {
             await DietService.fetchCurrentTargets(userId);
             DietService.notifyTargetsUpdatedAfterBurn();
           }

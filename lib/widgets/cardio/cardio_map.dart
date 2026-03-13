@@ -225,6 +225,7 @@ class _CardioMapState extends State<CardioMap> with WidgetsBindingObserver {
                 widget.onPause?.call();
               },
               onFinish: () {
+                widget.onRoute?.call(_buildRoutePointsPayload());
                 widget.onFinish?.call();
                 _finishTracking();
               },

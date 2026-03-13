@@ -6,6 +6,7 @@ import '../services/health/steps_service.dart';
 import '../services/fitbit/fitbit_steps_service.dart';
 import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
+import '../widgets/charts/ranged_bar_chart.dart';
 
 class StepsDetailPage extends StatefulWidget {
   const StepsDetailPage({super.key, this.useFitbit = false});
@@ -55,7 +56,10 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: AppColors.cardDark,
-          title: const Text("Steps goal", style: TextStyle(color: Colors.white)),
+          title: const Text(
+            "Steps goal",
+            style: TextStyle(color: Colors.white),
+          ),
           content: TextField(
             controller: controller,
             keyboardType: TextInputType.number,
@@ -93,28 +97,39 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
     setState(() => _loading = true);
     try {
       final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
       DateTime start;
+      DateTime end;
       switch (_range) {
         case 'monthly':
-          start = now.subtract(const Duration(days: 30));
+          start = DateTime(now.year, now.month, 1);
+          end = DateTime(now.year, now.month + 1, 0);
           break;
         case 'yearly':
           start = now.subtract(const Duration(days: 365));
+          end = now;
           break;
         case 'weekly':
         default:
-          start = now.subtract(const Duration(days: 7));
+          final today = DateTime(now.year, now.month, now.day);
+          start = today.subtract(Duration(days: today.weekday - 1));
+          end = start.add(const Duration(days: 6));
           break;
       }
+      final effectiveEnd = now.isBefore(end) ? now : end;
       final data = widget.useFitbit
-          ? await FitbitStepsService().fetchDailySteps(start: start, end: now)
-          : await StepsService().fetchDailySteps(start: start, end: now);
+          ? await FitbitStepsService().fetchDailySteps(
+              start: start,
+              end: effectiveEnd,
+            )
+          : await StepsService().fetchDailySteps(
+              start: start,
+              end: effectiveEnd,
+            );
       if (!mounted) return;
       setState(() {
         _daily = data;
         _rangeStart = DateTime(start.year, start.month, start.day);
-        _rangeEnd = today;
+        _rangeEnd = DateTime(end.year, end.month, end.day);
         _selectedBarIndex = null;
         _loading = false;
       });
@@ -167,7 +182,10 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.accent,
                       foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -181,14 +199,21 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.cardDark,
                     foregroundColor: Colors.white,
-                    side: BorderSide(color: AppColors.accent.withValues(alpha: 0.7)),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    side: BorderSide(
+                      color: AppColors.accent.withValues(alpha: 0.7),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   child: Text(
-                    t("steps_goal_btn").replaceAll("{value}", (_goal ?? 10000).toString()),
+                    t(
+                      "steps_goal_btn",
+                    ).replaceAll("{value}", (_goal ?? 10000).toString()),
                     style: const TextStyle(color: Colors.white),
                   ),
                 ),
@@ -216,8 +241,8 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                       child: CircularProgressIndicator(color: AppColors.accent),
                     )
                   : !_daily.values.any((v) => v > 0)
-                      ? _noDataCard(theme)
-                      : bars,
+                  ? _noDataCard(theme)
+                  : bars,
             ),
           ],
         ),
@@ -263,6 +288,15 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
     final dense = entries.length > 12;
     final barSpacing = dense ? 2.0 : 4.0;
     final useFixedSlots = dense || _range != 'weekly';
+    final showLabels = _range != 'monthly';
+    final chartEntries = entries
+        .map(
+          (e) => RangedBarChartEntry(
+            axisLabel: e.axisLabel,
+            value: e.value.toDouble(),
+          ),
+        )
+        .toList();
 
     return Center(
       child: ConstrainedBox(
@@ -272,7 +306,9 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
           decoration: BoxDecoration(
             color: AppColors.cardDark,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.18)),
+            border: Border.all(
+              color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -282,7 +318,8 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                 child: Center(
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 180),
-                    child: (_selectedBarIndex == null ||
+                    child:
+                        (_selectedBarIndex == null ||
                             _selectedBarIndex! < 0 ||
                             _selectedBarIndex! >= entries.length)
                         ? const SizedBox.shrink()
@@ -296,7 +333,9 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                               color: const Color(0xFF0F1826),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: const Color(0xFF35B6FF).withValues(alpha: 0.45),
+                                color: const Color(
+                                  0xFF35B6FF,
+                                ).withValues(alpha: 0.45),
                               ),
                             ),
                             child: Text(
@@ -315,167 +354,26 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
               ),
               const SizedBox(height: 10),
               Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-              final barMaxHeight = constraints.maxHeight - labelHeight - labelGap;
-              final barAreaWidth =
-                  (constraints.maxWidth - yAxisWidth - yAxisGap).clamp(0.0, double.infinity);
-              final barSlot = useFixedSlots
-                  ? (barAreaWidth / (entries.isEmpty ? 1 : entries.length))
-                  : null;
-              final barWidth = useFixedSlots
-                  ? (barSlot! - (barSpacing * 2)).clamp(4.0, double.infinity)
-                  : null;
-
-              final barWidgets = entries.asMap().entries.map((pair) {
-                final index = pair.key;
-                final e = pair.value;
-                final isSelected = _selectedBarIndex == index;
-                final heightFactor = (e.value / actualMax).clamp(0.0, 1.0);
-                final label = e.axisLabel;
-                final showLabel = label.isNotEmpty;
-                final bar = Container(
-                  height: barMaxHeight * heightFactor,
-                  width: barWidth,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    border: isSelected
-                        ? Border.all(
-                            color: Colors.white.withValues(alpha: 0.75),
-                            width: 1.1,
-                          )
-                        : null,
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      colors: isSelected
-                          ? const [
-                              Color(0xFF6BE1FF),
-                              Color(0xFFB7A9FF),
-                            ]
-                          : const [
-                        Color(0xFF35B6FF),
-                        Color(0xFF9B8CFF),
-                      ],
-                    ),
-                  ),
-                );
-
-                final content = Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    bar,
-                    const SizedBox(height: labelGap),
-                    SizedBox(
-                      height: labelHeight,
-                      child: showLabel
-                          ? Text(
-                              label,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: Colors.white54,
-                              ),
-                              textAlign: TextAlign.center,
-                            )
-                          : const SizedBox.shrink(),
-                    ),
+                child: RangedBarChart(
+                  entries: chartEntries,
+                  maxValue: actualMax,
+                  midValue: midVal,
+                  formatValue: _formatStepsAxis,
+                  gradient: const [Color(0xFF35B6FF), Color(0xFF9B8CFF)],
+                  selectedGradient: const [
+                    Color(0xFF6BE1FF),
+                    Color(0xFFB7A9FF),
                   ],
-                );
-
-                if (useFixedSlots) {
-                  return SizedBox(
-                    width: barSlot,
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: barSpacing),
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => _onBarTap(index),
-                        child: content,
-                      ),
-                    ),
-                  );
-                }
-
-                return Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: barSpacing),
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => _onBarTap(index),
-                      child: content,
-                    ),
-                  ),
-                );
-              }).toList();
-
-              final yAxis = SizedBox(
-                width: yAxisWidth,
-                height: barMaxHeight,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      _formatStepsAxis(actualMax),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white54,
-                        fontSize: 11,
-                      ),
-                    ),
-                    Text(
-                      _formatStepsAxis(midVal),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white54,
-                        fontSize: 11,
-                      ),
-                    ),
-                    Text(
-                      _formatStepsAxis(0),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white54,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-
-              final gridLineColor = Colors.white.withValues(alpha: 0.06);
-              final barArea = SizedBox(
-                height: constraints.maxHeight,
-                child: Stack(
-                  children: [
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      top: 0,
-                      height: barMaxHeight,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(height: 1, color: gridLineColor),
-                          Container(height: 1, color: gridLineColor),
-                          Container(height: 1, color: gridLineColor),
-                        ],
-                      ),
-                    ),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: barWidgets,
-                    ),
-                  ],
-                ),
-              );
-
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  yAxis,
-                  const SizedBox(width: yAxisGap),
-                  Expanded(child: barArea),
-                ],
-              );
-                  },
+                  selectedIndex: _selectedBarIndex,
+                  onBarTap: _onBarTap,
+                  showAxisLabels: showLabels,
+                  useFixedSlots: useFixedSlots,
+                  barSpacing: barSpacing,
+                  minBarWidth: 4.0,
+                  yAxisWidth: yAxisWidth,
+                  yAxisGap: yAxisGap,
+                  labelHeight: labelHeight,
+                  labelGap: labelGap,
                 ),
               ),
             ],
@@ -514,8 +412,9 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
           label = _weekdayShort(cursor.weekday);
         } else {
           final dayNum = cursor.day;
+          final midDay = (lastDay / 2).round();
           final showLabel =
-              dayNum == 1 || dayNum == lastDay || dayNum % 7 == 0;
+              dayNum == 1 || dayNum == midDay || dayNum == lastDay;
           label = showLabel ? dayNum.toString() : "";
         }
         final detail = _range == 'weekly'
@@ -549,8 +448,9 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
     while (!cursor.isAfter(last)) {
       final key = "${cursor.year}-${cursor.month.toString().padLeft(2, '0')}";
       final values = buckets[key] ?? const <int>[];
-      final avg =
-          values.isEmpty ? 0 : values.reduce((a, b) => a + b) ~/ values.length;
+      final avg = values.isEmpty
+          ? 0
+          : values.reduce((a, b) => a + b) ~/ values.length;
       entries.add(
         _StepsBarEntry(
           axisLabel: _monthShort(cursor.month),
@@ -582,7 +482,9 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
       decoration: BoxDecoration(
         color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.18)),
+        border: Border.all(
+          color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
+        ),
       ),
       child: Text(
         AppLocalizations.of(context).translate("no_steps_range"),
@@ -595,7 +497,9 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
   String _rangeLabel(String Function(String) t) {
     switch (_range) {
       case 'monthly':
-        return t("range_last30");
+        final ref = _rangeStart ?? DateTime.now();
+        final days = DateTime(ref.year, ref.month + 1, 0).day;
+        return "Last $days days";
       case 'yearly':
         return t("range_last_year");
       case 'weekly':
@@ -667,7 +571,10 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: AppColors.cardDark,
-          title: const Text("Edit today's steps", style: TextStyle(color: Colors.white)),
+          title: const Text(
+            "Edit today's steps",
+            style: TextStyle(color: Colors.white),
+          ),
           content: TextField(
             controller: controller,
             keyboardType: TextInputType.number,

@@ -179,6 +179,48 @@ class DashboardPageState extends State<DashboardPage>
   bool _trendCaloriesLoading = false;
   bool _trendSyncRefreshInFlight = false;
   int _trendCaloriesReqId = 0;
+  DateTime? _trendWeekStart;
+
+  DateTime _dayKey(DateTime date) => DateTime(date.year, date.month, date.day);
+
+  bool _tryUpdateTrendSleepForDate(DateTime date, double hours) {
+    final start = _trendWeekStart;
+    if (start == null) return false;
+    final weekStart = _trendWeekStartFor(date);
+    if (weekStart != start) return false;
+    final length = _trendSleep.isEmpty ? 7 : _trendSleep.length;
+    final idx = _dayKey(date).difference(start).inDays;
+    if (idx < 0 || idx >= length) return false;
+    final next = _trendSleep.isEmpty
+        ? List<double>.filled(7, 0.0)
+        : List<double>.from(_trendSleep);
+    if (next[idx] == hours) return true;
+    next[idx] = hours;
+    if (mounted) {
+      setState(() => _trendSleep = next);
+    }
+    return true;
+  }
+
+  bool _tryUpdateTrendCaloriesForDate(DateTime date, double calories) {
+    final start = _trendWeekStart;
+    if (start == null) return false;
+    final weekStart = _trendWeekStartFor(date);
+    if (weekStart != start) return false;
+    final length = _trendCalories.isEmpty ? 7 : _trendCalories.length;
+    final idx = _dayKey(date).difference(start).inDays;
+    if (idx < 0 || idx >= length) return false;
+    final next = _trendCalories.isEmpty
+        ? List<double>.filled(7, 0.0)
+        : List<double>.from(_trendCalories);
+    if (next[idx] == calories) return true;
+    next[idx] = calories;
+    if (mounted) {
+      setState(() => _trendCalories = next);
+    }
+    return true;
+  }
+
   bool _whoopLinked = false;
   bool _whoopLinkedKnown = false;
   bool? _whoopLinkedHint;
@@ -266,12 +308,14 @@ class DashboardPageState extends State<DashboardPage>
     final todayOnly = DateTime(today.year, today.month, today.day);
     if (next.isAfter(todayOnly)) return;
     final nextIsToday = next == todayOnly;
-    final hasCachedToday = _cachedTodayLoadedOnce &&
+    final hasCachedToday =
+        _cachedTodayLoadedOnce &&
         (_cachedTodayExerciseTotal != null ||
             _cachedTodayExerciseCompleted != null ||
             _cachedTodayNextTrainingDayLabel != null ||
             _cachedTodayNextAllDone);
-    final hasCachedDietToday = _cachedTodayDietLoaded &&
+    final hasCachedDietToday =
+        _cachedTodayDietLoaded &&
         (_cachedTodayDietConsumedCalories != null ||
             _cachedTodayDietTargetCalories != null ||
             _cachedTodayDietDayType != null);
@@ -398,13 +442,18 @@ class DashboardPageState extends State<DashboardPage>
 
   void _onWhoopChanged() {
     _loadWhoopLinkedHint();
-    _loadTrendSleep();
+    _loadTrendSleep(force: true);
   }
 
   void _onAccountChanged() {
     _loadStatOrder();
     _loadWhoopLinkedHint();
     _loadFitbitLinkedHint();
+    setState(() {
+      _trendWeekStart = null;
+      _trendSleep = const [];
+      _trendCalories = const [];
+    });
     _refreshAll();
     _loadExerciseProgress(force: true);
     unawaited(_maybeShowDailyJournalPrompt());
@@ -438,9 +487,10 @@ class DashboardPageState extends State<DashboardPage>
       duration: const Duration(milliseconds: 260),
     );
     _wiggleController = controller;
-    _wiggleAnim = Tween<double>(begin: -1, end: 1).animate(
-      CurvedAnimation(parent: controller, curve: Curves.linear),
-    );
+    _wiggleAnim = Tween<double>(
+      begin: -1,
+      end: 1,
+    ).animate(CurvedAnimation(parent: controller, curve: Curves.linear));
   }
 
   void _startWiggle() {
@@ -498,9 +548,51 @@ class DashboardPageState extends State<DashboardPage>
     );
   }
 
+  Future<void> _handleTrendCaloriesTap() async {
+    if (!_isToday()) return;
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const CaloriesDetailPage()));
+    await _loadGoals();
+    await _loadCalories();
+  }
+
+  Future<void> _handleTrendSleepTap() async {
+    if (!_isToday()) return;
+    if (_statOrder.contains('whoop_sleep') && _whoopLinked) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const SleepDetailPage(useWhoop: true),
+        ),
+      );
+      return;
+    }
+    if (_statOrder.contains('fitbit_sleep') && _fitbitLinked) {
+      final sleep = _fitbitSleepLoading
+          ? (_fitbitSleepLast ?? _fitbitSleep)
+          : _fitbitSleep;
+      await showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (_) => FitbitSleepSheet(
+          summary: sleep,
+          date: _selectedDate,
+        ),
+      );
+      return;
+    }
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const SleepDetailPage()));
+    await _loadGoals();
+    await _loadSleep();
+  }
+
   DateTime _journalDay(DateTime date) {
-    final shifted =
-        date.subtract(const Duration(hours: DashboardPageState._journalResetHour));
+    final shifted = date.subtract(
+      const Duration(hours: DashboardPageState._journalResetHour),
+    );
     return DateTime(shifted.year, shifted.month, shifted.day);
   }
 
@@ -548,9 +640,9 @@ class DashboardPageState extends State<DashboardPage>
 
     await prefs.setString(_journalPromptShownKey, dayKey);
     if (confirmed == true && mounted) {
-      await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const DailyJournalPage()),
-      );
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const DailyJournalPage()));
     }
   }
 
@@ -724,7 +816,9 @@ class DashboardPageState extends State<DashboardPage>
     final sp = await SharedPreferences.getInstance();
     final userId = await AccountStorage.getUserId();
     _statOrderUserId = userId;
-    final userKey = userId == null ? "dash_stat_order" : "dash_stat_order_u$userId";
+    final userKey = userId == null
+        ? "dash_stat_order"
+        : "dash_stat_order_u$userId";
     const legacyKey = "dash_stat_order";
 
     String? raw = sp.getString(userKey);
@@ -841,7 +935,6 @@ class DashboardPageState extends State<DashboardPage>
       _loadFitbitSummary();
     }
   }
-
 
   bool get _useWhoop {
     return false;
@@ -1001,7 +1094,6 @@ class DashboardPageState extends State<DashboardPage>
     }
   }
 
-
   Widget _wiggleWrap(Widget child) {
     final anim = _wiggleAnim;
     if (anim == null || _wiggleController == null) return child;
@@ -1014,10 +1106,7 @@ class DashboardPageState extends State<DashboardPage>
         final dx = wave * 1.6;
         return Transform.translate(
           offset: Offset(dx, 0),
-          child: Transform.rotate(
-            angle: angle,
-            child: child,
-          ),
+          child: Transform.rotate(angle: angle, child: child),
         );
       },
     );
@@ -1138,20 +1227,14 @@ class DashboardPageState extends State<DashboardPage>
 
   Widget _buildTileChild(String key, Widget child) {
     final isDragging = _dragKey == key;
-    return Opacity(
-      opacity: isDragging ? 0.0 : 1.0,
-      child: child,
-    );
+    return Opacity(opacity: isDragging ? 0.0 : 1.0, child: child);
   }
 
   Widget _buildRemovableTile(String key, Widget child) {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        IgnorePointer(
-          ignoring: _wiggling,
-          child: child,
-        ),
+        IgnorePointer(ignoring: _wiggling, child: child),
         Positioned(
           top: -6,
           left: -6,
@@ -1172,7 +1255,10 @@ class DashboardPageState extends State<DashboardPage>
                     decoration: BoxDecoration(
                       color: const Color(0xFF1E1F26),
                       borderRadius: BorderRadius.circular(13),
-                      border: Border.all(color: const Color(0xFFFF6B6B), width: 1.6),
+                      border: Border.all(
+                        color: const Color(0xFFFF6B6B),
+                        width: 1.6,
+                      ),
                       boxShadow: const [
                         BoxShadow(
                           color: Colors.black54,
@@ -1181,7 +1267,11 @@ class DashboardPageState extends State<DashboardPage>
                         ),
                       ],
                     ),
-                    child: const Icon(Icons.remove, color: Color(0xFFFF6B6B), size: 16),
+                    child: const Icon(
+                      Icons.remove,
+                      color: Color(0xFFFF6B6B),
+                      size: 16,
+                    ),
                   ),
                 ),
               ),
@@ -1205,7 +1295,9 @@ class DashboardPageState extends State<DashboardPage>
         },
         onLongPressMoveUpdate: (d) => _updateDrag(d.globalPosition),
         onLongPressEnd: (d) => _endDrag(d.globalPosition),
-        onPanStart: _wiggling ? (d) => _beginDrag(key, d.globalPosition, tile) : null,
+        onPanStart: _wiggling
+            ? (d) => _beginDrag(key, d.globalPosition, tile)
+            : null,
         onPanUpdate: _wiggling ? (d) => _updateDrag(d.globalPosition) : null,
         onPanEnd: _wiggling ? (d) => _endDrag(_lastDragPos) : null,
         child: _buildTileChild(key, tile),
@@ -1217,7 +1309,6 @@ class DashboardPageState extends State<DashboardPage>
     final decorated = _buildRemovableTile(key, child);
     return _wiggleWrap(decorated);
   }
-
 
   Future<void> _loadInitialData() async {
     await Future.wait([
@@ -1300,10 +1391,13 @@ class DashboardPageState extends State<DashboardPage>
       return;
     }
     try {
-      final statusUrl = Uri.parse("${ApiConfig.baseUrl}/fitbit/status?user_id=$userId");
+      final statusUrl = Uri.parse(
+        "${ApiConfig.baseUrl}/fitbit/status?user_id=$userId",
+      );
       final headers = await AccountStorage.getAuthHeaders();
-      final statusRes =
-          await http.get(statusUrl, headers: headers).timeout(const Duration(seconds: 12));
+      final statusRes = await http
+          .get(statusUrl, headers: headers)
+          .timeout(const Duration(seconds: 12));
       if (!mounted) return;
       if (statusRes.statusCode != 200) {
         if (_fitbitLinkedHint == true) return;
@@ -1344,7 +1438,11 @@ class DashboardPageState extends State<DashboardPage>
 
   bool _complianceCompleted(dynamic compliance) {
     // Deprecated overload kept for back-compat; defaults to selected week.
-    final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final anchor = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
     final weekStart = _weekStartMonday(anchor);
     final weekEnd = weekStart.add(const Duration(days: 6));
     return _complianceCompletedForWeek(compliance, weekStart, weekEnd);
@@ -1362,7 +1460,8 @@ class DashboardPageState extends State<DashboardPage>
     }
     if (value is String && value.trim().isNotEmpty) {
       final parsed = DateTime.tryParse(value);
-      if (parsed != null) return DateTime(parsed.year, parsed.month, parsed.day);
+      if (parsed != null)
+        return DateTime(parsed.year, parsed.month, parsed.day);
     }
     if (value is num) {
       final intVal = value.toInt();
@@ -1449,13 +1548,18 @@ class DashboardPageState extends State<DashboardPage>
     DateTime weekStart,
     DateTime weekEnd,
   ) {
-    if (_complianceCompletedForWeek(ex['program_compliance'], weekStart, weekEnd) ||
+    if (_complianceCompletedForWeek(
+          ex['program_compliance'],
+          weekStart,
+          weekEnd,
+        ) ||
         _complianceCompletedForWeek(ex['compliance'], weekStart, weekEnd)) {
       return true;
     }
 
     final completionDate = _exerciseCompletionDate(ex);
-    if (completionDate != null && !_isInWeek(completionDate, weekStart, weekEnd)) {
+    if (completionDate != null &&
+        !_isInWeek(completionDate, weekStart, weekEnd)) {
       return false;
     }
 
@@ -1479,7 +1583,11 @@ class DashboardPageState extends State<DashboardPage>
     DateTime weekStart,
     DateTime weekEnd,
   ) {
-    if (_complianceCompletedForWeek(day['program_compliance'], weekStart, weekEnd) ||
+    if (_complianceCompletedForWeek(
+          day['program_compliance'],
+          weekStart,
+          weekEnd,
+        ) ||
         _complianceCompletedForWeek(day['compliance'], weekStart, weekEnd)) {
       return true;
     }
@@ -1505,7 +1613,8 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   String _dayLabelFor(Map<String, dynamic> day, int index) {
-    final raw = day['day_label'] ??
+    final raw =
+        day['day_label'] ??
         day['day_name'] ??
         day['label'] ??
         day['name'] ??
@@ -1543,10 +1652,7 @@ class DashboardPageState extends State<DashboardPage>
     return _NextTrainingDayResult(allDone: hasTrainingDay);
   }
 
-  int? _findTrainingDayIdForDate(
-    Map<String, dynamic> program,
-    DateTime date,
-  ) {
+  int? _findTrainingDayIdForDate(Map<String, dynamic> program, DateTime date) {
     final days = program['days'];
     if (days is! List || days.isEmpty) return null;
     final target = DateTime(date.year, date.month, date.day);
@@ -1609,7 +1715,13 @@ class DashboardPageState extends State<DashboardPage>
 
   DateTime? _parseDayDate(dynamic day) {
     if (day is Map) {
-      for (final key in ['date', 'day_date', 'scheduled_date', 'training_date', 'day']) {
+      for (final key in [
+        'date',
+        'day_date',
+        'scheduled_date',
+        'training_date',
+        'day',
+      ]) {
         final val = day[key];
         if (val is String && val.trim().isNotEmpty) {
           final parsed = DateTime.tryParse(val);
@@ -1655,7 +1767,11 @@ class DashboardPageState extends State<DashboardPage>
         return;
       }
 
-      final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+      final anchor = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+      );
       final weekStart = _weekStartMonday(anchor);
       final weekEnd = weekStart.add(const Duration(days: 6));
       final today = DateTime.now();
@@ -1674,10 +1790,12 @@ class DashboardPageState extends State<DashboardPage>
         final local = isCurrentDay
             ? await TrainingProgressStorage.getProgressForWeek(anchor)
             : null;
-        final int? overrideCompleted =
-            (local != null && local.completed > done) ? local.completed : null;
-        final int? overrideTotal =
-            (local != null && local.total > 0) ? local.total : null;
+        final int? overrideCompleted = (local != null && local.completed > done)
+            ? local.completed
+            : null;
+        final int? overrideTotal = (local != null && local.total > 0)
+            ? local.total
+            : null;
         debugPrint(
           "Training progress db: user=$userId start=${weekStart.toIso8601String().split('T').first} "
           "end=${weekEnd.toIso8601String().split('T').first} completed=$done total=$total",
@@ -1725,14 +1843,17 @@ class DashboardPageState extends State<DashboardPage>
       if (local != null) {
         if (!mounted) return;
         setState(() {
-          _exerciseTotal = (local.total > 0 ? local.total : (totalFromProgram ?? 0));
+          _exerciseTotal = (local.total > 0
+              ? local.total
+              : (totalFromProgram ?? 0));
           _exerciseCompleted = local.completed;
           _exerciseLoadedOnce = true;
           _exerciseProgramMode = "local";
         });
         if (isCurrentDay) {
-          _cachedTodayExerciseTotal =
-              (local.total > 0 ? local.total : (totalFromProgram ?? 0));
+          _cachedTodayExerciseTotal = (local.total > 0
+              ? local.total
+              : (totalFromProgram ?? 0));
           _cachedTodayExerciseCompleted = local.completed;
           _cachedTodayProgramMode = "local";
           _cachedTodayLoadedOnce = true;
@@ -1793,7 +1914,11 @@ class DashboardPageState extends State<DashboardPage>
     required bool allowNetwork,
   }) async {
     final today = DateTime.now();
-    final selectedDayOnly = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+    final selectedDayOnly = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+    );
     final todayOnly = DateTime(today.year, today.month, today.day);
     final isCurrentDay = selectedDayOnly == todayOnly;
     try {
@@ -1855,7 +1980,8 @@ class DashboardPageState extends State<DashboardPage>
           _cachedTodayExerciseCompleted = localProgress.completed;
           _cachedTodayExerciseTotal = localProgress.total;
         }
-        _cachedTodayLoadedOnce = _cachedTodayLoadedOnce || localProgress != null;
+        _cachedTodayLoadedOnce =
+            _cachedTodayLoadedOnce || localProgress != null;
       }
     } catch (_) {
       if (!mounted) return;
@@ -1906,7 +2032,10 @@ class DashboardPageState extends State<DashboardPage>
       } else {
         final userId = await AccountStorage.getUserId();
         if (userId != null) {
-          final entry = await DailyMetricsApi.fetchForDate(userId, _selectedDate);
+          final entry = await DailyMetricsApi.fetchForDate(
+            userId,
+            _selectedDate,
+          );
           steps = entry?.steps;
           if (steps == null) {
             steps = await StepsService().fetchStepsForDay(_selectedDate);
@@ -1953,7 +2082,10 @@ class DashboardPageState extends State<DashboardPage>
       } else {
         final userId = await AccountStorage.getUserId();
         if (userId != null) {
-          final entry = await DailyMetricsApi.fetchForDate(userId, _selectedDate);
+          final entry = await DailyMetricsApi.fetchForDate(
+            userId,
+            _selectedDate,
+          );
           hours = entry?.sleepHours;
           if (hours == null) {
             hours = await SleepService().fetchSleepForDay(_selectedDate);
@@ -1979,6 +2111,9 @@ class DashboardPageState extends State<DashboardPage>
         _sleepHours = hours;
         _sleepDelta = delta;
       });
+      if (hours != null) {
+        _tryUpdateTrendSleepForDate(_selectedDate, hours);
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() => _sleepHours = null);
@@ -2000,7 +2135,10 @@ class DashboardPageState extends State<DashboardPage>
       } else {
         final userId = await AccountStorage.getUserId();
         if (userId != null) {
-          final entry = await DailyMetricsApi.fetchForDate(userId, _selectedDate);
+          final entry = await DailyMetricsApi.fetchForDate(
+            userId,
+            _selectedDate,
+          );
           kcal = entry?.calories;
           if (kcal == null) {
             kcal = await CaloriesService().fetchCaloriesForDay(_selectedDate);
@@ -2026,6 +2164,9 @@ class DashboardPageState extends State<DashboardPage>
         _todayCalories = kcal;
         _caloriesDelta = delta;
       });
+      if (kcal != null) {
+        _tryUpdateTrendCaloriesForDate(_selectedDate, kcal.toDouble());
+      }
       // Submit burn for this date whenever we have a value (no run limit). When user
       // lowers calories burned, backend reduces surplus and targets for that date.
       if (kcal != null) {
@@ -2069,7 +2210,10 @@ class DashboardPageState extends State<DashboardPage>
       } else {
         final userId = await AccountStorage.getUserId();
         if (userId != null) {
-          final entry = await DailyMetricsApi.fetchForDate(userId, _selectedDate);
+          final entry = await DailyMetricsApi.fetchForDate(
+            userId,
+            _selectedDate,
+          );
           intake = entry?.waterLiters;
           if (intake == null) {
             intake = await service.getIntakeForDay(_selectedDate);
@@ -2138,7 +2282,9 @@ class DashboardPageState extends State<DashboardPage>
       _applyDietSummary(summary);
     } catch (e) {
       if (_isOfflineError(e)) {
-        final cached = await DietDaySummaryStorage.loadSummaryForDate(_selectedDate);
+        final cached = await DietDaySummaryStorage.loadSummaryForDate(
+          _selectedDate,
+        );
         if (!mounted) return;
         if (cached != null) {
           _applyDietSummary(cached);
@@ -2157,7 +2303,9 @@ class DashboardPageState extends State<DashboardPage>
 
   void _applyDietSummary(Map<String, dynamic> summary) {
     final liveRaw = summary["live"];
-    Map<String, dynamic>? live = liveRaw is Map ? liveRaw.cast<String, dynamic>() : null;
+    Map<String, dynamic>? live = liveRaw is Map
+        ? liveRaw.cast<String, dynamic>()
+        : null;
     if (live == null) {
       if (summary["target"] is Map ||
           summary["consumed"] is Map ||
@@ -2192,8 +2340,11 @@ class DashboardPageState extends State<DashboardPage>
     });
     final today = DateTime.now();
     final todayOnly = DateTime(today.year, today.month, today.day);
-    final selectedOnly =
-        DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final selectedOnly = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
     if (selectedOnly == todayOnly) {
       _cachedTodayDietConsumedCalories = consumedCal;
       _cachedTodayDietTargetCalories = targetCal;
@@ -2247,7 +2398,9 @@ class DashboardPageState extends State<DashboardPage>
       scoreNode is Map<String, dynamic> ? scoreNode["sleep_score"] : null,
       scoreNode is Map<String, dynamic> ? scoreNode["score"] : null,
       scoreNode is Map<String, dynamic> ? scoreNode["value"] : null,
-      scoreNode is Map<String, dynamic> ? scoreNode["sleep_score_percent"] : null,
+      scoreNode is Map<String, dynamic>
+          ? scoreNode["sleep_score_percent"]
+          : null,
       sleep["sleep_score"],
       sleep["score"],
       sleep["value"],
@@ -2370,7 +2523,9 @@ class DashboardPageState extends State<DashboardPage>
     }
     setState(() => _whoopLoading = true);
     try {
-      final snapshot = await WhoopWidgetDataService().fetchForDate(_selectedDate);
+      final snapshot = await WhoopWidgetDataService().fetchForDate(
+        _selectedDate,
+      );
       if (requestId != _whoopReqId) return;
 
       if (!mounted) return;
@@ -2391,10 +2546,13 @@ class DashboardPageState extends State<DashboardPage>
           _whoopCycleStrainLast = snapshot.cycleStrain;
         }
       });
+      final didUpdateTrend =
+          snapshot.sleepHours != null &&
+          _tryUpdateTrendSleepForDate(_selectedDate, snapshot.sleepHours!);
       AccountStorage.setWhoopLinked(snapshot.linked);
       _pruneDeviceWidgets();
-      if (!_trendSleepLoading) {
-        _loadTrendSleep();
+      if (!didUpdateTrend && snapshot.sleepHours != null && !_trendSleepLoading) {
+        _loadTrendSleep(force: true);
       }
     } catch (_) {
       if (!mounted) return;
@@ -2407,7 +2565,6 @@ class DashboardPageState extends State<DashboardPage>
       });
     }
   }
-
 
   Future<void> _loadFitbitActivity({int attempt = 0}) async {
     if (_fitbitActivityLoading) return;
@@ -2557,6 +2714,12 @@ class DashboardPageState extends State<DashboardPage>
         _fitbitSleepLast = summary;
         _fitbitSleepLoading = false;
       });
+      if (summary?.totalMinutesAsleep != null) {
+        _tryUpdateTrendSleepForDate(
+          _selectedDate,
+          summary!.totalMinutesAsleep! / 60.0,
+        );
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -2577,7 +2740,11 @@ class DashboardPageState extends State<DashboardPage>
     if (!mounted) return;
     final today = DateTime.now();
     final todayOnly = DateTime(today.year, today.month, today.day);
-    final selectedDay = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final selectedDay = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
     final isToday = selectedDay == todayOnly;
     if (userId == null || userId == 0) {
       if (attempt < 2) {
@@ -2641,13 +2808,21 @@ class DashboardPageState extends State<DashboardPage>
         if (!mounted) return;
         setState(() {
           _fitbitActivity = bundle?.activity;
-          _fitbitActivityLast = isToday ? (bundle?.activity ?? _fitbitActivityLast) : null;
+          _fitbitActivityLast = isToday
+              ? (bundle?.activity ?? _fitbitActivityLast)
+              : null;
           _fitbitHeart = bundle?.heart;
-          _fitbitHeartLast = isToday ? (bundle?.heart ?? _fitbitHeartLast) : null;
+          _fitbitHeartLast = isToday
+              ? (bundle?.heart ?? _fitbitHeartLast)
+              : null;
           _fitbitSleep = bundle?.sleep;
-          _fitbitSleepLast = isToday ? (bundle?.sleep ?? _fitbitSleepLast) : null;
+          _fitbitSleepLast = isToday
+              ? (bundle?.sleep ?? _fitbitSleepLast)
+              : null;
           _fitbitVitals = bundle?.vitals;
-          _fitbitVitalsLast = isToday ? (bundle?.vitals ?? _fitbitVitalsLast) : null;
+          _fitbitVitalsLast = isToday
+              ? (bundle?.vitals ?? _fitbitVitalsLast)
+              : null;
           _fitbitBody = bundle?.body;
           _fitbitBodyLast = isToday ? (bundle?.body ?? _fitbitBodyLast) : null;
           _fitbitActivityLoading = false;
@@ -2656,6 +2831,12 @@ class DashboardPageState extends State<DashboardPage>
           _fitbitVitalsLoading = false;
           _fitbitBodyLoading = false;
         });
+        if (bundle?.sleep?.totalMinutesAsleep != null) {
+          _tryUpdateTrendSleepForDate(
+            _selectedDate,
+            bundle!.sleep!.totalMinutesAsleep! / 60.0,
+          );
+        }
       } catch (_) {
         if (!mounted) return;
         setState(() {
@@ -2862,7 +3043,11 @@ class DashboardPageState extends State<DashboardPage>
       _weeklyStepsLoading = true;
     });
     try {
-      final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+      final anchor = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+      );
       final monday = anchor.subtract(Duration(days: anchor.weekday - 1));
       final today = DateTime.now();
       final todayOnly = DateTime(today.year, today.month, today.day);
@@ -2878,9 +3063,15 @@ class DashboardPageState extends State<DashboardPage>
       final metrics = await _fetchMetricsRange(monday, end);
       int total = 0;
       if (metrics.isNotEmpty) {
-        total = metrics.values.fold<int>(0, (sum, entry) => sum + (entry?.steps ?? 0));
+        total = metrics.values.fold<int>(
+          0,
+          (sum, entry) => sum + (entry?.steps ?? 0),
+        );
       } else {
-        final data = await StepsService().fetchDailySteps(start: monday, end: end);
+        final data = await StepsService().fetchDailySteps(
+          start: monday,
+          end: end,
+        );
         total = data.values.fold<int>(0, (sum, val) => sum + val);
       }
       final daysCount = end.difference(monday).inDays + 1;
@@ -2902,23 +3093,44 @@ class DashboardPageState extends State<DashboardPage>
     }
   }
 
-  Future<void> _loadTrendSleep() async {
-    setState(() => _trendSleepLoading = true);
+  DateTime _trendWeekStartFor(DateTime anchor) {
+    final day = DateTime(anchor.year, anchor.month, anchor.day);
+    return day.subtract(Duration(days: day.weekday - 1));
+  }
+
+  Future<void> _loadTrendSleep({bool force = false}) async {
     try {
-      final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-      final start = anchor.subtract(const Duration(days: 6));
+      final anchor = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+      );
+      final start = _trendWeekStartFor(anchor);
+      final end = start.add(const Duration(days: 6)); // Mon-Sun
+      if (!force &&
+          _trendSleep.isNotEmpty &&
+          _trendWeekStart != null &&
+          _trendWeekStart == start) {
+        return;
+      }
+      if (mounted) setState(() => _trendSleepLoading = true);
       final now = DateTime.now();
       final todayKey = DateTime(now.year, now.month, now.day);
       final dayKeys = List.generate(7, (i) {
-        final d = DateTime(anchor.year, anchor.month, anchor.day)
-            .subtract(Duration(days: 6 - i));
+        final d = DateTime(
+          start.year,
+          start.month,
+          start.day,
+        ).add(Duration(days: i));
         return DateTime(d.year, d.month, d.day);
       });
       final sleepToday = await SleepService().fetchSleepHoursLast24h();
       List<double> days = const [];
       if (_hasWhoopSleepWidget && _whoopLinked) {
-        final data =
-            await WhoopSleepService().fetchDailySleepFromDb(start: start, end: anchor);
+        final data = await WhoopSleepService().fetchDailySleepFromDb(
+          start: start,
+          end: end,
+        );
         days = dayKeys.map((key) {
           if (key == todayKey) return sleepToday;
           return data[key] ?? 0.0;
@@ -2928,7 +3140,7 @@ class DashboardPageState extends State<DashboardPage>
         if (_hasFitbitSleepWidget && _fitbitLinked) {
           final data = await FitbitDailyMetricsDbService().fetchRange(
             start: start,
-            end: anchor,
+            end: end,
           );
           if (data.isNotEmpty) {
             int? _int(dynamic v) {
@@ -2953,7 +3165,7 @@ class DashboardPageState extends State<DashboardPage>
         }
 
         if (!usedFitbit) {
-          final metrics = await _fetchMetricsRange(start, anchor);
+          final metrics = await _fetchMetricsRange(start, end);
           if (metrics.isNotEmpty) {
             days = dayKeys.map((key) {
               if (key == todayKey) return sleepToday;
@@ -2970,7 +3182,10 @@ class DashboardPageState extends State<DashboardPage>
       }
       final hasData = days.any((v) => v > 0);
       if (!mounted) return;
-      setState(() => _trendSleep = hasData ? days : const []);
+      setState(() {
+        _trendWeekStart = start;
+        _trendSleep = hasData ? days : const [];
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() => _trendSleep = const []);
@@ -2979,25 +3194,44 @@ class DashboardPageState extends State<DashboardPage>
     }
   }
 
-  Future<void> _loadTrendCalories() async {
+  Future<void> _loadTrendCalories({bool force = false}) async {
     final reqId = ++_trendCaloriesReqId;
     if (mounted) {
       setState(() => _trendCaloriesLoading = true);
     }
     try {
-      final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-      final start = anchor.subtract(const Duration(days: 6));
+      final anchor = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+      );
+      final start = _trendWeekStartFor(anchor);
+      final end = start.add(const Duration(days: 6)); // Mon-Sun
+      if (!force &&
+          _trendCalories.isNotEmpty &&
+          _trendWeekStart != null &&
+          _trendWeekStart == start) {
+        if (mounted && reqId == _trendCaloriesReqId) {
+          setState(() => _trendCaloriesLoading = false);
+        }
+        return;
+      }
       final dayKeys = List.generate(7, (i) {
-        final d = DateTime(anchor.year, anchor.month, anchor.day)
-            .subtract(Duration(days: 6 - i));
+        final d = DateTime(
+          start.year,
+          start.month,
+          start.day,
+        ).add(Duration(days: i));
         return DateTime(d.year, d.month, d.day);
       });
-        final metrics = await _fetchMetricsRange(start, anchor);
+      final metrics = await _fetchMetricsRange(start, end);
       List<double> days;
       if (metrics.isNotEmpty) {
-        final needsLocal = dayKeys.any((key) => (metrics[key]?.calories ?? 0) <= 0);
+        final needsLocal = dayKeys.any(
+          (key) => (metrics[key]?.calories ?? 0) <= 0,
+        );
         final local = needsLocal
-            ? await CaloriesService().fetchDailyCalories(start: start, end: anchor)
+            ? await CaloriesService().fetchDailyCalories(start: start, end: end)
             : <DateTime, int>{};
         days = List.generate(7, (i) {
           final key = dayKeys[i];
@@ -3007,14 +3241,19 @@ class DashboardPageState extends State<DashboardPage>
           return (local[key] ?? 0).toDouble();
         });
       } else {
-        final data =
-            await CaloriesService().fetchDailyCalories(start: start, end: anchor);
+        final data = await CaloriesService().fetchDailyCalories(
+          start: start,
+          end: end,
+        );
         days = dayKeys.map((key) => (data[key] ?? 0).toDouble()).toList();
       }
       final hasData = days.any((v) => v > 0);
       if (!mounted) return;
       if (reqId != _trendCaloriesReqId) return;
-      setState(() => _trendCalories = hasData ? days : const []);
+      setState(() {
+        _trendWeekStart = start;
+        _trendCalories = hasData ? days : const [];
+      });
     } catch (_) {
       if (!mounted) return;
       if (reqId != _trendCaloriesReqId) return;
@@ -3138,8 +3377,8 @@ class DashboardPageState extends State<DashboardPage>
     final storedAvatarRaw = await AccountStorage.getAvatarUrl();
     final storedAvatar =
         (storedAvatarRaw != null && storedAvatarRaw.trim().isNotEmpty)
-            ? storedAvatarRaw
-            : null;
+        ? storedAvatarRaw
+        : null;
     final storedAvatarPath = await AccountStorage.getAvatarPath();
     final storedName = await AccountStorage.getName();
     final userId = await AccountStorage.getUserId();
@@ -3219,7 +3458,9 @@ class DashboardPageState extends State<DashboardPage>
 
   Future<void> _loadBodyMeasurements() async {
     final userId = await AccountStorage.getUserId();
-    final key = userId == null ? "body_measurements" : "body_measurements_u$userId";
+    final key = userId == null
+        ? "body_measurements"
+        : "body_measurements_u$userId";
     final sp = await SharedPreferences.getInstance();
     final raw = sp.getString(key);
     if (raw == null || raw.trim().isEmpty) return;
@@ -3278,9 +3519,9 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   void _openAnnouncements() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => AnnouncementsPage(items: _news)),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => AnnouncementsPage(items: _news)));
   }
 
   Widget _buildAvatar() {
@@ -3292,7 +3533,8 @@ class DashboardPageState extends State<DashboardPage>
           file,
           fit: BoxFit.cover,
           alignment: Alignment.center,
-          errorBuilder: (_, __, ___) => const Icon(Icons.person, color: Colors.white),
+          errorBuilder: (_, __, ___) =>
+              const Icon(Icons.person, color: Colors.white),
         );
       }
     }
@@ -3302,7 +3544,8 @@ class DashboardPageState extends State<DashboardPage>
         _avatarUrl!,
         fit: BoxFit.cover,
         alignment: Alignment.center,
-        errorBuilder: (_, __, ___) => const Icon(Icons.person, color: Colors.white),
+        errorBuilder: (_, __, ___) =>
+            const Icon(Icons.person, color: Colors.white),
       );
     }
 
@@ -3325,22 +3568,25 @@ class DashboardPageState extends State<DashboardPage>
             ),
           ]
         : _news
-            .map(
-              (n) => NewsSlide(
-                title: n.title,
-                subtitle: n.subtitle,
-                tag: n.tag,
-                color: _colorForTag(n.tag),
-                onTap: _openAnnouncements,
-              ),
-            )
-            .toList();
+              .map(
+                (n) => NewsSlide(
+                  title: n.title,
+                  subtitle: n.subtitle,
+                  tag: n.tag,
+                  color: _colorForTag(n.tag),
+                  onTap: _openAnnouncements,
+                ),
+              )
+              .toList();
 
-    final averageSleep = _sleepHours ??
+    final averageSleep =
+        _sleepHours ??
         (_mockSleepHours.isEmpty
             ? 0
             : _mockSleepHours.reduce((a, b) => a + b) / _mockSleepHours.length);
-    final weeklySteps = _weeklySteps ?? (_mockSteps.isEmpty ? 0 : _mockSteps.reduce((a, b) => a + b));
+    final weeklySteps =
+        _weeklySteps ??
+        (_mockSteps.isEmpty ? 0 : _mockSteps.reduce((a, b) => a + b));
     final todaysStepsDisplay = _todaySteps ?? 0;
     final todaysCaloriesDisplay = _todayCalories ?? 0;
     final waterGoal = _waterGoal ?? 2.5;
@@ -3349,21 +3595,32 @@ class DashboardPageState extends State<DashboardPage>
     final weeklyProgress = weeklyStepGoalTotal == 0
         ? 0.0
         : (weeklySteps / weeklyStepGoalTotal).clamp(0.0, 2.0);
-    final metricsLoading = _stepsLoading || _sleepLoading || _caloriesLoading || _waterLoading;
-    final noEntriesForSelectedDate = !_isToday() &&
+    final metricsLoading =
+        _stepsLoading || _sleepLoading || _caloriesLoading || _waterLoading;
+    final noEntriesForSelectedDate =
+        !_isToday() &&
         !metricsLoading &&
         _todaySteps == null &&
         _sleepHours == null &&
         _todayCalories == null &&
         _waterIntake == null;
-    final todayOnly = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
-    final selectedDayOnly = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-    final isYesterday = selectedDayOnly == todayOnly.subtract(const Duration(days: 1));
+    final todayOnly = DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+    );
+    final selectedDayOnly = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
+    final isYesterday =
+        selectedDayOnly == todayOnly.subtract(const Duration(days: 1));
     final relativeDateLabel = _isToday()
         ? t("date_today")
         : isYesterday
-            ? t("date_yesterday")
-            : DateFormat('MMM d, y', locale).format(_selectedDate);
+        ? t("date_yesterday")
+        : DateFormat('MMM d, y', locale).format(_selectedDate);
     final bool isCurrentDay = _isToday();
     final bool showTrainingSub = isCurrentDay && !_exerciseLoading;
 
@@ -3379,9 +3636,9 @@ class DashboardPageState extends State<DashboardPage>
                 children: [
                   Text(
                     t("dash_welcome_back"),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.white70,
-                        ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -3389,9 +3646,9 @@ class DashboardPageState extends State<DashboardPage>
                         ? t("dash_dashboard")
                         : t("dash_hi_name").replaceAll("{name}", _displayName!),
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                        ),
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -3401,9 +3658,9 @@ class DashboardPageState extends State<DashboardPage>
                       _streakLoading
                           ? "Streak: …"
                           : "Streak: ${(_streakCount ?? 0)}${(_streakCount ?? 0) > 0 ? " 🔥" : ""}",
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.white70,
-                          ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: Colors.white70),
                     ),
                   ],
                 ],
@@ -3414,7 +3671,8 @@ class DashboardPageState extends State<DashboardPage>
               width: 44,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: (_avatarUrl == null || _avatarUrl!.isEmpty) &&
+                gradient:
+                    (_avatarUrl == null || _avatarUrl!.isEmpty) &&
                         (_avatarPath == null || _avatarPath!.isEmpty)
                     ? const LinearGradient(
                         colors: [Color(0xFF35B6FF), AppColors.accent],
@@ -3425,9 +3683,7 @@ class DashboardPageState extends State<DashboardPage>
                   width: 1,
                 ),
               ),
-              child: ClipOval(
-                child: _buildAvatar(),
-              ),
+              child: ClipOval(child: _buildAvatar()),
             ),
           ],
         ),
@@ -3472,8 +3728,10 @@ class DashboardPageState extends State<DashboardPage>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(t("dash_news_tag"),
-                      style: const TextStyle(color: Colors.white)),
+                  Text(
+                    t("dash_news_tag"),
+                    style: const TextStyle(color: Colors.white),
+                  ),
                   const SizedBox(height: 6),
                   Text(
                     _error!,
@@ -3510,12 +3768,13 @@ class DashboardPageState extends State<DashboardPage>
                       CircularProgressIndicator(
                         value: (_exerciseTotal != null && _exerciseTotal != 0)
                             ? ((_exerciseCompleted ?? 0) /
-                                    (_exerciseTotal!.toDouble()))
-                                .clamp(0.0, 1.0)
+                                      (_exerciseTotal!.toDouble()))
+                                  .clamp(0.0, 1.0)
                             : 0.0,
                         strokeWidth: 8,
-                        valueColor:
-                            const AlwaysStoppedAnimation(AppColors.accent),
+                        valueColor: const AlwaysStoppedAnimation(
+                          AppColors.accent,
+                        ),
                         backgroundColor: Colors.transparent,
                       ),
                       Center(
@@ -3546,7 +3805,9 @@ class DashboardPageState extends State<DashboardPage>
                                         ? "—"
                                         : "/ ${_exerciseTotal.toString()}",
                                     style: const TextStyle(
-                                        color: Colors.white70, fontSize: 12),
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -3561,11 +3822,10 @@ class DashboardPageState extends State<DashboardPage>
                     children: [
                       Text(
                         "Training progress",
-                        style:
-                            Theme.of(context).textTheme.titleSmall?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 6),
                       if (showTrainingSub)
@@ -3575,17 +3835,22 @@ class DashboardPageState extends State<DashboardPage>
                                   !_nextTrainingDayAllDone)
                               ? t("dash_exercise_unavailable")
                               : _nextTrainingDayAllDone
-                                  ? "Done for the week"
-                                  : "Next up: ${(_nextTrainingDayLabel ?? "…")}",
+                              ? "Done for the week"
+                              : "Next up: ${(_nextTrainingDayLabel ?? "…")}",
                           style: const TextStyle(
-                              color: Colors.white70, fontSize: 13),
+                            color: Colors.white70,
+                            fontSize: 13,
+                          ),
                         ),
                       if (_exerciseProgramMode == "old")
                         const Padding(
                           padding: EdgeInsets.only(top: 4),
                           child: Text(
                             "Old program",
-                            style: TextStyle(color: Colors.white54, fontSize: 11),
+                            style: TextStyle(
+                              color: Colors.white54,
+                              fontSize: 11,
+                            ),
                           ),
                         ),
                     ],
@@ -3618,10 +3883,9 @@ class DashboardPageState extends State<DashboardPage>
                   case 'steps':
                     return StatCard(
                       title: t("dash_today_steps"),
-                      value:
-                          (_stepsLoading && _todaySteps == null)
-                              ? "…"
-                              : "${todaysStepsDisplay.toString()}",
+                      value: (_stepsLoading && _todaySteps == null)
+                          ? "…"
+                          : "${todaysStepsDisplay.toString()}",
                       subtitle:
                           "${t("dash_goal")} ${(_stepsGoal ?? 10000).toString()}",
                       icon: Icons.directions_walk,
@@ -4008,8 +4272,7 @@ class DashboardPageState extends State<DashboardPage>
                             cycleStrain:
                                 _whoopCycleStrainLast ?? _whoopCycleStrain,
                             hideSleep: _statOrder.contains('whoop_sleep'),
-                            hideRecovery:
-                                _statOrder.contains('whoop_recovery'),
+                            hideRecovery: _statOrder.contains('whoop_recovery'),
                             hideCycle: _statOrder.contains('whoop_cycle'),
                             hideBody: _statOrder.contains('whoop_body'),
                           ),
@@ -4046,8 +4309,9 @@ class DashboardPageState extends State<DashboardPage>
                               sleep: _fitbitSleep,
                               sleepLast: _fitbitSleepLast,
                               date: _selectedDate,
-                              hideActivity:
-                                  _statOrder.contains('fitbit_activity'),
+                              hideActivity: _statOrder.contains(
+                                'fitbit_activity',
+                              ),
                               hideHeart: _statOrder.contains('fitbit_heart'),
                               hideSleep: _statOrder.contains('fitbit_sleep'),
                               hideVitals: _statOrder.contains('fitbit_vitals'),
@@ -4079,9 +4343,9 @@ class DashboardPageState extends State<DashboardPage>
                 Text(
                   t("dash_7day_trends"),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -4093,6 +4357,7 @@ class DashboardPageState extends State<DashboardPage>
                         loading: _trendSleepLoading,
                         accentColor: const Color(0xFF9B8CFF),
                         emptyLabel: t("dash_no_sleep_data"),
+                        onTap: isCurrentDay ? _handleTrendSleepTap : null,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -4103,6 +4368,7 @@ class DashboardPageState extends State<DashboardPage>
                         loading: _trendCaloriesLoading,
                         accentColor: const Color(0xFFFF8A00),
                         emptyLabel: t("dash_no_calories_data"),
+                        onTap: isCurrentDay ? _handleTrendCaloriesTap : null,
                       ),
                     ),
                   ],
@@ -4129,7 +4395,6 @@ class DashboardPageState extends State<DashboardPage>
         ],
       ],
     );
-  
 
     return SafeArea(
       child: RefreshIndicator(
@@ -4165,7 +4430,10 @@ class DashboardPageState extends State<DashboardPage>
                       child: GestureDetector(
                         onTap: _openDateSheet,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.accent.withValues(alpha: 0.16),
                             borderRadius: BorderRadius.circular(28),
@@ -4183,8 +4451,11 @@ class DashboardPageState extends State<DashboardPage>
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.calendar_today,
-                                  size: 16, color: Colors.white),
+                              const Icon(
+                                Icons.calendar_today,
+                                size: 16,
+                                color: Colors.white,
+                              ),
                               const SizedBox(width: 8),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -4192,8 +4463,10 @@ class DashboardPageState extends State<DashboardPage>
                                   Text(
                                     isCurrentDay
                                         ? t("date_today")
-                                        : DateFormat('EEE', locale)
-                                            .format(_selectedDate),
+                                        : DateFormat(
+                                            'EEE',
+                                            locale,
+                                          ).format(_selectedDate),
                                     style: Theme.of(context)
                                         .textTheme
                                         .labelLarge
@@ -4203,8 +4476,10 @@ class DashboardPageState extends State<DashboardPage>
                                         ),
                                   ),
                                   Text(
-                                    DateFormat('MMM d, y', locale)
-                                        .format(_selectedDate),
+                                    DateFormat(
+                                      'MMM d, y',
+                                      locale,
+                                    ).format(_selectedDate),
                                     style: Theme.of(context)
                                         .textTheme
                                         .labelSmall
@@ -4260,10 +4535,7 @@ class _PlaceholderMetricCard extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
-                  colors: [
-                    accentColor,
-                    accentColor.withOpacity(0.65),
-                  ],
+                  colors: [accentColor, accentColor.withOpacity(0.65)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -4278,17 +4550,14 @@ class _PlaceholderMetricCard extends StatelessWidget {
                   Text(
                     title,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                 ],
               ),
@@ -4306,6 +4575,7 @@ class _TrendTile extends StatelessWidget {
   final bool loading;
   final Color accentColor;
   final String emptyLabel;
+  final VoidCallback? onTap;
 
   const _TrendTile({
     required this.title,
@@ -4313,32 +4583,35 @@ class _TrendTile extends StatelessWidget {
     required this.loading,
     required this.accentColor,
     required this.emptyLabel,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    Widget content;
     if (loading) {
-      return const Center(
+      content = const Center(
         child: SizedBox(
           height: 28,
           width: 28,
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
       );
-    }
-    if (data.isEmpty) {
-      return Text(
+    } else if (data.isEmpty) {
+      content = Text(
         emptyLabel,
-        style: Theme.of(context)
-            .textTheme
-            .bodySmall
-            ?.copyWith(color: Colors.white60),
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: Colors.white60),
       );
+    } else {
+      content = BarTrend(title: title, data: data, accentColor: accentColor);
     }
-    return BarTrend(
-      title: title,
-      data: data,
-      accentColor: accentColor,
+    if (onTap == null) return content;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: content,
     );
   }
 }

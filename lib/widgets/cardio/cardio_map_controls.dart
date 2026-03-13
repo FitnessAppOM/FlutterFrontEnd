@@ -124,11 +124,14 @@ class _CardioMapControlsState extends State<CardioMapControls> {
 
   void _handleFinish() {
     if (_countdown != null || _finishing) return;
-    _finishing = true;
-    Future.delayed(const Duration(milliseconds: 500), () {
+    setState(() {
+      _finishing = true;
+      _running = false;
+    });
+    widget.onFinish?.call();
+    Future.delayed(const Duration(milliseconds: 400), () {
       if (!mounted) return;
       _finishing = false;
-      widget.onFinish?.call();
     });
   }
 
