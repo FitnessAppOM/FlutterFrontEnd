@@ -44,7 +44,7 @@ class _NewsCarouselState extends State<NewsCarousel> {
     super.initState();
     _initialPage = _computeInitialPage(widget.slides.length);
     _controller = PageController(
-      viewportFraction: 0.88,
+      viewportFraction: 1.0,
       initialPage: _initialPage,
     );
     _startTimer();
@@ -64,7 +64,7 @@ class _NewsCarouselState extends State<NewsCarousel> {
       _initialPage = _computeInitialPage(widget.slides.length);
       _controller?.dispose();
       _controller = PageController(
-        viewportFraction: 0.88,
+        viewportFraction: 1.0,
         initialPage: _initialPage,
       );
       _index = 0;
@@ -95,7 +95,7 @@ class _NewsCarouselState extends State<NewsCarousel> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          height: 130,
+          height: 140,
           child: PageView.builder(
             controller: _controller,
             itemCount: null, // infinite scroll
@@ -169,7 +169,7 @@ class _SlideCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(18),
                 onTap: slide.onTap,
                 child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                  margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(18),
