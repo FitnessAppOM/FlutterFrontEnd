@@ -75,6 +75,7 @@ import '../../widgets/common/date_header.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../services/training/training_service.dart';
 import '../../services/training/training_progress_storage.dart';
+import '../../services/training/training_calendar_service.dart';
 import '../../widgets/primary_button.dart';
 import '../../screens/whoop_test_page.dart';
 import '../../widgets/release_notes_notice.dart';
@@ -219,8 +220,19 @@ class DashboardPageState extends State<DashboardPage>
   bool _exerciseLoading = false;
   bool _exerciseLoadedOnce = false;
   String? _exerciseProgramMode;
+  int? _cachedTodayExerciseTotal;
+  int? _cachedTodayExerciseCompleted;
+  String? _cachedTodayNextTrainingDayLabel;
+  bool _cachedTodayNextAllDone = false;
+  String? _cachedTodayProgramMode;
+  bool _cachedTodayLoadedOnce = false;
   int? _streakCount;
   bool _streakLoading = false;
+  int? _cachedTodayDietConsumedCalories;
+  int? _cachedTodayDietTargetCalories;
+  String? _cachedTodayDietDayType;
+  bool _cachedTodayDietLoaded = false;
+  int? _cachedTodayTrainingDayId;
   bool _dietProgressLoading = false;
   int? _dietConsumedCalories;
   int? _dietTargetCalories;
@@ -253,22 +265,55 @@ class DashboardPageState extends State<DashboardPage>
     final today = DateTime.now();
     final todayOnly = DateTime(today.year, today.month, today.day);
     if (next.isAfter(todayOnly)) return;
+    final nextIsToday = next == todayOnly;
+    final hasCachedToday = _cachedTodayLoadedOnce &&
+        (_cachedTodayExerciseTotal != null ||
+            _cachedTodayExerciseCompleted != null ||
+            _cachedTodayNextTrainingDayLabel != null ||
+            _cachedTodayNextAllDone);
+    final hasCachedDietToday = _cachedTodayDietLoaded &&
+        (_cachedTodayDietConsumedCalories != null ||
+            _cachedTodayDietTargetCalories != null ||
+            _cachedTodayDietDayType != null);
     setState(() {
       _selectedDate = next;
-      _exerciseLoadedOnce = false;
-      _exerciseTotal = null;
-      _exerciseCompleted = null;
+      if (nextIsToday && hasCachedToday) {
+        _exerciseLoadedOnce = _cachedTodayLoadedOnce;
+        _exerciseTotal = _cachedTodayExerciseTotal;
+        _exerciseCompleted = _cachedTodayExerciseCompleted;
+        _nextTrainingDayLabel = _cachedTodayNextTrainingDayLabel;
+        _nextTrainingDayAllDone = _cachedTodayNextAllDone;
+        _exerciseProgramMode = _cachedTodayProgramMode;
+        _exerciseLoading = false;
+      } else {
+        _exerciseLoadedOnce = false;
+        _exerciseTotal = null;
+        _exerciseCompleted = null;
+        _nextTrainingDayLabel = null;
+        _nextTrainingDayAllDone = false;
+        _exerciseProgramMode = null;
+      }
+      if (nextIsToday && hasCachedDietToday) {
+        _dietConsumedCalories = _cachedTodayDietConsumedCalories;
+        _dietTargetCalories = _cachedTodayDietTargetCalories;
+        _dietDayType = _cachedTodayDietDayType;
+        _dietProgressLoading = false;
+      }
       // Keep existing Fitbit values while new date loads to avoid zero/empty flicker.
     });
     _loadSteps();
     _loadSleep();
     _loadCalories();
     _loadWater();
-    _loadDietProgress();
+    if (!(nextIsToday && hasCachedDietToday)) {
+      _loadDietProgress();
+    }
     _loadWeeklySteps();
     _loadTrendSleep();
     _loadTrendCalories();
-    _loadExerciseProgress();
+    if (!(nextIsToday && hasCachedToday)) {
+      _loadExerciseProgress();
+    }
     _loadWhoopRecovery();
     _loadFitbitSummary();
   }
@@ -1224,12 +1269,9 @@ class DashboardPageState extends State<DashboardPage>
       _loadSleep(),
       _loadCalories(),
       _loadWater(),
-      _loadDietProgress(),
       _loadWeeklySteps(),
       _loadTrendSleep(),
       _loadTrendCalories(),
-      _loadStreak(),
-      _loadExerciseProgress(),
       _loadWhoopRecovery(),
     ]);
     _loadFitbitSummary();
@@ -1501,6 +1543,45 @@ class DashboardPageState extends State<DashboardPage>
     return _NextTrainingDayResult(allDone: hasTrainingDay);
   }
 
+  int? _findTrainingDayIdForDate(
+    Map<String, dynamic> program,
+    DateTime date,
+  ) {
+    final days = program['days'];
+    if (days is! List || days.isEmpty) return null;
+    final target = DateTime(date.year, date.month, date.day);
+    for (final day in days) {
+      if (day is! Map<String, dynamic>) continue;
+      final exercises = day['exercises'];
+      if (exercises is! List || exercises.isEmpty) continue;
+      for (final ex in exercises) {
+        if (ex is! Map<String, dynamic>) continue;
+        final compliance = ex['program_compliance'];
+        DateTime? logged;
+        if (compliance is Map<String, dynamic>) {
+          logged = _parseDateTime(
+            compliance['logged_at'] ??
+                compliance['completed_at'] ??
+                compliance['updated_at'] ??
+                compliance['performed_at'],
+          );
+        }
+        if (logged == null) {
+          logged = _exerciseCompletionDate(ex);
+        }
+        if (logged != null &&
+            logged.year == target.year &&
+            logged.month == target.month &&
+            logged.day == target.day) {
+          final raw = day['day_index'] ?? day['day_id'] ?? day['id'];
+          final parsed = raw is int ? raw : int.tryParse(raw?.toString() ?? '');
+          if (parsed != null && parsed > 0) return parsed;
+        }
+      }
+    }
+    return null;
+  }
+
   _LocalTrainingProgress? _computeLocalTrainingProgress(
     Map<String, dynamic> program,
     DateTime weekStart,
@@ -1577,6 +1658,9 @@ class DashboardPageState extends State<DashboardPage>
       final anchor = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
       final weekStart = _weekStartMonday(anchor);
       final weekEnd = weekStart.add(const Duration(days: 6));
+      final today = DateTime.now();
+      final todayOnly = DateTime(today.year, today.month, today.day);
+      final isCurrentDay = anchor == todayOnly;
 
       try {
         final progress = await TrainingService.fetchTrainingProgress(
@@ -1587,6 +1671,13 @@ class DashboardPageState extends State<DashboardPage>
         final total = (progress["total"] ?? 0) as int;
         final done = (progress["completed"] ?? 0) as int;
         final mode = progress["program_mode"] as String?;
+        final local = isCurrentDay
+            ? await TrainingProgressStorage.getProgressForWeek(anchor)
+            : null;
+        final int? overrideCompleted =
+            (local != null && local.completed > done) ? local.completed : null;
+        final int? overrideTotal =
+            (local != null && local.total > 0) ? local.total : null;
         debugPrint(
           "Training progress db: user=$userId start=${weekStart.toIso8601String().split('T').first} "
           "end=${weekEnd.toIso8601String().split('T').first} completed=$done total=$total",
@@ -1594,13 +1685,20 @@ class DashboardPageState extends State<DashboardPage>
 
         if (!mounted) return;
         setState(() {
-          _exerciseTotal = total;
-          _exerciseCompleted = done;
+          _exerciseTotal = overrideTotal ?? total;
+          _exerciseCompleted = overrideCompleted ?? done;
           _exerciseLoadedOnce = true;
           _exerciseProgramMode = mode;
         });
+        if (isCurrentDay) {
+          _cachedTodayExerciseTotal = overrideTotal ?? total;
+          _cachedTodayExerciseCompleted = overrideCompleted ?? done;
+          _cachedTodayProgramMode = mode;
+          _cachedTodayLoadedOnce = true;
+        }
         await _loadNextTrainingDayLabel(
           userId: userId,
+          selectedDate: anchor,
           weekStart: weekStart,
           weekEnd: weekEnd,
           allowNetwork: true,
@@ -1632,8 +1730,16 @@ class DashboardPageState extends State<DashboardPage>
           _exerciseLoadedOnce = true;
           _exerciseProgramMode = "local";
         });
+        if (isCurrentDay) {
+          _cachedTodayExerciseTotal =
+              (local.total > 0 ? local.total : (totalFromProgram ?? 0));
+          _cachedTodayExerciseCompleted = local.completed;
+          _cachedTodayProgramMode = "local";
+          _cachedTodayLoadedOnce = true;
+        }
         await _loadNextTrainingDayLabel(
           userId: userId,
+          selectedDate: anchor,
           weekStart: weekStart,
           weekEnd: weekEnd,
           allowNetwork: false,
@@ -1648,8 +1754,15 @@ class DashboardPageState extends State<DashboardPage>
         _exerciseLoadedOnce = true;
         _exerciseProgramMode = "local";
       });
+      if (isCurrentDay) {
+        _cachedTodayExerciseTotal = null;
+        _cachedTodayExerciseCompleted = null;
+        _cachedTodayProgramMode = "local";
+        _cachedTodayLoadedOnce = true;
+      }
       await _loadNextTrainingDayLabel(
         userId: userId,
+        selectedDate: anchor,
         weekStart: weekStart,
         weekEnd: weekEnd,
         allowNetwork: false,
@@ -1674,10 +1787,15 @@ class DashboardPageState extends State<DashboardPage>
 
   Future<void> _loadNextTrainingDayLabel({
     required int userId,
+    required DateTime selectedDate,
     required DateTime weekStart,
     required DateTime weekEnd,
     required bool allowNetwork,
   }) async {
+    final today = DateTime.now();
+    final selectedDayOnly = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+    final todayOnly = DateTime(today.year, today.month, today.day);
+    final isCurrentDay = selectedDayOnly == todayOnly;
     try {
       Map<String, dynamic>? program;
       if (allowNetwork) {
@@ -1698,21 +1816,57 @@ class DashboardPageState extends State<DashboardPage>
       final localProgress = program == null
           ? null
           : _computeLocalTrainingProgress(program, weekStart, weekEnd);
+      final int? todaysTrainingDayId = (program != null && isCurrentDay)
+          ? _findTrainingDayIdForDate(program, selectedDate)
+          : null;
       if (!mounted) return;
       setState(() {
         _nextTrainingDayLabel = result.label;
         _nextTrainingDayAllDone = result.allDone;
-        if (localProgress != null) {
+        if (localProgress != null && isCurrentDay) {
           _exerciseCompleted = localProgress.completed;
           _exerciseTotal = localProgress.total;
         }
       });
+      if (isCurrentDay &&
+          todaysTrainingDayId != null &&
+          todaysTrainingDayId > 0 &&
+          todaysTrainingDayId != _cachedTodayTrainingDayId) {
+        _cachedTodayTrainingDayId = todaysTrainingDayId;
+        try {
+          await TrainingCalendarService.setDay(
+            userId: userId,
+            entryDate: selectedDate,
+            dayType: 'training',
+            trainingDayId: todaysTrainingDayId,
+            source: 'dashboard.auto',
+          );
+          if (!_dietProgressLoading) {
+            await _loadDietProgress();
+          }
+        } catch (_) {
+          // Ignore mapping errors; diet may fall back to rest day.
+        }
+      }
+      if (isCurrentDay) {
+        _cachedTodayNextTrainingDayLabel = result.label;
+        _cachedTodayNextAllDone = result.allDone;
+        if (localProgress != null) {
+          _cachedTodayExerciseCompleted = localProgress.completed;
+          _cachedTodayExerciseTotal = localProgress.total;
+        }
+        _cachedTodayLoadedOnce = _cachedTodayLoadedOnce || localProgress != null;
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _nextTrainingDayLabel = null;
         _nextTrainingDayAllDone = false;
       });
+      if (isCurrentDay) {
+        _cachedTodayNextTrainingDayLabel = null;
+        _cachedTodayNextAllDone = false;
+      }
     }
   }
 
@@ -1729,9 +1883,13 @@ class DashboardPageState extends State<DashboardPage>
       final streak = await DailyMetricsApi.fetchStreak(userId);
       if (!mounted) return;
       setState(() => _streakCount = streak);
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
-      setState(() => _streakCount = null);
+      if (_isOfflineError(e)) {
+        setState(() => _streakCount = null);
+      } else {
+        setState(() => _streakCount = null);
+      }
     } finally {
       if (mounted) setState(() => _streakLoading = false);
     }
@@ -2032,6 +2190,16 @@ class DashboardPageState extends State<DashboardPage>
       _dietDayType = live?["day_type"]?.toString();
       _dietProgressLoading = false;
     });
+    final today = DateTime.now();
+    final todayOnly = DateTime(today.year, today.month, today.day);
+    final selectedOnly =
+        DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    if (selectedOnly == todayOnly) {
+      _cachedTodayDietConsumedCalories = consumedCal;
+      _cachedTodayDietTargetCalories = targetCal;
+      _cachedTodayDietDayType = live?["day_type"]?.toString();
+      _cachedTodayDietLoaded = true;
+    }
   }
 
   double? _parseWhoopSleepHours(Map<String, dynamic> data) {
@@ -3197,6 +3365,7 @@ class DashboardPageState extends State<DashboardPage>
             ? t("date_yesterday")
             : DateFormat('MMM d, y', locale).format(_selectedDate);
     final bool isCurrentDay = _isToday();
+    final bool showTrainingSub = isCurrentDay && !_exerciseLoading;
 
     final listView = ListView(
       padding: const EdgeInsets.all(20),
@@ -3226,15 +3395,17 @@ class DashboardPageState extends State<DashboardPage>
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _streakLoading
-                        ? "Streak: …"
-                        : "Streak: ${(_streakCount ?? 0)}",
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.white70,
-                        ),
-                  ),
+                  if (_streakCount != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      _streakLoading
+                          ? "Streak: …"
+                          : "Streak: ${(_streakCount ?? 0)}${(_streakCount ?? 0) > 0 ? " 🔥" : ""}",
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.white70,
+                          ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -3397,17 +3568,18 @@ class DashboardPageState extends State<DashboardPage>
                                 ),
                       ),
                       const SizedBox(height: 6),
-                      Text(
-                        (_exerciseTotal == null &&
-                                _nextTrainingDayLabel == null &&
-                                !_nextTrainingDayAllDone)
-                            ? t("dash_exercise_unavailable")
-                            : _nextTrainingDayAllDone
-                                ? "Done for the week"
-                                : "Next up: ${(_nextTrainingDayLabel ?? "…")}",
-                        style: const TextStyle(
-                            color: Colors.white70, fontSize: 13),
-                      ),
+                      if (showTrainingSub)
+                        Text(
+                          (_exerciseTotal == null &&
+                                  _nextTrainingDayLabel == null &&
+                                  !_nextTrainingDayAllDone)
+                              ? t("dash_exercise_unavailable")
+                              : _nextTrainingDayAllDone
+                                  ? "Done for the week"
+                                  : "Next up: ${(_nextTrainingDayLabel ?? "…")}",
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 13),
+                        ),
                       if (_exerciseProgramMode == "old")
                         const Padding(
                           padding: EdgeInsets.only(top: 4),
