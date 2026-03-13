@@ -40,10 +40,11 @@ class ReleaseNotesDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ReleaseNoteItem(text: 'apple sign up'),
-          _ReleaseNoteItem(text: 'cardio tracing updates and bug fixes'),
-          _ReleaseNoteItem(text: 'cardio stickers and models'),
-          _ReleaseNoteItem(text: 'dashboard bug fix'),
+          _ReleaseNoteItem(text: 'questionnaire slider fixes'),
+          _ReleaseNoteItem(text: 'dashboard widget order improvements'),
+          _ReleaseNoteItem(text: 'steps / sleep / calories chart tweaks'),
+          _ReleaseNoteItem(text: 'journal prompt and reminder fixes'),
+          _ReleaseNoteItem(text: 'and more'),
         ],
       ),
       actions: [
