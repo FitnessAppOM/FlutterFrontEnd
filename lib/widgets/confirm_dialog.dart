@@ -7,13 +7,22 @@ Future<bool?> showConfirmDialog({
   required String message,
   String confirmText = "Confirm",
   String cancelText = "Cancel",
+  Color? borderColor,
 }) {
   return showDialog<bool>(
     context: context,
     builder: (ctx) {
       return Dialog(
         backgroundColor: AppColors.cardDark,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: borderColor == null
+              ? BorderSide.none
+              : BorderSide(
+                  color: borderColor.withValues(alpha: 0.35),
+                  width: 1.2,
+                ),
+        ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
           child: Column(

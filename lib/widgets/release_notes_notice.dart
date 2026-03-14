@@ -40,11 +40,11 @@ class ReleaseNotesDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ReleaseNoteItem(text: 'questionnaire slider fixes'),
-          _ReleaseNoteItem(text: 'dashboard widget order improvements'),
-          _ReleaseNoteItem(text: 'steps / sleep / calories chart tweaks'),
-          _ReleaseNoteItem(text: 'journal prompt and reminder fixes'),
-          _ReleaseNoteItem(text: 'and more'),
+          _ReleaseNoteHighlight(text: 'IMPORTANT: journal reminders updated — please confirm if it worked'),
+          SizedBox(height: 6),
+          _ReleaseNoteItem(text: 'done more fixes from sheet'),
+          _ReleaseNoteItem(text: 'bug fixes'),
+          _ReleaseNoteItem(text: 'hydration prefill from water intake widget'),
         ],
       ),
       actions: [
@@ -72,6 +72,23 @@ class _ReleaseNoteItem extends StatelessWidget {
           const Text('• ', style: TextStyle(fontWeight: FontWeight.w700)),
           Expanded(child: Text(text)),
         ],
+      ),
+    );
+  }
+}
+
+class _ReleaseNoteHighlight extends StatelessWidget {
+  final String text;
+
+  const _ReleaseNoteHighlight({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontWeight: FontWeight.w800,
+        color: Color(0xFFD4AF37),
       ),
     );
   }

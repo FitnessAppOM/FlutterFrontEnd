@@ -215,6 +215,7 @@ class _MyAppState extends State<MyApp> {
       // ignore: avoid_print
       print("ExerciseActionQueue sync skipped: $e");
     }
+    NotificationService.refreshDailyJournalRemindersForCurrentUser();
   }
 
   void _handleAccountChange() {

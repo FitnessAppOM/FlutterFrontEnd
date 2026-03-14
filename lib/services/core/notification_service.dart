@@ -261,13 +261,18 @@ class NotificationService {
         ? AndroidScheduleMode.exactAllowWhileIdle
         : AndroidScheduleMode.inexactAllowWhileIdle;
 
-    final startTomorrow = _shouldStartTomorrowForJournal();
-    final tz.TZDateTime nextSixAm =
-        _nextInstanceAtHour(6, startTomorrow: startTomorrow);
-    final tz.TZDateTime nextSixPm =
-        _nextInstanceAtHour(18, startTomorrow: startTomorrow);
+    // IMPORTANT:
+    // Do not use matchDateTimeComponents here. For DateTimeComponents.time,
+    // flutter_local_notifications computes the next fire time from "today"
+    // using only the clock time, which can still schedule today's 6pm.
+    // We want strict "start tomorrow" after journal completion.
+    final tz.TZDateTime nextSixAm = _nextInstanceAtHour(6, startTomorrow: true);
+    final tz.TZDateTime nextSixPm = _nextInstanceAtHour(
+      18,
+      startTomorrow: true,
+    );
     final tz.TZDateTime nextNinePm =
-        _nextInstanceAtHour(21, startTomorrow: startTomorrow);
+        _nextInstanceAtHour(21, startTomorrow: true);
 
     await _plugin.zonedSchedule(
       2,
@@ -279,7 +284,6 @@ class NotificationService {
       androidScheduleMode: scheduleMode,
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
     );
 
     await _plugin.zonedSchedule(
@@ -292,7 +296,6 @@ class NotificationService {
       androidScheduleMode: scheduleMode,
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
     );
 
     final dietBody = await _buildDietDebugBody();
@@ -307,7 +310,6 @@ class NotificationService {
         androidScheduleMode: scheduleMode,
         uiLocalNotificationDateInterpretation:
         UILocalNotificationDateInterpretation.absoluteTime,
-        matchDateTimeComponents: DateTimeComponents.time,
       );
     }
   }
@@ -488,8 +490,4 @@ class NotificationService {
     return DateTime(shifted.year, shifted.month, shifted.day);
   }
 
-  static bool _shouldStartTomorrowForJournal() {
-    final now = DateTime.now();
-    return now.hour >= _journalResetHour;
-  }
 }

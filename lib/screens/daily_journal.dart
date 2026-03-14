@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/account_storage.dart';
 import '../main/main_layout.dart';
+import '../services/metrics/daily_metrics_api.dart';
 import '../services/metrics/daily_journal_service.dart';
 import '../services/core/navigation_service.dart';
 import '../services/core/notification_service.dart';
@@ -130,6 +131,20 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
     } catch (_) {
       hydrationLiters = null;
     }
+    if (hydrationLiters == null || hydrationLiters <= 0) {
+      final userId = await AccountStorage.getUserId();
+      if (userId != null) {
+        try {
+          final entry = await DailyMetricsApi.fetchForDate(userId, _selectedDate);
+          final metricsHydration = entry?.waterLiters;
+          if (metricsHydration != null && metricsHydration > 0) {
+            hydrationLiters = metricsHydration;
+          }
+        } catch (_) {
+          // Keep best-effort prefill behavior.
+        }
+      }
+    }
 
     if (!mounted) return;
     if (sleepEmpty && sleepHours != null && sleepHours > 0) {
@@ -200,6 +215,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
           setState(() {
             _formHidden = true;
           });
+          await NotificationService.rescheduleDailyJournalRemindersForTomorrow();
         } else {
           AppToast.show(context, t("daily_journal_failed_save").replaceAll("{error}", "$e"), type: AppToastType.error);
         }
@@ -269,6 +285,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
           setState(() {
             _formHidden = true;
           });
+          await NotificationService.rescheduleDailyJournalRemindersForTomorrow();
         } else {
           AppToast.show(context, t("daily_journal_failed_copy").replaceAll("{error}", "$e"), type: AppToastType.error);
         }

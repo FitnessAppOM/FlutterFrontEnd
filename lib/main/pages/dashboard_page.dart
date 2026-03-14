@@ -636,6 +636,7 @@ class DashboardPageState extends State<DashboardPage>
       message: "Take 60 seconds to log how you’re feeling today.",
       cancelText: "Later",
       confirmText: "Take me there",
+      borderColor: const Color(0xFFD4AF37),
     );
 
     await prefs.setString(_journalPromptShownKey, dayKey);
