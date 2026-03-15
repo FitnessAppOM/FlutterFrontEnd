@@ -23,6 +23,7 @@ class ExerciseSessionSheet extends StatefulWidget {
   final Set<String> completedExerciseNames;
   final VoidCallback onFinished;
   final ImageProvider? previewProvider;
+  final bool showSessionOnOpen;
 
   const ExerciseSessionSheet({
     super.key,
@@ -30,6 +31,7 @@ class ExerciseSessionSheet extends StatefulWidget {
     required this.completedExerciseNames,
     required this.onFinished,
     this.previewProvider,
+    this.showSessionOnOpen = false,
   });
 
   @override
@@ -792,6 +794,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   @override
   Widget build(BuildContext context) {
     final isCardio = _isCardioExercise();
+    final showSession = !isCardio && (started || widget.showSessionOnOpen);
     final token =
         dotenv.isInitialized ? dotenv.maybeGet('MAPBOX_PUBLIC_KEY') : null;
     final hasToken = token != null && token.trim().isNotEmpty;
@@ -1028,7 +1031,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                   ),
                 ],
                 const SizedBox(height: 18),
-                if (!started && !isCardio)
+                if (!started && !isCardio && !widget.showSessionOnOpen)
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.greenAccent.shade400,
@@ -1045,7 +1048,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                     ),
                     onPressed: _startExercise,
                   ),
-                if (started && !isCardio) ...[
+                if (showSession) ...[
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
@@ -1153,8 +1156,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                                     borderRadius: BorderRadius.circular(14),
                                   ),
                                 ),
-                                onPressed: submitting ? null : _finishExercise,
-                                child: submitting
+                                onPressed: submitting
+                                    ? null
+                                    : (started ? _finishExercise : _startExercise),
+                                child: (submitting && started)
                                     ? const SizedBox(
                                         height: 18,
                                         width: 18,
@@ -1164,7 +1169,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                                         ),
                                       )
                                     : Text(
-                                        t.translate("finish"),
+                                        started
+                                            ? t.translate("finish")
+                                            : t.translate("training_start_exercise"),
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w700,
                                           fontSize: 14,

@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/account_storage.dart';
+import '../services/metrics/daily_metrics_api.dart';
 import '../services/health/steps_service.dart';
 import '../services/fitbit/fitbit_steps_service.dart';
 import '../theme/app_theme.dart';
@@ -116,15 +118,60 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
           break;
       }
       final effectiveEnd = now.isBefore(end) ? now : end;
-      final data = widget.useFitbit
-          ? await FitbitStepsService().fetchDailySteps(
-              start: start,
-              end: effectiveEnd,
-            )
-          : await StepsService().fetchDailySteps(
-              start: start,
-              end: effectiveEnd,
-            );
+      Map<DateTime, int> data;
+      if (widget.useFitbit) {
+        data = await FitbitStepsService().fetchDailySteps(
+          start: start,
+          end: effectiveEnd,
+        );
+      } else {
+        final userId = await AccountStorage.getUserId();
+        if (userId == null) {
+          if (!mounted) return;
+          setState(() {
+            _daily = {};
+            _rangeStart = null;
+            _rangeEnd = null;
+            _selectedBarIndex = null;
+            _loading = false;
+          });
+          return;
+        }
+
+        final rangeData = await DailyMetricsApi.fetchRange(
+          userId: userId,
+          start: start,
+          end: effectiveEnd,
+        );
+        data = <DateTime, int>{};
+        rangeData.forEach((day, entry) {
+          final key = DateTime(day.year, day.month, day.day);
+          final steps = entry.steps ?? 0;
+          if (steps > 0) {
+            data[key] = steps;
+          }
+        });
+
+        // Apply manual overrides.
+        final manual = await StepsService().getManualEntries();
+        manual.forEach((day, steps) {
+          if (!day.isBefore(DateTime(start.year, start.month, start.day)) &&
+              !day.isAfter(DateTime(effectiveEnd.year, effectiveEnd.month, effectiveEnd.day))) {
+            data[DateTime(day.year, day.month, day.day)] = steps;
+          }
+        });
+
+        // For current day, prefer HealthKit/Health Connect if no manual override exists.
+        final todayKey = DateTime(now.year, now.month, now.day);
+        final inRange = !todayKey.isBefore(DateTime(start.year, start.month, start.day)) &&
+            !todayKey.isAfter(DateTime(effectiveEnd.year, effectiveEnd.month, effectiveEnd.day));
+        if (inRange && !manual.containsKey(todayKey)) {
+          final todaySteps = await StepsService().fetchTodaySteps();
+          if (todaySteps > 0) {
+            data[todayKey] = todaySteps;
+          }
+        }
+      }
       if (!mounted) return;
       setState(() {
         _daily = data;

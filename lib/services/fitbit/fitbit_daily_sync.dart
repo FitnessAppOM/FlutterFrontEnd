@@ -42,20 +42,13 @@ class FitbitDailySync {
 
       final startStr = _dateKey(start);
       final endStr = _dateKey(end);
-      final rangeUrl = Uri.parse(
-        "${ApiConfig.baseUrl}/fitbit/daily-metrics/range?user_id=$userId&start=$startStr&end=$endStr",
+      final existingDates = await _fetchExistingDates(
+        userId: userId,
+        startStr: startStr,
+        endStr: endStr,
+        headers: headers,
       );
-      final rangeRes =
-          await http.get(rangeUrl, headers: headers).timeout(const Duration(seconds: 20));
-      if (rangeRes.statusCode != 200) return;
-
-      final List<dynamic> rows = jsonDecode(rangeRes.body) as List<dynamic>;
-      final existingDates = <String>{};
-      for (final row in rows) {
-        if (row is Map && row["entry_date"] != null) {
-          existingDates.add(row["entry_date"].toString().split("T").first);
-        }
-      }
+      if (existingDates == null) return;
 
       final missingDates = <String>[];
       var cursor = start;
@@ -74,7 +67,23 @@ class FitbitDailySync {
         await http.get(url, headers: headers).timeout(const Duration(seconds: 25));
       }
 
-      await sp.setString(lastKey, todayKey);
+      if (missingDates.isEmpty) {
+        await sp.setString(lastKey, todayKey);
+        return;
+      }
+
+      final refreshedDates = await _fetchExistingDates(
+        userId: userId,
+        startStr: startStr,
+        endStr: endStr,
+        headers: headers,
+      );
+      if (refreshedDates == null) return;
+
+      final addedCount = refreshedDates.difference(existingDates).length;
+      if (addedCount > 0) {
+        await sp.setString(lastKey, todayKey);
+      }
     } finally {
       _syncInFlight = false;
     }
@@ -139,6 +148,30 @@ class FitbitDailySync {
 
   String _dateKey(DateTime dt) =>
       "${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}";
+
+  Future<Set<String>?> _fetchExistingDates({
+    required int userId,
+    required String startStr,
+    required String endStr,
+    required Map<String, String> headers,
+  }) async {
+    final rangeUrl = Uri.parse(
+      "${ApiConfig.baseUrl}/fitbit/daily-metrics/range?user_id=$userId&start=$startStr&end=$endStr",
+    );
+    final rangeRes =
+        await http.get(rangeUrl, headers: headers).timeout(const Duration(seconds: 20));
+    if (rangeRes.statusCode != 200) return null;
+
+    final decoded = jsonDecode(rangeRes.body);
+    if (decoded is! List) return null;
+    final existingDates = <String>{};
+    for (final row in decoded) {
+      if (row is Map && row["entry_date"] != null) {
+        existingDates.add(row["entry_date"].toString().split("T").first);
+      }
+    }
+    return existingDates;
+  }
 
   String _userScopedKey(int userId) => "${_lastPushKey}_$userId";
 }

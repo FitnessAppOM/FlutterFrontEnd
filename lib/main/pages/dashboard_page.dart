@@ -180,6 +180,7 @@ class DashboardPageState extends State<DashboardPage>
   bool _trendSyncRefreshInFlight = false;
   int _trendCaloriesReqId = 0;
   DateTime? _trendWeekStart;
+  String? _trendSleepSourceKey;
 
   DateTime _dayKey(DateTime date) => DateTime(date.year, date.month, date.day);
 
@@ -453,6 +454,7 @@ class DashboardPageState extends State<DashboardPage>
       _trendWeekStart = null;
       _trendSleep = const [];
       _trendCalories = const [];
+      _trendSleepSourceKey = null;
     });
     _refreshAll();
     _loadExerciseProgress(force: true);
@@ -874,6 +876,7 @@ class DashboardPageState extends State<DashboardPage>
         if (hasWhoop) {
           _loadWhoopRecovery();
         }
+        _loadTrendSleep(force: true);
       }
     } catch (_) {
       if (!mounted) return;
@@ -882,6 +885,7 @@ class DashboardPageState extends State<DashboardPage>
           ..clear()
           ..addAll(_defaultStatOrder);
       });
+      _loadTrendSleep(force: true);
     }
   }
 
@@ -910,6 +914,7 @@ class DashboardPageState extends State<DashboardPage>
     if (hint && _hasAnyWhoopWidget) {
       _loadWhoopRecovery();
     }
+    _loadTrendSleep(force: true);
   }
 
   Future<void> _loadFitbitLinkedHint() async {
@@ -935,6 +940,7 @@ class DashboardPageState extends State<DashboardPage>
     if (hint) {
       _loadFitbitSummary();
     }
+    _loadTrendSleep(force: true);
   }
 
   bool get _useWhoop {
@@ -2552,7 +2558,12 @@ class DashboardPageState extends State<DashboardPage>
           _tryUpdateTrendSleepForDate(_selectedDate, snapshot.sleepHours!);
       AccountStorage.setWhoopLinked(snapshot.linked);
       _pruneDeviceWidgets();
-      if (!didUpdateTrend && snapshot.sleepHours != null && !_trendSleepLoading) {
+      final expectedSource = _trendSleepSourceForCurrentWidgets();
+      if (_trendSleepSourceKey != expectedSource) {
+        _loadTrendSleep(force: true);
+      } else if (!didUpdateTrend &&
+          snapshot.sleepHours != null &&
+          !_trendSleepLoading) {
         _loadTrendSleep(force: true);
       }
     } catch (_) {
@@ -2715,11 +2726,20 @@ class DashboardPageState extends State<DashboardPage>
         _fitbitSleepLast = summary;
         _fitbitSleepLoading = false;
       });
+      bool didUpdateTrend = false;
       if (summary?.totalMinutesAsleep != null) {
-        _tryUpdateTrendSleepForDate(
+        didUpdateTrend = _tryUpdateTrendSleepForDate(
           _selectedDate,
           summary!.totalMinutesAsleep! / 60.0,
         );
+      }
+      final expectedSource = _trendSleepSourceForCurrentWidgets();
+      if (_trendSleepSourceKey != expectedSource) {
+        _loadTrendSleep(force: true);
+      } else if (!didUpdateTrend &&
+          summary?.totalMinutesAsleep != null &&
+          !_trendSleepLoading) {
+        _loadTrendSleep(force: true);
       }
     } catch (_) {
       if (!mounted) return;
@@ -2832,11 +2852,20 @@ class DashboardPageState extends State<DashboardPage>
           _fitbitVitalsLoading = false;
           _fitbitBodyLoading = false;
         });
+        bool didUpdateTrend = false;
         if (bundle?.sleep?.totalMinutesAsleep != null) {
-          _tryUpdateTrendSleepForDate(
+          didUpdateTrend = _tryUpdateTrendSleepForDate(
             _selectedDate,
             bundle!.sleep!.totalMinutesAsleep! / 60.0,
           );
+        }
+        final expectedSource = _trendSleepSourceForCurrentWidgets();
+        if (_trendSleepSourceKey != expectedSource) {
+          _loadTrendSleep(force: true);
+        } else if (!didUpdateTrend &&
+            bundle?.sleep?.totalMinutesAsleep != null &&
+            !_trendSleepLoading) {
+          _loadTrendSleep(force: true);
         }
       } catch (_) {
         if (!mounted) return;
@@ -3099,6 +3128,12 @@ class DashboardPageState extends State<DashboardPage>
     return day.subtract(Duration(days: day.weekday - 1));
   }
 
+  String _trendSleepSourceForCurrentWidgets() {
+    if (_hasWhoopSleepWidget && _whoopLinked) return 'whoop';
+    if (_hasFitbitSleepWidget && _fitbitLinked) return 'fitbit';
+    return 'default';
+  }
+
   Future<void> _loadTrendSleep({bool force = false}) async {
     try {
       final anchor = DateTime(
@@ -3108,7 +3143,10 @@ class DashboardPageState extends State<DashboardPage>
       );
       final start = _trendWeekStartFor(anchor);
       final end = start.add(const Duration(days: 6)); // Mon-Sun
+      final sourceKey = _trendSleepSourceForCurrentWidgets();
+      final sourceChanged = _trendSleepSourceKey != sourceKey;
       if (!force &&
+          !sourceChanged &&
           _trendSleep.isNotEmpty &&
           _trendWeekStart != null &&
           _trendWeekStart == start) {
@@ -3127,7 +3165,7 @@ class DashboardPageState extends State<DashboardPage>
       });
       final sleepToday = await SleepService().fetchSleepHoursLast24h();
       List<double> days = const [];
-      if (_hasWhoopSleepWidget && _whoopLinked) {
+      if (sourceKey == 'whoop') {
         final data = await WhoopSleepService().fetchDailySleepFromDb(
           start: start,
           end: end,
@@ -3138,7 +3176,7 @@ class DashboardPageState extends State<DashboardPage>
         }).toList();
       } else {
         var usedFitbit = false;
-        if (_hasFitbitSleepWidget && _fitbitLinked) {
+        if (sourceKey == 'fitbit') {
           final data = await FitbitDailyMetricsDbService().fetchRange(
             start: start,
             end: end,
@@ -3186,6 +3224,7 @@ class DashboardPageState extends State<DashboardPage>
       setState(() {
         _trendWeekStart = start;
         _trendSleep = hasData ? days : const [];
+        _trendSleepSourceKey = sourceKey;
       });
     } catch (_) {
       if (!mounted) return;
@@ -3226,27 +3265,23 @@ class DashboardPageState extends State<DashboardPage>
         return DateTime(d.year, d.month, d.day);
       });
       final metrics = await _fetchMetricsRange(start, end);
-      List<double> days;
-      if (metrics.isNotEmpty) {
-        final needsLocal = dayKeys.any(
-          (key) => (metrics[key]?.calories ?? 0) <= 0,
-        );
-        final local = needsLocal
-            ? await CaloriesService().fetchDailyCalories(start: start, end: end)
-            : <DateTime, int>{};
-        days = List.generate(7, (i) {
-          final key = dayKeys[i];
-          final entry = metrics[key];
-          final metricValue = (entry?.calories ?? 0).toDouble();
-          if (metricValue > 0) return metricValue;
-          return (local[key] ?? 0).toDouble();
-        });
-      } else {
-        final data = await CaloriesService().fetchDailyCalories(
-          start: start,
-          end: end,
-        );
-        days = dayKeys.map((key) => (data[key] ?? 0).toDouble()).toList();
+      var days = List.generate(7, (i) {
+        final key = dayKeys[i];
+        final entry = metrics[key];
+        return (entry?.calories ?? 0).toDouble();
+      });
+
+      // Only pull HealthKit/Health Connect for current day; keep DB for past days.
+      final today = DateTime.now();
+      final todayKey = DateTime(today.year, today.month, today.day);
+      final todayIdx = dayKeys.indexOf(todayKey);
+      if (todayIdx >= 0) {
+        final todayCalories = await CaloriesService().fetchTodayCalories();
+        if (todayCalories > 0) {
+          final next = List<double>.from(days);
+          next[todayIdx] = todayCalories.toDouble();
+          days = next;
+        }
       }
       final hasData = days.any((v) => v > 0);
       if (!mounted) return;

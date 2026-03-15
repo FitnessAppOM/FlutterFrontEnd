@@ -147,6 +147,10 @@ class SleepService {
     await sp.setString(key, jsonEncode(encoded));
   }
 
+  Future<Map<DateTime, double>> getManualEntries() async {
+    return _loadManualEntries();
+  }
+
   Future<Map<DateTime, double>> _loadManualEntries() async {
     final sp = await SharedPreferences.getInstance();
     final key = await _scopedKey(_manualKey);

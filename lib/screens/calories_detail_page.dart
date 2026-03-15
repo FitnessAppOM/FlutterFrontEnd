@@ -117,10 +117,52 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
           break;
       }
       final effectiveEnd = now.isBefore(end) ? now : end;
-      final data = await CaloriesService().fetchDailyCalories(
+      final userId = await AccountStorage.getUserId();
+      if (userId == null) {
+        if (!mounted) return;
+        setState(() {
+          _daily = {};
+          _selectedBarIndex = null;
+          _rangeStart = start;
+          _rangeEnd = end;
+          _loading = false;
+        });
+        return;
+      }
+
+      final rangeData = await DailyMetricsApi.fetchRange(
+        userId: userId,
         start: start,
         end: effectiveEnd,
       );
+      final data = <DateTime, int>{};
+      rangeData.forEach((day, entry) {
+        final key = DateTime(day.year, day.month, day.day);
+        final calories = entry.calories ?? 0;
+        if (calories > 0) {
+          data[key] = calories;
+        }
+      });
+
+      // Apply manual overrides (all days).
+      final manual = await CaloriesService().getManualEntries();
+      manual.forEach((day, calories) {
+        if (!day.isBefore(DateTime(start.year, start.month, start.day)) &&
+            !day.isAfter(DateTime(effectiveEnd.year, effectiveEnd.month, effectiveEnd.day))) {
+          data[DateTime(day.year, day.month, day.day)] = calories;
+        }
+      });
+
+      // For current day, prefer HealthKit/Health Connect (unless manual override exists).
+      final todayKey = DateTime(now.year, now.month, now.day);
+      final inRange = !todayKey.isBefore(DateTime(start.year, start.month, start.day)) &&
+          !todayKey.isAfter(DateTime(effectiveEnd.year, effectiveEnd.month, effectiveEnd.day));
+      if (inRange && !manual.containsKey(todayKey)) {
+        final todayCalories = await CaloriesService().fetchTodayCalories();
+        if (todayCalories > 0) {
+          data[todayKey] = todayCalories;
+        }
+      }
       if (!mounted) return;
       setState(() {
         _daily = data;

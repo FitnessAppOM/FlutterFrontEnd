@@ -109,6 +109,10 @@ class CaloriesService {
     await sp.setString(key, jsonEncode(encoded));
   }
 
+  Future<Map<DateTime, int>> getManualEntries() async {
+    return _loadManualEntries();
+  }
+
   Future<Map<DateTime, int>> _loadManualEntries() async {
     final sp = await SharedPreferences.getInstance();
     final key = await _scopedKey(_manualKey);

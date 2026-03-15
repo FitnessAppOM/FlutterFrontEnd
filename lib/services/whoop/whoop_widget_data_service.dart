@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
 import 'whoop_latest_service.dart';
@@ -30,6 +29,11 @@ class WhoopWidgetSnapshot {
 }
 
 class WhoopWidgetDataService {
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year && date.month == now.month && date.day == now.day;
+  }
+
   Future<WhoopWidgetSnapshot> fetchForDate(DateTime date) async {
     final userId = await AccountStorage.getUserId();
     if (userId == null || userId == 0) {
@@ -49,6 +53,7 @@ class WhoopWidgetDataService {
       return const WhoopWidgetSnapshot(linked: false, linkedKnown: true);
     }
 
+    final isToday = _isToday(date);
     final dateParam =
         "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
     final dataUrl = Uri.parse(
@@ -137,16 +142,18 @@ class WhoopWidgetDataService {
     if (rawCycle is String) cycleStrain = double.tryParse(rawCycle);
 
     double? bodyWeightKg;
-    try {
-      final latest = await WhoopLatestService.fetch();
-      final body = latest?["body_measurement"];
-      if (body is Map<String, dynamic>) {
-        final raw = body["weight_kilogram"];
-        if (raw is num) bodyWeightKg = raw.toDouble();
-        if (raw is String) bodyWeightKg = double.tryParse(raw);
+    if (isToday) {
+      try {
+        final latest = await WhoopLatestService.fetch();
+        final body = latest?["body_measurement"];
+        if (body is Map<String, dynamic>) {
+          final raw = body["weight_kilogram"];
+          if (raw is num) bodyWeightKg = raw.toDouble();
+          if (raw is String) bodyWeightKg = double.tryParse(raw);
+        }
+      } catch (_) {
+        bodyWeightKg = null;
       }
-    } catch (_) {
-      bodyWeightKg = null;
     }
 
     return WhoopWidgetSnapshot(

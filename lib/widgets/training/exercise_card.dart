@@ -368,7 +368,25 @@ class ExerciseCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Icon(Icons.chevron_right, color: Colors.white54),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(
+                          Icons.play_arrow_rounded,
+                          color: Colors.white70,
+                          size: 20,
+                        ),
+                        SizedBox(height: 1),
+                        Text(
+                          "start",
+                          style: TextStyle(
+                            color: Colors.white60,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),

@@ -8,124 +8,170 @@ import '../../core/account_storage.dart';
 
 class WhoopDailySync {
   static const _lastPushKey = "whoop_daily_last_push_date";
+  static bool _syncInFlight = false;
 
   Future<void> pushIfNewDay() async {
-    final userId = await AccountStorage.getUserId();
-    if (userId == null || userId == 0) return;
-    final linkedHint = await AccountStorage.getWhoopLinked();
-    if (linkedHint != true) return;
+    if (_syncInFlight) return;
+    _syncInFlight = true;
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null || userId == 0) return;
+      final linkedHint = await AccountStorage.getWhoopLinked();
+      if (linkedHint != true) return;
 
-    final sp = await SharedPreferences.getInstance();
-    final lastKey = _userScopedKey(userId);
-    final last = sp.getString(lastKey);
-    final todayKey = _dateKey(DateTime.now());
-    if (last == todayKey) return;
+      final sp = await SharedPreferences.getInstance();
+      final lastKey = _userScopedKey(userId);
+      final last = sp.getString(lastKey);
+      final todayKey = _dateKey(DateTime.now());
+      if (last == todayKey) return;
 
-    // Only proceed if WHOOP is linked.
-    final statusUrl = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId&backfill=1");
-    final headers = await AccountStorage.getAuthHeaders();
-    final statusRes =
-        await http.get(statusUrl, headers: headers).timeout(const Duration(seconds: 12));
-    if (statusRes.statusCode != 200) return;
-    final status = jsonDecode(statusRes.body);
-    if (status is! Map || status["linked"] != true) return;
+      // Only proceed if WHOOP is linked.
+      final statusUrl = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId&backfill=1");
+      final headers = await AccountStorage.getAuthHeaders();
+      final statusRes =
+          await http.get(statusUrl, headers: headers).timeout(const Duration(seconds: 12));
+      if (statusRes.statusCode != 200) return;
+      final status = jsonDecode(statusRes.body);
+      if (status is! Map || status["linked"] != true) return;
 
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final start = today.subtract(const Duration(days: 7));
-    final end = today.subtract(const Duration(days: 1));
-    if (end.isBefore(start)) return;
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final start = today.subtract(const Duration(days: 7));
+      final end = today.subtract(const Duration(days: 1));
+      if (end.isBefore(start)) return;
 
-    final startStr = _dateKey(start);
-    final endStr = _dateKey(end);
-    final rangeUrl = Uri.parse(
-      "${ApiConfig.baseUrl}/whoop/daily-metrics/range?user_id=$userId&start=$startStr&end=$endStr",
-    );
-    final rangeRes =
-        await http.get(rangeUrl, headers: headers).timeout(const Duration(seconds: 20));
-    if (rangeRes.statusCode != 200) return;
-
-    final List<dynamic> rows = jsonDecode(rangeRes.body) as List<dynamic>;
-    final existingDates = <String>{};
-    for (final row in rows) {
-      if (row is Map && row["entry_date"] != null) {
-        existingDates.add(row["entry_date"].toString().split("T").first);
-      }
-    }
-
-    final missingDates = <String>[];
-    var cursor = start;
-    while (!cursor.isAfter(end)) {
-      final key = _dateKey(cursor);
-      if (!existingDates.contains(key)) {
-        missingDates.add(key);
-      }
-      cursor = cursor.add(const Duration(days: 1));
-    }
-
-    for (final day in missingDates) {
-      final url = Uri.parse(
-        "${ApiConfig.baseUrl}/whoop/day?user_id=$userId&date=$day&persist=1",
+      final startStr = _dateKey(start);
+      final endStr = _dateKey(end);
+      final existingDates = await _fetchExistingDates(
+        userId: userId,
+        startStr: startStr,
+        endStr: endStr,
+        headers: headers,
       );
-      await http.get(url, headers: headers).timeout(const Duration(seconds: 25));
-    }
+      if (existingDates == null) return;
 
-    await sp.setString(lastKey, todayKey);
-  }
-
-  Future<void> forceBackfillRecent({int days = 7}) async {
-    final userId = await AccountStorage.getUserId();
-    if (userId == null || userId == 0) return;
-    final linkedHint = await AccountStorage.getWhoopLinked();
-    if (linkedHint != true) return;
-
-    // Only proceed if WHOOP is linked.
-    final statusUrl = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId&backfill=1");
-    final headers = await AccountStorage.getAuthHeaders();
-    final statusRes =
-        await http.get(statusUrl, headers: headers).timeout(const Duration(seconds: 12));
-    if (statusRes.statusCode != 200) return;
-    final status = jsonDecode(statusRes.body);
-    if (status is! Map || status["linked"] != true) return;
-
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final start = today.subtract(Duration(days: days));
-    final end = today.subtract(const Duration(days: 1));
-    if (end.isBefore(start)) return;
-
-    final startStr = _dateKey(start);
-    final endStr = _dateKey(end);
-    final rangeUrl = Uri.parse(
-      "${ApiConfig.baseUrl}/whoop/daily-metrics/range?user_id=$userId&start=$startStr&end=$endStr",
-    );
-    final rangeRes =
-        await http.get(rangeUrl, headers: headers).timeout(const Duration(seconds: 20));
-    if (rangeRes.statusCode != 200) return;
-
-    final List<dynamic> rows = jsonDecode(rangeRes.body) as List<dynamic>;
-    final existingDates = <String>{};
-    for (final row in rows) {
-      if (row is Map && row["entry_date"] != null) {
-        existingDates.add(row["entry_date"].toString().split("T").first);
+      final missingDates = <String>[];
+      var cursor = start;
+      while (!cursor.isAfter(end)) {
+        final key = _dateKey(cursor);
+        if (!existingDates.contains(key)) {
+          missingDates.add(key);
+        }
+        cursor = cursor.add(const Duration(days: 1));
       }
-    }
 
-    var cursor = end;
-    while (!cursor.isBefore(start)) {
-      final key = _dateKey(cursor);
-      if (!existingDates.contains(key)) {
+      for (final day in missingDates) {
         final url = Uri.parse(
-          "${ApiConfig.baseUrl}/whoop/day?user_id=$userId&date=$key&persist=1",
+          "${ApiConfig.baseUrl}/whoop/day?user_id=$userId&date=$day&persist=1",
         );
         await http.get(url, headers: headers).timeout(const Duration(seconds: 25));
       }
-      cursor = cursor.subtract(const Duration(days: 1));
+
+      if (missingDates.isEmpty) {
+        await sp.setString(lastKey, todayKey);
+        return;
+      }
+
+      final refreshedDates = await _fetchExistingDates(
+        userId: userId,
+        startStr: startStr,
+        endStr: endStr,
+        headers: headers,
+      );
+      if (refreshedDates == null) return;
+
+      final addedCount = refreshedDates.difference(existingDates).length;
+      if (addedCount > 0) {
+        await sp.setString(lastKey, todayKey);
+      }
+    } finally {
+      _syncInFlight = false;
+    }
+  }
+
+  Future<void> forceBackfillRecent({int days = 7}) async {
+    if (_syncInFlight) return;
+    _syncInFlight = true;
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null || userId == 0) return;
+      final linkedHint = await AccountStorage.getWhoopLinked();
+      if (linkedHint != true) return;
+
+      // Only proceed if WHOOP is linked.
+      final statusUrl = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId&backfill=1");
+      final headers = await AccountStorage.getAuthHeaders();
+      final statusRes =
+          await http.get(statusUrl, headers: headers).timeout(const Duration(seconds: 12));
+      if (statusRes.statusCode != 200) return;
+      final status = jsonDecode(statusRes.body);
+      if (status is! Map || status["linked"] != true) return;
+
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final start = today.subtract(Duration(days: days));
+      final end = today.subtract(const Duration(days: 1));
+      if (end.isBefore(start)) return;
+
+      final startStr = _dateKey(start);
+      final endStr = _dateKey(end);
+      final rangeUrl = Uri.parse(
+        "${ApiConfig.baseUrl}/whoop/daily-metrics/range?user_id=$userId&start=$startStr&end=$endStr",
+      );
+      final rangeRes =
+          await http.get(rangeUrl, headers: headers).timeout(const Duration(seconds: 20));
+      if (rangeRes.statusCode != 200) return;
+
+      final List<dynamic> rows = jsonDecode(rangeRes.body) as List<dynamic>;
+      final existingDates = <String>{};
+      for (final row in rows) {
+        if (row is Map && row["entry_date"] != null) {
+          existingDates.add(row["entry_date"].toString().split("T").first);
+        }
+      }
+
+      var cursor = end;
+      while (!cursor.isBefore(start)) {
+        final key = _dateKey(cursor);
+        if (!existingDates.contains(key)) {
+          final url = Uri.parse(
+            "${ApiConfig.baseUrl}/whoop/day?user_id=$userId&date=$key&persist=1",
+          );
+          await http.get(url, headers: headers).timeout(const Duration(seconds: 25));
+        }
+        cursor = cursor.subtract(const Duration(days: 1));
+      }
+    } finally {
+      _syncInFlight = false;
     }
   }
 
   String _dateKey(DateTime dt) =>
       "${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}";
+
+  Future<Set<String>?> _fetchExistingDates({
+    required int userId,
+    required String startStr,
+    required String endStr,
+    required Map<String, String> headers,
+  }) async {
+    final rangeUrl = Uri.parse(
+      "${ApiConfig.baseUrl}/whoop/daily-metrics/range?user_id=$userId&start=$startStr&end=$endStr",
+    );
+    final rangeRes =
+        await http.get(rangeUrl, headers: headers).timeout(const Duration(seconds: 20));
+    if (rangeRes.statusCode != 200) return null;
+
+    final decoded = jsonDecode(rangeRes.body);
+    if (decoded is! List) return null;
+    final existingDates = <String>{};
+    for (final row in decoded) {
+      if (row is Map && row["entry_date"] != null) {
+        existingDates.add(row["entry_date"].toString().split("T").first);
+      }
+    }
+    return existingDates;
+  }
 
   String _userScopedKey(int userId) => "${_lastPushKey}_$userId";
 }

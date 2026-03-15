@@ -218,6 +218,7 @@ class _TrainPageState extends State<TrainPage> {
         completedExerciseNames: completedExerciseNames,
         onFinished: _loadProgram,
         previewProvider: previewProvider,
+        showSessionOnOpen: true,
       ),
     );
   }

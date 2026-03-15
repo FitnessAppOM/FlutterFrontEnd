@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/account_storage.dart';
+import '../services/metrics/daily_metrics_api.dart';
 import '../services/health/sleep_service.dart';
 import '../services/whoop/whoop_sleep_service.dart';
 import '../theme/app_theme.dart';
@@ -138,12 +140,55 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
           break;
       }
       final effectiveEnd = now.isBefore(end) ? now : end;
-      final data = widget.useWhoop
-          ? await _loadWhoopRangeOrLatest(start: start, end: effectiveEnd)
-          : await SleepService().fetchDailySleep(
-              start: start,
-              end: effectiveEnd,
-            );
+      Map<DateTime, double> data;
+      if (widget.useWhoop) {
+        data = await _loadWhoopRangeOrLatest(start: start, end: effectiveEnd);
+      } else {
+        final userId = await AccountStorage.getUserId();
+        if (userId == null) {
+          if (!mounted) return;
+          setState(() {
+            _daily = {};
+            _selectedBarIndex = null;
+            _loading = false;
+          });
+          return;
+        }
+
+        final rangeData = await DailyMetricsApi.fetchRange(
+          userId: userId,
+          start: start,
+          end: effectiveEnd,
+        );
+        data = <DateTime, double>{};
+        rangeData.forEach((day, entry) {
+          final key = DateTime(day.year, day.month, day.day);
+          final hours = entry.sleepHours ?? 0.0;
+          if (hours > 0) {
+            data[key] = hours;
+          }
+        });
+
+        // Apply manual overrides.
+        final manual = await SleepService().getManualEntries();
+        manual.forEach((day, hours) {
+          if (!day.isBefore(DateTime(start.year, start.month, start.day)) &&
+              !day.isAfter(DateTime(effectiveEnd.year, effectiveEnd.month, effectiveEnd.day))) {
+            data[DateTime(day.year, day.month, day.day)] = hours;
+          }
+        });
+
+        // For current day, prefer HealthKit/Health Connect if no manual override exists.
+        final todayKey = DateTime(now.year, now.month, now.day);
+        final inRange = !todayKey.isBefore(DateTime(start.year, start.month, start.day)) &&
+            !todayKey.isAfter(DateTime(effectiveEnd.year, effectiveEnd.month, effectiveEnd.day));
+        if (inRange && !manual.containsKey(todayKey)) {
+          final todaySleep = await SleepService().fetchSleepHoursLast24h();
+          if (todaySleep > 0) {
+            data[todayKey] = todaySleep;
+          }
+        }
+      }
       if (!mounted) return;
       setState(() {
         _daily = data;
@@ -261,38 +306,43 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
         backgroundColor: AppColors.black,
       ),
       backgroundColor: AppColors.black,
-      body: DefaultTabController(
-        length: 2,
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TabBar(
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.white54,
-                indicatorColor: AppColors.accent,
-                labelStyle: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-                tabs: const [
-                  Tab(text: "Sleep trends"),
-                  Tab(text: "Sleep metrics"),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Expanded(
-                child: TabBarView(
+      body: widget.useWhoop
+          ? DefaultTabController(
+              length: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildTrendsTab(t, theme, bars),
-                    _buildMetricsTab(theme),
+                    TabBar(
+                      labelColor: Colors.white,
+                      unselectedLabelColor: Colors.white54,
+                      indicatorColor: AppColors.accent,
+                      labelStyle: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                      tabs: const [
+                        Tab(text: "Sleep trends"),
+                        Tab(text: "Sleep metrics"),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Expanded(
+                      child: TabBarView(
+                        children: [
+                          _buildTrendsTab(t, theme, bars),
+                          _buildMetricsTab(theme),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
+            )
+          : Padding(
+              padding: const EdgeInsets.all(20),
+              child: _buildTrendsTab(t, theme, bars),
+            ),
     );
   }
 
