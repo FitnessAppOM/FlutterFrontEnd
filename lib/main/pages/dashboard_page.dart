@@ -129,6 +129,8 @@ class DashboardPageState extends State<DashboardPage>
     'whoop_cycle',
     'whoop_body',
   };
+  static final Map<String, List<double>> _trendSleepWeekCache = {};
+  static final Map<String, List<double>> _trendCaloriesWeekCache = {};
   AnimationController? _wiggleController;
   Animation<double>? _wiggleAnim;
   bool _wiggling = false;
@@ -178,11 +180,69 @@ class DashboardPageState extends State<DashboardPage>
   bool _trendSleepLoading = false;
   bool _trendCaloriesLoading = false;
   bool _trendSyncRefreshInFlight = false;
+  int _trendSleepReqId = 0;
   int _trendCaloriesReqId = 0;
   DateTime? _trendWeekStart;
+  DateTime? _trendCaloriesLoadedWeekStart;
   String? _trendSleepSourceKey;
+  String? _activeTrendSleepCacheKey;
+  String? _activeTrendCaloriesCacheKey;
+
+  String _trendDateToken(DateTime date) =>
+      "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+
+  String _trendSleepCacheKey({
+    required int userId,
+    required String sourceKey,
+    required DateTime weekStart,
+  }) {
+    return "$userId|$sourceKey|${_trendDateToken(weekStart)}";
+  }
+
+  String _trendCaloriesCacheKey({
+    required int userId,
+    required DateTime weekStart,
+  }) {
+    return "$userId|${_trendDateToken(weekStart)}";
+  }
+
+  List<double>? _readTrendSleepWeekCache(String key) {
+    final cached = _trendSleepWeekCache[key];
+    return cached == null ? null : List<double>.from(cached);
+  }
+
+  List<double>? _readTrendCaloriesWeekCache(String key) {
+    final cached = _trendCaloriesWeekCache[key];
+    return cached == null ? null : List<double>.from(cached);
+  }
+
+  void _writeTrendSleepWeekCache(String key, List<double> values) {
+    _trendSleepWeekCache[key] = List<double>.from(values);
+    if (_trendSleepWeekCache.length > 84) {
+      final keys = _trendSleepWeekCache.keys.toList()..sort();
+      while (_trendSleepWeekCache.length > 84 && keys.isNotEmpty) {
+        _trendSleepWeekCache.remove(keys.removeAt(0));
+      }
+    }
+  }
+
+  void _writeTrendCaloriesWeekCache(String key, List<double> values) {
+    _trendCaloriesWeekCache[key] = List<double>.from(values);
+    if (_trendCaloriesWeekCache.length > 84) {
+      final keys = _trendCaloriesWeekCache.keys.toList()..sort();
+      while (_trendCaloriesWeekCache.length > 84 && keys.isNotEmpty) {
+        _trendCaloriesWeekCache.remove(keys.removeAt(0));
+      }
+    }
+  }
 
   DateTime _dayKey(DateTime date) => DateTime(date.year, date.month, date.day);
+
+  bool _shouldUpdateTrendForDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return _dayKey(date) == today;
+  }
 
   bool _tryUpdateTrendSleepForDate(DateTime date, double hours) {
     final start = _trendWeekStart;
@@ -197,6 +257,10 @@ class DashboardPageState extends State<DashboardPage>
         : List<double>.from(_trendSleep);
     if (next[idx] == hours) return true;
     next[idx] = hours;
+    final cacheKey = _activeTrendSleepCacheKey;
+    if (cacheKey != null) {
+      _writeTrendSleepWeekCache(cacheKey, next);
+    }
     if (mounted) {
       setState(() => _trendSleep = next);
     }
@@ -216,6 +280,10 @@ class DashboardPageState extends State<DashboardPage>
         : List<double>.from(_trendCalories);
     if (next[idx] == calories) return true;
     next[idx] = calories;
+    final cacheKey = _activeTrendCaloriesCacheKey;
+    if (cacheKey != null) {
+      _writeTrendCaloriesWeekCache(cacheKey, next);
+    }
     if (mounted) {
       setState(() => _trendCalories = next);
     }
@@ -234,6 +302,8 @@ class DashboardPageState extends State<DashboardPage>
   double? _whoopCycleStrain;
   double? _whoopCycleStrainLast;
   double? _whoopBodyWeightKg;
+  final Map<DateTime, WhoopWidgetSnapshot> _whoopSnapshotCache = {};
+  DateTime? _whoopLoadingDate;
   int _whoopReqId = 0;
 
   bool? _fitbitLinkedHint;
@@ -254,6 +324,8 @@ class DashboardPageState extends State<DashboardPage>
   bool _fitbitBodyLoading = false;
   FitbitBodySummary? _fitbitBody;
   FitbitBodySummary? _fitbitBodyLast;
+  final Map<DateTime, FitbitSummaryBundle?> _fitbitSummaryCache = {};
+  DateTime? _fitbitSummaryLoadingDate;
   DateTime _selectedDate = DateTime.now();
   int _weeklyDaysCount = 7;
   int? _exerciseTotal;
@@ -300,6 +372,7 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   void _changeDay(int deltaDays) {
+    final currentWeekStart = _trendWeekStartFor(_selectedDate);
     final next = DateTime(
       _selectedDate.year,
       _selectedDate.month,
@@ -308,7 +381,16 @@ class DashboardPageState extends State<DashboardPage>
     final today = DateTime.now();
     final todayOnly = DateTime(today.year, today.month, today.day);
     if (next.isAfter(todayOnly)) return;
+    final nextWeekStart = _trendWeekStartFor(next);
+    final shouldReloadTrends =
+        _trendWeekStart == null || nextWeekStart != currentWeekStart;
     final nextIsToday = next == todayOnly;
+    final cachedWhoopTodaySleep = _whoopSnapshotCache[todayOnly]?.sleepHours;
+    final shouldForceWhoopTodayRefresh =
+        nextIsToday &&
+        _hasWhoopSleepWidget &&
+        (_whoopLinked || _whoopLinkedHint == true) &&
+        ((cachedWhoopTodaySleep ?? 0) <= 0);
     final hasCachedToday =
         _cachedTodayLoadedOnce &&
         (_cachedTodayExerciseTotal != null ||
@@ -354,13 +436,15 @@ class DashboardPageState extends State<DashboardPage>
       _loadDietProgress();
     }
     _loadWeeklySteps();
-    _loadTrendSleep();
-    _loadTrendCalories();
+    if (shouldReloadTrends) {
+      _loadTrendSleep();
+      _loadTrendCalories();
+    }
     if (!(nextIsToday && hasCachedToday)) {
       _loadExerciseProgress();
     }
-    _loadWhoopRecovery();
-    _loadFitbitSummary();
+    _loadWhoopRecovery(force: shouldForceWhoopTodayRefresh);
+    _loadFitbitSummary(force: true);
   }
 
   void _openDateSheet() {
@@ -442,6 +526,7 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   void _onWhoopChanged() {
+    _whoopSnapshotCache.clear();
     _loadWhoopLinkedHint();
     _loadTrendSleep(force: true);
   }
@@ -452,9 +537,15 @@ class DashboardPageState extends State<DashboardPage>
     _loadFitbitLinkedHint();
     setState(() {
       _trendWeekStart = null;
+      _trendCaloriesLoadedWeekStart = null;
       _trendSleep = const [];
       _trendCalories = const [];
       _trendSleepSourceKey = null;
+      _activeTrendSleepCacheKey = null;
+      _activeTrendCaloriesCacheKey = null;
+      _whoopSnapshotCache.clear();
+      _fitbitSummaryCache.clear();
+      _fitbitSummaryLoadingDate = null;
     });
     _refreshAll();
     _loadExerciseProgress(force: true);
@@ -577,10 +668,7 @@ class DashboardPageState extends State<DashboardPage>
         context: context,
         backgroundColor: Colors.transparent,
         isScrollControlled: true,
-        builder: (_) => FitbitSleepSheet(
-          summary: sleep,
-          date: _selectedDate,
-        ),
+        builder: (_) => FitbitSleepSheet(summary: sleep, date: _selectedDate),
       );
       return;
     }
@@ -925,6 +1013,8 @@ class DashboardPageState extends State<DashboardPage>
       _fitbitLinkedHint = hint;
       _fitbitLinked = hint;
       if (!hint) {
+        _fitbitSummaryCache.clear();
+        _fitbitSummaryLoadingDate = null;
         _fitbitActivity = null;
         _fitbitHeart = null;
         _fitbitSleep = null;
@@ -1331,10 +1421,10 @@ class DashboardPageState extends State<DashboardPage>
       _loadTrendSleep(),
       _loadTrendCalories(),
       _loadStreak(),
-      _loadWhoopRecovery(),
+      _loadWhoopRecovery(force: true),
     ]);
     if (!mounted) return;
-    _loadFitbitSummary();
+    _loadFitbitSummary(force: true);
   }
 
   Future<void> _syncBackfillThenRefreshTrends() async {
@@ -1370,7 +1460,7 @@ class DashboardPageState extends State<DashboardPage>
       _loadWeeklySteps(),
       _loadTrendSleep(),
       _loadTrendCalories(),
-      _loadWhoopRecovery(),
+      _loadWhoopRecovery(force: true),
     ]);
     _loadFitbitSummary();
   }
@@ -1955,7 +2045,7 @@ class DashboardPageState extends State<DashboardPage>
       setState(() {
         _nextTrainingDayLabel = result.label;
         _nextTrainingDayAllDone = result.allDone;
-        if (localProgress != null && isCurrentDay) {
+        if (localProgress != null) {
           _exerciseCompleted = localProgress.completed;
           _exerciseTotal = localProgress.total;
         }
@@ -2118,7 +2208,7 @@ class DashboardPageState extends State<DashboardPage>
         _sleepHours = hours;
         _sleepDelta = delta;
       });
-      if (hours != null) {
+      if (hours != null && _shouldUpdateTrendForDate(_selectedDate)) {
         _tryUpdateTrendSleepForDate(_selectedDate, hours);
       }
     } catch (_) {
@@ -2171,7 +2261,7 @@ class DashboardPageState extends State<DashboardPage>
         _todayCalories = kcal;
         _caloriesDelta = delta;
       });
-      if (kcal != null) {
+      if (kcal != null && _shouldUpdateTrendForDate(_selectedDate)) {
         _tryUpdateTrendCaloriesForDate(_selectedDate, kcal.toDouble());
       }
       // Submit burn for this date whenever we have a value (no run limit). When user
@@ -2469,11 +2559,24 @@ class DashboardPageState extends State<DashboardPage>
     return diff.inMinutes / 60.0;
   }
 
-  Future<void> _loadWhoopRecovery() async {
+  Future<void> _loadWhoopRecovery({bool force = false}) async {
     final int requestId = ++_whoopReqId;
+    final targetDate = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
+    if (!force &&
+        _whoopLoading &&
+        _whoopLoadingDate != null &&
+        _whoopLoadingDate == targetDate) {
+      return;
+    }
     final userId = await AccountStorage.getUserId();
     if (!mounted) return;
-    final bool isCurrentDay = _isToday();
+    final now = DateTime.now();
+    final todayOnly = DateTime(now.year, now.month, now.day);
+    final bool isCurrentDay = targetDate == todayOnly;
     if (userId == null || userId == 0) {
       if (requestId != _whoopReqId) return;
       setState(() {
@@ -2524,15 +2627,49 @@ class DashboardPageState extends State<DashboardPage>
       return;
     }
 
+    final cached = _whoopSnapshotCache[targetDate];
+    if (!force && cached != null) {
+      if (requestId != _whoopReqId) return;
+      setState(() {
+        _whoopLinked = cached.linked;
+        _whoopLinkedKnown = cached.linkedKnown;
+        _whoopLinkedHint = cached.linked;
+        _whoopRecovery = cached.recoveryScore;
+        _whoopSleepHours = cached.sleepHours;
+        _whoopSleepScore = cached.sleepScore;
+        _whoopSleepDelta = cached.sleepDelta;
+        _whoopRecoveryDelta = cached.recoveryDelta;
+        _whoopLoading = false;
+        _whoopLoadingDate = null;
+        _whoopCycleStrain = cached.cycleStrain;
+        _whoopBodyWeightKg = cached.bodyWeightKg;
+      });
+      final shouldUpdateTrend =
+          cached.sleepHours != null &&
+          cached.sleepHours! > 0 &&
+          _shouldUpdateTrendForDate(_selectedDate);
+      final didUpdateTrend =
+          shouldUpdateTrend &&
+          _tryUpdateTrendSleepForDate(_selectedDate, cached.sleepHours!);
+      final expectedSource = _trendSleepSourceForCurrentWidgets();
+      if (_trendSleepSourceKey != expectedSource) {
+        _loadTrendSleep(force: true);
+      } else if (!didUpdateTrend && shouldUpdateTrend) {
+        _loadTrendSleep(force: true);
+      }
+      return;
+    }
+
     // Preserve last known strain before refresh so UI doesn't drop to "—".
     if (_whoopCycleStrain != null) {
       _whoopCycleStrainLast = _whoopCycleStrain;
     }
-    setState(() => _whoopLoading = true);
+    setState(() {
+      _whoopLoading = true;
+      _whoopLoadingDate = targetDate;
+    });
     try {
-      final snapshot = await WhoopWidgetDataService().fetchForDate(
-        _selectedDate,
-      );
+      final snapshot = await WhoopWidgetDataService().fetchForDate(targetDate);
       if (requestId != _whoopReqId) return;
 
       if (!mounted) return;
@@ -2547,23 +2684,33 @@ class DashboardPageState extends State<DashboardPage>
         _whoopSleepDelta = snapshot.sleepDelta;
         _whoopRecoveryDelta = snapshot.recoveryDelta;
         _whoopLoading = false;
+        _whoopLoadingDate = null;
         _whoopCycleStrain = snapshot.cycleStrain;
         _whoopBodyWeightKg = snapshot.bodyWeightKg;
         if (snapshot.cycleStrain != null && isCurrentDay) {
           _whoopCycleStrainLast = snapshot.cycleStrain;
         }
       });
-      final didUpdateTrend =
+      _whoopSnapshotCache[targetDate] = snapshot;
+      if (_whoopSnapshotCache.length > 21) {
+        final keys = _whoopSnapshotCache.keys.toList()..sort();
+        while (_whoopSnapshotCache.length > 21 && keys.isNotEmpty) {
+          _whoopSnapshotCache.remove(keys.removeAt(0));
+        }
+      }
+      final shouldUpdateTrend =
           snapshot.sleepHours != null &&
+          snapshot.sleepHours! > 0 &&
+          _shouldUpdateTrendForDate(_selectedDate);
+      final didUpdateTrend =
+          shouldUpdateTrend &&
           _tryUpdateTrendSleepForDate(_selectedDate, snapshot.sleepHours!);
       AccountStorage.setWhoopLinked(snapshot.linked);
       _pruneDeviceWidgets();
       final expectedSource = _trendSleepSourceForCurrentWidgets();
       if (_trendSleepSourceKey != expectedSource) {
         _loadTrendSleep(force: true);
-      } else if (!didUpdateTrend &&
-          snapshot.sleepHours != null &&
-          !_trendSleepLoading) {
+      } else if (!didUpdateTrend && shouldUpdateTrend) {
         _loadTrendSleep(force: true);
       }
     } catch (_) {
@@ -2573,7 +2720,12 @@ class DashboardPageState extends State<DashboardPage>
         _whoopRecovery = null;
         _whoopSleepHours = null;
         _whoopSleepScore = null;
+        if (!isCurrentDay) {
+          _whoopCycleStrain = null;
+          _whoopBodyWeightKg = null;
+        }
         _whoopLoading = false;
+        _whoopLoadingDate = null;
       });
     }
   }
@@ -2726,8 +2878,11 @@ class DashboardPageState extends State<DashboardPage>
         _fitbitSleepLast = summary;
         _fitbitSleepLoading = false;
       });
+      final shouldUpdateTrend =
+          (summary?.totalMinutesAsleep ?? 0) > 0 &&
+          _shouldUpdateTrendForDate(_selectedDate);
       bool didUpdateTrend = false;
-      if (summary?.totalMinutesAsleep != null) {
+      if (shouldUpdateTrend) {
         didUpdateTrend = _tryUpdateTrendSleepForDate(
           _selectedDate,
           summary!.totalMinutesAsleep! / 60.0,
@@ -2736,9 +2891,7 @@ class DashboardPageState extends State<DashboardPage>
       final expectedSource = _trendSleepSourceForCurrentWidgets();
       if (_trendSleepSourceKey != expectedSource) {
         _loadTrendSleep(force: true);
-      } else if (!didUpdateTrend &&
-          summary?.totalMinutesAsleep != null &&
-          !_trendSleepLoading) {
+      } else if (!didUpdateTrend && shouldUpdateTrend) {
         _loadTrendSleep(force: true);
       }
     } catch (_) {
@@ -2755,54 +2908,109 @@ class DashboardPageState extends State<DashboardPage>
     }
   }
 
-  Future<void> _loadFitbitSummary({int attempt = 0}) async {
-    if (_fitbitSummaryLoading) return;
-    final userId = await AccountStorage.getUserId();
-    if (!mounted) return;
-    final today = DateTime.now();
-    final todayOnly = DateTime(today.year, today.month, today.day);
+  void _setFitbitLoadingFlags(bool value) {
+    _fitbitActivityLoading = value;
+    _fitbitHeartLoading = value;
+    _fitbitSleepLoading = value;
+    _fitbitVitalsLoading = value;
+    _fitbitBodyLoading = value;
+  }
+
+  void _applyFitbitBundle(FitbitSummaryBundle? bundle) {
+    _fitbitActivity = bundle?.activity;
+    _fitbitHeart = bundle?.heart;
+    _fitbitSleep = bundle?.sleep;
+    _fitbitVitals = bundle?.vitals;
+    _fitbitBody = bundle?.body;
+    _fitbitActivityLast = bundle?.activity ?? _fitbitActivityLast;
+    _fitbitHeartLast = bundle?.heart ?? _fitbitHeartLast;
+    _fitbitSleepLast = bundle?.sleep ?? _fitbitSleepLast;
+    _fitbitVitalsLast = bundle?.vitals ?? _fitbitVitalsLast;
+    _fitbitBodyLast = bundle?.body ?? _fitbitBodyLast;
+    _setFitbitLoadingFlags(false);
+  }
+
+  Future<void> _loadFitbitSummary({int attempt = 0, bool force = false}) async {
     final selectedDay = DateTime(
       _selectedDate.year,
       _selectedDate.month,
       _selectedDate.day,
     );
+    final today = DateTime.now();
+    final todayOnly = DateTime(today.year, today.month, today.day);
     final isToday = selectedDay == todayOnly;
+    if (!force &&
+        _fitbitSummaryLoading &&
+        _fitbitSummaryLoadingDate != null &&
+        _fitbitSummaryLoadingDate == selectedDay) {
+      return;
+    }
+    if (!force && _fitbitSummaryCache.containsKey(selectedDay)) {
+      final cachedBundle = _fitbitSummaryCache[selectedDay];
+      if (!mounted) return;
+      setState(() {
+        _applyFitbitBundle(cachedBundle);
+        _fitbitSummaryLoadingDate = null;
+      });
+      final shouldUpdateTrend =
+          isToday && (cachedBundle?.sleep?.totalMinutesAsleep ?? 0) > 0;
+      bool didUpdateTrend = false;
+      if (shouldUpdateTrend) {
+        didUpdateTrend = _tryUpdateTrendSleepForDate(
+          selectedDay,
+          cachedBundle!.sleep!.totalMinutesAsleep! / 60.0,
+        );
+      }
+      final expectedSource = _trendSleepSourceForCurrentWidgets();
+      if (_trendSleepSourceKey != expectedSource) {
+        _loadTrendSleep(force: true);
+      } else if (!didUpdateTrend && shouldUpdateTrend) {
+        _loadTrendSleep(force: true);
+      }
+      return;
+    }
+
+    final userId = await AccountStorage.getUserId();
+    if (!mounted) return;
     if (userId == null || userId == 0) {
       if (attempt < 2) {
         await Future.delayed(Duration(milliseconds: 400 + (attempt * 400)));
         if (!mounted) return;
-        return _loadFitbitSummary(attempt: attempt + 1);
+        return _loadFitbitSummary(attempt: attempt + 1, force: force);
       }
       if (!mounted) return;
       setState(() {
+        _fitbitSummaryCache.clear();
+        _fitbitSummaryLoadingDate = null;
         _fitbitLinked = false;
         _fitbitActivity = null;
         _fitbitHeart = null;
         _fitbitSleep = null;
         _fitbitVitals = null;
         _fitbitBody = null;
-        _fitbitActivityLoading = false;
-        _fitbitHeartLoading = false;
-        _fitbitSleepLoading = false;
-        _fitbitVitalsLoading = false;
-        _fitbitBodyLoading = false;
+        _setFitbitLoadingFlags(false);
       });
       return;
     }
 
     _fitbitSummaryLoading = true;
+    _fitbitSummaryLoadingDate = selectedDay;
     try {
       await _loadFitbitStatus();
-      if (!_fitbitLinked) return;
+      if (!_fitbitLinked) {
+        if (mounted) {
+          setState(() {
+            _setFitbitLoadingFlags(false);
+            _fitbitSummaryLoadingDate = null;
+          });
+        }
+        return;
+      }
 
       // Always load Fitbit summaries when linked, even if widgets are currently hidden.
 
       setState(() {
-        _fitbitActivityLoading = true;
-        _fitbitHeartLoading = true;
-        _fitbitSleepLoading = true;
-        _fitbitVitalsLoading = true;
-        _fitbitBodyLoading = true;
+        _setFitbitLoadingFlags(true);
       });
 
       try {
@@ -2814,71 +3022,52 @@ class DashboardPageState extends State<DashboardPage>
             _fitbitSleep = null;
             _fitbitVitals = null;
             _fitbitBody = null;
-            _fitbitActivityLoading = false;
-            _fitbitHeartLoading = false;
-            _fitbitSleepLoading = false;
-            _fitbitVitalsLoading = false;
-            _fitbitBodyLoading = false;
+            _setFitbitLoadingFlags(false);
+            _fitbitSummaryLoadingDate = null;
           });
           return;
         }
 
-        final bundle = await FitbitSummaryService().fetchSummary(
-          DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day),
-        );
+        final bundle = await FitbitSummaryService().fetchSummary(selectedDay);
         if (!mounted) return;
+        _fitbitSummaryCache[selectedDay] = bundle;
+        if (_fitbitSummaryCache.length > 21) {
+          final keys = _fitbitSummaryCache.keys.toList()..sort();
+          while (_fitbitSummaryCache.length > 21 && keys.isNotEmpty) {
+            _fitbitSummaryCache.remove(keys.removeAt(0));
+          }
+        }
         setState(() {
-          _fitbitActivity = bundle?.activity;
-          _fitbitActivityLast = isToday
-              ? (bundle?.activity ?? _fitbitActivityLast)
-              : null;
-          _fitbitHeart = bundle?.heart;
-          _fitbitHeartLast = isToday
-              ? (bundle?.heart ?? _fitbitHeartLast)
-              : null;
-          _fitbitSleep = bundle?.sleep;
-          _fitbitSleepLast = isToday
-              ? (bundle?.sleep ?? _fitbitSleepLast)
-              : null;
-          _fitbitVitals = bundle?.vitals;
-          _fitbitVitalsLast = isToday
-              ? (bundle?.vitals ?? _fitbitVitalsLast)
-              : null;
-          _fitbitBody = bundle?.body;
-          _fitbitBodyLast = isToday ? (bundle?.body ?? _fitbitBodyLast) : null;
-          _fitbitActivityLoading = false;
-          _fitbitHeartLoading = false;
-          _fitbitSleepLoading = false;
-          _fitbitVitalsLoading = false;
-          _fitbitBodyLoading = false;
+          _applyFitbitBundle(bundle);
+          _fitbitSummaryLoadingDate = null;
         });
+        final shouldUpdateTrend =
+            isToday && (bundle?.sleep?.totalMinutesAsleep ?? 0) > 0;
         bool didUpdateTrend = false;
-        if (bundle?.sleep?.totalMinutesAsleep != null) {
+        if (shouldUpdateTrend) {
           didUpdateTrend = _tryUpdateTrendSleepForDate(
-            _selectedDate,
+            selectedDay,
             bundle!.sleep!.totalMinutesAsleep! / 60.0,
           );
         }
         final expectedSource = _trendSleepSourceForCurrentWidgets();
         if (_trendSleepSourceKey != expectedSource) {
           _loadTrendSleep(force: true);
-        } else if (!didUpdateTrend &&
-            bundle?.sleep?.totalMinutesAsleep != null &&
-            !_trendSleepLoading) {
+        } else if (!didUpdateTrend && shouldUpdateTrend) {
           _loadTrendSleep(force: true);
         }
       } catch (_) {
         if (!mounted) return;
         setState(() {
-          _fitbitActivityLoading = false;
-          _fitbitHeartLoading = false;
-          _fitbitSleepLoading = false;
-          _fitbitVitalsLoading = false;
-          _fitbitBodyLoading = false;
+          _setFitbitLoadingFlags(false);
+          _fitbitSummaryLoadingDate = null;
         });
       }
     } finally {
       _fitbitSummaryLoading = false;
+      if (_fitbitSummaryLoadingDate == selectedDay) {
+        _fitbitSummaryLoadingDate = null;
+      }
     }
   }
 
@@ -3135,6 +3324,7 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   Future<void> _loadTrendSleep({bool force = false}) async {
+    final reqId = ++_trendSleepReqId;
     try {
       final anchor = DateTime(
         _selectedDate.year,
@@ -3144,15 +3334,43 @@ class DashboardPageState extends State<DashboardPage>
       final start = _trendWeekStartFor(anchor);
       final end = start.add(const Duration(days: 6)); // Mon-Sun
       final sourceKey = _trendSleepSourceForCurrentWidgets();
+      final userId = await AccountStorage.getUserId();
+      if (reqId != _trendSleepReqId) return;
+      final cacheKey = userId == null || userId == 0
+          ? null
+          : _trendSleepCacheKey(
+              userId: userId,
+              sourceKey: sourceKey,
+              weekStart: start,
+            );
+      if (!force && cacheKey != null) {
+        final cached = _readTrendSleepWeekCache(cacheKey);
+        if (cached != null) {
+          _activeTrendSleepCacheKey = cacheKey;
+          if (!mounted || reqId != _trendSleepReqId) return;
+          setState(() {
+            _trendWeekStart = start;
+            _trendSleep = cached;
+            _trendSleepSourceKey = sourceKey;
+            _trendSleepLoading = false;
+          });
+          return;
+        }
+      }
       final sourceChanged = _trendSleepSourceKey != sourceKey;
       if (!force &&
           !sourceChanged &&
-          _trendSleep.isNotEmpty &&
           _trendWeekStart != null &&
           _trendWeekStart == start) {
+        _activeTrendSleepCacheKey = cacheKey;
+        if (mounted && reqId == _trendSleepReqId) {
+          setState(() => _trendSleepLoading = false);
+        }
         return;
       }
-      if (mounted) setState(() => _trendSleepLoading = true);
+      if (mounted && reqId == _trendSleepReqId) {
+        setState(() => _trendSleepLoading = true);
+      }
       final now = DateTime.now();
       final todayKey = DateTime(now.year, now.month, now.day);
       final dayKeys = List.generate(7, (i) {
@@ -3163,24 +3381,89 @@ class DashboardPageState extends State<DashboardPage>
         ).add(Duration(days: i));
         return DateTime(d.year, d.month, d.day);
       });
-      final sleepToday = await SleepService().fetchSleepHoursLast24h();
       List<double> days = const [];
       if (sourceKey == 'whoop') {
         final data = await WhoopSleepService().fetchDailySleepFromDb(
           start: start,
           end: end,
         );
+        if (reqId != _trendSleepReqId) return;
+        final selectedKey = DateTime(
+          _selectedDate.year,
+          _selectedDate.month,
+          _selectedDate.day,
+        );
+        var whoopToday = 0.0;
+        if (userId != null && userId != 0) {
+          whoopToday =
+              WhoopWidgetDataService.cachedSleepHoursForDate(
+                userId: userId,
+                date: todayKey,
+              ) ??
+              0.0;
+        }
+        if (selectedKey == todayKey && (_whoopSleepHours ?? 0) > 0) {
+          whoopToday = _whoopSleepHours!;
+        } else {
+          final localToday = _whoopSnapshotCache[todayKey]?.sleepHours;
+          if (localToday != null && localToday > 0) {
+            whoopToday = localToday;
+          }
+        }
+        if (dayKeys.contains(todayKey) &&
+            selectedKey == todayKey &&
+            whoopToday <= 0) {
+          try {
+            final liveToday = await WhoopWidgetDataService().fetchForDate(
+              todayKey,
+            );
+            if (reqId != _trendSleepReqId) return;
+            final liveHours = liveToday.sleepHours;
+            if (liveHours != null && liveHours > 0) {
+              whoopToday = liveHours;
+              _whoopSnapshotCache[todayKey] = liveToday;
+              if (_whoopSnapshotCache.length > 21) {
+                final keys = _whoopSnapshotCache.keys.toList()..sort();
+                while (_whoopSnapshotCache.length > 21 && keys.isNotEmpty) {
+                  _whoopSnapshotCache.remove(keys.removeAt(0));
+                }
+              }
+              if (userId != null && userId != 0) {
+                WhoopWidgetDataService.cacheSleepHoursForDate(
+                  userId: userId,
+                  date: todayKey,
+                  sleepHours: liveHours,
+                );
+              }
+            }
+          } catch (_) {}
+        }
+        if (dayKeys.contains(todayKey) && whoopToday <= 0) {
+          whoopToday =
+              await WhoopSleepService().fetchSleepHoursForDay(todayKey) ?? 0.0;
+          if (reqId != _trendSleepReqId) return;
+          if (whoopToday > 0 && userId != null && userId != 0) {
+            WhoopWidgetDataService.cacheSleepHoursForDate(
+              userId: userId,
+              date: todayKey,
+              sleepHours: whoopToday,
+            );
+          }
+        }
         days = dayKeys.map((key) {
-          if (key == todayKey) return sleepToday;
+          if (key == todayKey) return whoopToday;
           return data[key] ?? 0.0;
         }).toList();
       } else {
+        final sleepToday = await SleepService().fetchSleepHoursLast24h();
+        if (reqId != _trendSleepReqId) return;
         var usedFitbit = false;
         if (sourceKey == 'fitbit') {
           final data = await FitbitDailyMetricsDbService().fetchRange(
             start: start,
             end: end,
           );
+          if (reqId != _trendSleepReqId) return;
           if (data.isNotEmpty) {
             int? _int(dynamic v) {
               if (v == null) return null;
@@ -3205,6 +3488,7 @@ class DashboardPageState extends State<DashboardPage>
 
         if (!usedFitbit) {
           final metrics = await _fetchMetricsRange(start, end);
+          if (reqId != _trendSleepReqId) return;
           if (metrics.isNotEmpty) {
             days = dayKeys.map((key) {
               if (key == todayKey) return sleepToday;
@@ -3219,26 +3503,33 @@ class DashboardPageState extends State<DashboardPage>
           }
         }
       }
+      if (reqId != _trendSleepReqId) return;
       final hasData = days.any((v) => v > 0);
-      if (!mounted) return;
+      final resolved = hasData ? days : const <double>[];
+      if (cacheKey != null) {
+        _writeTrendSleepWeekCache(cacheKey, resolved);
+        _activeTrendSleepCacheKey = cacheKey;
+      } else {
+        _activeTrendSleepCacheKey = null;
+      }
+      if (!mounted || reqId != _trendSleepReqId) return;
       setState(() {
         _trendWeekStart = start;
-        _trendSleep = hasData ? days : const [];
+        _trendSleep = resolved;
         _trendSleepSourceKey = sourceKey;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || reqId != _trendSleepReqId) return;
       setState(() => _trendSleep = const []);
     } finally {
-      if (mounted) setState(() => _trendSleepLoading = false);
+      if (mounted && reqId == _trendSleepReqId) {
+        setState(() => _trendSleepLoading = false);
+      }
     }
   }
 
   Future<void> _loadTrendCalories({bool force = false}) async {
     final reqId = ++_trendCaloriesReqId;
-    if (mounted) {
-      setState(() => _trendCaloriesLoading = true);
-    }
     try {
       final anchor = DateTime(
         _selectedDate.year,
@@ -3247,14 +3538,36 @@ class DashboardPageState extends State<DashboardPage>
       );
       final start = _trendWeekStartFor(anchor);
       final end = start.add(const Duration(days: 6)); // Mon-Sun
+      final userId = await AccountStorage.getUserId();
+      final cacheKey = userId == null || userId == 0
+          ? null
+          : _trendCaloriesCacheKey(userId: userId, weekStart: start);
+      if (!force && cacheKey != null) {
+        final cached = _readTrendCaloriesWeekCache(cacheKey);
+        if (cached != null) {
+          _activeTrendCaloriesCacheKey = cacheKey;
+          if (mounted && reqId == _trendCaloriesReqId) {
+            setState(() {
+              _trendWeekStart = start;
+              _trendCaloriesLoadedWeekStart = start;
+              _trendCalories = cached;
+              _trendCaloriesLoading = false;
+            });
+          }
+          return;
+        }
+      }
       if (!force &&
-          _trendCalories.isNotEmpty &&
-          _trendWeekStart != null &&
-          _trendWeekStart == start) {
+          _trendCaloriesLoadedWeekStart != null &&
+          _trendCaloriesLoadedWeekStart == start) {
+        _activeTrendCaloriesCacheKey = cacheKey;
         if (mounted && reqId == _trendCaloriesReqId) {
           setState(() => _trendCaloriesLoading = false);
         }
         return;
+      }
+      if (mounted && reqId == _trendCaloriesReqId) {
+        setState(() => _trendCaloriesLoading = true);
       }
       final dayKeys = List.generate(7, (i) {
         final d = DateTime(
@@ -3284,11 +3597,19 @@ class DashboardPageState extends State<DashboardPage>
         }
       }
       final hasData = days.any((v) => v > 0);
+      final resolved = hasData ? days : const <double>[];
+      if (cacheKey != null) {
+        _writeTrendCaloriesWeekCache(cacheKey, resolved);
+        _activeTrendCaloriesCacheKey = cacheKey;
+      } else {
+        _activeTrendCaloriesCacheKey = null;
+      }
       if (!mounted) return;
       if (reqId != _trendCaloriesReqId) return;
       setState(() {
         _trendWeekStart = start;
-        _trendCalories = hasData ? days : const [];
+        _trendCaloriesLoadedWeekStart = start;
+        _trendCalories = resolved;
       });
     } catch (_) {
       if (!mounted) return;
@@ -3407,6 +3728,35 @@ class DashboardPageState extends State<DashboardPage>
       if (!mounted) return;
       setState(() => _caloriesGoal = res.toInt());
     }
+  }
+
+  List<double> _trendSleepForDisplay() {
+    var out = _trendSleep.isEmpty ? <double>[] : List<double>.from(_trendSleep);
+    if (!_isToday()) return out;
+    final start = _trendWeekStart ?? _trendWeekStartFor(_selectedDate);
+    final idx = _dayKey(_selectedDate).difference(start).inDays;
+    if (idx < 0 || idx > 6) return out;
+
+    double? liveHours;
+    final source = _trendSleepSourceForCurrentWidgets();
+    if (source == 'whoop') {
+      final todayKey = _dayKey(_selectedDate);
+      liveHours = _whoopSleepHours ?? _whoopSnapshotCache[todayKey]?.sleepHours;
+    } else if (source == 'fitbit') {
+      final minutes = _fitbitSleep?.totalMinutesAsleep;
+      liveHours = (minutes != null && minutes > 0) ? minutes / 60.0 : null;
+    } else {
+      liveHours = _sleepHours;
+    }
+    if (liveHours == null || liveHours <= 0) return out;
+
+    if (out.isEmpty) {
+      out = List<double>.filled(7, 0.0);
+    } else if (out.length < 7) {
+      out = [...out, ...List<double>.filled(7 - out.length, 0.0)];
+    }
+    out[idx] = liveHours;
+    return out;
   }
 
   Future<void> _loadUserInfo() async {
@@ -3997,9 +4347,10 @@ class DashboardPageState extends State<DashboardPage>
                     );
                   case 'whoop_sleep':
                     return WhoopSleepCard(
-                      loading: _whoopLoading,
+                      loading: false,
                       linked: _whoopLinked,
-                      linkedKnown: _whoopLinkedKnown,
+                      linkedKnown:
+                          _whoopLinkedKnown || _whoopLinkedHint != null,
                       hours: _whoopSleepHours,
                       score: _whoopSleepScore,
                       goal: _sleepGoal,
@@ -4017,14 +4368,16 @@ class DashboardPageState extends State<DashboardPage>
                     );
                   case 'whoop_recovery':
                     return WhoopRecoveryCard(
-                      loading: _whoopLoading,
+                      loading: false,
                       linked: _whoopLinked,
                       score: _whoopRecovery,
                       delta: _whoopRecoveryDelta,
                       onTap: () async {
                         await Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => const WhoopRecoveryDetailPage(),
+                            builder: (_) => WhoopRecoveryDetailPage(
+                              initialDate: _selectedDate,
+                            ),
                           ),
                         );
                       },
@@ -4034,20 +4387,22 @@ class DashboardPageState extends State<DashboardPage>
                         ? (_whoopCycleStrain ?? _whoopCycleStrainLast)
                         : _whoopCycleStrain;
                     return WhoopCycleCard(
-                      loading: _whoopLoading,
+                      loading: false,
                       linked: _whoopLinked,
                       strain: strain,
                       onTap: () async {
                         await Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => const WhoopCycleDetailPage(),
+                            builder: (_) => WhoopCycleDetailPage(
+                              initialDate: _selectedDate,
+                            ),
                           ),
                         );
                       },
                     );
                   case 'whoop_body':
                     return WhoopBodyCard(
-                      loading: _whoopLoading,
+                      loading: false,
                       linked: _whoopLinked,
                       weightKg: _whoopBodyWeightKg,
                       onTap: () async {
@@ -4389,7 +4744,7 @@ class DashboardPageState extends State<DashboardPage>
                     Expanded(
                       child: _TrendTile(
                         title: t("dash_sleep_hrs"),
-                        data: _trendSleep,
+                        data: _trendSleepForDisplay(),
                         loading: _trendSleepLoading,
                         accentColor: const Color(0xFF9B8CFF),
                         emptyLabel: t("dash_no_sleep_data"),

@@ -6,7 +6,12 @@ import '../widgets/charts/simple_line_chart.dart';
 import '../widgets/common/date_switcher.dart';
 
 class WhoopCycleDetailPage extends StatefulWidget {
-  const WhoopCycleDetailPage({super.key});
+  const WhoopCycleDetailPage({
+    super.key,
+    this.initialDate,
+  });
+
+  final DateTime? initialDate;
 
   @override
   State<WhoopCycleDetailPage> createState() => _WhoopCycleDetailPageState();
@@ -14,7 +19,7 @@ class WhoopCycleDetailPage extends StatefulWidget {
 
 class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
   bool _loading = true;
-  DateTime _selectedDate = DateTime.now();
+  late DateTime _selectedDate;
   Map<DateTime, Map<String, dynamic>> _daily = {};
   int _reqId = 0;
   bool _transitionFromTodayToYesterday = false;
@@ -22,6 +27,8 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
   @override
   void initState() {
     super.initState();
+    final initial = widget.initialDate ?? DateTime.now();
+    _selectedDate = DateTime(initial.year, initial.month, initial.day);
     _loadRange();
   }
 
@@ -36,7 +43,7 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
       if (!mounted) return;
       if (requestId != _reqId) return;
       setState(() {
-        _daily.addAll(data);
+        _daily = data;
         _loading = false;
       });
     } catch (_) {

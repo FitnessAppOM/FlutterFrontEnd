@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import '../../widgets/Main/section_header.dart';
 import '../../widgets/training/day_selector.dart';
@@ -11,6 +14,9 @@ import '../../widgets/app_toast.dart';
 import '../../services/training/exercise_action_queue.dart';
 import '../../screens/cardio/cardio_tab.dart';
 import '../../consents/consent_manager.dart';
+import '../../screens/training/training_history_page.dart';
+import '../../widgets/training/training_day_complete_sheet.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TrainPage extends StatefulWidget {
   const TrainPage({super.key});
@@ -32,6 +38,7 @@ class _TrainPageState extends State<TrainPage> {
   final Set<String> _preloadedThumbs = <String>{};
 
   int? _userId;
+  int? _pendingCompletionDayIndex;
 
   @override
   void initState() {
@@ -81,7 +88,10 @@ class _TrainPageState extends State<TrainPage> {
       Set<String> completed = {};
       try {
         final names = await TrainingService.fetchCompletedExerciseNames(userId);
-        completed = names.map((e) => e.trim().toLowerCase()).where((e) => e.isNotEmpty).toSet();
+        completed = names
+            .map((e) => e.trim().toLowerCase())
+            .where((e) => e.isNotEmpty)
+            .toSet();
       } catch (_) {
         // Ignore completed names fetch errors
       }
@@ -94,6 +104,7 @@ class _TrainPageState extends State<TrainPage> {
         _rebuildExerciseLists();
       });
       _preloadExerciseGifsForCurrentDay();
+      await _maybeShowDayCompletedPopup();
       return;
     } catch (_) {
       if (!mounted) return;
@@ -106,7 +117,8 @@ class _TrainPageState extends State<TrainPage> {
           final t = AppLocalizations.of(context);
           AppToast.show(
             context,
-            t.translate("offline_mode_using_cached_data") ?? "Offline: Using cached data",
+            t.translate("offline_mode_using_cached_data") ??
+                "Offline: Using cached data",
             type: AppToastType.info,
           );
         }
@@ -159,7 +171,12 @@ class _TrainPageState extends State<TrainPage> {
   Future<void> _preloadExerciseGifsForCurrentDay() async {
     if (!mounted) return;
     try {
-      final dpr = WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
+      final dpr = WidgetsBinding
+          .instance
+          .platformDispatcher
+          .views
+          .first
+          .devicePixelRatio;
       final thumbW = (74 * dpr).round();
       final thumbH = (66 * dpr).round();
       for (final ex in _trainExercises) {
@@ -197,15 +214,20 @@ class _TrainPageState extends State<TrainPage> {
       ex['animation_url']?.toString(),
       null,
     );
-    final ImageProvider? previewProvider =
-        gifUrl.isEmpty ? null : TrainingService.gifProvider(
-          gifUrl,
-          cacheWidth: thumbW,
-          cacheHeight: thumbH,
-        );
+    final ImageProvider? previewProvider = gifUrl.isEmpty
+        ? null
+        : TrainingService.gifProvider(
+            gifUrl,
+            cacheWidth: thumbW,
+            cacheHeight: thumbH,
+          );
     if (gifUrl.isNotEmpty) {
       // Warm the sheet size without blocking UI.
-      TrainingService.warmGif(context, gifUrl, cacheHeight: sheetH).catchError((_) {});
+      TrainingService.warmGif(
+        context,
+        gifUrl,
+        cacheHeight: sheetH,
+      ).catchError((_) {});
     }
     showModalBottomSheet(
       context: context,
@@ -216,7 +238,10 @@ class _TrainPageState extends State<TrainPage> {
       builder: (_) => ExerciseSessionSheet(
         exercise: ex,
         completedExerciseNames: completedExerciseNames,
-        onFinished: _loadProgram,
+        onFinished: () {
+          _pendingCompletionDayIndex = selectedDay;
+          unawaited(_loadProgram());
+        },
         previewProvider: previewProvider,
         showSessionOnOpen: true,
       ),
@@ -249,10 +274,7 @@ class _TrainPageState extends State<TrainPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => ReplaceExerciseSheet(
-        userId: userId,
-        programExercise: ex,
-      ),
+      builder: (_) => ReplaceExerciseSheet(userId: userId, programExercise: ex),
     );
 
     if (changed == true) {
@@ -274,6 +296,235 @@ class _TrainPageState extends State<TrainPage> {
     return animationName.startsWith('cardio -');
   }
 
+  DateTime _weekStartMonday(DateTime d) {
+    final day = DateTime(d.year, d.month, d.day);
+    final daysSinceMonday = (day.weekday + 6) % 7;
+    return day.subtract(Duration(days: daysSinceMonday));
+  }
+
+  DateTime _weekEndSunday(DateTime d) {
+    final start = _weekStartMonday(d);
+    return start.add(const Duration(days: 6));
+  }
+
+  String _dateToken(DateTime d) {
+    final y = d.year.toString().padLeft(4, '0');
+    final m = d.month.toString().padLeft(2, '0');
+    final day = d.day.toString().padLeft(2, '0');
+    return "$y-$m-$day";
+  }
+
+  DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is String && value.isNotEmpty) return DateTime.tryParse(value);
+    if (value is num) {
+      final intVal = value.toInt();
+      if (intVal > 1000000000000) {
+        return DateTime.fromMillisecondsSinceEpoch(intVal);
+      }
+      if (intVal > 1000000000) {
+        return DateTime.fromMillisecondsSinceEpoch(intVal * 1000);
+      }
+    }
+    return null;
+  }
+
+  bool _flagTrue(dynamic value) {
+    if (value == null) return false;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    final s = value.toString().trim().toLowerCase();
+    if (s.isEmpty) return false;
+    if (s == "true" || s == "yes" || s == "y" || s == "t" || s == "1")
+      return true;
+    final numeric = num.tryParse(s);
+    if (numeric != null) return numeric != 0;
+    return !(s == "false" || s == "f" || s == "no" || s == "n" || s == "0");
+  }
+
+  bool _isInWeek(DateTime date, DateTime weekStart, DateTime weekEnd) {
+    return !date.isBefore(weekStart) && !date.isAfter(weekEnd);
+  }
+
+  bool _complianceCompletedForWeek(
+    dynamic compliance,
+    DateTime weekStart,
+    DateTime weekEnd,
+  ) {
+    if (compliance == null) return false;
+    if (compliance is Map) {
+      final loggedAt = _parseDateTime(
+        compliance['logged_at'] ??
+            compliance['completed_at'] ??
+            compliance['updated_at'] ??
+            compliance['performed_at'],
+      );
+      if (loggedAt == null) return false;
+      if (!_isInWeek(loggedAt, weekStart, weekEnd)) return false;
+      final flags = [
+        compliance['completed'],
+        compliance['is_completed'],
+        compliance['performed_sets'],
+        compliance['performed_reps'],
+        compliance['performed_time_seconds'],
+        if (compliance['status'] != null)
+          compliance['status'].toString().toLowerCase().contains("complete") ||
+              compliance['status'].toString().toLowerCase().contains("done") ||
+              compliance['status'].toString().toLowerCase().contains("finish"),
+      ];
+      return flags.any(_flagTrue);
+    }
+    if (compliance is Iterable) {
+      return compliance.any(
+        (item) => _complianceCompletedForWeek(item, weekStart, weekEnd),
+      );
+    }
+    if (compliance is String) {
+      try {
+        final decoded = jsonDecode(compliance);
+        return _complianceCompletedForWeek(decoded, weekStart, weekEnd);
+      } catch (_) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  DateTime? _exerciseCompletionDate(Map<String, dynamic> ex) {
+    final candidates = [
+      ex['logged_at'],
+      ex['completed_at'],
+      ex['updated_at'],
+      ex['performed_at'],
+      ex['last_performed_at'],
+    ];
+    for (final c in candidates) {
+      final dt = _parseDateTime(c);
+      if (dt != null) return dt;
+    }
+    return null;
+  }
+
+  bool _isExerciseCompletedForWeek(
+    Map<String, dynamic> ex,
+    DateTime weekStart,
+    DateTime weekEnd,
+  ) {
+    if (_complianceCompletedForWeek(
+          ex['program_compliance'],
+          weekStart,
+          weekEnd,
+        ) ||
+        _complianceCompletedForWeek(ex['compliance'], weekStart, weekEnd)) {
+      return true;
+    }
+
+    final completionDate = _exerciseCompletionDate(ex);
+    if (completionDate == null ||
+        !_isInWeek(completionDate, weekStart, weekEnd)) {
+      return false;
+    }
+
+    final flags = [
+      ex['is_completed'],
+      ex['completed'],
+      ex['program_compliance_completed'],
+      ex['performed_sets'],
+      ex['performed_reps'],
+      ex['performed_time_seconds'],
+      ex['weight_used'],
+    ];
+    return flags.any(_flagTrue);
+  }
+
+  bool _isDayCompletedForWeek(
+    Map<String, dynamic> day,
+    DateTime weekStart,
+    DateTime weekEnd,
+  ) {
+    final flags = [
+      day['is_completed'],
+      day['completed'],
+      day['program_compliance_completed'],
+    ];
+    if (flags.any(_flagTrue)) return true;
+    if (_complianceCompletedForWeek(
+          day['program_compliance'],
+          weekStart,
+          weekEnd,
+        ) ||
+        _complianceCompletedForWeek(day['compliance'], weekStart, weekEnd)) {
+      return true;
+    }
+
+    final exercises = day['exercises'];
+    if (exercises is! List || exercises.isEmpty) return false;
+    for (final ex in exercises) {
+      if (ex is Map<String, dynamic>) {
+        if (!_isExerciseCompletedForWeek(ex, weekStart, weekEnd)) return false;
+      } else if (ex is Map) {
+        if (!_isExerciseCompletedForWeek(
+          Map<String, dynamic>.from(ex),
+          weekStart,
+          weekEnd,
+        )) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  String _dayCompletionKey(
+    Map<String, dynamic> day,
+    int index,
+    DateTime weekStart,
+  ) {
+    final rawId =
+        day['day_id'] ??
+        day['id'] ??
+        day['day_label'] ??
+        day['day_name'] ??
+        "day_${index + 1}";
+    final safeId = rawId.toString().replaceAll(RegExp(r'\s+'), '_');
+    return "${_dateToken(weekStart)}_$safeId";
+  }
+
+  Future<void> _maybeShowDayCompletedPopup() async {
+    final index = _pendingCompletionDayIndex;
+    _pendingCompletionDayIndex = null;
+    final data = program;
+    if (index == null || data == null) return;
+    final days = data['days'];
+    if (days is! List || index < 0 || index >= days.length) return;
+    final day = days[index];
+    if (day is! Map<String, dynamic>) return;
+
+    final now = DateTime.now();
+    final weekStart = _weekStartMonday(now);
+    final weekEnd = _weekEndSunday(now);
+    if (!_isDayCompletedForWeek(day, weekStart, weekEnd)) return;
+
+    final userId = _userId ?? await AccountStorage.getUserId();
+    if (userId == null) return;
+    final sp = await SharedPreferences.getInstance();
+    final key =
+        "train_day_completed_popup_u${userId}_${_dayCompletionKey(day, index, weekStart)}";
+    if (sp.getBool(key) == true) return;
+    await sp.setBool(key, true);
+
+    if (!mounted) return;
+    final label = (day['day_label'] ?? 'Training day').toString();
+    await showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => TrainingDayCompleteSheet(dayLabel: label),
+    );
+  }
+
   Widget _tabButton({
     required String label,
     required bool active,
@@ -284,7 +535,9 @@ class _TrainPageState extends State<TrainPage> {
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOut,
         decoration: BoxDecoration(
-          color: active ? const Color(0xFF2D7CFF) : Colors.white.withOpacity(0.05),
+          color: active
+              ? const Color(0xFF2D7CFF)
+              : Colors.white.withOpacity(0.05),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: active ? const Color(0xFF2D7CFF) : Colors.white24,
@@ -319,17 +572,13 @@ class _TrainPageState extends State<TrainPage> {
     }
 
     if (program == null) {
-      return Center(
-        child: Text(t.translate("no_active_training_program")),
-      );
+      return Center(child: Text(t.translate("no_active_training_program")));
     }
 
     final List days = program!['days'] ?? [];
 
     if (days.isEmpty) {
-      return Center(
-        child: Text(t.translate("no_active_training_program")),
-      );
+      return Center(child: Text(t.translate("no_active_training_program")));
     }
 
     if (selectedDay >= days.length) {
@@ -359,7 +608,11 @@ class _TrainPageState extends State<TrainPage> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.cloud_off, color: Colors.orange, size: 20),
+                          const Icon(
+                            Icons.cloud_off,
+                            color: Colors.orange,
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -414,8 +667,9 @@ class _TrainPageState extends State<TrainPage> {
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                       children: [
                         DaySelector(
-                          labels:
-                              days.map<String>((d) => d['day_label'].toString()).toList(),
+                          labels: days
+                              .map<String>((d) => d['day_label'].toString())
+                              .toList(),
                           selectedIndex: selectedDay,
                           onSelect: (i) {
                             setState(() {
@@ -426,19 +680,56 @@ class _TrainPageState extends State<TrainPage> {
                           },
                         ),
                         const SizedBox(height: 24),
-                        Text(
-                          t.translate("training_exercise_list_title"),
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                t.translate("training_exercise_list_title"),
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                               ),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: () {
+                                final currentProgram = program;
+                                if (currentProgram == null) return;
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => TrainingHistoryPage(
+                                      program: currentProgram,
+                                    ),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.history, size: 18),
+                              label: const Text("History"),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                backgroundColor: Colors.white.withOpacity(0.08),
+                                side: BorderSide(
+                                  color: Colors.white.withOpacity(0.2),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                shape: const StadiumBorder(),
+                                textStyle: Theme.of(context)
+                                    .textTheme
+                                    .labelLarge
+                                    ?.copyWith(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Text(
                           t.translate("training_exercise_list_sub"),
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.white.withOpacity(0.7),
-                              ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: Colors.white.withOpacity(0.7)),
                         ),
                         const SizedBox(height: 16),
                         if (_trainExercises.isEmpty)
@@ -447,16 +738,18 @@ class _TrainPageState extends State<TrainPage> {
                               padding: const EdgeInsets.only(top: 40),
                               child: Text(
                                 t.translate("rest_day"),
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      color: Colors.white,
-                                    ),
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(color: Colors.white),
                               ),
                             ),
                           )
                         else
-                          ..._trainExercises.asMap().entries.map<Widget>((entry) {
+                          ..._trainExercises.asMap().entries.map<Widget>((
+                            entry,
+                          ) {
                             final ex = entry.value;
-                            final rawId = ex['program_exercise_id'] ??
+                            final rawId =
+                                ex['program_exercise_id'] ??
                                 ex['exercise_id'] ??
                                 ex['exercise_name'] ??
                                 entry.key;

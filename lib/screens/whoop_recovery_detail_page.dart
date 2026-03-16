@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/whoop/whoop_recovery_service.dart';
-import '../widgets/app_toast.dart';
 import '../widgets/charts/simple_line_chart.dart';
 import '../widgets/recovery/recovery_gauge.dart';
 import '../widgets/recovery/recovery_metric_card.dart';
 import '../widgets/common/date_switcher.dart';
 
 class WhoopRecoveryDetailPage extends StatefulWidget {
-  const WhoopRecoveryDetailPage({super.key});
+  const WhoopRecoveryDetailPage({
+    super.key,
+    this.initialDate,
+  });
+
+  final DateTime? initialDate;
 
   @override
   State<WhoopRecoveryDetailPage> createState() => _WhoopRecoveryDetailPageState();
@@ -17,12 +21,14 @@ class WhoopRecoveryDetailPage extends StatefulWidget {
 class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
   bool _loading = true;
   Map<DateTime, Map<String, dynamic>> _daily = {};
-  DateTime _selectedDate = DateTime.now();
+  late DateTime _selectedDate;
   int _reqId = 0;
 
   @override
   void initState() {
     super.initState();
+    final initial = widget.initialDate ?? DateTime.now();
+    _selectedDate = DateTime(initial.year, initial.month, initial.day);
     _loadRange();
   }
 
@@ -40,7 +46,7 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
       if (!mounted) return;
       if (requestId != _reqId) return;
       setState(() {
-        _daily.addAll(data);
+        _daily = data;
         _loading = false;
       });
     } catch (e) {

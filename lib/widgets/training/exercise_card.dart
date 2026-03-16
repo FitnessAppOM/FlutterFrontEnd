@@ -93,15 +93,27 @@ class ExerciseCard extends StatelessWidget {
     final Map<String, dynamic>? compliance =
         _extractCompliance(exercise['program_compliance']) ??
             _extractCompliance(exercise['compliance']);
-    final String? overrideSets =
-        _valueAsText(compliance?['performed_sets'] ?? exercise['performed_sets']);
-    final String? overrideReps =
-        _valueAsText(compliance?['performed_reps'] ?? exercise['performed_reps']);
-    final String setsLabel = overrideSets ?? exercise['sets'].toString();
-    final String repsLabel = overrideReps ?? exercise['reps'].toString();
-    final String? overrideRir =
-        _valueAsText(compliance?['performed_rir'] ?? exercise['performed_rir']);
-    final String rirLabel = overrideRir ?? exercise['rir'].toString();
+    DateTime? _completionDateForExercise(Map<String, dynamic> ex) {
+      final candidates = [
+        ex['logged_at'],
+        ex['completed_at'],
+        ex['updated_at'],
+        ex['performed_at'],
+        ex['last_performed_at'],
+      ];
+      for (final c in candidates) {
+        final dt = _parseDate(c);
+        if (dt != null) return dt;
+      }
+      return null;
+    }
+
+    bool _isCurrentWeekDate(DateTime? dt) {
+      if (dt == null) return false;
+      return !dt.isBefore(_weekStart);
+    }
+
+    final completionDate = _completionDateForExercise(exercise);
 
     bool _isInCurrentWeek(dynamic loggedAt) {
       final dt = _parseDate(loggedAt);
@@ -159,6 +171,24 @@ class ExerciseCard extends StatelessWidget {
       return _isCompleted(compliance);
     }
 
+    final complianceDone =
+        _hasComplianceCompleted(exercise['program_compliance']) ||
+        _hasComplianceCompleted(exercise['compliance']);
+    final hasCurrentWeekDate = _isCurrentWeekDate(completionDate);
+
+    final String? overrideSets = (complianceDone || hasCurrentWeekDate)
+        ? _valueAsText(compliance?['performed_sets'] ?? exercise['performed_sets'])
+        : null;
+    final String? overrideReps = (complianceDone || hasCurrentWeekDate)
+        ? _valueAsText(compliance?['performed_reps'] ?? exercise['performed_reps'])
+        : null;
+    final String setsLabel = overrideSets ?? exercise['sets'].toString();
+    final String repsLabel = overrideReps ?? exercise['reps'].toString();
+    final String? overrideRir = (complianceDone || hasCurrentWeekDate)
+        ? _valueAsText(compliance?['performed_rir'] ?? exercise['performed_rir'])
+        : null;
+    final String rirLabel = overrideRir ?? exercise['rir'].toString();
+
     // Accept multiple backend representations for completion/compliance flags.
     final completionFields = [
       exercise['is_completed'],
@@ -171,10 +201,8 @@ class ExerciseCard extends StatelessWidget {
       exercise['weight_used'],
     ];
 
-    final bool completed =
-        completionFields.any(_isCompleted) ||
-        _hasComplianceCompleted(exercise['program_compliance']) ||
-        _hasComplianceCompleted(exercise['compliance']);
+    final bool completed = complianceDone ||
+        (hasCurrentWeekDate && completionFields.any(_isCompleted));
     final cs = Theme.of(context).colorScheme;
 
     final gradientColors = completed

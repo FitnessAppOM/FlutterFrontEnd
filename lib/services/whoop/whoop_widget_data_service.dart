@@ -29,9 +29,138 @@ class WhoopWidgetSnapshot {
 }
 
 class WhoopWidgetDataService {
+  static final Map<String, WhoopWidgetSnapshot> _snapshotCache = {};
+
+  static DateTime _dayKey(DateTime date) =>
+      DateTime(date.year, date.month, date.day);
+
+  static String _dayToken(DateTime date) =>
+      "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+
+  static String _snapshotCacheKey({
+    required int userId,
+    required DateTime date,
+  }) {
+    return "$userId|${_dayToken(_dayKey(date))}";
+  }
+
+  static void _trimSnapshotCache() {
+    if (_snapshotCache.length <= 120) return;
+    final keys = _snapshotCache.keys.toList()..sort();
+    while (_snapshotCache.length > 120 && keys.isNotEmpty) {
+      _snapshotCache.remove(keys.removeAt(0));
+    }
+  }
+
+  static void _cacheSnapshot({
+    required int userId,
+    required DateTime date,
+    required WhoopWidgetSnapshot snapshot,
+  }) {
+    _snapshotCache[_snapshotCacheKey(userId: userId, date: date)] = snapshot;
+    _trimSnapshotCache();
+  }
+
+  static WhoopWidgetSnapshot? cachedSnapshotForDate({
+    required int userId,
+    required DateTime date,
+  }) {
+    return _snapshotCache[_snapshotCacheKey(userId: userId, date: date)];
+  }
+
+  static double? cachedSleepHoursForDate({
+    required int userId,
+    required DateTime date,
+  }) {
+    return cachedSnapshotForDate(userId: userId, date: date)?.sleepHours;
+  }
+
+  static void cacheSleepHoursForDate({
+    required int userId,
+    required DateTime date,
+    required double sleepHours,
+  }) {
+    final key = _snapshotCacheKey(userId: userId, date: date);
+    final prev = _snapshotCache[key];
+    _snapshotCache[key] = WhoopWidgetSnapshot(
+      linked: prev?.linked ?? true,
+      linkedKnown: prev?.linkedKnown ?? true,
+      sleepHours: sleepHours,
+      sleepScore: prev?.sleepScore,
+      sleepDelta: prev?.sleepDelta,
+      recoveryScore: prev?.recoveryScore,
+      recoveryDelta: prev?.recoveryDelta,
+      cycleStrain: prev?.cycleStrain,
+      bodyWeightKg: prev?.bodyWeightKg,
+    );
+    _trimSnapshotCache();
+  }
+
   bool _isToday(DateTime date) {
     final now = DateTime.now();
     return date.year == now.year && date.month == now.month && date.day == now.day;
+  }
+
+  String _dateKey(DateTime date) =>
+      "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+
+  int? _asInt(dynamic v) {
+    if (v == null) return null;
+    if (v is int) return v;
+    if (v is num) return v.round();
+    return int.tryParse(v.toString());
+  }
+
+  double? _asDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is double) return v;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString());
+  }
+
+  int? _sleepEfficiencyFromSleepPayload(dynamic sleep) {
+    if (sleep is! Map<String, dynamic>) return null;
+    final scoreNode = sleep["score"];
+    final stage = scoreNode is Map<String, dynamic> ? scoreNode["stage_summary"] : null;
+    if (stage is! Map<String, dynamic>) return null;
+    final totalBed = stage["total_in_bed_time_milli"];
+    final light = stage["total_light_sleep_time_milli"];
+    final slow = stage["total_slow_wave_sleep_time_milli"];
+    final rem = stage["total_rem_sleep_time_milli"];
+    if (totalBed is num && light is num && slow is num && rem is num && totalBed > 0) {
+      final sleepMs = light + slow + rem;
+      return ((sleepMs / totalBed) * 100).round();
+    }
+    return null;
+  }
+
+  int? _sleepEfficiencyFromDbRow(Map<String, dynamic>? row) {
+    if (row == null) return null;
+    final totalSleepMinutes = _asDouble(row["total_sleep_minutes"]);
+    final timeInBedMinutes = _asDouble(row["time_in_bed_minutes"]);
+    if (totalSleepMinutes == null || timeInBedMinutes == null || timeInBedMinutes <= 0) {
+      return null;
+    }
+    return ((totalSleepMinutes / timeInBedMinutes) * 100).round();
+  }
+
+  Future<Map<String, dynamic>?> _fetchDbRowForDate({
+    required int userId,
+    required DateTime date,
+    required Map<String, String> headers,
+  }) async {
+    final dateParam = _dateKey(date);
+    final url = Uri.parse(
+      "${ApiConfig.baseUrl}/whoop/daily-metrics/range?user_id=$userId&start=$dateParam&end=$dateParam",
+    );
+    final res = await http.get(url, headers: headers).timeout(const Duration(seconds: 20));
+    if (res.statusCode != 200) return null;
+    final decoded = jsonDecode(res.body);
+    if (decoded is! List || decoded.isEmpty) return null;
+    final first = decoded.first;
+    if (first is Map<String, dynamic>) return first;
+    if (first is Map) return Map<String, dynamic>.from(first);
+    return null;
   }
 
   Future<WhoopWidgetSnapshot> fetchForDate(DateTime date) async {
@@ -50,12 +179,55 @@ class WhoopWidgetDataService {
     final statusData = jsonDecode(statusRes.body) as Map<String, dynamic>;
     final linked = statusData["linked"] == true;
     if (!linked) {
-      return const WhoopWidgetSnapshot(linked: false, linkedKnown: true);
+      const snapshot = WhoopWidgetSnapshot(linked: false, linkedKnown: true);
+      _cacheSnapshot(userId: userId, date: date, snapshot: snapshot);
+      return snapshot;
     }
 
     final isToday = _isToday(date);
-    final dateParam =
-        "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    if (!isToday) {
+      final row = await _fetchDbRowForDate(
+        userId: userId,
+        date: date,
+        headers: headers,
+      );
+      final yesterday = date.subtract(const Duration(days: 1));
+      final yRow = await _fetchDbRowForDate(
+        userId: userId,
+        date: yesterday,
+        headers: headers,
+      );
+
+      final sleepMinutes = _asDouble(row?["total_sleep_minutes"]);
+      final sleepHours = sleepMinutes == null ? null : sleepMinutes / 60.0;
+      final sleepScore = _sleepEfficiencyFromDbRow(row);
+      final ySleepScore = _sleepEfficiencyFromDbRow(yRow);
+      final sleepDelta =
+          (sleepScore != null && ySleepScore != null) ? (sleepScore - ySleepScore) : null;
+
+      final recoveryScore = _asInt(row?["recovery_score"]);
+      final yRecovery = _asInt(yRow?["recovery_score"]);
+      final recoveryDelta =
+          (recoveryScore != null && yRecovery != null) ? (recoveryScore - yRecovery) : null;
+
+      final cycleStrain = _asDouble(row?["strain"]);
+
+      final snapshot = WhoopWidgetSnapshot(
+        linked: true,
+        linkedKnown: true,
+        sleepHours: sleepHours,
+        sleepScore: sleepScore,
+        sleepDelta: sleepDelta,
+        recoveryScore: recoveryScore,
+        recoveryDelta: recoveryDelta,
+        cycleStrain: cycleStrain,
+        bodyWeightKg: null,
+      );
+      _cacheSnapshot(userId: userId, date: date, snapshot: snapshot);
+      return snapshot;
+    }
+
+    final dateParam = _dateKey(date);
     final dataUrl = Uri.parse(
       "${ApiConfig.baseUrl}/whoop/day?user_id=$userId&date=$dateParam",
     );
@@ -66,36 +238,15 @@ class WhoopWidgetDataService {
     }
     final data = jsonDecode(dataRes.body) as Map<String, dynamic>;
 
-    final sleepHours = data["sleep_hours"] is num
-        ? (data["sleep_hours"] as num).toDouble()
-        : double.tryParse("${data["sleep_hours"]}");
-
-    int? sleepScore;
-    final sleep = data["sleep"];
-    if (sleep is Map<String, dynamic>) {
-      final scoreNode = sleep["score"];
-      final stage = scoreNode is Map<String, dynamic> ? scoreNode["stage_summary"] : null;
-      if (stage is Map<String, dynamic>) {
-        final totalBed = stage["total_in_bed_time_milli"];
-        final light = stage["total_light_sleep_time_milli"];
-        final slow = stage["total_slow_wave_sleep_time_milli"];
-        final rem = stage["total_rem_sleep_time_milli"];
-        if (totalBed is num && light is num && slow is num && rem is num && totalBed > 0) {
-          final sleepMs = light + slow + rem;
-          sleepScore = ((sleepMs / totalBed) * 100).round();
-        }
-      }
-    }
+    final sleepHours = _asDouble(data["sleep_hours"]);
+    final sleepScore = _sleepEfficiencyFromSleepPayload(data["sleep"]);
 
     int? sleepDelta;
     int? recoveryDelta;
-    final recoveryScore = data["recovery_score"] is num
-        ? (data["recovery_score"] as num).round()
-        : int.tryParse("${data["recovery_score"]}");
+    final recoveryScore = _asInt(data["recovery_score"]);
 
     final yesterday = date.subtract(const Duration(days: 1));
-    final yParam =
-        "${yesterday.year.toString().padLeft(4, '0')}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}";
+    final yParam = _dateKey(yesterday);
     final yUrl = Uri.parse(
       "${ApiConfig.baseUrl}/whoop/day?user_id=$userId&date=$yParam",
     );
@@ -103,60 +254,30 @@ class WhoopWidgetDataService {
         await http.get(yUrl, headers: headers).timeout(const Duration(seconds: 20));
     if (yRes.statusCode == 200) {
       final yData = jsonDecode(yRes.body) as Map<String, dynamic>;
-      int? yEfficiency;
-      final ySleep = yData["sleep"];
-      if (ySleep is Map<String, dynamic>) {
-        final scoreNode = ySleep["score"];
-        final stage = scoreNode is Map<String, dynamic> ? scoreNode["stage_summary"] : null;
-        if (stage is Map<String, dynamic>) {
-          final totalBed = stage["total_in_bed_time_milli"];
-          final light = stage["total_light_sleep_time_milli"];
-          final slow = stage["total_slow_wave_sleep_time_milli"];
-          final rem = stage["total_rem_sleep_time_milli"];
-          if (totalBed is num && light is num && slow is num && rem is num && totalBed > 0) {
-            final sleepMs = light + slow + rem;
-            yEfficiency = ((sleepMs / totalBed) * 100).round();
-          }
-        }
-      }
+      final yEfficiency = _sleepEfficiencyFromSleepPayload(yData["sleep"]);
       if (sleepScore != null && yEfficiency != null) {
         sleepDelta = sleepScore - yEfficiency;
       }
-      final yRecovery = yData["recovery_score"] is num
-          ? (yData["recovery_score"] as num).round()
-          : int.tryParse("${yData["recovery_score"]}");
-      if (yRecovery != null) {
-        recoveryDelta = -yRecovery;
+      final yRecovery = _asInt(yData["recovery_score"]);
+      if (recoveryScore != null && yRecovery != null) {
+        recoveryDelta = recoveryScore - yRecovery;
       }
     }
 
-    if (recoveryScore != null && recoveryDelta != null) {
-      recoveryDelta = recoveryScore + recoveryDelta;
-    } else {
-      recoveryDelta = null;
-    }
-
-    double? cycleStrain;
-    final rawCycle = data["cycle_strain"];
-    if (rawCycle is num) cycleStrain = rawCycle.toDouble();
-    if (rawCycle is String) cycleStrain = double.tryParse(rawCycle);
+    final cycleStrain = _asDouble(data["cycle_strain"]);
 
     double? bodyWeightKg;
-    if (isToday) {
-      try {
-        final latest = await WhoopLatestService.fetch();
-        final body = latest?["body_measurement"];
-        if (body is Map<String, dynamic>) {
-          final raw = body["weight_kilogram"];
-          if (raw is num) bodyWeightKg = raw.toDouble();
-          if (raw is String) bodyWeightKg = double.tryParse(raw);
-        }
-      } catch (_) {
-        bodyWeightKg = null;
+    try {
+      final latest = await WhoopLatestService.fetch();
+      final body = latest?["body_measurement"];
+      if (body is Map<String, dynamic>) {
+        bodyWeightKg = _asDouble(body["weight_kilogram"]);
       }
+    } catch (_) {
+      bodyWeightKg = null;
     }
 
-    return WhoopWidgetSnapshot(
+    final snapshot = WhoopWidgetSnapshot(
       linked: true,
       linkedKnown: true,
       sleepHours: sleepHours,
@@ -167,5 +288,7 @@ class WhoopWidgetDataService {
       cycleStrain: cycleStrain,
       bodyWeightKg: bodyWeightKg,
     );
+    _cacheSnapshot(userId: userId, date: date, snapshot: snapshot);
+    return snapshot;
   }
 }

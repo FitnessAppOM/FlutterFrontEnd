@@ -96,10 +96,11 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   Future<void> _restoreActiveSession() async {
     final session = await TrainingActivityService.getActiveSession();
     if (!mounted || session == null) return;
-    final currentName =
-        (widget.exercise['exercise_name'] ?? '').toString().trim().toLowerCase();
-    final sessionName =
-        (session['name'] ?? '').toString().trim().toLowerCase();
+    final currentName = (widget.exercise['exercise_name'] ?? '')
+        .toString()
+        .trim()
+        .toLowerCase();
+    final sessionName = (session['name'] ?? '').toString().trim().toLowerCase();
     if (currentName.isEmpty || sessionName != currentName) return;
     final paused = session['paused'] == true;
     if (_isCardioExercise()) {
@@ -151,13 +152,18 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   }
 
   void _prefillFromLastEntry() {
-    final compliance = _extractCompliance(widget.exercise['program_compliance']) ??
+    final compliance =
+        _extractCompliance(widget.exercise['program_compliance']) ??
         _extractCompliance(widget.exercise['compliance']);
 
-    final performedSets = compliance?['performed_sets'] ?? widget.exercise['performed_sets'];
-    final performedReps = compliance?['performed_reps'] ?? widget.exercise['performed_reps'];
-    final weightUsed = compliance?['weight_used'] ?? widget.exercise['weight_used'];
-    final performedRir = compliance?['performed_rir'] ?? widget.exercise['performed_rir'];
+    final performedSets =
+        compliance?['performed_sets'] ?? widget.exercise['performed_sets'];
+    final performedReps =
+        compliance?['performed_reps'] ?? widget.exercise['performed_reps'];
+    final weightUsed =
+        compliance?['weight_used'] ?? widget.exercise['weight_used'];
+    final performedRir =
+        compliance?['performed_rir'] ?? widget.exercise['performed_rir'];
 
     if (setsCtrl.text.isEmpty) {
       final text = _valueAsText(performedSets);
@@ -219,7 +225,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   bool _shouldAutoShowInstructions() {
     final instructions = widget.exercise['instructions'] ?? '';
     if (instructions.toString().trim().isEmpty) return false;
-    final rawName = (widget.exercise['exercise_name'] ?? '').toString().trim().toLowerCase();
+    final rawName = (widget.exercise['exercise_name'] ?? '')
+        .toString()
+        .trim()
+        .toLowerCase();
     if (rawName.isNotEmpty && widget.completedExerciseNames.contains(rawName)) {
       return false;
     }
@@ -307,21 +316,18 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     _cardioSteps ??= 0;
     if (mounted) setState(() {});
     _stepSub?.cancel();
-    _stepSub = Pedometer.stepCountStream.listen(
-      (event) {
-        _cardioRawSteps = event.steps;
-        if (_adjustStepsOnResume && _cardioPausedAtSteps != null) {
-          final pausedDelta = event.steps - (_cardioPausedAtSteps ?? event.steps);
-          _cardioStartSteps = (_cardioStartSteps ?? event.steps) + pausedDelta;
-          _adjustStepsOnResume = false;
-          _cardioPausedAtSteps = null;
-        }
-        _cardioStartSteps ??= event.steps;
-        _cardioSteps = event.steps - (_cardioStartSteps ?? event.steps);
-        if (mounted) setState(() {});
-      },
-      onError: (_) {},
-    );
+    _stepSub = Pedometer.stepCountStream.listen((event) {
+      _cardioRawSteps = event.steps;
+      if (_adjustStepsOnResume && _cardioPausedAtSteps != null) {
+        final pausedDelta = event.steps - (_cardioPausedAtSteps ?? event.steps);
+        _cardioStartSteps = (_cardioStartSteps ?? event.steps) + pausedDelta;
+        _adjustStepsOnResume = false;
+        _cardioPausedAtSteps = null;
+      }
+      _cardioStartSteps ??= event.steps;
+      _cardioSteps = event.steps - (_cardioStartSteps ?? event.steps);
+      if (mounted) setState(() {});
+    }, onError: (_) {});
   }
 
   void _stopCardioStepsTracking() {
@@ -362,7 +368,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     final merged = List<CardioPoint>.from(_cardioRoute);
     for (final point in incoming) {
       final last = merged.last;
-      final samePoint = last.lat == point.lat &&
+      final samePoint =
+          last.lat == point.lat &&
           last.lng == point.lng &&
           last.paused == point.paused;
       if (!samePoint) merged.add(point);
@@ -383,7 +390,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           sets: _currentSets(),
           reps: _currentReps(),
           seconds: seconds,
-          distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
+          distanceKm: _isCardioExercise()
+              ? (_cardioDistanceMeters / 1000.0)
+              : null,
           paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
         );
       }
@@ -395,7 +404,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           sets: _currentSets(),
           reps: _currentReps(),
           seconds: seconds,
-          distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
+          distanceKm: _isCardioExercise()
+              ? (_cardioDistanceMeters / 1000.0)
+              : null,
           paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
         );
       } else {
@@ -404,7 +415,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           sets: _currentSets(),
           reps: _currentReps(),
           seconds: seconds,
-          distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
+          distanceKm: _isCardioExercise()
+              ? (_cardioDistanceMeters / 1000.0)
+              : null,
           paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
         );
       }
@@ -441,7 +454,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         sets: _currentSets(),
         reps: _currentReps(),
         seconds: seconds,
-        distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
+        distanceKm: _isCardioExercise()
+            ? (_cardioDistanceMeters / 1000.0)
+            : null,
         paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
       );
     } else {
@@ -450,11 +465,13 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         sets: _currentSets(),
         reps: _currentReps(),
         seconds: seconds,
-        distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
+        distanceKm: _isCardioExercise()
+            ? (_cardioDistanceMeters / 1000.0)
+            : null,
         paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
       );
     }
-    
+
     // Queue start action for sync (non-blocking)
     final rawProgramExerciseId = widget.exercise['program_exercise_id'];
     final int? programExerciseId = rawProgramExerciseId is int
@@ -480,213 +497,242 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     if (submitting) return;
 
     setState(() => submitting = true);
-    _syncElapsedFromStart();
-    timer?.cancel();
-    _stopCardioStepsTracking();
-    await TrainingActivityService.stopSession();
-
     final t = AppLocalizations.of(context);
-    final rawProgramExerciseId = widget.exercise['program_exercise_id'];
-    final int? programExerciseId = rawProgramExerciseId is int
-        ? rawProgramExerciseId
-        : int.tryParse(rawProgramExerciseId?.toString() ?? '');
-    bool needsSync = false;
-    final now = DateTime.now(); // device local
+    try {
+      _syncElapsedFromStart();
+      timer?.cancel();
+      _stopCardioStepsTracking();
+      await TrainingActivityService.stopSession();
 
-    final int finalSets =
-        int.tryParse(setsCtrl.text) ?? (widget.exercise['sets'] ?? 0);
-    final int finalReps =
-        int.tryParse(repsCtrl.text) ?? (widget.exercise['reps'] ?? 0);
+      final rawProgramExerciseId = widget.exercise['program_exercise_id'];
+      final int? programExerciseId = rawProgramExerciseId is int
+          ? rawProgramExerciseId
+          : int.tryParse(rawProgramExerciseId?.toString() ?? '');
+      bool needsSync = false;
+      final now = DateTime.now(); // device local
 
-    final double? weight = double.tryParse(weightCtrl.text);
-    final bool isCardio = _isCardioExercise();
+      final int finalSets =
+          int.tryParse(setsCtrl.text) ?? (widget.exercise['sets'] ?? 0);
+      final int finalReps =
+          int.tryParse(repsCtrl.text) ?? (widget.exercise['reps'] ?? 0);
 
-    // Try to sync with server, but queue if offline
-    if (programExerciseId != null) try {
-      // Start exercise if not already started
-      if (!startRecorded) {
+      final double? weight = double.tryParse(weightCtrl.text);
+      final bool isCardio = _isCardioExercise();
+
+      // Try to sync with server, but queue if offline
+      if (programExerciseId != null) {
         try {
-          await TrainingService.startExercise(programExerciseId, entryDate: now);
-          startRecorded = true;
+          // Start exercise if not already started
+          if (!startRecorded) {
+            try {
+              await TrainingService.startExercise(
+                programExerciseId,
+                entryDate: now,
+              );
+              startRecorded = true;
+            } catch (e) {
+              // Queue start action
+              await ExerciseActionQueue.queueAction(
+                action: ExerciseActionQueue.actionStart,
+                programExerciseId: programExerciseId,
+                data: {
+                  "entry_date":
+                      "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
+                },
+              );
+              needsSync = true;
+            }
+          }
+
+          // Save weight if provided
+          if (weight != null && weight > 0) {
+            try {
+              await TrainingService.saveWeight(programExerciseId, weight);
+            } catch (e) {
+              // Queue weight action
+              await ExerciseActionQueue.queueAction(
+                action: ExerciseActionQueue.actionWeight,
+                programExerciseId: programExerciseId,
+                data: {"weight": weight},
+              );
+              needsSync = true;
+            }
+          }
+
+          // Finish exercise
+          try {
+            await TrainingService.finishExercise(
+              programExerciseId: programExerciseId,
+              sets: finalSets,
+              reps: finalReps,
+              rir: rir.round(),
+              durationSeconds: seconds,
+              entryDate: now,
+            );
+          } catch (e) {
+            // Queue finish action
+            await ExerciseActionQueue.queueAction(
+              action: ExerciseActionQueue.actionFinish,
+              programExerciseId: programExerciseId,
+              data: {
+                "sets": finalSets,
+                "reps": finalReps,
+                "rir": rir.round(),
+                "duration_seconds": seconds,
+                "entry_date":
+                    "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
+              },
+            );
+            needsSync = true;
+          }
         } catch (e) {
-          // Queue start action
-          await ExerciseActionQueue.queueAction(
-            action: ExerciseActionQueue.actionStart,
-            programExerciseId: programExerciseId,
-            data: {"entry_date": "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}"},
-          );
+          // If all fails, queue everything
           needsSync = true;
         }
       }
 
-      // Save weight if provided
-      if (weight != null && weight > 0) {
-        try {
-          await TrainingService.saveWeight(programExerciseId, weight);
-        } catch (e) {
-          // Queue weight action
-          await ExerciseActionQueue.queueAction(
-            action: ExerciseActionQueue.actionWeight,
-            programExerciseId: programExerciseId,
-            data: {"weight": weight},
-          );
-          needsSync = true;
-        }
-      }
-
-      // Finish exercise
-      try {
-        await TrainingService.finishExercise(
-          programExerciseId: programExerciseId,
-          sets: finalSets,
-          reps: finalReps,
-          rir: rir.round(),
-          durationSeconds: seconds,
-          entryDate: now,
-        );
-      } catch (e) {
-        // Queue finish action
-        await ExerciseActionQueue.queueAction(
-          action: ExerciseActionQueue.actionFinish,
-          programExerciseId: programExerciseId,
-          data: {
-            "sets": finalSets,
-            "reps": finalReps,
-            "rir": rir.round(),
+      // Save cardio session metrics (distance/speed/time)
+      if (isCardio) {
+        final distanceKmValue = _cardioDistanceMeters / 1000.0;
+        final shouldPersistCardio = distanceKmValue >= 0.1;
+        final rawExerciseId = widget.exercise['exercise_id'];
+        final int? exerciseId = rawExerciseId is int
+            ? rawExerciseId
+            : int.tryParse(rawExerciseId?.toString() ?? '');
+        if (shouldPersistCardio) {
+          final payload = {
+            "program_exercise_id": programExerciseId,
+            "exercise_id": exerciseId,
+            "distance_km": distanceKmValue,
+            "avg_pace_min_km": _paceMinPerKmFromDistance(
+              distanceKmValue,
+              seconds,
+            ),
             "duration_seconds": seconds,
-            "entry_date": "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
-          },
-        );
-        needsSync = true;
-      }
-    } catch (e) {
-      // If all fails, queue everything
-      needsSync = true;
-    }
-
-    // Save cardio session metrics (distance/speed/time)
-    if (isCardio) {
-      final distanceKmValue = _cardioDistanceMeters / 1000.0;
-      final shouldPersistCardio = distanceKmValue >= 0.1;
-      final rawExerciseId = widget.exercise['exercise_id'];
-      final int? exerciseId = rawExerciseId is int
-          ? rawExerciseId
-          : int.tryParse(rawExerciseId?.toString() ?? '');
-      if (shouldPersistCardio) {
-        final payload = {
-          "program_exercise_id": programExerciseId,
-          "exercise_id": exerciseId,
-          "distance_km": distanceKmValue,
-          "avg_pace_min_km": _paceMinPerKmFromDistance(distanceKmValue, seconds),
-          "duration_seconds": seconds,
-          "steps": _cardioSteps ?? 0,
-          "route_points": _cardioRoute
-              .map((p) => {
+            "steps": _cardioSteps ?? 0,
+            "route_points": _cardioRoute
+                .map(
+                  (p) => {
                     "lat": p.lat,
                     "lng": p.lng,
                     if (p.paused) "paused": true,
-                  })
-              .toList(),
-          "entry_date": "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
-        };
-        try {
-          await TrainingService.saveCardioSession(
-            programExerciseId: programExerciseId,
-            exerciseId: exerciseId,
-            distanceKm: distanceKmValue,
-            avgPaceMinKm: _paceMinPerKmFromDistance(distanceKmValue, seconds),
-            durationSeconds: seconds,
-            steps: _cardioSteps ?? 0,
-            routePoints: _cardioRoute
-                .map((p) => {
+                  },
+                )
+                .toList(),
+            "entry_date":
+                "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
+          };
+          try {
+            await TrainingService.saveCardioSession(
+              programExerciseId: programExerciseId,
+              exerciseId: exerciseId,
+              distanceKm: distanceKmValue,
+              avgPaceMinKm: _paceMinPerKmFromDistance(distanceKmValue, seconds),
+              durationSeconds: seconds,
+              steps: _cardioSteps ?? 0,
+              routePoints: _cardioRoute
+                  .map(
+                    (p) => {
                       "lat": p.lat,
                       "lng": p.lng,
                       if (p.paused) "paused": true,
-                    })
-                .toList(),
-            entryDate: now,
-          );
-        } catch (_) {
-          await CardioSessionQueue.queueSession(payload);
-          needsSync = true;
+                    },
+                  )
+                  .toList(),
+              entryDate: now,
+            );
+          } catch (_) {
+            await CardioSessionQueue.queueSession(payload);
+            needsSync = true;
+          }
         }
       }
-    }
 
-    // Show message if queued for sync
-    if (needsSync && mounted) {
-      AppToast.show(
-        context,
-        t.translate("exercise_saved_offline") ?? "Exercise saved offline. Will sync when online.",
-        type: AppToastType.info,
-      );
-    }
-
-    // For cardio: close this sheet, then show achievement sheet from root.
-    if (isCardio && mounted) {
-      final name = await AccountStorage.getName();
-      final rootNav = Navigator.of(context, rootNavigator: true);
-      final rootContext = rootNav.context;
-      Navigator.of(context).maybePop(); // close ExerciseSessionSheet
-      await Future.delayed(const Duration(milliseconds: 50));
-      await showModalBottomSheet(
-        context: rootContext,
-        isDismissible: true,
-        enableDrag: true,
-        isScrollControlled: true,
-        useRootNavigator: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => CardioAchievementSheet(
-          durationSeconds: seconds,
-          distanceKm: _cardioDistanceMeters / 1000.0,
-          avgSpeedKmh: _cardioSpeedKmh,
-          steps: _cardioSteps ?? 0,
-          route: _cardioRoute,
-          userName: name,
-        ),
-      );
-      AccountStorage.notifyTrainingChanged();
-      return;
-    }
-
-    // Record that user completed an exercise today (diet page can auto-set "training day" and lock "rest day")
-    await TrainingCompletionStorage.recordExerciseCompletedToday();
-    await TrainingProgressStorage.recordTrainingDayCompleted(now);
-    AccountStorage.notifyTrainingChanged();
-
-    // Show feedback sheet (works offline)
-    if (mounted) {
-      if (submitting) {
-        setState(() => submitting = false);
+      // Show message if queued for sync
+      if (needsSync && mounted) {
+        AppToast.show(
+          context,
+          t.translate("exercise_saved_offline") ??
+              "Exercise saved offline. Will sync when online.",
+          type: AppToastType.info,
+        );
       }
-      if (programExerciseId == null) {
-        widget.onFinished();
-        Navigator.pop(context); // close ExerciseSessionSheet
+
+      // For cardio: close this sheet, then show achievement sheet from root.
+      if (isCardio && mounted) {
+        final name = await AccountStorage.getName();
+        final rootNav = Navigator.of(context, rootNavigator: true);
+        final rootContext = rootNav.context;
+        Navigator.of(context).maybePop(); // close ExerciseSessionSheet
+        await Future.delayed(const Duration(milliseconds: 50));
+        await showModalBottomSheet(
+          context: rootContext,
+          isDismissible: true,
+          enableDrag: true,
+          isScrollControlled: true,
+          useRootNavigator: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => CardioAchievementSheet(
+            durationSeconds: seconds,
+            distanceKm: _cardioDistanceMeters / 1000.0,
+            avgSpeedKmh: _cardioSpeedKmh,
+            steps: _cardioSteps ?? 0,
+            route: _cardioRoute,
+            userName: name,
+          ),
+        );
+        AccountStorage.notifyTrainingChanged();
         return;
       }
-      showModalBottomSheet(
-        context: context,
-        useRootNavigator: true,
-        isScrollControlled: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        builder: (_) => ExerciseFeedbackSheet(
-          programExerciseId: programExerciseId,
-          exerciseName: widget.exercise['exercise_name'],
-          onDone: () {
-            _feedbackHandled = true;
-            widget.onFinished();
-            Navigator.pop(context); // close ExerciseSessionSheet
-          },
-        ),
-      ).whenComplete(() {
-        if (!mounted) return;
-        if (_feedbackHandled) return;
-        _feedbackHandled = true;
-        widget.onFinished();
-        Navigator.pop(context); // close ExerciseSessionSheet
-      });
+
+      // Record that user completed an exercise today (diet page can auto-set "training day" and lock "rest day")
+      await TrainingCompletionStorage.recordExerciseCompletedToday();
+      await TrainingProgressStorage.recordTrainingDayCompleted(now);
+      AccountStorage.notifyTrainingChanged();
+
+      // Show feedback sheet (works offline)
+      if (mounted) {
+        if (programExerciseId == null) {
+          widget.onFinished();
+          Navigator.pop(context); // close ExerciseSessionSheet
+          return;
+        }
+        showModalBottomSheet(
+          context: context,
+          useRootNavigator: true,
+          isScrollControlled: true,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          builder: (_) => ExerciseFeedbackSheet(
+            programExerciseId: programExerciseId,
+            exerciseName: widget.exercise['exercise_name'],
+            onDone: () {
+              _feedbackHandled = true;
+              widget.onFinished();
+              Navigator.pop(context); // close ExerciseSessionSheet
+            },
+          ),
+        ).whenComplete(() {
+          if (!mounted) return;
+          if (_feedbackHandled) return;
+          _feedbackHandled = true;
+          widget.onFinished();
+          Navigator.pop(context); // close ExerciseSessionSheet
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        AppToast.show(
+          context,
+          "Could not finish exercise. Please try again.",
+          type: AppToastType.error,
+        );
+      }
+    } finally {
+      if (mounted && submitting) {
+        setState(() => submitting = false);
+      }
     }
   }
 
@@ -750,7 +796,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           sets: _currentSets(),
           reps: _currentReps(),
           seconds: seconds,
-          distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
+          distanceKm: _isCardioExercise()
+              ? (_cardioDistanceMeters / 1000.0)
+              : null,
           paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
         );
       }
@@ -795,15 +843,19 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   Widget build(BuildContext context) {
     final isCardio = _isCardioExercise();
     final showSession = !isCardio && (started || widget.showSessionOnOpen);
-    final token =
-        dotenv.isInitialized ? dotenv.maybeGet('MAPBOX_PUBLIC_KEY') : null;
+    final token = dotenv.isInitialized
+        ? dotenv.maybeGet('MAPBOX_PUBLIC_KEY')
+        : null;
     final hasToken = token != null && token.trim().isNotEmpty;
 
-    final animationUrl = (widget.exercise['animation_url'] ?? '').toString().trim();
+    final animationUrl = (widget.exercise['animation_url'] ?? '')
+        .toString()
+        .trim();
     final String instructions = widget.exercise['instructions'] ?? '';
     final viewInsets = MediaQuery.of(context).viewInsets;
     final t = AppLocalizations.of(context);
-    final compliance = _extractCompliance(widget.exercise['program_compliance']) ??
+    final compliance =
+        _extractCompliance(widget.exercise['program_compliance']) ??
         _extractCompliance(widget.exercise['compliance']);
     final String? overrideSets = _valueAsText(
       compliance?['performed_sets'] ?? widget.exercise['performed_sets'],
@@ -828,8 +880,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     );
 
     if (!isCardio && animationUrl.isNotEmpty) {
-      final String gifUrl =
-          TrainingService.animationImageUrl(animationUrl, null);
+      final String gifUrl = TrainingService.animationImageUrl(
+        animationUrl,
+        null,
+      );
 
       final dpr = MediaQuery.of(context).devicePixelRatio;
       final cacheH = (160 * dpr).round();
@@ -837,11 +891,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       animationWidget = SizedBox(
         height: 160,
         child: gifUrl.isEmpty
-            ? const Icon(
-                Icons.fitness_center,
-                size: 80,
-                color: Colors.grey,
-              )
+            ? const Icon(Icons.fitness_center, size: 80, color: Colors.grey)
             : Stack(
                 alignment: Alignment.center,
                 children: [
@@ -889,326 +939,365 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                 behavior: HitTestBehavior.opaque,
                 onTap: () => FocusScope.of(context).unfocus(),
                 child: SingleChildScrollView(
-                  physics: isCardio ? const NeverScrollableScrollPhysics() : null,
+                  physics: isCardio
+                      ? const NeverScrollableScrollPhysics()
+                      : null,
                   padding: contentPadding,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                if (isCardio) ...[
-                  SizedBox(
-                    width: double.infinity,
-                    child: CardioMap(
-                      hasToken: hasToken,
-                      expanded: _cardioMapExpanded,
-                      height: MediaQuery.of(context).size.height * 0.9,
-                      steps: _cardioSteps,
-                      elapsedSeconds: seconds,
-                      running: started && !_paused,
-                      countdownActive: _countdownSessionStarted,
-                      trackingEnabled: started || _countdownSessionStarted,
-                      onCountdownStart: () {
-                        if (!started) {
-                          setState(() => _countdownSessionStarted = true);
-                          TrainingActivityService.startSession(
-                            exerciseName:
-                                (widget.exercise['exercise_name'] ?? '').toString(),
-                            sets: _currentSets(),
-                            reps: _currentReps(),
-                            seconds: seconds,
-                            distanceKm: _cardioDistanceMeters / 1000.0,
-                            paceMinKm: _currentPaceMinPerKm(),
-                            paused: true,
-                            pausedSeconds: seconds,
-                          );
-                        } else if (!_paused) {
-                          TrainingActivityService.updateSession(
-                            exerciseName:
-                                (widget.exercise['exercise_name'] ?? '').toString(),
-                            sets: _currentSets(),
-                            reps: _currentReps(),
-                            seconds: seconds,
-                            distanceKm: _cardioDistanceMeters / 1000.0,
-                            paceMinKm: _currentPaceMinPerKm(),
-                          );
-                        }
-                      },
-                      onClose: _pauseAndClose,
-                      onMetrics: (m) {
-                        _cardioDistanceMeters = m.distanceMeters;
-                        _cardioSpeedKmh = m.speedKmh;
-                        if (started && !_paused) {
-                          TrainingActivityService.updateSession(
-                            exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
-                            sets: _currentSets(),
-                            reps: _currentReps(),
-                            seconds: seconds,
-                            distanceKm: _cardioDistanceMeters / 1000.0,
-                            paceMinKm: _currentPaceMinPerKm(),
-                          );
-                        }
-                      },
-                      onRoute: (route) {
-                        _mergeIncomingCardioRoute(route);
-                      },
-                      onStart: _startExercise,
-                      onPause: _pauseExercise,
-                      onFinish: _finishExercise,
-                    ),
-                  ),
-                  // const SizedBox(height: 12),
-                  // Text(
-                  //   widget.exercise['exercise_name'] ?? '',
-                  //   textAlign: TextAlign.center,
-                  //   style: const TextStyle(
-                  //     fontSize: 19,
-                  //     fontWeight: FontWeight.w800,
-                  //     color: Colors.white,
-                  //   ),
-                  // ),
-                ] else ...[
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF162447), Color(0xFF0D1325)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      border: Border.all(color: Colors.white.withOpacity(0.05)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.45),
-                          blurRadius: 18,
-                          offset: const Offset(0, 10),
+                      if (isCardio) ...[
+                        SizedBox(
+                          width: double.infinity,
+                          child: CardioMap(
+                            hasToken: hasToken,
+                            expanded: _cardioMapExpanded,
+                            height: MediaQuery.of(context).size.height * 0.9,
+                            steps: _cardioSteps,
+                            elapsedSeconds: seconds,
+                            running: started && !_paused,
+                            countdownActive: _countdownSessionStarted,
+                            trackingEnabled:
+                                started || _countdownSessionStarted,
+                            onCountdownStart: () {
+                              if (!started) {
+                                setState(() => _countdownSessionStarted = true);
+                                TrainingActivityService.startSession(
+                                  exerciseName:
+                                      (widget.exercise['exercise_name'] ?? '')
+                                          .toString(),
+                                  sets: _currentSets(),
+                                  reps: _currentReps(),
+                                  seconds: seconds,
+                                  distanceKm: _cardioDistanceMeters / 1000.0,
+                                  paceMinKm: _currentPaceMinPerKm(),
+                                  paused: true,
+                                  pausedSeconds: seconds,
+                                );
+                              } else if (!_paused) {
+                                TrainingActivityService.updateSession(
+                                  exerciseName:
+                                      (widget.exercise['exercise_name'] ?? '')
+                                          .toString(),
+                                  sets: _currentSets(),
+                                  reps: _currentReps(),
+                                  seconds: seconds,
+                                  distanceKm: _cardioDistanceMeters / 1000.0,
+                                  paceMinKm: _currentPaceMinPerKm(),
+                                );
+                              }
+                            },
+                            onClose: _pauseAndClose,
+                            onMetrics: (m) {
+                              _cardioDistanceMeters = m.distanceMeters;
+                              _cardioSpeedKmh = m.speedKmh;
+                              if (started && !_paused) {
+                                TrainingActivityService.updateSession(
+                                  exerciseName:
+                                      (widget.exercise['exercise_name'] ?? '')
+                                          .toString(),
+                                  sets: _currentSets(),
+                                  reps: _currentReps(),
+                                  seconds: seconds,
+                                  distanceKm: _cardioDistanceMeters / 1000.0,
+                                  paceMinKm: _currentPaceMinPerKm(),
+                                );
+                              }
+                            },
+                            onRoute: (route) {
+                              _mergeIncomingCardioRoute(route);
+                            },
+                            onStart: _startExercise,
+                            onPause: _pauseExercise,
+                            onFinish: _finishExercise,
+                          ),
                         ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
+                        // const SizedBox(height: 12),
+                        // Text(
+                        //   widget.exercise['exercise_name'] ?? '',
+                        //   textAlign: TextAlign.center,
+                        //   style: const TextStyle(
+                        //     fontSize: 19,
+                        //     fontWeight: FontWeight.w800,
+                        //     color: Colors.white,
+                        //   ),
+                        // ),
+                      ] else ...[
                         Container(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.04),
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                          child: animationWidget,
-                        ),
-                        const SizedBox(height: 14),
-                        Text(
-                          widget.exercise['exercise_name'] ?? '',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 19,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 8,
-                          alignment: WrapAlignment.center,
-                          children: [
-                            _SessionChip(
-                              icon: Icons.repeat,
-                              label: "$setsLabel x $repsLabel",
+                            borderRadius: BorderRadius.circular(20),
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF162447), Color(0xFF0D1325)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                            _SessionChip(
-                              icon: Icons.bolt,
-                              label: "${t.translate("training_rir_label")} $rirLabel",
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.05),
                             ),
-                            if (started)
-                              _SessionChip(
-                                icon: Icons.timer,
-                                label: _time,
-                                accent: Colors.blueAccent,
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 18),
-                if (!started && !isCardio && !widget.showSessionOnOpen)
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.greenAccent.shade400,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    icon: const Icon(Icons.play_arrow_rounded),
-                    label: Text(
-                      t.translate("training_start_exercise"),
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                    onPressed: _startExercise,
-                  ),
-                if (showSession) ...[
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.03),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Colors.white.withOpacity(0.05)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          t.translate("training_session_title"),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _SessionChip(
-                              icon: Icons.timer,
-                              label: _time,
-                              accent: Colors.blueAccent,
-                            ),
-                            if (!isCardio)
-                              _SessionChip(
-                                icon: Icons.monitor_weight,
-                                label: t.translate("training_log_weight_reps"),
-                                accent: Colors.purpleAccent,
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: weightCtrl,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          decoration:
-                              _inputStyle(t.translate("training_weight_label")),
-                        ),
-                        if (!isCardio) ...[
-                          const SizedBox(height: 10),
-                          TextField(
-                            controller: setsCtrl,
-                            keyboardType: TextInputType.number,
-                            decoration:
-                                _inputStyle(t.translate("training_performed_sets")),
-                          ),
-                          const SizedBox(height: 10),
-                          TextField(
-                            controller: repsCtrl,
-                            keyboardType: TextInputType.number,
-                            decoration:
-                                _inputStyle(t.translate("training_performed_reps")),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                t.translate("training_rir_label"),
-                                style: const TextStyle(color: Colors.white70),
-                              ),
-                              Text(
-                                rir.round().toString(),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.45),
+                                blurRadius: 18,
+                                offset: const Offset(0, 10),
                               ),
                             ],
                           ),
-                          Slider(
-                            min: 0,
-                            max: 3,
-                            divisions: 3,
-                            value: rir,
-                            activeColor: Colors.greenAccent,
-                            inactiveColor: Colors.white24,
-                            onChanged: (v) => setState(() => rir = v),
-                          ),
-                        ],
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextButton(
-                                onPressed: submitting ? null : _cancelSession,
-                                child: Text(t.translate("common_cancel")),
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.04),
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                child: animationWidget,
                               ),
+                              const SizedBox(height: 14),
+                              Text(
+                                widget.exercise['exercise_name'] ?? '',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 10,
+                                runSpacing: 8,
+                                alignment: WrapAlignment.center,
+                                children: [
+                                  _SessionChip(
+                                    icon: Icons.repeat,
+                                    label: "$setsLabel x $repsLabel",
+                                  ),
+                                  _SessionChip(
+                                    icon: Icons.bolt,
+                                    label:
+                                        "${t.translate("training_rir_label")} $rirLabel",
+                                  ),
+                                  if (started)
+                                    _SessionChip(
+                                      icon: Icons.timer,
+                                      label: _time,
+                                      accent: Colors.blueAccent,
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 18),
+                      if (!started && !isCardio && !widget.showSessionOnOpen)
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.greenAccent.shade400,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.greenAccent.shade400,
-                                  foregroundColor: Colors.black,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
+                          ),
+                          icon: const Icon(Icons.play_arrow_rounded),
+                          label: Text(
+                            t.translate("training_start_exercise"),
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          onPressed: _startExercise,
+                        ),
+                      if (showSession) ...[
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.03),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.05),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                t.translate("training_session_title"),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  _SessionChip(
+                                    icon: Icons.timer,
+                                    label: _time,
+                                    accent: Colors.blueAccent,
+                                  ),
+                                  if (!isCardio)
+                                    _SessionChip(
+                                      icon: Icons.monitor_weight,
+                                      label: t.translate(
+                                        "training_log_weight_reps",
+                                      ),
+                                      accent: Colors.purpleAccent,
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: weightCtrl,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                decoration: _inputStyle(
+                                  t.translate("training_weight_label"),
+                                ),
+                              ),
+                              if (!isCardio) ...[
+                                const SizedBox(height: 10),
+                                TextField(
+                                  controller: setsCtrl,
+                                  keyboardType: TextInputType.number,
+                                  decoration: _inputStyle(
+                                    t.translate("training_performed_sets"),
                                   ),
                                 ),
-                                onPressed: submitting
-                                    ? null
-                                    : (started ? _finishExercise : _startExercise),
-                                child: (submitting && started)
-                                    ? const SizedBox(
-                                        height: 18,
-                                        width: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.black,
+                                const SizedBox(height: 10),
+                                TextField(
+                                  controller: repsCtrl,
+                                  keyboardType: TextInputType.number,
+                                  decoration: _inputStyle(
+                                    t.translate("training_performed_reps"),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      t.translate("training_rir_label"),
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                    Text(
+                                      rir.round().toString(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Slider(
+                                  min: 0,
+                                  max: 3,
+                                  divisions: 3,
+                                  value: rir,
+                                  activeColor: Colors.greenAccent,
+                                  inactiveColor: Colors.white24,
+                                  onChanged: (v) => setState(() => rir = v),
+                                ),
+                              ],
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextButton(
+                                      onPressed: submitting
+                                          ? null
+                                          : _cancelSession,
+                                      child: Text(t.translate("common_cancel")),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            Colors.greenAccent.shade400,
+                                        foregroundColor: Colors.black,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 14,
                                         ),
-                                      )
-                                    : Text(
-                                        started
-                                            ? t.translate("finish")
-                                            : t.translate("training_start_exercise"),
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 14,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
                                         ),
                                       ),
+                                      onPressed: submitting
+                                          ? null
+                                          : (started
+                                                ? _finishExercise
+                                                : _startExercise),
+                                      child: (submitting && started)
+                                          ? const SizedBox(
+                                              height: 18,
+                                              width: 18,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Colors.black,
+                                              ),
+                                            )
+                                          : Text(
+                                              started
+                                                  ? t.translate("finish")
+                                                  : t.translate(
+                                                      "training_start_exercise",
+                                                    ),
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
-                        if (instructions.isNotEmpty) ...[
-                          const SizedBox(height: 10),
-                          OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              side: BorderSide(
-                                color: Colors.white.withOpacity(0.2),
-                              ),
-                              minimumSize: const Size(double.infinity, 48),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              backgroundColor: Colors.white.withOpacity(0.04),
-                            ),
-                            icon: const Icon(Icons.menu_book),
-                            label: Text(
-                              t.translate("training_instructions_title"),
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w700),
-                            ),
-                            onPressed: _openInstructionDialog,
+                              if (instructions.isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.white,
+                                    side: BorderSide(
+                                      color: Colors.white.withOpacity(0.2),
+                                    ),
+                                    minimumSize: const Size(
+                                      double.infinity,
+                                      48,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    backgroundColor: Colors.white.withOpacity(
+                                      0.04,
+                                    ),
+                                  ),
+                                  icon: const Icon(Icons.menu_book),
+                                  label: Text(
+                                    t.translate("training_instructions_title"),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  onPressed: _openInstructionDialog,
+                                ),
+                              ],
+                            ],
                           ),
-                        ],
-                    ],
-                  ),
-                ),
-                ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -1249,11 +1338,7 @@ class _SessionChip extends StatelessWidget {
   final String label;
   final Color? accent;
 
-  const _SessionChip({
-    required this.icon,
-    required this.label,
-    this.accent,
-  });
+  const _SessionChip({required this.icon, required this.label, this.accent});
 
   @override
   Widget build(BuildContext context) {

@@ -14,7 +14,8 @@ class TrainingApiException implements Exception {
 
   TrainingApiException(this.statusCode, this.detail);
 
-  bool get isRetryable => statusCode >= 500 || statusCode == 408 || statusCode == 429;
+  bool get isRetryable =>
+      statusCode >= 500 || statusCode == 408 || statusCode == 429;
 
   @override
   String toString() => detail;
@@ -28,7 +29,10 @@ class TrainingService {
 
   /// Use full [animationUrl] (signed GCS). Ignore [animationRelPath] to avoid
   /// local /static fallbacks; return empty string if unavailable.
-  static String animationImageUrl(String? animationUrl, String? _animationRelPath) {
+  static String animationImageUrl(
+    String? animationUrl,
+    String? _animationRelPath,
+  ) {
     String normalizeAbsolute(String raw) {
       final v = raw.trim();
       if (v.isEmpty) return '';
@@ -74,11 +78,7 @@ class TrainingService {
       cacheKey: cacheKey,
     );
     if (cacheWidth != null || cacheHeight != null) {
-      provider = ResizeImage(
-        provider,
-        width: cacheWidth,
-        height: cacheHeight,
-      );
+      provider = ResizeImage(provider, width: cacheWidth, height: cacheHeight);
     }
     _gifProviders[key] = provider;
     return provider;
@@ -141,15 +141,12 @@ class TrainingService {
     }
 
     if (response.statusCode == 400) {
-      final body = response.body.isNotEmpty
-          ? json.decode(response.body)
-          : {};
+      final body = response.body.isNotEmpty ? json.decode(response.body) : {};
       throw Exception(body['detail'] ?? 'Training generation failed');
     }
 
     throw Exception('Unexpected error (${response.statusCode})');
   }
-
 
   static Future<Map<String, dynamic>> fetchActiveProgram(int userId) async {
     final url = Uri.parse('$baseUrl/training/current/$userId');
@@ -160,11 +157,11 @@ class TrainingService {
     }
 
     final program = json.decode(response.body) as Map<String, dynamic>;
-    
+
     // Cache program locally for offline access
     await TrainingProgramStorage.saveProgram(program);
     await TrainingProgressStorage.syncProgram(program);
-    
+
     return program;
   }
 
@@ -198,9 +195,15 @@ class TrainingService {
 
   /// Start an exercise and (optionally) record entry_date (user local date) on backend.
   /// When entryDate is provided, backend can map date -> training_day_id for diet inference.
-  static Future<void> startExercise(int programExerciseId, {DateTime? entryDate}) async {
+  static Future<void> startExercise(
+    int programExerciseId, {
+    DateTime? entryDate,
+  }) async {
     final url = Uri.parse('$baseUrl/training/exercise/start');
-    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
     final res = await http.post(
       url,
       headers: headers,
@@ -215,17 +218,20 @@ class TrainingService {
     }
   }
 
-
-  static Future<void> saveWeight(
-      int programExerciseId, double weight) async {
+  static Future<void> saveWeight(int programExerciseId, double weight) async {
     final url = Uri.parse('$baseUrl/training/exercise/weight');
-    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
-    final res = await http.post(url,
-        headers: headers,
-        body: json.encode({
-          'program_exercise_id': programExerciseId,
-          'weight_used': weight,
-        }));
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
+    final res = await http.post(
+      url,
+      headers: headers,
+      body: json.encode({
+        'program_exercise_id': programExerciseId,
+        'weight_used': weight,
+      }),
+    );
     await AccountStorage.handle401(res.statusCode);
   }
 
@@ -238,17 +244,22 @@ class TrainingService {
     DateTime? entryDate,
   }) async {
     final url = Uri.parse('$baseUrl/training/exercise/finish');
-    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
-    final res = await http.post(url,
-        headers: headers,
-        body: json.encode({
-          'program_exercise_id': programExerciseId,
-          'performed_sets': sets,
-          'performed_reps': reps,
-          'performed_rir': rir,
-          'performed_time_seconds': durationSeconds,
-          if (entryDate != null) 'entry_date': _dateParam(entryDate),
-        }));
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
+    final res = await http.post(
+      url,
+      headers: headers,
+      body: json.encode({
+        'program_exercise_id': programExerciseId,
+        'performed_sets': sets,
+        'performed_reps': reps,
+        'performed_rir': rir,
+        'performed_time_seconds': durationSeconds,
+        if (entryDate != null) 'entry_date': _dateParam(entryDate),
+      }),
+    );
     await AccountStorage.handle401(res.statusCode);
   }
 
@@ -263,14 +274,18 @@ class TrainingService {
     DateTime? entryDate,
   }) async {
     final url = Uri.parse('$baseUrl/training/cardio/finish');
-    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
     final body = <String, dynamic>{
       'distance_km': distanceKm,
       'avg_pace_min_km': avgPaceMinKm,
       'duration_seconds': durationSeconds,
     };
     if (steps != null) body['steps'] = steps;
-    if (programExerciseId != null) body['program_exercise_id'] = programExerciseId;
+    if (programExerciseId != null)
+      body['program_exercise_id'] = programExerciseId;
     if (exerciseId != null) body['exercise_id'] = exerciseId;
     if (routePoints != null) body['route_points'] = routePoints;
     if (entryDate != null) body['entry_date'] = _dateParam(entryDate);
@@ -285,7 +300,9 @@ class TrainingService {
     required int userId,
     int limit = 100,
   }) async {
-    final url = Uri.parse('$baseUrl/training/cardio/history/$userId?limit=$limit');
+    final url = Uri.parse(
+      '$baseUrl/training/cardio/history/$userId?limit=$limit',
+    );
     final headers = await AccountStorage.getAuthHeaders();
     final res = await http.get(url, headers: headers);
     await AccountStorage.handle401(res.statusCode);
@@ -303,7 +320,9 @@ class TrainingService {
     required int userId,
     required int sessionId,
   }) async {
-    final url = Uri.parse('$baseUrl/training/cardio/history/$userId/detail/$sessionId');
+    final url = Uri.parse(
+      '$baseUrl/training/cardio/history/$userId/detail/$sessionId',
+    );
     final headers = await AccountStorage.getAuthHeaders();
     final res = await http.get(url, headers: headers);
     await AccountStorage.handle401(res.statusCode);
@@ -329,30 +348,55 @@ class TrainingService {
     }
     return const [];
   }
+
+  static Future<List<Map<String, dynamic>>> fetchTrainingHistory({
+    required int userId,
+    int limitDays = 540,
+  }) async {
+    final url = Uri.parse(
+      '$baseUrl/training/history/$userId?limit_days=$limitDays',
+    );
+    final headers = await AccountStorage.getAuthHeaders();
+    final res = await http.get(url, headers: headers);
+    await AccountStorage.handle401(res.statusCode);
+    if (res.statusCode != 200) {
+      throw Exception("Failed to load training history");
+    }
+    final data = json.decode(res.body);
+    if (data is List) {
+      return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    }
+    return const [];
+  }
+
   static Future<List<dynamic>> getFeedbackQuestions(String exerciseName) async {
     try {
       final safeName = Uri.encodeComponent(exerciseName);
-      final url = Uri.parse('$baseUrl/training/exercise/$safeName/feedback-questions');
+      final url = Uri.parse(
+        '$baseUrl/training/exercise/$safeName/feedback-questions',
+      );
       final response = await http.get(url);
 
       if (response.statusCode != 200) {
         throw Exception("Failed to load feedback questions");
       }
-      
+
       final questions = json.decode(response.body) as List<dynamic>;
-      
+
       // Cache questions for offline access
       try {
         await FeedbackQuestionsStorage.saveQuestions(exerciseName, questions);
       } catch (_) {
         // Ignore cache errors
       }
-      
+
       return questions;
     } catch (e) {
       // If network fails, try loading from cache
       try {
-        final cached = await FeedbackQuestionsStorage.loadQuestions(exerciseName);
+        final cached = await FeedbackQuestionsStorage.loadQuestions(
+          exerciseName,
+        );
         if (cached.isNotEmpty) {
           return cached;
         }
@@ -369,7 +413,10 @@ class TrainingService {
     required int answer,
   }) async {
     final url = Uri.parse('$baseUrl/training/feedback');
-    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
     final res = await http.post(
       url,
       headers: headers,
@@ -381,6 +428,7 @@ class TrainingService {
     );
     await AccountStorage.handle401(res.statusCode);
   }
+
   static Future<List<dynamic>> fetchAllExercises() async {
     final url = Uri.parse('$baseUrl/training/exercises');
     final response = await http.get(url);
@@ -415,18 +463,18 @@ class TrainingService {
     return (data as List).map((e) => e.toString()).toList();
   }
 
-
   static Future<List<dynamic>> fetchReplaceSuggestions({
     required int programExerciseId,
   }) async {
-    final url = Uri.parse('$baseUrl/training/exercise/$programExerciseId/replace-suggestions');
+    final url = Uri.parse(
+      '$baseUrl/training/exercise/$programExerciseId/replace-suggestions',
+    );
     final response = await http.get(url);
     if (response.statusCode != 200) {
       throw Exception("Failed to load suggestions");
     }
     return json.decode(response.body);
   }
-
 
   static Future<void> replaceExercise({
     required int userId,
@@ -435,7 +483,10 @@ class TrainingService {
     required String reason,
   }) async {
     final url = Uri.parse('$baseUrl/training/exercise/replace');
-    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
     final response = await http.post(
       url,
       headers: headers,
@@ -457,6 +508,4 @@ class TrainingService {
       throw TrainingApiException(response.statusCode, detail);
     }
   }
-
-
 }

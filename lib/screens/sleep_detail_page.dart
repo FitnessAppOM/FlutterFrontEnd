@@ -6,6 +6,7 @@ import '../core/account_storage.dart';
 import '../services/metrics/daily_metrics_api.dart';
 import '../services/health/sleep_service.dart';
 import '../services/whoop/whoop_sleep_service.dart';
+import '../services/whoop/whoop_widget_data_service.dart';
 import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
 import '../widgets/charts/ranged_bar_chart.dart';
@@ -46,6 +47,36 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
   Timer? _barValueTimer;
 
   static const _sleepGoalKey = "dashboard_sleep_goal";
+  static final Map<String, Map<DateTime, double>> _rangeDataCache = {};
+
+  String _dayToken(DateTime date) =>
+      "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+
+  String? _rangeCacheKey({
+    required int? userId,
+    required DateTime start,
+    required DateTime effectiveEnd,
+  }) {
+    if (userId == null || userId == 0) return null;
+    final source = widget.useWhoop ? "whoop" : "default";
+    return "$userId|$source|$_range|${_dayToken(start)}|${_dayToken(effectiveEnd)}";
+  }
+
+  Map<DateTime, double>? _readRangeDataCache(String key) {
+    final cached = _rangeDataCache[key];
+    if (cached == null) return null;
+    return Map<DateTime, double>.from(cached);
+  }
+
+  void _writeRangeDataCache(String key, Map<DateTime, double> data) {
+    _rangeDataCache[key] = Map<DateTime, double>.from(data);
+    if (_rangeDataCache.length > 96) {
+      final keys = _rangeDataCache.keys.toList()..sort();
+      while (_rangeDataCache.length > 96 && keys.isNotEmpty) {
+        _rangeDataCache.remove(keys.removeAt(0));
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -116,8 +147,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     }
   }
 
-  Future<void> _loadRange() async {
-    setState(() => _loading = true);
+  Future<void> _loadRange({bool force = false}) async {
     try {
       final now = DateTime.now();
       DateTime start;
@@ -140,12 +170,41 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
           break;
       }
       final effectiveEnd = now.isBefore(end) ? now : end;
+      final userId = await AccountStorage.getUserId();
+      final cacheKey = _rangeCacheKey(
+        userId: userId,
+        start: DateTime(start.year, start.month, start.day),
+        effectiveEnd: DateTime(
+          effectiveEnd.year,
+          effectiveEnd.month,
+          effectiveEnd.day,
+        ),
+      );
+      if (!force && cacheKey != null) {
+        final cached = _readRangeDataCache(cacheKey);
+        if (cached != null) {
+          if (!mounted) return;
+          setState(() {
+            _daily = cached;
+            _rangeStart = start;
+            _rangeEnd = end;
+            _selectedBarIndex = null;
+            _loading = false;
+          });
+          if (widget.useWhoop) {
+            await _loadWhoopMetrics();
+          }
+          return;
+        }
+      }
+      if (mounted) {
+        setState(() => _loading = true);
+      }
       Map<DateTime, double> data;
       if (widget.useWhoop) {
         data = await _loadWhoopRangeOrLatest(start: start, end: effectiveEnd);
       } else {
-        final userId = await AccountStorage.getUserId();
-        if (userId == null) {
+        if (userId == null || userId == 0) {
           if (!mounted) return;
           setState(() {
             _daily = {};
@@ -188,6 +247,9 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
             data[todayKey] = todaySleep;
           }
         }
+      }
+      if (cacheKey != null) {
+        _writeRangeDataCache(cacheKey, data);
       }
       if (!mounted) return;
       setState(() {
@@ -289,7 +351,41 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     required DateTime start,
     required DateTime end,
   }) async {
-    return WhoopSleepService().fetchDailySleepFromDb(start: start, end: end);
+    final service = WhoopSleepService();
+    final data = await service.fetchDailySleepFromDb(start: start, end: end);
+    final startKey = DateTime(start.year, start.month, start.day);
+    final endKey = DateTime(end.year, end.month, end.day);
+    final now = DateTime.now();
+    final todayKey = DateTime(now.year, now.month, now.day);
+    final inRange =
+        !todayKey.isBefore(startKey) && !todayKey.isAfter(endKey);
+    if (inRange) {
+      final userId = await AccountStorage.getUserId();
+      double? todayHours;
+      if (userId != null && userId != 0) {
+        todayHours = WhoopWidgetDataService.cachedSleepHoursForDate(
+          userId: userId,
+          date: todayKey,
+        );
+      }
+      if (todayHours == null || todayHours <= 0) {
+        todayHours = await service.fetchSleepHoursForDay(todayKey);
+        if (todayHours != null &&
+            todayHours > 0 &&
+            userId != null &&
+            userId != 0) {
+          WhoopWidgetDataService.cacheSleepHoursForDate(
+            userId: userId,
+            date: todayKey,
+            sleepHours: todayHours,
+          );
+        }
+      }
+      if (todayHours != null && todayHours > 0) {
+        data[todayKey] = todayHours;
+      }
+    }
+    return data;
   }
 
   @override
@@ -1312,7 +1408,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       final day = DateTime(today.year, today.month, today.day);
       await SleepService().saveManualEntry(day, result);
       if (mounted) {
-        _loadRange();
+        _loadRange(force: true);
       }
     }
   }
