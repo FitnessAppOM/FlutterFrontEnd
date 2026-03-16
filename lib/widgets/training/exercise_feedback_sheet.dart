@@ -23,7 +23,7 @@ class ExerciseFeedbackSheet extends StatefulWidget {
 }
 
 class _ExerciseFeedbackSheetState extends State<ExerciseFeedbackSheet> {
-  List questions = [];
+  List<Map<String, dynamic>> questions = [];
   final Map<int, int> answers = {};
   bool loading = true;
   String? error;
@@ -34,15 +34,60 @@ class _ExerciseFeedbackSheetState extends State<ExerciseFeedbackSheet> {
     _loadQuestions();
   }
 
+  bool _isMeaningfulText(dynamic value) {
+    if (value == null) return false;
+    final text = value.toString().trim();
+    if (text.isEmpty) return false;
+    final lower = text.toLowerCase();
+    return lower != "nan" && lower != "null" && lower != "undefined";
+  }
+
+  List<String> _sanitizeOptions(dynamic rawOptions) {
+    if (rawOptions is! List) return const [];
+    final options = <String>[];
+    for (final option in rawOptions) {
+      if (_isMeaningfulText(option)) {
+        options.add(option.toString().trim());
+      }
+    }
+    return options;
+  }
+
+  int _safeIndex(dynamic rawIndex, int fallback) {
+    if (rawIndex is int) return rawIndex;
+    if (rawIndex is num) return rawIndex.toInt();
+    if (rawIndex is String) return int.tryParse(rawIndex.trim()) ?? fallback;
+    return fallback;
+  }
+
+  List<Map<String, dynamic>> _sanitizeQuestions(List<dynamic> rawQuestions) {
+    final sanitized = <Map<String, dynamic>>[];
+    for (var i = 0; i < rawQuestions.length; i++) {
+      final raw = rawQuestions[i];
+      if (raw is! Map) continue;
+      final question = raw['question'];
+      if (!_isMeaningfulText(question)) continue;
+      final options = _sanitizeOptions(raw['options']);
+      if (options.isEmpty) continue;
+      sanitized.add({
+        "index": _safeIndex(raw['index'], i),
+        "question": question.toString().trim(),
+        "options": options,
+      });
+    }
+    return sanitized;
+  }
+
   Future<void> _loadQuestions() async {
     try {
       // Try to load from server (will fallback to cache if offline)
       final q = await TrainingService.getFeedbackQuestions(
         widget.exerciseName,
       );
+      final sanitized = _sanitizeQuestions(q);
       if (!mounted) return;
       setState(() {
-        questions = q;
+        questions = sanitized;
         loading = false;
         error = null;
       });
@@ -52,10 +97,11 @@ class _ExerciseFeedbackSheetState extends State<ExerciseFeedbackSheet> {
         final cached = await FeedbackQuestionsStorage.loadQuestions(
           widget.exerciseName,
         );
+        final sanitized = _sanitizeQuestions(cached);
         if (!mounted) return;
-        if (cached.isNotEmpty) {
+        if (sanitized.isNotEmpty) {
           setState(() {
-            questions = cached;
+            questions = sanitized;
             loading = false;
             error = null;
           });
@@ -83,7 +129,7 @@ class _ExerciseFeedbackSheetState extends State<ExerciseFeedbackSheet> {
     bool needsSync = false;
 
     for (final q in questions) {
-      final index = q['index'];
+      final index = q['index'] as int;
       final answer = answers[index];
       if (answer != null) {
         try {
@@ -234,6 +280,9 @@ class _ExerciseFeedbackSheetState extends State<ExerciseFeedbackSheet> {
           ),
           const SizedBox(height: 16),
           ...questions.map((q) {
+            final index = q['index'] as int;
+            final question = q['question'] as String;
+            final options = q['options'] as List<String>;
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: Container(
@@ -247,7 +296,7 @@ class _ExerciseFeedbackSheetState extends State<ExerciseFeedbackSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      q['question'],
+                      question,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -257,12 +306,12 @@ class _ExerciseFeedbackSheetState extends State<ExerciseFeedbackSheet> {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        for (int i = 0; i < q['options'].length; i++)
+                        for (int i = 0; i < options.length; i++)
                           ChoiceChip(
-                            label: Text(q['options'][i]),
-                            selected: answers[q['index']] == i,
+                            label: Text(options[i]),
+                            selected: answers[index] == i,
                             onSelected: (_) =>
-                                setState(() => answers[q['index']] = i),
+                                setState(() => answers[index] = i),
                           ),
                       ],
                     ),
