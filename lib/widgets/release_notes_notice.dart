@@ -46,6 +46,7 @@ class ReleaseNotesDialog extends StatelessWidget {
             text:
                 'Added training history and achievement pop up after a done day',
           ),
+          _ReleaseNoteItem(text: 'etc...'),
         ],
       ),
       actions: [
