@@ -667,7 +667,7 @@ class _TrainingHistoryPlanGroupBuilder {
   _TrainingHistoryPlanGroup build() {
     final daysPerWeek = _planDaysPerWeek;
     final title = (daysPerWeek != null && daysPerWeek > 0)
-        ? "$daysPerWeek days/week plan"
+        ? "$daysPerWeek days plan"
         : (programId != null ? "Plan #$programId" : "Training plan");
     _entries.sort((a, b) => b.latestDate.compareTo(a.latestDate));
     final latestDate = _latestDate ?? DateTime.fromMillisecondsSinceEpoch(0);
