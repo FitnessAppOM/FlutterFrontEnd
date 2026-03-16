@@ -40,11 +40,12 @@ class ReleaseNotesDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ReleaseNoteHighlight(text: 'IMPORTANT: journal reminders updated — please confirm if it worked'),
+          _ReleaseNoteHighlight(text: 'Bugs and fixes'),
           SizedBox(height: 6),
-          _ReleaseNoteItem(text: 'done more fixes from sheet'),
-          _ReleaseNoteItem(text: 'bug fixes'),
-          _ReleaseNoteItem(text: 'hydration prefill from water intake widget'),
+          _ReleaseNoteItem(
+            text:
+                'Added training history and achievement pop up after a done day',
+          ),
         ],
       ),
       actions: [
