@@ -14,6 +14,10 @@ class ExerciseActionQueue {
   static const String actionWeight = "weight";
   static const String actionFeedback = "feedback";
   static const String actionReplace = "replace";
+  static const String actionSetAdd = "set_add";
+  static const String actionSetUpsert = "set_upsert";
+  static const String actionSetDelete = "set_delete";
+  static const String actionSessionFinish = "session_finish";
 
   /// Add action to queue
   static Future<void> queueAction({
@@ -128,9 +132,9 @@ class ExerciseActionQueue {
       case actionFinish:
         await TrainingService.finishExercise(
           programExerciseId: programExerciseId,
-          sets: data["sets"] as int? ?? 0,
-          reps: data["reps"] as int? ?? 0,
-          rir: data["rir"] as int? ?? 0,
+          sets: data.containsKey("sets") ? data["sets"] as int? : null,
+          reps: data.containsKey("reps") ? data["reps"] as int? : null,
+          rir: data.containsKey("rir") ? data["rir"] as int? : null,
           durationSeconds: data["duration_seconds"] as int? ?? 0,
           entryDate: entryDate != null ? DateTime.tryParse(entryDate) : null,
         );
@@ -169,6 +173,46 @@ class ExerciseActionQueue {
             // Ignore if questions can't be loaded
           }
         }
+        break;
+      case actionSetAdd:
+        await TrainingService.addExerciseSet(
+          programExerciseId: programExerciseId,
+          cloneLast: data["clone_last"] as bool? ?? true,
+        );
+        break;
+      case actionSetUpsert:
+        await TrainingService.upsertExerciseSet(
+          programExerciseId: programExerciseId,
+          setIndex: data["set_index"] as int? ?? 1,
+          reps: data.containsKey("reps") ? data["reps"] as int? : null,
+          rir: data.containsKey("rir") ? data["rir"] as int? : null,
+          weightKg: (data.containsKey("weight_kg") && data["weight_kg"] != null)
+              ? (data["weight_kg"] as num).toDouble()
+              : null,
+          completed: data.containsKey("completed")
+              ? data["completed"] as bool?
+              : null,
+          performedTimeSeconds: data.containsKey("performed_time_seconds")
+              ? data["performed_time_seconds"] as int?
+              : null,
+          restAfterSeconds: data.containsKey("rest_after_seconds")
+              ? data["rest_after_seconds"] as int?
+              : null,
+        );
+        break;
+      case actionSetDelete:
+        await TrainingService.deleteExerciseSet(
+          programExerciseId: programExerciseId,
+          setIndex: data["set_index"] as int? ?? 1,
+        );
+        break;
+      case actionSessionFinish:
+        final entryDate = data["entry_date"] as String?;
+        await TrainingService.finishSession(
+          entryDate: entryDate != null
+              ? (DateTime.tryParse(entryDate) ?? DateTime.now())
+              : DateTime.now(),
+        );
         break;
     }
   }

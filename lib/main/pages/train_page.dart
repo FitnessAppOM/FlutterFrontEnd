@@ -17,6 +17,7 @@ import '../../consents/consent_manager.dart';
 import '../../screens/training/training_history_page.dart';
 import '../../widgets/training/training_day_complete_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/training/training_progress_storage.dart';
 
 class TrainPage extends StatefulWidget {
   const TrainPage({super.key});
@@ -40,15 +41,108 @@ class _TrainPageState extends State<TrainPage> {
   int? _userId;
   int? _pendingCompletionDayIndex;
 
+  int? _workoutStartMs;
+  int _workoutElapsedSeconds = 0;
+  Timer? _workoutTimer;
+  bool _finishingWorkout = false;
+
   @override
   void initState() {
     super.initState();
+    AccountStorage.trainingChange.addListener(_onTrainingChanged);
     _init();
+  }
+
+  @override
+  void dispose() {
+    _workoutTimer?.cancel();
+    AccountStorage.trainingChange.removeListener(_onTrainingChanged);
+    super.dispose();
+  }
+
+  void _onTrainingChanged() {
+    _loadWorkoutTimer();
   }
 
   Future<void> _init() async {
     _userId = await AccountStorage.getUserId();
     await _loadProgram();
+    await _loadWorkoutTimer();
+  }
+
+  Future<void> _loadWorkoutTimer() async {
+    final startMs = await TrainingProgressStorage.getWorkoutStartMs();
+    if (!mounted) return;
+    if (startMs != null) {
+      _workoutStartMs = startMs;
+      _syncWorkoutElapsed();
+      _startWorkoutTicker();
+    } else {
+      _workoutStartMs = null;
+      _workoutElapsedSeconds = 0;
+      _workoutTimer?.cancel();
+      _workoutTimer = null;
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _syncWorkoutElapsed() {
+    final ms = _workoutStartMs;
+    if (ms == null) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    _workoutElapsedSeconds = ((now - ms) / 1000).round();
+  }
+
+  void _startWorkoutTicker() {
+    _workoutTimer?.cancel();
+    _workoutTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      _syncWorkoutElapsed();
+      setState(() {});
+    });
+  }
+
+  String _formatWorkoutTime(int total) {
+    final h = total ~/ 3600;
+    final m = (total % 3600) ~/ 60;
+    final s = total % 60;
+    if (h > 0) {
+      return "${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}";
+    }
+    return "${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}";
+  }
+
+  Future<void> _finishWorkout({bool showToast = true}) async {
+    if (_finishingWorkout) return;
+    setState(() => _finishingWorkout = true);
+    final now = DateTime.now();
+    try {
+      await TrainingService.finishSession(entryDate: now);
+    } catch (_) {
+      await ExerciseActionQueue.queueAction(
+        action: ExerciseActionQueue.actionSessionFinish,
+        programExerciseId: 0,
+        data: {
+          "entry_date":
+              "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
+        },
+      );
+    }
+    await TrainingProgressStorage.clearWorkoutStart();
+    _workoutTimer?.cancel();
+    _workoutTimer = null;
+    _workoutStartMs = null;
+    _workoutElapsedSeconds = 0;
+    if (mounted) {
+      setState(() => _finishingWorkout = false);
+      if (showToast) {
+        AppToast.show(
+          context,
+          "Workout finished!",
+          type: AppToastType.success,
+        );
+      }
+    }
   }
 
   Future<void> _loadProgram() async {
@@ -241,6 +335,7 @@ class _TrainPageState extends State<TrainPage> {
         onFinished: () {
           _pendingCompletionDayIndex = selectedDay;
           unawaited(_loadProgram());
+          _loadWorkoutTimer();
         },
         previewProvider: previewProvider,
         showSessionOnOpen: true,
@@ -505,6 +600,9 @@ class _TrainPageState extends State<TrainPage> {
     final weekStart = _weekStartMonday(now);
     final weekEnd = _weekEndSunday(now);
     if (!_isDayCompletedForWeek(day, weekStart, weekEnd)) return;
+    if (_workoutStartMs != null) {
+      await _finishWorkout(showToast: false);
+    }
 
     final userId = _userId ?? await AccountStorage.getUserId();
     if (userId == null) return;
@@ -631,6 +729,77 @@ class _TrainPageState extends State<TrainPage> {
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (_workoutStartMs != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFF2D7CFF).withOpacity(0.15),
+                            const Color(0xFF2D7CFF).withOpacity(0.06),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: const Color(0xFF2D7CFF).withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.timer, color: Color(0xFF2D7CFF), size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Workout",
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.7),
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                                Text(
+                                  _formatWorkoutTime(_workoutElapsedSeconds),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 22,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          ElevatedButton(
+                            onPressed: _finishingWorkout ? null : _finishWorkout,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.greenAccent.shade400,
+                              foregroundColor: Colors.black,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            ),
+                            child: _finishingWorkout
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.black,
+                                    ),
+                                  )
+                                : const Text(
+                                    "Finish Workout",
+                                    style: TextStyle(fontWeight: FontWeight.w700),
+                                  ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 12),

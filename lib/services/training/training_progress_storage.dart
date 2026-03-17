@@ -148,6 +148,87 @@ class TrainingProgressStorage {
     await sp.remove(_userKey(userId, 'week_start'));
   }
 
+  static Future<void> saveExerciseTimerState(
+    int programExerciseId,
+    Map<String, dynamic> state,
+  ) async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return;
+    final sp = await SharedPreferences.getInstance();
+    final key = _userKey(userId, 'ex_timer_$programExerciseId');
+    await sp.setString(key, jsonEncode(state));
+  }
+
+  static Future<Map<String, dynamic>?> loadExerciseTimerState(
+    int programExerciseId,
+  ) async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return null;
+    final sp = await SharedPreferences.getInstance();
+    final key = _userKey(userId, 'ex_timer_$programExerciseId');
+    final raw = sp.getString(key);
+    if (raw == null) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    } catch (_) {}
+    return null;
+  }
+
+  static Future<void> clearExerciseTimerState(int programExerciseId) async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return;
+    final sp = await SharedPreferences.getInstance();
+    final key = _userKey(userId, 'ex_timer_$programExerciseId');
+    await sp.remove(key);
+  }
+
+  static Future<void> saveLastExerciseFinishedMs(int ms) async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return;
+    final sp = await SharedPreferences.getInstance();
+    final today = _dateKey(DateTime.now());
+    final key = _userKey(userId, 'last_ex_finished_ms_$today');
+    await sp.setInt(key, ms);
+  }
+
+  static Future<int?> getLastExerciseFinishedMs() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return null;
+    final sp = await SharedPreferences.getInstance();
+    final today = _dateKey(DateTime.now());
+    final key = _userKey(userId, 'last_ex_finished_ms_$today');
+    return sp.getInt(key);
+  }
+
+  static Future<void> recordWorkoutStart() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return;
+    final sp = await SharedPreferences.getInstance();
+    final today = _dateKey(DateTime.now());
+    final key = _userKey(userId, 'workout_start_ms_$today');
+    if (sp.containsKey(key)) return;
+    await sp.setInt(key, DateTime.now().millisecondsSinceEpoch);
+  }
+
+  static Future<int?> getWorkoutStartMs() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return null;
+    final sp = await SharedPreferences.getInstance();
+    final today = _dateKey(DateTime.now());
+    final key = _userKey(userId, 'workout_start_ms_$today');
+    return sp.getInt(key);
+  }
+
+  static Future<void> clearWorkoutStart() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return;
+    final sp = await SharedPreferences.getInstance();
+    final today = _dateKey(DateTime.now());
+    final key = _userKey(userId, 'workout_start_ms_$today');
+    await sp.remove(key);
+  }
+
   static Future<void> clearAll() async {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return;

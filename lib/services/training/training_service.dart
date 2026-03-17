@@ -237,9 +237,9 @@ class TrainingService {
 
   static Future<void> finishExercise({
     required int programExerciseId,
-    required int sets,
-    required int reps,
-    required int rir,
+    int? sets,
+    int? reps,
+    int? rir,
     required int durationSeconds,
     DateTime? entryDate,
   }) async {
@@ -253,14 +253,159 @@ class TrainingService {
       headers: headers,
       body: json.encode({
         'program_exercise_id': programExerciseId,
-        'performed_sets': sets,
-        'performed_reps': reps,
-        'performed_rir': rir,
+        if (sets != null) 'performed_sets': sets,
+        if (reps != null) 'performed_reps': reps,
+        if (rir != null) 'performed_rir': rir,
         'performed_time_seconds': durationSeconds,
         if (entryDate != null) 'entry_date': _dateParam(entryDate),
       }),
     );
     await AccountStorage.handle401(res.statusCode);
+  }
+
+  static Future<List<Map<String, dynamic>>> fetchExerciseSets(
+    int programExerciseId,
+  ) async {
+    final url = Uri.parse('$baseUrl/training/exercise/$programExerciseId/sets');
+    final headers = await AccountStorage.getAuthHeaders();
+    final res = await http.get(url, headers: headers);
+    await AccountStorage.handle401(res.statusCode);
+    if (res.statusCode != 200) {
+      throw Exception("Failed to load exercise sets");
+    }
+    final data = json.decode(res.body);
+    if (data is List) {
+      return data.map((e) => Map<String, dynamic>.from(e as Map)).toList()
+        ..sort((a, b) {
+          int parseIndex(dynamic v) {
+            if (v is int) return v;
+            if (v is num) return v.toInt();
+            if (v is String) return int.tryParse(v.trim()) ?? 0;
+            return 0;
+          }
+
+          return parseIndex(a['set_index']).compareTo(parseIndex(b['set_index']));
+        });
+    }
+    return const [];
+  }
+
+  static Future<Map<String, dynamic>> addExerciseSet({
+    required int programExerciseId,
+    bool cloneLast = true,
+  }) async {
+    final url = Uri.parse('$baseUrl/training/exercise/set/add');
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
+    final res = await http.post(
+      url,
+      headers: headers,
+      body: json.encode({
+        'program_exercise_id': programExerciseId,
+        'clone_last': cloneLast,
+      }),
+    );
+    await AccountStorage.handle401(res.statusCode);
+    if (res.statusCode != 200) {
+      throw Exception("Failed to add set");
+    }
+    final data = json.decode(res.body);
+    if (data is Map) return Map<String, dynamic>.from(data as Map);
+    return const {"status": "added"};
+  }
+
+  static Future<Map<String, dynamic>> upsertExerciseSet({
+    required int programExerciseId,
+    required int setIndex,
+    int? reps,
+    int? rir,
+    double? weightKg,
+    bool? completed,
+    int? performedTimeSeconds,
+    int? restAfterSeconds,
+  }) async {
+    final url = Uri.parse('$baseUrl/training/exercise/set/upsert');
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
+    final body = <String, dynamic>{
+      'program_exercise_id': programExerciseId,
+      'set_index': setIndex,
+      if (reps != null) 'reps': reps,
+      if (rir != null) 'rir': rir,
+      if (weightKg != null) 'weight_kg': weightKg,
+      if (completed != null) 'completed': completed,
+      if (performedTimeSeconds != null)
+        'performed_time_seconds': performedTimeSeconds,
+      if (restAfterSeconds != null) 'rest_after_seconds': restAfterSeconds,
+    };
+    final res = await http.post(url, headers: headers, body: json.encode(body));
+    await AccountStorage.handle401(res.statusCode);
+    if (res.statusCode != 200) {
+      throw Exception("Failed to save set");
+    }
+    final data = json.decode(res.body);
+    if (data is Map) return Map<String, dynamic>.from(data as Map);
+    return const {"status": "saved"};
+  }
+
+  static Future<Map<String, dynamic>> deleteExerciseSet({
+    required int programExerciseId,
+    required int setIndex,
+  }) async {
+    final url = Uri.parse('$baseUrl/training/exercise/set/delete');
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
+    final res = await http.post(
+      url,
+      headers: headers,
+      body: json.encode({
+        'program_exercise_id': programExerciseId,
+        'set_index': setIndex,
+      }),
+    );
+    await AccountStorage.handle401(res.statusCode);
+    if (res.statusCode != 200) {
+      throw Exception("Failed to delete set");
+    }
+    final data = json.decode(res.body);
+    if (data is Map) return Map<String, dynamic>.from(data as Map);
+    return const {"status": "deleted"};
+  }
+
+  static Future<Map<String, dynamic>> fetchCurrentSession() async {
+    final url = Uri.parse('$baseUrl/training/session/current');
+    final headers = await AccountStorage.getAuthHeaders();
+    final res = await http.get(url, headers: headers);
+    await AccountStorage.handle401(res.statusCode);
+    if (res.statusCode != 200) {
+      throw Exception("Failed to load current session");
+    }
+    final data = json.decode(res.body);
+    if (data is Map) return Map<String, dynamic>.from(data);
+    return {};
+  }
+
+  static Future<void> finishSession({required DateTime entryDate}) async {
+    final url = Uri.parse('$baseUrl/training/session/finish');
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
+    final res = await http.post(
+      url,
+      headers: headers,
+      body: json.encode({'entry_date': _dateParam(entryDate)}),
+    );
+    await AccountStorage.handle401(res.statusCode);
+    if (res.statusCode != 200) {
+      throw Exception("Failed to finish session");
+    }
   }
 
   static Future<void> saveCardioSession({

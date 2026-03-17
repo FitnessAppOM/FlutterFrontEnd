@@ -65,6 +65,17 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   final weightCtrl = TextEditingController();
   final setsCtrl = TextEditingController();
   final repsCtrl = TextEditingController();
+  List<Map<String, dynamic>> _setRows = [];
+  int? _activeSetIndex;
+  Timer? _activeSetTimer;
+  bool _activeSetTimerRunning = false;
+  int _activeSetElapsedSeconds = 0;
+  int _activeSetRestSeconds = 0;
+
+  Timer? _restCountdownTimer;
+  int _restCountdownRemaining = 0;
+  bool _restCountdownActive = false;
+  int _restPresetSeconds = 60;
 
   double rir = 2;
 
@@ -72,8 +83,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _initializeSetRows();
     _prefillFromLastEntry();
     _restoreActiveSession();
+    _restoreTimerState();
     if (_shouldAutoShowInstructions()) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -91,6 +104,364 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         setState(() => _showCardioStartButton = true);
       });
     }
+  }
+
+  bool get _supportsSetRows =>
+      !_isCardioExercise() && widget.exercise.containsKey('set_rows');
+
+  int? _programExerciseId() {
+    final raw = widget.exercise['program_exercise_id'];
+    if (raw is int) return raw;
+    if (raw is num) return raw.toInt();
+    return int.tryParse(raw?.toString() ?? '');
+  }
+
+  int _toInt(dynamic value, {int fallback = 0}) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value.trim()) ?? fallback;
+    return fallback;
+  }
+
+  double? _toDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value.trim());
+    return null;
+  }
+
+  bool _toBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    final s = (value ?? '').toString().trim().toLowerCase();
+    if (s.isEmpty) return false;
+    return s == 'true' || s == '1' || s == 'yes' || s == 'y' || s == 't';
+  }
+
+  int _plannedSets() {
+    final sets = _toInt(widget.exercise['sets']);
+    return sets > 0 ? sets : 1;
+  }
+
+  int? _plannedReps() {
+    final reps = _toInt(widget.exercise['reps']);
+    return reps > 0 ? reps : null;
+  }
+
+  int? _plannedRir() {
+    final planned = _toInt(widget.exercise['rir'], fallback: 2);
+    return planned >= 0 ? planned : null;
+  }
+
+  double? _plannedWeight() {
+    final compliance = _extractCompliance(widget.exercise['program_compliance']) ??
+        _extractCompliance(widget.exercise['compliance']);
+    return _toDouble(compliance?['weight_used'] ?? widget.exercise['weight_used']);
+  }
+
+  List<Map<String, dynamic>> _normalizeSetRows(List<dynamic> rows) {
+    final normalized = <Map<String, dynamic>>[];
+    for (var i = 0; i < rows.length; i++) {
+      final raw = rows[i];
+      if (raw is! Map) continue;
+      final index = _toInt(raw['set_index'], fallback: i + 1);
+      normalized.add({
+        "id": raw['id'],
+        "set_index": index <= 0 ? i + 1 : index,
+        "reps": raw['reps'] == null ? null : _toInt(raw['reps']),
+        "rir": raw['rir'] == null ? null : _toInt(raw['rir']),
+        "weight_kg": _toDouble(raw['weight_kg']),
+        "completed": _toBool(raw['completed']),
+        "performed_time_seconds": raw['performed_time_seconds'] == null
+            ? null
+            : _toInt(raw['performed_time_seconds']),
+        "rest_after_seconds": raw['rest_after_seconds'] == null
+            ? null
+            : _toInt(raw['rest_after_seconds']),
+      });
+    }
+    normalized.sort(
+      (a, b) => _toInt(a['set_index']).compareTo(_toInt(b['set_index'])),
+    );
+    for (var i = 0; i < normalized.length; i++) {
+      normalized[i]['set_index'] = i + 1;
+    }
+    return normalized;
+  }
+
+  List<Map<String, dynamic>> _seedSetRowsFromExercise() {
+    final raw = widget.exercise['set_rows'];
+    if (raw is List && raw.isNotEmpty) {
+      final parsed = _normalizeSetRows(raw);
+      if (parsed.isNotEmpty) return parsed;
+    }
+    final sets = _plannedSets();
+    final reps = _plannedReps();
+    final plannedRir = _plannedRir();
+    final weight = _plannedWeight();
+    return List.generate(sets, (i) {
+      return {
+        "id": null,
+        "set_index": i + 1,
+        "reps": reps,
+        "rir": plannedRir,
+        "weight_kg": weight,
+        "completed": false,
+        "performed_time_seconds": null,
+        "rest_after_seconds": null,
+      };
+    });
+  }
+
+  void _initializeSetRows() {
+    if (!_supportsSetRows) return;
+    _setRows = _seedSetRowsFromExercise();
+    if (_setRows.isNotEmpty) {
+      _activeSetIndex = _defaultSetIndex();
+    }
+    _refreshSetRowsFromServer();
+  }
+
+  Future<void> _refreshSetRowsFromServer() async {
+    if (!_supportsSetRows) return;
+    final programExerciseId = _programExerciseId();
+    if (programExerciseId == null) return;
+    try {
+      final rows = await TrainingService.fetchExerciseSets(programExerciseId);
+      if (!mounted) return;
+      if (rows.isEmpty && _setRows.isNotEmpty) return;
+      setState(() {
+        _setRows = rows.isEmpty ? _seedSetRowsFromExercise() : _normalizeSetRows(rows);
+        _activeSetIndex = _setRows.isEmpty ? null : _defaultSetIndex();
+        if (_activeSetIndex != null) {
+          _loadActiveSetTimingFromRow(_activeSetIndex!);
+        } else {
+          _activeSetElapsedSeconds = 0;
+          _activeSetRestSeconds = 0;
+        }
+      });
+    } catch (_) {
+      // Keep local rows when offline or endpoint temporarily fails.
+    }
+  }
+
+  int _defaultSetIndex() {
+    if (_setRows.isEmpty) return 1;
+    final firstPending = _setRows.firstWhere(
+      (row) => !_toBool(row['completed']),
+      orElse: () => _setRows.first,
+    );
+    final idx = _toInt(firstPending['set_index'], fallback: 1);
+    return idx > 0 ? idx : 1;
+  }
+
+  void _ensureActiveSetSelected() {
+    if (!_supportsSetRows || _setRows.isEmpty || _activeSetIndex != null) return;
+    final idx = _defaultSetIndex();
+    if (mounted) {
+      setState(() {
+        _activeSetIndex = idx;
+        _loadActiveSetTimingFromRow(idx);
+      });
+    } else {
+      _activeSetIndex = idx;
+      _loadActiveSetTimingFromRow(idx);
+    }
+  }
+
+  Map<String, dynamic>? _rowBySetIndex(int setIndex) {
+    for (final row in _setRows) {
+      if (_toInt(row['set_index']) == setIndex) return row;
+    }
+    return null;
+  }
+
+  void _loadActiveSetTimingFromRow(int setIndex) {
+    final row = _rowBySetIndex(setIndex);
+    _activeSetElapsedSeconds = row == null
+        ? 0
+        : _toInt(row['performed_time_seconds'], fallback: 0);
+    final rowRest = row == null ? 0 : _toInt(row['rest_after_seconds'], fallback: 0);
+    if (rowRest > 0) {
+      _activeSetRestSeconds = rowRest;
+      _restPresetSeconds = rowRest;
+    } else {
+      _activeSetRestSeconds = _restPresetSeconds;
+    }
+  }
+
+  Future<void> _saveTimerState() async {
+    final peId = _programExerciseId();
+    if (peId == null || !_supportsSetRows) return;
+    await TrainingProgressStorage.saveExerciseTimerState(peId, {
+      'active_set_index': _activeSetIndex,
+      'set_elapsed': _activeSetElapsedSeconds,
+      'set_running': _activeSetTimerRunning,
+      'rest_preset': _restPresetSeconds,
+      'rest_countdown_remaining': _restCountdownRemaining,
+      'rest_countdown_active': _restCountdownActive,
+      'rest_after': _activeSetRestSeconds,
+      'started': started,
+      'paused': _paused,
+      'seconds': seconds,
+      'start_ms': _sessionStartMs,
+    });
+  }
+
+  Future<void> _restoreTimerState() async {
+    final peId = _programExerciseId();
+    if (peId == null || !_supportsSetRows) return;
+    final state = await TrainingProgressStorage.loadExerciseTimerState(peId);
+    if (state == null || !mounted) return;
+    final wasStarted = state['started'] == true;
+    if (!wasStarted) return;
+
+    final savedSetIndex = _toInt(state['active_set_index'] ?? 0);
+    final savedElapsed = _toInt(state['set_elapsed'] ?? 0);
+    final savedRunning = state['set_running'] == true;
+    final savedRestPreset = _toInt(state['rest_preset'] ?? 60, fallback: 60);
+    final savedRestRemaining = _toInt(state['rest_countdown_remaining'] ?? 0);
+    final savedRestActive = state['rest_countdown_active'] == true;
+    final savedRestAfter = _toInt(state['rest_after'] ?? 0);
+    final savedPaused = state['paused'] == true;
+    final savedSeconds = _toInt(state['seconds'] ?? 0);
+    final savedStartMs = state['start_ms'] as int?;
+
+    setState(() {
+      started = true;
+      _paused = savedPaused;
+      _restPresetSeconds = savedRestPreset > 0 ? savedRestPreset : 60;
+      if (savedSetIndex > 0) {
+        _activeSetIndex = savedSetIndex;
+        _activeSetElapsedSeconds = savedElapsed;
+        _activeSetRestSeconds = savedRestAfter;
+      }
+      if (savedPaused) {
+        seconds = savedSeconds;
+        _sessionStartMs = null;
+      } else {
+        _sessionStartMs = savedStartMs;
+        if (_sessionStartMs != null) {
+          final now = DateTime.now().millisecondsSinceEpoch;
+          seconds = ((now - _sessionStartMs!) / 1000).round();
+        } else {
+          seconds = savedSeconds;
+        }
+      }
+    });
+
+    if (!savedPaused) {
+      _startTimer();
+      if (savedRunning && savedSetIndex > 0) {
+        _startActiveSetTimer();
+      }
+      if (savedRestActive && savedRestRemaining > 0) {
+        _startRestCountdown(savedRestRemaining);
+      }
+    }
+  }
+
+  String _formatSeconds(int total) {
+    final safe = total < 0 ? 0 : total;
+    final m = (safe ~/ 60).toString().padLeft(2, '0');
+    final s = (safe % 60).toString().padLeft(2, '0');
+    return "$m:$s";
+  }
+
+  void _startActiveSetTimer() {
+    if (_activeSetTimerRunning) return;
+    _activeSetTimerRunning = true;
+    _activeSetTimer?.cancel();
+    _activeSetTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || !_activeSetTimerRunning) return;
+      setState(() => _activeSetElapsedSeconds++);
+    });
+  }
+
+  void _pauseActiveSetTimer() {
+    _activeSetTimerRunning = false;
+    _activeSetTimer?.cancel();
+    _activeSetTimer = null;
+  }
+
+  Future<void> _persistActiveSetTiming() async {
+    final setIndex = _activeSetIndex;
+    if (!_supportsSetRows || setIndex == null) return;
+    await _upsertSetRow(
+      setIndex: setIndex,
+      performedTimeSeconds: _activeSetElapsedSeconds,
+      restAfterSeconds: _activeSetRestSeconds,
+    );
+  }
+
+  void _startRestCountdown(int restSeconds) {
+    _stopRestCountdown();
+    if (restSeconds <= 0) return;
+    _restCountdownRemaining = restSeconds;
+    _restCountdownActive = true;
+    _restCountdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) {
+        _stopRestCountdown();
+        return;
+      }
+      setState(() {
+        _restCountdownRemaining--;
+        if (_restCountdownRemaining <= 0) {
+          _onRestComplete();
+        }
+      });
+    });
+    if (mounted) setState(() {});
+  }
+
+  void _stopRestCountdown() {
+    _restCountdownTimer?.cancel();
+    _restCountdownTimer = null;
+    _restCountdownActive = false;
+    _restCountdownRemaining = 0;
+  }
+
+  void _skipRest() {
+    _stopRestCountdown();
+    if (mounted) setState(() {});
+  }
+
+  void _onRestComplete() {
+    _stopRestCountdown();
+    if (mounted) setState(() {});
+  }
+
+  bool _isSetCompleted(int setIndex) {
+    final row = _rowBySetIndex(setIndex);
+    return row != null && _toBool(row['completed']);
+  }
+
+  int? _nextPendingSetIndex() {
+    for (final row in _setRows) {
+      final idx = _toInt(row['set_index'], fallback: 0);
+      if (idx > 0 && !_toBool(row['completed'])) return idx;
+    }
+    return null;
+  }
+
+  Future<void> _finishActiveSet() async {
+    final setIndex = _activeSetIndex;
+    if (setIndex == null) return;
+    _pauseActiveSetTimer();
+    final restSeconds = _activeSetRestSeconds;
+    await _upsertSetRow(
+      setIndex: setIndex,
+      completed: true,
+      performedTimeSeconds: _activeSetElapsedSeconds,
+      restAfterSeconds: restSeconds,
+    );
+    if (!mounted) return;
+    final nextSet = _nextPendingSetIndex();
+    setState(() {
+      _activeSetIndex = nextSet ?? setIndex;
+      _activeSetElapsedSeconds = 0;
+      _activeSetRestSeconds = _restPresetSeconds;
+    });
   }
 
   Future<void> _restoreActiveSession() async {
@@ -421,6 +792,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
         );
       }
+      _ensureActiveSetSelected();
+      if (_supportsSetRows && _activeSetIndex != null) {
+        _startActiveSetTimer();
+      }
       return;
     }
     if (_isCardioExercise()) {
@@ -471,6 +846,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
       );
     }
+    _ensureActiveSetSelected();
 
     // Queue start action for sync (non-blocking)
     final rawProgramExerciseId = widget.exercise['program_exercise_id'];
@@ -479,18 +855,820 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         : int.tryParse(rawProgramExerciseId?.toString() ?? '');
     if (programExerciseId != null) {
       try {
-        // Try to start on server immediately
         await TrainingService.startExercise(programExerciseId);
         startRecorded = true;
       } catch (e) {
-        // If offline, queue for later sync
         await ExerciseActionQueue.queueAction(
           action: ExerciseActionQueue.actionStart,
           programExerciseId: programExerciseId,
         );
-        startRecorded = false; // Will be recorded when syncing
+        startRecorded = false;
       }
     }
+    TrainingProgressStorage.recordWorkoutStart();
+  }
+
+  Future<void> _startSet(int setIndex) async {
+    _stopRestCountdown();
+    final previousActive = _activeSetIndex;
+    if (previousActive != null && previousActive != setIndex) {
+      _pauseActiveSetTimer();
+      await _persistActiveSetTiming();
+    }
+    if (!started || _paused) {
+      await _startExercise();
+      if (!mounted) return;
+    }
+    setState(() {
+      _activeSetIndex = setIndex;
+      _loadActiveSetTimingFromRow(setIndex);
+    });
+    _startActiveSetTimer();
+  }
+
+  Future<void> _onPrimaryExerciseButtonPressed() async {
+    if (started) {
+      await _finishExercise();
+      return;
+    }
+    await _startExercise();
+    if (!mounted) return;
+    _ensureActiveSetSelected();
+    if (_supportsSetRows && _activeSetIndex != null) {
+      await _startSet(_activeSetIndex!);
+    }
+  }
+
+  void _setRestPreset(int secs) {
+    setState(() {
+      _restPresetSeconds = secs;
+      _activeSetRestSeconds = secs;
+    });
+  }
+
+  Future<void> _setCustomRestPreset() async {
+    final ctrl = TextEditingController(
+      text: _restPresetSeconds > 0 ? _restPresetSeconds.toString() : '',
+    );
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF121727),
+        title: const Text("Custom rest (seconds)", style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: _inputStyle("Seconds"),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+    if (saved != true) return;
+    final next = int.tryParse(ctrl.text.trim()) ?? 0;
+    if (next > 0) _setRestPreset(next);
+  }
+
+  List<Map<String, dynamic>> _reindexedRows(List<Map<String, dynamic>> rows) {
+    final out = <Map<String, dynamic>>[];
+    for (var i = 0; i < rows.length; i++) {
+      final row = Map<String, dynamic>.from(rows[i]);
+      row['set_index'] = i + 1;
+      out.add(row);
+    }
+    return out;
+  }
+
+  Future<void> _addSetRow() async {
+    if (!_supportsSetRows) return;
+    final current = List<Map<String, dynamic>>.from(_setRows);
+    final nextIndex = current.length + 1;
+    final last = current.isNotEmpty ? current.last : null;
+    current.add({
+      "id": null,
+      "set_index": nextIndex,
+      "reps": last?['reps'] ?? _plannedReps(),
+      "rir": last?['rir'] ?? _plannedRir(),
+      "weight_kg": last?['weight_kg'] ?? _plannedWeight(),
+      "completed": false,
+      "performed_time_seconds": null,
+      "rest_after_seconds": null,
+    });
+    setState(() {
+      _setRows = current;
+    });
+
+    final programExerciseId = _programExerciseId();
+    if (programExerciseId == null) return;
+    try {
+      await TrainingService.addExerciseSet(
+        programExerciseId: programExerciseId,
+        cloneLast: true,
+      );
+      await _refreshSetRowsFromServer();
+    } catch (_) {
+      await ExerciseActionQueue.queueAction(
+        action: ExerciseActionQueue.actionSetAdd,
+        programExerciseId: programExerciseId,
+        data: {"clone_last": true},
+      );
+    }
+  }
+
+  Future<void> _deleteSetRow(int setIndex) async {
+    if (!_supportsSetRows) return;
+    if (_setRows.length <= 1) return;
+    final filtered = _setRows
+        .where((row) => _toInt(row['set_index']) != setIndex)
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList();
+    setState(() {
+      _setRows = _reindexedRows(filtered);
+      if (_activeSetIndex == setIndex) {
+        _pauseActiveSetTimer();
+        if (_setRows.isEmpty) {
+          _activeSetIndex = null;
+          _activeSetElapsedSeconds = 0;
+          _activeSetRestSeconds = 0;
+        } else {
+          _activeSetIndex = setIndex > _setRows.length ? _setRows.length : setIndex;
+          _loadActiveSetTimingFromRow(_activeSetIndex!);
+        }
+      } else if (_activeSetIndex != null && _activeSetIndex! > setIndex) {
+        _activeSetIndex = _activeSetIndex! - 1;
+      }
+    });
+
+    final programExerciseId = _programExerciseId();
+    if (programExerciseId == null) return;
+    try {
+      await TrainingService.deleteExerciseSet(
+        programExerciseId: programExerciseId,
+        setIndex: setIndex,
+      );
+      await _refreshSetRowsFromServer();
+    } catch (_) {
+      await ExerciseActionQueue.queueAction(
+        action: ExerciseActionQueue.actionSetDelete,
+        programExerciseId: programExerciseId,
+        data: {"set_index": setIndex},
+      );
+    }
+  }
+
+  Future<void> _upsertSetRow({
+    required int setIndex,
+    int? reps,
+    int? rirValue,
+    double? weightKg,
+    bool? completed,
+    int? performedTimeSeconds,
+    int? restAfterSeconds,
+  }) async {
+    if (!_supportsSetRows) return;
+    final next = _setRows
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList(growable: true);
+    final idx = next.indexWhere((row) => _toInt(row['set_index']) == setIndex);
+    if (idx == -1) return;
+    final updated = next[idx];
+    if (reps != null) updated['reps'] = reps;
+    if (rirValue != null) updated['rir'] = rirValue;
+    if (weightKg != null) updated['weight_kg'] = weightKg;
+    if (completed != null) {
+      updated['completed'] = completed;
+      updated['completed_at'] = completed ? DateTime.now().toIso8601String() : null;
+    }
+    if (performedTimeSeconds != null) {
+      updated['performed_time_seconds'] = performedTimeSeconds;
+    }
+    if (restAfterSeconds != null) {
+      updated['rest_after_seconds'] = restAfterSeconds;
+    }
+    setState(() {
+      _setRows = next;
+    });
+
+    final programExerciseId = _programExerciseId();
+    if (programExerciseId == null) return;
+    final payload = <String, dynamic>{
+      "set_index": setIndex,
+      if (reps != null) "reps": reps,
+      if (rirValue != null) "rir": rirValue,
+      if (weightKg != null) "weight_kg": weightKg,
+      if (completed != null) "completed": completed,
+      if (performedTimeSeconds != null)
+        "performed_time_seconds": performedTimeSeconds,
+      if (restAfterSeconds != null) "rest_after_seconds": restAfterSeconds,
+    };
+    try {
+      await TrainingService.upsertExerciseSet(
+        programExerciseId: programExerciseId,
+        setIndex: setIndex,
+        reps: reps,
+        rir: rirValue,
+        weightKg: weightKg,
+        completed: completed,
+        performedTimeSeconds: performedTimeSeconds,
+        restAfterSeconds: restAfterSeconds,
+      );
+    } catch (_) {
+      await ExerciseActionQueue.queueAction(
+        action: ExerciseActionQueue.actionSetUpsert,
+        programExerciseId: programExerciseId,
+        data: payload,
+      );
+    }
+  }
+
+  Future<void> _openSetEditDialog(Map<String, dynamic> row) async {
+    final repsCtrl = TextEditingController(
+      text: row['reps'] == null ? '' : _toInt(row['reps']).toString(),
+    );
+    final rirCtrl = TextEditingController(
+      text: row['rir'] == null ? '' : _toInt(row['rir']).toString(),
+    );
+    final weightCtrl = TextEditingController(
+      text: row['weight_kg'] == null
+          ? ''
+          : (_toDouble(row['weight_kg'])?.toString() ?? ''),
+    );
+    bool done = _toBool(row['completed']);
+    final setIndex = _toInt(row['set_index']);
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF121727),
+              title: Text(
+                "Set $setIndex",
+                style: const TextStyle(color: Colors.white),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: weightCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                      decoration: _inputStyle("Weight (kg)"),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: repsCtrl,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: _inputStyle("Reps"),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: rirCtrl,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: _inputStyle("RIR"),
+                    ),
+                    const SizedBox(height: 10),
+                    SwitchListTile(
+                      value: done,
+                      onChanged: (v) => setModalState(() => done = v),
+                      activeColor: Colors.greenAccent,
+                      title: const Text(
+                        "Completed",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  child: const Text("Save"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    if (saved != true) return;
+    await _upsertSetRow(
+      setIndex: setIndex,
+      reps: int.tryParse(repsCtrl.text.trim()),
+      rirValue: int.tryParse(rirCtrl.text.trim()),
+      weightKg: double.tryParse(weightCtrl.text.trim()),
+      completed: done,
+    );
+  }
+
+  Widget _buildSetRowsEditor() {
+    final rows = _setRows;
+    final int? focusedSetIndex = _activeSetIndex ?? _nextPendingSetIndex();
+    final bool focusedCompleted = focusedSetIndex == null
+        ? true
+        : _isSetCompleted(focusedSetIndex);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1320),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                "Sets",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                "${rows.where((r) => _toBool(r['completed'])).length}/${rows.length} done",
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.65),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // --- Active set timer (counts UP) ---
+          if (_activeSetIndex != null && _activeSetTimerRunning) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: const Color(0xFF2D7CFF).withOpacity(0.4),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.timer, color: Color(0xFF2D7CFF), size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    "Set $_activeSetIndex",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _formatSeconds(_activeSetElapsedSeconds),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 20,
+                    ),
+                  ),
+                  const Spacer(),
+                  _CompactButton(
+                    label: "Finish Set",
+                    color: Colors.greenAccent,
+                    onTap: _finishActiveSet,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          // --- Rest countdown (counts DOWN, user-triggered) ---
+          if (_restCountdownActive) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.orangeAccent.withOpacity(0.15),
+                    Colors.deepOrange.withOpacity(0.06),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orangeAccent.withOpacity(0.35)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.hourglass_bottom, color: Colors.orangeAccent, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    _formatSeconds(_restCountdownRemaining),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 26,
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () {
+                      setState(() => _restCountdownRemaining += 30);
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white70,
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    child: const Text("+30s"),
+                  ),
+                  _CompactButton(
+                    label: "Skip",
+                    color: const Color(0xFF2D7CFF),
+                    onTap: _skipRest,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          // --- Rest preset + Start Rest (shown when NOT running set and NOT counting down) ---
+          if (_activeSetIndex != null && !_activeSetTimerRunning && !_restCountdownActive) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.04),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white.withOpacity(0.06)),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.snooze, color: Colors.orangeAccent, size: 18),
+                      const SizedBox(width: 6),
+                      Text(
+                        "Rest",
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.6),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: _setCustomRestPreset,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.edit, size: 12, color: Colors.white38),
+                            const SizedBox(width: 3),
+                            Text(
+                              "Custom",
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      for (final s in [30, 60, 90, 120])
+                        Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.only(right: s == 120 ? 0 : 6),
+                            child: _RestPill(
+                              label: "${s}s",
+                              active: _restPresetSeconds == s,
+                              onTap: () => _setRestPreset(s),
+                            ),
+                          ),
+                        ),
+                      if (![30, 60, 90, 120].contains(_restPresetSeconds))
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 6),
+                            child: _RestPill(
+                              label: "${_restPresetSeconds}s",
+                              active: true,
+                              onTap: _setCustomRestPreset,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _startRestCountdown(_restPresetSeconds),
+                      icon: const Icon(Icons.hourglass_top, size: 18),
+                      label: Text("Start Rest  ${_formatSeconds(_restPresetSeconds)}"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orangeAccent.withOpacity(0.15),
+                        foregroundColor: Colors.orangeAccent,
+                        elevation: 0,
+                        minimumSize: const Size(double.infinity, 40),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: BorderSide(color: Colors.orangeAccent.withOpacity(0.3)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          // --- Start Set button (always visible for next pending set) ---
+          if (focusedSetIndex != null && !_activeSetTimerRunning) ...[
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: focusedCompleted
+                    ? null
+                    : () => _startSet(focusedSetIndex),
+                icon: const Icon(Icons.play_arrow, size: 20),
+                label: Text("Start Set $focusedSetIndex"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2D7CFF),
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 44),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.04),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 34,
+                  child: Text(
+                    "SET",
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.62),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 62,
+                  child: Text(
+                    "KG",
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.62),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 52,
+                  child: Text(
+                    "REPS",
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.62),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      "RIR / DONE",
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.62),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (rows.isEmpty)
+            Text(
+              "No sets yet.",
+              style: TextStyle(color: Colors.white.withOpacity(0.7)),
+            )
+          else
+            ...rows.asMap().entries.map((entry) {
+              final row = entry.value;
+              final setIndex = _toInt(row['set_index']);
+              final weight = _toDouble(row['weight_kg']);
+              final weightLabel = weight == null
+                  ? '-'
+                  : weight.toStringAsFixed(
+                      weight == weight.roundToDouble() ? 0 : 1,
+                    );
+              final reps = row['reps'] == null ? '-' : _toInt(row['reps']).toString();
+              final rirValue = row['rir'] == null ? '-' : _toInt(row['rir']).toString();
+              final done = _toBool(row['completed']);
+              final isActive = _activeSetIndex == setIndex;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? const Color(0xFF10263B)
+                      : (done
+                            ? const Color(0xFF112418)
+                            : Colors.black.withOpacity(0.2)),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isActive
+                        ? const Color(0xFF2D7CFF)
+                        : (done
+                              ? Colors.greenAccent.withOpacity(0.35)
+                              : Colors.white.withOpacity(0.07)),
+                  ),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => _openSetEditDialog(row),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 34,
+                          child: Text(
+                            "$setIndex",
+                            style: TextStyle(
+                              color: done ? Colors.greenAccent : Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 62,
+                          child: Text(
+                            weightLabel,
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.88),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 52,
+                          child: Text(
+                            reps,
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.88),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  "RIR $rirValue",
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.7),
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                if (!done)
+                                  const SizedBox(width: 2),
+                                GestureDetector(
+                                  onTap: () async {
+                                    final wasActive = _activeSetIndex == setIndex;
+                                    int restSecs = 0;
+                                    if (!done && wasActive) {
+                                      _pauseActiveSetTimer();
+                                      restSecs = _activeSetRestSeconds;
+                                    }
+                                    await _upsertSetRow(
+                                      setIndex: setIndex,
+                                      completed: !done,
+                                      performedTimeSeconds: wasActive
+                                          ? _activeSetElapsedSeconds
+                                          : null,
+                                      restAfterSeconds: wasActive
+                                          ? _activeSetRestSeconds
+                                          : null,
+                                    );
+                                    if (!mounted) return;
+                                    if (!done) {
+                                      final nextSet = _nextPendingSetIndex();
+                                      setState(() {
+                                        _activeSetIndex = nextSet ?? setIndex;
+                                        _activeSetElapsedSeconds = 0;
+                                        _activeSetRestSeconds = _restPresetSeconds;
+                                      });
+                                    } else {
+                                      _stopRestCountdown();
+                                    }
+                                  },
+                                  child: Container(
+                                    width: 28,
+                                    height: 28,
+                                    decoration: BoxDecoration(
+                                      color: done
+                                          ? Colors.greenAccent.withOpacity(0.2)
+                                          : Colors.white.withOpacity(0.07),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: done
+                                            ? Colors.greenAccent
+                                            : Colors.white24,
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.check,
+                                      color: done
+                                          ? Colors.greenAccent
+                                          : Colors.white54,
+                                      size: 18,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: rows.length > 1
+                                      ? () => _deleteSetRow(setIndex)
+                                      : null,
+                                  icon: const Icon(
+                                    Icons.delete_outline,
+                                    color: Colors.redAccent,
+                                    size: 19,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _addSetRow,
+              icon: const Icon(Icons.add),
+              label: const Text("Add Set"),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: BorderSide(color: Colors.white.withOpacity(0.16)),
+                backgroundColor: Colors.white.withOpacity(0.05),
+                minimumSize: const Size(double.infinity, 46),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _finishExercise() async {
@@ -499,10 +1677,20 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     setState(() => submitting = true);
     final t = AppLocalizations.of(context);
     try {
+      _pauseActiveSetTimer();
+      await _persistActiveSetTiming();
       _syncElapsedFromStart();
+      _stopRestCountdown();
       timer?.cancel();
       _stopCardioStepsTracking();
       await TrainingActivityService.stopSession();
+      await TrainingProgressStorage.saveLastExerciseFinishedMs(
+        DateTime.now().millisecondsSinceEpoch,
+      );
+      final peId = _programExerciseId();
+      if (peId != null) {
+        await TrainingProgressStorage.clearExerciseTimerState(peId);
+      }
 
       final rawProgramExerciseId = widget.exercise['program_exercise_id'];
       final int? programExerciseId = rawProgramExerciseId is int
@@ -511,12 +1699,37 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       bool needsSync = false;
       final now = DateTime.now(); // device local
 
-      final int finalSets =
-          int.tryParse(setsCtrl.text) ?? (widget.exercise['sets'] ?? 0);
-      final int finalReps =
-          int.tryParse(repsCtrl.text) ?? (widget.exercise['reps'] ?? 0);
+      final useSetRows = _supportsSetRows;
+      final completedRows = _setRows
+          .where((row) => _toBool(row['completed']))
+          .toList(growable: false);
+      final sourceRows = completedRows.isNotEmpty ? completedRows : _setRows;
+      final int finalSets = useSetRows
+          ? sourceRows.length
+          : (int.tryParse(setsCtrl.text) ?? (widget.exercise['sets'] ?? 0));
+      final int finalReps = useSetRows
+          ? (_toInt(
+              sourceRows.isNotEmpty
+                  ? sourceRows.last['reps']
+                  : widget.exercise['reps'],
+            ))
+          : (int.tryParse(repsCtrl.text) ?? (widget.exercise['reps'] ?? 0));
+      final int finalRir = useSetRows
+          ? (_toInt(
+              sourceRows.isNotEmpty
+                  ? sourceRows.last['rir']
+                  : widget.exercise['rir'],
+              fallback: rir.round(),
+            ))
+          : rir.round();
 
-      final double? weight = double.tryParse(weightCtrl.text);
+      final double? weight = useSetRows
+          ? _toDouble(
+              sourceRows.isNotEmpty
+                  ? sourceRows.last['weight_kg']
+                  : _plannedWeight(),
+            )
+          : double.tryParse(weightCtrl.text);
       final bool isCardio = _isCardioExercise();
 
       // Try to sync with server, but queue if offline
@@ -563,9 +1776,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           try {
             await TrainingService.finishExercise(
               programExerciseId: programExerciseId,
-              sets: finalSets,
-              reps: finalReps,
-              rir: rir.round(),
+              sets: finalSets > 0 ? finalSets : null,
+              reps: finalReps > 0 ? finalReps : null,
+              rir: finalRir >= 0 ? finalRir : null,
               durationSeconds: seconds,
               entryDate: now,
             );
@@ -577,7 +1790,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
               data: {
                 "sets": finalSets,
                 "reps": finalReps,
-                "rir": rir.round(),
+                "rir": finalRir,
                 "duration_seconds": seconds,
                 "entry_date":
                     "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
@@ -748,6 +1961,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
 
   Future<void> _pauseExerciseCore() async {
     if (!started) return;
+    _pauseActiveSetTimer();
+    await _persistActiveSetTiming();
     _syncElapsedFromStart();
     timer?.cancel();
     _cardioPausedAtSteps = _cardioRawSteps;
@@ -807,7 +2022,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
 
   @override
   void dispose() {
+    _saveTimerState();
     timer?.cancel();
+    _activeSetTimer?.cancel();
+    _restCountdownTimer?.cancel();
     _stepSub?.cancel();
     if (!_paused) {
       TrainingActivityService.stopSession();
@@ -842,6 +2060,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   @override
   Widget build(BuildContext context) {
     final isCardio = _isCardioExercise();
+    final useSetRows = !isCardio && _supportsSetRows;
     final showSession = !isCardio && (started || widget.showSessionOnOpen);
     final token = dotenv.isInitialized
         ? dotenv.maybeGet('MAPBOX_PUBLIC_KEY')
@@ -1106,7 +2325,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                             t.translate("training_start_exercise"),
                             style: const TextStyle(fontWeight: FontWeight.w800),
                           ),
-                          onPressed: _startExercise,
+                          onPressed: _onPrimaryExerciseButtonPressed,
                         ),
                       if (showSession) ...[
                         Container(
@@ -1149,17 +2368,19 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                                 ],
                               ),
                               const SizedBox(height: 12),
-                              TextField(
-                                controller: weightCtrl,
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                    ),
-                                decoration: _inputStyle(
-                                  t.translate("training_weight_label"),
+                              if (useSetRows) ...[
+                                _buildSetRowsEditor(),
+                              ] else ...[
+                                TextField(
+                                  controller: weightCtrl,
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
+                                  decoration: _inputStyle(
+                                    t.translate("training_weight_label"),
+                                  ),
                                 ),
-                              ),
-                              if (!isCardio) ...[
                                 const SizedBox(height: 10),
                                 TextField(
                                   controller: setsCtrl,
@@ -1235,9 +2456,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                                       ),
                                       onPressed: submitting
                                           ? null
-                                          : (started
-                                                ? _finishExercise
-                                                : _startExercise),
+                                          : _onPrimaryExerciseButtonPressed,
                                       child: (submitting && started)
                                           ? const SizedBox(
                                               height: 18,
@@ -1363,6 +2582,84 @@ class _SessionChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _RestPill extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _RestPill({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: active
+              ? Colors.orangeAccent.withOpacity(0.2)
+              : Colors.white.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: active
+                ? Colors.orangeAccent.withOpacity(0.5)
+                : Colors.white.withOpacity(0.1),
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: active ? Colors.orangeAccent : Colors.white70,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CompactButton extends StatelessWidget {
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _CompactButton({
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withOpacity(0.4)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.w700,
+            fontSize: 12,
+          ),
+        ),
       ),
     );
   }
