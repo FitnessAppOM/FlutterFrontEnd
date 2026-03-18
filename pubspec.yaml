@@ -62,6 +62,7 @@ dependencies:
   health: ^13.2.1
   app_links: ^7.0.0
   flutter_web_auth_2: ^5.0.0
+  flutter_timezone: ^5.0.2
 
 dev_dependencies:
   flutter_test:

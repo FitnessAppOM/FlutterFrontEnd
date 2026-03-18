@@ -46,6 +46,11 @@ class _TrainPageState extends State<TrainPage> {
   Timer? _workoutTimer;
   bool _finishingWorkout = false;
 
+  int _exRestPresetSeconds = 60;
+  int _exRestRemaining = 0;
+  bool _exRestActive = false;
+  Timer? _exRestTimer;
+
   @override
   void initState() {
     super.initState();
@@ -56,6 +61,7 @@ class _TrainPageState extends State<TrainPage> {
   @override
   void dispose() {
     _workoutTimer?.cancel();
+    _exRestTimer?.cancel();
     AccountStorage.trainingChange.removeListener(_onTrainingChanged);
     super.dispose();
   }
@@ -68,6 +74,8 @@ class _TrainPageState extends State<TrainPage> {
     _userId = await AccountStorage.getUserId();
     await _loadProgram();
     await _loadWorkoutTimer();
+    await _loadExRestPreset();
+    await _restoreExRestState();
   }
 
   Future<void> _loadWorkoutTimer() async {
@@ -133,6 +141,7 @@ class _TrainPageState extends State<TrainPage> {
     _workoutTimer = null;
     _workoutStartMs = null;
     _workoutElapsedSeconds = 0;
+    _stopExRestCountdownQuiet();
     if (mounted) {
       setState(() => _finishingWorkout = false);
       if (showToast) {
@@ -142,6 +151,128 @@ class _TrainPageState extends State<TrainPage> {
           type: AppToastType.success,
         );
       }
+    }
+  }
+
+  Future<void> _loadExRestPreset() async {
+    final preset = await TrainingProgressStorage.getExerciseRestPreset();
+    if (mounted) setState(() => _exRestPresetSeconds = preset);
+  }
+
+  void _setExRestPreset(int s) {
+    setState(() {
+      _exRestPresetSeconds = s;
+      if (!_exRestActive) _exRestRemaining = s;
+    });
+    TrainingProgressStorage.saveExerciseRestPreset(s);
+  }
+
+  Future<void> _setCustomExRestPreset() async {
+    final ctrl = TextEditingController(
+      text: _exRestPresetSeconds > 0 ? _exRestPresetSeconds.toString() : '',
+    );
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF121727),
+        title: const Text("Custom rest (seconds)",
+            style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            labelText: "Seconds",
+            labelStyle: const TextStyle(color: Colors.white70),
+            filled: true,
+            fillColor: Colors.white.withOpacity(0.05),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide:
+                  BorderSide(color: Colors.white.withOpacity(0.08)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.orangeAccent),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+    if (saved != true) return;
+    final next = int.tryParse(ctrl.text.trim()) ?? 0;
+    if (next > 0) _setExRestPreset(next);
+  }
+
+  String _formatRestTime(int total) {
+    final safe = total < 0 ? 0 : total;
+    final m = (safe ~/ 60).toString().padLeft(2, '0');
+    final s = (safe % 60).toString().padLeft(2, '0');
+    return "$m:$s";
+  }
+
+  void _startExRestCountdown([int? restSeconds]) {
+    _stopExRestCountdownQuiet();
+    final total = restSeconds ?? _exRestPresetSeconds;
+    if (total <= 0) return;
+    _exRestRemaining = total;
+    _exRestActive = true;
+    TrainingProgressStorage.saveExerciseRestCountdown(
+      totalSeconds: total,
+      startedAtMs: DateTime.now().millisecondsSinceEpoch,
+    );
+    _exRestTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) {
+        _stopExRestCountdownQuiet();
+        return;
+      }
+      setState(() {
+        _exRestRemaining--;
+        if (_exRestRemaining <= 0) {
+          _stopExRestCountdownQuiet();
+        }
+      });
+    });
+    if (mounted) setState(() {});
+  }
+
+  void _stopExRestCountdownQuiet() {
+    _exRestTimer?.cancel();
+    _exRestTimer = null;
+    _exRestActive = false;
+    _exRestRemaining = 0;
+    TrainingProgressStorage.clearExerciseRestCountdown();
+  }
+
+  void _skipExRest() {
+    _stopExRestCountdownQuiet();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _restoreExRestState() async {
+    final state = await TrainingProgressStorage.loadExerciseRestCountdown();
+    if (state == null || !mounted) return;
+    final total = state['totalSeconds'] as int? ?? 0;
+    final startedAt = state['startedAtMs'] as int? ?? 0;
+    if (total <= 0 || startedAt <= 0) return;
+    final elapsed =
+        ((DateTime.now().millisecondsSinceEpoch - startedAt) / 1000).round();
+    final remaining = total - elapsed;
+    if (remaining > 0) {
+      _startExRestCountdown(remaining);
+    } else {
+      await TrainingProgressStorage.clearExerciseRestCountdown();
     }
   }
 
@@ -300,6 +431,8 @@ class _TrainPageState extends State<TrainPage> {
   }
 
   void _startExerciseFlow(Map<String, dynamic> ex) {
+    _stopExRestCountdownQuiet();
+    if (mounted) setState(() {});
     final dpr = MediaQuery.of(context).devicePixelRatio;
     final thumbW = (74 * dpr).round();
     final thumbH = (66 * dpr).round();
@@ -798,6 +931,219 @@ class _TrainPageState extends State<TrainPage> {
                                     "Finish Workout",
                                     style: TextStyle(fontWeight: FontWeight.w700),
                                   ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (_workoutStartMs != null && _exRestActive) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.orangeAccent.withOpacity(0.15),
+                            Colors.deepOrange.withOpacity(0.06),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.orangeAccent.withOpacity(0.35)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.hourglass_bottom, color: Colors.orangeAccent, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Rest",
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.7),
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                                Text(
+                                  _formatRestTime(_exRestRemaining),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 22,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              setState(() => _exRestRemaining += 30);
+                            },
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.white70,
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                            ),
+                            child: const Text("+30s"),
+                          ),
+                          const SizedBox(width: 4),
+                          ElevatedButton(
+                            onPressed: _skipExRest,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF2D7CFF),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            ),
+                            child: const Text("Skip", style: TextStyle(fontWeight: FontWeight.w700)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (_workoutStartMs != null && !_exRestActive) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.04),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white.withOpacity(0.06)),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.snooze, color: Colors.orangeAccent, size: 18),
+                              const SizedBox(width: 6),
+                              Text(
+                                "Rest between exercises",
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.6),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const Spacer(),
+                              GestureDetector(
+                                onTap: _setCustomExRestPreset,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orangeAccent.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.orangeAccent.withOpacity(0.35)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.edit, size: 13, color: Colors.orangeAccent),
+                                      const SizedBox(width: 4),
+                                      const Text(
+                                        "Custom",
+                                        style: TextStyle(
+                                          color: Colors.orangeAccent,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              for (final s in [30, 60, 90, 120])
+                                Expanded(
+                                  child: Padding(
+                                    padding: EdgeInsets.only(right: s == 120 ? 0 : 6),
+                                    child: GestureDetector(
+                                      onTap: () => _setExRestPreset(s),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: _exRestPresetSeconds == s
+                                              ? Colors.orangeAccent.withOpacity(0.2)
+                                              : Colors.white.withOpacity(0.06),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color: _exRestPresetSeconds == s
+                                                ? Colors.orangeAccent.withOpacity(0.5)
+                                                : Colors.white.withOpacity(0.1),
+                                          ),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            "${s}s",
+                                            style: TextStyle(
+                                              color: _exRestPresetSeconds == s
+                                                  ? Colors.orangeAccent
+                                                  : Colors.white70,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              if (![30, 60, 90, 120].contains(_exRestPresetSeconds))
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(left: 6),
+                                    child: GestureDetector(
+                                      onTap: _setCustomExRestPreset,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orangeAccent.withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color: Colors.orangeAccent.withOpacity(0.5),
+                                          ),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            "${_exRestPresetSeconds}s",
+                                            style: const TextStyle(
+                                              color: Colors.orangeAccent,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () => _startExRestCountdown(),
+                              icon: const Icon(Icons.hourglass_top, size: 18),
+                              label: Text("Start Rest  ${_formatRestTime(_exRestPresetSeconds)}"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orangeAccent.withOpacity(0.15),
+                                foregroundColor: Colors.orangeAccent,
+                                elevation: 0,
+                                minimumSize: const Size(double.infinity, 40),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  side: BorderSide(color: Colors.orangeAccent.withOpacity(0.3)),
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),

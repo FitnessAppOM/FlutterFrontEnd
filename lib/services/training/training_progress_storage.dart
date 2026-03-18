@@ -183,6 +183,24 @@ class TrainingProgressStorage {
     await sp.remove(key);
   }
 
+  static Future<void> markExerciseInstructionsSeen(int programExerciseId) async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return;
+    final sp = await SharedPreferences.getInstance();
+    final today = _dateKey(DateTime.now());
+    final key = _userKey(userId, 'ex_instr_seen_${programExerciseId}_$today');
+    await sp.setBool(key, true);
+  }
+
+  static Future<bool> hasExerciseInstructionsSeen(int programExerciseId) async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return false;
+    final sp = await SharedPreferences.getInstance();
+    final today = _dateKey(DateTime.now());
+    final key = _userKey(userId, 'ex_instr_seen_${programExerciseId}_$today');
+    return sp.getBool(key) ?? false;
+  }
+
   static Future<void> saveLastExerciseFinishedMs(int ms) async {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return;
@@ -227,6 +245,55 @@ class TrainingProgressStorage {
     final today = _dateKey(DateTime.now());
     final key = _userKey(userId, 'workout_start_ms_$today');
     await sp.remove(key);
+  }
+
+  static Future<void> saveExerciseRestPreset(int seconds) async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return;
+    final sp = await SharedPreferences.getInstance();
+    await sp.setInt(_userKey(userId, 'ex_rest_preset'), seconds);
+  }
+
+  static Future<int> getExerciseRestPreset() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return 60;
+    final sp = await SharedPreferences.getInstance();
+    return sp.getInt(_userKey(userId, 'ex_rest_preset')) ?? 60;
+  }
+
+  static Future<void> saveExerciseRestCountdown({
+    required int totalSeconds,
+    required int startedAtMs,
+  }) async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return;
+    final sp = await SharedPreferences.getInstance();
+    final today = _dateKey(DateTime.now());
+    final prefix = _userKey(userId, 'ex_rest_cd_$today');
+    await sp.setInt('${prefix}_total', totalSeconds);
+    await sp.setInt('${prefix}_started', startedAtMs);
+  }
+
+  static Future<Map<String, dynamic>?> loadExerciseRestCountdown() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return null;
+    final sp = await SharedPreferences.getInstance();
+    final today = _dateKey(DateTime.now());
+    final prefix = _userKey(userId, 'ex_rest_cd_$today');
+    final total = sp.getInt('${prefix}_total');
+    final started = sp.getInt('${prefix}_started');
+    if (total == null || started == null || total <= 0) return null;
+    return {'totalSeconds': total, 'startedAtMs': started};
+  }
+
+  static Future<void> clearExerciseRestCountdown() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return;
+    final sp = await SharedPreferences.getInstance();
+    final today = _dateKey(DateTime.now());
+    final prefix = _userKey(userId, 'ex_rest_cd_$today');
+    await sp.remove('${prefix}_total');
+    await sp.remove('${prefix}_started');
   }
 
   static Future<void> clearAll() async {

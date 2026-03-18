@@ -57,6 +57,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   bool _showCardioStartButton = true;
   bool _paused = false;
   bool _countdownSessionStarted = false;
+  bool _instructionSeen = false;
+  bool _instructionCheckStarted = false;
+  bool _timerStateRestored = false;
+  bool _exerciseFinished = false;
 
   int seconds = 0;
   Timer? timer;
@@ -87,12 +91,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     _prefillFromLastEntry();
     _restoreActiveSession();
     _restoreTimerState();
-    if (_shouldAutoShowInstructions()) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _openInstructionDialog();
-      });
-    }
+    _maybeAutoShowInstructions();
     if (_isCardioExercise()) {
       _showCardioStartButton = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -222,6 +221,26 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     _refreshSetRowsFromServer();
   }
 
+  List<Map<String, dynamic>> _mergeSetRowsWithServer(
+    List<Map<String, dynamic>> seed,
+    List<Map<String, dynamic>> server,
+  ) {
+    final serverByIndex = <int, Map<String, dynamic>>{};
+    for (final r in server) {
+      serverByIndex[_toInt(r['set_index'])] = r;
+    }
+    final merged = <Map<String, dynamic>>[];
+    for (final s in seed) {
+      final idx = _toInt(s['set_index']);
+      final match = serverByIndex.remove(idx);
+      merged.add(match ?? s);
+    }
+    final extras = serverByIndex.values.toList()
+      ..sort((a, b) => _toInt(a['set_index']).compareTo(_toInt(b['set_index'])));
+    merged.addAll(extras);
+    return merged;
+  }
+
   Future<void> _refreshSetRowsFromServer() async {
     if (!_supportsSetRows) return;
     final programExerciseId = _programExerciseId();
@@ -230,14 +249,32 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       final rows = await TrainingService.fetchExerciseSets(programExerciseId);
       if (!mounted) return;
       if (rows.isEmpty && _setRows.isNotEmpty) return;
+      final preserveState = _timerStateRestored;
+      final prevActiveIndex = _activeSetIndex;
+      final prevElapsed = _activeSetElapsedSeconds;
+      final prevRest = _activeSetRestSeconds;
       setState(() {
-        _setRows = rows.isEmpty ? _seedSetRowsFromExercise() : _normalizeSetRows(rows);
-        _activeSetIndex = _setRows.isEmpty ? null : _defaultSetIndex();
-        if (_activeSetIndex != null) {
-          _loadActiveSetTimingFromRow(_activeSetIndex!);
+        if (rows.isNotEmpty) {
+          final serverNormalized = _normalizeSetRows(rows);
+          final base = preserveState && _setRows.isNotEmpty
+              ? List<Map<String, dynamic>>.from(_setRows)
+              : _seedSetRowsFromExercise();
+          _setRows = _mergeSetRowsWithServer(base, serverNormalized);
+        } else if (!preserveState || _setRows.isEmpty) {
+          _setRows = _seedSetRowsFromExercise();
+        }
+        if (preserveState && prevActiveIndex != null) {
+          _activeSetIndex = prevActiveIndex;
+          _activeSetElapsedSeconds = prevElapsed;
+          _activeSetRestSeconds = prevRest;
         } else {
-          _activeSetElapsedSeconds = 0;
-          _activeSetRestSeconds = 0;
+          _activeSetIndex = _setRows.isEmpty ? null : _defaultSetIndex();
+          if (_activeSetIndex != null) {
+            _loadActiveSetTimingFromRow(_activeSetIndex!);
+          } else {
+            _activeSetElapsedSeconds = 0;
+            _activeSetRestSeconds = 0;
+          }
         }
       });
     } catch (_) {
@@ -291,12 +328,14 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   }
 
   Future<void> _saveTimerState() async {
+    if (_exerciseFinished) return;
     final peId = _programExerciseId();
     if (peId == null || !_supportsSetRows) return;
     await TrainingProgressStorage.saveExerciseTimerState(peId, {
       'active_set_index': _activeSetIndex,
       'set_elapsed': _activeSetElapsedSeconds,
       'set_running': _activeSetTimerRunning,
+      'set_saved_at_ms': DateTime.now().millisecondsSinceEpoch,
       'rest_preset': _restPresetSeconds,
       'rest_countdown_remaining': _restCountdownRemaining,
       'rest_countdown_active': _restCountdownActive,
@@ -305,6 +344,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       'paused': _paused,
       'seconds': seconds,
       'start_ms': _sessionStartMs,
+      'saved_set_rows': _setRows,
+      'has_set_rows': _setRows.isNotEmpty,
     });
   }
 
@@ -313,12 +354,32 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     if (peId == null || !_supportsSetRows) return;
     final state = await TrainingProgressStorage.loadExerciseTimerState(peId);
     if (state == null || !mounted) return;
+
+    // Always restore saved set rows (even if exercise wasn't started)
+    final savedSetRows = state['saved_set_rows'];
+    if (savedSetRows is List && savedSetRows.isNotEmpty) {
+      final restored = <Map<String, dynamic>>[];
+      for (final r in savedSetRows) {
+        if (r is Map<String, dynamic>) {
+          restored.add(r);
+        } else if (r is Map) {
+          restored.add(Map<String, dynamic>.from(r));
+        }
+      }
+      if (restored.length >= _setRows.length) {
+        _setRows = restored;
+        _timerStateRestored = true;
+        if (mounted) setState(() {});
+      }
+    }
+
     final wasStarted = state['started'] == true;
     if (!wasStarted) return;
 
     final savedSetIndex = _toInt(state['active_set_index'] ?? 0);
     final savedElapsed = _toInt(state['set_elapsed'] ?? 0);
     final savedRunning = state['set_running'] == true;
+    final savedAtMs = state['set_saved_at_ms'] as int?;
     final savedRestPreset = _toInt(state['rest_preset'] ?? 60, fallback: 60);
     final savedRestRemaining = _toInt(state['rest_countdown_remaining'] ?? 0);
     final savedRestActive = state['rest_countdown_active'] == true;
@@ -327,13 +388,22 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     final savedSeconds = _toInt(state['seconds'] ?? 0);
     final savedStartMs = state['start_ms'] as int?;
 
+    int restoredSetElapsed = savedElapsed;
+    if (savedRunning && !savedPaused && savedAtMs != null) {
+      final gapSeconds =
+          ((DateTime.now().millisecondsSinceEpoch - savedAtMs) / 1000).round();
+      if (gapSeconds > 0) restoredSetElapsed += gapSeconds;
+    }
+
+    _timerStateRestored = true;
+
     setState(() {
       started = true;
       _paused = savedPaused;
       _restPresetSeconds = savedRestPreset > 0 ? savedRestPreset : 60;
       if (savedSetIndex > 0) {
         _activeSetIndex = savedSetIndex;
-        _activeSetElapsedSeconds = savedElapsed;
+        _activeSetElapsedSeconds = restoredSetElapsed;
         _activeSetRestSeconds = savedRestAfter;
       }
       if (savedPaused) {
@@ -596,6 +666,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   bool _shouldAutoShowInstructions() {
     final instructions = widget.exercise['instructions'] ?? '';
     if (instructions.toString().trim().isEmpty) return false;
+    if (_instructionSeen) return false;
     final rawName = (widget.exercise['exercise_name'] ?? '')
         .toString()
         .trim()
@@ -604,6 +675,24 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       return false;
     }
     return !_hasExistingEntry(widget.exercise);
+  }
+
+  Future<void> _maybeAutoShowInstructions() async {
+    if (_instructionCheckStarted) return;
+    _instructionCheckStarted = true;
+    final peId = _programExerciseId();
+    if (peId != null) {
+      _instructionSeen = await TrainingProgressStorage.hasExerciseInstructionsSeen(
+        peId,
+      );
+    }
+    if (!mounted) return;
+    if (_shouldAutoShowInstructions()) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _openInstructionDialog();
+      });
+    }
   }
 
   bool _isCardioExercise() {
@@ -815,6 +904,12 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       started = true;
       _paused = false;
     });
+    final startedProgramExerciseId = _programExerciseId();
+    if (startedProgramExerciseId != null) {
+      await TrainingProgressStorage.markExerciseInstructionsSeen(
+        startedProgramExerciseId,
+      );
+    }
     _cardioStartSteps = null;
     _cardioPausedAtSteps = null;
     _adjustStepsOnResume = false;
@@ -865,7 +960,11 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         startRecorded = false;
       }
     }
-    TrainingProgressStorage.recordWorkoutStart();
+    // Cardio sessions have their own timer; don't attach the training workout timer.
+    if (!_isCardioExercise()) {
+      await TrainingProgressStorage.recordWorkoutStart();
+      AccountStorage.notifyTrainingChanged();
+    }
   }
 
   Future<void> _startSet(int setIndex) async {
@@ -975,7 +1074,6 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         programExerciseId: programExerciseId,
         cloneLast: true,
       );
-      await _refreshSetRowsFromServer();
     } catch (_) {
       await ExerciseActionQueue.queueAction(
         action: ExerciseActionQueue.actionSetAdd,
@@ -1016,7 +1114,6 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         programExerciseId: programExerciseId,
         setIndex: setIndex,
       );
-      await _refreshSetRowsFromServer();
     } catch (_) {
       await ExerciseActionQueue.queueAction(
         action: ExerciseActionQueue.actionSetDelete,
@@ -1673,7 +1770,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
 
   Future<void> _finishExercise() async {
     if (submitting) return;
-
+    _exerciseFinished = true;
     setState(() => submitting = true);
     final t = AppLocalizations.of(context);
     try {
@@ -1935,6 +2032,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         });
       }
     } catch (_) {
+      _exerciseFinished = false;
       if (mounted) {
         AppToast.show(
           context,

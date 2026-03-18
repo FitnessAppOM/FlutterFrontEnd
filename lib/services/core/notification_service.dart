@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import '../../core/account_storage.dart';
@@ -35,7 +36,6 @@ class NotificationService {
 
   static Future<void> init() async {
     if (Platform.isAndroid) {
-      // Helpful to know when Android flow starts.
       // ignore: avoid_print
       print('[Notif] init() starting for Android');
     }
@@ -63,43 +63,61 @@ class NotificationService {
         }
       },
     );
+
+    if (Platform.isAndroid) {
+      await _createAndroidChannel();
+    }
+
     await _requestPermissions();
     // ignore: avoid_print
     print('[Notif] init() complete');
   }
 
-  /// Best-effort local timezone assignment without platform channels.
-  /// Tries:
-  /// 1) Exact location name match from DateTime.now().timeZoneName
-  /// 2) First tz location whose current offset matches the device offset
-  /// Falls back to UTC if nothing matches.
-  static Future<void> _setLocalTimeZone() async {
-    final now = DateTime.now();
-    final tzName = now.timeZoneName;
-    final offset = now.timeZoneOffset;
+  static Future<void> _createAndroidChannel() async {
+    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (androidPlugin == null) return;
 
-    // Attempt exact location name match
+    const channel = AndroidNotificationChannel(
+      _scheduledChannelId,
+      _scheduledChannelName,
+      description: _scheduledChannelDescription,
+      importance: Importance.max,
+    );
+    await androidPlugin.createNotificationChannel(channel);
+    // ignore: avoid_print
+    print('[Notif] Android channel "$_scheduledChannelId" created/ensured');
+  }
+
+  static Future<void> _setLocalTimeZone() async {
     try {
-      final loc = tz.getLocation(tzName);
+      final tzInfo = await FlutterTimezone.getLocalTimezone();
+      final ianaName = tzInfo.identifier;
+      // ignore: avoid_print
+      print('[Notif] flutter_timezone IANA=$ianaName');
+      final loc = tz.getLocation(ianaName);
       tz.setLocalLocation(loc);
       return;
-    } catch (_) {
-      // ignore and continue
+    } catch (e) {
+      // ignore: avoid_print
+      print('[Notif] flutter_timezone failed: $e — trying offset fallback');
     }
 
-    // Attempt offset match
+    final offset = DateTime.now().timeZoneOffset;
     try {
       final match = tz.timeZoneDatabase.locations.values.firstWhere(
         (loc) => tz.TZDateTime.now(loc).timeZoneOffset == offset,
         orElse: () => tz.getLocation('Etc/UTC'),
       );
       tz.setLocalLocation(match);
+      // ignore: avoid_print
+      print('[Notif] timezone set via offset match: ${match.name}');
       return;
-    } catch (_) {
-      // ignore and fall back
-    }
+    } catch (_) {}
 
     tz.setLocalLocation(tz.UTC);
+    // ignore: avoid_print
+    print('[Notif] timezone fallback to UTC');
   }
 
   static Future<void> _requestPermissions() async {
@@ -220,6 +238,23 @@ class NotificationService {
         uiLocalNotificationDateInterpretation:
         UILocalNotificationDateInterpretation.absoluteTime,
       );
+    }
+
+    await _logPendingNotifications();
+  }
+
+  static Future<void> _logPendingNotifications() async {
+    try {
+      final pending = await _plugin.pendingNotificationRequests();
+      // ignore: avoid_print
+      print('[Notif] ${pending.length} pending notification(s):');
+      for (final p in pending) {
+        // ignore: avoid_print
+        print('[Notif]   id=${p.id} title=${p.title}');
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('[Notif] pendingNotificationRequests error: $e');
     }
   }
 
