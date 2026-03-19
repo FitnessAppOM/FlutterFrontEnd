@@ -581,6 +581,8 @@ class DietPageState extends State<DietPage> {
   int _selectedTrainingDayIndex = 0;
   /// When true, user completed an exercise today so we force "training day" and disable switching to "rest day".
   bool _trainDayLockedByExercise = false;
+  int? _lockedTrainingDayId;
+  String? _lockedTrainingDayLabel;
 
   static bool _sameCalendarDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
@@ -725,16 +727,72 @@ class DietPageState extends State<DietPage> {
   Future<void> _updateTrainingLockFromCompletion() async {
     final viewingToday = _sameCalendarDay(_mealDate, DateTime.now());
     if (!viewingToday) {
-      if (mounted) setState(() => _trainDayLockedByExercise = false);
+      if (mounted) {
+        setState(() {
+          _trainDayLockedByExercise = false;
+          _lockedTrainingDayId = null;
+          _lockedTrainingDayLabel = null;
+        });
+      }
       return;
     }
     final didComplete = await TrainingCompletionStorage.didCompleteExerciseOnDate(_mealDate);
+    final lockedDay = didComplete
+        ? await TrainingCompletionStorage.getCompletedTrainingDayForDate(_mealDate)
+        : null;
+    final lockedIdRaw = lockedDay?["training_day_id"];
+    final lockedId = lockedIdRaw is num
+        ? lockedIdRaw.toInt()
+        : int.tryParse(lockedIdRaw?.toString() ?? "");
+    final lockedLabel = lockedDay?["training_day_label"]?.toString();
     if (!mounted) return;
     setState(() {
       _trainDayLockedByExercise = didComplete;
+      _lockedTrainingDayId = (lockedId != null && lockedId > 0) ? lockedId : null;
+      _lockedTrainingDayLabel =
+          (lockedLabel != null && lockedLabel.trim().isNotEmpty) ? lockedLabel.trim() : null;
       if (didComplete) _modeIndex = 1;
     });
+    if (didComplete && _trainingDays.isNotEmpty) {
+      setState(() {
+        _selectedTrainingDayIndex = _resolveTrainingDayIndex(
+          _trainingDays,
+          fallback: _selectedTrainingDayIndex,
+        );
+      });
+    }
     if (didComplete) _loadMeals(clearExisting: true);
+  }
+
+  int _resolveTrainingDayIndex(
+    List<Map<String, dynamic>> days, {
+    int fallback = 0,
+  }) {
+    if (days.isEmpty) return 0;
+    if (_trainDayLockedByExercise) {
+      if (_lockedTrainingDayId != null && _lockedTrainingDayId! > 0) {
+        final idx = days.indexWhere(
+          (d) => _asInt(d["day_id"], fallback: 0) == _lockedTrainingDayId,
+        );
+        if (idx >= 0) return idx;
+      }
+      final label = (_lockedTrainingDayLabel ?? "").trim().toLowerCase();
+      if (label.isNotEmpty) {
+        final idx = days.indexWhere(
+          (d) => _asString(d["day_label"]).trim().toLowerCase() == label,
+        );
+        if (idx >= 0) return idx;
+      }
+    }
+    return fallback.clamp(0, days.length - 1);
+  }
+
+  List<Map<String, dynamic>> _trainingDaysFromTargets(Map<String, dynamic>? targets) {
+    final list = targets?["training_day_targets"];
+    if (list is List) {
+      return list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+    }
+    return const [];
   }
 
   static String? _readSectionError(Map<String, dynamic> payload, String section) {
@@ -837,9 +895,13 @@ class DietPageState extends State<DietPage> {
 
       if (isStale) {
         // Show stale targets immediately, then refresh in the background.
+        final selectedIdx = _resolveTrainingDayIndex(
+          _trainingDaysFromTargets(targetsData),
+          fallback: _selectedTrainingDayIndex,
+        );
         setState(() {
           _targets = targetsData;
-          _selectedTrainingDayIndex = 0;
+          _selectedTrainingDayIndex = selectedIdx;
           _loading = false;
           _error = null;
           _targetsFromCache = false;
@@ -858,8 +920,12 @@ class DietPageState extends State<DietPage> {
 
       setState(() {
         if (targetsData != null) {
+          final selectedIdx = _resolveTrainingDayIndex(
+            _trainingDaysFromTargets(targetsData),
+            fallback: _selectedTrainingDayIndex,
+          );
           _targets = targetsData;
-          _selectedTrainingDayIndex = 0;
+          _selectedTrainingDayIndex = selectedIdx;
         }
         _loading = false;
         _error = targetsData == null ? (targetsErr ?? _error) : null;
@@ -908,11 +974,15 @@ class DietPageState extends State<DietPage> {
           _loadTargets(forceNetwork: true);
         });
         setState(() {
+          final selectedIdx = _resolveTrainingDayIndex(
+            _trainingDaysFromTargets(data),
+            fallback: _selectedTrainingDayIndex,
+          );
           _targets = data;
           _loading = false;
           _error = null;
           _targetsFromCache = false;
-          _selectedTrainingDayIndex = 0;
+          _selectedTrainingDayIndex = selectedIdx;
         });
         return;
       }
@@ -920,11 +990,15 @@ class DietPageState extends State<DietPage> {
       _targetsPollTimer?.cancel();
       _targetsPollTimer = null;
       setState(() {
+        final selectedIdx = _resolveTrainingDayIndex(
+          _trainingDaysFromTargets(data),
+          fallback: _selectedTrainingDayIndex,
+        );
         _targets = data;
         _loading = false;
         _error = null;
         _targetsFromCache = false;
-        _selectedTrainingDayIndex = 0;
+        _selectedTrainingDayIndex = selectedIdx;
       });
     } catch (e) {
       // Cache fallback (offline-friendly)
@@ -935,11 +1009,15 @@ class DietPageState extends State<DietPage> {
           _targetsPollTimer?.cancel();
           _targetsPollTimer = null;
           setState(() {
+            final selectedIdx = _resolveTrainingDayIndex(
+              _trainingDaysFromTargets(cached),
+              fallback: _selectedTrainingDayIndex,
+            );
             _targets = cached;
             _loading = false;
             _error = null;
             _targetsFromCache = true;
-            _selectedTrainingDayIndex = 0;
+            _selectedTrainingDayIndex = selectedIdx;
           });
           return;
         }
@@ -2733,7 +2811,7 @@ class DietPageState extends State<DietPage> {
           isExpanded: true,
           dropdownColor: AppColors.cardDark,
           iconEnabledColor: Colors.white70,
-          onChanged: (v) async {
+          onChanged: _trainDayLockedByExercise ? null : (v) async {
             if (v == null) return;
             setState(() => _selectedTrainingDayIndex = v);
             // If user is on training mode, persist calendar mapping for today.

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../core/account_storage.dart';
 import '../core/diet_regeneration_flag.dart';
+import '../core/training_regeneration_flag.dart';
 import '../localization/app_localizations.dart';
 import '../main/main_layout.dart';
 import '../services/auth/profile_service.dart';
@@ -100,6 +101,7 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
       await DietTargetsStorage.clearTargets();
 
       if (!mounted) return;
+      TrainingRegenerationFlag.setRegenerating();
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const MainLayout()),
@@ -146,6 +148,7 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
       DietRegenerationFlag.setRegenerating();
       await DietTargetsStorage.clearTargets();
       if (!mounted) return true;
+      TrainingRegenerationFlag.setRegenerating();
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const MainLayout()),

@@ -210,7 +210,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         "maintain_weight",
       ];
   List<String> _trainingDaysOptions() =>
-      List<String>.generate(7, (i) => "${i + 1}");
+      List<String>.generate(6, (i) => "${i + 1}");
   List<String> _fitnessExperienceOptions() =>
       ["beginner", "intermediate", "advanced"];
   List<String> _dailyActivityOptions() =>

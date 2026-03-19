@@ -1995,8 +1995,14 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         return;
       }
 
-      // Record that user completed an exercise today (diet page can auto-set "training day" and lock "rest day")
-      await TrainingCompletionStorage.recordExerciseCompletedToday();
+      // Record that user completed an exercise today and persist the specific training day.
+      final tdIdRaw = widget.exercise['training_day_id'] ?? widget.exercise['day_id'];
+      final tdId = tdIdRaw is num ? tdIdRaw.toInt() : int.tryParse(tdIdRaw?.toString() ?? '');
+      final tdLabel = widget.exercise['training_day_label']?.toString();
+      await TrainingCompletionStorage.recordExerciseCompletedToday(
+        trainingDayId: (tdId != null && tdId > 0) ? tdId : null,
+        trainingDayLabel: tdLabel,
+      );
       await TrainingProgressStorage.recordTrainingDayCompleted(now);
       AccountStorage.notifyTrainingChanged();
 

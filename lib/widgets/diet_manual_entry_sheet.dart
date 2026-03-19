@@ -32,6 +32,24 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
   final List<_IngredientRow> _ingredients = [];
   bool _loading = false;
 
+  double _asDouble(dynamic value, {double fallback = 0}) {
+    if (value == null) return fallback;
+    if (value is num) return value.toDouble();
+    final raw = value.toString().trim();
+    if (raw.isEmpty) return fallback;
+    return double.tryParse(raw.replaceAll(',', '.')) ?? fallback;
+  }
+
+  double _macroFrom(Map<String, dynamic> payload, List<String> keys) {
+    for (final key in keys) {
+      if (!payload.containsKey(key)) continue;
+      final parsed = _asDouble(payload[key], fallback: 0);
+      if (parsed > 0) return parsed;
+      if (payload[key] != null) return parsed;
+    }
+    return 0;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -60,10 +78,10 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
   void _addIngredientRow({
     String? name,
     double? grams,
-    int? calories,
-    int? protein,
-    int? carbs,
-    int? fat,
+    double? calories,
+    double? protein,
+    double? carbs,
+    double? fat,
     int? foodId,
   }) {
     setState(() {
@@ -116,10 +134,28 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
       );
       if (!mounted) return;
       final itemName = (preview['item_name'] ?? '').toString().trim();
-      final cal = int.tryParse(preview['calories']?.toString() ?? '') ?? 0;
-      final p = int.tryParse(preview['protein_g']?.toString() ?? '') ?? 0;
-      final c = int.tryParse(preview['carbs_g']?.toString() ?? '') ?? 0;
-      final f = int.tryParse(preview['fat_g']?.toString() ?? '') ?? 0;
+      final cal = _macroFrom(preview, const [
+        'calories',
+        'calories_kcal',
+        'kcal',
+      ]);
+      final p = _macroFrom(preview, const [
+        'protein_g',
+        'protein',
+      ]);
+      final c = _macroFrom(preview, const [
+        'carbs_g',
+        'carbs',
+        'carbohydrates_g',
+        'carbohydrate_g',
+      ]);
+      final f = _macroFrom(preview, const [
+        'fat_g',
+        'fats_g',
+        'fat',
+        'total_fat_g',
+        'total_fat',
+      ]);
       _addIngredientRow(
         name: itemName.isNotEmpty ? itemName : (result['food_name'] ?? '').toString().trim(),
         grams: grams,
@@ -150,12 +186,12 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
     for (final row in _ingredients) {
       final name = row.nameCtrl.text.trim();
       if (name.isEmpty) continue;
-      final cal = int.tryParse(row.calCtrl.text.trim()) ?? 0;
-      final p = int.tryParse(row.proteinCtrl.text.trim()) ?? 0;
-      final c = int.tryParse(row.carbsCtrl.text.trim()) ?? 0;
-      final f = int.tryParse(row.fatCtrl.text.trim()) ?? 0;
+      final cal = _asDouble(row.calCtrl.text);
+      final p = _asDouble(row.proteinCtrl.text);
+      final c = _asDouble(row.carbsCtrl.text);
+      final f = _asDouble(row.fatCtrl.text);
       final gramsStr = row.gramsCtrl.text.trim();
-      final grams = gramsStr.isEmpty ? null : double.tryParse(gramsStr);
+      final grams = gramsStr.isEmpty ? null : _asDouble(gramsStr);
       list.add({
         'ingredient_name': name,
         'calories': cal,
@@ -495,7 +531,7 @@ class _IngredientTile extends StatelessWidget {
               Expanded(
                 child: TextFormField(
                   controller: row.calCtrl,
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     labelText: t.translate("diet_manual_calories"),
@@ -516,7 +552,7 @@ class _IngredientTile extends StatelessWidget {
                     ),
                   ),
                   validator: (v) {
-                    final val = int.tryParse(v?.trim() ?? '');
+                    final val = double.tryParse((v ?? '').trim().replaceAll(',', '.'));
                     if (val == null || val < 0) return t.translate("diet_manual_calories_invalid");
                     return null;
                   },
@@ -526,7 +562,7 @@ class _IngredientTile extends StatelessWidget {
               Expanded(
                 child: TextFormField(
                   controller: row.proteinCtrl,
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     labelText: t.translate("protein"),
@@ -547,7 +583,7 @@ class _IngredientTile extends StatelessWidget {
                     ),
                   ),
                   validator: (v) {
-                    final val = int.tryParse(v?.trim() ?? '');
+                    final val = double.tryParse((v ?? '').trim().replaceAll(',', '.'));
                     if (val == null || val < 0) return t.translate("diet_manual_macro_invalid");
                     return null;
                   },
@@ -557,7 +593,7 @@ class _IngredientTile extends StatelessWidget {
               Expanded(
                 child: TextFormField(
                   controller: row.carbsCtrl,
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     labelText: t.translate("diet_carbs"),
@@ -578,7 +614,7 @@ class _IngredientTile extends StatelessWidget {
                     ),
                   ),
                   validator: (v) {
-                    final val = int.tryParse(v?.trim() ?? '');
+                    final val = double.tryParse((v ?? '').trim().replaceAll(',', '.'));
                     if (val == null || val < 0) return t.translate("diet_manual_macro_invalid");
                     return null;
                   },
@@ -588,7 +624,7 @@ class _IngredientTile extends StatelessWidget {
               Expanded(
                 child: TextFormField(
                   controller: row.fatCtrl,
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     labelText: t.translate("diet_fat"),
@@ -609,7 +645,7 @@ class _IngredientTile extends StatelessWidget {
                     ),
                   ),
                   validator: (v) {
-                    final val = int.tryParse(v?.trim() ?? '');
+                    final val = double.tryParse((v ?? '').trim().replaceAll(',', '.'));
                     if (val == null || val < 0) return t.translate("diet_manual_macro_invalid");
                     return null;
                   },
@@ -624,22 +660,28 @@ class _IngredientTile extends StatelessWidget {
 }
 
 class _IngredientRow {
+  static String _numToText(double value) {
+    if (value <= 0) return '';
+    if (value == value.roundToDouble()) return value.toInt().toString();
+    return value.toString();
+  }
+
   _IngredientRow({
     String name = '',
     double? grams,
-    int calories = 0,
-    int protein = 0,
-    int carbs = 0,
-    int fat = 0,
+    double calories = 0,
+    double protein = 0,
+    double carbs = 0,
+    double fat = 0,
     int? foodId,
   })  : nameCtrl = TextEditingController(text: name),
         gramsCtrl = TextEditingController(
           text: grams != null && grams > 0 ? grams.toString() : '',
         ),
-        calCtrl = TextEditingController(text: calories > 0 ? calories.toString() : ''),
-        proteinCtrl = TextEditingController(text: protein > 0 ? protein.toString() : ''),
-        carbsCtrl = TextEditingController(text: carbs > 0 ? carbs.toString() : ''),
-        fatCtrl = TextEditingController(text: fat > 0 ? fat.toString() : ''),
+        calCtrl = TextEditingController(text: _numToText(calories)),
+        proteinCtrl = TextEditingController(text: _numToText(protein)),
+        carbsCtrl = TextEditingController(text: _numToText(carbs)),
+        fatCtrl = TextEditingController(text: _numToText(fat)),
         foodId = foodId;
 
   final TextEditingController nameCtrl;

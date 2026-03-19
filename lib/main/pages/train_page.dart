@@ -7,6 +7,7 @@ import '../../widgets/training/day_selector.dart';
 import '../../widgets/training/exercise_card.dart';
 import '../../widgets/training/exercise_session_sheet.dart';
 import '../../core/account_storage.dart';
+import '../../core/training_regeneration_flag.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/training/training_service.dart';
 import '../../widgets/training/replace_exercise_sheet.dart';
@@ -282,8 +283,9 @@ class _TrainPageState extends State<TrainPage> {
       final userId = _userId ?? await AccountStorage.getUserId();
       if (userId == null) throw Exception("User not found");
 
-      // Show cached program immediately if available (no blank UI).
-      if (program == null) {
+      // Show cached program immediately if available (no blank UI), except
+      // right after a regeneration where cache may still be the old plan.
+      if (program == null && !TrainingRegenerationFlag.isRegenerating) {
         try {
           final cached = await TrainingService.fetchActiveProgramFromCache();
           if (cached != null && mounted) {
@@ -328,6 +330,7 @@ class _TrainPageState extends State<TrainPage> {
         completedExerciseNames = completed;
         _rebuildExerciseLists();
       });
+      TrainingRegenerationFlag.clear();
       _preloadExerciseGifsForCurrentDay();
       await _maybeShowDayCompletedPopup();
       return;
@@ -456,6 +459,17 @@ class _TrainPageState extends State<TrainPage> {
         cacheHeight: sheetH,
       ).catchError((_) {});
     }
+    final days = program?['days'];
+    Map<String, dynamic> exerciseWithDay = ex;
+    if (days is List && selectedDay >= 0 && selectedDay < days.length) {
+      final day = days[selectedDay];
+      if (day is Map) {
+        exerciseWithDay = Map<String, dynamic>.from(ex);
+        exerciseWithDay['training_day_id'] = day['day_id'];
+        exerciseWithDay['training_day_label'] = day['day_label'];
+      }
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -463,7 +477,7 @@ class _TrainPageState extends State<TrainPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) => ExerciseSessionSheet(
-        exercise: ex,
+        exercise: exerciseWithDay,
         completedExerciseNames: completedExerciseNames,
         onFinished: () {
           _pendingCompletionDayIndex = selectedDay;
