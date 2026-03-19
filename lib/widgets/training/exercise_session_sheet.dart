@@ -108,6 +108,12 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   bool get _supportsSetRows =>
       !_isCardioExercise() && widget.exercise.containsKey('set_rows');
 
+  bool _isTimerBased() {
+    if (widget.exercise['is_timer_based'] == true) return true;
+    if (widget.exercise['set_input_mode'] == 'timer') return true;
+    return false;
+  }
+
   int? _programExerciseId() {
     final raw = widget.exercise['program_exercise_id'];
     if (raw is int) return raw;
@@ -159,6 +165,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   }
 
   List<Map<String, dynamic>> _normalizeSetRows(List<dynamic> rows) {
+    final isTimer = _isTimerBased();
     final normalized = <Map<String, dynamic>>[];
     for (var i = 0; i < rows.length; i++) {
       final raw = rows[i];
@@ -167,9 +174,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       normalized.add({
         "id": raw['id'],
         "set_index": index <= 0 ? i + 1 : index,
-        "reps": raw['reps'] == null ? null : _toInt(raw['reps']),
-        "rir": raw['rir'] == null ? null : _toInt(raw['rir']),
-        "weight_kg": _toDouble(raw['weight_kg']),
+        if (!isTimer) "reps": raw['reps'] == null ? null : _toInt(raw['reps']),
+        if (!isTimer) "rir": raw['rir'] == null ? null : _toInt(raw['rir']),
+        if (!isTimer) "weight_kg": _toDouble(raw['weight_kg']),
         "completed": _toBool(raw['completed']),
         "performed_time_seconds": raw['performed_time_seconds'] == null
             ? null
@@ -195,6 +202,18 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       if (parsed.isNotEmpty) return parsed;
     }
     final sets = _plannedSets();
+    final isTimer = _isTimerBased();
+    if (isTimer) {
+      return List.generate(sets, (i) {
+        return {
+          "id": null,
+          "set_index": i + 1,
+          "completed": false,
+          "performed_time_seconds": null,
+          "rest_after_seconds": null,
+        };
+      });
+    }
     final reps = _plannedReps();
     final plannedRir = _plannedRir();
     final weight = _plannedWeight();
@@ -1053,16 +1072,27 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     final current = List<Map<String, dynamic>>.from(_setRows);
     final nextIndex = current.length + 1;
     final last = current.isNotEmpty ? current.last : null;
-    current.add({
-      "id": null,
-      "set_index": nextIndex,
-      "reps": last?['reps'] ?? _plannedReps(),
-      "rir": last?['rir'] ?? _plannedRir(),
-      "weight_kg": last?['weight_kg'] ?? _plannedWeight(),
-      "completed": false,
-      "performed_time_seconds": null,
-      "rest_after_seconds": null,
-    });
+    final isTimer = _isTimerBased();
+    if (isTimer) {
+      current.add({
+        "id": null,
+        "set_index": nextIndex,
+        "completed": false,
+        "performed_time_seconds": null,
+        "rest_after_seconds": null,
+      });
+    } else {
+      current.add({
+        "id": null,
+        "set_index": nextIndex,
+        "reps": last?['reps'] ?? _plannedReps(),
+        "rir": last?['rir'] ?? _plannedRir(),
+        "weight_kg": last?['weight_kg'] ?? _plannedWeight(),
+        "completed": false,
+        "performed_time_seconds": null,
+        "rest_after_seconds": null,
+      });
+    }
     setState(() {
       _setRows = current;
     });
@@ -1189,6 +1219,75 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   }
 
   Future<void> _openSetEditDialog(Map<String, dynamic> row) async {
+    final isTimer = _isTimerBased();
+    bool done = _toBool(row['completed']);
+    final setIndex = _toInt(row['set_index']);
+    final timeSeconds = _toInt(row['performed_time_seconds'], fallback: 0);
+
+    if (isTimer) {
+      final timeCtrl = TextEditingController(
+        text: timeSeconds > 0 ? timeSeconds.toString() : '',
+      );
+      bool timerDone = done;
+      final saved = await showDialog<bool>(
+        context: context,
+        builder: (ctx) {
+          return StatefulBuilder(
+            builder: (ctx, setModalState) {
+              return AlertDialog(
+                backgroundColor: const Color(0xFF121727),
+                title: Text(
+                  "Set $setIndex",
+                  style: const TextStyle(color: Colors.white),
+                ),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: timeCtrl,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: _inputStyle("Time (seconds)"),
+                      ),
+                      const SizedBox(height: 10),
+                      SwitchListTile(
+                        value: timerDone,
+                        onChanged: (v) => setModalState(() => timerDone = v),
+                        activeColor: Colors.greenAccent,
+                        title: const Text(
+                          "Completed",
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                    child: const Text("Cancel"),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(ctx).pop(true),
+                    child: const Text("Save"),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+      if (saved != true) return;
+      final secs = int.tryParse(timeCtrl.text.trim());
+      await _upsertSetRow(
+        setIndex: setIndex,
+        completed: timerDone,
+        performedTimeSeconds: secs != null && secs >= 0 ? secs : null,
+      );
+      return;
+    }
+
     final repsCtrl = TextEditingController(
       text: row['reps'] == null ? '' : _toInt(row['reps']).toString(),
     );
@@ -1200,8 +1299,6 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           ? ''
           : (_toDouble(row['weight_kg'])?.toString() ?? ''),
     );
-    bool done = _toBool(row['completed']);
-    final setIndex = _toInt(row['set_index']);
     final saved = await showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -1542,33 +1639,22 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                     ),
                   ),
                 ),
-                SizedBox(
-                  width: 62,
-                  child: Text(
-                    "KG",
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.62),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: 52,
-                  child: Text(
-                    "REPS",
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.62),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.centerRight,
+                if (_isTimerBased())
+                  Expanded(
                     child: Text(
-                      "RIR / DONE",
+                      "TIME",
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.62),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                      ),
+                    ),
+                  )
+                else ...[
+                  SizedBox(
+                    width: 62,
+                    child: Text(
+                      "KG",
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.62),
                         fontWeight: FontWeight.w700,
@@ -1576,7 +1662,31 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                       ),
                     ),
                   ),
-                ),
+                  SizedBox(
+                    width: 52,
+                    child: Text(
+                      "REPS",
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.62),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        "RIR / DONE",
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.62),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1590,16 +1700,18 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
             ...rows.asMap().entries.map((entry) {
               final row = entry.value;
               final setIndex = _toInt(row['set_index']);
+              final done = _toBool(row['completed']);
+              final isActive = _activeSetIndex == setIndex;
+              final isTimer = _isTimerBased();
+              final timeSecs = _toInt(row['performed_time_seconds'], fallback: 0);
+              final timeLabel = timeSecs > 0 ? _formatSeconds(timeSecs) : '-';
               final weight = _toDouble(row['weight_kg']);
               final weightLabel = weight == null
                   ? '-'
                   : weight.toStringAsFixed(
                       weight == weight.roundToDouble() ? 0 : 1,
                     );
-              final reps = row['reps'] == null ? '-' : _toInt(row['reps']).toString();
-              final rirValue = row['rir'] == null ? '-' : _toInt(row['rir']).toString();
-              final done = _toBool(row['completed']);
-              final isActive = _activeSetIndex == setIndex;
+
               return Container(
                 margin: const EdgeInsets.only(bottom: 10),
                 decoration: BoxDecoration(
@@ -1634,34 +1746,43 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                             ),
                           ),
                         ),
-                        SizedBox(
-                          width: 62,
-                          child: Text(
-                            weightLabel,
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.88),
-                              fontWeight: FontWeight.w700,
+                        if (isTimer)
+                          Expanded(
+                            child: Text(
+                              timeLabel,
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.88),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          )
+                        else ...[
+                          SizedBox(
+                            width: 62,
+                            child: Text(
+                              weightLabel,
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.88),
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
-                        ),
-                        SizedBox(
-                          width: 52,
-                          child: Text(
-                            reps,
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.88),
-                              fontWeight: FontWeight.w700,
+                          SizedBox(
+                            width: 52,
+                            child: Text(
+                              row['reps'] == null ? '-' : _toInt(row['reps']).toString(),
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.88),
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
-                        ),
-                        Expanded(
-                          child: Align(
-                            alignment: Alignment.centerRight,
+                          Expanded(
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  "RIR $rirValue",
+                                  "RIR ${row['rir'] == null ? '-' : _toInt(row['rir'])}",
                                   style: TextStyle(
                                     color: Colors.white.withOpacity(0.7),
                                     fontWeight: FontWeight.w600,
@@ -1669,74 +1790,70 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                                   ),
                                 ),
                                 const SizedBox(width: 4),
-                                if (!done)
-                                  const SizedBox(width: 2),
-                                GestureDetector(
-                                  onTap: () async {
-                                    final wasActive = _activeSetIndex == setIndex;
-                                    int restSecs = 0;
-                                    if (!done && wasActive) {
-                                      _pauseActiveSetTimer();
-                                      restSecs = _activeSetRestSeconds;
-                                    }
-                                    await _upsertSetRow(
-                                      setIndex: setIndex,
-                                      completed: !done,
-                                      performedTimeSeconds: wasActive
-                                          ? _activeSetElapsedSeconds
-                                          : null,
-                                      restAfterSeconds: wasActive
-                                          ? _activeSetRestSeconds
-                                          : null,
-                                    );
-                                    if (!mounted) return;
-                                    if (!done) {
-                                      final nextSet = _nextPendingSetIndex();
-                                      setState(() {
-                                        _activeSetIndex = nextSet ?? setIndex;
-                                        _activeSetElapsedSeconds = 0;
-                                        _activeSetRestSeconds = _restPresetSeconds;
-                                      });
-                                    } else {
-                                      _stopRestCountdown();
-                                    }
-                                  },
-                                  child: Container(
-                                    width: 28,
-                                    height: 28,
-                                    decoration: BoxDecoration(
-                                      color: done
-                                          ? Colors.greenAccent.withOpacity(0.2)
-                                          : Colors.white.withOpacity(0.07),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: done
-                                            ? Colors.greenAccent
-                                            : Colors.white24,
-                                      ),
-                                    ),
-                                    child: Icon(
-                                      Icons.check,
-                                      color: done
-                                          ? Colors.greenAccent
-                                          : Colors.white54,
-                                      size: 18,
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  visualDensity: VisualDensity.compact,
-                                  onPressed: rows.length > 1
-                                      ? () => _deleteSetRow(setIndex)
-                                      : null,
-                                  icon: const Icon(
-                                    Icons.delete_outline,
-                                    color: Colors.redAccent,
-                                    size: 19,
-                                  ),
-                                ),
                               ],
                             ),
+                          ),
+                        ],
+                        GestureDetector(
+                          onTap: () async {
+                            final wasActive = _activeSetIndex == setIndex;
+                            if (!done && wasActive) {
+                              _pauseActiveSetTimer();
+                            }
+                            await _upsertSetRow(
+                              setIndex: setIndex,
+                              completed: !done,
+                              performedTimeSeconds: wasActive
+                                  ? _activeSetElapsedSeconds
+                                  : null,
+                              restAfterSeconds: wasActive
+                                  ? _activeSetRestSeconds
+                                  : null,
+                            );
+                            if (!mounted) return;
+                            if (!done) {
+                              final nextSet = _nextPendingSetIndex();
+                              setState(() {
+                                _activeSetIndex = nextSet ?? setIndex;
+                                _activeSetElapsedSeconds = 0;
+                                _activeSetRestSeconds = _restPresetSeconds;
+                              });
+                            } else {
+                              _stopRestCountdown();
+                            }
+                          },
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: done
+                                  ? Colors.greenAccent.withOpacity(0.2)
+                                  : Colors.white.withOpacity(0.07),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: done
+                                    ? Colors.greenAccent
+                                    : Colors.white24,
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.check,
+                              color: done
+                                  ? Colors.greenAccent
+                                  : Colors.white54,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          onPressed: rows.length > 1
+                              ? () => _deleteSetRow(setIndex)
+                              : null,
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: Colors.redAccent,
+                            size: 19,
                           ),
                         ),
                       ],
