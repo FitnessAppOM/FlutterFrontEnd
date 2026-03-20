@@ -130,6 +130,79 @@ class TrainingService {
     return "$yyyy-$mm-$dd";
   }
 
+  static int _toInt(dynamic value, {int fallback = 0}) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value.trim()) ?? fallback;
+    return fallback;
+  }
+
+  static Map<String, dynamic> _normalizeTrainingProgressPayload(
+    Map<String, dynamic> payload,
+  ) {
+    final completed =
+        payload['completed'] ??
+        payload['completed_days'] ??
+        payload['days_completed'] ??
+        payload['done'];
+    final total =
+        payload['total'] ??
+        payload['total_days'] ??
+        payload['days_total'] ??
+        payload['planned_days'];
+    final mode = payload['program_mode'] ?? payload['mode'];
+    return {
+      ...payload,
+      'completed': _toInt(completed),
+      'total': _toInt(total),
+      'program_mode': mode?.toString(),
+    };
+  }
+
+  static List<Uri> _trainingProgressCandidates({
+    required int userId,
+    required String startParam,
+    required String endParam,
+  }) {
+    return [
+      Uri.parse(
+        '$baseUrl/training/session/progress/$userId?start=$startParam&end=$endParam',
+      ),
+      Uri.parse(
+        '$baseUrl/training/sessions/progress/$userId?start=$startParam&end=$endParam',
+      ),
+      Uri.parse(
+        '$baseUrl/training/workout-sessions/progress/$userId?start=$startParam&end=$endParam',
+      ),
+      Uri.parse(
+        '$baseUrl/training/workout_sessions/progress/$userId?start=$startParam&end=$endParam',
+      ),
+      // Backward compatibility for environments that still expose the legacy route.
+      Uri.parse(
+        '$baseUrl/training/progress/$userId?start=$startParam&end=$endParam',
+      ),
+    ];
+  }
+
+  static Future<Map<String, dynamic>?> _fetchTrainingProgressCandidate({
+    required Uri url,
+    required Map<String, String> headers,
+  }) async {
+    final response = await http.get(url, headers: headers);
+    await AccountStorage.handle401(response.statusCode);
+    if (response.statusCode == 404) return null;
+    if (response.statusCode != 200) {
+      throw Exception("Failed to load training progress");
+    }
+    final decoded = json.decode(response.body);
+    if (decoded is! Map) {
+      throw Exception("Invalid training progress response");
+    }
+    return _normalizeTrainingProgressPayload(
+      Map<String, dynamic>.from(decoded),
+    );
+  }
+
   static Future<bool> generateProgram(int userId) async {
     final url = Uri.parse('$baseUrl/training/generate/$userId');
     final headers = await AccountStorage.getAuthHeaders();
@@ -172,16 +245,22 @@ class TrainingService {
   }) async {
     final startParam = _dateParam(start);
     final endParam = _dateParam(end);
-    final url = Uri.parse(
-      '$baseUrl/training/progress/$userId?start=$startParam&end=$endParam',
-    );
     final headers = await AccountStorage.getAuthHeaders();
-    final response = await http.get(url, headers: headers);
-    await AccountStorage.handle401(response.statusCode);
-    if (response.statusCode != 200) {
-      throw Exception("Failed to load training progress");
+    final candidates = _trainingProgressCandidates(
+      userId: userId,
+      startParam: startParam,
+      endParam: endParam,
+    );
+    for (final uri in candidates) {
+      final progress = await _fetchTrainingProgressCandidate(
+        url: uri,
+        headers: headers,
+      );
+      if (progress != null) {
+        return progress;
+      }
     }
-    return json.decode(response.body) as Map<String, dynamic>;
+    throw Exception("Failed to load training progress");
   }
 
   /// Fetch program from cache (for offline use)
@@ -284,7 +363,9 @@ class TrainingService {
             return 0;
           }
 
-          return parseIndex(a['set_index']).compareTo(parseIndex(b['set_index']));
+          return parseIndex(
+            a['set_index'],
+          ).compareTo(parseIndex(b['set_index']));
         });
     }
     return const [];

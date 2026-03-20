@@ -35,7 +35,8 @@ class TrainingProgressStorage {
     return day.subtract(Duration(days: daysSinceMonday));
   }
 
-  static String _userKey(int userId, String key) => '${_keyPrefix}_${key}_u$userId';
+  static String _userKey(int userId, String key) =>
+      '${_keyPrefix}_${key}_u$userId';
 
   static int? _toInt(dynamic v) {
     if (v is int) return v;
@@ -55,7 +56,9 @@ class TrainingProgressStorage {
     final programIdKey = _userKey(userId, 'program_id');
     final storedProgramId = sp.getInt(programIdKey);
 
-    if (programId != null && storedProgramId != null && storedProgramId != programId) {
+    if (programId != null &&
+        storedProgramId != null &&
+        storedProgramId != programId) {
       await _clearProgress(sp, userId);
     }
 
@@ -103,7 +106,9 @@ class TrainingProgressStorage {
     await sp.setString(completedKey, jsonEncode(days.toList()));
   }
 
-  static Future<TrainingProgressSnapshot?> getProgressForWeek(DateTime anchor) async {
+  static Future<TrainingProgressSnapshot?> getProgressForWeek(
+    DateTime anchor,
+  ) async {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return null;
     final sp = await SharedPreferences.getInstance();
@@ -183,7 +188,39 @@ class TrainingProgressStorage {
     await sp.remove(key);
   }
 
-  static Future<void> markExerciseInstructionsSeen(int programExerciseId) async {
+  static Future<void> clearOtherExerciseTimers(
+    int keepProgramExerciseId,
+  ) async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return;
+    final sp = await SharedPreferences.getInstance();
+    final prefix = '${_keyPrefix}_ex_timer_';
+    final suffix = '_u$userId';
+    final keepKey = '${prefix}${keepProgramExerciseId}$suffix';
+    for (final key in sp.getKeys()) {
+      if (key == keepKey) continue;
+      if (key.startsWith(prefix) && key.endsWith(suffix)) {
+        await sp.remove(key);
+      }
+    }
+  }
+
+  static Future<void> clearAllExerciseTimers() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return;
+    final sp = await SharedPreferences.getInstance();
+    final prefix = '${_keyPrefix}_ex_timer_';
+    final suffix = '_u$userId';
+    for (final key in sp.getKeys()) {
+      if (key.startsWith(prefix) && key.endsWith(suffix)) {
+        await sp.remove(key);
+      }
+    }
+  }
+
+  static Future<void> markExerciseInstructionsSeen(
+    int programExerciseId,
+  ) async {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return;
     final sp = await SharedPreferences.getInstance();

@@ -19,12 +19,20 @@ import '../../screens/training/training_history_page.dart';
 import '../../widgets/training/training_day_complete_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/training/training_progress_storage.dart';
+import '../../services/training/training_activity_service.dart';
 
 class TrainPage extends StatefulWidget {
   const TrainPage({super.key});
 
   @override
   State<TrainPage> createState() => _TrainPageState();
+}
+
+class _DayOrderResult {
+  const _DayOrderResult({required this.order, required this.completedByIndex});
+
+  final List<int> order;
+  final List<bool> completedByIndex;
 }
 
 class _TrainPageState extends State<TrainPage> {
@@ -38,6 +46,13 @@ class _TrainPageState extends State<TrainPage> {
   List<Map<String, dynamic>> _trainExercises = const [];
   List<Map<String, dynamic>> _cardioExercises = const [];
   final Set<String> _preloadedThumbs = <String>{};
+  List<int> _dayOrder = const [];
+  List<bool> _dayCompletedByIndex = const [];
+  bool _cardioLockToday = false;
+  final Set<int> _inProgressExerciseIds = <int>{};
+  String? _activeSessionExerciseName;
+  int _inProgressLoadSeq = 0;
+  Set<String> _finishedDayKeysForWeek = <String>{};
 
   int? _userId;
   int? _pendingCompletionDayIndex;
@@ -69,18 +84,24 @@ class _TrainPageState extends State<TrainPage> {
 
   void _onTrainingChanged() {
     _loadWorkoutTimer();
+    _loadCardioLock();
   }
 
   Future<void> _init() async {
     _userId = await AccountStorage.getUserId();
     await _loadProgram();
     await _loadWorkoutTimer();
+    await _loadCardioLock();
     await _loadExRestPreset();
     await _restoreExRestState();
   }
 
   Future<void> _loadWorkoutTimer() async {
     final startMs = await TrainingProgressStorage.getWorkoutStartMs();
+    final activeSession = await TrainingActivityService.getActiveSession();
+    final normalizedSessionName = _normalizeExerciseName(
+      activeSession?['name'],
+    );
     if (!mounted) return;
     if (startMs != null) {
       _workoutStartMs = startMs;
@@ -92,7 +113,11 @@ class _TrainPageState extends State<TrainPage> {
       _workoutTimer?.cancel();
       _workoutTimer = null;
     }
+    _activeSessionExerciseName = normalizedSessionName.isEmpty
+        ? null
+        : normalizedSessionName;
     if (mounted) setState(() {});
+    await _refreshInProgressExercises();
   }
 
   void _syncWorkoutElapsed() {
@@ -123,8 +148,18 @@ class _TrainPageState extends State<TrainPage> {
 
   Future<void> _finishWorkout({bool showToast = true}) async {
     if (_finishingWorkout) return;
+    final finishedDayIndex = selectedDay;
     setState(() => _finishingWorkout = true);
     final now = DateTime.now();
+    // If an exercise is in progress, force-stop and clear its local progress.
+    try {
+      await TrainingActivityService.stopSession();
+    } catch (_) {
+      // Ignore local stop errors and continue finishing workout.
+    }
+    await TrainingProgressStorage.clearAllExerciseTimers();
+    _activeSessionExerciseName = null;
+    _inProgressExerciseIds.clear();
     try {
       await TrainingService.finishSession(entryDate: now);
     } catch (_) {
@@ -137,21 +172,39 @@ class _TrainPageState extends State<TrainPage> {
         },
       );
     }
+    await _refreshProgramForCompletionCheck();
+    final shouldMarkDayComplete = _isDayFullyCompletedForCurrentWeek(
+      finishedDayIndex,
+    );
     await TrainingProgressStorage.clearWorkoutStart();
+    if (shouldMarkDayComplete) {
+      await TrainingProgressStorage.recordTrainingDayCompleted(now);
+      await _markDayFinishedForCurrentWeek(finishedDayIndex);
+    } else {
+      await _clearDayFinishedForCurrentWeek(finishedDayIndex);
+    }
     _workoutTimer?.cancel();
     _workoutTimer = null;
     _workoutStartMs = null;
     _workoutElapsedSeconds = 0;
     _stopExRestCountdownQuiet();
+    final days = program?['days'];
+    final orderResult = days is List ? _buildDayOrder(days) : null;
+    _pendingCompletionDayIndex = shouldMarkDayComplete
+        ? finishedDayIndex
+        : null;
     if (mounted) {
-      setState(() => _finishingWorkout = false);
+      setState(() {
+        _finishingWorkout = false;
+        if (orderResult != null) {
+          _dayOrder = orderResult.order;
+          _dayCompletedByIndex = orderResult.completedByIndex;
+        }
+      });
       if (showToast) {
-        AppToast.show(
-          context,
-          "Workout finished!",
-          type: AppToastType.success,
-        );
+        AppToast.show(context, "Workout finished!", type: AppToastType.success);
       }
+      await _maybeShowDayCompletedPopup();
     }
   }
 
@@ -176,8 +229,10 @@ class _TrainPageState extends State<TrainPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF121727),
-        title: const Text("Custom rest (seconds)",
-            style: TextStyle(color: Colors.white)),
+        title: const Text(
+          "Custom rest (seconds)",
+          style: TextStyle(color: Colors.white),
+        ),
         content: TextField(
           controller: ctrl,
           keyboardType: TextInputType.number,
@@ -190,8 +245,7 @@ class _TrainPageState extends State<TrainPage> {
             fillColor: Colors.white.withOpacity(0.05),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide:
-                  BorderSide(color: Colors.white.withOpacity(0.08)),
+              borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -267,8 +321,8 @@ class _TrainPageState extends State<TrainPage> {
     final total = state['totalSeconds'] as int? ?? 0;
     final startedAt = state['startedAtMs'] as int? ?? 0;
     if (total <= 0 || startedAt <= 0) return;
-    final elapsed =
-        ((DateTime.now().millisecondsSinceEpoch - startedAt) / 1000).round();
+    final elapsed = ((DateTime.now().millisecondsSinceEpoch - startedAt) / 1000)
+        .round();
     final remaining = total - elapsed;
     if (remaining > 0) {
       _startExRestCountdown(remaining);
@@ -282,6 +336,8 @@ class _TrainPageState extends State<TrainPage> {
     try {
       final userId = _userId ?? await AccountStorage.getUserId();
       if (userId == null) throw Exception("User not found");
+      _userId = userId;
+      await _loadFinishedDaysForCurrentWeek();
 
       // Show cached program immediately if available (no blank UI), except
       // right after a regeneration where cache may still be the old plan.
@@ -289,14 +345,21 @@ class _TrainPageState extends State<TrainPage> {
         try {
           final cached = await TrainingService.fetchActiveProgramFromCache();
           if (cached != null && mounted) {
+            final cachedDays = cached['days'];
+            final orderResult = cachedDays is List
+                ? _buildDayOrder(cachedDays)
+                : const _DayOrderResult(order: [], completedByIndex: []);
             setState(() {
               program = cached;
               loading = false;
               isOffline = false;
+              _dayOrder = orderResult.order;
+              _dayCompletedByIndex = orderResult.completedByIndex;
               _rebuildExerciseLists();
             });
             showedCache = true;
             _preloadExerciseGifsForCurrentDay();
+            unawaited(_refreshInProgressExercises());
           }
         } catch (_) {
           // Ignore cache load errors.
@@ -323,15 +386,22 @@ class _TrainPageState extends State<TrainPage> {
         // Ignore completed names fetch errors
       }
       if (!mounted) return;
+      final serverDays = data['days'];
+      final orderResult = serverDays is List
+          ? _buildDayOrder(serverDays)
+          : const _DayOrderResult(order: [], completedByIndex: []);
       setState(() {
         program = data;
         loading = false;
         isOffline = false;
         completedExerciseNames = completed;
+        _dayOrder = orderResult.order;
+        _dayCompletedByIndex = orderResult.completedByIndex;
         _rebuildExerciseLists();
       });
       TrainingRegenerationFlag.clear();
       _preloadExerciseGifsForCurrentDay();
+      await _refreshInProgressExercises();
       await _maybeShowDayCompletedPopup();
       return;
     } catch (_) {
@@ -355,6 +425,10 @@ class _TrainPageState extends State<TrainPage> {
           loading = false;
           program = null;
           isOffline = false;
+          _dayOrder = const [];
+          _dayCompletedByIndex = const [];
+          _inProgressExerciseIds.clear();
+          _activeSessionExerciseName = null;
           _rebuildExerciseLists();
         });
       }
@@ -396,6 +470,125 @@ class _TrainPageState extends State<TrainPage> {
     _cardioExercises = cardio;
   }
 
+  String _normalizeExerciseName(dynamic value) {
+    return (value ?? '').toString().trim().toLowerCase();
+  }
+
+  int? _programExerciseId(Map<String, dynamic> ex) {
+    final raw = ex['program_exercise_id'];
+    if (raw is int) return raw;
+    if (raw is num) return raw.toInt();
+    return int.tryParse(raw?.toString() ?? '');
+  }
+
+  Future<void> _refreshInProgressExercises() async {
+    final seq = ++_inProgressLoadSeq;
+    final exercises = List<Map<String, dynamic>>.from(_trainExercises);
+    if (exercises.isEmpty) {
+      if (!mounted || seq != _inProgressLoadSeq) return;
+      if (_inProgressExerciseIds.isNotEmpty) {
+        setState(() => _inProgressExerciseIds.clear());
+      }
+      return;
+    }
+
+    final inProgressIds = <int>{};
+
+    for (final ex in exercises) {
+      final id = _programExerciseId(ex);
+      if (id == null) continue;
+      final state = await TrainingProgressStorage.loadExerciseTimerState(id);
+      if (state == null) continue;
+      if (state['started'] == true) {
+        inProgressIds.add(id);
+      }
+    }
+
+    if (!mounted || seq != _inProgressLoadSeq) return;
+    final changed =
+        inProgressIds.length != _inProgressExerciseIds.length ||
+        !inProgressIds.containsAll(_inProgressExerciseIds);
+    if (!changed) return;
+    setState(() {
+      _inProgressExerciseIds
+        ..clear()
+        ..addAll(inProgressIds);
+    });
+  }
+
+  bool _sameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  bool _hasLongCardioOnDate(List<Map<String, dynamic>> items, DateTime date) {
+    for (final item in items) {
+      final dt = _parseDateTime(item['entry_date']);
+      if (dt == null || !_sameDay(dt, date)) continue;
+      final raw = item['duration_seconds'];
+      final secs = raw is int
+          ? raw
+          : (raw is num
+                ? raw.toInt()
+                : int.tryParse(raw?.toString() ?? '') ?? 0);
+      if (secs >= 15 * 60) return true;
+    }
+    return false;
+  }
+
+  Future<void> _loadCardioLock() async {
+    final userId = _userId ?? await AccountStorage.getUserId();
+    if (userId == null) return;
+    bool locked = false;
+    try {
+      final items = await TrainingService.fetchCardioHistory(
+        userId: userId,
+        limit: 60,
+      );
+      locked = _hasLongCardioOnDate(items, DateTime.now());
+    } catch (_) {
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _cardioLockToday = locked);
+  }
+
+  _DayOrderResult _buildDayOrder(List days) {
+    if (days.isEmpty) {
+      return const _DayOrderResult(order: [], completedByIndex: []);
+    }
+    final now = DateTime.now();
+    final weekStart = _weekStartMonday(now);
+    final completedByIndex = List<bool>.filled(days.length, false);
+    for (var i = 0; i < days.length; i++) {
+      final day = days[i];
+      if (day is Map<String, dynamic>) {
+        completedByIndex[i] = _isDayFinishedForCurrentWeek(day, i, weekStart);
+      } else if (day is Map) {
+        completedByIndex[i] = _isDayFinishedForCurrentWeek(
+          Map<String, dynamic>.from(day),
+          i,
+          weekStart,
+        );
+      }
+    }
+    final incomplete = <int>[];
+    final complete = <int>[];
+    for (var i = 0; i < completedByIndex.length; i++) {
+      if (completedByIndex[i]) {
+        complete.add(i);
+      } else {
+        incomplete.add(i);
+      }
+    }
+    final order = <int>[...incomplete, ...complete];
+    return _DayOrderResult(order: order, completedByIndex: completedByIndex);
+  }
+
+  List<int> _effectiveDayOrder(List days) {
+    if (_dayOrder.length == days.length) return _dayOrder;
+    return List<int>.generate(days.length, (i) => i);
+  }
+
   Future<void> _preloadExerciseGifsForCurrentDay() async {
     if (!mounted) return;
     try {
@@ -433,7 +626,7 @@ class _TrainPageState extends State<TrainPage> {
     }
   }
 
-  void _startExerciseFlow(Map<String, dynamic> ex) {
+  Future<void> _startExerciseFlow(Map<String, dynamic> ex) async {
     _stopExRestCountdownQuiet();
     if (mounted) setState(() {});
     final dpr = MediaQuery.of(context).devicePixelRatio;
@@ -470,24 +663,48 @@ class _TrainPageState extends State<TrainPage> {
       }
     }
 
-    showModalBottomSheet(
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      isDismissible: true,
+      enableDrag: false,
+      showDragHandle: false,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => ExerciseSessionSheet(
-        exercise: exerciseWithDay,
-        completedExerciseNames: completedExerciseNames,
-        onFinished: () {
-          _pendingCompletionDayIndex = selectedDay;
-          unawaited(_loadProgram());
-          _loadWorkoutTimer();
-        },
-        previewProvider: previewProvider,
-        showSessionOnOpen: true,
+      builder: (_) => FractionallySizedBox(
+        heightFactor: 1.0,
+        child: ExerciseSessionSheet(
+          exercise: exerciseWithDay,
+          completedExerciseNames: completedExerciseNames,
+          onFinished: () {
+            unawaited(_loadProgram());
+            _loadWorkoutTimer();
+          },
+          onStarted: () => _markExerciseInProgress(exerciseWithDay),
+          previewProvider: previewProvider,
+          showSessionOnOpen: true,
+        ),
       ),
     );
+    if (!mounted) return;
+    await _loadWorkoutTimer();
+    await _refreshInProgressExercises();
+  }
+
+  void _markExerciseInProgress(Map<String, dynamic> ex) {
+    final id = _programExerciseId(ex);
+    final name = _normalizeExerciseName(ex['exercise_name']);
+    if (!mounted) return;
+    setState(() {
+      if (id != null) {
+        _inProgressExerciseIds.add(id);
+      }
+      if (name.isNotEmpty) {
+        _activeSessionExerciseName = name;
+      }
+    });
   }
 
   Future<void> _openCardioTab() async {
@@ -718,6 +935,44 @@ class _TrainPageState extends State<TrainPage> {
     return true;
   }
 
+  bool _isDayWorkedForWeek(
+    Map<String, dynamic> day,
+    DateTime weekStart,
+    DateTime weekEnd,
+  ) {
+    final flags = [
+      day['is_completed'],
+      day['completed'],
+      day['program_compliance_completed'],
+    ];
+    if (flags.any(_flagTrue)) return true;
+    if (_complianceCompletedForWeek(
+          day['program_compliance'],
+          weekStart,
+          weekEnd,
+        ) ||
+        _complianceCompletedForWeek(day['compliance'], weekStart, weekEnd)) {
+      return true;
+    }
+
+    final exercises = day['exercises'];
+    if (exercises is! List || exercises.isEmpty) return false;
+    for (final ex in exercises) {
+      if (ex is Map<String, dynamic>) {
+        if (_isExerciseCompletedForWeek(ex, weekStart, weekEnd)) return true;
+      } else if (ex is Map) {
+        if (_isExerciseCompletedForWeek(
+          Map<String, dynamic>.from(ex),
+          weekStart,
+          weekEnd,
+        )) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   String _dayCompletionKey(
     Map<String, dynamic> day,
     int index,
@@ -733,6 +988,148 @@ class _TrainPageState extends State<TrainPage> {
     return "${_dateToken(weekStart)}_$safeId";
   }
 
+  String _finishedDayStorageKey(int userId, String dayKey) {
+    return "train_day_finished_u${userId}_$dayKey";
+  }
+
+  String _finishedDayStoragePrefix(int userId, String weekToken) {
+    return "train_day_finished_u${userId}_${weekToken}_";
+  }
+
+  Map<String, dynamic>? _dayAtIndex(int dayIndex) {
+    final days = program?['days'];
+    if (days is! List || dayIndex < 0 || dayIndex >= days.length) return null;
+    final rawDay = days[dayIndex];
+    if (rawDay is Map<String, dynamic>) return rawDay;
+    if (rawDay is Map) return Map<String, dynamic>.from(rawDay);
+    return null;
+  }
+
+  Future<void> _refreshProgramForCompletionCheck() async {
+    final userId = _userId ?? await AccountStorage.getUserId();
+    if (userId == null) return;
+    try {
+      final data = await TrainingService.fetchActiveProgram(userId);
+      final serverDays = data['days'];
+      final orderResult = serverDays is List
+          ? _buildDayOrder(serverDays)
+          : const _DayOrderResult(order: [], completedByIndex: []);
+      if (!mounted) return;
+      setState(() {
+        program = data;
+        _dayOrder = orderResult.order;
+        _dayCompletedByIndex = orderResult.completedByIndex;
+        _rebuildExerciseLists();
+      });
+    } catch (_) {
+      // Keep current snapshot if refresh fails.
+    }
+  }
+
+  bool _isExerciseCompletedSimple(Map<String, dynamic> ex) {
+    if (_flagTrue(ex['is_completed']) ||
+        _flagTrue(ex['completed']) ||
+        _flagTrue(ex['program_compliance_completed']) ||
+        _flagTrue(ex['performed_sets']) ||
+        _flagTrue(ex['performed_reps']) ||
+        _flagTrue(ex['performed_time_seconds']) ||
+        _flagTrue(ex['weight_used'])) {
+      return true;
+    }
+    final pc = ex['program_compliance'];
+    if (pc is Map) {
+      return _flagTrue(pc['completed']) ||
+          _flagTrue(pc['is_completed']) ||
+          _flagTrue(pc['performed_sets']) ||
+          _flagTrue(pc['performed_reps']) ||
+          _flagTrue(pc['performed_time_seconds']) ||
+          _flagTrue(pc['weight_used']);
+    }
+    return false;
+  }
+
+  bool _isDayFullyCompletedForCurrentWeek(int dayIndex) {
+    final day = _dayAtIndex(dayIndex);
+    if (day == null) return false;
+    final exercises = day['exercises'];
+    if (exercises is! List || exercises.isEmpty) return false;
+    final now = DateTime.now();
+    final weekStart = _weekStartMonday(now);
+    final weekEnd = _weekEndSunday(now);
+    var hasTrainExercise = false;
+    for (final rawEx in exercises) {
+      Map<String, dynamic>? ex;
+      if (rawEx is Map<String, dynamic>) {
+        ex = rawEx;
+      } else if (rawEx is Map) {
+        ex = Map<String, dynamic>.from(rawEx);
+      }
+      if (ex == null) continue;
+      if (_isCardioExercise(ex)) continue;
+      hasTrainExercise = true;
+      final completed =
+          _isExerciseCompletedForWeek(ex, weekStart, weekEnd) ||
+          _isExerciseCompletedSimple(ex);
+      if (!completed) return false;
+    }
+    return hasTrainExercise;
+  }
+
+  bool _isDayFinishedForCurrentWeek(
+    Map<String, dynamic> day,
+    int index,
+    DateTime weekStart,
+  ) {
+    final key = _dayCompletionKey(day, index, weekStart);
+    return _finishedDayKeysForWeek.contains(key);
+  }
+
+  Future<void> _loadFinishedDaysForCurrentWeek() async {
+    final userId = _userId ?? await AccountStorage.getUserId();
+    if (userId == null) {
+      _finishedDayKeysForWeek = <String>{};
+      return;
+    }
+    final sp = await SharedPreferences.getInstance();
+    final weekToken = _dateToken(_weekStartMonday(DateTime.now()));
+    final prefix = _finishedDayStoragePrefix(userId, weekToken);
+    final markerPrefix = "train_day_finished_u${userId}_";
+    final loaded = <String>{};
+    for (final key in sp.getKeys()) {
+      if (!key.startsWith(prefix)) continue;
+      if (sp.getBool(key) != true) continue;
+      loaded.add(key.substring(markerPrefix.length));
+    }
+    _finishedDayKeysForWeek = loaded;
+  }
+
+  Future<void> _markDayFinishedForCurrentWeek(int dayIndex) async {
+    final day = _dayAtIndex(dayIndex);
+    if (day == null) return;
+    final userId = _userId ?? await AccountStorage.getUserId();
+    if (userId == null) return;
+    final weekStart = _weekStartMonday(DateTime.now());
+    final dayKey = _dayCompletionKey(day, dayIndex, weekStart);
+    final sp = await SharedPreferences.getInstance();
+    await sp.setBool(_finishedDayStorageKey(userId, dayKey), true);
+    _finishedDayKeysForWeek = {..._finishedDayKeysForWeek, dayKey};
+  }
+
+  Future<void> _clearDayFinishedForCurrentWeek(int dayIndex) async {
+    final day = _dayAtIndex(dayIndex);
+    if (day == null) return;
+    final userId = _userId ?? await AccountStorage.getUserId();
+    if (userId == null) return;
+    final weekStart = _weekStartMonday(DateTime.now());
+    final dayKey = _dayCompletionKey(day, dayIndex, weekStart);
+    final sp = await SharedPreferences.getInstance();
+    await sp.remove(_finishedDayStorageKey(userId, dayKey));
+    await sp.remove("train_day_completed_popup_u${userId}_$dayKey");
+    _finishedDayKeysForWeek = _finishedDayKeysForWeek
+        .where((key) => key != dayKey)
+        .toSet();
+  }
+
   Future<void> _maybeShowDayCompletedPopup() async {
     final index = _pendingCompletionDayIndex;
     _pendingCompletionDayIndex = null;
@@ -745,17 +1142,13 @@ class _TrainPageState extends State<TrainPage> {
 
     final now = DateTime.now();
     final weekStart = _weekStartMonday(now);
-    final weekEnd = _weekEndSunday(now);
-    if (!_isDayCompletedForWeek(day, weekStart, weekEnd)) return;
-    if (_workoutStartMs != null) {
-      await _finishWorkout(showToast: false);
-    }
+    final dayKey = _dayCompletionKey(day, index, weekStart);
+    if (!_finishedDayKeysForWeek.contains(dayKey)) return;
 
     final userId = _userId ?? await AccountStorage.getUserId();
     if (userId == null) return;
     final sp = await SharedPreferences.getInstance();
-    final key =
-        "train_day_completed_popup_u${userId}_${_dayCompletionKey(day, index, weekStart)}";
+    final key = "train_day_completed_popup_u${userId}_$dayKey";
     if (sp.getBool(key) == true) return;
     await sp.setBool(key, true);
 
@@ -821,6 +1214,21 @@ class _TrainPageState extends State<TrainPage> {
     }
 
     final List days = program!['days'] ?? [];
+    final dayOrder = _effectiveDayOrder(days);
+    final completedInOrder = dayOrder
+        .map(
+          (i) => (i >= 0 && i < _dayCompletedByIndex.length)
+              ? _dayCompletedByIndex[i]
+              : false,
+        )
+        .toList();
+    final disableTrainingToday = _cardioLockToday;
+    final disabledInOrder = disableTrainingToday
+        ? List<bool>.filled(dayOrder.length, true)
+        : List<bool>.filled(dayOrder.length, false);
+    final notesInOrder = disableTrainingToday
+        ? List<String?>.filled(dayOrder.length, "Cardio 15+ min today")
+        : List<String?>.filled(dayOrder.length, null);
 
     if (days.isEmpty) {
       return Center(child: Text(t.translate("no_active_training_program")));
@@ -831,6 +1239,10 @@ class _TrainPageState extends State<TrainPage> {
     }
 
     final currentDay = days[selectedDay];
+    final selectedDisplayIndex = dayOrder.indexOf(selectedDay);
+    final safeDisplayIndex = selectedDisplayIndex >= 0
+        ? selectedDisplayIndex
+        : 0;
 
     return Container(
       color: Colors.black,
@@ -882,7 +1294,10 @@ class _TrainPageState extends State<TrainPage> {
                   ],
                   if (_workoutStartMs != null) ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
@@ -897,7 +1312,11 @@ class _TrainPageState extends State<TrainPage> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.timer, color: Color(0xFF2D7CFF), size: 20),
+                          const Icon(
+                            Icons.timer,
+                            color: Color(0xFF2D7CFF),
+                            size: 20,
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Column(
@@ -923,14 +1342,19 @@ class _TrainPageState extends State<TrainPage> {
                             ),
                           ),
                           ElevatedButton(
-                            onPressed: _finishingWorkout ? null : _finishWorkout,
+                            onPressed: _finishingWorkout
+                                ? null
+                                : _finishWorkout,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.greenAccent.shade400,
                               foregroundColor: Colors.black,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
                             ),
                             child: _finishingWorkout
                                 ? const SizedBox(
@@ -943,221 +1367,10 @@ class _TrainPageState extends State<TrainPage> {
                                   )
                                 : const Text(
                                     "Finish Workout",
-                                    style: TextStyle(fontWeight: FontWeight.w700),
-                                  ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  if (_workoutStartMs != null && _exRestActive) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.orangeAccent.withOpacity(0.15),
-                            Colors.deepOrange.withOpacity(0.06),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.orangeAccent.withOpacity(0.35)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.hourglass_bottom, color: Colors.orangeAccent, size: 20),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Rest",
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.7),
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                                Text(
-                                  _formatRestTime(_exRestRemaining),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 22,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              setState(() => _exRestRemaining += 30);
-                            },
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.white70,
-                              visualDensity: VisualDensity.compact,
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
-                            ),
-                            child: const Text("+30s"),
-                          ),
-                          const SizedBox(width: 4),
-                          ElevatedButton(
-                            onPressed: _skipExRest,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF2D7CFF),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                            ),
-                            child: const Text("Skip", style: TextStyle(fontWeight: FontWeight.w700)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  if (_workoutStartMs != null && !_exRestActive) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.04),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white.withOpacity(0.06)),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.snooze, color: Colors.orangeAccent, size: 18),
-                              const SizedBox(width: 6),
-                              Text(
-                                "Rest between exercises",
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.6),
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const Spacer(),
-                              GestureDetector(
-                                onTap: _setCustomExRestPreset,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                  decoration: BoxDecoration(
-                                    color: Colors.orangeAccent.withOpacity(0.12),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.orangeAccent.withOpacity(0.35)),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.edit, size: 13, color: Colors.orangeAccent),
-                                      const SizedBox(width: 4),
-                                      const Text(
-                                        "Custom",
-                                        style: TextStyle(
-                                          color: Colors.orangeAccent,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 11,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              for (final s in [30, 60, 90, 120])
-                                Expanded(
-                                  child: Padding(
-                                    padding: EdgeInsets.only(right: s == 120 ? 0 : 6),
-                                    child: GestureDetector(
-                                      onTap: () => _setExRestPreset(s),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                        decoration: BoxDecoration(
-                                          color: _exRestPresetSeconds == s
-                                              ? Colors.orangeAccent.withOpacity(0.2)
-                                              : Colors.white.withOpacity(0.06),
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(
-                                            color: _exRestPresetSeconds == s
-                                                ? Colors.orangeAccent.withOpacity(0.5)
-                                                : Colors.white.withOpacity(0.1),
-                                          ),
-                                        ),
-                                        child: Center(
-                                          child: Text(
-                                            "${s}s",
-                                            style: TextStyle(
-                                              color: _exRestPresetSeconds == s
-                                                  ? Colors.orangeAccent
-                                                  : Colors.white70,
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
-                                ),
-                              if (![30, 60, 90, 120].contains(_exRestPresetSeconds))
-                                Expanded(
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(left: 6),
-                                    child: GestureDetector(
-                                      onTap: _setCustomExRestPreset,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                        decoration: BoxDecoration(
-                                          color: Colors.orangeAccent.withOpacity(0.2),
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(
-                                            color: Colors.orangeAccent.withOpacity(0.5),
-                                          ),
-                                        ),
-                                        child: Center(
-                                          child: Text(
-                                            "${_exRestPresetSeconds}s",
-                                            style: const TextStyle(
-                                              color: Colors.orangeAccent,
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: () => _startExRestCountdown(),
-                              icon: const Icon(Icons.hourglass_top, size: 18),
-                              label: Text("Start Rest  ${_formatRestTime(_exRestPresetSeconds)}"),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orangeAccent.withOpacity(0.15),
-                                foregroundColor: Colors.orangeAccent,
-                                elevation: 0,
-                                minimumSize: const Size(double.infinity, 40),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  side: BorderSide(color: Colors.orangeAccent.withOpacity(0.3)),
-                                ),
-                              ),
-                            ),
                           ),
                         ],
                       ),
@@ -1196,16 +1409,27 @@ class _TrainPageState extends State<TrainPage> {
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                       children: [
                         DaySelector(
-                          labels: days
-                              .map<String>((d) => d['day_label'].toString())
-                              .toList(),
-                          selectedIndex: selectedDay,
+                          labels: dayOrder.map<String>((i) {
+                            final d = days[i];
+                            if (d is Map) {
+                              return d['day_label']?.toString() ?? '';
+                            }
+                            return '';
+                          }).toList(),
+                          completed: completedInOrder,
+                          disabled: disabledInOrder,
+                          notes: notesInOrder,
+                          selectedIndex: safeDisplayIndex,
                           onSelect: (i) {
+                            final nextIndex = (i >= 0 && i < dayOrder.length)
+                                ? dayOrder[i]
+                                : i;
                             setState(() {
-                              selectedDay = i;
+                              selectedDay = nextIndex;
                               _rebuildExerciseLists();
                             });
                             _preloadExerciseGifsForCurrentDay();
+                            unawaited(_refreshInProgressExercises());
                           },
                         ),
                         const SizedBox(height: 24),
@@ -1282,6 +1506,19 @@ class _TrainPageState extends State<TrainPage> {
                                 ex['exercise_id'] ??
                                 ex['exercise_name'] ??
                                 entry.key;
+                            final programExerciseId = _programExerciseId(ex);
+                            final normalizedName = _normalizeExerciseName(
+                              ex['exercise_name'],
+                            );
+                            final inProgressById =
+                                programExerciseId != null &&
+                                _inProgressExerciseIds.contains(
+                                  programExerciseId,
+                                );
+                            final inProgressByName =
+                                _activeSessionExerciseName != null &&
+                                normalizedName.isNotEmpty &&
+                                normalizedName == _activeSessionExerciseName;
                             final exKey = ValueKey("train_ex_$rawId");
                             return Padding(
                               key: exKey,
@@ -1290,6 +1527,8 @@ class _TrainPageState extends State<TrainPage> {
                                 exercise: ex,
                                 onTap: () => _startExerciseFlow(ex),
                                 onReplace: () => _openReplaceSheet(ex),
+                                disabled: disableTrainingToday,
+                                inProgress: inProgressById || inProgressByName,
                               ),
                             );
                           }).toList(),

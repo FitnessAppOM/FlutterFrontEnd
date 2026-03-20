@@ -21,8 +21,9 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
   bool _loading = true;
   late DateTime _selectedDate;
   Map<DateTime, Map<String, dynamic>> _daily = {};
+  final Map<DateTime, Map<String, dynamic>> _dailyCache = {};
+  final Map<String, Map<DateTime, Map<String, dynamic>>> _rangeCache = {};
   int _reqId = 0;
-  bool _transitionFromTodayToYesterday = false;
 
   @override
   void initState() {
@@ -34,16 +35,32 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
 
   Future<void> _loadRange() async {
     final requestId = ++_reqId;
-    setState(() => _loading = true);
+    final day = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final start = day.subtract(const Duration(days: 6));
+    final end = day;
+    final rangeKey = _rangeKey(start, end);
+
+    final cachedRange = _rangeCache[rangeKey];
+    if (cachedRange != null) {
+      if (!mounted) return;
+      if (requestId != _reqId) return;
+      setState(() {
+        _daily = cachedRange;
+        _loading = false;
+      });
+      return;
+    }
+
+    final hasSelectedDayCached = _dailyCache.containsKey(day);
+    setState(() => _loading = !hasSelectedDayCached);
     try {
-      final day = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-      final start = day.subtract(const Duration(days: 6));
-      final end = day;
       final data = await WhoopCycleService().fetchDailyCycles(start: start, end: end);
       if (!mounted) return;
       if (requestId != _reqId) return;
       setState(() {
         _daily = data;
+        _dailyCache.addAll(data);
+        _rangeCache[rangeKey] = data;
         _loading = false;
       });
     } catch (_) {
@@ -57,9 +74,7 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
   Widget build(BuildContext context) {
     final dayKey = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
     final bool isPastDay = _isPastDay(dayKey);
-    final bool isToday = _isToday(dayKey);
-    final bool showLoadingPlaceholders = _loading && (isToday || _transitionFromTodayToYesterday);
-    final metrics = _daily[dayKey];
+    final metrics = _daily[dayKey] ?? _dailyCache[dayKey];
     return Scaffold(
       appBar: AppBar(
         title: const Text("Daily Cycle"),
@@ -76,7 +91,6 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
             _metricsGrid(
               metrics,
               isLoading: _loading,
-              showLoadingPlaceholders: showLoadingPlaceholders,
               showEmptyAsDash: isPastDay,
             ),
             if (!_hideTrendForNoData(metrics)) ...[
@@ -123,13 +137,8 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
   Widget _metricsGrid(
     Map<String, dynamic>? metrics, {
     required bool isLoading,
-    required bool showLoadingPlaceholders,
     required bool showEmptyAsDash,
   }) {
-    if (showLoadingPlaceholders) {
-      return _dashMetricsGrid();
-    }
-
     if (metrics == null && isLoading) {
       return const SizedBox.shrink();
     }
@@ -290,7 +299,7 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
     for (int i = 0; i < 7; i++) {
       final d = start.add(Duration(days: i));
       final dayKey = DateTime(d.year, d.month, d.day);
-      final v = _daily[dayKey]?["avg_hr"];
+      final v = (_daily[dayKey] ?? _dailyCache[dayKey])?["avg_hr"];
       if (v is num) {
         values.add(v.toDouble());
       } else {
@@ -303,8 +312,8 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
   Widget _avgHrNote() {
     final dayKey = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
     final yesterdayKey = dayKey.subtract(const Duration(days: 1));
-    final today = _daily[dayKey]?["avg_hr"];
-    final yesterday = _daily[yesterdayKey]?["avg_hr"];
+    final today = (_daily[dayKey] ?? _dailyCache[dayKey])?["avg_hr"];
+    final yesterday = (_daily[yesterdayKey] ?? _dailyCache[yesterdayKey])?["avg_hr"];
     if (today is! num || yesterday is! num) {
       return const SizedBox.shrink();
     }
@@ -352,13 +361,8 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
     final today = DateTime.now();
     final todayOnly = DateTime(today.year, today.month, today.day);
     if (next.isAfter(todayOnly)) return;
-    final prev = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-    final yesterday = todayOnly.subtract(const Duration(days: 1));
-    final fromTodayToYesterday =
-        _isSameDay(prev, todayOnly) && _isSameDay(next, yesterday);
     setState(() {
       _selectedDate = next;
-      _transitionFromTodayToYesterday = fromTodayToYesterday;
     });
     _loadRange();
   }
@@ -370,28 +374,16 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
     return selected.isBefore(todayOnly);
   }
 
-  bool _isToday(DateTime d) {
-    final now = DateTime.now();
-    return d.year == now.year && d.month == now.month && d.day == now.day;
-  }
-
-  bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
-
   bool _isPastDay(DateTime d) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     return d.isBefore(today);
   }
 
-  MapEntry<DateTime, Map<String, dynamic>>? _latestAvailableOnOrBefore(DateTime dayKey) {
-    if (_daily.isEmpty) return null;
-    final candidates = _daily.entries
-        .where((e) => !e.key.isAfter(dayKey))
-        .where((e) => e.value.isNotEmpty);
-    if (candidates.isEmpty) return null;
-    return candidates.reduce((a, b) => a.key.isAfter(b.key) ? a : b);
+  String _rangeKey(DateTime start, DateTime end) {
+    final s = DateTime(start.year, start.month, start.day).toIso8601String();
+    final e = DateTime(end.year, end.month, end.day).toIso8601String();
+    return "$s|$e";
   }
 
   String _monthName(int m) {

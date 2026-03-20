@@ -21,6 +21,8 @@ class WhoopRecoveryDetailPage extends StatefulWidget {
 class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
   bool _loading = true;
   Map<DateTime, Map<String, dynamic>> _daily = {};
+  final Map<DateTime, Map<String, dynamic>> _dailyCache = {};
+  final Map<String, Map<DateTime, Map<String, dynamic>>> _rangeCache = {};
   late DateTime _selectedDate;
   int _reqId = 0;
 
@@ -34,11 +36,25 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
 
   Future<void> _loadRange() async {
     final requestId = ++_reqId;
-    setState(() => _loading = true);
+    final day = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final start = day.subtract(const Duration(days: 6));
+    final end = day;
+    final rangeKey = _rangeKey(start, end);
+
+    final cachedRange = _rangeCache[rangeKey];
+    if (cachedRange != null) {
+      if (!mounted) return;
+      if (requestId != _reqId) return;
+      setState(() {
+        _daily = cachedRange;
+        _loading = false;
+      });
+      return;
+    }
+
+    final hasSelectedDayCached = _dailyCache.containsKey(day);
+    setState(() => _loading = !hasSelectedDayCached);
     try {
-      final day = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-      final start = day.subtract(const Duration(days: 6));
-      final end = day;
       final data = await WhoopRecoveryService().fetchDailyRecovery(
         start: start,
         end: end,
@@ -47,6 +63,8 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
       if (requestId != _reqId) return;
       setState(() {
         _daily = data;
+        _dailyCache.addAll(data);
+        _rangeCache[rangeKey] = data;
         _loading = false;
       });
     } catch (e) {
@@ -59,7 +77,8 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
   @override
   Widget build(BuildContext context) {
     final dayKey = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-    final metrics = _currentMetrics(_daily[dayKey]);
+    final metrics = _currentMetrics(_daily[dayKey] ?? _dailyCache[dayKey]);
+    final hasAnyData = _daily.isNotEmpty || _dailyCache.isNotEmpty;
     final headerDate = dayKey;
 
     return Scaffold(
@@ -75,7 +94,7 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
           children: [
             _header(headerDate),
             const SizedBox(height: 12),
-            if (metrics.recoveryScore == null && !_loading && _daily.isEmpty) ...[
+            if (metrics.recoveryScore == null && !_loading && !hasAnyData) ...[
               _noDataCard(),
             ] else ...[
               Center(child: RecoveryGauge(score: metrics.recoveryScore)),
@@ -83,10 +102,10 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
               _metricsGrid(metrics),
             ],
             const SizedBox(height: 16),
-            if (metrics.recoveryScore != null || _daily.isNotEmpty || _loading) ...[
+            if (metrics.recoveryScore != null || hasAnyData || _loading) ...[
               Center(child: _sectionTitle("Recovery Trend (7 Days)")),
               const SizedBox(height: 8),
-              _loading && _daily.isEmpty
+              _loading && !hasAnyData
                   ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
                   : Center(
                       child: ConstrainedBox(
@@ -152,7 +171,7 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
     for (int i = 0; i < 7; i++) {
       final d = start.add(Duration(days: i));
       final dayKey = DateTime(d.year, d.month, d.day);
-      final v = _daily[dayKey]?["recovery_score"];
+      final v = (_daily[dayKey] ?? _dailyCache[dayKey])?["recovery_score"];
       if (v is num) {
         values.add(v.toDouble());
       } else {
@@ -306,6 +325,12 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
       "December",
     ];
     return names[m - 1];
+  }
+
+  String _rangeKey(DateTime start, DateTime end) {
+    final s = DateTime(start.year, start.month, start.day).toIso8601String();
+    final e = DateTime(end.year, end.month, end.day).toIso8601String();
+    return "$s|$e";
   }
 
   double? _numFromAny(dynamic v) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/account_storage.dart';
 import '../main/main_layout.dart';
 import '../services/metrics/daily_metrics_api.dart';
@@ -22,6 +23,8 @@ class DailyJournalPage extends StatefulWidget {
 
 class _DailyJournalPageState extends State<DailyJournalPage> {
   static const int _journalResetHour = 6;
+  static const String _journalPromptShownKey =
+      "daily_journal_prompt_shown_date_6am";
 
   Future<DailyJournalEntry?>? _future;
   bool _seededFromRemote = false;
@@ -54,7 +57,22 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
     super.initState();
     NavigationService.isOnJournalPage = true;
     _fromNotification = NavigationService.consumeJournalNotification();
+    if (_fromNotification) {
+      _markJournalPromptShownForToday();
+    }
     _refresh();
+  }
+
+  void _markJournalPromptShownForToday() {
+    final journalDay = _journalDay(DateTime.now());
+    final dayKey = _formatJournalDayKey(journalDay);
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString(_journalPromptShownKey, dayKey);
+    });
+  }
+
+  String _formatJournalDayKey(DateTime date) {
+    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
   }
 
   Future<void> _refresh() async {

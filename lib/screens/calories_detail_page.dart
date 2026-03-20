@@ -436,6 +436,37 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
     }
   }
 
+  String _monthShort(int month) {
+    switch (month) {
+      case 1:
+        return "Jan";
+      case 2:
+        return "Feb";
+      case 3:
+        return "Mar";
+      case 4:
+        return "Apr";
+      case 5:
+        return "May";
+      case 6:
+        return "Jun";
+      case 7:
+        return "Jul";
+      case 8:
+        return "Aug";
+      case 9:
+        return "Sep";
+      case 10:
+        return "Oct";
+      case 11:
+        return "Nov";
+      case 12:
+        return "Dec";
+      default:
+        return "";
+    }
+  }
+
   List<_CaloriesBarEntry> _prepareEntries() {
     if (_daily.isEmpty) return [];
     if (_range == 'weekly' || _range == 'monthly') {
@@ -486,18 +517,34 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
           .toList();
     }
 
+    final start = _rangeStart;
+    final end = _rangeEnd;
+    if (start == null || end == null) return [];
+
     final Map<String, List<int>> buckets = {};
     _daily.forEach((day, calories) {
       final label = "${day.year}-${day.month.toString().padLeft(2, '0')}";
       buckets.putIfAbsent(label, () => []).add(calories);
     });
 
-    final entries = buckets.entries.map<_CaloriesBarEntry>((e) {
-      final avg = e.value.isEmpty
+    final entries = <_CaloriesBarEntry>[];
+    var cursor = DateTime(start.year, start.month, 1);
+    final last = DateTime(end.year, end.month, 1);
+    while (!cursor.isAfter(last)) {
+      final key = "${cursor.year}-${cursor.month.toString().padLeft(2, '0')}";
+      final values = buckets[key] ?? const <int>[];
+      final avg = values.isEmpty
           ? 0
-          : e.value.reduce((a, b) => a + b) ~/ e.value.length;
-      return _CaloriesBarEntry(axisLabel: "", detailLabel: e.key, value: avg);
-    }).toList()..sort((a, b) => a.detailLabel.compareTo(b.detailLabel));
+          : values.reduce((a, b) => a + b) ~/ values.length;
+      entries.add(
+        _CaloriesBarEntry(
+          axisLabel: _monthShort(cursor.month),
+          detailLabel: "${_monthShort(cursor.month)} ${cursor.year}",
+          value: avg,
+        ),
+      );
+      cursor = DateTime(cursor.year, cursor.month + 1, 1);
+    }
 
     return entries;
   }

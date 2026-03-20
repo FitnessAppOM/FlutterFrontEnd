@@ -287,6 +287,9 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
   List<_TrainingHistoryPlanGroup> _groupEntriesByPlan(
     List<_TrainingHistoryEntry> entries,
   ) {
+    final currentProgramId = _parseInt(
+      widget.program['program_id'] ?? widget.program['id'],
+    );
     final grouped = <String, _TrainingHistoryPlanGroupBuilder>{};
     for (final entry in entries) {
       final key = entry.programId != null
@@ -299,7 +302,18 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
       builder.add(entry);
     }
     final out = grouped.values.map((b) => b.build()).toList()
-      ..sort((a, b) => b.latestDate.compareTo(a.latestDate));
+      ..sort((a, b) {
+        final aIsCurrent =
+            currentProgramId != null &&
+            a.programId != null &&
+            a.programId == currentProgramId;
+        final bIsCurrent =
+            currentProgramId != null &&
+            b.programId != null &&
+            b.programId == currentProgramId;
+        if (aIsCurrent != bIsCurrent) return aIsCurrent ? -1 : 1;
+        return b.latestDate.compareTo(a.latestDate);
+      });
     return out;
   }
 
@@ -307,14 +321,16 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
     BuildContext context,
     _TrainingHistoryEntry entry,
   ) {
+    final displayStatus = _displayStatusForEntry(entry);
     final isCompletedDay = entry.isCompletedDay;
+    final isOldPlan = !isCompletedDay && displayStatus == "Old plan";
     return InkWell(
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => TrainingHistoryDayDetailPage(
               dayLabel: entry.label,
-              statusText: entry.statusText,
+              statusText: displayStatus,
               weekLabel: entry.weekLabel,
               completedExercises: entry.completedExercises,
             ),
@@ -362,19 +378,25 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
                   decoration: BoxDecoration(
                     color: isCompletedDay
                         ? Colors.greenAccent.withOpacity(0.15)
+                        : isOldPlan
+                        ? const Color(0xFFD4AF37).withOpacity(0.14)
                         : Colors.white.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: isCompletedDay
                           ? Colors.greenAccent
+                          : isOldPlan
+                          ? const Color(0xFFD4AF37)
                           : Colors.white24,
                     ),
                   ),
                   child: Text(
-                    entry.statusText,
+                    displayStatus,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: isCompletedDay
                           ? Colors.greenAccent
+                          : isOldPlan
+                          ? const Color(0xFFD4AF37)
                           : Colors.white70,
                       fontWeight: FontWeight.w600,
                     ),
@@ -393,6 +415,21 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
         ),
       ),
     );
+  }
+
+  String _displayStatusForEntry(_TrainingHistoryEntry entry) {
+    if (entry.isCompletedDay) return "Completed";
+    final currentProgramId = _parseInt(
+      widget.program['program_id'] ?? widget.program['id'],
+    );
+    final currentWeekStart = _weekStartMonday(DateTime.now());
+    final entryWeekStart = _weekStartMonday(entry.weekStart);
+    final isCurrentPlanThisWeek =
+        currentProgramId != null &&
+        entry.programId != null &&
+        entry.programId == currentProgramId &&
+        entryWeekStart == currentWeekStart;
+    return isCurrentPlanThisWeek ? "In progress" : "Old plan";
   }
 
   List<_TrainingHistoryEntry> _buildEntriesFromProgram(
@@ -639,11 +676,13 @@ class _TrainingHistoryPlanGroup {
     required this.title,
     required this.entries,
     required this.latestDate,
+    this.programId,
   });
 
   final String title;
   final List<_TrainingHistoryEntry> entries;
   final DateTime latestDate;
+  final int? programId;
 }
 
 class _TrainingHistoryPlanGroupBuilder {
@@ -675,6 +714,7 @@ class _TrainingHistoryPlanGroupBuilder {
       title: title,
       entries: List<_TrainingHistoryEntry>.from(_entries),
       latestDate: latestDate,
+      programId: programId,
     );
   }
 }

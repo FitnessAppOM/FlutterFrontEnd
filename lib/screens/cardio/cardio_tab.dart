@@ -227,13 +227,21 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
   List<Map<String, dynamic>> _cardioLibrary = const [];
   bool _loadingCardioLibrary = false;
 
+  bool _isCardioSession(Map<String, dynamic>? session) {
+    if (session == null) return false;
+    final distance = session['distanceKm'];
+    final pace = session['paceMinKm'];
+    return distance is num || pace is num;
+  }
+
   Future<void> _loadPausedSession() async {
     final session = await TrainingActivityService.getActiveSession();
     final paused = session != null && session['paused'] == true;
+    final pausedCardio = paused && _isCardioSession(session);
     if (!mounted) return;
     setState(() {
-      _hasPausedSession = paused;
-      _pausedExerciseName = paused ? (session?['name'] as String?) : null;
+      _hasPausedSession = pausedCardio;
+      _pausedExerciseName = pausedCardio ? (session['name'] as String?) : null;
       _showPausedOverlay = false;
     });
   }
@@ -270,7 +278,8 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
 
   void _precacheGifs(List<Map<String, dynamic>> items) {
     if (!mounted) return;
-    final dpr = WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
+    final dpr =
+        WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
     final cacheW = (74 * dpr).round();
     final cacheH = (66 * dpr).round();
     for (final ex in items) {
@@ -289,15 +298,21 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
   }
 
   List<Map<String, dynamic>> _mergeCardioLibrary(
-      List<Map<String, dynamic>> base, List<Map<String, dynamic>> remote) {
+    List<Map<String, dynamic>> base,
+    List<Map<String, dynamic>> remote,
+  ) {
     if (remote.isEmpty) return base;
     final byId = <String, Map<String, dynamic>>{};
     for (final r in remote) {
-      final key = (r['exercise_id'] ?? r['exercise_name'] ?? '').toString().toLowerCase();
+      final key = (r['exercise_id'] ?? r['exercise_name'] ?? '')
+          .toString()
+          .toLowerCase();
       if (key.isNotEmpty) byId[key] = r;
     }
     return base.map((local) {
-      final key = (local['exercise_id'] ?? local['exercise_name'] ?? '').toString().toLowerCase();
+      final key = (local['exercise_id'] ?? local['exercise_name'] ?? '')
+          .toString()
+          .toLowerCase();
       final match = byId[key];
       if (match == null) return local;
       return {
@@ -313,7 +328,9 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
     final targetName = _pausedExerciseName?.trim().toLowerCase();
     if (targetName == null || targetName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Couldn't find the paused cardio session.")),
+        const SnackBar(
+          content: Text("Couldn't find the paused cardio session."),
+        ),
       );
       return;
     }
@@ -327,7 +344,9 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
     }
     if (match == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Paused cardio not found. Cancel to start a new one.")),
+        const SnackBar(
+          content: Text("Paused cardio not found. Cancel to start a new one."),
+        ),
       );
       return;
     }
@@ -345,111 +364,116 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final token = dotenv.isInitialized ? dotenv.maybeGet('MAPBOX_PUBLIC_KEY') : null;
+    final token = dotenv.isInitialized
+        ? dotenv.maybeGet('MAPBOX_PUBLIC_KEY')
+        : null;
     final hasToken = token != null && token.trim().isNotEmpty;
     final bool hasProgramCardio = widget.exercises.isNotEmpty;
     final List<Map<String, dynamic>> list = hasProgramCardio
         ? widget.exercises
         : (_cardioLibrary.isNotEmpty
-            ? _cardioLibrary
-            : List<Map<String, dynamic>>.from(_fallbackCardioLibrary));
+              ? _cardioLibrary
+              : List<Map<String, dynamic>>.from(_fallbackCardioLibrary));
 
     return Stack(
       children: [
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-        // Map hidden for now.
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                "Cardio session",
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            // Map hidden for now.
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    "Cardio session",
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
                     ),
-              ),
-            ),
-            OutlinedButton.icon(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const CardioHistoryPage()),
-                );
-              },
-              icon: const Icon(Icons.history, size: 18),
-              label: const Text("History"),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white,
-                backgroundColor: Colors.white.withOpacity(0.08),
-                side: BorderSide(color: Colors.white.withOpacity(0.2)),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                shape: const StadiumBorder(),
-                textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          "Heart-rate focused work",
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.white.withOpacity(0.7),
-              ),
-        ),
-        const SizedBox(height: 16),
-        if (_hasPausedSession)
-          CardioResumeBanner(
-            onContinue: () => _continuePausedSession(list),
-            onCancel: _cancelPausedSession,
-          ),
-        if (list.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 16),
-            child: Text(
-              "No cardio planned for this day",
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.white,
                   ),
-            ),
-          )
-        else
-          ...list.map((ex) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: ExerciseCard(
-                exercise: ex,
-                disabled: _hasPausedSession,
-                onTap: () => widget.onStart(ex),
-                onReplace: () {
-                  if (!hasProgramCardio && ex['program_exercise_id'] == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("This cardio item is not in today's plan."),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const CardioHistoryPage(),
                       ),
                     );
-                    return;
-                  }
-                  if (_hasPausedSession) return;
-                  widget.onReplace(ex);
-                },
+                  },
+                  icon: const Icon(Icons.history, size: 18),
+                  label: const Text("History"),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.white.withOpacity(0.08),
+                    side: BorderSide(color: Colors.white.withOpacity(0.2)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    shape: const StadiumBorder(),
+                    textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "Heart-rate focused work",
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.white.withOpacity(0.7),
               ),
-            );
-          }).toList(),
+            ),
+            const SizedBox(height: 16),
+            if (_hasPausedSession)
+              CardioResumeBanner(
+                onContinue: () => _continuePausedSession(list),
+                onCancel: _cancelPausedSession,
+              ),
+            if (list.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: Text(
+                  "No cardio planned for this day",
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(color: Colors.white),
+                ),
+              )
+            else
+              ...list.map((ex) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: ExerciseCard(
+                    exercise: ex,
+                    disabled: _hasPausedSession,
+                    onTap: () => widget.onStart(ex),
+                    onReplace: () {
+                      if (!hasProgramCardio &&
+                          ex['program_exercise_id'] == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              "This cardio item is not in today's plan.",
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+                      if (_hasPausedSession) return;
+                      widget.onReplace(ex);
+                    },
+                  ),
+                );
+              }).toList(),
           ],
         ),
         if (_showPausedOverlay)
-          const Positioned.fill(
-            child: ColoredBox(
-              color: Colors.black54,
-            ),
-          ),
+          const Positioned.fill(child: ColoredBox(color: Colors.black54)),
       ],
     );
   }
 
   // Map UI moved to CardioMap widget.
-
 }
