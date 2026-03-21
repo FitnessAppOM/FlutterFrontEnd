@@ -43,9 +43,7 @@ class _CardioMapControlsState extends State<CardioMapControls> {
   void didUpdateWidget(covariant CardioMapControls oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.elapsedSeconds != null) {
-      final next = Duration(
-        seconds: widget.elapsedSeconds!.clamp(0, 1 << 31),
-      );
+      final next = Duration(seconds: widget.elapsedSeconds!.clamp(0, 1 << 31));
       if (next != _elapsed) {
         _elapsed = next;
       }
@@ -53,7 +51,8 @@ class _CardioMapControlsState extends State<CardioMapControls> {
     }
     if (widget.running != null) {
       _running = widget.running!;
-      _showStats = _running || _showStats;
+      final hasElapsed = (widget.elapsedSeconds ?? 0) > 0;
+      _showStats = _running || hasElapsed || _showStats;
       if (_running) {
         _countdown = null;
       }
@@ -287,10 +286,7 @@ class _CardioMapControlsState extends State<CardioMapControls> {
 }
 
 class _StatPill extends StatelessWidget {
-  const _StatPill({
-    required this.label,
-    required this.value,
-  });
+  const _StatPill({required this.label, required this.value});
 
   final String label;
   final String value;

@@ -11,7 +11,7 @@ import '../theme/spacing.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/social_button.dart';
 import '../widgets/divider_with_label.dart';
-import '../localization/app_localizations.dart';   //  ADDED
+import '../localization/app_localizations.dart'; //  ADDED
 import 'email_verification_page.dart';
 import '../widgets/app_toast.dart';
 import '../core/account_storage.dart';
@@ -20,8 +20,6 @@ import 'expert_questionnaire.dart';
 import '../services/core/notification_service.dart';
 import '../services/metrics/daily_metrics_sync.dart';
 import '../services/whoop/whoop_daily_sync.dart';
-
-
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key, this.isExpert = false});
@@ -118,11 +116,7 @@ class _SignupPageState extends State<SignupPage> {
 
     try {
       final response = await http
-          .post(
-            url,
-            headers: {"Content-Type": "application/json"},
-            body: body,
-          )
+          .post(url, headers: {"Content-Type": "application/json"}, body: body)
           .timeout(const Duration(seconds: 12));
 
       setState(() => loading = false);
@@ -135,10 +129,8 @@ class _SignupPageState extends State<SignupPage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => EmailVerificationPage(
-              email: mail,
-              isExpert: widget.isExpert,
-            ),
+            builder: (_) =>
+                EmailVerificationPage(email: mail, isExpert: widget.isExpert),
           ),
         );
       } else {
@@ -147,10 +139,11 @@ class _SignupPageState extends State<SignupPage> {
           decoded = jsonDecode(response.body);
         } catch (_) {}
 
-        final msg = (decoded?["detail"] ??
-                response.reasonPhrase ??
-                t.translate("signup_failed"))
-            .toString();
+        final msg =
+            (decoded?["detail"] ??
+                    response.reasonPhrase ??
+                    t.translate("signup_failed"))
+                .toString();
 
         _showSnack(msg);
       }
@@ -178,14 +171,16 @@ class _SignupPageState extends State<SignupPage> {
 
     // Same as Google sign-in: read access_token and user_id from response
     final rawId = result["user_id"] ?? result["id"];
-    final int userId =
-        rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
-    final accessToken = (result["access_token"] ??
-            result["accessToken"] ??
-            result["jwt"] ??
-            result["token"])
-        ?.toString()
-        ?.trim();
+    final int userId = rawId is int
+        ? rawId
+        : int.tryParse(rawId?.toString() ?? '') ?? 0;
+    final accessToken =
+        (result["access_token"] ??
+                result["accessToken"] ??
+                result["jwt"] ??
+                result["token"])
+            ?.toString()
+            ?.trim();
 
     if (userId <= 0 || accessToken == null || accessToken.isEmpty) {
       if (!mounted) return;
@@ -207,10 +202,16 @@ class _SignupPageState extends State<SignupPage> {
       expertQuestionnaireDone: false,
       authProvider: "google",
     );
+    await AccountStorage.markSkipDailyJournalPromptForNextSession(
+      userId: userId,
+    );
 
     final savedId = await AccountStorage.getUserId();
     final savedToken = await AccountStorage.getAccessToken();
-    if (savedId == null || savedId <= 0 || savedToken == null || savedToken.isEmpty) {
+    if (savedId == null ||
+        savedId <= 0 ||
+        savedToken == null ||
+        savedToken.isEmpty) {
       if (!mounted) return;
       _showSnack(t.translate("google_failed"));
       return;
@@ -284,14 +285,16 @@ class _SignupPageState extends State<SignupPage> {
     }
 
     final rawId = result["user_id"] ?? result["id"];
-    final int userId =
-        rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
-    final accessToken = (result["access_token"] ??
-            result["accessToken"] ??
-            result["jwt"] ??
-            result["token"])
-        ?.toString()
-        ?.trim();
+    final int userId = rawId is int
+        ? rawId
+        : int.tryParse(rawId?.toString() ?? '') ?? 0;
+    final accessToken =
+        (result["access_token"] ??
+                result["accessToken"] ??
+                result["jwt"] ??
+                result["token"])
+            ?.toString()
+            ?.trim();
 
     if (userId <= 0 || accessToken == null || accessToken.isEmpty) {
       if (!mounted) return;
@@ -313,10 +316,16 @@ class _SignupPageState extends State<SignupPage> {
       expertQuestionnaireDone: false,
       authProvider: "apple",
     );
+    await AccountStorage.markSkipDailyJournalPromptForNextSession(
+      userId: userId,
+    );
 
     final savedId = await AccountStorage.getUserId();
     final savedToken = await AccountStorage.getAccessToken();
-    if (savedId == null || savedId <= 0 || savedToken == null || savedToken.isEmpty) {
+    if (savedId == null ||
+        savedId <= 0 ||
+        savedToken == null ||
+        savedToken.isEmpty) {
       if (!mounted) return;
       _showSnack(t.translate("apple_failed"));
       return;
@@ -391,16 +400,14 @@ class _SignupPageState extends State<SignupPage> {
     });
   }
 
-
-
-
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     final titleKey = widget.isExpert ? "signup_expert_title" : "signup_title";
     final buttonKey = widget.isExpert ? "signup_expert_btn" : "signup_btn";
 
-    final canSubmit = !loading &&
+    final canSubmit =
+        !loading &&
         username.text.trim().isNotEmpty &&
         email.text.trim().isNotEmpty &&
         firstName.text.trim().isNotEmpty &&
@@ -430,14 +437,17 @@ class _SignupPageState extends State<SignupPage> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.workspace_premium, color: AppColors.accent),
+                    const Icon(
+                      Icons.workspace_premium,
+                      color: AppColors.accent,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         t.translate("signup_expert_note"),
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.white,
-                            ),
+                          color: AppColors.white,
+                        ),
                       ),
                     ),
                   ],
@@ -500,7 +510,8 @@ class _SignupPageState extends State<SignupPage> {
                 hintText: t.translate("password_hint"),
                 suffixIcon: IconButton(
                   icon: Icon(
-                      passwordVisible ? Icons.visibility_off : Icons.visibility),
+                    passwordVisible ? Icons.visibility_off : Icons.visibility,
+                  ),
                   onPressed: () =>
                       setState(() => passwordVisible = !passwordVisible),
                 ),
@@ -518,7 +529,9 @@ class _SignupPageState extends State<SignupPage> {
                         height: 22,
                         width: 22,
                         child: CircularProgressIndicator(
-                            color: Colors.black, strokeWidth: 2),
+                          color: Colors.black,
+                          strokeWidth: 2,
+                        ),
                       )
                     : Text(t.translate(buttonKey)),
               ),

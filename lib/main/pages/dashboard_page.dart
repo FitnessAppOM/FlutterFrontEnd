@@ -107,6 +107,9 @@ class DashboardPageState extends State<DashboardPage>
   static const int _journalResetHour = 6;
   static const String _journalPromptShownKey =
       "daily_journal_prompt_shown_date_6am";
+
+  String _journalPromptShownKeyForUser(int userId) =>
+      "${_journalPromptShownKey}_u$userId";
   static const List<String> _defaultStatOrder = [
     'steps',
     'sleep',
@@ -703,15 +706,24 @@ class DashboardPageState extends State<DashboardPage>
     final userId = await AccountStorage.getUserId();
     if (userId == null) return;
 
+    final shouldSkipForFirstSignupSession =
+        await AccountStorage.consumeSkipDailyJournalPromptForNextSession(
+          userId: userId,
+        );
+    if (shouldSkipForFirstSignupSession) {
+      return;
+    }
+
     final journalDay = _journalDay(now);
     final dayKey = _formatJournalDay(journalDay);
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getString(_journalPromptShownKey) == dayKey) return;
+    final promptShownKey = _journalPromptShownKeyForUser(userId);
+    if (prefs.getString(promptShownKey) == dayKey) return;
 
     try {
       final entry = await DailyJournalApi.fetchForDate(userId, journalDay);
       if (entry != null) {
-        await prefs.setString(_journalPromptShownKey, dayKey);
+        await prefs.setString(promptShownKey, dayKey);
         return;
       }
     } catch (_) {
@@ -729,7 +741,7 @@ class DashboardPageState extends State<DashboardPage>
       borderColor: const Color(0xFFD4AF37),
     );
 
-    await prefs.setString(_journalPromptShownKey, dayKey);
+    await prefs.setString(promptShownKey, dayKey);
     if (confirmed == true && mounted) {
       await Navigator.of(
         context,

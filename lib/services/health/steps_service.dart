@@ -30,7 +30,7 @@ class StepsService {
       return manual[todayKey]!;
     }
 
-    final granted = await ConsentManager.requestAllHealth();
+    final granted = await ConsentManager.requestUnifiedHealthPermissionsJIT();
     if (!granted) {
       // Debug: permission was denied or unavailable.
       // ignore: avoid_print
@@ -47,7 +47,9 @@ class StepsService {
         final total = await _health.getTotalStepsInInterval(start, end);
         if (total != null) {
           // ignore: avoid_print
-          print("StepsService: total steps via getTotalStepsInInterval = $total");
+          print(
+            "StepsService: total steps via getTotalStepsInInterval = $total",
+          );
           return total;
         }
       } catch (e) {
@@ -62,7 +64,9 @@ class StepsService {
       );
       // Debug: inspect returned samples.
       // ignore: avoid_print
-      print("StepsService: fetched ${data.length} step samples from $start to $end");
+      print(
+        "StepsService: fetched ${data.length} step samples from $start to $end",
+      );
 
       final steps = data
           .where((e) => e.type == HealthDataType.STEPS)
@@ -82,7 +86,7 @@ class StepsService {
     required DateTime start,
     required DateTime end,
   }) async {
-    final granted = await ConsentManager.requestAllHealth();
+    final granted = await ConsentManager.requestUnifiedHealthPermissionsJIT();
     if (!granted) return {};
 
     try {
@@ -113,7 +117,9 @@ class StepsService {
     } catch (e) {
       // Unsupported platform/Health Connect missing—fallback to manual data.
       // ignore: avoid_print
-      print("StepsService: daily steps fetch failed, returning manual data: $e");
+      print(
+        "StepsService: daily steps fetch failed, returning manual data: $e",
+      );
       final manual = await _loadManualEntries();
       return manual;
     }
@@ -121,13 +127,15 @@ class StepsService {
 
   Future<int> fetchStepsForDay(DateTime day) async {
     final start = DateTime(day.year, day.month, day.day);
-    final end = start.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
+    final end = start
+        .add(const Duration(days: 1))
+        .subtract(const Duration(milliseconds: 1));
     final map = await fetchDailySteps(start: start, end: end);
     return map[start] ?? 0;
   }
 
   Future<int> fetchStepsBetween(DateTime start, DateTime end) async {
-    final granted = await ConsentManager.requestAllHealth();
+    final granted = await ConsentManager.requestUnifiedHealthPermissionsJIT();
     if (!granted) return 0;
 
     try {
@@ -157,9 +165,12 @@ class StepsService {
     final existing = await _loadManualEntries();
     final normalized = DateTime(day.year, day.month, day.day);
     existing[normalized] = steps;
-    final encoded = existing.map((k, v) => MapEntry(
+    final encoded = existing.map(
+      (k, v) => MapEntry(
         "${k.year}-${k.month.toString().padLeft(2, '0')}-${k.day.toString().padLeft(2, '0')}",
-        v));
+        v,
+      ),
+    );
     final key = await _scopedKey(_manualKey);
     await sp.setString(key, jsonEncode(encoded));
   }

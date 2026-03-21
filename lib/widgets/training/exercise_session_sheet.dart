@@ -12,6 +12,7 @@ import '../../services/training/exercise_action_queue.dart';
 import '../../services/training/training_completion_storage.dart';
 import '../../services/training/training_progress_storage.dart';
 import '../../services/training/training_activity_service.dart';
+import '../../services/health/workout_health_sync_service.dart';
 import '../../consents/consent_manager.dart';
 import '../../core/account_storage.dart';
 import '../../widgets/cardio/cardio_map.dart';
@@ -955,6 +956,11 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   }
 
   Future<void> _startExercise() async {
+    // If a paused/running session exists for this exercise, restore it first
+    // so tapping continue/resume never creates a fresh 00:00 session.
+    if (!started) {
+      await _restoreActiveSession();
+    }
     final currentPeId = _programExerciseId();
     if (currentPeId != null) {
       await TrainingProgressStorage.clearOtherExerciseTimers(currentPeId);
@@ -2159,8 +2165,14 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       timer?.cancel();
       _stopCardioStepsTracking();
       await TrainingActivityService.stopSession();
-      await TrainingProgressStorage.saveLastExerciseFinishedMs(
-        DateTime.now().millisecondsSinceEpoch,
+      final finishedAtMs = DateTime.now().millisecondsSinceEpoch;
+      await TrainingProgressStorage.saveLastExerciseFinishedMs(finishedAtMs);
+      final exerciseName =
+          (widget.exercise['exercise_name'] ?? widget.exercise['name'] ?? '')
+              .toString();
+      await TrainingProgressStorage.saveSessionCompletedExerciseName(
+        exerciseName,
+        finishedAtMs: finishedAtMs,
       );
       final peId = _programExerciseId();
       if (peId != null) {
@@ -2283,6 +2295,28 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       if (isCardio) {
         final distanceKmValue = _cardioDistanceMeters / 1000.0;
         final shouldPersistCardio = distanceKmValue >= 0.1;
+        final workoutNameRaw =
+            (widget.exercise['exercise_name'] ?? widget.exercise['name'] ?? '')
+                .toString()
+                .trim();
+        final workoutName = workoutNameRaw.isEmpty
+            ? "Cardio Session"
+            : workoutNameRaw;
+        final durationSeconds = seconds > 0 ? seconds : 1;
+        final startTime = now.subtract(Duration(seconds: durationSeconds));
+        try {
+          await WorkoutHealthSyncService().writeWorkoutSession(
+            start: startTime,
+            end: now,
+            title: workoutName,
+            exerciseName: workoutName,
+            isCardio: true,
+            totalDistanceMeters: _cardioDistanceMeters.round(),
+            stepsCount: _cardioSteps,
+          );
+        } catch (_) {
+          // Ignore health write failures and continue finishing cardio session.
+        }
         final rawExerciseId = widget.exercise['exercise_id'];
         final int? exerciseId = rawExerciseId is int
             ? rawExerciseId

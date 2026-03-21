@@ -1,9 +1,13 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 
 import '../../core/account_storage.dart';
+import '../../services/health/workout_health_sync_service.dart';
 import '../../services/training/training_service.dart';
+import '../../widgets/app_toast.dart';
+import '../../widgets/training/training_history_health_push_dialog.dart';
 import 'training_history_day_detail_page.dart';
 
 class TrainingHistoryPage extends StatefulWidget {
@@ -17,6 +21,7 @@ class TrainingHistoryPage extends StatefulWidget {
 
 class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
   bool _loading = true;
+  bool _pushingHistoryToHealth = false;
   List<_TrainingHistoryEntry> _entries = const [];
 
   @override
@@ -118,11 +123,7 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
               ? _defaultWeekLabel(weekStart)
               : weekLabel,
           completedExercises: completedExercises,
-          latestDate: DateTime(
-            latestDate.year,
-            latestDate.month,
-            latestDate.day,
-          ),
+          latestDate: latestDate,
           programId: programId,
           planDaysPerWeek: (planDaysPerWeek != null && planDaysPerWeek > 0)
               ? planDaysPerWeek
@@ -468,7 +469,7 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
               dayKey: dayKey,
               weekStart: weekStart,
               totalCount: totalCount,
-              latestDate: DateTime(dt.year, dt.month, dt.day),
+              latestDate: dt,
               programId: programId,
               planDaysPerWeek: planDaysPerWeek,
             ),
@@ -484,6 +485,339 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
     return entries;
   }
 
+  Map<String, dynamic>? _extractComplianceMap(dynamic value) {
+    if (value == null) return null;
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    if (value is String) {
+      try {
+        final decoded = jsonDecode(value);
+        if (decoded is Map<String, dynamic>) return decoded;
+        if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  int _positiveInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value > 0 ? value : 0;
+    if (value is num) {
+      final v = value.toInt();
+      return v > 0 ? v : 0;
+    }
+    final parsed = int.tryParse(value.toString().trim());
+    if (parsed == null || parsed <= 0) return 0;
+    return parsed;
+  }
+
+  int _estimateHistoryDurationSeconds(_TrainingHistoryEntry entry) {
+    int seconds = 0;
+    for (final ex in entry.completedExercises) {
+      final compliance =
+          _extractComplianceMap(ex['program_compliance']) ??
+          _extractComplianceMap(ex['compliance']);
+      seconds += _positiveInt(compliance?['performed_time_seconds']);
+      seconds += _positiveInt(ex['duration_seconds']);
+      seconds += _positiveInt(ex['performed_time_seconds']);
+      seconds += _positiveInt(ex['time_seconds']);
+      seconds += _positiveInt(ex['elapsed_seconds']);
+
+      if (seconds == 0) {
+        final sets = _positiveInt(
+          compliance?['performed_sets'] ?? ex['performed_sets'] ?? ex['sets'],
+        );
+        final reps = _positiveInt(
+          compliance?['performed_reps'] ?? ex['performed_reps'] ?? ex['reps'],
+        );
+        if (sets > 0 && reps > 0) {
+          seconds += (sets * reps * 3);
+        }
+      }
+    }
+
+    if (seconds <= 0) {
+      final count = entry.completedCount > 0
+          ? entry.completedCount
+          : entry.completedExercises.length;
+      final estimated = count * 300;
+      return estimated.clamp(600, 14400);
+    }
+
+    final count = entry.completedCount > 0
+        ? entry.completedCount
+        : entry.completedExercises.length;
+    final minimumFromCount = count * 90;
+    final normalized = seconds < minimumFromCount ? minimumFromCount : seconds;
+    return normalized.clamp(300, 14400);
+  }
+
+  DateTime _seedHistorySessionEnd(DateTime day, int index) {
+    final base = DateTime(day.year, day.month, day.day, 18, 0);
+    return base.add(Duration(minutes: index % 180));
+  }
+
+  bool _hasClockTime(DateTime dt) {
+    return dt.hour != 0 ||
+        dt.minute != 0 ||
+        dt.second != 0 ||
+        dt.millisecond != 0 ||
+        dt.microsecond != 0;
+  }
+
+  DateTime? _parseTimestampWithClock(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) {
+      if (!_hasClockTime(value)) return null;
+      final utc = value.toUtc();
+      final isMidnightUtc =
+          utc.hour == 0 &&
+          utc.minute == 0 &&
+          utc.second == 0 &&
+          utc.millisecond == 0 &&
+          utc.microsecond == 0;
+      return isMidnightUtc ? null : value;
+    }
+    if (value is String) {
+      final raw = value.trim();
+      if (raw.isEmpty) return null;
+      final hasClock =
+          raw.contains('T') || RegExp(r'\d{1,2}:\d{2}').hasMatch(raw);
+      if (!hasClock) return null;
+      final dt = DateTime.tryParse(raw);
+      if (dt == null) return null;
+      final utc = dt.toUtc();
+      final isMidnightUtc =
+          utc.hour == 0 &&
+          utc.minute == 0 &&
+          utc.second == 0 &&
+          utc.millisecond == 0 &&
+          utc.microsecond == 0;
+      return isMidnightUtc ? null : dt;
+    }
+    final dt = _parseDateTime(value);
+    if (dt == null || !_hasClockTime(dt)) return null;
+    final utc = dt.toUtc();
+    final isMidnightUtc =
+        utc.hour == 0 &&
+        utc.minute == 0 &&
+        utc.second == 0 &&
+        utc.millisecond == 0 &&
+        utc.microsecond == 0;
+    return isMidnightUtc ? null : dt;
+  }
+
+  DateTime? _extractLatestExerciseTimestamp(Map<String, dynamic> ex) {
+    DateTime? best;
+    void consider(DateTime? dt) {
+      if (dt == null) return;
+      if (best == null || dt.isAfter(best!)) {
+        best = dt;
+      }
+    }
+
+    final complianceMaps = <Map<String, dynamic>?>[
+      _extractComplianceMap(ex['program_compliance']),
+      _extractComplianceMap(ex['compliance']),
+    ];
+    for (final c in complianceMaps) {
+      if (c == null) continue;
+      consider(_parseTimestampWithClock(c['logged_at']));
+      consider(_parseTimestampWithClock(c['performed_at']));
+      consider(_parseTimestampWithClock(c['last_performed_at']));
+      consider(_parseTimestampWithClock(c['ended_at']));
+      consider(_parseTimestampWithClock(c['end_time']));
+      consider(_parseTimestampWithClock(c['finished_at']));
+      consider(_parseTimestampWithClock(c['completed_at']));
+      consider(_parseTimestampWithClock(c['updated_at']));
+    }
+
+    consider(_parseTimestampWithClock(ex['logged_at']));
+    consider(_parseTimestampWithClock(ex['performed_at']));
+    consider(_parseTimestampWithClock(ex['last_performed_at']));
+    consider(_parseTimestampWithClock(ex['ended_at']));
+    consider(_parseTimestampWithClock(ex['end_time']));
+    consider(_parseTimestampWithClock(ex['finished_at']));
+    consider(_parseTimestampWithClock(ex['completed_at']));
+    consider(_parseTimestampWithClock(ex['updated_at']));
+    return best;
+  }
+
+  DateTime _resolveHistorySessionEnd(_TrainingHistoryEntry entry, int index) {
+    DateTime? best;
+    for (final ex in entry.completedExercises) {
+      final ts = _extractLatestExerciseTimestamp(ex);
+      if (ts != null && (best == null || ts.isAfter(best))) {
+        best = ts;
+      }
+    }
+    if (best != null) return best;
+    return _seedHistorySessionEnd(entry.latestDate, index);
+  }
+
+  String _historySessionTitle(_TrainingHistoryEntry entry) {
+    final label = entry.label.trim();
+    if (label.isEmpty) return 'TAQA Strength Workout';
+    return '$label Workout';
+  }
+
+  String _historySessionDedupeSignature({
+    required _TrainingHistoryEntry entry,
+    required DateTime start,
+    required DateTime end,
+  }) {
+    final exerciseKeys = <String>[];
+    for (final ex in entry.completedExercises) {
+      final raw =
+          ex['program_exercise_id'] ??
+          ex['exercise_id'] ??
+          ex['id'] ??
+          ex['exercise_name'];
+      final key = raw?.toString().trim();
+      if (key != null && key.isNotEmpty) {
+        exerciseKeys.add(key);
+      }
+    }
+    exerciseKeys.sort();
+    return [
+      'training_history',
+      entry.dayKey.trim().toLowerCase(),
+      entry.label.trim().toLowerCase(),
+      entry.completedCount.toString(),
+      entry.totalCount.toString(),
+      start.toUtc().millisecondsSinceEpoch.toString(),
+      end.toUtc().millisecondsSinceEpoch.toString(),
+      exerciseKeys.join(','),
+    ].join('|');
+  }
+
+  Future<void> _pushAllTrainingHistoryToAppleHealth() async {
+    if (_pushingHistoryToHealth) return;
+    if (!Platform.isIOS) {
+      AppToast.show(
+        context,
+        "This history push is for Apple Health on iOS.",
+        type: AppToastType.info,
+      );
+      return;
+    }
+
+    final candidates = _entries
+        .where((e) => e.completedCount > 0 && e.completedExercises.isNotEmpty)
+        .toList();
+    if (candidates.isEmpty) {
+      AppToast.show(
+        context,
+        "No completed training days found to push.",
+        type: AppToastType.info,
+      );
+      return;
+    }
+
+    final totalExercises = candidates.fold<int>(
+      0,
+      (sum, e) => sum + e.completedExercises.length,
+    );
+    final confirmed = await showTrainingHistoryHealthPushDialog(
+      context,
+      totalDays: candidates.length,
+      totalExercises: totalExercises,
+    );
+    if (!confirmed) return;
+
+    if (!mounted) return;
+    setState(() {
+      _pushingHistoryToHealth = true;
+    });
+
+    try {
+      final sync = WorkoutHealthSyncService();
+      int written = 0;
+      int skipped = 0;
+      int failed = 0;
+      for (int i = 0; i < candidates.length; i++) {
+        final entry = candidates[i];
+        final durationSeconds = _estimateHistoryDurationSeconds(entry);
+        final end = _resolveHistorySessionEnd(entry, i);
+        final start = end.subtract(Duration(seconds: durationSeconds));
+        final result = await sync.writeWorkoutSessionWithStatus(
+          start: start,
+          end: end,
+          title: _historySessionTitle(entry),
+          exerciseName: _historySessionTitle(entry),
+          isCardio: false,
+          workoutBrandName: entry.label,
+          isIndoorWorkout: true,
+          dedupeSignature: _historySessionDedupeSignature(
+            entry: entry,
+            start: start,
+            end: end,
+          ),
+        );
+        switch (result.status) {
+          case WorkoutSessionWriteStatus.written:
+            written += 1;
+            break;
+          case WorkoutSessionWriteStatus.skippedDuplicate:
+            skipped += 1;
+            break;
+          case WorkoutSessionWriteStatus.failed:
+            failed += 1;
+            break;
+        }
+      }
+
+      if (!mounted) return;
+      final total = candidates.length;
+      if (written > 0 && skipped == 0 && failed == 0) {
+        AppToast.show(
+          context,
+          "Finished: pushed $written/$total training days to Apple Health.",
+          type: AppToastType.success,
+        );
+      } else if (written == 0 && skipped > 0 && failed == 0) {
+        AppToast.show(
+          context,
+          "Finished: all $skipped/$total training days were already in Apple Health.",
+          type: AppToastType.info,
+        );
+      } else if (written > 0 && failed == 0) {
+        AppToast.show(
+          context,
+          "Finished: pushed $written new, skipped $skipped already in Apple Health.",
+          type: AppToastType.success,
+        );
+      } else if (written > 0 || skipped > 0) {
+        AppToast.show(
+          context,
+          "Finished with issues: pushed $written, skipped $skipped, failed $failed.",
+          type: AppToastType.info,
+        );
+      } else {
+        AppToast.show(
+          context,
+          "Failed: couldn't push training history to Apple Health.",
+          type: AppToastType.error,
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        "Failed: couldn't push training history to Apple Health.",
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _pushingHistoryToHealth = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final groupedEntries = _groupEntriesByPlan(_entries);
@@ -493,6 +827,21 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
         backgroundColor: const Color(0xFF0F1014),
         elevation: 0,
         title: const Text("Training history"),
+        actions: [
+          IconButton(
+            tooltip: "Push history to Apple Health",
+            onPressed: _loading || _pushingHistoryToHealth
+                ? null
+                : _pushAllTrainingHistoryToAppleHealth,
+            icon: _pushingHistoryToHealth
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.cloud_upload_outlined),
+          ),
+        ],
       ),
       body: _loading
           ? const Center(
@@ -604,9 +953,8 @@ class _TrainingHistoryEntryBuilder {
   final Set<String> _exerciseIds = {};
 
   void touch(DateTime date) {
-    final day = DateTime(date.year, date.month, date.day);
-    if (day.isAfter(latestDate)) {
-      latestDate = day;
+    if (date.isAfter(latestDate)) {
+      latestDate = date;
     }
   }
 

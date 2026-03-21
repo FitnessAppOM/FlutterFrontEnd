@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:permission_handler/permission_handler.dart';
 
+import '../../consents/consent_manager.dart';
+import '../../widgets/app_toast.dart';
 import '../../widgets/training/exercise_card.dart';
-import '../../widgets/cardio/cardio_map.dart';
 import '../../services/training/cardio_session_queue.dart';
 import '../../services/training/training_activity_service.dart';
 import '../../services/training/training_service.dart';
@@ -180,22 +181,23 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     CardioSessionQueue.syncQueue();
-    _loadPausedSession();
+    _loadCardioSessionState();
     _loadCardioLibraryFromCache();
     _loadCardioLibrary();
     AccountStorage.trainingChange.addListener(_handleTrainingChange);
+    _refreshAlwaysLocationPermission();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _loadPausedSession();
+    _loadCardioSessionState();
   }
 
   @override
   void didUpdateWidget(covariant CardioTab oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _loadPausedSession();
+    _loadCardioSessionState();
     if (widget.exercises != oldWidget.exercises) {
       _precacheGifs(widget.exercises);
     }
@@ -210,22 +212,27 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
 
   void _handleTrainingChange() {
     if (!mounted) return;
-    setState(() => _showPausedOverlay = true);
-    _loadPausedSession();
+    setState(() => _showSessionOverlay = true);
+    _loadCardioSessionState();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _loadPausedSession();
+      _loadCardioSessionState();
+      _refreshAlwaysLocationPermission();
     }
   }
 
-  bool _hasPausedSession = false;
-  String? _pausedExerciseName;
-  bool _showPausedOverlay = false;
+  bool _hasCardioSession = false;
+  bool _cardioSessionPaused = false;
+  String? _sessionExerciseName;
+  bool _showSessionOverlay = false;
   List<Map<String, dynamic>> _cardioLibrary = const [];
   bool _loadingCardioLibrary = false;
+  bool _hasAlwaysLocationPermission = true;
+  bool _locationPermissionLoaded = false;
+  bool _requestingAlwaysLocationPermission = false;
 
   bool _isCardioSession(Map<String, dynamic>? session) {
     if (session == null) return false;
@@ -234,16 +241,69 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
     return distance is num || pace is num;
   }
 
-  Future<void> _loadPausedSession() async {
+  Future<void> _loadCardioSessionState() async {
     final session = await TrainingActivityService.getActiveSession();
-    final paused = session != null && session['paused'] == true;
-    final pausedCardio = paused && _isCardioSession(session);
+    final isCardio = _isCardioSession(session);
+    final hasCardioSession = session != null && isCardio;
+    final paused = hasCardioSession && session['paused'] == true;
+    final rawName = hasCardioSession ? session['name']?.toString() : null;
     if (!mounted) return;
     setState(() {
-      _hasPausedSession = pausedCardio;
-      _pausedExerciseName = pausedCardio ? (session['name'] as String?) : null;
-      _showPausedOverlay = false;
+      _hasCardioSession = hasCardioSession;
+      _cardioSessionPaused = paused;
+      _sessionExerciseName = rawName;
+      _showSessionOverlay = false;
     });
+  }
+
+  Future<void> _refreshAlwaysLocationPermission() async {
+    final hasAlways = await ConsentManager.hasBackgroundLocationPermission();
+    if (!mounted) return;
+    setState(() {
+      _hasAlwaysLocationPermission = hasAlways;
+      _locationPermissionLoaded = true;
+    });
+  }
+
+  Future<bool> _ensureAlwaysLocationBeforeStart() async {
+    final hasAlways = await ConsentManager.hasBackgroundLocationPermission();
+    if (!mounted) return hasAlways;
+    setState(() {
+      _hasAlwaysLocationPermission = hasAlways;
+      _locationPermissionLoaded = true;
+    });
+    if (hasAlways) return true;
+    AppToast.show(
+      context,
+      "Allow 'Always' location to start cardio tracking.",
+      type: AppToastType.info,
+    );
+    return false;
+  }
+
+  Future<void> _requestAlwaysLocationPermission() async {
+    if (_requestingAlwaysLocationPermission) return;
+    setState(() => _requestingAlwaysLocationPermission = true);
+    try {
+      await ConsentManager.requestBackgroundLocationJIT();
+      await _refreshAlwaysLocationPermission();
+      if (!mounted) return;
+      if (!_hasAlwaysLocationPermission) {
+        AppToast.show(
+          context,
+          "Enable 'Always' location in Settings to use cardio sessions.",
+          type: AppToastType.info,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _requestingAlwaysLocationPermission = false);
+      }
+    }
+  }
+
+  Future<void> _openLocationSettings() async {
+    await openAppSettings();
   }
 
   Future<void> _loadCardioLibraryFromCache() async {
@@ -324,13 +384,22 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
     }).toList();
   }
 
-  void _continuePausedSession(List<Map<String, dynamic>> list) {
-    final targetName = _pausedExerciseName?.trim().toLowerCase();
-    if (targetName == null || targetName.isEmpty) {
+  String _normalizeName(String? name) {
+    return (name ?? '').trim().toLowerCase();
+  }
+
+  bool _isSessionExercise(Map<String, dynamic> ex) {
+    if (!_hasCardioSession) return false;
+    final targetName = _normalizeName(_sessionExerciseName);
+    if (targetName.isEmpty) return false;
+    return _normalizeName(ex['exercise_name']?.toString()) == targetName;
+  }
+
+  void _continueCardioSession(List<Map<String, dynamic>> list) {
+    final targetName = _normalizeName(_sessionExerciseName);
+    if (targetName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Couldn't find the paused cardio session."),
-        ),
+        const SnackBar(content: Text("Couldn't find the cardio session.")),
       );
       return;
     }
@@ -357,18 +426,17 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
     await TrainingActivityService.stopSession();
     if (!mounted) return;
     setState(() {
-      _hasPausedSession = false;
-      _pausedExerciseName = null;
+      _hasCardioSession = false;
+      _cardioSessionPaused = false;
+      _sessionExerciseName = null;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final token = dotenv.isInitialized
-        ? dotenv.maybeGet('MAPBOX_PUBLIC_KEY')
-        : null;
-    final hasToken = token != null && token.trim().isNotEmpty;
     final bool hasProgramCardio = widget.exercises.isNotEmpty;
+    final bool locationGateActive =
+        _locationPermissionLoaded && !_hasAlwaysLocationPermission;
     final List<Map<String, dynamic>> list = hasProgramCardio
         ? widget.exercises
         : (_cardioLibrary.isNotEmpty
@@ -426,54 +494,195 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
               ),
             ),
             const SizedBox(height: 16),
-            if (_hasPausedSession)
-              CardioResumeBanner(
-                onContinue: () => _continuePausedSession(list),
-                onCancel: _cancelPausedSession,
+            if (locationGateActive)
+              _CardioAlwaysLocationGate(
+                requesting: _requestingAlwaysLocationPermission,
+                onAllow: _requestAlwaysLocationPermission,
+                onSettings: _openLocationSettings,
               ),
-            if (list.isEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 16),
-                child: Text(
-                  "No cardio planned for this day",
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleMedium?.copyWith(color: Colors.white),
-                ),
-              )
-            else
-              ...list.map((ex) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: ExerciseCard(
-                    exercise: ex,
-                    disabled: _hasPausedSession,
-                    onTap: () => widget.onStart(ex),
-                    onReplace: () {
-                      if (!hasProgramCardio &&
-                          ex['program_exercise_id'] == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              "This cardio item is not in today's plan.",
-                            ),
+            IgnorePointer(
+              ignoring: locationGateActive,
+              child: Opacity(
+                opacity: locationGateActive ? 0.35 : 1,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_hasCardioSession)
+                      CardioResumeBanner(
+                        paused: _cardioSessionPaused,
+                        exerciseName: _sessionExerciseName,
+                        onContinue: () => _continueCardioSession(list),
+                        onCancel: _cancelPausedSession,
+                      ),
+                    if (list.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16),
+                        child: Text(
+                          "No cardio planned for this day",
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(color: Colors.white),
+                        ),
+                      )
+                    else
+                      ...list.map((ex) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: ExerciseCard(
+                            exercise: ex,
+                            disabled: _hasCardioSession,
+                            inProgress: _isSessionExercise(ex),
+                            onTap: () async {
+                              final canStart =
+                                  await _ensureAlwaysLocationBeforeStart();
+                              if (!canStart || _hasCardioSession) return;
+                              widget.onStart(ex);
+                            },
+                            onReplace: () {
+                              if (!hasProgramCardio &&
+                                  ex['program_exercise_id'] == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      "This cardio item is not in today's plan.",
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+                              if (_hasCardioSession) return;
+                              widget.onReplace(ex);
+                            },
                           ),
                         );
-                        return;
-                      }
-                      if (_hasPausedSession) return;
-                      widget.onReplace(ex);
-                    },
-                  ),
-                );
-              }).toList(),
+                      }),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
-        if (_showPausedOverlay)
+        if (_showSessionOverlay)
           const Positioned.fill(child: ColoredBox(color: Colors.black54)),
       ],
     );
   }
 
   // Map UI moved to CardioMap widget.
+}
+
+class _CardioAlwaysLocationGate extends StatelessWidget {
+  const _CardioAlwaysLocationGate({
+    required this.requesting,
+    required this.onAllow,
+    required this.onSettings,
+  });
+
+  final bool requesting;
+  final VoidCallback onAllow;
+  final VoidCallback onSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1A2338), Color(0xFF101826)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.35),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.08),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.location_on, color: Colors.white70),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Location access required",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  "Allow 'Always' location before starting cardio sessions.",
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          _LocationGateActionChip(
+            label: requesting ? "Checking..." : "Allow",
+            filled: true,
+            onTap: requesting ? null : onAllow,
+          ),
+          const SizedBox(width: 8),
+          _LocationGateActionChip(
+            label: "Settings",
+            filled: false,
+            onTap: requesting ? null : onSettings,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LocationGateActionChip extends StatelessWidget {
+  const _LocationGateActionChip({
+    required this.label,
+    required this.filled,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool filled;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: filled ? Colors.white : Colors.white.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.18)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: filled ? Colors.black : Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -3,15 +3,28 @@ import 'package:flutter/material.dart';
 class CardioResumeBanner extends StatelessWidget {
   const CardioResumeBanner({
     super.key,
+    required this.paused,
     required this.onContinue,
     required this.onCancel,
+    this.exerciseName,
   });
 
+  final bool paused;
   final VoidCallback onContinue;
   final VoidCallback onCancel;
+  final String? exerciseName;
 
   @override
   Widget build(BuildContext context) {
+    final title = paused ? "Cardio paused" : "Cardio in progress";
+    final subtitle = paused
+        ? "Continue or cancel the cardio exercise you left."
+        : "Return or cancel the cardio exercise you left.";
+    final primaryLabel = paused ? "Continue" : "Return";
+    final icon = paused
+        ? Icons.pause_circle_filled
+        : Icons.play_circle_fill_rounded;
+    final safeName = exerciseName?.trim() ?? '';
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(14),
@@ -40,43 +53,45 @@ class CardioResumeBanner extends StatelessWidget {
               color: Colors.white.withOpacity(0.08),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.pause_circle_filled, color: Colors.white70),
+            child: Icon(icon, color: Colors.white70),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
-                  "Cardio paused",
-                  style: TextStyle(
+                  title,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
+                if (safeName.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    safeName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFFFFD68A),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
                 SizedBox(height: 4),
                 Text(
-                  "Continue or cancel the cardio exercise you left.",
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                  ),
+                  subtitle,
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 10),
-          _ActionChip(
-            label: "Continue",
-            filled: true,
-            onTap: onContinue,
-          ),
+          _ActionChip(label: primaryLabel, filled: true, onTap: onContinue),
           const SizedBox(width: 8),
-          _ActionChip(
-            label: "Cancel",
-            filled: false,
-            onTap: onCancel,
-          ),
+          _ActionChip(label: "Cancel", filled: false, onTap: onCancel),
         ],
       ),
     );

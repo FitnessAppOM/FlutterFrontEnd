@@ -7,7 +7,7 @@ import '../config/base_url.dart';
 import '../theme/app_theme.dart';
 import '../theme/spacing.dart';
 import '../widgets/primary_button.dart';
-import '../localization/app_localizations.dart';   // ADDED
+import '../localization/app_localizations.dart'; // ADDED
 import 'verification_success_page.dart';
 import '../widgets/app_toast.dart';
 import '../services/core/notification_service.dart';
@@ -63,10 +63,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
       final response = await http.post(
         url,
         headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "email": widget.email,
-          "code": code,
-        }),
+        body: jsonEncode({"email": widget.email, "code": code}),
       );
 
       setState(() => loading = false);
@@ -78,12 +75,13 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
             ? rawId
             : (int.tryParse(rawId?.toString() ?? '') ?? 0);
         final email = widget.email;
-        final token = (data["access_token"] ??
-                data["accessToken"] ??
-                data["jwt"] ??
-                data["token"])
-            ?.toString()
-            ?.trim();
+        final token =
+            (data["access_token"] ??
+                    data["accessToken"] ??
+                    data["jwt"] ??
+                    data["token"])
+                ?.toString()
+                ?.trim();
 
         if (userId <= 0) {
           _show(t.translate("network_error"));
@@ -100,6 +98,9 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
           questionnaireDone: false,
           expertQuestionnaireDone: false,
           authProvider: "email",
+        );
+        await AccountStorage.markSkipDailyJournalPromptForNextSession(
+          userId: userId,
         );
 
         if (!mounted) return;
@@ -122,9 +123,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
           WhoopDailySync().pushIfNewDay().catchError((_) {});
         }
         return;
-      }
-
-      else {
+      } else {
         String msg = t.translate("verified_failed");
         try {
           msg = (jsonDecode(response.body)["detail"] ?? msg).toString();
@@ -193,13 +192,15 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
     if (parts.length != 2) return email;
     final name = parts[0];
     final domain = parts[1];
-    final visible = name.length <= 2 ? name : "${name.substring(0, 2)}${'*' * (name.length - 2)}";
+    final visible = name.length <= 2
+        ? name
+        : "${name.substring(0, 2)}${'*' * (name.length - 2)}";
     return "$visible@$domain";
   }
 
   @override
   Widget build(BuildContext context) {
-    final t = AppLocalizations.of(context);   // Translator
+    final t = AppLocalizations.of(context); // Translator
     final canSubmit = !loading && codeController.text.trim().length == 6;
 
     return Scaffold(
@@ -265,7 +266,9 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
             Center(
               child: resendCooldown
                   ? Text(
-                      t.translate("resend_wait").replaceAll("{seconds}", "$cooldownSeconds"),
+                      t
+                          .translate("resend_wait")
+                          .replaceAll("{seconds}", "$cooldownSeconds"),
                       style: const TextStyle(color: Colors.white54),
                     )
                   : TextButton(

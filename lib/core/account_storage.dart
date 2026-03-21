@@ -16,12 +16,15 @@ class AccountStorage {
   static const _kWhoopLinked = 'whoop_linked';
   static const _kFitbitLinked = 'fitbit_linked';
   static const _kStravaLinked = 'strava_linked';
+  static const _kSkipDailyJournalPromptOnce = 'skip_daily_journal_prompt_once';
   static String _whoopLinkedKey(int? userId) =>
       userId == null ? _kWhoopLinked : "${_kWhoopLinked}_u$userId";
   static String _fitbitLinkedKey(int? userId) =>
       userId == null ? _kFitbitLinked : "${_kFitbitLinked}_u$userId";
   static String _stravaLinkedKey(int? userId) =>
       userId == null ? _kStravaLinked : "${_kStravaLinked}_u$userId";
+  static String _skipDailyJournalPromptOnceKey(int userId) =>
+      "${_kSkipDailyJournalPromptOnce}_u$userId";
   static const _kMetricsKeys = [
     "manual_steps_entries",
     "manual_calories_entries",
@@ -136,9 +139,13 @@ class AccountStorage {
     }
     // Preserve questionnaire completion unless explicitly provided
     await sp.setBool(
-        _kQuestionnaireDone, questionnaireDone ?? existingQuestionnaireDone);
-    await sp.setBool(_kExpertQuestionnaireDone,
-        expertQuestionnaireDone ?? existingExpertQuestionnaireDone);
+      _kQuestionnaireDone,
+      questionnaireDone ?? existingQuestionnaireDone,
+    );
+    await sp.setBool(
+      _kExpertQuestionnaireDone,
+      expertQuestionnaireDone ?? existingExpertQuestionnaireDone,
+    );
     if (token != null && token.trim().isNotEmpty) {
       await sp.setString(_kToken, token.trim());
     }
@@ -149,7 +156,10 @@ class AccountStorage {
     notifyAccountChanged();
   }
 
-  static Future<void> _clearMetricsForUser(SharedPreferences sp, int? userId) async {
+  static Future<void> _clearMetricsForUser(
+    SharedPreferences sp,
+    int? userId,
+  ) async {
     for (final base in _kMetricsKeys) {
       final key = userId == null ? base : "${base}_u$userId";
       await sp.remove(key);
@@ -159,6 +169,29 @@ class AccountStorage {
   static Future<int?> getUserId() async {
     final sp = await SharedPreferences.getInstance();
     return sp.getInt(_kUserId);
+  }
+
+  static Future<void> markSkipDailyJournalPromptForNextSession({
+    int? userId,
+  }) async {
+    final sp = await SharedPreferences.getInstance();
+    final effectiveUserId = userId ?? sp.getInt(_kUserId);
+    if (effectiveUserId == null || effectiveUserId <= 0) return;
+    await sp.setBool(_skipDailyJournalPromptOnceKey(effectiveUserId), true);
+  }
+
+  static Future<bool> consumeSkipDailyJournalPromptForNextSession({
+    int? userId,
+  }) async {
+    final sp = await SharedPreferences.getInstance();
+    final effectiveUserId = userId ?? sp.getInt(_kUserId);
+    if (effectiveUserId == null || effectiveUserId <= 0) return false;
+    final key = _skipDailyJournalPromptOnceKey(effectiveUserId);
+    final shouldSkip = sp.getBool(key) ?? false;
+    if (shouldSkip) {
+      await sp.remove(key);
+    }
+    return shouldSkip;
   }
 
   static Future<String?> getEmail() async {
@@ -257,49 +290,49 @@ class AccountStorage {
     return sp.getString(_kAvatarUrl);
   }
 
+  static Future<void> clearSession() async {
+    final sp = await SharedPreferences.getInstance();
+    final currentUserId = sp.getInt(_kUserId);
 
-static Future<void> clearSession() async {
-  final sp = await SharedPreferences.getInstance();
-  final currentUserId = sp.getInt(_kUserId);
+    // Only remove session-related values
+    await sp.remove(_kUserId); // logged-in identity
+    await sp.remove(_kToken); // JWT/session token
+    await sp.remove(_kVerified); // verification flag
+    await sp.remove(_kIsExpert);
+    await sp.remove(_kQuestionnaireDone);
+    await sp.remove(_kExpertQuestionnaireDone);
+    await sp.remove(_kAvatarUrl);
+    await sp.remove(_kAvatarPath);
+    if (currentUserId != null) {
+      await sp.remove(_whoopLinkedKey(currentUserId));
+      await sp.remove(_fitbitLinkedKey(currentUserId));
+      await sp.remove(_stravaLinkedKey(currentUserId));
+      await sp.remove(_skipDailyJournalPromptOnceKey(currentUserId));
+    }
+    await sp.remove(_kWhoopLinked);
+    await sp.remove(_kFitbitLinked);
+    await sp.remove(_kStravaLinked);
 
-  // Only remove session-related values
-  await sp.remove(_kUserId);     // logged-in identity
-  await sp.remove(_kToken);      // JWT/session token
-  await sp.remove(_kVerified);   // verification flag
-  await sp.remove(_kIsExpert);
-  await sp.remove(_kQuestionnaireDone);
-  await sp.remove(_kExpertQuestionnaireDone);
-  await sp.remove(_kAvatarUrl);
-  await sp.remove(_kAvatarPath);
-  if (currentUserId != null) {
-    await sp.remove(_whoopLinkedKey(currentUserId));
-    await sp.remove(_fitbitLinkedKey(currentUserId));
-    await sp.remove(_stravaLinkedKey(currentUserId));
+    notifyAccountChanged();
   }
-  await sp.remove(_kWhoopLinked);
-  await sp.remove(_kFitbitLinked);
-  await sp.remove(_kStravaLinked);
 
-  notifyAccountChanged();
-
-}
-
-static Future<void> clearSessionOnly() async {
-  final sp = await SharedPreferences.getInstance();
-  final currentUserId = sp.getInt(_kUserId);
-  await sp.remove(_kToken);
-  await sp.remove(_kUserId);
-  if (currentUserId != null) {
-    await sp.remove(_whoopLinkedKey(currentUserId));
-    await sp.remove(_fitbitLinkedKey(currentUserId));
-    await sp.remove(_stravaLinkedKey(currentUserId));
+  static Future<void> clearSessionOnly() async {
+    final sp = await SharedPreferences.getInstance();
+    final currentUserId = sp.getInt(_kUserId);
+    await sp.remove(_kToken);
+    await sp.remove(_kUserId);
+    if (currentUserId != null) {
+      await sp.remove(_whoopLinkedKey(currentUserId));
+      await sp.remove(_fitbitLinkedKey(currentUserId));
+      await sp.remove(_stravaLinkedKey(currentUserId));
+      await sp.remove(_skipDailyJournalPromptOnceKey(currentUserId));
+    }
+    await sp.remove(_kWhoopLinked);
+    await sp.remove(_kFitbitLinked);
+    await sp.remove(_kStravaLinked);
+    // Keep email + name + verified → so “Login as…” still works
+    notifyAccountChanged();
   }
-  await sp.remove(_kWhoopLinked);
-  await sp.remove(_kFitbitLinked);
-  await sp.remove(_kStravaLinked);
-  // Keep email + name + verified → so “Login as…” still works
-  notifyAccountChanged();
-}
 
   static Future<void> clear() async {
     final sp = await SharedPreferences.getInstance();
@@ -319,6 +352,7 @@ static Future<void> clearSessionOnly() async {
       await sp.remove(_whoopLinkedKey(currentUserId));
       await sp.remove(_fitbitLinkedKey(currentUserId));
       await sp.remove(_stravaLinkedKey(currentUserId));
+      await sp.remove(_skipDailyJournalPromptOnceKey(currentUserId));
     }
     await sp.remove(_kWhoopLinked);
     await sp.remove(_kFitbitLinked);

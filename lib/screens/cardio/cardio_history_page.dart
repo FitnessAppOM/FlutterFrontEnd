@@ -1,7 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../../core/account_storage.dart';
+import '../../services/health/workout_health_sync_service.dart';
 import '../../services/training/training_service.dart';
+import '../../widgets/app_toast.dart';
 import 'cardio_history_detail_page.dart';
 
 class CardioHistoryPage extends StatefulWidget {
@@ -13,6 +17,7 @@ class CardioHistoryPage extends StatefulWidget {
 
 class _CardioHistoryPageState extends State<CardioHistoryPage> {
   bool _loading = true;
+  bool _backfillingHealth = false;
   String? _error;
   List<Map<String, dynamic>> _items = const [];
 
@@ -37,8 +42,13 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
       _error = null;
     });
     try {
-      final items = await TrainingService.fetchCardioHistory(userId: userId, limit: 100);
-      final filtered = items.where((e) => _toDouble(e['distance_km']) >= 0.1).toList();
+      final items = await TrainingService.fetchCardioHistory(
+        userId: userId,
+        limit: 100,
+      );
+      final filtered = items
+          .where((e) => _toDouble(e['distance_km']) >= 0.1)
+          .toList();
       if (!mounted) return;
       setState(() {
         _items = filtered;
@@ -49,10 +59,92 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
         _error = "Couldn't load cardio history.";
       });
     } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _pushAllCardioHistoryToAppleHealth() async {
+    if (_backfillingHealth) return;
+    if (!Platform.isIOS) {
       if (!mounted) return;
-      setState(() {
-        _loading = false;
-      });
+      AppToast.show(
+        context,
+        "This history push is for Apple Health on iOS.",
+        type: AppToastType.info,
+      );
+      return;
+    }
+
+    final userId = await AccountStorage.getUserId();
+    if (userId == null || userId == 0) {
+      if (!mounted) return;
+      AppToast.show(context, "Please log in first.", type: AppToastType.info);
+      return;
+    }
+
+    setState(() {
+      _backfillingHealth = true;
+    });
+
+    try {
+      // Fetch a larger batch than UI display so testing can include more sessions.
+      final all = await TrainingService.fetchCardioHistory(
+        userId: userId,
+        limit: 1000,
+      );
+      if (all.isEmpty) {
+        if (!mounted) return;
+        AppToast.show(
+          context,
+          "No cardio sessions found to push.",
+          type: AppToastType.info,
+        );
+        return;
+      }
+      final result = await WorkoutHealthSyncService()
+          .writeCardioHistorySessions(sessions: all);
+      if (!mounted) return;
+      final total = result['total'] ?? 0;
+      final written = result['written'] ?? 0;
+      final skipped = result['skipped'] ?? 0;
+      final failed = result['failed'] ?? 0;
+      late final String message;
+      AppToastType toastType = AppToastType.info;
+      if (written > 0 && skipped == 0 && failed == 0) {
+        message =
+            "Apple Health backfill done: pushed $written/$total sessions.";
+        toastType = AppToastType.success;
+      } else if (written == 0 && skipped > 0 && failed == 0) {
+        message =
+            "Apple Health backfill done: all $skipped/$total sessions were already in Health.";
+        toastType = AppToastType.info;
+      } else if (written > 0 && failed == 0) {
+        message =
+            "Apple Health backfill done: pushed $written new, skipped $skipped already in Health.";
+        toastType = AppToastType.success;
+      } else {
+        message =
+            "Apple Health backfill finished: pushed $written, skipped $skipped, failed $failed.";
+        toastType = AppToastType.info;
+      }
+      AppToast.show(context, message, type: toastType);
+    } catch (_) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        "Failed to push cardio history to Apple Health.",
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _backfillingHealth = false;
+        });
+      }
     }
   }
 
@@ -64,6 +156,21 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
         backgroundColor: const Color(0xFF0F1014),
         elevation: 0,
         title: const Text("Cardio history"),
+        actions: [
+          IconButton(
+            tooltip: "Push all to Apple Health",
+            onPressed: _backfillingHealth
+                ? null
+                : _pushAllCardioHistoryToAppleHealth,
+            icon: _backfillingHealth
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.cloud_upload_outlined),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -73,8 +180,8 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
             Text(
               "Your latest sessions",
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withOpacity(0.6),
-                  ),
+                color: Colors.white.withOpacity(0.6),
+              ),
             ),
             const SizedBox(height: 16),
             if (_loading)
@@ -87,16 +194,16 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
             else if (_error != null)
               Text(
                 _error!,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.redAccent,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: Colors.redAccent),
               )
             else if (_items.isEmpty)
               Text(
                 "No cardio sessions yet.",
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white.withOpacity(0.7),
-                    ),
+                  color: Colors.white.withOpacity(0.7),
+                ),
               )
             else
               ..._items.map((item) {
@@ -105,7 +212,9 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
                   onTap: () {
                     if (sessionId <= 0) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Couldn't open this session.")),
+                        const SnackBar(
+                          content: Text("Couldn't open this session."),
+                        ),
                       );
                       return;
                     }
@@ -161,17 +270,17 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
               Text(
                 _formatDate(entryDate),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.white.withOpacity(0.6),
-                    ),
+                  color: Colors.white.withOpacity(0.6),
+                ),
               ),
             ],
           ),
@@ -179,8 +288,8 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
           Text(
             label,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.white.withOpacity(0.7),
-                ),
+              color: Colors.white.withOpacity(0.7),
+            ),
           ),
         ],
       ),

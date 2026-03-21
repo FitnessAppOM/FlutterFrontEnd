@@ -19,7 +19,6 @@ import 'package:health/health.dart';
 
 // Optional helper for camera/photos on Android; iOS uses Info.plist prompts
 import 'package:permission_handler/permission_handler.dart';
-import 'package:health/health.dart';
 
 class ConsentManager {
   static bool? _healthAvailable; // cache Health Connect / platform availability
@@ -29,9 +28,9 @@ class ConsentManager {
   // STARTUP (call once)
   // ---------------------------------------------------------------------------
   static Future<void> requestStartupConsents() async {
-    await _requestATTIfAvailable();       // iOS tracking (IDFA)
-    await _requestGDPRIfRequired();       // UMP (if you’ll personalize/ads)
-    await _requestNotifications();        // Push permission
+    await _requestATTIfAvailable(); // iOS tracking (IDFA)
+    await _requestGDPRIfRequired(); // UMP (if you’ll personalize/ads)
+    await _requestNotifications(); // Push permission
     await ensureHealthConnectInstalled(); // Prompt Health Connect on Android if missing
     if (Platform.isAndroid) {
       await requestAllHealth(); // Prompt Health Connect permissions on Android at startup
@@ -49,7 +48,9 @@ class ConsentManager {
         // best practice: call after first frame or slight delay from main()
         await AppTrackingTransparency.requestTrackingAuthorization();
       }
-    } catch (_) {/* swallow in release */}
+    } catch (_) {
+      /* swallow in release */
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -62,12 +63,12 @@ class ConsentManager {
 
       consentInfo.requestConsentInfoUpdate(
         params,
-            () async {
+        () async {
           if (await consentInfo.isConsentFormAvailable()) {
             _loadAndHandleUMPForm(consentInfo);
           }
         },
-            (FormError error) {
+        (FormError error) {
           if (kDebugMode) print("Consent info update failed: ${error.message}");
         },
       );
@@ -77,10 +78,10 @@ class ConsentManager {
   }
 
   static Future<void> _loadAndHandleUMPForm(
-      ConsentInformation consentInfo,
-      ) async {
+    ConsentInformation consentInfo,
+  ) async {
     ConsentForm.loadConsentForm(
-          (ConsentForm form) async {
+      (ConsentForm form) async {
         final status = await consentInfo.getConsentStatus();
         if (status == ConsentStatus.required) {
           form.show((FormError? error) {
@@ -90,7 +91,7 @@ class ConsentManager {
           });
         }
       },
-          (FormError error) {
+      (FormError error) {
         if (kDebugMode) print("Failed to load UMP form: ${error.message}");
       },
     );
@@ -108,7 +109,7 @@ class ConsentManager {
         announcement: false,
         carPlay: false,
         criticalAlert: false, // enable only if you have Apple entitlement
-        provisional: false,   // set true if you want "quiet" iOS auth
+        provisional: false, // set true if you want "quiet" iOS auth
       );
       if (kDebugMode) {
         print("Notification authorization: ${settings.authorizationStatus}");
@@ -124,11 +125,13 @@ class ConsentManager {
   static Future<bool> requestLocationJIT() async {
     try {
       var perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
         perm = await Geolocator.requestPermission();
       }
 
-      final granted = perm == LocationPermission.always ||
+      final granted =
+          perm == LocationPermission.always ||
           perm == LocationPermission.whileInUse;
       if (!granted) return false;
 
@@ -204,10 +207,7 @@ class ConsentManager {
     if (calories) types.add(HealthDataType.ACTIVE_ENERGY_BURNED);
     if (sleep && Platform.isIOS) {
       // iOS supports these sleep types via HealthKit.
-      types.addAll([
-        HealthDataType.SLEEP_ASLEEP,
-        HealthDataType.SLEEP_IN_BED,
-      ]);
+      types.addAll([HealthDataType.SLEEP_ASLEEP, HealthDataType.SLEEP_IN_BED]);
     }
 
     if (types.isEmpty) return true;
@@ -247,14 +247,20 @@ class ConsentManager {
     _healthPermissionRequestInFlight = true;
     _healthPermissionGate = Completer<void>();
     try {
-      final has = await health.hasPermissions(types, permissions: permissions) ?? false;
+      final has =
+          await health.hasPermissions(types, permissions: permissions) ?? false;
       if (has) return true;
 
-      final granted = await health.requestAuthorization(types, permissions: permissions);
+      final granted = await health.requestAuthorization(
+        types,
+        permissions: permissions,
+      );
       return granted;
     } catch (e) {
       if (kDebugMode) {
-        print("Health permission check failed (possibly missing Health Connect): $e");
+        print(
+          "Health permission check failed (possibly missing Health Connect): $e",
+        );
       }
       return false;
     } finally {
@@ -268,26 +274,150 @@ class ConsentManager {
   static Future<bool> requestStepsAndSleep() =>
       requestHealthPermissionsJIT(steps: true, sleep: true);
 
-  /// Convenience helper to request steps + sleep + calories in one prompt.
-  static Future<bool> requestAllHealth() async {
+  /// Legacy alias kept for existing call sites.
+  /// Requests train + steps permissions together in one prompt.
+  static Future<bool> requestAllHealth() =>
+      requestUnifiedHealthPermissionsJIT();
+
+  /// Unified health prompt: steps + workout read/write in one call.
+  /// Use this when you want to avoid separate permission sheets across pages.
+  static Future<bool> requestUnifiedHealthPermissionsJIT() async {
+    final types = <HealthDataType>[
+      HealthDataType.STEPS,
+      HealthDataType.ACTIVE_ENERGY_BURNED,
+      HealthDataType.WORKOUT,
+      HealthDataType.TOTAL_CALORIES_BURNED,
+    ];
+    final permissions = <HealthDataAccess>[
+      HealthDataAccess.READ_WRITE, // STEPS
+      HealthDataAccess.READ, // ACTIVE_ENERGY_BURNED
+      HealthDataAccess.READ_WRITE, // WORKOUT
+      HealthDataAccess.WRITE, // TOTAL_CALORIES_BURNED
+    ];
+    if (Platform.isIOS) {
+      types.addAll([HealthDataType.SLEEP_ASLEEP, HealthDataType.SLEEP_IN_BED]);
+      permissions.addAll([HealthDataAccess.READ, HealthDataAccess.READ]);
+    }
+
+    final health = Health();
+
     if (Platform.isAndroid) {
-      // Health Connect permission flow is more reliable when requesting
-      // a focused set first (steps + active calories).
-      final granted = await requestHealthPermissionsJIT(
-        steps: true,
-        sleep: false,
-        calories: true,
+      if (_healthAvailable == null) {
+        try {
+          _healthAvailable = await health.isHealthConnectAvailable();
+        } catch (e) {
+          _healthAvailable = false;
+          if (kDebugMode) {
+            print("Health availability check failed: $e");
+          }
+        }
+      }
+      if (_healthAvailable == false) {
+        return false;
+      }
+    }
+
+    if (_healthPermissionRequestInFlight) {
+      final gate = _healthPermissionGate;
+      if (gate != null) {
+        await gate.future;
+      }
+    }
+    _healthPermissionRequestInFlight = true;
+    _healthPermissionGate = Completer<void>();
+    try {
+      final has =
+          await health.hasPermissions(types, permissions: permissions) ?? false;
+      if (has) return true;
+      return await health.requestAuthorization(types, permissions: permissions);
+    } catch (e) {
+      if (kDebugMode) {
+        print("Unified health permission request failed: $e");
+      }
+      return false;
+    } finally {
+      _healthPermissionRequestInFlight = false;
+      _healthPermissionGate?.complete();
+      _healthPermissionGate = null;
+    }
+  }
+
+  /// Request permission to write workout sessions.
+  static Future<bool> requestWorkoutWritePermissionJIT() async {
+    final types = <HealthDataType>[HealthDataType.WORKOUT];
+    if (Platform.isAndroid) {
+      types.addAll([
+        HealthDataType.TOTAL_CALORIES_BURNED,
+        HealthDataType.STEPS,
+      ]);
+    } else if (Platform.isIOS) {
+      types.addAll([
+        HealthDataType.TOTAL_CALORIES_BURNED,
+        HealthDataType.STEPS,
+      ]);
+    }
+    final permissions = types.map((_) => HealthDataAccess.WRITE).toList();
+    final health = Health();
+
+    if (Platform.isAndroid) {
+      if (_healthAvailable == null) {
+        try {
+          _healthAvailable = await health.isHealthConnectAvailable();
+        } catch (e) {
+          _healthAvailable = false;
+          if (kDebugMode) {
+            print("Health availability check failed: $e");
+          }
+        }
+      }
+      if (_healthAvailable == false) {
+        return false;
+      }
+    }
+
+    if (_healthPermissionRequestInFlight) {
+      final gate = _healthPermissionGate;
+      if (gate != null) {
+        await gate.future;
+      }
+    }
+    _healthPermissionRequestInFlight = true;
+    _healthPermissionGate = Completer<void>();
+    try {
+      final has =
+          await health.hasPermissions(types, permissions: permissions) ?? false;
+      if (has) return true;
+      final granted = await health.requestAuthorization(
+        types,
+        permissions: permissions,
       );
       if (granted) return true;
-      // Fallback to steps-only so Android prompt keeps working even on
-      // devices/providers that don't expose active calories.
-      return requestHealthPermissionsJIT(
-        steps: true,
-        sleep: false,
-        calories: false,
+
+      // Fallback: workout-only scope (still allows pushing workouts when
+      // calories/distance permissions are denied or unsupported).
+      const fallbackTypes = <HealthDataType>[HealthDataType.WORKOUT];
+      const fallbackPermissions = <HealthDataAccess>[HealthDataAccess.WRITE];
+      final hasFallback =
+          await health.hasPermissions(
+            fallbackTypes,
+            permissions: fallbackPermissions,
+          ) ??
+          false;
+      if (hasFallback) return true;
+      return await health.requestAuthorization(
+        fallbackTypes,
+        permissions: fallbackPermissions,
       );
+    } catch (e) {
+      if (kDebugMode) {
+        print("Workout health permission request failed: $e");
+      }
+      return false;
+    } finally {
+      _healthPermissionRequestInFlight = false;
+      _healthPermissionGate?.complete();
+      _healthPermissionGate = null;
     }
-    return requestHealthPermissionsJIT(steps: true, sleep: true, calories: true);
   }
 
   // ---------------------------------------------------------------------------
@@ -329,7 +459,9 @@ class ConsentManager {
   static Future<bool> requestPhotosJIT() async {
     if (Platform.isAndroid) {
       // Android 13 split media permissions; pick what you need.
-      final photos = await Permission.photos.status; // aliases READ_MEDIA_IMAGES on new SDKs
+      final photos = await Permission
+          .photos
+          .status; // aliases READ_MEDIA_IMAGES on new SDKs
       if (photos.isGranted) return true;
       final res = await Permission.photos.request();
       return res.isGranted;

@@ -40,13 +40,13 @@ class ReleaseNotesDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ReleaseNoteHighlight(text: 'Bugs and fixes'),
+          _ReleaseNoteHighlight(text: 'Train fixes'),
           SizedBox(height: 6),
+          _ReleaseNoteItem(text: 'Train fixes'),
           _ReleaseNoteItem(
             text:
-                'Added training history and achievement pop up after a done day',
+                'Please go to Train tab > History > top-right cloud icon, then verify Apple Health workout sessions.',
           ),
-          _ReleaseNoteItem(text: 'etc...'),
         ],
       ),
       actions: [

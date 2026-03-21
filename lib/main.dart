@@ -64,12 +64,16 @@ void main() async {
   try {
     final opts = Firebase.app().options;
     final pkg = await PackageInfo.fromPlatform();
-    print('[Main] Bundle: package=${pkg.packageName} version=${pkg.version}+${pkg.buildNumber}');
-    print('[Main] Firebase options: '
-        'projectId=${opts.projectId} appId=${opts.appId} '
-        'iosBundleId=${opts.iosBundleId} iosClientId=${opts.iosClientId} '
-        'apiKey=${opts.apiKey} messagingSenderId=${opts.messagingSenderId} '
-        'authDomain=${opts.authDomain} storageBucket=${opts.storageBucket}');
+    print(
+      '[Main] Bundle: package=${pkg.packageName} version=${pkg.version}+${pkg.buildNumber}',
+    );
+    print(
+      '[Main] Firebase options: '
+      'projectId=${opts.projectId} appId=${opts.appId} '
+      'iosBundleId=${opts.iosBundleId} iosClientId=${opts.iosClientId} '
+      'apiKey=${opts.apiKey} messagingSenderId=${opts.messagingSenderId} '
+      'authDomain=${opts.authDomain} storageBucket=${opts.storageBucket}',
+    );
   } catch (e) {
     print('[Main] Firebase initialized (options unavailable): $e');
   }
@@ -141,7 +145,8 @@ void main() async {
   AccountStorage.onUnauthorized = () {
     NavigationService.navigatorKey.currentState?.pushAndRemoveUntil(
       MaterialPageRoute(
-        builder: (_) => WelcomePage(onChangeLanguage: localeController.setLocale),
+        builder: (_) =>
+            WelcomePage(onChangeLanguage: localeController.setLocale),
       ),
       (_) => false,
     );
@@ -149,12 +154,11 @@ void main() async {
 
   runApp(WithForegroundTask(child: MyApp(initialPayload: launchPayload)));
 
-
   //  Delay consent request to avoid iOS freeze
   if (Platform.isIOS) {
     Future.delayed(
       const Duration(milliseconds: 300),
-          () async => await ConsentManager.requestStartupConsents(),
+      () async => await ConsentManager.requestStartupConsents(),
     );
   }
 }
@@ -206,7 +210,7 @@ class _MyAppState extends State<MyApp> {
       // ignore: avoid_print
       print("DailyMetricsSync resume push skipped: $e");
     }
-    
+
     // Sync queued exercise actions when app resumes
     try {
       await ExerciseActionQueue.syncQueue();
@@ -225,7 +229,9 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _maybeRequestAndroidHealthPermission() async {
-    if (!Platform.isAndroid || _androidHealthPermissionGranted || _androidHealthPermissionInFlight) {
+    if (!(Platform.isAndroid || Platform.isIOS) ||
+        _androidHealthPermissionGranted ||
+        _androidHealthPermissionInFlight) {
       return;
     }
     final userId = await AccountStorage.getUserId();
@@ -236,7 +242,7 @@ class _MyAppState extends State<MyApp> {
       // Wait a beat so startup/login transitions settle before launching
       // Health Connect's permission activity.
       await Future.delayed(const Duration(milliseconds: 600));
-      final granted = await ConsentManager.requestAllHealth();
+      final granted = await ConsentManager.requestUnifiedHealthPermissionsJIT();
       if (granted) {
         _androidHealthPermissionGranted = true;
       }
@@ -249,8 +255,8 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     final initialRoute =
         widget.initialPayload == NotificationService.dailyJournalPayload
-            ? '/daily-journal'
-            : '/';
+        ? '/daily-journal'
+        : '/';
 
     return MaterialApp(
       title: 'Taqa Fitness',
@@ -262,10 +268,7 @@ class _MyAppState extends State<MyApp> {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('en'),
-        Locale('ar'),
-      ],
+      supportedLocales: const [Locale('en'), Locale('ar')],
       theme: buildDarkTheme(),
       navigatorKey: NavigationService.navigatorKey,
       initialRoute: initialRoute,
@@ -276,7 +279,6 @@ class _MyAppState extends State<MyApp> {
     );
   }
 }
-
 
 class AppLifecycleListener with WidgetsBindingObserver {
   final List<VoidCallback> _callbacks = [];
@@ -297,7 +299,6 @@ class AppLifecycleListener with WidgetsBindingObserver {
     }
   }
 
-  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _callbacks.clear();

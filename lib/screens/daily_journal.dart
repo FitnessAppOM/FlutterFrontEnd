@@ -26,6 +26,9 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
   static const String _journalPromptShownKey =
       "daily_journal_prompt_shown_date_6am";
 
+  String _journalPromptShownKeyForUser(int userId) =>
+      "${_journalPromptShownKey}_u$userId";
+
   Future<DailyJournalEntry?>? _future;
   bool _seededFromRemote = false;
   bool _seededFromWidgets = false;
@@ -66,8 +69,10 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
   void _markJournalPromptShownForToday() {
     final journalDay = _journalDay(DateTime.now());
     final dayKey = _formatJournalDayKey(journalDay);
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.setString(_journalPromptShownKey, dayKey);
+    SharedPreferences.getInstance().then((prefs) async {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null) return;
+      prefs.setString(_journalPromptShownKeyForUser(userId), dayKey);
     });
   }
 
@@ -130,7 +135,9 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
 
     double? sleepHours;
     try {
-      sleepHours = await WhoopSleepService().fetchSleepHoursForDay(_selectedDate);
+      sleepHours = await WhoopSleepService().fetchSleepHoursForDay(
+        _selectedDate,
+      );
     } catch (_) {
       sleepHours = null;
     }
@@ -153,7 +160,10 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
       final userId = await AccountStorage.getUserId();
       if (userId != null) {
         try {
-          final entry = await DailyMetricsApi.fetchForDate(userId, _selectedDate);
+          final entry = await DailyMetricsApi.fetchForDate(
+            userId,
+            _selectedDate,
+          );
           final metricsHydration = entry?.waterLiters;
           if (metricsHydration != null && metricsHydration > 0) {
             hydrationLiters = metricsHydration;
@@ -190,7 +200,11 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
     if (userId == null) {
       if (mounted) {
         final t = AppLocalizations.of(context).translate;
-        AppToast.show(context, t("daily_journal_sign_in_submit"), type: AppToastType.error);
+        AppToast.show(
+          context,
+          t("daily_journal_sign_in_submit"),
+          type: AppToastType.error,
+        );
       }
       return;
     }
@@ -218,7 +232,11 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
         tookSupplementsOrMedications: _tookSupplements,
       );
       if (mounted) {
-        AppToast.show(context, t("daily_journal_saved"), type: AppToastType.success);
+        AppToast.show(
+          context,
+          t("daily_journal_saved"),
+          type: AppToastType.success,
+        );
         setState(() {
           _formHidden = true;
         });
@@ -229,13 +247,21 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
       if (mounted) {
         final isConflict = e.toString().contains("already_submitted");
         if (isConflict) {
-          AppToast.show(context, t("daily_journal_already_submitted"), type: AppToastType.info);
+          AppToast.show(
+            context,
+            t("daily_journal_already_submitted"),
+            type: AppToastType.info,
+          );
           setState(() {
             _formHidden = true;
           });
           await NotificationService.rescheduleDailyJournalRemindersForTomorrow();
         } else {
-          AppToast.show(context, t("daily_journal_failed_save").replaceAll("{error}", "$e"), type: AppToastType.error);
+          AppToast.show(
+            context,
+            t("daily_journal_failed_save").replaceAll("{error}", "$e"),
+            type: AppToastType.error,
+          );
         }
       }
     } finally {
@@ -251,7 +277,11 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
     if (userId == null) {
       if (mounted) {
         final t = AppLocalizations.of(context).translate;
-        AppToast.show(context, t("daily_journal_sign_in_submit"), type: AppToastType.error);
+        AppToast.show(
+          context,
+          t("daily_journal_sign_in_submit"),
+          type: AppToastType.error,
+        );
       }
       return;
     }
@@ -262,7 +292,11 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
       final last = await DailyJournalApi.fetchLatest(userId);
       if (last == null) {
         if (mounted) {
-          AppToast.show(context, t("daily_journal_no_previous"), type: AppToastType.info);
+          AppToast.show(
+            context,
+            t("daily_journal_no_previous"),
+            type: AppToastType.info,
+          );
         }
         return;
       }
@@ -288,7 +322,11 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
       );
 
       if (mounted) {
-        AppToast.show(context, t("daily_journal_copied"), type: AppToastType.success);
+        AppToast.show(
+          context,
+          t("daily_journal_copied"),
+          type: AppToastType.success,
+        );
         setState(() {
           _formHidden = true;
         });
@@ -299,13 +337,21 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
       if (mounted) {
         final isConflict = e.toString().contains("already_submitted");
         if (isConflict) {
-          AppToast.show(context, t("daily_journal_already_submitted"), type: AppToastType.info);
+          AppToast.show(
+            context,
+            t("daily_journal_already_submitted"),
+            type: AppToastType.info,
+          );
           setState(() {
             _formHidden = true;
           });
           await NotificationService.rescheduleDailyJournalRemindersForTomorrow();
         } else {
-          AppToast.show(context, t("daily_journal_failed_copy").replaceAll("{error}", "$e"), type: AppToastType.error);
+          AppToast.show(
+            context,
+            t("daily_journal_failed_copy").replaceAll("{error}", "$e"),
+            type: AppToastType.error,
+          );
         }
       }
     } finally {
@@ -357,7 +403,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
             icon: const Icon(Icons.refresh),
             onPressed: _refresh,
             tooltip: t("daily_journal_refresh"),
-          )
+          ),
         ],
       ),
       backgroundColor: AppColors.black,
@@ -371,7 +417,9 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
             final isMissingUser = snapshot.error.toString().contains('NO_USER');
             return _CenteredState(
               icon: Icons.lock_outline,
-              title: isMissingUser ? t("daily_journal_sign_in_view") : t("daily_journal_unable_load"),
+              title: isMissingUser
+                  ? t("daily_journal_sign_in_view")
+                  : t("daily_journal_unable_load"),
               subtitle: isMissingUser
                   ? t("daily_journal_login_prompt")
                   : t("daily_journal_retry"),
@@ -380,7 +428,8 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
 
           final entry = snapshot.data;
           final hasEntry = entry != null;
-          final displayEntry = entry ?? DailyJournalEntry(entryDate: _selectedDate);
+          final displayEntry =
+              entry ?? DailyJournalEntry(entryDate: _selectedDate);
           if (entry != null && !_seededFromRemote && _isTodaySelected) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _seedForm(entry);
@@ -393,37 +442,46 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
             });
           }
           final bool hideForm =
-              _formHidden || !_isTodaySelected || (entry != null && _isToday(entry.entryDate));
+              _formHidden ||
+              !_isTodaySelected ||
+              (entry != null && _isToday(entry.entryDate));
 
           return RefreshIndicator(
             onRefresh: _refresh,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      DateHeader(
-                        selectedDate: _selectedDate,
-                        onPrev: () => _changeDay(-1),
-                        onNext: () => _changeDay(1),
-                        canGoNext: !_isTodaySelected,
-                        label: hasEntry ? t("daily_journal_entry_for") : t("daily_journal_no_entry_for"),
-                      ),
-                      if (!hasEntry) ...[
-                        const SizedBox(height: 10),
-                        _InlineBanner(
-                          title: _isTodaySelected ? t("daily_journal_no_entry_today") : t("daily_journal_no_entry_date"),
-                          message: _isTodaySelected
-                              ? t("daily_journal_prompt_today")
-                              : t("daily_journal_prompt_other"),
-                        ),
-                      ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  DateHeader(
+                    selectedDate: _selectedDate,
+                    onPrev: () => _changeDay(-1),
+                    onNext: () => _changeDay(1),
+                    canGoNext: !_isTodaySelected,
+                    label: hasEntry
+                        ? t("daily_journal_entry_for")
+                        : t("daily_journal_no_entry_for"),
+                  ),
+                  if (!hasEntry) ...[
+                    const SizedBox(height: 10),
+                    _InlineBanner(
+                      title: _isTodaySelected
+                          ? t("daily_journal_no_entry_today")
+                          : t("daily_journal_no_entry_date"),
+                      message: _isTodaySelected
+                          ? t("daily_journal_prompt_today")
+                          : t("daily_journal_prompt_other"),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 260),
                     transitionBuilder: (child, animation) => SizeTransition(
-                      sizeFactor: CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+                      sizeFactor: CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeOutCubic,
+                      ),
                       axisAlignment: -1,
                       child: FadeTransition(opacity: animation, child: child),
                     ),
@@ -438,20 +496,26 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
                                   children: [
                                     _NumberField(
                                       controller: _sleepHoursCtrl,
-                                      label: t("daily_journal_sleep_hours_label"),
+                                      label: t(
+                                        "daily_journal_sleep_hours_label",
+                                      ),
                                       hint: t("daily_journal_sleep_hours_hint"),
                                     ),
                                     const SizedBox(height: 10),
                                     _ScorePicker(
-                                      label: t("daily_journal_sleep_quality_label"),
+                                      label: t(
+                                        "daily_journal_sleep_quality_label",
+                                      ),
                                       value: _sleepQuality,
-                                      onChanged: (v) => setState(() => _sleepQuality = v),
+                                      onChanged: (v) =>
+                                          setState(() => _sleepQuality = v),
                                     ),
                                     const SizedBox(height: 10),
                                     _BooleanRow(
                                       label: t("daily_journal_caffeine_label"),
                                       value: _caffeineYes,
-                                      onChanged: (v) => setState(() => _caffeineYes = v),
+                                      onChanged: (v) =>
+                                          setState(() => _caffeineYes = v),
                                       yesLabel: t("daily_journal_yes"),
                                       noLabel: t("daily_journal_no"),
                                       trailing: _CompactNumberField(
@@ -463,12 +527,15 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
                                     _BooleanRow(
                                       label: t("daily_journal_alcohol_label"),
                                       value: _alcoholYes,
-                                      onChanged: (v) => setState(() => _alcoholYes = v),
+                                      onChanged: (v) =>
+                                          setState(() => _alcoholYes = v),
                                       yesLabel: t("daily_journal_yes"),
                                       noLabel: t("daily_journal_no"),
                                       trailing: _CompactNumberField(
                                         controller: _alcoholDrinksCtrl,
-                                        label: t("daily_journal_alcohol_drinks"),
+                                        label: t(
+                                          "daily_journal_alcohol_drinks",
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(height: 10),
@@ -481,7 +548,8 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
                                     _BooleanRow(
                                       label: t("daily_journal_soreness_label"),
                                       value: _sorenessOrPain,
-                                      onChanged: (v) => setState(() => _sorenessOrPain = v),
+                                      onChanged: (v) =>
+                                          setState(() => _sorenessOrPain = v),
                                       yesLabel: t("daily_journal_yes"),
                                       noLabel: t("daily_journal_no"),
                                     ),
@@ -489,47 +557,67 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
                                     _ScorePicker(
                                       label: t("daily_journal_stress_label"),
                                       value: _stressLevel,
-                                      onChanged: (v) => setState(() => _stressLevel = v),
+                                      onChanged: (v) =>
+                                          setState(() => _stressLevel = v),
                                     ),
                                     const SizedBox(height: 10),
                                     _ScorePicker(
                                       label: t("daily_journal_mood_label"),
                                       value: _moodUponWaking,
-                                      onChanged: (v) => setState(() => _moodUponWaking = v),
+                                      onChanged: (v) =>
+                                          setState(() => _moodUponWaking = v),
                                     ),
                                     const SizedBox(height: 10),
                                     _BooleanRow(
-                                      label: t("daily_journal_sexual_activity_label"),
+                                      label: t(
+                                        "daily_journal_sexual_activity_label",
+                                      ),
                                       value: _sexualActivity,
-                                      onChanged: (v) => setState(() => _sexualActivity = v),
+                                      onChanged: (v) =>
+                                          setState(() => _sexualActivity = v),
                                       yesLabel: t("daily_journal_yes"),
                                       noLabel: t("daily_journal_no"),
                                     ),
                                     const SizedBox(height: 10),
                                     _BooleanRow(
-                                      label: t("daily_journal_screen_time_label"),
+                                      label: t(
+                                        "daily_journal_screen_time_label",
+                                      ),
                                       value: _screenTimeBeforeBed,
-                                      onChanged: (v) => setState(() => _screenTimeBeforeBed = v),
+                                      onChanged: (v) => setState(
+                                        () => _screenTimeBeforeBed = v,
+                                      ),
                                       yesLabel: t("daily_journal_yes"),
                                       noLabel: t("daily_journal_no"),
                                     ),
                                     const SizedBox(height: 10),
                                     _ScorePicker(
-                                      label: t("daily_journal_productivity_label"),
+                                      label: t(
+                                        "daily_journal_productivity_label",
+                                      ),
                                       value: _productivityFocus,
-                                      onChanged: (v) => setState(() => _productivityFocus = v),
+                                      onChanged: (v) => setState(
+                                        () => _productivityFocus = v,
+                                      ),
                                     ),
                                     const SizedBox(height: 10),
                                     _ScorePicker(
-                                      label: t("daily_journal_motivation_label"),
+                                      label: t(
+                                        "daily_journal_motivation_label",
+                                      ),
                                       value: _motivationToTrain,
-                                      onChanged: (v) => setState(() => _motivationToTrain = v),
+                                      onChanged: (v) => setState(
+                                        () => _motivationToTrain = v,
+                                      ),
                                     ),
                                     const SizedBox(height: 10),
                                     _BooleanRow(
-                                      label: t("daily_journal_supplements_label"),
+                                      label: t(
+                                        "daily_journal_supplements_label",
+                                      ),
                                       value: _tookSupplements,
-                                      onChanged: (v) => setState(() => _tookSupplements = v),
+                                      onChanged: (v) =>
+                                          setState(() => _tookSupplements = v),
                                       yesLabel: t("daily_journal_yes"),
                                       noLabel: t("daily_journal_no"),
                                     ),
@@ -537,23 +625,34 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
                                     Align(
                                       alignment: Alignment.centerLeft,
                                       child: TextButton.icon(
-                                        onPressed: _isSubmitting ? null : _copyLastAndSave,
+                                        onPressed: _isSubmitting
+                                            ? null
+                                            : _copyLastAndSave,
                                         icon: const Icon(Icons.replay),
-                                        label: Text(t("daily_journal_copy_last")),
+                                        label: Text(
+                                          t("daily_journal_copy_last"),
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(height: 8),
                                     SizedBox(
                                       width: double.infinity,
                                       child: ElevatedButton(
-                                        onPressed: _isSubmitting ? null : _submit,
+                                        onPressed: _isSubmitting
+                                            ? null
+                                            : _submit,
                                         child: _isSubmitting
                                             ? const SizedBox(
                                                 width: 18,
                                                 height: 18,
-                                                child: CircularProgressIndicator(strokeWidth: 2),
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                    ),
                                               )
-                                            : Text(t("daily_journal_save_entry")),
+                                            : Text(
+                                                t("daily_journal_save_entry"),
+                                              ),
                                       ),
                                     ),
                                   ],
@@ -570,10 +669,19 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
                     rows: [
                       _JournalRow(
                         t("daily_journal_sleep_hours_row"),
-                        _formatNumber(displayEntry.sleepHours, suffix: t("daily_journal_hours_suffix")),
+                        _formatNumber(
+                          displayEntry.sleepHours,
+                          suffix: t("daily_journal_hours_suffix"),
+                        ),
                       ),
-                      _JournalRow(t("daily_journal_sleep_quality_row"), _formatScore(displayEntry.sleepQuality)),
-                      _JournalRow(t("daily_journal_mood_row"), _formatScore(displayEntry.moodUponWaking)),
+                      _JournalRow(
+                        t("daily_journal_sleep_quality_row"),
+                        _formatScore(displayEntry.sleepQuality),
+                      ),
+                      _JournalRow(
+                        t("daily_journal_mood_row"),
+                        _formatScore(displayEntry.moodUponWaking),
+                      ),
                       _JournalRow(
                         t("daily_journal_soreness_row"),
                         _formatBool(
@@ -591,7 +699,10 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
                     rows: [
                       _JournalRow(
                         t("daily_journal_hydration_row"),
-                        _formatNumber(displayEntry.hydrationLiters, suffix: t("dash_unit_l")),
+                        _formatNumber(
+                          displayEntry.hydrationLiters,
+                          suffix: t("dash_unit_l"),
+                        ),
                       ),
                       _JournalRow(
                         t("daily_journal_caffeine_row"),
@@ -634,8 +745,14 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
                     title: t("daily_journal_section_focus"),
                     icon: Icons.fitness_center,
                     rows: [
-                      _JournalRow(t("daily_journal_productivity_row"), _formatScore(displayEntry.productivityFocus)),
-                      _JournalRow(t("daily_journal_motivation_row"), _formatScore(displayEntry.motivationToTrain)),
+                      _JournalRow(
+                        t("daily_journal_productivity_row"),
+                        _formatScore(displayEntry.productivityFocus),
+                      ),
+                      _JournalRow(
+                        t("daily_journal_motivation_row"),
+                        _formatScore(displayEntry.motivationToTrain),
+                      ),
                       _JournalRow(
                         t("daily_journal_sexual_row"),
                         _formatBool(
@@ -778,9 +895,17 @@ class _CenteredState extends StatelessWidget {
           children: [
             Icon(icon, size: 64, color: AppColors.textDim),
             const SizedBox(height: 12),
-            Text(title, style: AppTextStyles.subtitle, textAlign: TextAlign.center),
+            Text(
+              title,
+              style: AppTextStyles.subtitle,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 6),
-            Text(subtitle, style: AppTextStyles.small, textAlign: TextAlign.center),
+            Text(
+              subtitle,
+              style: AppTextStyles.small,
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -810,7 +935,11 @@ String _formatBool(
   return base;
 }
 
-String _formatCount(int? count, {required String singular, required String plural}) {
+String _formatCount(
+  int? count, {
+  required String singular,
+  required String plural,
+}) {
   if (count == null) return "";
   final noun = count == 1 ? singular : plural;
   return "$count $noun";
@@ -818,13 +947,17 @@ String _formatCount(int? count, {required String singular, required String plura
 
 bool _isToday(DateTime date) {
   final now = _journalDay(DateTime.now());
-  return date.year == now.year && date.month == now.month && date.day == now.day;
+  return date.year == now.year &&
+      date.month == now.month &&
+      date.day == now.day;
 }
 
 DateTime _dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
 
 DateTime _journalDay(DateTime date) {
-  final shifted = date.subtract(const Duration(hours: _DailyJournalPageState._journalResetHour));
+  final shifted = date.subtract(
+    const Duration(hours: _DailyJournalPageState._journalResetHour),
+  );
   return DateTime(shifted.year, shifted.month, shifted.day);
 }
 
@@ -871,10 +1004,7 @@ class _NumberField extends StatelessWidget {
       controller: controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       style: AppTextStyles.body,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-      ),
+      decoration: InputDecoration(labelText: label, hintText: hint),
     );
   }
 }
@@ -883,10 +1013,7 @@ class _CompactNumberField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
 
-  const _CompactNumberField({
-    required this.controller,
-    required this.label,
-  });
+  const _CompactNumberField({required this.controller, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -896,9 +1023,7 @@ class _CompactNumberField extends StatelessWidget {
         controller: controller,
         keyboardType: TextInputType.number,
         style: AppTextStyles.body,
-        decoration: InputDecoration(
-          labelText: label,
-        ),
+        decoration: InputDecoration(labelText: label),
       ),
     );
   }
@@ -920,7 +1045,10 @@ class _ScorePicker extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: Text(label, style: AppTextStyles.body.copyWith(color: AppColors.textDim)),
+          child: Text(
+            label,
+            style: AppTextStyles.body.copyWith(color: AppColors.textDim),
+          ),
         ),
         DropdownButton<int>(
           value: value,
@@ -929,10 +1057,7 @@ class _ScorePicker extends StatelessWidget {
           underline: const SizedBox.shrink(),
           items: List.generate(
             5,
-            (i) => DropdownMenuItem<int>(
-              value: i + 1,
-              child: Text("${i + 1}"),
-            ),
+            (i) => DropdownMenuItem<int>(value: i + 1, child: Text("${i + 1}")),
           ),
           onChanged: onChanged,
         ),
@@ -984,7 +1109,7 @@ class _BooleanRow extends StatelessWidget {
                   if (trailing != null) ...[
                     const SizedBox(width: 12),
                     trailing!,
-                  ]
+                  ],
                 ],
               ),
             ],

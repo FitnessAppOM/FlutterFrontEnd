@@ -247,6 +247,76 @@ class TrainingProgressStorage {
     await sp.setInt(key, ms);
   }
 
+  static Future<void> saveSessionCompletedExerciseName(
+    String exerciseName, {
+    int? finishedAtMs,
+  }) async {
+    final trimmed = exerciseName.trim();
+    if (trimmed.isEmpty) return;
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return;
+    final sp = await SharedPreferences.getInstance();
+    final today = _dateKey(DateTime.now());
+    final key = _userKey(userId, 'session_done_ex_names_$today');
+    final List<Map<String, dynamic>> items = [];
+    final raw = sp.getString(key);
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) {
+          for (final it in decoded) {
+            if (it is Map) {
+              final name = it['name']?.toString().trim() ?? '';
+              final ms = _toInt(it['ms']);
+              if (name.isEmpty || ms == null) continue;
+              items.add({'name': name, 'ms': ms});
+            }
+          }
+        }
+      } catch (_) {
+        // ignore parse errors
+      }
+    }
+    final when = finishedAtMs ?? DateTime.now().millisecondsSinceEpoch;
+    items.add({'name': trimmed, 'ms': when});
+    if (items.length > 100) {
+      items.removeRange(0, items.length - 100);
+    }
+    await sp.setString(key, jsonEncode(items));
+  }
+
+  static Future<List<String>> getSessionCompletedExerciseNamesSince(
+    int sinceMs,
+  ) async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return const [];
+    final sp = await SharedPreferences.getInstance();
+    final today = _dateKey(DateTime.now());
+    final key = _userKey(userId, 'session_done_ex_names_$today');
+    final raw = sp.getString(key);
+    if (raw == null || raw.isEmpty) return const [];
+
+    final seen = <String>{};
+    final result = <String>[];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        for (final it in decoded) {
+          if (it is! Map) continue;
+          final name = it['name']?.toString().trim() ?? '';
+          final ms = _toInt(it['ms']) ?? 0;
+          if (name.isEmpty || ms < sinceMs) continue;
+          final key = name.toLowerCase();
+          if (!seen.add(key)) continue;
+          result.add(name);
+        }
+      }
+    } catch (_) {
+      return const [];
+    }
+    return result;
+  }
+
   static Future<int?> getLastExerciseFinishedMs() async {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return null;

@@ -20,6 +20,7 @@ import '../../widgets/training/training_day_complete_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/training/training_progress_storage.dart';
 import '../../services/training/training_activity_service.dart';
+import '../../services/health/workout_health_sync_service.dart';
 
 class TrainPage extends StatefulWidget {
   const TrainPage({super.key});
@@ -149,6 +150,14 @@ class _TrainPageState extends State<TrainPage> {
   Future<void> _finishWorkout({bool showToast = true}) async {
     if (_finishingWorkout) return;
     final finishedDayIndex = selectedDay;
+    final sessionStartMs =
+        _workoutStartMs ?? await TrainingProgressStorage.getWorkoutStartMs();
+    final lastExerciseFinishedMs =
+        await TrainingProgressStorage.getLastExerciseFinishedMs();
+    final hasCompletedExerciseInSession =
+        sessionStartMs != null &&
+        lastExerciseFinishedMs != null &&
+        lastExerciseFinishedMs >= sessionStartMs;
     setState(() => _finishingWorkout = true);
     final now = DateTime.now();
     // If an exercise is in progress, force-stop and clear its local progress.
@@ -160,28 +169,55 @@ class _TrainPageState extends State<TrainPage> {
     await TrainingProgressStorage.clearAllExerciseTimers();
     _activeSessionExerciseName = null;
     _inProgressExerciseIds.clear();
-    try {
-      await TrainingService.finishSession(entryDate: now);
-    } catch (_) {
-      await ExerciseActionQueue.queueAction(
-        action: ExerciseActionQueue.actionSessionFinish,
-        programExerciseId: 0,
-        data: {
-          "entry_date":
-              "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
-        },
-      );
+    if (hasCompletedExerciseInSession) {
+      try {
+        await TrainingService.finishSession(entryDate: now);
+      } catch (_) {
+        await ExerciseActionQueue.queueAction(
+          action: ExerciseActionQueue.actionSessionFinish,
+          programExerciseId: 0,
+          data: {
+            "entry_date":
+                "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
+          },
+        );
+      }
+      try {
+        String? workoutBrandName;
+        final programDays = program?['days'];
+        if (programDays is List &&
+            finishedDayIndex >= 0 &&
+            finishedDayIndex < programDays.length) {
+          final day = programDays[finishedDayIndex];
+          if (day is Map) {
+            final rawLabel = (day['day_label'] ?? day['label'] ?? '')
+                .toString()
+                .trim();
+            if (rawLabel.isNotEmpty) {
+              workoutBrandName = rawLabel;
+            }
+          }
+        }
+        await WorkoutHealthSyncService().writeWorkoutSession(
+          start: DateTime.fromMillisecondsSinceEpoch(sessionStartMs),
+          end: now,
+          title: "TAQA Workout Session",
+          isCardio: false,
+          workoutBrandName: workoutBrandName,
+          isIndoorWorkout: true,
+        );
+      } catch (_) {
+        // Ignore health write failures and continue local finish flow.
+      }
     }
     await _refreshProgramForCompletionCheck();
-    final shouldMarkDayComplete = _isDayFullyCompletedForCurrentWeek(
-      finishedDayIndex,
-    );
+    final shouldShowDayCompletePopup = hasCompletedExerciseInSession
+        ? _isDayFullyCompletedForCurrentWeek(finishedDayIndex)
+        : false;
     await TrainingProgressStorage.clearWorkoutStart();
-    if (shouldMarkDayComplete) {
+    if (hasCompletedExerciseInSession) {
       await TrainingProgressStorage.recordTrainingDayCompleted(now);
       await _markDayFinishedForCurrentWeek(finishedDayIndex);
-    } else {
-      await _clearDayFinishedForCurrentWeek(finishedDayIndex);
     }
     _workoutTimer?.cancel();
     _workoutTimer = null;
@@ -189,8 +225,33 @@ class _TrainPageState extends State<TrainPage> {
     _workoutElapsedSeconds = 0;
     _stopExRestCountdownQuiet();
     final days = program?['days'];
-    final orderResult = days is List ? _buildDayOrder(days) : null;
-    _pendingCompletionDayIndex = shouldMarkDayComplete
+    _DayOrderResult? orderResult = days is List ? _buildDayOrder(days) : null;
+    if (hasCompletedExerciseInSession &&
+        days is List &&
+        finishedDayIndex >= 0 &&
+        finishedDayIndex < days.length &&
+        (orderResult == null ||
+            finishedDayIndex >= orderResult.completedByIndex.length ||
+            !orderResult.completedByIndex[finishedDayIndex])) {
+      final forcedCompleted = List<bool>.filled(days.length, false);
+      final source = orderResult?.completedByIndex;
+      if (source != null) {
+        for (var i = 0; i < forcedCompleted.length && i < source.length; i++) {
+          forcedCompleted[i] = source[i];
+        }
+      } else if (_dayCompletedByIndex.length == days.length) {
+        for (var i = 0; i < forcedCompleted.length; i++) {
+          forcedCompleted[i] = _dayCompletedByIndex[i];
+        }
+      }
+      forcedCompleted[finishedDayIndex] = true;
+      orderResult = _DayOrderResult(
+        order: _orderByCompletionFlags(forcedCompleted),
+        completedByIndex: forcedCompleted,
+      );
+    }
+    _pendingCompletionDayIndex =
+        hasCompletedExerciseInSession && shouldShowDayCompletePopup
         ? finishedDayIndex
         : null;
     if (mounted) {
@@ -199,10 +260,22 @@ class _TrainPageState extends State<TrainPage> {
         if (orderResult != null) {
           _dayOrder = orderResult.order;
           _dayCompletedByIndex = orderResult.completedByIndex;
+          if (days is List) {
+            selectedDay = _firstDayInOrder(orderResult, days.length);
+          }
+          _rebuildExerciseLists();
         }
       });
       if (showToast) {
-        AppToast.show(context, "Workout finished!", type: AppToastType.success);
+        AppToast.show(
+          context,
+          hasCompletedExerciseInSession
+              ? "Workout finished!"
+              : "No exercises done. Session discarded.",
+          type: hasCompletedExerciseInSession
+              ? AppToastType.success
+              : AppToastType.info,
+        );
       }
       await _maybeShowDayCompletedPopup();
     }
@@ -346,6 +419,7 @@ class _TrainPageState extends State<TrainPage> {
           final cached = await TrainingService.fetchActiveProgramFromCache();
           if (cached != null && mounted) {
             final cachedDays = cached['days'];
+            final cachedDayCount = cachedDays is List ? cachedDays.length : 0;
             final orderResult = cachedDays is List
                 ? _buildDayOrder(cachedDays)
                 : const _DayOrderResult(order: [], completedByIndex: []);
@@ -355,6 +429,7 @@ class _TrainPageState extends State<TrainPage> {
               isOffline = false;
               _dayOrder = orderResult.order;
               _dayCompletedByIndex = orderResult.completedByIndex;
+              selectedDay = _firstDayInOrder(orderResult, cachedDayCount);
               _rebuildExerciseLists();
             });
             showedCache = true;
@@ -387,6 +462,7 @@ class _TrainPageState extends State<TrainPage> {
       }
       if (!mounted) return;
       final serverDays = data['days'];
+      final serverDayCount = serverDays is List ? serverDays.length : 0;
       final orderResult = serverDays is List
           ? _buildDayOrder(serverDays)
           : const _DayOrderResult(order: [], completedByIndex: []);
@@ -397,6 +473,7 @@ class _TrainPageState extends State<TrainPage> {
         completedExerciseNames = completed;
         _dayOrder = orderResult.order;
         _dayCompletedByIndex = orderResult.completedByIndex;
+        selectedDay = _firstDayInOrder(orderResult, serverDayCount);
         _rebuildExerciseLists();
       });
       TrainingRegenerationFlag.clear();
@@ -571,6 +648,11 @@ class _TrainPageState extends State<TrainPage> {
         );
       }
     }
+    final order = _orderByCompletionFlags(completedByIndex);
+    return _DayOrderResult(order: order, completedByIndex: completedByIndex);
+  }
+
+  List<int> _orderByCompletionFlags(List<bool> completedByIndex) {
     final incomplete = <int>[];
     final complete = <int>[];
     for (var i = 0; i < completedByIndex.length; i++) {
@@ -580,13 +662,22 @@ class _TrainPageState extends State<TrainPage> {
         incomplete.add(i);
       }
     }
-    final order = <int>[...incomplete, ...complete];
-    return _DayOrderResult(order: order, completedByIndex: completedByIndex);
+    return <int>[...incomplete, ...complete];
   }
 
   List<int> _effectiveDayOrder(List days) {
     if (_dayOrder.length == days.length) return _dayOrder;
     return List<int>.generate(days.length, (i) => i);
+  }
+
+  int _firstDayInOrder(_DayOrderResult orderResult, int dayCount) {
+    final hasWorkoutInProgress = _workoutStartMs != null;
+    if (hasWorkoutInProgress && selectedDay >= 0 && selectedDay < dayCount) {
+      return selectedDay;
+    }
+    if (orderResult.order.isNotEmpty) return orderResult.order.first;
+    if (selectedDay >= 0 && selectedDay < dayCount) return selectedDay;
+    return 0;
   }
 
   Future<void> _preloadExerciseGifsForCurrentDay() async {
@@ -1011,6 +1102,7 @@ class _TrainPageState extends State<TrainPage> {
     try {
       final data = await TrainingService.fetchActiveProgram(userId);
       final serverDays = data['days'];
+      final serverDayCount = serverDays is List ? serverDays.length : 0;
       final orderResult = serverDays is List
           ? _buildDayOrder(serverDays)
           : const _DayOrderResult(order: [], completedByIndex: []);
@@ -1019,6 +1111,7 @@ class _TrainPageState extends State<TrainPage> {
         program = data;
         _dayOrder = orderResult.order;
         _dayCompletedByIndex = orderResult.completedByIndex;
+        selectedDay = _firstDayInOrder(orderResult, serverDayCount);
         _rebuildExerciseLists();
       });
     } catch (_) {
@@ -1419,6 +1512,7 @@ class _TrainPageState extends State<TrainPage> {
                           completed: completedInOrder,
                           disabled: disabledInOrder,
                           notes: notesInOrder,
+                          workoutInProgress: _workoutStartMs != null,
                           selectedIndex: safeDisplayIndex,
                           onSelect: (i) {
                             final nextIndex = (i >= 0 && i < dayOrder.length)
