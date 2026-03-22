@@ -41,19 +41,6 @@ class ReleaseNotesDialog extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _ReleaseNoteHighlight(text: 'v1.0.21 • Train patches'),
-          SizedBox(height: 6),
-          _ReleaseNoteItem(
-            text:
-                'In-progress day highlight now stays on the active workout day only.',
-          ),
-          _ReleaseNoteItem(
-            text:
-                'When a workout is active, switching to other training days is locked until finish.',
-          ),
-          _ReleaseNoteItem(
-            text:
-                'Apple Health history sync is now automatic for Train/Cardio (once per app launch, last 30 days only).',
-          ),
         ],
       ),
       actions: [
@@ -62,26 +49,6 @@ class ReleaseNotesDialog extends StatelessWidget {
           child: const Text('OK'),
         ),
       ],
-    );
-  }
-}
-
-class _ReleaseNoteItem extends StatelessWidget {
-  final String text;
-
-  const _ReleaseNoteItem({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('• ', style: TextStyle(fontWeight: FontWeight.w700)),
-          Expanded(child: Text(text)),
-        ],
-      ),
     );
   }
 }

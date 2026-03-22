@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:http/http.dart' as http;
 import '../theme/app_theme.dart';
@@ -23,7 +22,6 @@ import '../services/core/notification_service.dart';
 import '../services/whoop/whoop_daily_sync.dart';
 import '../services/whoop/whoop_latest_service.dart';
 import '../screens/welcome.dart';
-import '../widgets/Main/card_container.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -59,6 +57,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final msg = e.toString().toLowerCase();
     return msg.contains('cancel');
   }
+
   String get _langCode => localeController.locale.languageCode;
 
   void _changeLanguage(Locale locale) {
@@ -85,8 +84,9 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: AppColors.black,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -95,7 +95,9 @@ class _SettingsPageState extends State<SettingsPage> {
               Text(
                 t.translate("settings"),
                 style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.w700),
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 6),
               Text(
@@ -129,7 +131,9 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (ctx) {
         return Dialog(
           backgroundColor: AppColors.cardDark,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
             child: Column(
@@ -147,7 +151,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 const SizedBox(height: 8),
                 SelectableText(
                   display,
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: 12,
+                  ),
                 ),
                 const SizedBox(height: 14),
                 Row(
@@ -157,7 +164,9 @@ class _SettingsPageState extends State<SettingsPage> {
                         onPressed: () => Navigator.pop(ctx),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.white70,
-                          side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                          side: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.2),
+                          ),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -172,9 +181,15 @@ class _SettingsPageState extends State<SettingsPage> {
                         onPressed: (token == null || token.trim().isEmpty)
                             ? null
                             : () async {
-                                await Clipboard.setData(ClipboardData(text: token.trim()));
+                                await Clipboard.setData(
+                                  ClipboardData(text: token.trim()),
+                                );
                                 if (!context.mounted) return;
-                                AppToast.show(context, "Token copied", type: AppToastType.success);
+                                AppToast.show(
+                                  context,
+                                  "Token copied",
+                                  type: AppToastType.success,
+                                );
                               },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.accent,
@@ -242,7 +257,9 @@ class _SettingsPageState extends State<SettingsPage> {
       return;
     }
     try {
-      final url = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId&backfill=0");
+      final url = Uri.parse(
+        "${ApiConfig.baseUrl}/whoop/status?user_id=$userId&backfill=0",
+      );
       final headers = await AccountStorage.getAuthHeaders();
       final res = await http
           .get(url, headers: headers)
@@ -273,7 +290,9 @@ class _SettingsPageState extends State<SettingsPage> {
         setState(() => _fitbitLinked = false);
         return;
       }
-      final url = Uri.parse("${ApiConfig.baseUrl}/fitbit/status?user_id=$userId");
+      final url = Uri.parse(
+        "${ApiConfig.baseUrl}/fitbit/status?user_id=$userId",
+      );
       final headers = await AccountStorage.getAuthHeaders();
       final response = await http.get(url, headers: headers);
       if (response.statusCode != 200) {
@@ -296,7 +315,9 @@ class _SettingsPageState extends State<SettingsPage> {
         setState(() => _stravaLinked = false);
         return;
       }
-      final url = Uri.parse("${ApiConfig.baseUrl}/strava/status?user_id=$userId");
+      final url = Uri.parse(
+        "${ApiConfig.baseUrl}/strava/status?user_id=$userId",
+      );
       final headers = await AccountStorage.getAuthHeaders();
       final response = await http.get(url, headers: headers);
       if (response.statusCode != 200) {
@@ -316,7 +337,11 @@ class _SettingsPageState extends State<SettingsPage> {
     final userId = await AccountStorage.getUserId();
     if (!mounted) return;
     if (userId == null || userId == 0) {
-      AppToast.show(context, "Please log in to connect Whoop.", type: AppToastType.info);
+      AppToast.show(
+        context,
+        "Please log in to connect Whoop.",
+        type: AppToastType.info,
+      );
       return;
     }
     setState(() => _whoopLoading = true);
@@ -358,7 +383,11 @@ class _SettingsPageState extends State<SettingsPage> {
       if (_isAuthCancelled(e)) {
         return;
       }
-      AppToast.show(context, "Whoop connect failed: $e", type: AppToastType.error);
+      AppToast.show(
+        context,
+        "Whoop connect failed: $e",
+        type: AppToastType.error,
+      );
     } finally {
       if (mounted) setState(() => _whoopLoading = false);
     }
@@ -368,7 +397,11 @@ class _SettingsPageState extends State<SettingsPage> {
     if (_fitbitAuthInFlight) return;
     final userId = await AccountStorage.getUserId();
     if (userId == null) {
-      AppToast.show(context, "Please log in to connect Fitbit.", type: AppToastType.info);
+      AppToast.show(
+        context,
+        "Please log in to connect Fitbit.",
+        type: AppToastType.info,
+      );
       return;
     }
     _fitbitAuthInFlight = true;
@@ -404,7 +437,11 @@ class _SettingsPageState extends State<SettingsPage> {
       if (_isAuthCancelled(e)) {
         return;
       }
-      AppToast.show(context, "Fitbit connect failed: $e", type: AppToastType.error);
+      AppToast.show(
+        context,
+        "Fitbit connect failed: $e",
+        type: AppToastType.error,
+      );
     } finally {
       _fitbitAuthInFlight = false;
       if (mounted) setState(() => _fitbitLoading = false);
@@ -415,7 +452,11 @@ class _SettingsPageState extends State<SettingsPage> {
     if (_stravaAuthInFlight) return;
     final userId = await AccountStorage.getUserId();
     if (userId == null) {
-      AppToast.show(context, "Please log in to connect Strava.", type: AppToastType.info);
+      AppToast.show(
+        context,
+        "Please log in to connect Strava.",
+        type: AppToastType.info,
+      );
       return;
     }
     _stravaAuthInFlight = true;
@@ -449,7 +490,11 @@ class _SettingsPageState extends State<SettingsPage> {
       if (_isAuthCancelled(e)) {
         return;
       }
-      AppToast.show(context, "Strava connect failed: $e", type: AppToastType.error);
+      AppToast.show(
+        context,
+        "Strava connect failed: $e",
+        type: AppToastType.error,
+      );
     } finally {
       _stravaAuthInFlight = false;
       if (mounted) setState(() => _stravaLoading = false);
@@ -468,15 +513,25 @@ class _SettingsPageState extends State<SettingsPage> {
     if (ok != true) return;
     setState(() => _fitbitLoading = true);
     try {
-      final url = Uri.parse("${ApiConfig.baseUrl}/fitbit/disconnect?user_id=$userId");
+      final url = Uri.parse(
+        "${ApiConfig.baseUrl}/fitbit/disconnect?user_id=$userId",
+      );
       final headers = await AccountStorage.getAuthHeaders();
       await http.post(url, headers: headers);
       setState(() => _fitbitLinked = false);
       await AccountStorage.setFitbitLinked(false);
       AccountStorage.notifyAccountChanged();
-      AppToast.show(context, "Fitbit disconnected.", type: AppToastType.success);
+      AppToast.show(
+        context,
+        "Fitbit disconnected.",
+        type: AppToastType.success,
+      );
     } catch (e) {
-      AppToast.show(context, "Fitbit disconnect failed: $e", type: AppToastType.error);
+      AppToast.show(
+        context,
+        "Fitbit disconnect failed: $e",
+        type: AppToastType.error,
+      );
     } finally {
       if (mounted) setState(() => _fitbitLoading = false);
     }
@@ -494,15 +549,25 @@ class _SettingsPageState extends State<SettingsPage> {
     if (ok != true) return;
     setState(() => _stravaLoading = true);
     try {
-      final url = Uri.parse("${ApiConfig.baseUrl}/strava/disconnect?user_id=$userId");
+      final url = Uri.parse(
+        "${ApiConfig.baseUrl}/strava/disconnect?user_id=$userId",
+      );
       final headers = await AccountStorage.getAuthHeaders();
       await http.post(url, headers: headers);
       setState(() => _stravaLinked = false);
       await AccountStorage.setStravaLinked(false);
       AccountStorage.notifyAccountChanged();
-      AppToast.show(context, "Strava disconnected.", type: AppToastType.success);
+      AppToast.show(
+        context,
+        "Strava disconnected.",
+        type: AppToastType.success,
+      );
     } catch (e) {
-      AppToast.show(context, "Strava disconnect failed: $e", type: AppToastType.error);
+      AppToast.show(
+        context,
+        "Strava disconnect failed: $e",
+        type: AppToastType.error,
+      );
     } finally {
       if (mounted) setState(() => _stravaLoading = false);
     }
@@ -542,10 +607,13 @@ class _SettingsPageState extends State<SettingsPage> {
     if (ok != true) return;
     setState(() => _whoopLoading = true);
     try {
-      final url = Uri.parse("${ApiConfig.baseUrl}/whoop/disconnect?user_id=$userId");
+      final url = Uri.parse(
+        "${ApiConfig.baseUrl}/whoop/disconnect?user_id=$userId",
+      );
       final headers = await AccountStorage.getAuthHeaders();
-      final res =
-          await http.post(url, headers: headers).timeout(const Duration(seconds: 12));
+      final res = await http
+          .post(url, headers: headers)
+          .timeout(const Duration(seconds: 12));
       if (res.statusCode != 200) {
         throw Exception("Status ${res.statusCode}");
       }
@@ -649,16 +717,11 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: AppColors.black,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-            title,
-            style: const TextStyle(color: Colors.white),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-          content: Text(
-            body,
-            style: const TextStyle(color: Colors.white70),
-          ),
+          title: Text(title, style: const TextStyle(color: Colors.white)),
+          content: Text(body, style: const TextStyle(color: Colors.white70)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -709,66 +772,74 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Text(t.translate("cancel")),
             ),
             TextButton(
-              onPressed: _updatingUsername ? null : () async {
-                final newUsername = _usernameController.text.trim();
-                if (newUsername.length < 3) {
-                  AppToast.show(
-                    context,
-                    t.translate("signup_username_short"),
-                    type: AppToastType.error,
-                  );
-                  return;
-                }
-                if (newUsername.length > 50) {
-                  AppToast.show(
-                    context,
-                    t.translate("signup_username_long"),
-                    type: AppToastType.error,
-                  );
-                  return;
-                }
-                if (!_usernameRegex.hasMatch(newUsername)) {
-                  AppToast.show(
-                    context,
-                    t.translate("signup_username_invalid"),
-                    type: AppToastType.error,
-                  );
-                  return;
-                }
-                if (newUsername.isEmpty || newUsername == currentUsername) {
-                  Navigator.pop(ctx);
-                  return;
-                }
-                setState(() => _updatingUsername = true);
-                try {
-                  final uid = await AccountStorage.getUserId();
-                  if (uid == null) {
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(t.translate("user_missing"))),
-                    );
-                    setState(() => _updatingUsername = false);
-                    return;
-                  }
-                  final updated = await ProfileApi.updateUsername(uid, newUsername);
-                  await AccountStorage.setName(updated);
-                  await _showSuccessDialog(
-                    "${t.translate("username_updated")}: $updated",
-                  );
-                  if (Navigator.canPop(ctx)) Navigator.pop(ctx);
-                } catch (e) {
-                  if (!mounted) return;
-                  AppToast.show(
-                    context,
-                    e.toString(),
-                    type: AppToastType.error,
-                  );
-                } finally {
-                  if (mounted) {
-                    setState(() => _updatingUsername = false);
-                  }
-                }
-              },
+              onPressed: _updatingUsername
+                  ? null
+                  : () async {
+                      final newUsername = _usernameController.text.trim();
+                      if (newUsername.length < 3) {
+                        AppToast.show(
+                          context,
+                          t.translate("signup_username_short"),
+                          type: AppToastType.error,
+                        );
+                        return;
+                      }
+                      if (newUsername.length > 50) {
+                        AppToast.show(
+                          context,
+                          t.translate("signup_username_long"),
+                          type: AppToastType.error,
+                        );
+                        return;
+                      }
+                      if (!_usernameRegex.hasMatch(newUsername)) {
+                        AppToast.show(
+                          context,
+                          t.translate("signup_username_invalid"),
+                          type: AppToastType.error,
+                        );
+                        return;
+                      }
+                      if (newUsername.isEmpty ||
+                          newUsername == currentUsername) {
+                        Navigator.pop(ctx);
+                        return;
+                      }
+                      setState(() => _updatingUsername = true);
+                      try {
+                        final uid = await AccountStorage.getUserId();
+                        if (uid == null) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(t.translate("user_missing")),
+                            ),
+                          );
+                          setState(() => _updatingUsername = false);
+                          return;
+                        }
+                        final updated = await ProfileApi.updateUsername(
+                          uid,
+                          newUsername,
+                        );
+                        await AccountStorage.setName(updated);
+                        await _showSuccessDialog(
+                          "${t.translate("username_updated")}: $updated",
+                        );
+                        if (Navigator.canPop(ctx)) Navigator.pop(ctx);
+                      } catch (e) {
+                        if (!mounted) return;
+                        AppToast.show(
+                          context,
+                          e.toString(),
+                          type: AppToastType.error,
+                        );
+                      } finally {
+                        if (mounted) {
+                          setState(() => _updatingUsername = false);
+                        }
+                      }
+                    },
               child: _updatingUsername
                   ? const SizedBox(
                       height: 18,
@@ -797,12 +868,15 @@ class _SettingsPageState extends State<SettingsPage> {
       return;
     }
 
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
           context: context,
           builder: (ctx) {
             return AlertDialog(
               backgroundColor: AppColors.black,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               title: Text(
                 t.translate("settings_delete_account"),
                 style: const TextStyle(color: Colors.white),
@@ -912,7 +986,9 @@ class _SettingsPageState extends State<SettingsPage> {
           _SettingsTile(
             title: t.translate("settings_change_avatar"),
             subtitle: t.translate("settings_change_avatar_sub"),
-            icon: _updatingAvatar ? Icons.hourglass_bottom : Icons.image_outlined,
+            icon: _updatingAvatar
+                ? Icons.hourglass_bottom
+                : Icons.image_outlined,
             onTap: _pickAvatar,
           ),
           _SettingsTile(
@@ -931,7 +1007,10 @@ class _SettingsPageState extends State<SettingsPage> {
               }
               try {
                 final lang = AppLocalizations.of(context).locale.languageCode;
-                final profile = await ProfileApi.fetchProfile(userId, lang: lang);
+                final profile = await ProfileApi.fetchProfile(
+                  userId,
+                  lang: lang,
+                );
                 final done = profile["filled_expert_questionnaire"] == true;
                 if (done) {
                   AppToast.show(
@@ -981,7 +1060,9 @@ class _SettingsPageState extends State<SettingsPage> {
           _SettingsTile(
             title: t.translate("settings_delete_account"),
             subtitle: t.translate("settings_delete_account_sub"),
-            icon: _deletingAccount ? Icons.hourglass_bottom : Icons.delete_forever,
+            icon: _deletingAccount
+                ? Icons.hourglass_bottom
+                : Icons.delete_forever,
             onTap: _deletingAccount ? null : _confirmDeleteAccount,
             color: Colors.redAccent,
           ),
@@ -997,8 +1078,9 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 12),
           _SettingsTile(
             title: _whoopLinked ? "Whoop connected" : "Connect Whoop",
-            subtitle:
-                _whoopLinked ? "Disconnect your Whoop" : "Link your Whoop account",
+            subtitle: _whoopLinked
+                ? "Disconnect your Whoop"
+                : "Link your Whoop account",
             icon: _whoopLoading ? Icons.hourglass_bottom : Icons.monitor_heart,
             onTap: _whoopLoading ? null : _handleWhoopTap,
             color: _whoopLinked ? const Color(0xFF4CD964) : null,
@@ -1022,9 +1104,12 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           _SettingsTile(
             title: _fitbitLinked ? "Fitbit connected" : "Connect Fitbit",
-            subtitle:
-                _fitbitLinked ? "Disconnect your Fitbit" : "Link your Fitbit account",
-            icon: _fitbitLoading ? Icons.hourglass_bottom : Icons.directions_walk,
+            subtitle: _fitbitLinked
+                ? "Disconnect your Fitbit"
+                : "Link your Fitbit account",
+            icon: _fitbitLoading
+                ? Icons.hourglass_bottom
+                : Icons.directions_walk,
             onTap: _fitbitLoading ? null : _handleFitbitTap,
             color: _fitbitLinked ? const Color(0xFF4CD964) : null,
             leading: Container(
@@ -1047,9 +1132,12 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           _SettingsTile(
             title: _stravaLinked ? "Strava connected" : "Connect Strava",
-            subtitle:
-                _stravaLinked ? "Disconnect your Strava" : "Link your Strava account",
-            icon: _stravaLoading ? Icons.hourglass_bottom : Icons.directions_bike,
+            subtitle: _stravaLinked
+                ? "Disconnect your Strava"
+                : "Link your Strava account",
+            icon: _stravaLoading
+                ? Icons.hourglass_bottom
+                : Icons.directions_bike,
             onTap: _stravaLoading ? null : _handleStravaTap,
             color: _stravaLinked ? const Color(0xFF4CD964) : null,
             leading: Container(

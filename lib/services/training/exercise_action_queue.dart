@@ -19,6 +19,34 @@ class ExerciseActionQueue {
   static const String actionSetDelete = "set_delete";
   static const String actionSessionFinish = "session_finish";
 
+  static String _dateToken(DateTime dt) {
+    final y = dt.year.toString().padLeft(4, '0');
+    final m = dt.month.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
+    return "$y-$m-$d";
+  }
+
+  static String? _normalizeEntryDateToken(dynamic value) {
+    if (value == null) return null;
+    final raw = value.toString().trim();
+    if (raw.isEmpty) return null;
+    if (RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(raw)) {
+      return raw;
+    }
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return null;
+    return _dateToken(parsed);
+  }
+
+  static String? _sessionFinishDateTokenFromAction(
+    Map<String, dynamic> action,
+  ) {
+    if (action["action"] != actionSessionFinish) return null;
+    final data = action["data"];
+    if (data is! Map) return null;
+    return _normalizeEntryDateToken(data["entry_date"]);
+  }
+
   /// Add action to queue
   static Future<void> queueAction({
     required String action,
@@ -30,18 +58,30 @@ class ExerciseActionQueue {
 
     final sp = await SharedPreferences.getInstance();
     final queueKey = "${_key}_u$userId";
-    
+
     // Load existing queue
     final existing = await _loadQueue(userId);
-    
+
+    final payloadData = data ?? <String, dynamic>{};
+
+    if (action == actionSessionFinish) {
+      final token = _normalizeEntryDateToken(payloadData["entry_date"]);
+      if (token != null) {
+        final alreadyQueued = existing.any(
+          (item) => _sessionFinishDateTokenFromAction(item) == token,
+        );
+        if (alreadyQueued) return;
+      }
+    }
+
     // Add new action
     existing.add({
       "action": action,
       "program_exercise_id": programExerciseId,
       "timestamp": DateTime.now().toIso8601String(),
-      "data": data ?? {},
+      "data": payloadData,
     });
-    
+
     // Save queue
     await sp.setString(queueKey, jsonEncode(existing));
   }
@@ -57,9 +97,9 @@ class ExerciseActionQueue {
     final sp = await SharedPreferences.getInstance();
     final queueKey = "${_key}_u$userId";
     final raw = sp.getString(queueKey);
-    
+
     if (raw == null) return [];
-    
+
     try {
       final List<dynamic> decoded = jsonDecode(raw);
       return decoded.map((e) => e as Map<String, dynamic>).toList();
@@ -83,12 +123,24 @@ class ExerciseActionQueue {
       final queueKey = "${_key}_u$userId";
 
       final List<Map<String, dynamic>> failed = [];
+      bool previousActionFailed = false;
 
       for (final action in queue) {
+        final actionType = action["action"] as String?;
+        if (actionType == actionSessionFinish && previousActionFailed) {
+          failed.add(action);
+          continue;
+        }
+        if (actionType == actionSessionFinish) {
+          final hasActiveSession = await TrainingService.hasActiveSession();
+          if (!hasActiveSession) {
+            // Session was already closed on backend; skip stale replay.
+            continue;
+          }
+        }
         try {
           await _processAction(action);
         } catch (e) {
-          final actionType = action["action"] as String?;
           // Drop non-retryable replace errors (e.g., started/completed)
           if (actionType == actionReplace &&
               e is TrainingApiException &&
@@ -100,6 +152,7 @@ class ExerciseActionQueue {
 
           // If sync fails, keep action in queue
           failed.add(action);
+          previousActionFailed = true;
           // ignore: avoid_print
           print("Failed to sync exercise action: $e");
         }
@@ -157,14 +210,14 @@ class ExerciseActionQueue {
         final newExerciseId = data["new_exercise_id"] as int? ?? 0;
         final newExerciseName = data["new_exercise_name"] as String? ?? "";
         final reason = data["reason"] as String? ?? "No reason provided";
-        
+
         await TrainingService.replaceExercise(
           userId: userId,
           programExerciseId: programExerciseId,
           newExerciseId: newExerciseId,
           reason: reason,
         );
-        
+
         // Preload feedback questions for the new exercise after replacement
         if (newExerciseName.isNotEmpty) {
           try {

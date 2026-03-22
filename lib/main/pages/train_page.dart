@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import '../../widgets/Main/section_header.dart';
@@ -64,11 +63,6 @@ class _TrainPageState extends State<TrainPage> {
   int _workoutElapsedSeconds = 0;
   Timer? _workoutTimer;
   bool _finishingWorkout = false;
-  bool _autoTrainingHistorySyncInFlight = false;
-  bool _autoCardioHistorySyncInFlight = false;
-  static bool _autoTrainingHistorySyncDoneForLaunch = false;
-  static bool _autoCardioHistorySyncDoneForLaunch = false;
-  static const int _autoHealthHistoryLookbackDays = 30;
 
   int _exRestPresetSeconds = 60;
   int _exRestRemaining = 0;
@@ -102,7 +96,6 @@ class _TrainPageState extends State<TrainPage> {
     await _loadCardioLock();
     await _loadExRestPreset();
     await _restoreExRestState();
-    unawaited(_autoPushTrainingHistoryToHealthOnTabOpen());
   }
 
   Future<void> _loadWorkoutTimer() async {
@@ -192,17 +185,22 @@ class _TrainPageState extends State<TrainPage> {
       try {
         await TrainingService.finishSession(entryDate: now);
       } catch (_) {
-        await ExerciseActionQueue.queueAction(
-          action: ExerciseActionQueue.actionSessionFinish,
-          programExerciseId: 0,
-          data: {
-            "entry_date":
-                "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
-          },
-        );
+        final hasActiveSession = await TrainingService.hasActiveSession();
+        if (hasActiveSession) {
+          await ExerciseActionQueue.queueAction(
+            action: ExerciseActionQueue.actionSessionFinish,
+            programExerciseId: 0,
+            data: {
+              "entry_date":
+                  "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
+            },
+          );
+        }
       }
       try {
         String? workoutBrandName;
+        int? workoutDayId;
+        String? workoutDayKey;
         final programDays = program?['days'];
         if (programDays is List &&
             finishedDayIndex >= 0 &&
@@ -215,15 +213,40 @@ class _TrainPageState extends State<TrainPage> {
             if (rawLabel.isNotEmpty) {
               workoutBrandName = rawLabel;
             }
+            final rawDayId = day['day_id'] ?? day['training_day_id'];
+            final parsedDayId = rawDayId is int
+                ? rawDayId
+                : (rawDayId is num
+                      ? rawDayId.toInt()
+                      : int.tryParse(rawDayId?.toString() ?? ''));
+            if (parsedDayId != null && parsedDayId > 0) {
+              workoutDayId = parsedDayId;
+            }
+            final rawDayKey = day['day_key']?.toString().trim();
+            if (rawDayKey != null && rawDayKey.isNotEmpty) {
+              workoutDayKey = rawDayKey;
+            }
           }
         }
-        await WorkoutHealthSyncService().writeWorkoutSession(
+        final healthSyncService = WorkoutHealthSyncService();
+        final trainingDayDedupeSignature = healthSyncService
+            .buildTrainingHistoryDayDedupeSignature(
+              day: now,
+              trainingDayId: workoutDayId,
+              dayKey: workoutDayKey,
+              label: workoutBrandName,
+            );
+        await healthSyncService.writeWorkoutSession(
           start: DateTime.fromMillisecondsSinceEpoch(sessionStartMs),
           end: now,
           title: "TAQA Workout Session",
           isCardio: false,
           workoutBrandName: workoutBrandName,
           isIndoorWorkout: true,
+          dedupeSignature: trainingDayDedupeSignature,
+          verifyHealthIfCachedDedupeSignature: true,
+          syncIdentifier: trainingDayDedupeSignature,
+          syncVersion: now.millisecondsSinceEpoch,
         );
       } catch (_) {
         // Ignore health write failures and continue local finish flow.
@@ -853,109 +876,10 @@ class _TrainPageState extends State<TrainPage> {
     });
   }
 
-  Future<void> _autoPushTrainingHistoryToHealthOnTabOpen() async {
-    if (!Platform.isIOS) return;
-    if (_autoTrainingHistorySyncDoneForLaunch) return;
-    if (_autoTrainingHistorySyncInFlight) return;
-    final userId = _userId ?? await AccountStorage.getUserId();
-    if (userId == null || userId <= 0) return;
-
-    _autoTrainingHistorySyncDoneForLaunch = true;
-    _autoTrainingHistorySyncInFlight = true;
-    try {
-      final cutoff = DateTime.now().subtract(
-        const Duration(days: _autoHealthHistoryLookbackDays),
-      );
-      final history = await TrainingService.fetchTrainingHistory(
-        userId: userId,
-        limitDays: _autoHealthHistoryLookbackDays,
-      );
-      final recentHistory = history.where((item) {
-        final dt =
-            _parseDateTime(item['latest_date']) ??
-            _parseDateTime(item['entry_date']) ??
-            _parseDateTime(item['week_start']) ??
-            _parseDateTime(item['updated_at']) ??
-            _parseDateTime(item['created_at']);
-        if (dt == null) return false;
-        final dayOnly = DateTime(dt.year, dt.month, dt.day);
-        final cutoffDay = DateTime(cutoff.year, cutoff.month, cutoff.day);
-        return !dayOnly.isBefore(cutoffDay);
-      }).toList();
-      if (recentHistory.isEmpty) return;
-      final result = await WorkoutHealthSyncService()
-          .writeTrainingHistorySessions(historyItems: recentHistory);
-      final written = result['written'] ?? 0;
-      if (!mounted || written <= 0) return;
-      AppToast.show(
-        context,
-        written == 1
-            ? "1 training session synced to Apple Health."
-            : "$written training sessions synced to Apple Health.",
-        type: AppToastType.success,
-      );
-    } catch (_) {
-      // Silent best-effort sync on tab open.
-    } finally {
-      _autoTrainingHistorySyncInFlight = false;
-    }
-  }
-
-  Future<void> _autoPushCardioHistoryToHealthOnTabOpen() async {
-    if (!Platform.isIOS) return;
-    if (_autoCardioHistorySyncDoneForLaunch) return;
-    if (_autoCardioHistorySyncInFlight) return;
-    final userId = _userId ?? await AccountStorage.getUserId();
-    if (userId == null || userId <= 0) return;
-
-    _autoCardioHistorySyncDoneForLaunch = true;
-    _autoCardioHistorySyncInFlight = true;
-    try {
-      final cutoff = DateTime.now().subtract(
-        const Duration(days: _autoHealthHistoryLookbackDays),
-      );
-      final history = await TrainingService.fetchCardioHistory(
-        userId: userId,
-        limit: 1000,
-      );
-      final recentHistory = history.where((item) {
-        final dt =
-            _parseDateTime(item['ended_at']) ??
-            _parseDateTime(item['finished_at']) ??
-            _parseDateTime(item['end_time']) ??
-            _parseDateTime(item['entry_date']) ??
-            _parseDateTime(item['started_at']) ??
-            _parseDateTime(item['created_at']) ??
-            _parseDateTime(item['updated_at']);
-        if (dt == null) return false;
-        final dayOnly = DateTime(dt.year, dt.month, dt.day);
-        final cutoffDay = DateTime(cutoff.year, cutoff.month, cutoff.day);
-        return !dayOnly.isBefore(cutoffDay);
-      }).toList();
-      if (recentHistory.isEmpty) return;
-      final result = await WorkoutHealthSyncService()
-          .writeCardioHistorySessions(sessions: recentHistory);
-      final written = result['written'] ?? 0;
-      if (!mounted || written <= 0) return;
-      AppToast.show(
-        context,
-        written == 1
-            ? "1 cardio session synced to Apple Health."
-            : "$written cardio sessions synced to Apple Health.",
-        type: AppToastType.success,
-      );
-    } catch (_) {
-      // Silent best-effort sync on tab open.
-    } finally {
-      _autoCardioHistorySyncInFlight = false;
-    }
-  }
-
   void _openTrainTab() {
     if (_tabIndex != 0) {
       setState(() => _tabIndex = 0);
     }
-    unawaited(_autoPushTrainingHistoryToHealthOnTabOpen());
   }
 
   Future<void> _openCardioTab() async {
@@ -972,7 +896,6 @@ class _TrainPageState extends State<TrainPage> {
       _tabIndex = 1;
       _cardioBuilt = true;
     });
-    unawaited(_autoPushCardioHistoryToHealthOnTabOpen());
   }
 
   Future<void> _openReplaceSheet(Map<String, dynamic> ex) async {

@@ -68,12 +68,16 @@ class WorkoutHealthSyncService {
     if (value is num) {
       final intVal = value.toInt();
       if (intVal > 1000000000000) {
-        return DateTime.fromMillisecondsSinceEpoch(intVal, isUtc: true)
-            .toLocal();
+        return DateTime.fromMillisecondsSinceEpoch(
+          intVal,
+          isUtc: true,
+        ).toLocal();
       }
       if (intVal > 1000000000) {
-        return DateTime.fromMillisecondsSinceEpoch(intVal * 1000, isUtc: true)
-            .toLocal();
+        return DateTime.fromMillisecondsSinceEpoch(
+          intVal * 1000,
+          isUtc: true,
+        ).toLocal();
       }
       return null;
     }
@@ -142,6 +146,29 @@ class WorkoutHealthSyncService {
     final m = d.month.toString().padLeft(2, '0');
     final day = d.day.toString().padLeft(2, '0');
     return '$y-$m-$day';
+  }
+
+  String buildTrainingHistoryDayDedupeSignature({
+    required DateTime day,
+    int? trainingDayId,
+    String? dayKey,
+    String? label,
+  }) {
+    final normalizedDay = DateTime(day.year, day.month, day.day);
+    final dayToken = _dateToken(normalizedDay);
+    final normalizedLabel = _normalizeSignaturePart(label ?? '');
+    if (normalizedLabel.isNotEmpty) {
+      return 'training_history_day|$dayToken|label:$normalizedLabel';
+    }
+    final dayId = trainingDayId ?? 0;
+    if (dayId > 0) {
+      return 'training_history_day|$dayToken|id:$dayId';
+    }
+    final normalizedDayKey = _normalizeSignaturePart(dayKey ?? '');
+    if (normalizedDayKey.isNotEmpty) {
+      return 'training_history_day|$dayToken|key:$normalizedDayKey';
+    }
+    return 'training_history_day|$dayToken|label:training day';
   }
 
   String _workoutDedupeSignature({
@@ -322,6 +349,8 @@ class WorkoutHealthSyncService {
     int? distanceMeters,
     String? workoutBrandName,
     bool? isIndoorWorkout,
+    String? syncIdentifier,
+    int? syncVersion,
   }) async {
     if (Platform.isIOS) {
       final iosWritten = await _writeWorkoutWithMetadataIOS(
@@ -333,6 +362,8 @@ class WorkoutHealthSyncService {
         distanceMeters: distanceMeters,
         workoutBrandName: workoutBrandName,
         isIndoorWorkout: isIndoorWorkout,
+        syncIdentifier: syncIdentifier,
+        syncVersion: syncVersion,
       );
       if (iosWritten == true) {
         return true;
@@ -455,6 +486,8 @@ class WorkoutHealthSyncService {
     int? distanceMeters,
     String? workoutBrandName,
     bool? isIndoorWorkout,
+    String? syncIdentifier,
+    int? syncVersion,
   }) async {
     if (!Platform.isIOS) return null;
     try {
@@ -475,6 +508,8 @@ class WorkoutHealthSyncService {
               end: end,
               title: title,
             ),
+            'syncIdentifier': syncIdentifier,
+            'syncVersion': syncVersion,
           });
       return result == true;
     } catch (e) {
@@ -519,6 +554,9 @@ class WorkoutHealthSyncService {
     String? workoutBrandName,
     bool? isIndoorWorkout,
     String? dedupeSignature,
+    bool verifyHealthIfCachedDedupeSignature = false,
+    String? syncIdentifier,
+    int? syncVersion,
   }) async {
     final granted = await ConsentManager.requestUnifiedHealthPermissionsJIT();
     if (!granted) {
@@ -541,6 +579,9 @@ class WorkoutHealthSyncService {
       workoutBrandName: workoutBrandName,
       isIndoorWorkout: isIndoorWorkout,
       dedupeSignature: dedupeSignature,
+      verifyHealthIfCachedDedupeSignature: verifyHealthIfCachedDedupeSignature,
+      syncIdentifier: syncIdentifier,
+      syncVersion: syncVersion,
     );
   }
 
@@ -557,6 +598,9 @@ class WorkoutHealthSyncService {
     String? workoutBrandName,
     bool? isIndoorWorkout,
     String? dedupeSignature,
+    bool verifyHealthIfCachedDedupeSignature = false,
+    String? syncIdentifier,
+    int? syncVersion,
   }) async {
     final result = await writeWorkoutSessionWithStatus(
       start: start,
@@ -571,6 +615,9 @@ class WorkoutHealthSyncService {
       workoutBrandName: workoutBrandName,
       isIndoorWorkout: isIndoorWorkout,
       dedupeSignature: dedupeSignature,
+      verifyHealthIfCachedDedupeSignature: verifyHealthIfCachedDedupeSignature,
+      syncIdentifier: syncIdentifier,
+      syncVersion: syncVersion,
     );
     return result.isSuccess;
   }
@@ -588,6 +635,9 @@ class WorkoutHealthSyncService {
     String? workoutBrandName,
     bool? isIndoorWorkout,
     String? dedupeSignature,
+    bool verifyHealthIfCachedDedupeSignature = false,
+    String? syncIdentifier,
+    int? syncVersion,
   }) async {
     final safeEnd = end.isAfter(start)
         ? end
@@ -607,12 +657,14 @@ class WorkoutHealthSyncService {
     );
 
     try {
-      if (await _isDedupeSignatureKnown(signature)) {
+      final signatureKnown = await _isDedupeSignatureKnown(signature);
+      if (signatureKnown && !verifyHealthIfCachedDedupeSignature) {
         if (kDebugMode) {
           print('WorkoutHealthSyncService: skipped duplicate (local cache).');
         }
         return WorkoutSessionWriteResult.skippedDuplicate;
       }
+
       final exists = await _workoutAlreadyExists(
         start: start,
         end: safeEnd,
@@ -625,6 +677,11 @@ class WorkoutHealthSyncService {
           print('WorkoutHealthSyncService: skipped duplicate workout write.');
         }
         return WorkoutSessionWriteResult.skippedDuplicate;
+      }
+      if (signatureKnown && verifyHealthIfCachedDedupeSignature && kDebugMode) {
+        print(
+          'WorkoutHealthSyncService: signature cached locally but missing in Health; rewriting.',
+        );
       }
       final weightKg = await _loadWeightKg() ?? _defaultWeightKg;
       final calories =
@@ -646,6 +703,8 @@ class WorkoutHealthSyncService {
         distanceMeters: distance,
         workoutBrandName: workoutBrandName,
         isIndoorWorkout: isIndoorWorkout,
+        syncIdentifier: syncIdentifier,
+        syncVersion: syncVersion,
       );
       if (enriched) {
         if (stepsCount != null && stepsCount > 0) {
@@ -668,6 +727,8 @@ class WorkoutHealthSyncService {
         distanceMeters: null,
         workoutBrandName: workoutBrandName,
         isIndoorWorkout: isIndoorWorkout,
+        syncIdentifier: syncIdentifier,
+        syncVersion: syncVersion,
       );
       if (bare && stepsCount != null && stepsCount > 0) {
         await _writeStepsSample(
@@ -695,6 +756,8 @@ class WorkoutHealthSyncService {
           distanceMeters: null,
           workoutBrandName: workoutBrandName,
           isIndoorWorkout: isIndoorWorkout,
+          syncIdentifier: syncIdentifier,
+          syncVersion: syncVersion,
         );
         if (bare && stepsCount != null && stepsCount > 0) {
           await _writeStepsSample(
@@ -901,45 +964,30 @@ class WorkoutHealthSyncService {
 
   String _trainingHistoryDedupeSignature({
     required Map<String, dynamic> item,
-    required List<Map<String, dynamic>> completedExercises,
-    required int completedCount,
-    required int totalCount,
     required String label,
-    required DateTime start,
-    required DateTime end,
+    required DateTime fallbackDay,
   }) {
-    final dayKey =
-        (item['day_key'] ?? item['training_day_id'] ?? item['day_id'] ?? label)
-            .toString()
-            .trim()
-            .toLowerCase();
-    final exerciseKeys = <String>[];
-    for (final ex in completedExercises) {
-      final raw =
-          ex['program_exercise_id'] ??
-          ex['exercise_id'] ??
-          ex['id'] ??
-          ex['exercise_name'];
-      final key = raw?.toString().trim();
-      if (key != null && key.isNotEmpty) {
-        exerciseKeys.add(key);
-      }
-    }
-    exerciseKeys.sort();
-    return [
-      'training_history',
-      dayKey,
-      label.trim().toLowerCase(),
-      completedCount.toString(),
-      totalCount.toString(),
-      start.toUtc().millisecondsSinceEpoch.toString(),
-      end.toUtc().millisecondsSinceEpoch.toString(),
-      exerciseKeys.join(','),
-    ].join('|');
+    final day =
+        _parseBackendDateTime(item['entry_date']) ??
+        _parseBackendDateTime(item['latest_date']) ??
+        _parseBackendDateTime(item['week_start']) ??
+        _parseBackendDateTime(item['created_at']) ??
+        _parseBackendDateTime(item['updated_at']) ??
+        fallbackDay;
+    final trainingDayId = _toInt(item['training_day_id']);
+    final dayId = trainingDayId > 0 ? trainingDayId : _toInt(item['day_id']);
+    final dayKey = item['day_key']?.toString();
+    return buildTrainingHistoryDayDedupeSignature(
+      day: day,
+      trainingDayId: dayId > 0 ? dayId : null,
+      dayKey: dayKey,
+      label: label,
+    );
   }
 
   Future<Map<String, int>> writeTrainingHistorySessions({
     required List<Map<String, dynamic>> historyItems,
+    bool verifyHealthIfCachedDedupeSignature = false,
   }) async {
     final granted = await ConsentManager.requestUnifiedHealthPermissionsJIT();
     if (!granted) {
@@ -977,10 +1025,6 @@ class WorkoutHealthSyncService {
         continue;
       }
 
-      final totalCount = _resolvedCount(
-        item['total_count'],
-        fallback: completedCount,
-      );
       final label = (item['label'] ?? item['day_label'] ?? 'Training day')
           .toString()
           .trim();
@@ -997,12 +1041,8 @@ class WorkoutHealthSyncService {
       final start = end.subtract(Duration(seconds: durationSeconds));
       final dedupeSignature = _trainingHistoryDedupeSignature(
         item: item,
-        completedExercises: completedExercises,
-        completedCount: completedCount,
-        totalCount: totalCount,
         label: label,
-        start: start,
-        end: end,
+        fallbackDay: end,
       );
       total += 1;
 
@@ -1015,6 +1055,8 @@ class WorkoutHealthSyncService {
         workoutBrandName: label.isEmpty ? null : label,
         isIndoorWorkout: true,
         dedupeSignature: dedupeSignature,
+        verifyHealthIfCachedDedupeSignature:
+            verifyHealthIfCachedDedupeSignature,
       );
       switch (result.status) {
         case WorkoutSessionWriteStatus.written:
@@ -1039,6 +1081,7 @@ class WorkoutHealthSyncService {
 
   Future<Map<String, int>> writeCardioHistorySessions({
     required List<Map<String, dynamic>> sessions,
+    bool verifyHealthIfCachedDedupeSignature = false,
   }) async {
     final granted = await ConsentManager.requestUnifiedHealthPermissionsJIT();
     if (!granted) {
@@ -1121,6 +1164,8 @@ class WorkoutHealthSyncService {
         totalDistanceMeters: distanceMeters,
         stepsCount: stepsCount,
         dedupeSignature: dedupeSignature,
+        verifyHealthIfCachedDedupeSignature:
+            verifyHealthIfCachedDedupeSignature,
       );
       switch (result.status) {
         case WorkoutSessionWriteStatus.written:

@@ -137,6 +137,49 @@ class TrainingService {
     return fallback;
   }
 
+  static bool? _toBoolOrNull(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    final normalized = value.toString().trim().toLowerCase();
+    if (normalized.isEmpty) return null;
+    if (normalized == 'true' ||
+        normalized == '1' ||
+        normalized == 'yes' ||
+        normalized == 'y' ||
+        normalized == 'active' ||
+        normalized == 'open') {
+      return true;
+    }
+    if (normalized == 'false' ||
+        normalized == '0' ||
+        normalized == 'no' ||
+        normalized == 'n' ||
+        normalized == 'inactive' ||
+        normalized == 'closed') {
+      return false;
+    }
+    return null;
+  }
+
+  static bool _isNoActiveSessionMessage(Map<String, dynamic> payload) {
+    final message = [
+      payload['status'],
+      payload['state'],
+      payload['message'],
+      payload['detail'],
+      payload['error'],
+    ].where((e) => e != null).map((e) => e.toString().toLowerCase()).join(' ');
+    if (message.isEmpty) return false;
+    return message.contains('no active session') ||
+        message.contains('no current session') ||
+        message.contains('session not found') ||
+        message.contains('finished') ||
+        message.contains('completed') ||
+        message.contains('closed') ||
+        message.contains('ended');
+  }
+
   static Map<String, dynamic> _normalizeTrainingProgressPayload(
     Map<String, dynamic> payload,
   ) {
@@ -470,6 +513,40 @@ class TrainingService {
     final data = json.decode(res.body);
     if (data is Map) return Map<String, dynamic>.from(data);
     return {};
+  }
+
+  static Future<bool> hasActiveSession() async {
+    try {
+      final current = await fetchCurrentSession();
+      if (current.isEmpty) return false;
+      if (_isNoActiveSessionMessage(current)) return false;
+
+      final activeFlag = _toBoolOrNull(
+        current['is_active'] ??
+            current['active'] ??
+            current['session_active'] ??
+            current['isOpen'],
+      );
+      if (activeFlag != null) return activeFlag;
+
+      final sessionId = _toInt(current['session_id'] ?? current['id']);
+      if (sessionId > 0) return true;
+
+      final startedAt =
+          current['started_at'] ??
+          current['start_time'] ??
+          current['startedAt'];
+      if (startedAt != null && startedAt.toString().trim().isNotEmpty) {
+        return true;
+      }
+
+      // If schema is unfamiliar but payload is non-empty, assume active
+      // so we don't accidentally drop a needed finish call.
+      return true;
+    } catch (_) {
+      // If backend check fails, keep retry behavior for queued session finish.
+      return true;
+    }
   }
 
   static Future<void> finishSession({required DateTime entryDate}) async {

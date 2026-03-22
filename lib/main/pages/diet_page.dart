@@ -31,6 +31,7 @@ class DietPageState extends State<DietPage> {
   String? _error;
   Map<String, dynamic>? _targets;
   bool _targetsFromCache = false;
+
   /// When diet is generating in background, we poll until targets appear.
   Timer? _targetsPollTimer;
 
@@ -65,7 +66,9 @@ class DietPageState extends State<DietPage> {
 
     final days = _trainingDays;
 
-    final restCalCtrl = TextEditingController(text: restCalories > 0 ? "$restCalories" : "");
+    final restCalCtrl = TextEditingController(
+      text: restCalories > 0 ? "$restCalories" : "",
+    );
     final restPCtrl = TextEditingController(text: restP > 0 ? "$restP" : "");
     final restCCtrl = TextEditingController(text: restC > 0 ? "$restC" : "");
     final restFCtrl = TextEditingController(text: restF > 0 ? "$restF" : "");
@@ -130,7 +133,10 @@ class DietPageState extends State<DietPage> {
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.close, color: Colors.white70),
+                            icon: const Icon(
+                              Icons.close,
+                              color: Colors.white70,
+                            ),
                             onPressed: () => Navigator.of(ctx).pop(),
                           ),
                         ],
@@ -142,178 +148,228 @@ class DietPageState extends State<DietPage> {
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                          Text(
-                            t.translate("diet_rest_day"),
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: Colors.white70,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: restCalCtrl,
-                                  keyboardType: TextInputType.number,
-                                  decoration: InputDecoration(
-                                    labelText: t.translate("diet_kcal_label"),
-                                    labelStyle: const TextStyle(color: Colors.white70),
-                                  ),
-                                  style: const TextStyle(color: Colors.white),
+                              Text(
+                                t.translate("diet_rest_day"),
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: Colors.white70,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: TextField(
-                                  controller: restPCtrl,
-                                  keyboardType: TextInputType.number,
-                                  decoration: const InputDecoration(
-                                    labelText: "P (g)",
-                                    labelStyle: TextStyle(color: Colors.white70),
-                                  ),
-                                  style: const TextStyle(color: Colors.white),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: restCCtrl,
-                                  keyboardType: TextInputType.number,
-                                  decoration: const InputDecoration(
-                                    labelText: "C (g)",
-                                    labelStyle: TextStyle(color: Colors.white70),
-                                  ),
-                                  style: const TextStyle(color: Colors.white),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: TextField(
-                                  controller: restFCtrl,
-                                  keyboardType: TextInputType.number,
-                                  decoration: const InputDecoration(
-                                    labelText: "F (g)",
-                                    labelStyle: TextStyle(color: Colors.white70),
-                                  ),
-                                  style: const TextStyle(color: Colors.white),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          if (days.isNotEmpty) ...[
-                            Text(
-                              t.translate("diet_training_day"),
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: Colors.white70,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            for (final d in days) ...[
                               const SizedBox(height: 8),
-                              _buildTrainingDayTargetRow(
-                                theme,
-                                d,
-                                calCtrl: trainingCtrls[_asInt(d["day_id"], fallback: 0)]?["cal"],
-                                pCtrl: trainingCtrls[_asInt(d["day_id"], fallback: 0)]?["p"],
-                                cCtrl: trainingCtrls[_asInt(d["day_id"], fallback: 0)]?["c"],
-                                fCtrl: trainingCtrls[_asInt(d["day_id"], fallback: 0)]?["f"],
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: restCalCtrl,
+                                      keyboardType: TextInputType.number,
+                                      decoration: InputDecoration(
+                                        labelText: t.translate(
+                                          "diet_kcal_label",
+                                        ),
+                                        labelStyle: const TextStyle(
+                                          color: Colors.white70,
+                                        ),
+                                      ),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: restPCtrl,
+                                      keyboardType: TextInputType.number,
+                                      decoration: const InputDecoration(
+                                        labelText: "P (g)",
+                                        labelStyle: TextStyle(
+                                          color: Colors.white70,
+                                        ),
+                                      ),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                            const SizedBox(height: 16),
-                          ],
-                          Text(
-                            t.translate("diet_edit_reason_title"),
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: Colors.white70,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              _reasonChip(
-                                code: "more_hungry",
-                                label: t.translate("diet_edit_reason_more_hungry"),
-                                current: reasonCode,
-                                onChanged: (c) {
-                                  setModalState(() {
-                                    reasonCode = c;
-                                  });
-                                },
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: restCCtrl,
+                                      keyboardType: TextInputType.number,
+                                      decoration: const InputDecoration(
+                                        labelText: "C (g)",
+                                        labelStyle: TextStyle(
+                                          color: Colors.white70,
+                                        ),
+                                      ),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: restFCtrl,
+                                      keyboardType: TextInputType.number,
+                                      decoration: const InputDecoration(
+                                        labelText: "F (g)",
+                                        labelStyle: TextStyle(
+                                          color: Colors.white70,
+                                        ),
+                                      ),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              _reasonChip(
-                                code: "less_hungry",
-                                label: t.translate("diet_edit_reason_less_hungry"),
-                                current: reasonCode,
-                                onChanged: (c) {
-                                  setModalState(() {
-                                    reasonCode = c;
-                                  });
-                                },
+                              const SizedBox(height: 16),
+                              if (days.isNotEmpty) ...[
+                                Text(
+                                  t.translate("diet_training_day"),
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: Colors.white70,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                for (final d in days) ...[
+                                  const SizedBox(height: 8),
+                                  _buildTrainingDayTargetRow(
+                                    theme,
+                                    d,
+                                    calCtrl:
+                                        trainingCtrls[_asInt(
+                                          d["day_id"],
+                                          fallback: 0,
+                                        )]?["cal"],
+                                    pCtrl:
+                                        trainingCtrls[_asInt(
+                                          d["day_id"],
+                                          fallback: 0,
+                                        )]?["p"],
+                                    cCtrl:
+                                        trainingCtrls[_asInt(
+                                          d["day_id"],
+                                          fallback: 0,
+                                        )]?["c"],
+                                    fCtrl:
+                                        trainingCtrls[_asInt(
+                                          d["day_id"],
+                                          fallback: 0,
+                                        )]?["f"],
+                                  ),
+                                ],
+                                const SizedBox(height: 16),
+                              ],
+                              Text(
+                                t.translate("diet_edit_reason_title"),
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: Colors.white70,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                              _reasonChip(
-                                code: "performance",
-                                label: t.translate("diet_edit_reason_performance"),
-                                current: reasonCode,
-                                onChanged: (c) {
-                                  setModalState(() {
-                                    reasonCode = c;
-                                  });
-                                },
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  _reasonChip(
+                                    code: "more_hungry",
+                                    label: t.translate(
+                                      "diet_edit_reason_more_hungry",
+                                    ),
+                                    current: reasonCode,
+                                    onChanged: (c) {
+                                      setModalState(() {
+                                        reasonCode = c;
+                                      });
+                                    },
+                                  ),
+                                  _reasonChip(
+                                    code: "less_hungry",
+                                    label: t.translate(
+                                      "diet_edit_reason_less_hungry",
+                                    ),
+                                    current: reasonCode,
+                                    onChanged: (c) {
+                                      setModalState(() {
+                                        reasonCode = c;
+                                      });
+                                    },
+                                  ),
+                                  _reasonChip(
+                                    code: "performance",
+                                    label: t.translate(
+                                      "diet_edit_reason_performance",
+                                    ),
+                                    current: reasonCode,
+                                    onChanged: (c) {
+                                      setModalState(() {
+                                        reasonCode = c;
+                                      });
+                                    },
+                                  ),
+                                  _reasonChip(
+                                    code: "body_comp",
+                                    label: t.translate(
+                                      "diet_edit_reason_body_comp",
+                                    ),
+                                    current: reasonCode,
+                                    onChanged: (c) {
+                                      setModalState(() {
+                                        reasonCode = c;
+                                      });
+                                    },
+                                  ),
+                                  _reasonChip(
+                                    code: "doctor_order",
+                                    label: t.translate(
+                                      "diet_edit_reason_doctor",
+                                    ),
+                                    current: reasonCode,
+                                    onChanged: (c) {
+                                      setModalState(() {
+                                        reasonCode = c;
+                                      });
+                                    },
+                                  ),
+                                  _reasonChip(
+                                    code: "other",
+                                    label: t.translate(
+                                      "diet_edit_reason_other",
+                                    ),
+                                    current: reasonCode,
+                                    onChanged: (c) {
+                                      setModalState(() {
+                                        reasonCode = c;
+                                      });
+                                    },
+                                  ),
+                                ],
                               ),
-                              _reasonChip(
-                                code: "body_comp",
-                                label: t.translate("diet_edit_reason_body_comp"),
-                                current: reasonCode,
-                                onChanged: (c) {
-                                  setModalState(() {
-                                    reasonCode = c;
-                                  });
-                                },
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: reasonCtrl,
+                                maxLines: 3,
+                                maxLength: 500,
+                                style: const TextStyle(color: Colors.white),
+                                decoration: InputDecoration(
+                                  labelText: t.translate(
+                                    "diet_edit_reason_hint",
+                                  ),
+                                  labelStyle: const TextStyle(
+                                    color: Colors.white70,
+                                  ),
+                                ),
                               ),
-                              _reasonChip(
-                                code: "doctor_order",
-                                label: t.translate("diet_edit_reason_doctor"),
-                                current: reasonCode,
-                                onChanged: (c) {
-                                  setModalState(() {
-                                    reasonCode = c;
-                                  });
-                                },
-                              ),
-                              _reasonChip(
-                                code: "other",
-                                label: t.translate("diet_edit_reason_other"),
-                                current: reasonCode,
-                                onChanged: (c) {
-                                  setModalState(() {
-                                    reasonCode = c;
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: reasonCtrl,
-                            maxLines: 3,
-                            maxLength: 500,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: InputDecoration(
-                              labelText: t.translate("diet_edit_reason_hint"),
-                              labelStyle: const TextStyle(color: Colors.white70),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
+                              const SizedBox(height: 16),
                             ],
                           ),
                         ),
@@ -326,14 +382,18 @@ class DietPageState extends State<DietPage> {
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.white70,
                               ),
-                              child: Text(t.translate("diet_edit_targets_cancel")),
+                              child: Text(
+                                t.translate("diet_edit_targets_cancel"),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: ElevatedButton(
                               onPressed: () => Navigator.of(ctx).pop(true),
-                              child: Text(t.translate("diet_edit_targets_save")),
+                              child: Text(
+                                t.translate("diet_edit_targets_save"),
+                              ),
                             ),
                           ),
                         ],
@@ -578,7 +638,9 @@ class DietPageState extends State<DietPage> {
       return false;
     }
   }
+
   int _selectedTrainingDayIndex = 0;
+
   /// When true, user completed an exercise today so we force "training day" and disable switching to "rest day".
   bool _trainDayLockedByExercise = false;
   int? _lockedTrainingDayId;
@@ -610,15 +672,18 @@ class DietPageState extends State<DietPage> {
       final trainingDayId = _modeIndex == 1
           ? _asInt(_selectedTrainingDay?["day_id"], fallback: 0)
           : null;
-      final effectiveTdId =
-          (trainingDayId != null && trainingDayId > 0) ? trainingDayId : null;
+      final effectiveTdId = (trainingDayId != null && trainingDayId > 0)
+          ? trainingDayId
+          : null;
       var cachedMeals = await DietService.fetchMealsForDateFromCache(
         _mealDate,
         trainingDayId: effectiveTdId,
       );
       if (cachedMeals != null && cachedMeals["day_summary"] == null) {
         try {
-          final cachedSummary = await DietDaySummaryStorage.loadSummaryForDate(_mealDate);
+          final cachedSummary = await DietDaySummaryStorage.loadSummaryForDate(
+            _mealDate,
+          );
           if (cachedSummary != null) {
             cachedMeals = Map<String, dynamic>.from(cachedMeals);
             cachedMeals["day_summary"] = cachedSummary;
@@ -686,11 +751,18 @@ class DietPageState extends State<DietPage> {
       final data = await DietService.fetchRemainingRecommendations(userId);
       if (!mounted || _dietRecommendationCancelled) return;
       closeLoadingDialogIfOpen();
-      final rec = (data["recommendation"] is Map) ? data["recommendation"] as Map : const {};
-      final message = (rec["message"] ?? "Here are a few ideas to finish your day.").toString();
+      final rec = (data["recommendation"] is Map)
+          ? data["recommendation"] as Map
+          : const {};
+      final message =
+          (rec["message"] ?? "Here are a few ideas to finish your day.")
+              .toString();
       final optionsRaw = rec["options"];
       final options = (optionsRaw is List)
-          ? optionsRaw.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList()
+          ? optionsRaw
+                .whereType<Map>()
+                .map((e) => e.cast<String, dynamic>())
+                .toList()
           : <Map<String, dynamic>>[];
 
       await showDietRecommendationDialog(
@@ -736,9 +808,12 @@ class DietPageState extends State<DietPage> {
       }
       return;
     }
-    final didComplete = await TrainingCompletionStorage.didCompleteExerciseOnDate(_mealDate);
+    final didComplete =
+        await TrainingCompletionStorage.didCompleteExerciseOnDate(_mealDate);
     final lockedDay = didComplete
-        ? await TrainingCompletionStorage.getCompletedTrainingDayForDate(_mealDate)
+        ? await TrainingCompletionStorage.getCompletedTrainingDayForDate(
+            _mealDate,
+          )
         : null;
     final lockedIdRaw = lockedDay?["training_day_id"];
     final lockedId = lockedIdRaw is num
@@ -748,9 +823,13 @@ class DietPageState extends State<DietPage> {
     if (!mounted) return;
     setState(() {
       _trainDayLockedByExercise = didComplete;
-      _lockedTrainingDayId = (lockedId != null && lockedId > 0) ? lockedId : null;
+      _lockedTrainingDayId = (lockedId != null && lockedId > 0)
+          ? lockedId
+          : null;
       _lockedTrainingDayLabel =
-          (lockedLabel != null && lockedLabel.trim().isNotEmpty) ? lockedLabel.trim() : null;
+          (lockedLabel != null && lockedLabel.trim().isNotEmpty)
+          ? lockedLabel.trim()
+          : null;
       if (didComplete) _modeIndex = 1;
     });
     if (didComplete && _trainingDays.isNotEmpty) {
@@ -787,15 +866,23 @@ class DietPageState extends State<DietPage> {
     return fallback.clamp(0, days.length - 1);
   }
 
-  List<Map<String, dynamic>> _trainingDaysFromTargets(Map<String, dynamic>? targets) {
+  List<Map<String, dynamic>> _trainingDaysFromTargets(
+    Map<String, dynamic>? targets,
+  ) {
     final list = targets?["training_day_targets"];
     if (list is List) {
-      return list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+      return list
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList();
     }
     return const [];
   }
 
-  static String? _readSectionError(Map<String, dynamic> payload, String section) {
+  static String? _readSectionError(
+    Map<String, dynamic> payload,
+    String section,
+  ) {
     final keys = <String>[
       '${section}_error',
       '${section}Error',
@@ -834,7 +921,9 @@ class DietPageState extends State<DietPage> {
       final trainingDayId = _modeIndex == 1
           ? _asInt(_selectedTrainingDay?["day_id"], fallback: 0)
           : null;
-      final effectiveTdId = (trainingDayId != null && trainingDayId > 0) ? trainingDayId : null;
+      final effectiveTdId = (trainingDayId != null && trainingDayId > 0)
+          ? trainingDayId
+          : null;
 
       final payload = await DietService.fetchDietBootstrap(
         userId,
@@ -847,7 +936,9 @@ class DietPageState extends State<DietPage> {
 
       final targets = payload["targets"];
       final meals = payload["meals"];
-      final targetsData = targets is Map ? targets.cast<String, dynamic>() : null;
+      final targetsData = targets is Map
+          ? targets.cast<String, dynamic>()
+          : null;
       final mealsData = meals is Map ? meals.cast<String, dynamic>() : null;
       final targetsErr = _readSectionError(payload, 'targets');
       final mealsErr = _readSectionError(payload, 'meals');
@@ -1068,7 +1159,9 @@ class DietPageState extends State<DietPage> {
     final trainingDayId = _modeIndex == 1
         ? _asInt(_selectedTrainingDay?["day_id"], fallback: 0)
         : null;
-    final effectiveTdId = (trainingDayId != null && trainingDayId > 0) ? trainingDayId : null;
+    final effectiveTdId = (trainingDayId != null && trainingDayId > 0)
+        ? trainingDayId
+        : null;
 
     if (clearExisting) {
       // Try to hydrate from cache for the target day/type before showing loading.
@@ -1146,7 +1239,9 @@ class DietPageState extends State<DietPage> {
         final trainingDayId = _modeIndex == 1
             ? _asInt(_selectedTrainingDay?["day_id"], fallback: 0)
             : null;
-        final effectiveTdId = (trainingDayId != null && trainingDayId > 0) ? trainingDayId : null;
+        final effectiveTdId = (trainingDayId != null && trainingDayId > 0)
+            ? trainingDayId
+            : null;
         final cached = await DietService.fetchMealsForDateFromCache(
           _mealDate,
           trainingDayId: effectiveTdId,
@@ -1176,7 +1271,10 @@ class DietPageState extends State<DietPage> {
   List<Map<String, dynamic>> get _trainingDays {
     final list = _targets?["training_day_targets"];
     if (list is List) {
-      return list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+      return list
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList();
     }
     return const [];
   }
@@ -1228,7 +1326,10 @@ class DietPageState extends State<DietPage> {
   List<Map<String, dynamic>> get _mealList {
     final list = _meals?["meals"];
     if (list is List) {
-      return list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+      return list
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList();
     }
     return const [];
   }
@@ -1245,7 +1346,8 @@ class DietPageState extends State<DietPage> {
     final live = _daySummary?["live"];
     if (live is Map) return live.cast<String, dynamic>();
     // If no "live" wrapper, the day_summary itself contains target/consumed/remaining
-    if (_daySummary != null && (_daySummary!["target"] != null || _daySummary!["remaining"] != null)) {
+    if (_daySummary != null &&
+        (_daySummary!["target"] != null || _daySummary!["remaining"] != null)) {
       return _daySummary;
     }
     return null;
@@ -1260,17 +1362,24 @@ class DietPageState extends State<DietPage> {
   List<Map<String, dynamic>> _mealItems(Map<String, dynamic> meal) {
     final list = meal["items"];
     if (list is List) {
-      return list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+      return list
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList();
     }
     return const [];
   }
 
   int _mealItemId(Map<String, dynamic> item) {
     // Backend likely uses "id" for meal item primary key; fall back to other keys if present.
-    return _asInt(item["meal_item_id"] ?? item["id"] ?? item["item_id"], fallback: 0);
+    return _asInt(
+      item["meal_item_id"] ?? item["id"] ?? item["item_id"],
+      fallback: 0,
+    );
   }
 
-  int _dsInt(Map<String, dynamic>? m, String key) => _asInt(m?[key], fallback: 0);
+  int _dsInt(Map<String, dynamic>? m, String key) =>
+      _asInt(m?[key], fallback: 0);
 
   String _completionPercentLabel(int consumed, int? target) {
     if (target == null || target <= 0) return "";
@@ -1298,10 +1407,7 @@ class DietPageState extends State<DietPage> {
               key: formKey,
               child: Column(
                 children: [
-                  Text(
-                    itemName,
-                    style: const TextStyle(color: Colors.white70),
-                  ),
+                  Text(itemName, style: const TextStyle(color: Colors.white70)),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: nameCtrl,
@@ -1319,7 +1425,9 @@ class DietPageState extends State<DietPage> {
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: amountCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     decoration: InputDecoration(
                       labelText: t.translate("diet_ingredient_amount"),
                       hintText: t.translate("diet_ingredient_optional"),
@@ -1388,7 +1496,9 @@ class DietPageState extends State<DietPage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("${t.translate("diet_ingredient_add_failed")}: $e")),
+        SnackBar(
+          content: Text("${t.translate("diet_ingredient_add_failed")}: $e"),
+        ),
       );
     } finally {
       nameCtrl.dispose();
@@ -1420,10 +1530,7 @@ class DietPageState extends State<DietPage> {
           try {
             if (daySummary != null && _meals != null && mounted) {
               setState(() {
-                _meals = {
-                  ..._meals!,
-                  "day_summary": daySummary,
-                };
+                _meals = {..._meals!, "day_summary": daySummary};
               });
             }
             if (mounted) await _loadMeals();
@@ -1510,7 +1617,10 @@ class DietPageState extends State<DietPage> {
       final item = entry.value;
       final ingredients = item['ingredients'];
       final ingList = ingredients is List
-          ? ingredients.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList()
+          ? ingredients
+                .whereType<Map>()
+                .map((e) => e.cast<String, dynamic>())
+                .toList()
           : <Map<String, dynamic>>[];
       final source = _asString(item['source']);
       return {
@@ -1544,7 +1654,9 @@ class DietPageState extends State<DietPage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("${t.translate("diet_favorites_save_failed")}: $e")),
+        SnackBar(
+          content: Text("${t.translate("diet_favorites_save_failed")}: $e"),
+        ),
       );
     } finally {
       nameCtrl.dispose();
@@ -1600,7 +1712,9 @@ class DietPageState extends State<DietPage> {
       await _loadMeals();
     } catch (e) {
       if (!mounted) return;
-      final msg = e is Exception ? e.toString().replaceFirst('Exception: ', '') : e.toString();
+      final msg = e is Exception
+          ? e.toString().replaceFirst('Exception: ', '')
+          : e.toString();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("${t.translate("diet_add_meal_failed")}: $msg")),
       );
@@ -1671,7 +1785,9 @@ class DietPageState extends State<DietPage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("${t.translate("diet_delete_meal_failed")}: $e")),
+        SnackBar(
+          content: Text("${t.translate("diet_delete_meal_failed")}: $e"),
+        ),
       );
     }
   }
@@ -1688,7 +1804,9 @@ class DietPageState extends State<DietPage> {
           scrollable: true,
           title: Text(t.translate("diet_delete_item_title")),
           content: Text(
-            t.translate("diet_delete_item_confirm").replaceAll("{item}", itemName),
+            t
+                .translate("diet_delete_item_confirm")
+                .replaceAll("{item}", itemName),
           ),
           actions: [
             TextButton(
@@ -1717,7 +1835,9 @@ class DietPageState extends State<DietPage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("${t.translate("diet_delete_item_failed")}: $e")),
+        SnackBar(
+          content: Text("${t.translate("diet_delete_item_failed")}: $e"),
+        ),
       );
     }
   }
@@ -1735,7 +1855,9 @@ class DietPageState extends State<DietPage> {
           scrollable: true,
           title: Text(t.translate("diet_clear_meal_title")),
           content: Text(
-            t.translate("diet_clear_meal_confirm").replaceAll("{meal}", mealTitle),
+            t
+                .translate("diet_clear_meal_confirm")
+                .replaceAll("{meal}", mealTitle),
           ),
           actions: [
             TextButton(
@@ -1854,7 +1976,9 @@ class DietPageState extends State<DietPage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("${t.translate("diet_rename_meal_failed")}: $e")),
+        SnackBar(
+          content: Text("${t.translate("diet_rename_meal_failed")}: $e"),
+        ),
       );
     } finally {
       nameCtrl.dispose();
@@ -1868,14 +1992,11 @@ class DietPageState extends State<DietPage> {
 
     setState(() => _freezing = true);
     try {
-      await DietService.captureDaySummary(
-        userId,
-        date: _mealDate,
-      );
+      await DietService.captureDaySummary(userId, date: _mealDate);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.translate("diet_day_frozen"))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.translate("diet_day_frozen"))));
       await _loadMeals();
     } catch (e) {
       if (!mounted) return;
@@ -1950,22 +2071,29 @@ class DietPageState extends State<DietPage> {
 
     // Get consumption data from day_summary if available
     final live = _daySummaryLive;
-    final target = (live?["target"] is Map) ? (live?["target"] as Map).cast<String, dynamic>() : null;
-    final consumed = (live?["consumed"] is Map) ? (live?["consumed"] as Map).cast<String, dynamic>() : null;
-    final remaining = (live?["remaining"] is Map) ? (live?["remaining"] as Map).cast<String, dynamic>() : null;
-    
+    final target = (live?["target"] is Map)
+        ? (live?["target"] as Map).cast<String, dynamic>()
+        : null;
+    final consumed = (live?["consumed"] is Map)
+        ? (live?["consumed"] as Map).cast<String, dynamic>()
+        : null;
+    final remaining = (live?["remaining"] is Map)
+        ? (live?["remaining"] as Map).cast<String, dynamic>()
+        : null;
+
     final conCal = _dsInt(consumed, "calories");
     final tarCal = _dsInt(target, "calories");
     final remCal = _dsInt(remaining, "calories");
     final hasConsumption = conCal > 0 || tarCal > 0;
-    final frozen = _daySummarySnapshot != null;
 
-    final targetsSubtitle = _error ??
+    final targetsSubtitle =
+        _error ??
         (_targetsFromCache
             ? t.translate("diet_offline_targets")
             : t.translate("diet_targets_subtitle"));
 
-    final mealsSubtitleSuffix = _mealsError ??
+    final mealsSubtitleSuffix =
+        _mealsError ??
         (_mealsFromCache ? t.translate("diet_offline_meals") : "");
     final mealsSubtitle = mealsSubtitleSuffix.isEmpty
         ? _dateLabel(_mealDate)
@@ -2021,22 +2149,15 @@ class DietPageState extends State<DietPage> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (hasConsumption && !frozen)
-                          IconButton(
-                            tooltip: t.translate("diet_freeze_day"),
-                            onPressed: _freezing ? null : _freezeDay,
-                            icon: _freezing
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : const Icon(Icons.lock_outline, color: Colors.white70),
-                          ),
                         IconButton(
                           tooltip: t.translate("diet_refresh"),
-                          onPressed: _loading ? null : () => _loadTargets(forceNetwork: true),
-                          icon: const Icon(Icons.refresh, color: Colors.white70),
+                          onPressed: _loading
+                              ? null
+                              : () => _loadTargets(forceNetwork: true),
+                          icon: const Icon(
+                            Icons.refresh,
+                            color: Colors.white70,
+                          ),
                         ),
                         IconButton(
                           tooltip: t.translate("diet_edit_targets"),
@@ -2079,7 +2200,8 @@ class DietPageState extends State<DietPage> {
                       return ToggleButtons(
                         isSelected: [_modeIndex == 0, _modeIndex == 1],
                         onPressed: (idx) async {
-                          if (_trainDayLockedByExercise && idx == 0) return; // cannot switch to Rest when trained today
+                          if (_trainDayLockedByExercise && idx == 0)
+                            return; // cannot switch to Rest when trained today
                           setState(() {
                             _modeIndex = idx;
                           });
@@ -2094,7 +2216,10 @@ class DietPageState extends State<DietPage> {
                                   dayType: 'rest',
                                 );
                               } else {
-                                final tdId = _asInt(_selectedTrainingDay?["day_id"], fallback: 0);
+                                final tdId = _asInt(
+                                  _selectedTrainingDay?["day_id"],
+                                  fallback: 0,
+                                );
                                 await TrainingCalendarService.setDay(
                                   userId: userId,
                                   entryDate: _mealDate,
@@ -2186,11 +2311,13 @@ class DietPageState extends State<DietPage> {
                           if (hasConsumption && remCal != 0) ...[
                             const SizedBox(height: 4),
                             Text(
-                              remCal > 0 
+                              remCal > 0
                                   ? "${t.translate("diet_remaining")}: $remCal ${t.translate("diet_kcal_unit")}"
                                   : "${t.translate("diet_over")}: ${-remCal} ${t.translate("diet_kcal_unit")}",
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: remCal > 0 ? AppColors.successGreen : AppColors.errorRed,
+                                color: remCal > 0
+                                    ? AppColors.successGreen
+                                    : AppColors.errorRed,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -2221,7 +2348,9 @@ class DietPageState extends State<DietPage> {
                         grams: hasConsumption && consumed != null
                             ? _dsInt(consumed, "protein_g")
                             : activeP,
-                        target: hasConsumption && target != null ? _dsInt(target, "protein_g") : null,
+                        target: hasConsumption && target != null
+                            ? _dsInt(target, "protein_g")
+                            : null,
                         color: AppColors.accent,
                         icon: Icons.fitness_center,
                       ),
@@ -2230,7 +2359,9 @@ class DietPageState extends State<DietPage> {
                         grams: hasConsumption && consumed != null
                             ? _dsInt(consumed, "carbs_g")
                             : activeC,
-                        target: hasConsumption && target != null ? _dsInt(target, "carbs_g") : null,
+                        target: hasConsumption && target != null
+                            ? _dsInt(target, "carbs_g")
+                            : null,
                         color: AppColors.successGreen,
                         icon: Icons.bolt,
                       ),
@@ -2239,7 +2370,9 @@ class DietPageState extends State<DietPage> {
                         grams: hasConsumption && consumed != null
                             ? _dsInt(consumed, "fat_g")
                             : activeF,
-                        target: hasConsumption && target != null ? _dsInt(target, "fat_g") : null,
+                        target: hasConsumption && target != null
+                            ? _dsInt(target, "fat_g")
+                            : null,
                         color: const Color(0xFFFFA726),
                         icon: Icons.opacity,
                       ),
@@ -2276,7 +2409,10 @@ class DietPageState extends State<DietPage> {
                         color: AppColors.successGreen.withValues(alpha: 0.14),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.today, color: AppColors.successGreen),
+                      child: const Icon(
+                        Icons.today,
+                        color: AppColors.successGreen,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -2310,7 +2446,10 @@ class DietPageState extends State<DietPage> {
                     IconButton(
                       tooltip: t.translate("diet_add_meal_title"),
                       onPressed: _mealsLoading ? null : _createMealManually,
-                      icon: const Icon(Icons.add_circle_outline, color: Colors.white70),
+                      icon: const Icon(
+                        Icons.add_circle_outline,
+                        color: Colors.white70,
+                      ),
                     ),
                   ],
                 ),
@@ -2338,7 +2477,10 @@ class DietPageState extends State<DietPage> {
                       onPressed: () async {
                         final userId = await AccountStorage.getUserId();
                         if (userId == null) return;
-                        await DietService.openMealsForDate(userId, date: _mealDate);
+                        await DietService.openMealsForDate(
+                          userId,
+                          date: _mealDate,
+                        );
                         if (!mounted) return;
                         await _loadMeals();
                       },
@@ -2350,15 +2492,20 @@ class DietPageState extends State<DietPage> {
                     final listIndex = entry.key;
                     final meal = entry.value;
                     final backendTitle = _asString(meal["title"]);
-                    final idx = listIndex + 1; // Frontend display index (1..N) - always use this for numbering
+                    final idx =
+                        listIndex +
+                        1; // Frontend display index (1..N) - always use this for numbering
                     final mealIndex = _asInt(meal["meal_index"], fallback: idx);
                     // Treat as default only if it exactly matches "Meal {index}" for this slot
                     final lowerTitle = backendTitle.toLowerCase().trim();
-                    final isDefaultTitle = backendTitle.isEmpty ||
+                    final isDefaultTitle =
+                        backendTitle.isEmpty ||
                         lowerTitle == "meal $mealIndex" ||
-                        lowerTitle == "${t.translate("diet_meal").toLowerCase()} $mealIndex";
-                    final displayTitle = (!isDefaultTitle && backendTitle.isNotEmpty) 
-                        ? backendTitle 
+                        lowerTitle ==
+                            "${t.translate("diet_meal").toLowerCase()} $mealIndex";
+                    final displayTitle =
+                        (!isDefaultTitle && backendTitle.isNotEmpty)
+                        ? backendTitle
                         : "${t.translate("diet_meal")} $idx";
                     final itemList = _mealItems(meal);
                     final items = itemList.length;
@@ -2375,7 +2522,9 @@ class DietPageState extends State<DietPage> {
                           color: AppColors.cardDark,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
+                            color: const Color(
+                              0xFFD4AF37,
+                            ).withValues(alpha: 0.18),
                           ),
                         ),
                         padding: const EdgeInsets.all(14),
@@ -2394,12 +2543,19 @@ class DietPageState extends State<DietPage> {
                                   ),
                                 ),
                                 PopupMenuButton<String>(
-                                  icon: const Icon(Icons.more_vert, color: Colors.white70),
+                                  icon: const Icon(
+                                    Icons.more_vert,
+                                    color: Colors.white70,
+                                  ),
                                   onSelected: (value) async {
-                                    final userId = await AccountStorage.getUserId();
+                                    final userId =
+                                        await AccountStorage.getUserId();
                                     if (userId == null) return;
                                     final trainingDayId = _modeIndex == 1
-                                        ? _asInt(_selectedTrainingDay?["day_id"], fallback: 0)
+                                        ? _asInt(
+                                            _selectedTrainingDay?["day_id"],
+                                            fallback: 0,
+                                          )
                                         : null;
                                     if (value == 'favorites_log') {
                                       await _openFavoritesSheet(
@@ -2446,25 +2602,37 @@ class DietPageState extends State<DietPage> {
                                   itemBuilder: (ctx) => [
                                     PopupMenuItem(
                                       value: 'favorites_log',
-                                      child: Text(t.translate("diet_favorites_add_from")),
+                                      child: Text(
+                                        t.translate("diet_favorites_add_from"),
+                                      ),
                                     ),
                                     PopupMenuItem(
                                       value: 'favorites_save',
                                       enabled: itemList.isNotEmpty,
-                                      child: Text(t.translate("diet_favorites_save_current")),
+                                      child: Text(
+                                        t.translate(
+                                          "diet_favorites_save_current",
+                                        ),
+                                      ),
                                     ),
                                     PopupMenuItem(
                                       value: 'meal_rename',
-                                      child: Text(t.translate("diet_rename_meal")),
+                                      child: Text(
+                                        t.translate("diet_rename_meal"),
+                                      ),
                                     ),
                                     PopupMenuItem(
                                       value: 'meal_clear_items',
                                       enabled: itemList.isNotEmpty,
-                                      child: Text(t.translate("diet_clear_meal_items")),
+                                      child: Text(
+                                        t.translate("diet_clear_meal_items"),
+                                      ),
                                     ),
                                     PopupMenuItem(
                                       value: 'meal_delete',
-                                      child: Text(t.translate("diet_delete_meal")),
+                                      child: Text(
+                                        t.translate("diet_delete_meal"),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -2473,12 +2641,16 @@ class DietPageState extends State<DietPage> {
                                   onPressed: mealId <= 0
                                       ? null
                                       : () async {
-                                          final userId = await AccountStorage.getUserId();
+                                          final userId =
+                                              await AccountStorage.getUserId();
                                           if (userId == null) return;
                                           if (!context.mounted) return;
 
                                           final trainingDayId = _modeIndex == 1
-                                              ? _asInt(_selectedTrainingDay?["day_id"], fallback: 0)
+                                              ? _asInt(
+                                                  _selectedTrainingDay?["day_id"],
+                                                  fallback: 0,
+                                                )
                                               : null;
 
                                           // Show options first
@@ -2487,41 +2659,58 @@ class DietPageState extends State<DietPage> {
                                             isScrollControlled: true,
                                             backgroundColor: AppColors.black,
                                             shape: const RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+                                              borderRadius:
+                                                  BorderRadius.vertical(
+                                                    top: Radius.circular(18),
+                                                  ),
                                             ),
                                             builder: (_) => DietLoggingOptionsSheet(
                                               mealTitle: displayTitle,
                                               onSearch: () async {
                                                 if (!context.mounted) return;
-                                                if (_itemSearchSheetOpen) return;
+                                                if (_itemSearchSheetOpen)
+                                                  return;
                                                 _itemSearchSheetOpen = true;
                                                 await showModalBottomSheet(
                                                   context: context,
                                                   isScrollControlled: true,
-                                                  backgroundColor: AppColors.black,
+                                                  backgroundColor:
+                                                      AppColors.black,
                                                   shape: const RoundedRectangleBorder(
-                                                    borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+                                                    borderRadius:
+                                                        BorderRadius.vertical(
+                                                          top: Radius.circular(
+                                                            18,
+                                                          ),
+                                                        ),
                                                   ),
                                                   builder: (_) => DietItemSearchSheet(
                                                     rootContext: context,
                                                     userId: userId,
                                                     mealId: mealId,
                                                     mealTitle: displayTitle,
-                                                    trainingDayId: trainingDayId,
+                                                    trainingDayId:
+                                                        trainingDayId,
                                                     initialTab: 0,
                                                     onLogged: (daySummary) async {
                                                       try {
-                                                        if (daySummary != null && _meals != null && mounted) {
+                                                        if (daySummary !=
+                                                                null &&
+                                                            _meals != null &&
+                                                            mounted) {
                                                           setState(() {
                                                             _meals = {
                                                               ..._meals!,
-                                                              "day_summary": daySummary,
+                                                              "day_summary":
+                                                                  daySummary,
                                                             };
                                                           });
                                                         }
-                                                        if (mounted) await _loadMeals();
+                                                        if (mounted)
+                                                          await _loadMeals();
                                                       } catch (_) {
-                                                        if (mounted) await _loadMeals();
+                                                        if (mounted)
+                                                          await _loadMeals();
                                                       }
                                                     },
                                                   ),
@@ -2530,34 +2719,48 @@ class DietPageState extends State<DietPage> {
                                               },
                                               onManualEntry: () async {
                                                 if (!context.mounted) return;
-                                                if (_manualEntrySheetOpen) return;
+                                                if (_manualEntrySheetOpen)
+                                                  return;
                                                 _manualEntrySheetOpen = true;
                                                 await showModalBottomSheet(
                                                   context: context,
                                                   isScrollControlled: true,
-                                                  backgroundColor: AppColors.black,
+                                                  backgroundColor:
+                                                      AppColors.black,
                                                   shape: const RoundedRectangleBorder(
-                                                    borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+                                                    borderRadius:
+                                                        BorderRadius.vertical(
+                                                          top: Radius.circular(
+                                                            18,
+                                                          ),
+                                                        ),
                                                   ),
                                                   builder: (_) => DietManualEntrySheet(
                                                     rootContext: context,
                                                     userId: userId,
                                                     mealId: mealId,
                                                     mealTitle: displayTitle,
-                                                    trainingDayId: trainingDayId,
+                                                    trainingDayId:
+                                                        trainingDayId,
                                                     onLogged: (daySummary) async {
                                                       try {
-                                                        if (daySummary != null && _meals != null && mounted) {
+                                                        if (daySummary !=
+                                                                null &&
+                                                            _meals != null &&
+                                                            mounted) {
                                                           setState(() {
                                                             _meals = {
                                                               ..._meals!,
-                                                              "day_summary": daySummary,
+                                                              "day_summary":
+                                                                  daySummary,
                                                             };
                                                           });
                                                         }
-                                                        if (mounted) await _loadMeals();
+                                                        if (mounted)
+                                                          await _loadMeals();
                                                       } catch (_) {
-                                                        if (mounted) await _loadMeals();
+                                                        if (mounted)
+                                                          await _loadMeals();
                                                       }
                                                     },
                                                   ),
@@ -2566,34 +2769,48 @@ class DietPageState extends State<DietPage> {
                                               },
                                               onPhotoEntry: () async {
                                                 if (!context.mounted) return;
-                                                if (_photoEntrySheetOpen) return;
+                                                if (_photoEntrySheetOpen)
+                                                  return;
                                                 _photoEntrySheetOpen = true;
                                                 await showModalBottomSheet(
                                                   context: context,
                                                   isScrollControlled: true,
-                                                  backgroundColor: AppColors.black,
+                                                  backgroundColor:
+                                                      AppColors.black,
                                                   shape: const RoundedRectangleBorder(
-                                                    borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+                                                    borderRadius:
+                                                        BorderRadius.vertical(
+                                                          top: Radius.circular(
+                                                            18,
+                                                          ),
+                                                        ),
                                                   ),
                                                   builder: (_) => DietPhotoEntrySheet(
                                                     rootContext: context,
                                                     userId: userId,
                                                     mealId: mealId,
                                                     mealTitle: displayTitle,
-                                                    trainingDayId: trainingDayId,
+                                                    trainingDayId:
+                                                        trainingDayId,
                                                     onLogged: (daySummary) async {
                                                       try {
-                                                        if (daySummary != null && _meals != null && mounted) {
+                                                        if (daySummary !=
+                                                                null &&
+                                                            _meals != null &&
+                                                            mounted) {
                                                           setState(() {
                                                             _meals = {
                                                               ..._meals!,
-                                                              "day_summary": daySummary,
+                                                              "day_summary":
+                                                                  daySummary,
                                                             };
                                                           });
                                                         }
-                                                        if (mounted) await _loadMeals();
+                                                        if (mounted)
+                                                          await _loadMeals();
                                                       } catch (_) {
-                                                        if (mounted) await _loadMeals();
+                                                        if (mounted)
+                                                          await _loadMeals();
                                                       }
                                                     },
                                                   ),
@@ -2603,7 +2820,10 @@ class DietPageState extends State<DietPage> {
                                             ),
                                           );
                                         },
-                                  icon: const Icon(Icons.add, color: Colors.white70),
+                                  icon: const Icon(
+                                    Icons.add,
+                                    color: Colors.white70,
+                                  ),
                                 ),
                                 Text(
                                   "$items $itemsLabel",
@@ -2667,49 +2887,77 @@ class DietPageState extends State<DietPage> {
                                   final itemId = _mealItemId(item);
                                   final ingredients = item["ingredients"];
                                   final ingList = ingredients is List
-                                      ? ingredients.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList()
+                                      ? ingredients
+                                            .whereType<Map>()
+                                            .map(
+                                              (e) => e.cast<String, dynamic>(),
+                                            )
+                                            .toList()
                                       : <Map<String, dynamic>>[];
                                   return Container(
                                     margin: const EdgeInsets.only(bottom: 10),
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                      color: AppColors.black.withValues(alpha: 0.6),
+                                      color: AppColors.black.withValues(
+                                        alpha: 0.6,
+                                      ),
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
-                                        color: const Color(0xFFD4AF37).withValues(alpha: 0.12),
+                                        color: const Color(
+                                          0xFFD4AF37,
+                                        ).withValues(alpha: 0.12),
                                       ),
                                     ),
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Row(
                                           children: [
                                             Expanded(
                                               child: Text(
                                                 itemName,
-                                                style: theme.textTheme.bodyMedium?.copyWith(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.w700,
-                                                ),
+                                                style: theme
+                                                    .textTheme
+                                                    .bodyMedium
+                                                    ?.copyWith(
+                                                      color: Colors.white,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
                                               ),
                                             ),
                                             if (itemId > 0)
                                               IconButton(
-                                                tooltip: t.translate("diet_add_ingredient"),
-                                                onPressed: () => _openAddIngredientDialog(
-                                                  mealItemId: itemId,
-                                                  itemName: itemName,
+                                                tooltip: t.translate(
+                                                  "diet_add_ingredient",
                                                 ),
-                                                icon: const Icon(Icons.add, color: Colors.white70, size: 20),
+                                                onPressed: () =>
+                                                    _openAddIngredientDialog(
+                                                      mealItemId: itemId,
+                                                      itemName: itemName,
+                                                    ),
+                                                icon: const Icon(
+                                                  Icons.add,
+                                                  color: Colors.white70,
+                                                  size: 20,
+                                                ),
                                               ),
                                             if (itemId > 0)
                                               IconButton(
-                                                tooltip: t.translate("diet_delete_item"),
-                                                onPressed: () => _deleteMealItem(
-                                                  mealItemId: itemId,
-                                                  itemName: itemName,
+                                                tooltip: t.translate(
+                                                  "diet_delete_item",
                                                 ),
-                                                icon: const Icon(Icons.delete_outline, color: Colors.white54, size: 20),
+                                                onPressed: () =>
+                                                    _deleteMealItem(
+                                                      mealItemId: itemId,
+                                                      itemName: itemName,
+                                                    ),
+                                                icon: const Icon(
+                                                  Icons.delete_outline,
+                                                  color: Colors.white54,
+                                                  size: 20,
+                                                ),
                                               ),
                                           ],
                                         ),
@@ -2720,23 +2968,39 @@ class DietPageState extends State<DietPage> {
                                           "${t.translate("diet_c_short")} $c • "
                                           "${t.translate("diet_f_short")} $f"
                                           "${grams != null ? " • ${grams}g" : ""}",
-                                          style: theme.textTheme.bodySmall?.copyWith(color: Colors.white60),
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(color: Colors.white60),
                                         ),
                                         if (ingList.isNotEmpty) ...[
                                           const SizedBox(height: 6),
                                           Text(
                                             ingList
                                                 .map((ing) {
-                                                  final n = _asString(ing["ingredient_name"]);
+                                                  final n = _asString(
+                                                    ing["ingredient_name"],
+                                                  );
                                                   final amt = ing["amount"];
-                                                  final unit = _asString(ing["unit"]);
-                                                  final amountLabel = amt != null ? " ${amt.toString()}" : "";
-                                                  final unitLabel = unit.isNotEmpty ? " $unit" : "";
+                                                  final unit = _asString(
+                                                    ing["unit"],
+                                                  );
+                                                  final amountLabel =
+                                                      amt != null
+                                                      ? " ${amt.toString()}"
+                                                      : "";
+                                                  final unitLabel =
+                                                      unit.isNotEmpty
+                                                      ? " $unit"
+                                                      : "";
                                                   return "$n$amountLabel$unitLabel";
                                                 })
-                                                .where((e) => e.trim().isNotEmpty)
+                                                .where(
+                                                  (e) => e.trim().isNotEmpty,
+                                                )
                                                 .join(" • "),
-                                            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
+                                            style: theme.textTheme.bodySmall
+                                                ?.copyWith(
+                                                  color: Colors.white54,
+                                                ),
                                           ),
                                         ],
                                       ],
@@ -2811,28 +3075,33 @@ class DietPageState extends State<DietPage> {
           isExpanded: true,
           dropdownColor: AppColors.cardDark,
           iconEnabledColor: Colors.white70,
-          onChanged: _trainDayLockedByExercise ? null : (v) async {
-            if (v == null) return;
-            setState(() => _selectedTrainingDayIndex = v);
-            // If user is on training mode, persist calendar mapping for today.
-            if (_modeIndex == 1) {
-              try {
-                final userId = await AccountStorage.getUserId();
-                if (userId != null) {
-                  final tdId = _asInt(_selectedTrainingDay?["day_id"], fallback: 0);
-                  await TrainingCalendarService.setDay(
-                    userId: userId,
-                    entryDate: _mealDate,
-                    dayType: 'training',
-                    trainingDayId: tdId > 0 ? tdId : 1,
-                  );
-                }
-              } catch (_) {
-                // ignore
-              }
-            }
-            onChanged?.call();
-          },
+          onChanged: _trainDayLockedByExercise
+              ? null
+              : (v) async {
+                  if (v == null) return;
+                  setState(() => _selectedTrainingDayIndex = v);
+                  // If user is on training mode, persist calendar mapping for today.
+                  if (_modeIndex == 1) {
+                    try {
+                      final userId = await AccountStorage.getUserId();
+                      if (userId != null) {
+                        final tdId = _asInt(
+                          _selectedTrainingDay?["day_id"],
+                          fallback: 0,
+                        );
+                        await TrainingCalendarService.setDay(
+                          userId: userId,
+                          entryDate: _mealDate,
+                          dayType: 'training',
+                          trainingDayId: tdId > 0 ? tdId : 1,
+                        );
+                      }
+                    } catch (_) {
+                      // ignore
+                    }
+                  }
+                  onChanged?.call();
+                },
         ),
       ),
     );
@@ -2843,9 +3112,15 @@ class DietPageState extends State<DietPage> {
     final theme = Theme.of(context);
 
     final live = _daySummaryLive;
-    final target = (live?["target"] is Map) ? (live?["target"] as Map).cast<String, dynamic>() : null;
-    final consumed = (live?["consumed"] is Map) ? (live?["consumed"] as Map).cast<String, dynamic>() : null;
-    final remaining = (live?["remaining"] is Map) ? (live?["remaining"] as Map).cast<String, dynamic>() : null;
+    final target = (live?["target"] is Map)
+        ? (live?["target"] as Map).cast<String, dynamic>()
+        : null;
+    final consumed = (live?["consumed"] is Map)
+        ? (live?["consumed"] as Map).cast<String, dynamic>()
+        : null;
+    final remaining = (live?["remaining"] is Map)
+        ? (live?["remaining"] as Map).cast<String, dynamic>()
+        : null;
 
     final remCal = _dsInt(remaining, "calories");
     final tarCal = _dsInt(target, "calories");
@@ -2857,7 +3132,9 @@ class DietPageState extends State<DietPage> {
       decoration: BoxDecoration(
         color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.18)),
+        border: Border.all(
+          color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
+        ),
       ),
       padding: const EdgeInsets.all(14),
       child: Column(
@@ -2876,11 +3153,16 @@ class DietPageState extends State<DietPage> {
               ),
               if (frozen)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.successGreen.withValues(alpha: 0.16),
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: AppColors.successGreen.withValues(alpha: 0.25)),
+                    border: Border.all(
+                      color: AppColors.successGreen.withValues(alpha: 0.25),
+                    ),
                   ),
                   child: Text(
                     t.translate("diet_frozen_badge"),
@@ -2918,7 +3200,9 @@ class DietPageState extends State<DietPage> {
               const Spacer(),
               Text(
                 "${t.translate("diet_consumed")}: $conCal / $tarCal",
-                style: theme.textTheme.bodySmall?.copyWith(color: Colors.white60),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.white60,
+                ),
               ),
             ],
           ),
@@ -2958,7 +3242,11 @@ class DietPageState extends State<DietPage> {
                       width: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Text(frozen ? t.translate("diet_day_already_frozen") : t.translate("diet_freeze_day")),
+                  : Text(
+                      frozen
+                          ? t.translate("diet_day_already_frozen")
+                          : t.translate("diet_freeze_day"),
+                    ),
             ),
           ),
           if (!frozen)
@@ -2966,7 +3254,9 @@ class DietPageState extends State<DietPage> {
               padding: const EdgeInsets.only(top: 8),
               child: Text(
                 t.translate("diet_freeze_note"),
-                style: theme.textTheme.bodySmall?.copyWith(color: Colors.white60),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.white60,
+                ),
               ),
             ),
           if (frozen)
@@ -2974,7 +3264,9 @@ class DietPageState extends State<DietPage> {
               padding: const EdgeInsets.only(top: 8),
               child: Text(
                 t.translate("diet_frozen_note"),
-                style: theme.textTheme.bodySmall?.copyWith(color: Colors.white60),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.white60,
+                ),
               ),
             ),
         ],

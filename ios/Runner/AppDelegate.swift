@@ -164,6 +164,15 @@ class HealthWorkoutMetadataChannel {
     {
       metadata["TAQA_WORKOUT_TITLE"] = title
     }
+    let syncIdentifier = (arguments["syncIdentifier"] as? String)?
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    let syncVersion = asInt(arguments["syncVersion"])
+    if let syncIdentifier = syncIdentifier, !syncIdentifier.isEmpty {
+      metadata[HKMetadataKeySyncIdentifier] = syncIdentifier
+      if let syncVersion = syncVersion, syncVersion > 0 {
+        metadata[HKMetadataKeySyncVersion] = syncVersion
+      }
+    }
 
     let workout = HKWorkout(
       activityType: activityType,
@@ -175,18 +184,46 @@ class HealthWorkoutMetadataChannel {
       metadata: metadata.isEmpty ? nil : metadata
     )
 
-    let shareTypes: Set<HKSampleType> = [HKObjectType.workoutType()]
-    healthStore.requestAuthorization(toShare: shareTypes, read: nil) { granted, _ in
+    let workoutType = HKObjectType.workoutType()
+    let shareTypes: Set<HKSampleType> = [workoutType]
+    let readTypes: Set<HKObjectType> = [workoutType]
+    healthStore.requestAuthorization(toShare: shareTypes, read: readTypes) { granted, _ in
       if !granted {
         DispatchQueue.main.async {
           result(false)
         }
         return
       }
-      healthStore.save(workout) { success, _ in
-        DispatchQueue.main.async {
-          result(success)
+      let persist: () -> Void = {
+        healthStore.save(workout) { success, _ in
+          DispatchQueue.main.async {
+            result(success)
+          }
         }
+      }
+      if let syncIdentifier = syncIdentifier, !syncIdentifier.isEmpty {
+        let predicate = HKQuery.predicateForObjects(
+          withMetadataKey: HKMetadataKeySyncIdentifier,
+          allowedValues: [syncIdentifier]
+        )
+        let query = HKSampleQuery(
+          sampleType: workoutType,
+          predicate: predicate,
+          limit: HKObjectQueryNoLimit,
+          sortDescriptors: nil
+        ) { _, samples, _ in
+          guard let samples = samples, !samples.isEmpty else {
+            persist()
+            return
+          }
+          let objects = samples.map { $0 as HKObject }
+          healthStore.delete(objects) { _, _ in
+            persist()
+          }
+        }
+        healthStore.execute(query)
+      } else {
+        persist()
       }
     }
   }
@@ -219,6 +256,14 @@ class HealthWorkoutMetadataChannel {
     if let i = value as? Int { return Double(i) }
     if let n = value as? NSNumber { return n.doubleValue }
     if let s = value as? String { return Double(s) }
+    return nil
+  }
+
+  private static func asInt(_ value: Any?) -> Int? {
+    if let i = value as? Int { return i }
+    if let n = value as? NSNumber { return n.intValue }
+    if let d = value as? Double { return Int(d) }
+    if let s = value as? String { return Int(s) }
     return nil
   }
 
