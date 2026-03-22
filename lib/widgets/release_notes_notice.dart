@@ -40,12 +40,19 @@ class ReleaseNotesDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ReleaseNoteHighlight(text: 'Train fixes'),
+          _ReleaseNoteHighlight(text: 'v1.0.21 • Train patches'),
           SizedBox(height: 6),
-          _ReleaseNoteItem(text: 'Train fixes'),
           _ReleaseNoteItem(
             text:
-                'Please go to Train tab > History > top-right cloud icon, then verify Apple Health workout sessions.',
+                'In-progress day highlight now stays on the active workout day only.',
+          ),
+          _ReleaseNoteItem(
+            text:
+                'When a workout is active, switching to other training days is locked until finish.',
+          ),
+          _ReleaseNoteItem(
+            text:
+                'Apple Health history sync is now automatic for Train/Cardio (once per app launch, last 30 days only).',
           ),
         ],
       ),

@@ -10,6 +10,7 @@ class DaySelector extends StatelessWidget {
   final List<bool> disabled;
   final List<String?> notes;
   final bool workoutInProgress;
+  final int? workoutInProgressIndex;
 
   const DaySelector({
     super.key,
@@ -20,6 +21,7 @@ class DaySelector extends StatelessWidget {
     this.disabled = const [],
     this.notes = const [],
     this.workoutInProgress = false,
+    this.workoutInProgressIndex,
   });
 
   @override
@@ -48,7 +50,10 @@ class DaySelector extends StatelessWidget {
             final isDisabled = i < disabled.length ? disabled[i] : false;
             final note = i < notes.length ? notes[i] : null;
             final showWorkoutGlow =
-                workoutInProgress && selected && !isDisabled;
+                workoutInProgress &&
+                workoutInProgressIndex != null &&
+                i == workoutInProgressIndex &&
+                !isDisabled;
             return GestureDetector(
               onTap: isDisabled ? null : () => onSelect(i),
               child: Stack(

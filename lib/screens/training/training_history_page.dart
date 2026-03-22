@@ -827,21 +827,6 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
         backgroundColor: const Color(0xFF0F1014),
         elevation: 0,
         title: const Text("Training history"),
-        actions: [
-          IconButton(
-            tooltip: "Push history to Apple Health",
-            onPressed: _loading || _pushingHistoryToHealth
-                ? null
-                : _pushAllTrainingHistoryToAppleHealth,
-            icon: _pushingHistoryToHealth
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.cloud_upload_outlined),
-          ),
-        ],
       ),
       body: _loading
           ? const Center(

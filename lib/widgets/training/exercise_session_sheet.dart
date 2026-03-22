@@ -1113,7 +1113,15 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     }
     // Cardio sessions have their own timer; don't attach the training workout timer.
     if (!_isCardioExercise()) {
-      await TrainingProgressStorage.recordWorkoutStart();
+      final rawTrainingDayIndex = widget.exercise['training_day_index'];
+      final trainingDayIndex = rawTrainingDayIndex is int
+          ? rawTrainingDayIndex
+          : (rawTrainingDayIndex is num
+                ? rawTrainingDayIndex.toInt()
+                : int.tryParse(rawTrainingDayIndex?.toString() ?? ''));
+      await TrainingProgressStorage.recordWorkoutStart(
+        trainingDayIndex: trainingDayIndex,
+      );
       AccountStorage.notifyTrainingChanged();
     }
   }

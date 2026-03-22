@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -55,10 +56,36 @@ class WorkoutHealthSyncService {
     return 0;
   }
 
-  DateTime? _parseDateTime(dynamic value) {
-    if (value is DateTime) return value;
+  bool _hasExplicitTimezone(String raw) {
+    final normalized = raw.trim().toUpperCase();
+    if (normalized.endsWith('Z')) return true;
+    return RegExp(r'([+-]\d{2}:?\d{2})$').hasMatch(normalized);
+  }
+
+  DateTime? _parseBackendDateTime(dynamic value) {
     if (value == null) return null;
-    return DateTime.tryParse(value.toString());
+    if (value is DateTime) return value.toLocal();
+    if (value is num) {
+      final intVal = value.toInt();
+      if (intVal > 1000000000000) {
+        return DateTime.fromMillisecondsSinceEpoch(intVal, isUtc: true)
+            .toLocal();
+      }
+      if (intVal > 1000000000) {
+        return DateTime.fromMillisecondsSinceEpoch(intVal * 1000, isUtc: true)
+            .toLocal();
+      }
+      return null;
+    }
+    final raw = value.toString().trim();
+    if (raw.isEmpty) return null;
+    final normalized = raw.contains(' ') ? raw.replaceFirst(' ', 'T') : raw;
+    DateTime? dt;
+    if (!_hasExplicitTimezone(normalized)) {
+      dt = DateTime.tryParse('${normalized}Z');
+    }
+    dt ??= DateTime.tryParse(normalized);
+    return dt?.toLocal();
   }
 
   int _stableHash(String input) {
@@ -163,14 +190,14 @@ class WorkoutHealthSyncService {
     if (sessionId > 0) {
       return 'cardio_history|session_id|$sessionId';
     }
-    final entryDate = _parseDateTime(item['entry_date']);
+    final entryDate = _parseBackendDateTime(item['entry_date']);
     final startedAt =
-        _parseDateTime(item['started_at']) ??
-        _parseDateTime(item['start_time']);
+        _parseBackendDateTime(item['started_at']) ??
+        _parseBackendDateTime(item['start_time']);
     final endedAt =
-        _parseDateTime(item['ended_at']) ??
-        _parseDateTime(item['finished_at']) ??
-        _parseDateTime(item['end_time']);
+        _parseBackendDateTime(item['ended_at']) ??
+        _parseBackendDateTime(item['finished_at']) ??
+        _parseBackendDateTime(item['end_time']);
     return [
       'cardio_history',
       _normalizeSignaturePart(title),
@@ -687,6 +714,329 @@ class WorkoutHealthSyncService {
     }
   }
 
+  Map<String, dynamic>? _extractComplianceMap(dynamic value) {
+    if (value == null) return null;
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    if (value is String) {
+      final raw = value.trim();
+      if (raw.isEmpty) return null;
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) return decoded;
+        if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  int _positiveInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value > 0 ? value : 0;
+    if (value is num) {
+      final v = value.toInt();
+      return v > 0 ? v : 0;
+    }
+    final parsed = int.tryParse(value.toString().trim());
+    if (parsed == null || parsed <= 0) return 0;
+    return parsed;
+  }
+
+  int _resolvedCount(dynamic value, {required int fallback}) {
+    final parsed = _positiveInt(value);
+    return parsed > 0 ? parsed : fallback;
+  }
+
+  bool _hasClockTime(DateTime dt) {
+    return dt.hour != 0 ||
+        dt.minute != 0 ||
+        dt.second != 0 ||
+        dt.millisecond != 0 ||
+        dt.microsecond != 0;
+  }
+
+  DateTime? _parseTimestampWithClock(dynamic value) {
+    if (value == null) return null;
+    final dt = _parseBackendDateTime(value);
+    if (dt == null || !_hasClockTime(dt)) return null;
+    final utc = dt.toUtc();
+    final isMidnightUtc =
+        utc.hour == 0 &&
+        utc.minute == 0 &&
+        utc.second == 0 &&
+        utc.millisecond == 0 &&
+        utc.microsecond == 0;
+    return isMidnightUtc ? null : dt;
+  }
+
+  DateTime? _extractLatestTrainingExerciseTimestamp(Map<String, dynamic> ex) {
+    DateTime? best;
+    void consider(DateTime? dt) {
+      if (dt == null) return;
+      if (best == null || dt.isAfter(best!)) {
+        best = dt;
+      }
+    }
+
+    final complianceMaps = <Map<String, dynamic>?>[
+      _extractComplianceMap(ex['program_compliance']),
+      _extractComplianceMap(ex['compliance']),
+    ];
+    for (final c in complianceMaps) {
+      if (c == null) continue;
+      consider(_parseTimestampWithClock(c['logged_at']));
+      consider(_parseTimestampWithClock(c['performed_at']));
+      consider(_parseTimestampWithClock(c['last_performed_at']));
+      consider(_parseTimestampWithClock(c['ended_at']));
+      consider(_parseTimestampWithClock(c['end_time']));
+      consider(_parseTimestampWithClock(c['finished_at']));
+      consider(_parseTimestampWithClock(c['completed_at']));
+      consider(_parseTimestampWithClock(c['updated_at']));
+    }
+
+    consider(_parseTimestampWithClock(ex['logged_at']));
+    consider(_parseTimestampWithClock(ex['performed_at']));
+    consider(_parseTimestampWithClock(ex['last_performed_at']));
+    consider(_parseTimestampWithClock(ex['ended_at']));
+    consider(_parseTimestampWithClock(ex['end_time']));
+    consider(_parseTimestampWithClock(ex['finished_at']));
+    consider(_parseTimestampWithClock(ex['completed_at']));
+    consider(_parseTimestampWithClock(ex['updated_at']));
+    return best;
+  }
+
+  DateTime _seedTrainingHistorySessionEnd({
+    required DateTime day,
+    required String seedKey,
+  }) {
+    final normalizedDay = DateTime(day.year, day.month, day.day);
+    final base = DateTime(
+      normalizedDay.year,
+      normalizedDay.month,
+      normalizedDay.day,
+      18,
+      0,
+    );
+    final minuteOffset = _stableHash(seedKey) % 180;
+    return base.add(Duration(minutes: minuteOffset));
+  }
+
+  int _estimateTrainingHistoryDurationSeconds({
+    required List<Map<String, dynamic>> completedExercises,
+    required int completedCount,
+  }) {
+    var totalSeconds = 0;
+    for (final ex in completedExercises) {
+      var exSeconds = 0;
+      final compliance =
+          _extractComplianceMap(ex['program_compliance']) ??
+          _extractComplianceMap(ex['compliance']);
+      exSeconds += _positiveInt(compliance?['performed_time_seconds']);
+      exSeconds += _positiveInt(ex['duration_seconds']);
+      exSeconds += _positiveInt(ex['performed_time_seconds']);
+      exSeconds += _positiveInt(ex['time_seconds']);
+      exSeconds += _positiveInt(ex['elapsed_seconds']);
+      if (exSeconds <= 0) {
+        final sets = _positiveInt(
+          compliance?['performed_sets'] ?? ex['performed_sets'] ?? ex['sets'],
+        );
+        final reps = _positiveInt(
+          compliance?['performed_reps'] ?? ex['performed_reps'] ?? ex['reps'],
+        );
+        if (sets > 0 && reps > 0) {
+          exSeconds += (sets * reps * 3);
+        }
+      }
+      totalSeconds += exSeconds;
+    }
+
+    final count = completedCount > 0
+        ? completedCount
+        : completedExercises.length;
+    if (totalSeconds <= 0) {
+      final estimated = count * 300;
+      return estimated.clamp(600, 14400);
+    }
+    final minimumFromCount = count * 90;
+    final normalized = totalSeconds < minimumFromCount
+        ? minimumFromCount
+        : totalSeconds;
+    return normalized.clamp(300, 14400);
+  }
+
+  DateTime _resolveTrainingHistorySessionEnd({
+    required Map<String, dynamic> item,
+    required List<Map<String, dynamic>> completedExercises,
+    required int index,
+  }) {
+    DateTime? best;
+    for (final ex in completedExercises) {
+      final ts = _extractLatestTrainingExerciseTimestamp(ex);
+      if (ts == null) continue;
+      if (best == null || ts.isAfter(best)) {
+        best = ts;
+      }
+    }
+    if (best != null) return best;
+
+    final itemWithClock =
+        _parseTimestampWithClock(item['latest_date']) ??
+        _parseTimestampWithClock(item['entry_date']) ??
+        _parseTimestampWithClock(item['updated_at']) ??
+        _parseTimestampWithClock(item['created_at']);
+    if (itemWithClock != null) return itemWithClock;
+
+    final baseDay =
+        _parseBackendDateTime(item['latest_date']) ??
+        _parseBackendDateTime(item['entry_date']) ??
+        _parseBackendDateTime(item['week_start']) ??
+        DateTime.now();
+    final seedKey =
+        (item['day_key'] ?? item['training_day_id'] ?? item['day_id'] ?? index)
+            .toString();
+    return _seedTrainingHistorySessionEnd(day: baseDay, seedKey: seedKey);
+  }
+
+  String _trainingHistoryDedupeSignature({
+    required Map<String, dynamic> item,
+    required List<Map<String, dynamic>> completedExercises,
+    required int completedCount,
+    required int totalCount,
+    required String label,
+    required DateTime start,
+    required DateTime end,
+  }) {
+    final dayKey =
+        (item['day_key'] ?? item['training_day_id'] ?? item['day_id'] ?? label)
+            .toString()
+            .trim()
+            .toLowerCase();
+    final exerciseKeys = <String>[];
+    for (final ex in completedExercises) {
+      final raw =
+          ex['program_exercise_id'] ??
+          ex['exercise_id'] ??
+          ex['id'] ??
+          ex['exercise_name'];
+      final key = raw?.toString().trim();
+      if (key != null && key.isNotEmpty) {
+        exerciseKeys.add(key);
+      }
+    }
+    exerciseKeys.sort();
+    return [
+      'training_history',
+      dayKey,
+      label.trim().toLowerCase(),
+      completedCount.toString(),
+      totalCount.toString(),
+      start.toUtc().millisecondsSinceEpoch.toString(),
+      end.toUtc().millisecondsSinceEpoch.toString(),
+      exerciseKeys.join(','),
+    ].join('|');
+  }
+
+  Future<Map<String, int>> writeTrainingHistorySessions({
+    required List<Map<String, dynamic>> historyItems,
+  }) async {
+    final granted = await ConsentManager.requestUnifiedHealthPermissionsJIT();
+    if (!granted) {
+      return {
+        'total': historyItems.length,
+        'written': 0,
+        'skipped': 0,
+        'failed': historyItems.length,
+      };
+    }
+
+    int total = 0;
+    int written = 0;
+    int skipped = 0;
+    int failed = 0;
+
+    for (int i = 0; i < historyItems.length; i++) {
+      final item = historyItems[i];
+      final completedRaw = item['completed_exercises'];
+      final completedExercises = completedRaw is List
+          ? completedRaw
+                .map(
+                  (e) => e is Map<String, dynamic>
+                      ? e
+                      : (e is Map ? Map<String, dynamic>.from(e) : null),
+                )
+                .whereType<Map<String, dynamic>>()
+                .toList()
+          : const <Map<String, dynamic>>[];
+      final completedCount = _resolvedCount(
+        item['completed_count'],
+        fallback: completedExercises.length,
+      );
+      if (completedExercises.isEmpty || completedCount <= 0) {
+        continue;
+      }
+
+      final totalCount = _resolvedCount(
+        item['total_count'],
+        fallback: completedCount,
+      );
+      final label = (item['label'] ?? item['day_label'] ?? 'Training day')
+          .toString()
+          .trim();
+      final title = label.isEmpty ? 'TAQA Strength Workout' : '$label Workout';
+      final durationSeconds = _estimateTrainingHistoryDurationSeconds(
+        completedExercises: completedExercises,
+        completedCount: completedCount,
+      );
+      final end = _resolveTrainingHistorySessionEnd(
+        item: item,
+        completedExercises: completedExercises,
+        index: i,
+      );
+      final start = end.subtract(Duration(seconds: durationSeconds));
+      final dedupeSignature = _trainingHistoryDedupeSignature(
+        item: item,
+        completedExercises: completedExercises,
+        completedCount: completedCount,
+        totalCount: totalCount,
+        label: label,
+        start: start,
+        end: end,
+      );
+      total += 1;
+
+      final result = await _writeWorkoutSessionAuthorizedWithStatus(
+        start: start,
+        end: end,
+        title: title,
+        exerciseName: title,
+        isCardio: false,
+        workoutBrandName: label.isEmpty ? null : label,
+        isIndoorWorkout: true,
+        dedupeSignature: dedupeSignature,
+      );
+      switch (result.status) {
+        case WorkoutSessionWriteStatus.written:
+          written += 1;
+          break;
+        case WorkoutSessionWriteStatus.skippedDuplicate:
+          skipped += 1;
+          break;
+        case WorkoutSessionWriteStatus.failed:
+          failed += 1;
+          break;
+      }
+    }
+
+    return {
+      'total': total,
+      'written': written,
+      'skipped': skipped,
+      'failed': failed,
+    };
+  }
+
   Future<Map<String, int>> writeCardioHistorySessions({
     required List<Map<String, dynamic>> sessions,
   }) async {
@@ -727,13 +1077,13 @@ class WorkoutHealthSyncService {
       );
 
       final endFromApi =
-          _parseDateTime(item['ended_at']) ??
-          _parseDateTime(item['finished_at']) ??
-          _parseDateTime(item['end_time']);
+          _parseBackendDateTime(item['ended_at']) ??
+          _parseBackendDateTime(item['finished_at']) ??
+          _parseBackendDateTime(item['end_time']);
       final startFromApi =
-          _parseDateTime(item['started_at']) ??
-          _parseDateTime(item['start_time']);
-      final entryDate = _parseDateTime(item['entry_date']);
+          _parseBackendDateTime(item['started_at']) ??
+          _parseBackendDateTime(item['start_time']);
+      final entryDate = _parseBackendDateTime(item['entry_date']);
 
       DateTime start;
       DateTime end;
@@ -751,8 +1101,8 @@ class WorkoutHealthSyncService {
       } else {
         final base =
             entryDate ??
-            _parseDateTime(item['created_at']) ??
-            _parseDateTime(item['updated_at']) ??
+            _parseBackendDateTime(item['created_at']) ??
+            _parseBackendDateTime(item['updated_at']) ??
             DateTime(2024, 1, 1);
         final seed = _seedCardioSessionEnd(
           baseDay: base,

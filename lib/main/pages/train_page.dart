@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import '../../widgets/Main/section_header.dart';
@@ -59,9 +60,15 @@ class _TrainPageState extends State<TrainPage> {
   int? _pendingCompletionDayIndex;
 
   int? _workoutStartMs;
+  int? _workoutDayIndex;
   int _workoutElapsedSeconds = 0;
   Timer? _workoutTimer;
   bool _finishingWorkout = false;
+  bool _autoTrainingHistorySyncInFlight = false;
+  bool _autoCardioHistorySyncInFlight = false;
+  static bool _autoTrainingHistorySyncDoneForLaunch = false;
+  static bool _autoCardioHistorySyncDoneForLaunch = false;
+  static const int _autoHealthHistoryLookbackDays = 30;
 
   int _exRestPresetSeconds = 60;
   int _exRestRemaining = 0;
@@ -95,21 +102,33 @@ class _TrainPageState extends State<TrainPage> {
     await _loadCardioLock();
     await _loadExRestPreset();
     await _restoreExRestState();
+    unawaited(_autoPushTrainingHistoryToHealthOnTabOpen());
   }
 
   Future<void> _loadWorkoutTimer() async {
     final startMs = await TrainingProgressStorage.getWorkoutStartMs();
+    final storedWorkoutDayIndex =
+        await TrainingProgressStorage.getWorkoutDayIndex();
     final activeSession = await TrainingActivityService.getActiveSession();
     final normalizedSessionName = _normalizeExerciseName(
       activeSession?['name'],
     );
+    int? resolvedWorkoutDayIndex = storedWorkoutDayIndex;
+    if (startMs != null && resolvedWorkoutDayIndex == null) {
+      resolvedWorkoutDayIndex = await _inferActiveWorkoutDayIndexFromProgram();
+    }
+    if (startMs != null) {
+      resolvedWorkoutDayIndex ??= selectedDay;
+    }
     if (!mounted) return;
     if (startMs != null) {
       _workoutStartMs = startMs;
+      _workoutDayIndex = resolvedWorkoutDayIndex;
       _syncWorkoutElapsed();
       _startWorkoutTicker();
     } else {
       _workoutStartMs = null;
+      _workoutDayIndex = null;
       _workoutElapsedSeconds = 0;
       _workoutTimer?.cancel();
       _workoutTimer = null;
@@ -222,6 +241,7 @@ class _TrainPageState extends State<TrainPage> {
     _workoutTimer?.cancel();
     _workoutTimer = null;
     _workoutStartMs = null;
+    _workoutDayIndex = null;
     _workoutElapsedSeconds = 0;
     _stopExRestCountdownQuiet();
     final days = program?['days'];
@@ -558,6 +578,31 @@ class _TrainPageState extends State<TrainPage> {
     return int.tryParse(raw?.toString() ?? '');
   }
 
+  Future<int?> _inferActiveWorkoutDayIndexFromProgram() async {
+    final data = program;
+    if (data == null) return null;
+    final days = data['days'];
+    if (days is! List) return null;
+    for (var dayIndex = 0; dayIndex < days.length; dayIndex++) {
+      final day = days[dayIndex];
+      final exercises = day is Map ? day['exercises'] : null;
+      if (exercises is! List) continue;
+      for (final ex in exercises) {
+        if (ex is! Map) continue;
+        final exMap = ex is Map<String, dynamic>
+            ? ex
+            : Map<String, dynamic>.from(ex);
+        final id = _programExerciseId(exMap);
+        if (id == null) continue;
+        final state = await TrainingProgressStorage.loadExerciseTimerState(id);
+        if (state?['started'] == true) {
+          return dayIndex;
+        }
+      }
+    }
+    return null;
+  }
+
   Future<void> _refreshInProgressExercises() async {
     final seq = ++_inProgressLoadSeq;
     final exercises = List<Map<String, dynamic>>.from(_trainExercises);
@@ -751,6 +796,7 @@ class _TrainPageState extends State<TrainPage> {
         exerciseWithDay = Map<String, dynamic>.from(ex);
         exerciseWithDay['training_day_id'] = day['day_id'];
         exerciseWithDay['training_day_label'] = day['day_label'];
+        exerciseWithDay['training_day_index'] = selectedDay;
       }
     }
 
@@ -787,6 +833,12 @@ class _TrainPageState extends State<TrainPage> {
   void _markExerciseInProgress(Map<String, dynamic> ex) {
     final id = _programExerciseId(ex);
     final name = _normalizeExerciseName(ex['exercise_name']);
+    final rawDayIndex = ex['training_day_index'];
+    final dayIndex = rawDayIndex is int
+        ? rawDayIndex
+        : (rawDayIndex is num
+              ? rawDayIndex.toInt()
+              : int.tryParse(rawDayIndex?.toString() ?? ''));
     if (!mounted) return;
     setState(() {
       if (id != null) {
@@ -795,7 +847,115 @@ class _TrainPageState extends State<TrainPage> {
       if (name.isNotEmpty) {
         _activeSessionExerciseName = name;
       }
+      if (dayIndex != null && dayIndex >= 0) {
+        _workoutDayIndex = dayIndex;
+      }
     });
+  }
+
+  Future<void> _autoPushTrainingHistoryToHealthOnTabOpen() async {
+    if (!Platform.isIOS) return;
+    if (_autoTrainingHistorySyncDoneForLaunch) return;
+    if (_autoTrainingHistorySyncInFlight) return;
+    final userId = _userId ?? await AccountStorage.getUserId();
+    if (userId == null || userId <= 0) return;
+
+    _autoTrainingHistorySyncDoneForLaunch = true;
+    _autoTrainingHistorySyncInFlight = true;
+    try {
+      final cutoff = DateTime.now().subtract(
+        const Duration(days: _autoHealthHistoryLookbackDays),
+      );
+      final history = await TrainingService.fetchTrainingHistory(
+        userId: userId,
+        limitDays: _autoHealthHistoryLookbackDays,
+      );
+      final recentHistory = history.where((item) {
+        final dt =
+            _parseDateTime(item['latest_date']) ??
+            _parseDateTime(item['entry_date']) ??
+            _parseDateTime(item['week_start']) ??
+            _parseDateTime(item['updated_at']) ??
+            _parseDateTime(item['created_at']);
+        if (dt == null) return false;
+        final dayOnly = DateTime(dt.year, dt.month, dt.day);
+        final cutoffDay = DateTime(cutoff.year, cutoff.month, cutoff.day);
+        return !dayOnly.isBefore(cutoffDay);
+      }).toList();
+      if (recentHistory.isEmpty) return;
+      final result = await WorkoutHealthSyncService()
+          .writeTrainingHistorySessions(historyItems: recentHistory);
+      final written = result['written'] ?? 0;
+      if (!mounted || written <= 0) return;
+      AppToast.show(
+        context,
+        written == 1
+            ? "1 training session synced to Apple Health."
+            : "$written training sessions synced to Apple Health.",
+        type: AppToastType.success,
+      );
+    } catch (_) {
+      // Silent best-effort sync on tab open.
+    } finally {
+      _autoTrainingHistorySyncInFlight = false;
+    }
+  }
+
+  Future<void> _autoPushCardioHistoryToHealthOnTabOpen() async {
+    if (!Platform.isIOS) return;
+    if (_autoCardioHistorySyncDoneForLaunch) return;
+    if (_autoCardioHistorySyncInFlight) return;
+    final userId = _userId ?? await AccountStorage.getUserId();
+    if (userId == null || userId <= 0) return;
+
+    _autoCardioHistorySyncDoneForLaunch = true;
+    _autoCardioHistorySyncInFlight = true;
+    try {
+      final cutoff = DateTime.now().subtract(
+        const Duration(days: _autoHealthHistoryLookbackDays),
+      );
+      final history = await TrainingService.fetchCardioHistory(
+        userId: userId,
+        limit: 1000,
+      );
+      final recentHistory = history.where((item) {
+        final dt =
+            _parseDateTime(item['ended_at']) ??
+            _parseDateTime(item['finished_at']) ??
+            _parseDateTime(item['end_time']) ??
+            _parseDateTime(item['entry_date']) ??
+            _parseDateTime(item['started_at']) ??
+            _parseDateTime(item['created_at']) ??
+            _parseDateTime(item['updated_at']);
+        if (dt == null) return false;
+        final dayOnly = DateTime(dt.year, dt.month, dt.day);
+        final cutoffDay = DateTime(cutoff.year, cutoff.month, cutoff.day);
+        return !dayOnly.isBefore(cutoffDay);
+      }).toList();
+      if (recentHistory.isEmpty) return;
+      final result = await WorkoutHealthSyncService()
+          .writeCardioHistorySessions(sessions: recentHistory);
+      final written = result['written'] ?? 0;
+      if (!mounted || written <= 0) return;
+      AppToast.show(
+        context,
+        written == 1
+            ? "1 cardio session synced to Apple Health."
+            : "$written cardio sessions synced to Apple Health.",
+        type: AppToastType.success,
+      );
+    } catch (_) {
+      // Silent best-effort sync on tab open.
+    } finally {
+      _autoCardioHistorySyncInFlight = false;
+    }
+  }
+
+  void _openTrainTab() {
+    if (_tabIndex != 0) {
+      setState(() => _tabIndex = 0);
+    }
+    unawaited(_autoPushTrainingHistoryToHealthOnTabOpen());
   }
 
   Future<void> _openCardioTab() async {
@@ -812,6 +972,7 @@ class _TrainPageState extends State<TrainPage> {
       _tabIndex = 1;
       _cardioBuilt = true;
     });
+    unawaited(_autoPushCardioHistoryToHealthOnTabOpen());
   }
 
   Future<void> _openReplaceSheet(Map<String, dynamic> ex) async {
@@ -1316,12 +1477,23 @@ class _TrainPageState extends State<TrainPage> {
         )
         .toList();
     final disableTrainingToday = _cardioLockToday;
-    final disabledInOrder = disableTrainingToday
-        ? List<bool>.filled(dayOrder.length, true)
-        : List<bool>.filled(dayOrder.length, false);
-    final notesInOrder = disableTrainingToday
-        ? List<String?>.filled(dayOrder.length, "Cardio 15+ min today")
-        : List<String?>.filled(dayOrder.length, null);
+    final workoutLockDayIndex =
+        (_workoutStartMs != null && _workoutDayIndex != null)
+        ? _workoutDayIndex
+        : null;
+    final disabledInOrder = List<bool>.generate(dayOrder.length, (i) {
+      if (disableTrainingToday) return true;
+      if (workoutLockDayIndex == null) return false;
+      final actualDayIndex = dayOrder[i];
+      return actualDayIndex != workoutLockDayIndex;
+    });
+    final notesInOrder = List<String?>.generate(dayOrder.length, (i) {
+      if (disableTrainingToday) return "Cardio 15+ min today";
+      if (workoutLockDayIndex == null) return null;
+      final actualDayIndex = dayOrder[i];
+      if (actualDayIndex == workoutLockDayIndex) return null;
+      return "Workout in progress";
+    });
 
     if (days.isEmpty) {
       return Center(child: Text(t.translate("no_active_training_program")));
@@ -1336,6 +1508,13 @@ class _TrainPageState extends State<TrainPage> {
     final safeDisplayIndex = selectedDisplayIndex >= 0
         ? selectedDisplayIndex
         : 0;
+    final workoutDisplayIndex =
+        (_workoutStartMs != null && _workoutDayIndex != null)
+        ? dayOrder.indexOf(_workoutDayIndex!)
+        : -1;
+    final safeWorkoutDisplayIndex = workoutDisplayIndex >= 0
+        ? workoutDisplayIndex
+        : null;
 
     return Container(
       color: Colors.black,
@@ -1475,7 +1654,7 @@ class _TrainPageState extends State<TrainPage> {
                       _tabButton(
                         label: "Train",
                         active: _tabIndex == 0,
-                        onTap: () => setState(() => _tabIndex = 0),
+                        onTap: _openTrainTab,
                       ),
                       const SizedBox(width: 10),
                       _tabButton(
@@ -1513,11 +1692,22 @@ class _TrainPageState extends State<TrainPage> {
                           disabled: disabledInOrder,
                           notes: notesInOrder,
                           workoutInProgress: _workoutStartMs != null,
+                          workoutInProgressIndex: safeWorkoutDisplayIndex,
                           selectedIndex: safeDisplayIndex,
                           onSelect: (i) {
                             final nextIndex = (i >= 0 && i < dayOrder.length)
                                 ? dayOrder[i]
                                 : i;
+                            if (_workoutStartMs != null &&
+                                _workoutDayIndex != null &&
+                                nextIndex != _workoutDayIndex) {
+                              AppToast.show(
+                                context,
+                                "Finish the current workout before switching days.",
+                                type: AppToastType.info,
+                              );
+                              return;
+                            }
                             setState(() {
                               selectedDay = nextIndex;
                               _rebuildExerciseLists();

@@ -156,21 +156,6 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
         backgroundColor: const Color(0xFF0F1014),
         elevation: 0,
         title: const Text("Cardio history"),
-        actions: [
-          IconButton(
-            tooltip: "Push all to Apple Health",
-            onPressed: _backfillingHealth
-                ? null
-                : _pushAllCardioHistoryToAppleHealth,
-            icon: _backfillingHealth
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.cloud_upload_outlined),
-          ),
-        ],
       ),
       body: RefreshIndicator(
         onRefresh: _load,
