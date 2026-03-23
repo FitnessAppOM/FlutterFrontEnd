@@ -13,7 +13,6 @@ import '../../main/main_layout.dart';
 import '../../screens/daily_journal.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/core/navigation_service.dart';
-import '../../services/core/notification_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_toast.dart';
 import '../../localization/app_localizations.dart';
@@ -170,8 +169,15 @@ class _BootGateState extends State<BootGate> {
         return;
       }
       if (result.userId != null) {
-        await _navigatePostAuth(userId: result.userId!, isExpert: isExpert);
-        return;
+        try {
+          await _navigatePostAuth(userId: result.userId!, isExpert: isExpert);
+          return;
+        } catch (e) {
+          final msg = e.toString().toLowerCase();
+          if (msg.contains('deactivated') || msg.contains('reactivate')) {
+            return;
+          }
+        }
       }
     }
 

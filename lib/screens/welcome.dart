@@ -221,7 +221,11 @@ class _WelcomePageState extends State<WelcomePage> {
           (route) => false,
         );
       }
-    } catch (_) {
+    } catch (e) {
+      final msg = e.toString().toLowerCase();
+      if (msg.contains('deactivated') || msg.contains('reactivate')) {
+        return;
+      }
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,

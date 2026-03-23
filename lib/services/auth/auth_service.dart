@@ -8,6 +8,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../config/base_url.dart';
+import '../../core/account_storage.dart';
 
 Future<Map<String, dynamic>?> signInWithGoogle() async {
   try {
@@ -38,6 +39,10 @@ Future<Map<String, dynamic>?> signInWithGoogle() async {
     );
 
     if (response.statusCode != 200) {
+      await AccountStorage.handleAuthStatus(
+        response.statusCode,
+        responseBody: response.body,
+      );
       throw Exception("Backend Google login failed");
     }
 
@@ -156,6 +161,10 @@ Future<Map<String, dynamic>?> signInWithApple() async {
     );
 
     if (response.statusCode != 200) {
+      await AccountStorage.handleAuthStatus(
+        response.statusCode,
+        responseBody: response.body,
+      );
       throw Exception("Backend Apple login failed");
     }
 

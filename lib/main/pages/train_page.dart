@@ -67,6 +67,7 @@ class _TrainPageState extends State<TrainPage> {
   int _exRestPresetSeconds = 60;
   int _exRestRemaining = 0;
   bool _exRestActive = false;
+  bool _showExRestPanel = false;
   Timer? _exRestTimer;
 
   @override
@@ -100,6 +101,12 @@ class _TrainPageState extends State<TrainPage> {
 
   Future<void> _loadWorkoutTimer() async {
     final startMs = await TrainingProgressStorage.getWorkoutStartMs();
+    final lastExerciseFinishedMs =
+        await TrainingProgressStorage.getLastExerciseFinishedMs();
+    final hasFinishedExerciseInSession =
+        startMs != null &&
+        lastExerciseFinishedMs != null &&
+        lastExerciseFinishedMs >= startMs;
     final storedWorkoutDayIndex =
         await TrainingProgressStorage.getWorkoutDayIndex();
     final activeSession = await TrainingActivityService.getActiveSession();
@@ -129,7 +136,11 @@ class _TrainPageState extends State<TrainPage> {
     _activeSessionExerciseName = normalizedSessionName.isEmpty
         ? null
         : normalizedSessionName;
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {
+        _showExRestPanel = hasFinishedExerciseInSession || _exRestActive;
+      });
+    }
     await _refreshInProgressExercises();
   }
 
@@ -300,6 +311,7 @@ class _TrainPageState extends State<TrainPage> {
     if (mounted) {
       setState(() {
         _finishingWorkout = false;
+        _showExRestPanel = false;
         if (orderResult != null) {
           _dayOrder = orderResult.order;
           _dayCompletedByIndex = orderResult.completedByIndex;
@@ -839,6 +851,14 @@ class _TrainPageState extends State<TrainPage> {
           exercise: exerciseWithDay,
           completedExerciseNames: completedExerciseNames,
           onFinished: () {
+            if (_tabIndex == 0 && mounted) {
+              setState(() {
+                _showExRestPanel = true;
+                if (!_exRestActive) {
+                  _exRestRemaining = _exRestPresetSeconds;
+                }
+              });
+            }
             unawaited(_loadProgram());
             _loadWorkoutTimer();
           },
@@ -1570,6 +1590,136 @@ class _TrainPageState extends State<TrainPage> {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (_tabIndex == 0 && (_showExRestPanel || _exRestActive)) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.12),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _exRestActive
+                                ? Icons.hourglass_bottom
+                                : Icons.timer_outlined,
+                            color: _exRestActive
+                                ? Colors.orangeAccent
+                                : Colors.white70,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "Between exercises",
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  _exRestActive
+                                      ? _formatRestTime(_exRestRemaining)
+                                      : "Rest ${_formatRestTime(_exRestPresetSeconds)}",
+                                  style: TextStyle(
+                                    color: _exRestActive
+                                        ? Colors.orangeAccent
+                                        : Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: _exRestActive ? 22 : 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (_exRestActive)
+                            OutlinedButton(
+                              onPressed: _skipExRest,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                side: BorderSide(
+                                  color: Colors.white.withOpacity(0.3),
+                                ),
+                              ),
+                              child: const Text("Skip"),
+                            )
+                          else ...[
+                            IconButton(
+                              onPressed: _setCustomExRestPreset,
+                              tooltip: "Custom rest",
+                              icon: const Icon(
+                                Icons.tune,
+                                color: Colors.white70,
+                              ),
+                            ),
+                            ElevatedButton(
+                              onPressed: _startExRestCountdown,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orangeAccent.withOpacity(
+                                  0.2,
+                                ),
+                                foregroundColor: Colors.orangeAccent,
+                                elevation: 0,
+                              ),
+                              child: const Text("Start"),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (!_exRestActive) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [10, 15, 30, 45, 60].map((s) {
+                          final active = _exRestPresetSeconds == s;
+                          return InkWell(
+                            onTap: () => _setExRestPreset(s),
+                            borderRadius: BorderRadius.circular(999),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: active
+                                    ? Colors.orangeAccent.withOpacity(0.22)
+                                    : Colors.white.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: active
+                                      ? Colors.orangeAccent.withOpacity(0.45)
+                                      : Colors.white.withOpacity(0.16),
+                                ),
+                              ),
+                              child: Text(
+                                "${s}s",
+                                style: TextStyle(
+                                  color: active
+                                      ? Colors.orangeAccent
+                                      : Colors.white70,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                   ],
                   Row(

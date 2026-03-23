@@ -4,12 +4,50 @@ import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
 import 'profile_storage.dart';
 
+class ProfileUpdateCooldownException implements Exception {
+  final String detail;
+  final DateTime? nextAllowedAt;
+
+  ProfileUpdateCooldownException({
+    required this.detail,
+    this.nextAllowedAt,
+  });
+
+  @override
+  String toString() => detail;
+}
+
 class ProfileApi {
+  static Map<String, dynamic> _decodeMap(String raw) {
+    if (raw.isEmpty) return <String, dynamic>{};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) return decoded;
+      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    } catch (_) {}
+    return <String, dynamic>{};
+  }
+
+  static DateTime? _extractDateTimeFromText(String text) {
+    final iso = RegExp(
+      r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+\-]\d{2}:\d{2})?)',
+    ).firstMatch(text);
+    if (iso != null) return DateTime.tryParse(iso.group(1)!);
+
+    final dateOnly = RegExp(r'(\d{4}-\d{2}-\d{2})').firstMatch(text);
+    if (dateOnly != null) return DateTime.tryParse(dateOnly.group(1)!);
+    return null;
+  }
+
   static Future<Map<String, dynamic>> fetchProfile(int userId, {String? lang}) async {
     final langQuery = (lang != null && lang.isNotEmpty) ? "?lang=$lang" : "";
     final url = Uri.parse("${ApiConfig.baseUrl}/profile/$userId$langQuery");
     final headers = await AccountStorage.getAuthHeaders();
     final res = await http.get(url, headers: headers);
+    await AccountStorage.handleAuthStatus(
+      res.statusCode,
+      responseBody: res.body,
+    );
 
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
@@ -17,6 +55,13 @@ class ProfileApi {
         await ProfileStorage.saveProfile(data);
       } catch (_) {}
       return data;
+    }
+
+    if (res.statusCode == 403) {
+      final data = _decodeMap(res.body);
+      final detail =
+          data["detail"]?.toString() ?? "Account is deactivated";
+      throw Exception(detail);
     }
 
     throw Exception("Failed to load profile (${res.statusCode})");
@@ -31,7 +76,10 @@ class ProfileApi {
     final streamed = await request.send();
     final res = await http.Response.fromStream(streamed);
 
-    await AccountStorage.handle401(res.statusCode);
+    await AccountStorage.handleAuthStatus(
+      res.statusCode,
+      responseBody: res.body,
+    );
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       return (data["avatar_url"] ?? "").toString();
@@ -54,7 +102,10 @@ class ProfileApi {
       body: jsonEncode({"username": username}),
     );
 
-    await AccountStorage.handle401(res.statusCode);
+    await AccountStorage.handleAuthStatus(
+      res.statusCode,
+      responseBody: res.body,
+    );
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       return (data["username"] ?? username).toString();
@@ -77,7 +128,10 @@ class ProfileApi {
       body: jsonEncode(payload),
     );
 
-    await AccountStorage.handle401(res.statusCode);
+    await AccountStorage.handleAuthStatus(
+      res.statusCode,
+      responseBody: res.body,
+    );
     if (res.statusCode == 200) {
       if (res.body.isEmpty) return <String, dynamic>{};
       try {
@@ -91,6 +145,13 @@ class ProfileApi {
       }
     }
 
+    if (res.statusCode == 429) {
+      final data = _decodeMap(res.body);
+      final detail = data["detail"]?.toString() ?? "Profile update cooldown";
+      final next = _extractDateTimeFromText(detail);
+      throw ProfileUpdateCooldownException(detail: detail, nextAllowedAt: next);
+    }
+
     String msg = "Failed to update profile";
     try {
       final data = jsonDecode(res.body);
@@ -99,13 +160,18 @@ class ProfileApi {
     throw Exception(msg);
   }
 
-  static Future<void> deleteAccount(int userId) async {
+  static Future<Map<String, dynamic>> deleteAccount(int userId) async {
     final url = Uri.parse("${ApiConfig.baseUrl}/profile/$userId");
     final headers = await AccountStorage.getAuthHeaders();
     final res = await http.delete(url, headers: headers);
 
-    await AccountStorage.handle401(res.statusCode);
-    if (res.statusCode == 200) return;
+    await AccountStorage.handleAuthStatus(
+      res.statusCode,
+      responseBody: res.body,
+    );
+    if (res.statusCode == 200 || res.statusCode == 202) {
+      return _decodeMap(res.body);
+    }
 
     String msg = "Failed to delete account";
     try {
@@ -113,5 +179,46 @@ class ProfileApi {
       msg = data["detail"]?.toString() ?? msg;
     } catch (_) {}
     throw Exception(msg);
+  }
+
+  static Future<Map<String, dynamic>> fetchAccountStatus(int userId) async {
+    final url = Uri.parse("${ApiConfig.baseUrl}/profile/$userId/account-status");
+    final headers = await AccountStorage.getAuthHeaders();
+    final res = await http.get(url, headers: headers);
+    await AccountStorage.handleAuthStatus(
+      res.statusCode,
+      responseBody: res.body,
+    );
+    if (res.statusCode == 200) return _decodeMap(res.body);
+
+    final data = _decodeMap(res.body);
+    throw Exception(data["detail"]?.toString() ?? "Failed to load account status");
+  }
+
+  static Future<Map<String, dynamic>> requestReactivation(String email) async {
+    final url = Uri.parse("${ApiConfig.baseUrl}/auth/reactivate/request");
+    final res = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"email": email}),
+    );
+    if (res.statusCode == 200) return _decodeMap(res.body);
+    final data = _decodeMap(res.body);
+    throw Exception(data["detail"]?.toString() ?? "Request failed");
+  }
+
+  static Future<Map<String, dynamic>> confirmReactivation(
+    String email,
+    String code,
+  ) async {
+    final url = Uri.parse("${ApiConfig.baseUrl}/auth/reactivate/confirm");
+    final res = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"email": email, "code": code}),
+    );
+    if (res.statusCode == 200) return _decodeMap(res.body);
+    final data = _decodeMap(res.body);
+    throw Exception(data["detail"]?.toString() ?? "Reactivation failed");
   }
 }

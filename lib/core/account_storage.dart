@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -17,6 +19,7 @@ class AccountStorage {
   static const _kFitbitLinked = 'fitbit_linked';
   static const _kStravaLinked = 'strava_linked';
   static const _kSkipDailyJournalPromptOnce = 'skip_daily_journal_prompt_once';
+  static const _kProfileEditBlockedUntil = 'profile_edit_blocked_until';
   static String _whoopLinkedKey(int? userId) =>
       userId == null ? _kWhoopLinked : "${_kWhoopLinked}_u$userId";
   static String _fitbitLinkedKey(int? userId) =>
@@ -25,6 +28,8 @@ class AccountStorage {
       userId == null ? _kStravaLinked : "${_kStravaLinked}_u$userId";
   static String _skipDailyJournalPromptOnceKey(int userId) =>
       "${_kSkipDailyJournalPromptOnce}_u$userId";
+  static String _profileEditBlockedUntilKey(int userId) =>
+      "${_kProfileEditBlockedUntil}_u$userId";
   static const _kMetricsKeys = [
     "manual_steps_entries",
     "manual_calories_entries",
@@ -194,6 +199,32 @@ class AccountStorage {
     return shouldSkip;
   }
 
+  static Future<void> setProfileEditBlockedUntil(DateTime until) async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    if (userId == null || userId <= 0) return;
+    await sp.setString(
+      _profileEditBlockedUntilKey(userId),
+      until.toUtc().toIso8601String(),
+    );
+  }
+
+  static Future<DateTime?> getProfileEditBlockedUntil() async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    if (userId == null || userId <= 0) return null;
+    final raw = sp.getString(_profileEditBlockedUntilKey(userId));
+    if (raw == null || raw.trim().isEmpty) return null;
+    return DateTime.tryParse(raw);
+  }
+
+  static Future<void> clearProfileEditBlockedUntil() async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    if (userId == null || userId <= 0) return;
+    await sp.remove(_profileEditBlockedUntilKey(userId));
+  }
+
   static Future<String?> getEmail() async {
     final sp = await SharedPreferences.getInstance();
     return sp.getString(_kEmail);
@@ -255,15 +286,66 @@ class AccountStorage {
   }
 
   /// Call when a protected API returns 401: clears session and invokes onUnauthorized (e.g. navigate to login).
-  static Future<void> handle401(int statusCode) async {
+  static Future<Map<String, dynamic>> _decodeAuthPayload(String? rawBody) async {
+    if (rawBody == null || rawBody.trim().isEmpty) return <String, dynamic>{};
+    try {
+      final decoded = jsonDecode(rawBody);
+      if (decoded is Map<String, dynamic>) return decoded;
+      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    } catch (_) {}
+    return <String, dynamic>{};
+  }
+
+  static bool _looksDeactivatedPayload(Map<String, dynamic> payload) {
+    final status = payload['status']?.toString().toLowerCase().trim() ?? '';
+    final state = payload['state']?.toString().toLowerCase().trim() ?? '';
+    final detail = payload['detail']?.toString().toLowerCase() ?? '';
+    final message = payload['message']?.toString().toLowerCase() ?? '';
+    final combined = "$status $state $detail $message";
+    return combined.contains('deactivated') ||
+        combined.contains('reactivate') ||
+        combined.contains('reactivable');
+  }
+
+  /// Handles auth lifecycle statuses from API responses:
+  /// - 401 => clear session + onUnauthorized
+  /// - 403 deactivated => onDeactivated
+  static Future<bool> handleAuthStatus(
+    int statusCode, {
+    String? responseBody,
+  }) async {
     if (statusCode == 401) {
       await clearSession();
       onUnauthorized?.call();
+      return true;
     }
+
+    if (statusCode == 403) {
+      final payload = await _decodeAuthPayload(responseBody);
+      if (payload.isNotEmpty && !_looksDeactivatedPayload(payload)) {
+        return false;
+      }
+      final data = payload.isNotEmpty
+          ? payload
+          : <String, dynamic>{
+              'status': 'deactivated',
+              'detail': 'Account is deactivated',
+            };
+      onDeactivated?.call(data);
+      return true;
+    }
+
+    return false;
+  }
+
+  /// Call when a protected API returns 401: clears session and invokes onUnauthorized (e.g. navigate to login).
+  static Future<void> handle401(int statusCode) async {
+    await handleAuthStatus(statusCode);
   }
 
   /// Set from app (e.g. main.dart) to navigate to login when session expires (401).
   static void Function()? onUnauthorized;
+  static void Function(Map<String, dynamic>)? onDeactivated;
 
   static Future<void> setName(String name) async {
     final sp = await SharedPreferences.getInstance();
@@ -308,6 +390,7 @@ class AccountStorage {
       await sp.remove(_fitbitLinkedKey(currentUserId));
       await sp.remove(_stravaLinkedKey(currentUserId));
       await sp.remove(_skipDailyJournalPromptOnceKey(currentUserId));
+      await sp.remove(_profileEditBlockedUntilKey(currentUserId));
     }
     await sp.remove(_kWhoopLinked);
     await sp.remove(_kFitbitLinked);
@@ -326,6 +409,7 @@ class AccountStorage {
       await sp.remove(_fitbitLinkedKey(currentUserId));
       await sp.remove(_stravaLinkedKey(currentUserId));
       await sp.remove(_skipDailyJournalPromptOnceKey(currentUserId));
+      await sp.remove(_profileEditBlockedUntilKey(currentUserId));
     }
     await sp.remove(_kWhoopLinked);
     await sp.remove(_kFitbitLinked);
@@ -353,6 +437,7 @@ class AccountStorage {
       await sp.remove(_fitbitLinkedKey(currentUserId));
       await sp.remove(_stravaLinkedKey(currentUserId));
       await sp.remove(_skipDailyJournalPromptOnceKey(currentUserId));
+      await sp.remove(_profileEditBlockedUntilKey(currentUserId));
     }
     await sp.remove(_kWhoopLinked);
     await sp.remove(_kFitbitLinked);

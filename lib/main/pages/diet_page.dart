@@ -696,12 +696,15 @@ class DietPageState extends State<DietPage> {
       setState(() {
         if (_targets == null && cachedTargets != null) {
           _targets = cachedTargets;
-          _targetsFromCache = true;
+          // Cache-first hydration should not imply offline mode.
+          // We only mark offline after a network request fails.
+          _targetsFromCache = false;
           _loading = false;
         }
         if (_meals == null && cachedMeals != null) {
           _meals = cachedMeals;
-          _mealsFromCache = true;
+          // Cache-first hydration should not imply offline mode.
+          _mealsFromCache = false;
           _mealsLoading = false;
         }
       });
@@ -1173,7 +1176,9 @@ class DietPageState extends State<DietPage> {
         if (cached != null && mounted) {
           setState(() {
             _meals = cached;
-            _mealsFromCache = true;
+            // Keep existing UI while refresh is in-flight; do not show offline
+            // until a real network fallback happens.
+            _mealsFromCache = false;
             _mealsLoading = false;
           });
         }

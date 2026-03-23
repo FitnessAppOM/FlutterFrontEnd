@@ -54,6 +54,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   bool _saving = false;
   bool _hasValidationError = false;
+  DateTime? _profileEditBlockedUntil;
 
   late final Map<String, dynamic> _initial;
   bool _didInit = false;
@@ -301,6 +302,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return val;
   }
 
+  String _formatDateTimeForMessage(DateTime dt) {
+    final local = dt.toLocal();
+    String two(int n) => n.toString().padLeft(2, '0');
+    return "${local.year}-${two(local.month)}-${two(local.day)} ${two(local.hour)}:${two(local.minute)}";
+  }
+
   Future<void> _submit() async {
     _formKey.currentState!.save();
     _hasValidationError = false;
@@ -309,6 +316,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (userId == null) {
       if (!mounted) return;
       AppToast.show(context, _t("user_missing"), type: AppToastType.error);
+      return;
+    }
+
+    final persistedBlockedUntil = await AccountStorage.getProfileEditBlockedUntil();
+    if (persistedBlockedUntil != null) {
+      if (_profileEditBlockedUntil == null ||
+          persistedBlockedUntil.isAfter(_profileEditBlockedUntil!)) {
+        _profileEditBlockedUntil = persistedBlockedUntil;
+      }
+    }
+
+    final blockedUntil = _profileEditBlockedUntil;
+    if (blockedUntil != null && DateTime.now().isBefore(blockedUntil)) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        "${_t("profile_update_failed")}: Next edit available at ${_formatDateTimeForMessage(blockedUntil)}",
+        type: AppToastType.error,
+      );
       return;
     }
 
@@ -478,11 +504,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
         setState(() => _saving = false);
         return;
       }
-      Navigator.pushAndRemoveUntil(
+      await Navigator.push<bool>(
         context,
         MaterialPageRoute(builder: (_) => UpdatingPlanScreen(profilePayload: payload)),
-        (route) => false,
       );
+      if (mounted) setState(() => _saving = false);
       return;
     }
 
@@ -539,6 +565,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     try {
       final response = await ProfileApi.updateProfile(payload);
       if (!mounted) return;
+      await AccountStorage.clearProfileEditBlockedUntil();
+      _profileEditBlockedUntil = null;
 
       final dietPending = response['diet_pending'] == true ||
           response['diet_needs_regeneration'] == true;
@@ -554,6 +582,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
       );
 
       Navigator.of(context).pop(true);
+    } on ProfileUpdateCooldownException catch (e) {
+      if (!mounted) return;
+      final next = e.nextAllowedAt;
+      if (next != null) {
+        _profileEditBlockedUntil = next;
+        await AccountStorage.setProfileEditBlockedUntil(next);
+      }
+      final msg = next != null
+          ? "Next edit available at ${_formatDateTimeForMessage(next)}"
+          : e.detail;
+      AppToast.show(
+        context,
+        "${_t("profile_update_failed")}: $msg",
+        type: AppToastType.error,
+      );
     } catch (e) {
       if (!mounted) return;
       AppToast.show(

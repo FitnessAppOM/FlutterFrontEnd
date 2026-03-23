@@ -907,13 +907,16 @@ class _SettingsPageState extends State<SettingsPage> {
 
     setState(() => _deletingAccount = true);
     try {
-      await ProfileApi.deleteAccount(userId);
+      final result = await ProfileApi.deleteAccount(userId);
       await AccountStorage.clear();
       await NotificationService.refreshDailyJournalRemindersForCurrentUser();
       if (!mounted) return;
+      final deactivated = result["status"]?.toString().toLowerCase() == "deactivated";
       AppToast.show(
         context,
-        t.translate("settings_delete_account_success"),
+        deactivated
+            ? t.translate("settings_delete_account_success_deactivated")
+            : t.translate("settings_delete_account_success"),
         type: AppToastType.success,
       );
       Navigator.pushAndRemoveUntil(

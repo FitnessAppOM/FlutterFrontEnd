@@ -9,6 +9,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import 'localization/app_localizations.dart';
 import 'screens/welcome.dart';
+import 'screens/account_restore_page.dart';
 import 'screens/splash/boot_gate.dart';
 import 'theme/app_theme.dart';
 import 'core/locale_controller.dart';
@@ -150,6 +151,20 @@ void main() async {
       ),
       (_) => false,
     );
+  };
+  AccountStorage.onDeactivated = (payload) {
+    Future<void>(() async {
+      final email = await AccountStorage.getEmail();
+      NavigationService.navigatorKey.currentState?.pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => AccountRestorePage(
+            initialPayload: payload,
+            prefilledEmail: email,
+          ),
+        ),
+        (_) => false,
+      );
+    });
   };
 
   runApp(WithForegroundTask(child: MyApp(initialPayload: launchPayload)));

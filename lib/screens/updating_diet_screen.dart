@@ -7,6 +7,7 @@ import '../services/diet/diet_service.dart';
 import '../services/diet/diet_targets_storage.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/training_loading_indicator.dart';
+import '../main/main_layout.dart';
 
 /// Shown after editing profile when only goal or nutrition (diet type) changed.
 /// Saves the profile (backend regenerates diet in background), then polls until
@@ -26,6 +27,8 @@ class UpdatingDietScreen extends StatefulWidget {
 class _UpdatingDietScreenState extends State<UpdatingDietScreen> {
   bool _isWorking = true;
   String? _error;
+  bool _cooldownBlocked = false;
+  DateTime? _cooldownUntil;
   int _retryCount = 0;
   static const int _maxRetries = 3;
   static const Duration _timeout = Duration(seconds: 90);
@@ -36,6 +39,12 @@ class _UpdatingDietScreenState extends State<UpdatingDietScreen> {
   Timer? _pollTimer;
 
   bool get _showFinalError => _error != null && _retryCount >= _maxRetries;
+
+  String _formatDateTimeForMessage(DateTime dt) {
+    final local = dt.toLocal();
+    String two(int n) => n.toString().padLeft(2, '0');
+    return "${local.year}-${two(local.month)}-${two(local.day)} ${two(local.hour)}:${two(local.minute)}";
+  }
 
   @override
   void dispose() {
@@ -53,6 +62,7 @@ class _UpdatingDietScreenState extends State<UpdatingDietScreen> {
     setState(() {
       _isWorking = true;
       _error = null;
+      _cooldownBlocked = false;
     });
 
     int? userId;
@@ -63,6 +73,7 @@ class _UpdatingDietScreenState extends State<UpdatingDietScreen> {
       // 1) Save profile – backend regenerates diet in background
       final response = await ProfileApi.updateProfile(widget.profilePayload).timeout(_timeout);
       if (!mounted) return;
+      await AccountStorage.clearProfileEditBlockedUntil();
 
       await DietTargetsStorage.clearTargets();
 
@@ -83,6 +94,23 @@ class _UpdatingDietScreenState extends State<UpdatingDietScreen> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
+
+      if (e is ProfileUpdateCooldownException) {
+        final next = e.nextAllowedAt;
+        if (next != null) {
+          await AccountStorage.setProfileEditBlockedUntil(next);
+        }
+        final msg = next != null
+            ? "Next edit available at ${_formatDateTimeForMessage(next)}"
+            : e.detail;
+        setState(() {
+          _error = msg;
+          _cooldownBlocked = true;
+          _cooldownUntil = next;
+          _retryCount = _maxRetries;
+        });
+        return;
+      }
 
       if (userId != null) {
         final ok = await _tryFinishIfTargetsReady(userId);
@@ -148,7 +176,7 @@ class _UpdatingDietScreenState extends State<UpdatingDietScreen> {
     final cs = theme.colorScheme;
 
     return PopScope(
-      canPop: false,
+      canPop: _cooldownBlocked,
       child: Scaffold(
         body: Container(
           decoration: BoxDecoration(
@@ -225,13 +253,25 @@ class _UpdatingDietScreenState extends State<UpdatingDietScreen> {
                       if (_showFinalError) ...[
                         const SizedBox(height: 8),
                         Text(
-                          t.translate("generating_error_title"),
+                          _cooldownBlocked
+                              ? "Profile edit is temporarily locked"
+                              : t.translate("generating_error_title"),
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                             color: cs.error,
                           ),
                           textAlign: TextAlign.center,
                         ),
+                        if (_cooldownBlocked && _cooldownUntil != null) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            "To reduce generation cost, profile updates are limited to once every 30 days.",
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: cs.onSurface.withValues(alpha: 0.7),
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
                         const SizedBox(height: 6),
                         Text(
                           _error ?? '',
@@ -241,16 +281,38 @@ class _UpdatingDietScreenState extends State<UpdatingDietScreen> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              _retryCount = 0;
-                              _run();
-                            },
-                            child: Text(t.translate("generating_retry")),
+                        if (!_cooldownBlocked)
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                _retryCount = 0;
+                                _run();
+                              },
+                              child: Text(t.translate("generating_retry")),
+                            ),
+                          )
+                        else
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                final nav = Navigator.of(context);
+                                if (nav.canPop()) {
+                                  nav.pop(false);
+                                  return;
+                                }
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const MainLayout(),
+                                  ),
+                                  (_) => false,
+                                );
+                              },
+                              child: const Text("Back"),
+                            ),
                           ),
-                        ),
                       ],
                       const SizedBox(height: 14),
                       Container(

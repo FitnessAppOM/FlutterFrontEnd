@@ -21,8 +21,9 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
   String? _error;
   int _retryCount = 0;
   static const int _maxRetries = 3;
-  // Allow longer server processing before we consider it a timeout.
-  static const Duration _timeout = Duration(seconds: 60);
+  static const Duration _requestTimeout = Duration(seconds: 20);
+  static const Duration _pollTimeout = Duration(seconds: 90);
+  static const Duration _pollInterval = Duration(seconds: 3);
   static const Duration _toastThreshold = Duration(minutes: 2);
   final DateTime _startedAt = DateTime.now();
 
@@ -52,13 +53,27 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
         throw Exception("User not found");
       }
 
-      // Training program is returned immediately; diet is generated in background.
-      await TrainingService.generateProgram(userId)
-          .timeout(_timeout);
+      // Generation is asynchronous: trigger, then poll status until completion.
+      await TrainingService.generateProgram(userId).timeout(_requestTimeout);
+      await TrainingService.waitForGenerationToComplete(
+        userId,
+        pollInterval: _pollInterval,
+        timeout: _pollTimeout,
+      );
 
       // Refresh local program cache to reset progress for the new plan.
       bool synced = false;
       try {
+        await TrainingService.fetchActiveProgram(userId)
+            .timeout(const Duration(seconds: 20));
+        synced = true;
+      } on TrainingGenerationInProgressException {
+        // If current endpoint still races, poll once more and fetch again.
+        await TrainingService.waitForGenerationToComplete(
+          userId,
+          pollInterval: _pollInterval,
+          timeout: const Duration(seconds: 30),
+        );
         await TrainingService.fetchActiveProgram(userId)
             .timeout(const Duration(seconds: 20));
         synced = true;
@@ -119,6 +134,11 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
   /// Navigate into app if training program is ready (diet may still be generating in background).
   Future<bool> _tryNavigateIfProgramAndDietReady(int userId) async {
     try {
+      await TrainingService.waitForGenerationToComplete(
+        userId,
+        pollInterval: _pollInterval,
+        timeout: const Duration(seconds: 20),
+      );
       await TrainingService.fetchActiveProgram(userId)
           .timeout(const Duration(seconds: 20));
       AccountStorage.notifyTrainingChanged();

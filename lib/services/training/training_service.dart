@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +17,17 @@ class TrainingApiException implements Exception {
 
   bool get isRetryable =>
       statusCode >= 500 || statusCode == 408 || statusCode == 429;
+
+  @override
+  String toString() => detail;
+}
+
+class TrainingGenerationInProgressException implements Exception {
+  final String detail;
+
+  TrainingGenerationInProgressException([
+    this.detail = 'Training generation is in progress',
+  ]);
 
   @override
   String toString() => detail;
@@ -246,27 +258,106 @@ class TrainingService {
     );
   }
 
-  static Future<bool> generateProgram(int userId) async {
+  static Map<String, dynamic> _decodeMapBody(String rawBody) {
+    if (rawBody.isEmpty) return <String, dynamic>{};
+    try {
+      final decoded = json.decode(rawBody);
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+    } catch (_) {}
+    return <String, dynamic>{};
+  }
+
+  static String _generationStatusFromPayload(Map<String, dynamic> payload) {
+    final top = payload['status']?.toString().trim().toLowerCase();
+    if (top != null && top.isNotEmpty) return top;
+    final nested = payload['generation'];
+    if (nested is Map) {
+      final nestedStatus = nested['status']?.toString().trim().toLowerCase();
+      if (nestedStatus != null && nestedStatus.isNotEmpty) return nestedStatus;
+    }
+    return 'idle';
+  }
+
+  static String _generationErrorFromPayload(Map<String, dynamic> payload) {
+    final direct = payload['error']?.toString();
+    if (direct != null && direct.trim().isNotEmpty) return direct.trim();
+    final detail = payload['detail']?.toString();
+    if (detail != null && detail.trim().isNotEmpty) return detail.trim();
+    final nested = payload['generation'];
+    if (nested is Map) {
+      final nestedError = nested['error']?.toString();
+      if (nestedError != null && nestedError.trim().isNotEmpty) {
+        return nestedError.trim();
+      }
+    }
+    return 'Training generation failed';
+  }
+
+  static Future<Map<String, dynamic>> generateProgram(int userId) async {
     final url = Uri.parse('$baseUrl/training/generate/$userId');
     final headers = await AccountStorage.getAuthHeaders();
     final response = await http.post(url, headers: headers);
 
     await AccountStorage.handle401(response.statusCode);
-    if (response.statusCode == 200) {
-      return true;
+    if (response.statusCode == 200 || response.statusCode == 202) {
+      return _decodeMapBody(response.body);
     }
 
     if (response.statusCode == 400) {
-      final body = response.body.isNotEmpty ? json.decode(response.body) : {};
+      final body = _decodeMapBody(response.body);
       throw Exception(body['detail'] ?? 'Training generation failed');
     }
 
     throw Exception('Unexpected error (${response.statusCode})');
   }
 
+  static Future<Map<String, dynamic>> fetchGenerationStatus(int userId) async {
+    final url = Uri.parse('$baseUrl/training/generation/status/$userId');
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.get(url, headers: headers);
+    await AccountStorage.handle401(response.statusCode);
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load training generation status');
+    }
+    return _decodeMapBody(response.body);
+  }
+
+  static Future<Map<String, dynamic>> waitForGenerationToComplete(
+    int userId, {
+    Duration pollInterval = const Duration(seconds: 3),
+    Duration timeout = const Duration(seconds: 90),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    while (true) {
+      final statusPayload = await fetchGenerationStatus(userId);
+      final status = _generationStatusFromPayload(statusPayload);
+      if (status == 'succeeded') return statusPayload;
+      if (status == 'failed') {
+        throw Exception(_generationErrorFromPayload(statusPayload));
+      }
+      if (DateTime.now().isAfter(deadline)) {
+        throw TimeoutException('Training generation timed out');
+      }
+      await Future.delayed(pollInterval);
+    }
+  }
+
   static Future<Map<String, dynamic>> fetchActiveProgram(int userId) async {
     final url = Uri.parse('$baseUrl/training/current/$userId');
-    final response = await http.get(url);
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.get(url, headers: headers);
+    await AccountStorage.handle401(response.statusCode);
+
+    if (response.statusCode == 202) {
+      final body = _decodeMapBody(response.body);
+      final detail =
+          body['detail']?.toString() ??
+          body['message']?.toString() ??
+          'Training generation is in progress';
+      throw TrainingGenerationInProgressException(detail);
+    }
 
     if (response.statusCode != 200) {
       throw Exception("Failed to load program");

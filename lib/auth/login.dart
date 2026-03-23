@@ -17,6 +17,7 @@ import '../localization/app_localizations.dart';
 import '../screens/ForgetPassword/forgot_password_page.dart';
 import '../main/main_layout.dart';           // <-- MAIN PAGE
 import '../screens/daily_journal.dart';
+import '../screens/account_restore_page.dart';
 import 'email_verification_page.dart';
 import '../services/auth/profile_service.dart';
 import 'questionnaire.dart';
@@ -127,7 +128,11 @@ class _LoginPageState extends State<LoginPage> {
           (route) => false,
         );
       }
-    } catch (_) {
+    } catch (e) {
+      final msg = e.toString().toLowerCase();
+      if (msg.contains('deactivated') || msg.contains('reactivate')) {
+        return;
+      }
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
@@ -282,6 +287,24 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => EmailVerificationPage(email: mail)),
+        );
+        return;
+      }
+
+      final deactivated = response.statusCode == 403 &&
+          (detail.toLowerCase().contains('deactivated') ||
+              detail.toLowerCase().contains('reactivate'));
+      if (deactivated) {
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AccountRestorePage(
+              initialPayload: data,
+              prefilledEmail: mail,
+            ),
+          ),
+          (_) => false,
         );
         return;
       }
