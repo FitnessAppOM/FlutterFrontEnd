@@ -20,6 +20,7 @@ class AccountStorage {
   static const _kStravaLinked = 'strava_linked';
   static const _kSkipDailyJournalPromptOnce = 'skip_daily_journal_prompt_once';
   static const _kProfileEditBlockedUntil = 'profile_edit_blocked_until';
+  static const _kDismissDeactivatedPrompt = 'dismiss_deactivated_prompt';
   static String _whoopLinkedKey(int? userId) =>
       userId == null ? _kWhoopLinked : "${_kWhoopLinked}_u$userId";
   static String _fitbitLinkedKey(int? userId) =>
@@ -30,6 +31,8 @@ class AccountStorage {
       "${_kSkipDailyJournalPromptOnce}_u$userId";
   static String _profileEditBlockedUntilKey(int userId) =>
       "${_kProfileEditBlockedUntil}_u$userId";
+  static String _dismissDeactivatedPromptKey(int userId) =>
+      "${_kDismissDeactivatedPrompt}_u$userId";
   static const _kMetricsKeys = [
     "manual_steps_entries",
     "manual_calories_entries",
@@ -157,6 +160,7 @@ class AccountStorage {
     if (authProvider != null && authProvider.trim().isNotEmpty) {
       await sp.setString(_kAuthProvider, authProvider.trim());
     }
+    await sp.remove(_dismissDeactivatedPromptKey(userId));
     // Notify after every login so UI (e.g. profile) can refresh with new user_id / token
     notifyAccountChanged();
   }
@@ -225,6 +229,27 @@ class AccountStorage {
     await sp.remove(_profileEditBlockedUntilKey(userId));
   }
 
+  static Future<void> dismissDeactivatedPrompt() async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    if (userId == null || userId <= 0) return;
+    await sp.setBool(_dismissDeactivatedPromptKey(userId), true);
+  }
+
+  static Future<void> allowDeactivatedPromptAgain() async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    if (userId == null || userId <= 0) return;
+    await sp.remove(_dismissDeactivatedPromptKey(userId));
+  }
+
+  static Future<bool> _isDeactivatedPromptDismissed() async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    if (userId == null || userId <= 0) return false;
+    return sp.getBool(_dismissDeactivatedPromptKey(userId)) ?? false;
+  }
+
   static Future<String?> getEmail() async {
     final sp = await SharedPreferences.getInstance();
     return sp.getString(_kEmail);
@@ -286,7 +311,9 @@ class AccountStorage {
   }
 
   /// Call when a protected API returns 401: clears session and invokes onUnauthorized (e.g. navigate to login).
-  static Future<Map<String, dynamic>> _decodeAuthPayload(String? rawBody) async {
+  static Future<Map<String, dynamic>> _decodeAuthPayload(
+    String? rawBody,
+  ) async {
     if (rawBody == null || rawBody.trim().isEmpty) return <String, dynamic>{};
     try {
       final decoded = jsonDecode(rawBody);
@@ -307,6 +334,18 @@ class AccountStorage {
         combined.contains('reactivable');
   }
 
+  static bool _looksDeletedPayload(Map<String, dynamic> payload) {
+    final status = payload['status']?.toString().toLowerCase().trim() ?? '';
+    final detail = payload['detail']?.toString().toLowerCase() ?? '';
+    final message = payload['message']?.toString().toLowerCase() ?? '';
+    final combined = "$status $detail $message";
+    if (status == 'deleted' || status == 'not_found') return true;
+    return (combined.contains('account') || combined.contains('user')) &&
+        (combined.contains('not found') ||
+            combined.contains('deleted') ||
+            combined.contains('no longer exists'));
+  }
+
   /// Handles auth lifecycle statuses from API responses:
   /// - 401 => clear session + onUnauthorized
   /// - 403 deactivated => onDeactivated
@@ -325,6 +364,10 @@ class AccountStorage {
       if (payload.isNotEmpty && !_looksDeactivatedPayload(payload)) {
         return false;
       }
+      final dismissed = await _isDeactivatedPromptDismissed();
+      if (dismissed) {
+        return false;
+      }
       final data = payload.isNotEmpty
           ? payload
           : <String, dynamic>{
@@ -333,6 +376,15 @@ class AccountStorage {
             };
       onDeactivated?.call(data);
       return true;
+    }
+
+    if (statusCode == 404) {
+      final payload = await _decodeAuthPayload(responseBody);
+      if (payload.isNotEmpty && _looksDeletedPayload(payload)) {
+        await clearSession();
+        onUnauthorized?.call();
+        return true;
+      }
     }
 
     return false;
@@ -391,6 +443,7 @@ class AccountStorage {
       await sp.remove(_stravaLinkedKey(currentUserId));
       await sp.remove(_skipDailyJournalPromptOnceKey(currentUserId));
       await sp.remove(_profileEditBlockedUntilKey(currentUserId));
+      await sp.remove(_dismissDeactivatedPromptKey(currentUserId));
     }
     await sp.remove(_kWhoopLinked);
     await sp.remove(_kFitbitLinked);
@@ -410,6 +463,7 @@ class AccountStorage {
       await sp.remove(_stravaLinkedKey(currentUserId));
       await sp.remove(_skipDailyJournalPromptOnceKey(currentUserId));
       await sp.remove(_profileEditBlockedUntilKey(currentUserId));
+      await sp.remove(_dismissDeactivatedPromptKey(currentUserId));
     }
     await sp.remove(_kWhoopLinked);
     await sp.remove(_kFitbitLinked);
@@ -438,6 +492,7 @@ class AccountStorage {
       await sp.remove(_stravaLinkedKey(currentUserId));
       await sp.remove(_skipDailyJournalPromptOnceKey(currentUserId));
       await sp.remove(_profileEditBlockedUntilKey(currentUserId));
+      await sp.remove(_dismissDeactivatedPromptKey(currentUserId));
     }
     await sp.remove(_kWhoopLinked);
     await sp.remove(_kFitbitLinked);

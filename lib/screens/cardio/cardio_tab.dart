@@ -18,11 +18,13 @@ class CardioTab extends StatefulWidget {
     required this.exercises,
     required this.onStart,
     required this.onReplace,
+    this.readOnlyLocked = false,
   });
 
   final List<Map<String, dynamic>> exercises;
   final void Function(Map<String, dynamic>) onStart;
   final void Function(Map<String, dynamic>) onReplace;
+  final bool readOnlyLocked;
 
   @override
   State<CardioTab> createState() => _CardioTabState();
@@ -437,6 +439,7 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
     final bool hasProgramCardio = widget.exercises.isNotEmpty;
     final bool locationGateActive =
         _locationPermissionLoaded && !_hasAlwaysLocationPermission;
+    final bool interactionLocked = locationGateActive || widget.readOnlyLocked;
     final List<Map<String, dynamic>> list = hasProgramCardio
         ? widget.exercises
         : (_cardioLibrary.isNotEmpty
@@ -494,6 +497,23 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
               ),
             ),
             const SizedBox(height: 16),
+            if (widget.readOnlyLocked)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: Colors.orange.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: const Text(
+                  "Account is deactivated. Cardio actions are disabled until you reactivate.",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
             if (locationGateActive)
               _CardioAlwaysLocationGate(
                 requesting: _requestingAlwaysLocationPermission,
@@ -501,9 +521,9 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
                 onSettings: _openLocationSettings,
               ),
             IgnorePointer(
-              ignoring: locationGateActive,
+              ignoring: interactionLocked,
               child: Opacity(
-                opacity: locationGateActive ? 0.35 : 1,
+                opacity: interactionLocked ? 0.35 : 1,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -529,15 +549,18 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
                           padding: const EdgeInsets.only(bottom: 14),
                           child: ExerciseCard(
                             exercise: ex,
-                            disabled: _hasCardioSession,
+                            disabled:
+                                _hasCardioSession || widget.readOnlyLocked,
                             inProgress: _isSessionExercise(ex),
                             onTap: () async {
+                              if (widget.readOnlyLocked) return;
                               final canStart =
                                   await _ensureAlwaysLocationBeforeStart();
                               if (!canStart || _hasCardioSession) return;
                               widget.onStart(ex);
                             },
                             onReplace: () {
+                              if (widget.readOnlyLocked) return;
                               if (!hasProgramCardio &&
                                   ex['program_exercise_id'] == null) {
                                 ScaffoldMessenger.of(context).showSnackBar(

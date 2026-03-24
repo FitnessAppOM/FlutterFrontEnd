@@ -8,10 +8,7 @@ class ProfileUpdateCooldownException implements Exception {
   final String detail;
   final DateTime? nextAllowedAt;
 
-  ProfileUpdateCooldownException({
-    required this.detail,
-    this.nextAllowedAt,
-  });
+  ProfileUpdateCooldownException({required this.detail, this.nextAllowedAt});
 
   @override
   String toString() => detail;
@@ -39,7 +36,10 @@ class ProfileApi {
     return null;
   }
 
-  static Future<Map<String, dynamic>> fetchProfile(int userId, {String? lang}) async {
+  static Future<Map<String, dynamic>> fetchProfile(
+    int userId, {
+    String? lang,
+  }) async {
     final langQuery = (lang != null && lang.isNotEmpty) ? "?lang=$lang" : "";
     final url = Uri.parse("${ApiConfig.baseUrl}/profile/$userId$langQuery");
     final headers = await AccountStorage.getAuthHeaders();
@@ -59,8 +59,7 @@ class ProfileApi {
 
     if (res.statusCode == 403) {
       final data = _decodeMap(res.body);
-      final detail =
-          data["detail"]?.toString() ?? "Account is deactivated";
+      final detail = data["detail"]?.toString() ?? "Account is deactivated";
       throw Exception(detail);
     }
 
@@ -95,7 +94,10 @@ class ProfileApi {
 
   static Future<String> updateUsername(int userId, String username) async {
     final url = Uri.parse("${ApiConfig.baseUrl}/profile/$userId/username");
-    final headers = {"Content-Type": "application/json", ...await AccountStorage.getAuthHeaders()};
+    final headers = {
+      "Content-Type": "application/json",
+      ...await AccountStorage.getAuthHeaders(),
+    };
     final res = await http.patch(
       url,
       headers: headers,
@@ -119,9 +121,14 @@ class ProfileApi {
     throw Exception(msg);
   }
 
-  static Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> payload) async {
+  static Future<Map<String, dynamic>> updateProfile(
+    Map<String, dynamic> payload,
+  ) async {
     final url = Uri.parse("${ApiConfig.baseUrl}/profile/update");
-    final headers = {"Content-Type": "application/json", ...await AccountStorage.getAuthHeaders()};
+    final headers = {
+      "Content-Type": "application/json",
+      ...await AccountStorage.getAuthHeaders(),
+    };
     final res = await http.post(
       url,
       headers: headers,
@@ -181,8 +188,31 @@ class ProfileApi {
     throw Exception(msg);
   }
 
+  static Future<Map<String, dynamic>> deactivateAccount(int userId) async {
+    final url = Uri.parse("${ApiConfig.baseUrl}/profile/$userId/deactivate");
+    final headers = await AccountStorage.getAuthHeaders();
+    final res = await http.post(url, headers: headers);
+
+    await AccountStorage.handleAuthStatus(
+      res.statusCode,
+      responseBody: res.body,
+    );
+    if (res.statusCode == 200) {
+      return _decodeMap(res.body);
+    }
+
+    String msg = "Failed to deactivate account";
+    try {
+      final data = jsonDecode(res.body);
+      msg = data["detail"]?.toString() ?? msg;
+    } catch (_) {}
+    throw Exception(msg);
+  }
+
   static Future<Map<String, dynamic>> fetchAccountStatus(int userId) async {
-    final url = Uri.parse("${ApiConfig.baseUrl}/profile/$userId/account-status");
+    final url = Uri.parse(
+      "${ApiConfig.baseUrl}/profile/$userId/account-status",
+    );
     final headers = await AccountStorage.getAuthHeaders();
     final res = await http.get(url, headers: headers);
     await AccountStorage.handleAuthStatus(
@@ -192,17 +222,26 @@ class ProfileApi {
     if (res.statusCode == 200) return _decodeMap(res.body);
 
     final data = _decodeMap(res.body);
-    throw Exception(data["detail"]?.toString() ?? "Failed to load account status");
+    throw Exception(
+      data["detail"]?.toString() ?? "Failed to load account status",
+    );
   }
 
-  static Future<Map<String, dynamic>> requestReactivation(String email) async {
-    final url = Uri.parse("${ApiConfig.baseUrl}/auth/reactivate/request");
-    final res = await http.post(
-      url,
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"email": email}),
+  static Future<Map<String, dynamic>> requestReactivation(int userId) async {
+    final url = Uri.parse("${ApiConfig.baseUrl}/profile/$userId/reactivate");
+    final headers = await AccountStorage.getAuthHeaders();
+    final res = await http.post(url, headers: headers);
+    await AccountStorage.handleAuthStatus(
+      res.statusCode,
+      responseBody: res.body,
     );
     if (res.statusCode == 200) return _decodeMap(res.body);
+    if (res.statusCode == 410) {
+      throw Exception("Account can no longer be restored");
+    }
+    if (res.statusCode == 404) {
+      throw Exception("Account not found");
+    }
     final data = _decodeMap(res.body);
     throw Exception(data["detail"]?.toString() ?? "Request failed");
   }
@@ -217,6 +256,9 @@ class ProfileApi {
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({"email": email, "code": code}),
     );
+    if (res.statusCode == 410) {
+      throw Exception("Account can no longer be restored");
+    }
     if (res.statusCode == 200) return _decodeMap(res.body);
     final data = _decodeMap(res.body);
     throw Exception(data["detail"]?.toString() ?? "Reactivation failed");

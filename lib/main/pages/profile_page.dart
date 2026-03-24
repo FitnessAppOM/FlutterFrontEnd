@@ -24,6 +24,7 @@ class _ProfilePageState extends State<ProfilePage> {
   String? _avatarUrl;
   String? _avatarPath;
   bool _didLoadProfile = false;
+  bool _isDeactivated = false;
 
   @override
   void initState() {
@@ -96,16 +97,24 @@ class _ProfilePageState extends State<ProfilePage> {
           _loading = false;
           _avatarUrl = cachedAvatar;
           _avatarPath = cachedAvatarPath;
+          _isDeactivated = false;
         });
         return;
       }
+      try {
+        final status = await ProfileApi.fetchAccountStatus(userId);
+        final value = (status["status"] ?? "").toString().toLowerCase().trim();
+        if (mounted) {
+          setState(() => _isDeactivated = value == "deactivated");
+        }
+      } catch (_) {}
       final data = await ProfileApi.fetchProfile(userId, lang: lang);
       if (!mounted) return;
       final remoteAvatar = data["avatar_url"]?.toString();
       final normalizedAvatar =
           (remoteAvatar != null && remoteAvatar.trim().isNotEmpty)
-              ? remoteAvatar
-              : cachedAvatar;
+          ? remoteAvatar
+          : cachedAvatar;
       setState(() {
         _profile = data;
         _loading = false;
@@ -158,6 +167,7 @@ class _ProfilePageState extends State<ProfilePage> {
     if (value == null || value.isEmpty) return "—";
     return "$value $unit";
   }
+
   String _displayDays(String? value) {
     if (value == null || value.isEmpty) return "—";
     return "$value ${AppLocalizations.of(context).translate("profile_days_per_week")}";
@@ -179,7 +189,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
     // diet_type can be comma-separated string (multi-choice)
     if (field == "diet_type" && value.contains(",")) {
-      final parts = value.split(RegExp(r',\s*')).map((s) => s.trim()).where((s) => s.isNotEmpty);
+      final parts = value
+          .split(RegExp(r',\s*'))
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty);
       return parts.map((p) => _translateOption("diet_type", p, t)).join(", ");
     }
 
@@ -222,11 +235,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
       final matches = field == "sex"
           ? (normalized == normalizedKey ||
-              normalized == normalizedEn ||
-              normalized == normalizedAr)
+                normalized == normalizedEn ||
+                normalized == normalizedAr)
           : (_matches(normalized, normalizedKey) ||
-              _matches(normalized, normalizedEn) ||
-              _matches(normalized, normalizedAr));
+                _matches(normalized, normalizedEn) ||
+                _matches(normalized, normalizedAr));
 
       if (matches) {
         // Preserve custom "other" text; otherwise translate to current locale
@@ -249,7 +262,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
   bool _matches(String target, String candidate) {
     if (candidate.isEmpty) return false;
-    return target == candidate || target.contains(candidate) || candidate.contains(target);
+    return target == candidate ||
+        target.contains(candidate) ||
+        candidate.contains(target);
   }
 
   @override
@@ -257,24 +272,30 @@ class _ProfilePageState extends State<ProfilePage> {
     final t = AppLocalizations.of(context); // Translator
 
     final displayName = _resolveDisplayName();
-    final occupation =
-        _translateOption("daily_activity", _profile?["occupation"], t);
+    final occupation = _translateOption(
+      "daily_activity",
+      _profile?["occupation"],
+      t,
+    );
     final affiliationName = _profile?["affiliation_name"]?.toString();
     final affiliationOther = _profile?["affiliation_other_text"]?.toString();
-    final affiliationDisplay = (affiliationName != null && affiliationName.trim().isNotEmpty)
+    final affiliationDisplay =
+        (affiliationName != null && affiliationName.trim().isNotEmpty)
         ? affiliationName
         : (affiliationOther != null && affiliationOther.trim().isNotEmpty)
-            ? affiliationOther
-            : "";
+        ? affiliationOther
+        : "";
     final age = _profile?["age"]?.toString();
     final sex = _translateOption("sex", _profile?["sex"], t);
     final height = _profile?["height_cm"]?.toString();
     final weight = _profile?["weight_kg"]?.toString();
-    final mainGoal =
-        _translateOption("fitness_goal", _profile?["fitness_goal"], t);
+    final mainGoal = _translateOption(
+      "fitness_goal",
+      _profile?["fitness_goal"],
+      t,
+    );
     final trainingDays = _profile?["training_days"]?.toString();
-    final dietType =
-        _translateOption("diet_type", _profile?["diet_type"], t);
+    final dietType = _translateOption("diet_type", _profile?["diet_type"], t);
     final fitnessExperience = _translateOption(
       "fitness_experience",
       _profile?["fitness_experience"],
@@ -284,9 +305,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       backgroundColor: AppColors.black,
       appBar: AppBar(
-        title: Text(
-          t.translate("profile_title"),
-        ),
+        title: Text(t.translate("profile_title")),
         backgroundColor: AppColors.black,
       ),
       body: (_error != null && _profile == null)
@@ -318,7 +337,11 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ProfileHeader(
                       name: _display(displayName),
-                      occupation: _display(affiliationDisplay.isNotEmpty ? affiliationDisplay : null),
+                      occupation: _display(
+                        affiliationDisplay.isNotEmpty
+                            ? affiliationDisplay
+                            : null,
+                      ),
                       avatarUrl: _avatarUrl,
                       avatarPath: _avatarPath,
                     ),
@@ -338,14 +361,30 @@ class _ProfilePageState extends State<ProfilePage> {
                       experience: _display(fitnessExperience),
                     ),
                     const SizedBox(height: 24),
+                    if (_isDeactivated)
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: Colors.orange.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: const Text(
+                          "Account is deactivated. Profile editing is disabled until you reactivate.",
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
                     ProfileActionsSection(
+                      editEnabled: !_isDeactivated,
                       onEditProfile: () async {
                         if (_profile == null) return;
                         final updated = await Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => EditProfilePage(
-                              profile: _profile!,
-                            ),
+                            builder: (_) => EditProfilePage(profile: _profile!),
                           ),
                         );
                         if (updated == true) {

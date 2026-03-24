@@ -9,6 +9,7 @@ import '../../widgets/training/exercise_session_sheet.dart';
 import '../../core/account_storage.dart';
 import '../../core/training_regeneration_flag.dart';
 import '../../localization/app_localizations.dart';
+import '../../services/auth/profile_service.dart';
 import '../../services/training/training_service.dart';
 import '../../widgets/training/replace_exercise_sheet.dart';
 import '../../widgets/app_toast.dart';
@@ -50,6 +51,7 @@ class _TrainPageState extends State<TrainPage> {
   List<int> _dayOrder = const [];
   List<bool> _dayCompletedByIndex = const [];
   bool _cardioLockToday = false;
+  bool _isDeactivated = false;
   final Set<int> _inProgressExerciseIds = <int>{};
   String? _activeSessionExerciseName;
   int _inProgressLoadSeq = 0;
@@ -74,6 +76,7 @@ class _TrainPageState extends State<TrainPage> {
   void initState() {
     super.initState();
     AccountStorage.trainingChange.addListener(_onTrainingChanged);
+    AccountStorage.accountChange.addListener(_onAccountChanged);
     _init();
   }
 
@@ -82,6 +85,7 @@ class _TrainPageState extends State<TrainPage> {
     _workoutTimer?.cancel();
     _exRestTimer?.cancel();
     AccountStorage.trainingChange.removeListener(_onTrainingChanged);
+    AccountStorage.accountChange.removeListener(_onAccountChanged);
     super.dispose();
   }
 
@@ -90,13 +94,29 @@ class _TrainPageState extends State<TrainPage> {
     _loadCardioLock();
   }
 
+  void _onAccountChanged() {
+    _refreshAccountStatus();
+  }
+
   Future<void> _init() async {
     _userId = await AccountStorage.getUserId();
     await _loadProgram();
     await _loadWorkoutTimer();
     await _loadCardioLock();
+    await _refreshAccountStatus();
     await _loadExRestPreset();
     await _restoreExRestState();
+  }
+
+  Future<void> _refreshAccountStatus() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null || userId <= 0) return;
+    try {
+      final data = await ProfileApi.fetchAccountStatus(userId);
+      final status = (data["status"] ?? "").toString().toLowerCase().trim();
+      if (!mounted) return;
+      setState(() => _isDeactivated = status == "deactivated");
+    } catch (_) {}
   }
 
   Future<void> _loadWorkoutTimer() async {
@@ -1419,7 +1439,7 @@ class _TrainPageState extends State<TrainPage> {
               : false,
         )
         .toList();
-    final disableTrainingToday = _cardioLockToday;
+    final disableTrainingToday = _cardioLockToday || _isDeactivated;
     final workoutLockDayIndex =
         (_workoutStartMs != null && _workoutDayIndex != null)
         ? _workoutDayIndex
@@ -1431,6 +1451,7 @@ class _TrainPageState extends State<TrainPage> {
       return actualDayIndex != workoutLockDayIndex;
     });
     final notesInOrder = List<String?>.generate(dayOrder.length, (i) {
+      if (_isDeactivated) return "Account is deactivated";
       if (disableTrainingToday) return "Cardio 15+ min today";
       if (workoutLockDayIndex == null) return null;
       final actualDayIndex = dayOrder[i];
@@ -1493,6 +1514,23 @@ class _TrainPageState extends State<TrainPage> {
                             ),
                           ),
                         ],
+                      ),
+                    ),
+                  if (_isDeactivated)
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: Colors.orange.withValues(alpha: 0.4),
+                        ),
+                      ),
+                      child: const Text(
+                        "Account is deactivated. Training actions are disabled until you reactivate.",
+                        style: TextStyle(color: Colors.white),
                       ),
                     ),
                   SectionHeader(title: t.translate("training")),
@@ -1592,7 +1630,8 @@ class _TrainPageState extends State<TrainPage> {
                     ),
                     const SizedBox(height: 12),
                   ],
-                  if (_tabIndex == 0 && (_showExRestPanel || _exRestActive)) ...[
+                  if (_tabIndex == 0 &&
+                      (_showExRestPanel || _exRestActive)) ...[
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -1667,9 +1706,8 @@ class _TrainPageState extends State<TrainPage> {
                             ElevatedButton(
                               onPressed: _startExRestCountdown,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orangeAccent.withOpacity(
-                                  0.2,
-                                ),
+                                backgroundColor: Colors.orangeAccent
+                                    .withOpacity(0.2),
                                 foregroundColor: Colors.orangeAccent,
                                 elevation: 0,
                               ),
@@ -1906,6 +1944,7 @@ class _TrainPageState extends State<TrainPage> {
                                 exercises: _cardioExercises,
                                 onStart: _startExerciseFlow,
                                 onReplace: _openReplaceSheet,
+                                readOnlyLocked: _isDeactivated,
                               ),
                             ],
                           )

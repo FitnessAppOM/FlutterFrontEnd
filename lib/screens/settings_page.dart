@@ -22,6 +22,7 @@ import '../services/core/notification_service.dart';
 import '../services/whoop/whoop_daily_sync.dart';
 import '../services/whoop/whoop_latest_service.dart';
 import '../screens/welcome.dart';
+import '../screens/account_restore_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -36,6 +37,9 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _updatingUsername = false;
   bool _updatingAvatar = false;
   bool _deletingAccount = false;
+  bool _deactivatingAccount = false;
+  bool _isDeactivated = false;
+  String? _scheduledPurgeAtDisplay;
   String? _email;
   bool _expertQuestionnaireDone = false;
   bool _whoopLinked = false;
@@ -73,6 +77,7 @@ class _SettingsPageState extends State<SettingsPage> {
     _loadWhoopStatus();
     _loadFitbitStatus();
     _loadStravaStatus();
+    _refreshAccountStatus();
     AccountStorage.accountChange.addListener(_handleAccountChanged);
   }
 
@@ -231,6 +236,32 @@ class _SettingsPageState extends State<SettingsPage> {
     _loadWhoopStatus();
     _loadFitbitStatus();
     _loadStravaStatus();
+    _refreshAccountStatus();
+  }
+
+  String? _normalizeDate(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return raw;
+    final local = parsed.toLocal();
+    String two(int n) => n.toString().padLeft(2, '0');
+    return "${local.year}-${two(local.month)}-${two(local.day)} ${two(local.hour)}:${two(local.minute)}";
+  }
+
+  Future<void> _refreshAccountStatus() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null || userId <= 0 || !mounted) return;
+    try {
+      final data = await ProfileApi.fetchAccountStatus(userId);
+      final status = (data["status"] ?? "").toString().toLowerCase().trim();
+      if (!mounted) return;
+      setState(() {
+        _isDeactivated = status == "deactivated";
+        _scheduledPurgeAtDisplay = _normalizeDate(
+          data["scheduled_purge_at"]?.toString(),
+        );
+      });
+    } catch (_) {}
   }
 
   Future<void> _loadEmail() async {
@@ -907,16 +938,13 @@ class _SettingsPageState extends State<SettingsPage> {
 
     setState(() => _deletingAccount = true);
     try {
-      final result = await ProfileApi.deleteAccount(userId);
+      await ProfileApi.deleteAccount(userId);
       await AccountStorage.clear();
       await NotificationService.refreshDailyJournalRemindersForCurrentUser();
       if (!mounted) return;
-      final deactivated = result["status"]?.toString().toLowerCase() == "deactivated";
       AppToast.show(
         context,
-        deactivated
-            ? t.translate("settings_delete_account_success_deactivated")
-            : t.translate("settings_delete_account_success"),
+        t.translate("settings_delete_account_success"),
         type: AppToastType.success,
       );
       Navigator.pushAndRemoveUntil(
@@ -930,6 +958,98 @@ class _SettingsPageState extends State<SettingsPage> {
     } finally {
       if (mounted) setState(() => _deletingAccount = false);
     }
+  }
+
+  Future<void> _confirmDeactivateAccount() async {
+    if (_deactivatingAccount) return;
+    final t = AppLocalizations.of(context);
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        t.translate("user_missing"),
+        type: AppToastType.error,
+      );
+      return;
+    }
+
+    final confirmed =
+        await showDialog<bool>(
+          context: context,
+          builder: (ctx) {
+            return AlertDialog(
+              backgroundColor: AppColors.black,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Text(
+                t.translate("settings_deactivate_account"),
+                style: const TextStyle(color: Colors.white),
+              ),
+              content: Text(
+                t.translate("settings_deactivate_account_confirm_body"),
+                style: const TextStyle(color: Colors.white70),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(t.translate("cancel")),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: Text(
+                    t.translate("settings_deactivate_account_confirm_yes"),
+                    style: const TextStyle(color: Colors.amberAccent),
+                  ),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    if (!confirmed || !mounted) return;
+
+    setState(() => _deactivatingAccount = true);
+    try {
+      final result = await ProfileApi.deactivateAccount(userId);
+      if (!mounted) return;
+      setState(() {
+        _isDeactivated = true;
+        _scheduledPurgeAtDisplay = _normalizeDate(
+          result["scheduled_purge_at"]?.toString(),
+        );
+      });
+      AppToast.show(
+        context,
+        (result["message"]?.toString().trim().isNotEmpty ?? false)
+            ? result["message"].toString()
+            : t.translate("settings_deactivate_account_success"),
+        type: AppToastType.success,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, e.toString(), type: AppToastType.error);
+    } finally {
+      if (mounted) setState(() => _deactivatingAccount = false);
+    }
+  }
+
+  Future<void> _openReactivationFlow() async {
+    final payload = <String, dynamic>{
+      "status": "deactivated",
+      if (_scheduledPurgeAtDisplay != null)
+        "scheduled_purge_at": _scheduledPurgeAtDisplay,
+    };
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            AccountRestorePage(initialPayload: payload, prefilledEmail: _email),
+      ),
+    );
+    await _refreshAccountStatus();
   }
 
   @override
@@ -971,6 +1091,28 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
           const SizedBox(height: 24),
+          if (_isDeactivated) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.orange.withValues(alpha: 0.35),
+                ),
+              ),
+              child: Text(
+                _scheduledPurgeAtDisplay == null
+                    ? t.translate("deactivated_banner_no_date")
+                    : t
+                          .translate("deactivated_banner_with_date")
+                          .replaceAll("{date}", _scheduledPurgeAtDisplay!),
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
           Text(
             t.translate("settings_profile"),
             style: const TextStyle(
@@ -984,7 +1126,7 @@ class _SettingsPageState extends State<SettingsPage> {
             title: t.translate("settings_change_username"),
             subtitle: t.translate("settings_change_username_sub"),
             icon: Icons.person_outline,
-            onTap: _promptChangeUsername,
+            onTap: _isDeactivated ? null : _promptChangeUsername,
           ),
           _SettingsTile(
             title: t.translate("settings_change_avatar"),
@@ -992,47 +1134,52 @@ class _SettingsPageState extends State<SettingsPage> {
             icon: _updatingAvatar
                 ? Icons.hourglass_bottom
                 : Icons.image_outlined,
-            onTap: _pickAvatar,
+            onTap: _isDeactivated ? null : _pickAvatar,
           ),
           _SettingsTile(
             title: t.translate("settings_be_expert"),
             subtitle: t.translate("settings_be_expert_sub"),
             icon: Icons.work_outline,
-            onTap: () async {
-              final userId = await AccountStorage.getUserId();
-              if (userId == null) {
-                AppToast.show(
-                  context,
-                  t.translate("user_missing"),
-                  type: AppToastType.error,
-                );
-                return;
-              }
-              try {
-                final lang = AppLocalizations.of(context).locale.languageCode;
-                final profile = await ProfileApi.fetchProfile(
-                  userId,
-                  lang: lang,
-                );
-                final done = profile["filled_expert_questionnaire"] == true;
-                if (done) {
-                  AppToast.show(
-                    context,
-                    t.translate("expert_questionnaire_already_done"),
-                    type: AppToastType.info,
-                  );
-                  return;
-                }
-              } catch (_) {
-                // If check fails, allow navigation so user can try
-              }
-              await Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const ExpertQuestionnairePage(),
-                ),
-              );
-              await _loadExpertFlag();
-            },
+            onTap: _isDeactivated
+                ? null
+                : () async {
+                    final userId = await AccountStorage.getUserId();
+                    if (userId == null) {
+                      AppToast.show(
+                        context,
+                        t.translate("user_missing"),
+                        type: AppToastType.error,
+                      );
+                      return;
+                    }
+                    try {
+                      final lang = AppLocalizations.of(
+                        context,
+                      ).locale.languageCode;
+                      final profile = await ProfileApi.fetchProfile(
+                        userId,
+                        lang: lang,
+                      );
+                      final done =
+                          profile["filled_expert_questionnaire"] == true;
+                      if (done) {
+                        AppToast.show(
+                          context,
+                          t.translate("expert_questionnaire_already_done"),
+                          type: AppToastType.info,
+                        );
+                        return;
+                      }
+                    } catch (_) {
+                      // If check fails, allow navigation so user can try
+                    }
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ExpertQuestionnairePage(),
+                      ),
+                    );
+                    await _loadExpertFlag();
+                  },
           ),
           const SizedBox(height: 12),
           Text(
@@ -1048,18 +1195,38 @@ class _SettingsPageState extends State<SettingsPage> {
             title: t.translate("settings_change_password"),
             subtitle: t.translate("settings_change_password_sub"),
             icon: Icons.lock_reset,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ForgotPasswordPage(
-                    lockedEmail: _email,
-                    lockEmailField: _email != null,
-                  ),
-                ),
-              );
-            },
+            onTap: _isDeactivated
+                ? null
+                : () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ForgotPasswordPage(
+                          lockedEmail: _email,
+                          lockEmailField: _email != null,
+                        ),
+                      ),
+                    );
+                  },
           ),
+          if (_isDeactivated)
+            _SettingsTile(
+              title: t.translate("account_reactivate_action"),
+              subtitle: t.translate("settings_reactivate_account_sub"),
+              icon: Icons.refresh,
+              onTap: _openReactivationFlow,
+              color: AppColors.accent,
+            ),
+          if (!_isDeactivated)
+            _SettingsTile(
+              title: t.translate("settings_deactivate_account"),
+              subtitle: t.translate("settings_deactivate_account_sub"),
+              icon: _deactivatingAccount
+                  ? Icons.hourglass_bottom
+                  : Icons.pause_circle_outline,
+              onTap: _deactivatingAccount ? null : _confirmDeactivateAccount,
+              color: Colors.amberAccent,
+            ),
           _SettingsTile(
             title: t.translate("settings_delete_account"),
             subtitle: t.translate("settings_delete_account_sub"),
@@ -1085,7 +1252,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ? "Disconnect your Whoop"
                 : "Link your Whoop account",
             icon: _whoopLoading ? Icons.hourglass_bottom : Icons.monitor_heart,
-            onTap: _whoopLoading ? null : _handleWhoopTap,
+            onTap: (_whoopLoading || _isDeactivated) ? null : _handleWhoopTap,
             color: _whoopLinked ? const Color(0xFF4CD964) : null,
             leading: Container(
               height: 28,
@@ -1113,7 +1280,7 @@ class _SettingsPageState extends State<SettingsPage> {
             icon: _fitbitLoading
                 ? Icons.hourglass_bottom
                 : Icons.directions_walk,
-            onTap: _fitbitLoading ? null : _handleFitbitTap,
+            onTap: (_fitbitLoading || _isDeactivated) ? null : _handleFitbitTap,
             color: _fitbitLinked ? const Color(0xFF4CD964) : null,
             leading: Container(
               height: 28,
@@ -1141,7 +1308,7 @@ class _SettingsPageState extends State<SettingsPage> {
             icon: _stravaLoading
                 ? Icons.hourglass_bottom
                 : Icons.directions_bike,
-            onTap: _stravaLoading ? null : _handleStravaTap,
+            onTap: (_stravaLoading || _isDeactivated) ? null : _handleStravaTap,
             color: _stravaLinked ? const Color(0xFF4CD964) : null,
             leading: Container(
               height: 28,
