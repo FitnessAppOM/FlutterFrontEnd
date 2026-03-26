@@ -125,16 +125,18 @@ void main() async {
   // // Fire test notifications immediately so you can verify delivery quickly.
   // print('[Main] Showing debug notifications');
   // await NotificationService.showDebugJournalAndDietNow();
-  await NotificationService.refreshDailyJournalRemindersForCurrentUser();
-  // Push health metrics for yesterday once per day (on app start) if not already sent today.
+  // Submit today's burn BEFORE scheduling notifications so the 9pm diet
+  // check-in body reflects the surplus-adjusted target, not the base target.
   try {
     await DailyMetricsSync().pushIfNewDay();
+    await DailyMetricsSync().pushToday();
     await WhoopDailySync().pushIfNewDay();
     await FitbitDailySync().pushIfNewDay();
   } catch (e) {
     // ignore: avoid_print
     print("DailyMetricsSync daily push skipped: $e");
   }
+  await NotificationService.refreshDailyJournalRemindersForCurrentUser();
   final launchPayload = await NotificationService.getLaunchPayload();
   if (launchPayload == NotificationService.dailyJournalPayload) {
     NavigationService.markJournalNotificationPending();
@@ -219,6 +221,7 @@ class _MyAppState extends State<MyApp> {
     _maybeRequestAndroidHealthPermission();
     try {
       await DailyMetricsSync().pushIfNewDay();
+      await DailyMetricsSync().pushToday();
       await WhoopDailySync().pushIfNewDay();
       await FitbitDailySync().pushIfNewDay();
     } catch (e) {
@@ -234,7 +237,7 @@ class _MyAppState extends State<MyApp> {
       // ignore: avoid_print
       print("ExerciseActionQueue sync skipped: $e");
     }
-    NotificationService.refreshDailyJournalRemindersForCurrentUser();
+    await NotificationService.refreshDailyJournalRemindersForCurrentUser();
   }
 
   void _handleAccountChange() {
