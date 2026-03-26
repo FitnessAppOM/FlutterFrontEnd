@@ -1100,13 +1100,17 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         ? rawProgramExerciseId
         : int.tryParse(rawProgramExerciseId?.toString() ?? '');
     if (programExerciseId != null) {
+      final now = DateTime.now();
+      final entryDateToken =
+          "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
       try {
-        await TrainingService.startExercise(programExerciseId);
+        await TrainingService.startExercise(programExerciseId, entryDate: now);
         startRecorded = true;
       } catch (e) {
         await ExerciseActionQueue.queueAction(
           action: ExerciseActionQueue.actionStart,
           programExerciseId: programExerciseId,
+          data: {"entry_date": entryDateToken},
         );
         startRecorded = false;
       }

@@ -290,7 +290,11 @@ class _TrainPageState extends State<TrainPage> {
     await TrainingProgressStorage.clearWorkoutStart();
     if (hasCompletedExerciseInSession) {
       await TrainingProgressStorage.recordTrainingDayCompleted(now);
-      await _markDayFinishedForCurrentWeek(finishedDayIndex);
+      if (shouldShowDayCompletePopup) {
+        await _markDayFinishedForCurrentWeek(finishedDayIndex);
+      } else {
+        await _clearDayFinishedForCurrentWeek(finishedDayIndex);
+      }
     }
     _workoutTimer?.cancel();
     _workoutTimer = null;
@@ -300,30 +304,6 @@ class _TrainPageState extends State<TrainPage> {
     _stopExRestCountdownQuiet();
     final days = program?['days'];
     _DayOrderResult? orderResult = days is List ? _buildDayOrder(days) : null;
-    if (hasCompletedExerciseInSession &&
-        days is List &&
-        finishedDayIndex >= 0 &&
-        finishedDayIndex < days.length &&
-        (orderResult == null ||
-            finishedDayIndex >= orderResult.completedByIndex.length ||
-            !orderResult.completedByIndex[finishedDayIndex])) {
-      final forcedCompleted = List<bool>.filled(days.length, false);
-      final source = orderResult?.completedByIndex;
-      if (source != null) {
-        for (var i = 0; i < forcedCompleted.length && i < source.length; i++) {
-          forcedCompleted[i] = source[i];
-        }
-      } else if (_dayCompletedByIndex.length == days.length) {
-        for (var i = 0; i < forcedCompleted.length; i++) {
-          forcedCompleted[i] = _dayCompletedByIndex[i];
-        }
-      }
-      forcedCompleted[finishedDayIndex] = true;
-      orderResult = _DayOrderResult(
-        order: _orderByCompletionFlags(forcedCompleted),
-        completedByIndex: forcedCompleted,
-      );
-    }
     _pendingCompletionDayIndex =
         hasCompletedExerciseInSession && shouldShowDayCompletePopup
         ? finishedDayIndex
@@ -495,6 +475,9 @@ class _TrainPageState extends State<TrainPage> {
           if (cached != null && mounted) {
             final cachedDays = cached['days'];
             final cachedDayCount = cachedDays is List ? cachedDays.length : 0;
+            if (cachedDays is List) {
+              await _reconcileFinishedDaysWithProgram(cachedDays);
+            }
             final orderResult = cachedDays is List
                 ? _buildDayOrder(cachedDays)
                 : const _DayOrderResult(order: [], completedByIndex: []);
@@ -538,6 +521,9 @@ class _TrainPageState extends State<TrainPage> {
       if (!mounted) return;
       final serverDays = data['days'];
       final serverDayCount = serverDays is List ? serverDays.length : 0;
+      if (serverDays is List) {
+        await _reconcileFinishedDaysWithProgram(serverDays);
+      }
       final orderResult = serverDays is List
           ? _buildDayOrder(serverDays)
           : const _DayOrderResult(order: [], completedByIndex: []);
@@ -735,17 +721,27 @@ class _TrainPageState extends State<TrainPage> {
     }
     final now = DateTime.now();
     final weekStart = _weekStartMonday(now);
+    final weekEnd = _weekEndSunday(now);
     final completedByIndex = List<bool>.filled(days.length, false);
     for (var i = 0; i < days.length; i++) {
       final day = days[i];
       if (day is Map<String, dynamic>) {
-        completedByIndex[i] = _isDayFinishedForCurrentWeek(day, i, weekStart);
+        completedByIndex[i] =
+            _isDayFinishedForCurrentWeek(day, i, weekStart) ||
+            _isDayFullyCompletedForWeek(
+              day,
+              weekStart: weekStart,
+              weekEnd: weekEnd,
+            );
       } else if (day is Map) {
-        completedByIndex[i] = _isDayFinishedForCurrentWeek(
-          Map<String, dynamic>.from(day),
-          i,
-          weekStart,
-        );
+        final dayMap = Map<String, dynamic>.from(day);
+        completedByIndex[i] =
+            _isDayFinishedForCurrentWeek(dayMap, i, weekStart) ||
+            _isDayFullyCompletedForWeek(
+              dayMap,
+              weekStart: weekStart,
+              weekEnd: weekEnd,
+            );
       }
     }
     final order = _orderByCompletionFlags(completedByIndex);
@@ -1227,6 +1223,9 @@ class _TrainPageState extends State<TrainPage> {
       final data = await TrainingService.fetchActiveProgram(userId);
       final serverDays = data['days'];
       final serverDayCount = serverDays is List ? serverDays.length : 0;
+      if (serverDays is List) {
+        await _reconcileFinishedDaysWithProgram(serverDays);
+      }
       final orderResult = serverDays is List
           ? _buildDayOrder(serverDays)
           : const _DayOrderResult(order: [], completedByIndex: []);
@@ -1268,11 +1267,21 @@ class _TrainPageState extends State<TrainPage> {
   bool _isDayFullyCompletedForCurrentWeek(int dayIndex) {
     final day = _dayAtIndex(dayIndex);
     if (day == null) return false;
+    final now = DateTime.now();
+    return _isDayFullyCompletedForWeek(
+      day,
+      weekStart: _weekStartMonday(now),
+      weekEnd: _weekEndSunday(now),
+    );
+  }
+
+  bool _isDayFullyCompletedForWeek(
+    Map<String, dynamic> day, {
+    required DateTime weekStart,
+    required DateTime weekEnd,
+  }) {
     final exercises = day['exercises'];
     if (exercises is! List || exercises.isEmpty) return false;
-    final now = DateTime.now();
-    final weekStart = _weekStartMonday(now);
-    final weekEnd = _weekEndSunday(now);
     var hasTrainExercise = false;
     for (final rawEx in exercises) {
       Map<String, dynamic>? ex;
@@ -1330,6 +1339,45 @@ class _TrainPageState extends State<TrainPage> {
     final sp = await SharedPreferences.getInstance();
     await sp.setBool(_finishedDayStorageKey(userId, dayKey), true);
     _finishedDayKeysForWeek = {..._finishedDayKeysForWeek, dayKey};
+  }
+
+  Future<void> _reconcileFinishedDaysWithProgram(List days) async {
+    if (days.isEmpty || _finishedDayKeysForWeek.isEmpty) return;
+    final now = DateTime.now();
+    final weekStart = _weekStartMonday(now);
+    final weekEnd = _weekEndSunday(now);
+    final staleDayKeys = <String>{};
+    for (var i = 0; i < days.length; i++) {
+      final rawDay = days[i];
+      Map<String, dynamic>? day;
+      if (rawDay is Map<String, dynamic>) {
+        day = rawDay;
+      } else if (rawDay is Map) {
+        day = Map<String, dynamic>.from(rawDay);
+      }
+      if (day == null) continue;
+      final dayKey = _dayCompletionKey(day, i, weekStart);
+      if (!_finishedDayKeysForWeek.contains(dayKey)) continue;
+      final isActuallyComplete = _isDayFullyCompletedForWeek(
+        day,
+        weekStart: weekStart,
+        weekEnd: weekEnd,
+      );
+      if (!isActuallyComplete) {
+        staleDayKeys.add(dayKey);
+      }
+    }
+    if (staleDayKeys.isEmpty) return;
+    final userId = _userId ?? await AccountStorage.getUserId();
+    if (userId == null) return;
+    final sp = await SharedPreferences.getInstance();
+    for (final dayKey in staleDayKeys) {
+      await sp.remove(_finishedDayStorageKey(userId, dayKey));
+      await sp.remove("train_day_completed_popup_u${userId}_$dayKey");
+    }
+    _finishedDayKeysForWeek = _finishedDayKeysForWeek
+        .where((key) => !staleDayKeys.contains(key))
+        .toSet();
   }
 
   Future<void> _clearDayFinishedForCurrentWeek(int dayIndex) async {
@@ -1439,6 +1487,21 @@ class _TrainPageState extends State<TrainPage> {
               : false,
         )
         .toList();
+    final nowForWorked = DateTime.now();
+    final weekStartForWorked = _weekStartMonday(nowForWorked);
+    final weekEndForWorked = _weekEndSunday(nowForWorked);
+    final workedInOrder = dayOrder.map((i) {
+      if (i < 0 || i >= days.length) return false;
+      final rawDay = days[i];
+      Map<String, dynamic>? day;
+      if (rawDay is Map<String, dynamic>) {
+        day = rawDay;
+      } else if (rawDay is Map) {
+        day = Map<String, dynamic>.from(rawDay);
+      }
+      if (day == null) return false;
+      return _isDayWorkedForWeek(day, weekStartForWorked, weekEndForWorked);
+    }).toList();
     final disableTrainingToday = _cardioLockToday || _isDeactivated;
     final workoutLockDayIndex =
         (_workoutStartMs != null && _workoutDayIndex != null)
@@ -1800,6 +1863,7 @@ class _TrainPageState extends State<TrainPage> {
                             return '';
                           }).toList(),
                           completed: completedInOrder,
+                          worked: workedInOrder,
                           disabled: disabledInOrder,
                           notes: notesInOrder,
                           workoutInProgress: _workoutStartMs != null,

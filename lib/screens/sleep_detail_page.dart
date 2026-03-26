@@ -1100,7 +1100,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                               ),
                             ),
                             child: Text(
-                              "${entries[_selectedBarIndex!].detailLabel}  ${entries[_selectedBarIndex!].value.toStringAsFixed(1)} h",
+                              "${entries[_selectedBarIndex!].detailLabel}  ${_formatHours(entries[_selectedBarIndex!].value)}",
                               textAlign: TextAlign.center,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,

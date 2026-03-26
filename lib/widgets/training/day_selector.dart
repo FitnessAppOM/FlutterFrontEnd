@@ -7,6 +7,7 @@ class DaySelector extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelect;
   final List<bool> completed;
+  final List<bool> worked;
   final List<bool> disabled;
   final List<String?> notes;
   final bool workoutInProgress;
@@ -18,6 +19,7 @@ class DaySelector extends StatelessWidget {
     required this.selectedIndex,
     required this.onSelect,
     this.completed = const [],
+    this.worked = const [],
     this.disabled = const [],
     this.notes = const [],
     this.workoutInProgress = false,
@@ -47,6 +49,8 @@ class DaySelector extends StatelessWidget {
           itemBuilder: (context, i) {
             final selected = i == selectedIndex;
             final isCompleted = i < completed.length ? completed[i] : false;
+            final isWorked = i < worked.length ? worked[i] : false;
+            final isGreenState = isCompleted || isWorked;
             final isDisabled = i < disabled.length ? disabled[i] : false;
             final note = i < notes.length ? notes[i] : null;
             final showWorkoutGlow =
@@ -71,7 +75,7 @@ class DaySelector extends StatelessWidget {
                               colors: [Color(0xFF251A0B), Color(0xFF120D08)],
                             )
                           : (selected && !isDisabled)
-                          ? (isCompleted
+                          ? (isGreenState
                                 ? completedGradient
                                 : const LinearGradient(
                                     colors: [
@@ -84,7 +88,7 @@ class DaySelector extends StatelessWidget {
                           ? Colors.white.withOpacity(0.05)
                           : (selected
                                 ? null
-                                : (isCompleted
+                                : (isGreenState
                                       ? const Color(
                                           0xFF2ECC71,
                                         ).withOpacity(0.18)
@@ -95,7 +99,7 @@ class DaySelector extends StatelessWidget {
                             ? Colors.white.withOpacity(0.18)
                             : showWorkoutGlow
                             ? const Color(0xFFFFC870).withOpacity(0.75)
-                            : (isCompleted
+                            : (isGreenState
                                   ? const Color(
                                       0xFF2ECC71,
                                     ).withOpacity(selected ? 0.9 : 0.6)
@@ -109,7 +113,7 @@ class DaySelector extends StatelessWidget {
                                       color:
                                           (showWorkoutGlow
                                                   ? const Color(0xFFFFB347)
-                                                  : (isCompleted
+                                                  : (isGreenState
                                                         ? const Color(
                                                             0xFF2ECC71,
                                                           )
@@ -133,7 +137,7 @@ class DaySelector extends StatelessWidget {
                                 ? const Color(0xFFFFE6B0)
                                 : (selected
                                       ? Colors.white
-                                      : (isCompleted
+                                      : (isGreenState
                                             ? Colors.white
                                             : Colors.white.withOpacity(0.8))),
                             fontWeight: FontWeight.w700,

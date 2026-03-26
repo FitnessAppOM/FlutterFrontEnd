@@ -62,7 +62,13 @@ class ExerciseActionQueue {
     // Load existing queue
     final existing = await _loadQueue(userId);
 
-    final payloadData = data ?? <String, dynamic>{};
+    final payloadData = Map<String, dynamic>.from(data ?? const {});
+    if (action == actionStart ||
+        action == actionFinish ||
+        action == actionSessionFinish) {
+      final normalized = _normalizeEntryDateToken(payloadData["entry_date"]);
+      payloadData["entry_date"] = normalized ?? _dateToken(DateTime.now());
+    }
 
     if (action == actionSessionFinish) {
       final token = _normalizeEntryDateToken(payloadData["entry_date"]);
@@ -174,12 +180,19 @@ class ExerciseActionQueue {
     final programExerciseId = action["program_exercise_id"] as int;
     final data = action["data"] as Map<String, dynamic>? ?? {};
     final entryDate = data["entry_date"] as String?;
+    DateTime? parsedEntryDate = entryDate != null
+        ? DateTime.tryParse(entryDate)
+        : null;
+    parsedEntryDate ??= DateTime.tryParse(
+      action["timestamp"]?.toString() ?? '',
+    );
+    final effectiveEntryDate = parsedEntryDate ?? DateTime.now();
 
     switch (actionType) {
       case actionStart:
         await TrainingService.startExercise(
           programExerciseId,
-          entryDate: entryDate != null ? DateTime.tryParse(entryDate) : null,
+          entryDate: effectiveEntryDate,
         );
         break;
       case actionFinish:
@@ -189,7 +202,7 @@ class ExerciseActionQueue {
           reps: data.containsKey("reps") ? data["reps"] as int? : null,
           rir: data.containsKey("rir") ? data["rir"] as int? : null,
           durationSeconds: data["duration_seconds"] as int? ?? 0,
-          entryDate: entryDate != null ? DateTime.tryParse(entryDate) : null,
+          entryDate: effectiveEntryDate,
         );
         break;
       case actionWeight:
@@ -260,12 +273,7 @@ class ExerciseActionQueue {
         );
         break;
       case actionSessionFinish:
-        final entryDate = data["entry_date"] as String?;
-        await TrainingService.finishSession(
-          entryDate: entryDate != null
-              ? (DateTime.tryParse(entryDate) ?? DateTime.now())
-              : DateTime.now(),
-        );
+        await TrainingService.finishSession(entryDate: effectiveEntryDate);
         break;
     }
   }
