@@ -50,7 +50,6 @@ class _TrainPageState extends State<TrainPage> {
   final Set<String> _preloadedThumbs = <String>{};
   List<int> _dayOrder = const [];
   List<bool> _dayCompletedByIndex = const [];
-  bool _cardioLockToday = false;
   bool _isDeactivated = false;
   final Set<int> _inProgressExerciseIds = <int>{};
   String? _activeSessionExerciseName;
@@ -91,7 +90,6 @@ class _TrainPageState extends State<TrainPage> {
 
   void _onTrainingChanged() {
     _loadWorkoutTimer();
-    _loadCardioLock();
   }
 
   void _onAccountChanged() {
@@ -102,7 +100,6 @@ class _TrainPageState extends State<TrainPage> {
     _userId = await AccountStorage.getUserId();
     await _loadProgram();
     await _loadWorkoutTimer();
-    await _loadCardioLock();
     await _refreshAccountStatus();
     await _loadExRestPreset();
     await _restoreExRestState();
@@ -677,42 +674,6 @@ class _TrainPageState extends State<TrainPage> {
         ..clear()
         ..addAll(inProgressIds);
     });
-  }
-
-  bool _sameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
-
-  bool _hasLongCardioOnDate(List<Map<String, dynamic>> items, DateTime date) {
-    for (final item in items) {
-      final dt = _parseDateTime(item['entry_date']);
-      if (dt == null || !_sameDay(dt, date)) continue;
-      final raw = item['duration_seconds'];
-      final secs = raw is int
-          ? raw
-          : (raw is num
-                ? raw.toInt()
-                : int.tryParse(raw?.toString() ?? '') ?? 0);
-      if (secs >= 15 * 60) return true;
-    }
-    return false;
-  }
-
-  Future<void> _loadCardioLock() async {
-    final userId = _userId ?? await AccountStorage.getUserId();
-    if (userId == null) return;
-    bool locked = false;
-    try {
-      final items = await TrainingService.fetchCardioHistory(
-        userId: userId,
-        limit: 60,
-      );
-      locked = _hasLongCardioOnDate(items, DateTime.now());
-    } catch (_) {
-      return;
-    }
-    if (!mounted) return;
-    setState(() => _cardioLockToday = locked);
   }
 
   _DayOrderResult _buildDayOrder(List days) {
@@ -1502,7 +1463,7 @@ class _TrainPageState extends State<TrainPage> {
       if (day == null) return false;
       return _isDayWorkedForWeek(day, weekStartForWorked, weekEndForWorked);
     }).toList();
-    final disableTrainingToday = _cardioLockToday || _isDeactivated;
+    final disableTrainingToday = _isDeactivated;
     final workoutLockDayIndex =
         (_workoutStartMs != null && _workoutDayIndex != null)
         ? _workoutDayIndex
@@ -1515,7 +1476,6 @@ class _TrainPageState extends State<TrainPage> {
     });
     final notesInOrder = List<String?>.generate(dayOrder.length, (i) {
       if (_isDeactivated) return "Account is deactivated";
-      if (disableTrainingToday) return "Cardio 15+ min today";
       if (workoutLockDayIndex == null) return null;
       final actualDayIndex = dayOrder[i];
       if (actualDayIndex == workoutLockDayIndex) return null;

@@ -1,26 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../primary_button.dart';
 import '../../localization/app_localizations.dart';
 import 'cupertino_picker_field.dart';
-import 'height_picker_with_body.dart';
-import 'weight_picker_popup.dart';
 import '../app_toast.dart';
 import '../../services/auth/affiliation_service.dart';
 import '../../services/core/university_service.dart';
 
-
 class QuestionnaireForm extends StatefulWidget {
-  const QuestionnaireForm({
-    super.key,
-    this.onSubmit,
-  });
+  const QuestionnaireForm({super.key, this.onSubmit});
 
   final void Function(Map<String, String>)? onSubmit;
 
   @override
   State<QuestionnaireForm> createState() => _QuestionnaireFormState();
 }
-
 
 class _QuestionnaireFormState extends State<QuestionnaireForm> {
   final _formKey = GlobalKey<FormState>();
@@ -42,7 +36,6 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
   List<Map<String, dynamic>> _universities = [];
   bool _universitiesLoading = false;
   String? _selectedUniversityId;
-
 
   @override
   void initState() {
@@ -79,7 +72,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       });
 
       _loadAffiliationCategories();
-    }if (key == "is_university_student") {
+    }
+    if (key == "is_university_student") {
       final yes = _t("yes");
 
       setState(() {
@@ -87,7 +81,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
 
         if (_isUniversityStudent == false) {
           _selectedUniversityId = null;
-          _values["university_id"] = "0"; // backend requires this field even when not a student
+          _values["university_id"] =
+              "0"; // backend requires this field even when not a student
         }
       });
 
@@ -98,9 +93,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     if (key == "event_deadline" && value == _t("no")) {
       _values.remove("deadline_date");
     }
-
   }
-
 
   String _t(String key) {
     return AppLocalizations.of(context).translate(key);
@@ -174,7 +167,6 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     }
   }
 
-
   Future<void> _loadAffiliationsForCategory(String category) async {
     setState(() {
       _affiliationsLoading = true;
@@ -185,8 +177,9 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       final items = await AffiliationApi.fetchByCategory(category);
       if (!mounted) return;
       setState(() {
-        _affiliations =
-            items.where((item) => !_isOther(item["name"]?.toString() ?? "")).toList();
+        _affiliations = items
+            .where((item) => !_isOther(item["name"]?.toString() ?? ""))
+            .toList();
       });
     } catch (e) {
       if (!mounted) return;
@@ -252,6 +245,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       });
     }
   }
+
   Future<void> _loadUniversities() async {
     setState(() {
       _universitiesLoading = true;
@@ -278,7 +272,6 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     }
   }
 
-
   Future<void> _submit() async {
     final cleanedValues = Map<String, String>.from(_values);
     // UI-only fields/removed questions: do not send to backend.
@@ -288,21 +281,27 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     cleanedValues.remove("physical_rehab_area");
 
     // Keep backend payload stable while showing richer labels on UI.
-    cleanedValues["time_to_change"] =
-        _canonicalTimeToChange(cleanedValues["time_to_change"] ?? "");
-    cleanedValues["sleep_hours"] =
-        _canonicalSleepHours(cleanedValues["sleep_hours"] ?? "");
+    cleanedValues["time_to_change"] = _canonicalTimeToChange(
+      cleanedValues["time_to_change"] ?? "",
+    );
+    cleanedValues["sleep_hours"] = _canonicalSleepHours(
+      cleanedValues["sleep_hours"] ?? "",
+    );
     final deadlineDate = (cleanedValues["deadline_date"] ?? "").trim();
     if (deadlineDate.isNotEmpty) {
       // Always prioritize selected date text in backend field.
       cleanedValues["event_deadline"] = deadlineDate;
-    } else if (_norm(cleanedValues["event_deadline"] ?? "") == _norm(_t("no"))) {
+    } else if (_norm(cleanedValues["event_deadline"] ?? "") ==
+        _norm(_t("no"))) {
       cleanedValues["event_deadline"] = "no";
     }
     // Avoid sending extra field unless backend explicitly adds it.
     cleanedValues.remove("deadline_date");
-    final isStudentRaw = (cleanedValues["is_university_student"] ?? "").trim().toLowerCase();
-    final isStudent = isStudentRaw == "yes" || isStudentRaw == _t("yes").toLowerCase();
+    final isStudentRaw = (cleanedValues["is_university_student"] ?? "")
+        .trim()
+        .toLowerCase();
+    final isStudent =
+        isStudentRaw == "yes" || isStudentRaw == _t("yes").toLowerCase();
     cleanedValues["is_university_student"] = isStudent ? "true" : "false";
     if (!isStudent) {
       cleanedValues["university_id"] = "0";
@@ -346,11 +345,17 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     const singleChoiceOptions = {
       "sex": ["male", "female", "prefer_not"],
       "main_goal": ["lose_weight", "gain_weight", "maintain_weight"],
-      "motivation": ["look_better", "feel_stronger", "health_better", "more_energy", "mental_wellbeing"],
+      "motivation": [
+        "look_better",
+        "feel_stronger",
+        "health_better",
+        "more_energy",
+        "mental_wellbeing",
+      ],
       "muscle_priority_upper": ["chest", "back", "shoulders"],
       "muscle_priority_lower": ["quads", "hamstrings", "glutes"],
       "time_to_change": ["4", "8", "12", "no_timeframe"],
-      "body_type": ["slender", "average", "muscular", "heavy"],
+      "body_type": ["slender", "average", "heavy"],
       "fitness_experience": ["beginner", "intermediate", "advanced"],
       "training_days": ["1", "2", "3", "4", "5", "6"],
       "preferred_time": ["morning", "noon", "afternoon", "evening", "flexible"],
@@ -367,14 +372,19 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       "sleep_consistency": ["regular", "irregular"],
       "wake_feeling": ["tired", "okay", "refreshed"],
       "stress_level": ["low", "moderate", "high"],
-      "auto_adjust": ["yes", "no"],
     };
 
     const multiChoiceOptions = {
       "past_injuries": ["shoulder", "back", "knee", "elbow", "none"],
       "allergies": ["dairy", "gluten", "nuts", "shellfish", "none", "other"],
       "supplements": ["protein", "creatine", "multivitamin", "none", "other"],
-      "diet_type": ["no_pref", "high_protein", "low_carb", "vegetarian", "vegan"],
+      "diet_type": [
+        "no_pref",
+        "high_protein",
+        "low_carb",
+        "vegetarian",
+        "vegan",
+      ],
     };
 
     singleChoiceOptions.forEach((field, options) {
@@ -580,32 +590,20 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         initialValue: _values["age"]!,
         onSelected: (v) => _saveField("age", v),
       ),
-      GestureDetector(
-        onTap: () async {
-          final selected = await showHeightPickerPopup(
-            context,
-            initialHeight: int.tryParse(_values["height_cm"]!) ?? 170,
-          );
-          if (selected != null) {
-            setState(() => _values["height_cm"] = selected.toString());
-          }
-        },
-        child: _simpleFieldRow(_t("height"), "${_values["height_cm"]} cm"),
+      _buildTextField(
+        label: "${_t("height")} (cm)",
+        keyName: "height_cm",
+        keyboardType: TextInputType.number,
+        minValue: 120,
+        maxValue: 240,
       ),
-      const SizedBox(height: 12),
-      GestureDetector(
-        onTap: () async {
-          final selected = await showWeightPickerPopup(
-            context,
-            initialWeight: int.tryParse(_values["weight_kg"]!) ?? 70,
-          );
-          if (selected != null) {
-            setState(() => _values["weight_kg"] = selected.toString());
-          }
-        },
-        child: _simpleFieldRow(_t("weight"), "${_values["weight_kg"]} kg"),
+      _buildTextField(
+        label: "${_t("weight")} (kg)",
+        keyName: "weight_kg",
+        keyboardType: TextInputType.number,
+        minValue: 35,
+        maxValue: 300,
       ),
-      const SizedBox(height: 12),
     ];
   }
 
@@ -614,11 +612,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       _buildChoiceField(
         label: _t("goal_main"),
         keyName: "main_goal",
-        options: [
-          _t("lose_weight"),
-          _t("gain_weight"),
-          _t("maintain_weight"),
-        ],
+        options: [_t("lose_weight"), _t("gain_weight"), _t("maintain_weight")],
         subtitle: _t("goal_main_subtitle"),
       ),
       _buildChoiceField(
@@ -635,21 +629,13 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       _buildChoiceField(
         label: _t("muscle_priority_upper"),
         keyName: "muscle_priority_upper",
-        options: [
-          _t("chest"),
-          _t("back_muscle"),
-          _t("shoulders"),
-        ],
+        options: [_t("chest"), _t("back_muscle"), _t("shoulders")],
         requiredField: false,
       ),
       _buildChoiceField(
         label: _t("muscle_priority_lower"),
         keyName: "muscle_priority_lower",
-        options: [
-          _t("quads"),
-          _t("hamstrings"),
-          _t("glutes"),
-        ],
+        options: [_t("quads"), _t("hamstrings"), _t("glutes")],
         requiredField: false,
       ),
       _buildChoiceField(
@@ -700,16 +686,12 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       _buildChoiceField(
         label: _t("body_type"),
         keyName: "body_type",
-        options: [_t("slender"), _t("average"), _t("muscular"), _t("heavy")],
+        options: [_t("slender"), _t("average"), _t("heavy")],
       ),
       _buildChoiceField(
         label: _t("fitness_experience"),
         keyName: "fitness_experience",
-        options: [
-          _t("beginner"),
-          _t("intermediate"),
-          _t("advanced"),
-        ],
+        options: [_t("beginner"), _t("intermediate"), _t("advanced")],
       ),
       _buildChoiceField(
         label: _t("training_days"),
@@ -746,11 +728,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       _buildChoiceField(
         label: _t("train_mode"),
         keyName: "train_mode",
-        options: [
-          _t("alone"),
-          _t("partner"),
-          _t("trainer"),
-        ],
+        options: [_t("alone"), _t("partner"), _t("trainer")],
       ),
     ];
   }
@@ -760,8 +738,10 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       Text(
         _t("questionnaire_nutrition_intro"),
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.75),
-            ),
+          color: Theme.of(
+            context,
+          ).colorScheme.onSurface.withValues(alpha: 0.75),
+        ),
       ),
       const SizedBox(height: 8),
       _buildMultiChoiceField(
@@ -827,7 +807,12 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       _buildChoiceField(
         label: _t("daily_activity"),
         keyName: "daily_activity",
-        options: [_t("sedentary"), _t("moderate"), _t("active"), _t("highly_active")],
+        options: [
+          _t("sedentary"),
+          _t("moderate"),
+          _t("active"),
+          _t("highly_active"),
+        ],
       ),
       _buildChoiceField(
         label: _t("sleep_hours"),
@@ -876,27 +861,20 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
   }
 
   List<Widget> _buildAffiliationSection() {
-    return [
-      _buildAffiliationFields(),
-    ];
+    return [_buildAffiliationFields()];
   }
 
   List<Widget> _buildHealthSettingsSection() {
-    return [
-      _buildChronicConditionsField(),
-      _buildChoiceField(
-        label: _t("auto_adjust"),
-        keyName: "auto_adjust",
-        options: [_t("yes"), _t("no")],
-      ),
-    ];
+    return [_buildChronicConditionsField()];
   }
 
   Widget _buildAffiliationFields() {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final selectedAffiliationId =
-        (_values["affiliation_id"]?.isNotEmpty ?? false) ? _values["affiliation_id"] : null;
+        (_values["affiliation_id"]?.isNotEmpty ?? false)
+        ? _values["affiliation_id"]
+        : null;
     final affiliationChoice = _affiliationChoice;
 
     // Keep controller in sync with stored values
@@ -925,16 +903,17 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
             items: _universities
                 .map(
                   (u) => DropdownMenuItem<String>(
-                value: u["id"].toString(),
-                child: Text(
-                  u["name"],
-                  overflow: TextOverflow.ellipsis, //  FIX 2
-                ),
-              ),
-            )
+                    value: u["id"].toString(),
+                    child: Text(
+                      u["name"],
+                      overflow: TextOverflow.ellipsis, //  FIX 2
+                    ),
+                  ),
+                )
                 .toList(),
             validator: (val) {
-              if (_isUniversityStudent == true && (val == null || val.isEmpty)) {
+              if (_isUniversityStudent == true &&
+                  (val == null || val.isEmpty)) {
                 return _t("select_option");
               }
               return null;
@@ -942,11 +921,11 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
             onChanged: _universitiesLoading
                 ? null
                 : (val) {
-              setState(() {
-                _selectedUniversityId = val;
-                _values["university_id"] = val!;
-              });
-            },
+                    setState(() {
+                      _selectedUniversityId = val;
+                      _values["university_id"] = val!;
+                    });
+                  },
           ),
         ],
         const SizedBox(height: 16),
@@ -966,16 +945,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
             border: const OutlineInputBorder(),
           ),
           initialValue: affiliationChoice,
-          items: [
-            _t("yes"),
-            _t("no"),
-          ]
-              .map(
-                (c) => DropdownMenuItem<String>(
-                  value: c,
-                  child: Text(c),
-                ),
-              )
+          items: [_t("yes"), _t("no")]
+              .map((c) => DropdownMenuItem<String>(value: c, child: Text(c)))
               .toList(),
           validator: (val) {
             if (val == null || val.isEmpty) {
@@ -1007,12 +978,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
             ),
             initialValue: _selectedAffiliationCategory,
             items: _affiliationCategories
-                .map(
-                  (c) => DropdownMenuItem<String>(
-                    value: c,
-                    child: Text(c),
-                  ),
-                )
+                .map((c) => DropdownMenuItem<String>(value: c, child: Text(c)))
                 .toList(),
             validator: (val) {
               if (affiliationChoice == _t("yes") &&
@@ -1049,7 +1015,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
             isExpanded: true,
             items: [
               ..._affiliations.map(
-                    (item) => DropdownMenuItem<String>(
+                (item) => DropdownMenuItem<String>(
                   value: item["id"].toString(),
                   child: Text(item["name"]?.toString() ?? ""),
                 ),
@@ -1070,19 +1036,19 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
             onChanged: _affiliations.isEmpty || _affiliationsLoading
                 ? null
                 : (val) {
-              setState(() {
-                if (val == "custom") {
-                  _saveField("affiliation_id", "custom"); // ✅ IMPORTANT
-                  _affiliationOtherCtrl.clear();
-                } else {
-                  _saveField("affiliation_id", val);
-                  _affiliationOtherCtrl.clear();
-                  _values.remove("affiliation_other_text");
-                }
-
-              });
-            },
-          ),if (_affiliationError != null) ...[
+                    setState(() {
+                      if (val == "custom") {
+                        _saveField("affiliation_id", "custom"); // ✅ IMPORTANT
+                        _affiliationOtherCtrl.clear();
+                      } else {
+                        _saveField("affiliation_id", val);
+                        _affiliationOtherCtrl.clear();
+                        _values.remove("affiliation_other_text");
+                      }
+                    });
+                  },
+          ),
+          if (_affiliationError != null) ...[
             const SizedBox(height: 6),
             Text(
               _affiliationError!,
@@ -1188,8 +1154,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
               return null;
             },
           ),
-        ] else ...[
-        ],
+        ] else
+          ...[],
       ],
     );
   }
@@ -1205,10 +1171,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label),
-          Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
         ],
       ),
     );
@@ -1218,6 +1181,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     required String label,
     required String keyName,
     TextInputType? keyboardType,
+    int? minValue,
+    int? maxValue,
   }) {
     final theme = Theme.of(context);
 
@@ -1225,17 +1190,34 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextFormField(
         key: ValueKey(keyName),
+        initialValue: _values[keyName],
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),
         ),
         keyboardType: keyboardType,
+        inputFormatters: keyboardType == TextInputType.number
+            ? [FilteringTextInputFormatter.digitsOnly]
+            : null,
         validator: (value) {
           if (value == null || value.trim().isEmpty) {
             return _t("required");
           }
+          if (keyboardType == TextInputType.number) {
+            final parsed = int.tryParse(value.trim());
+            if (parsed == null) {
+              return _t("invalid_number");
+            }
+            if (minValue != null && parsed < minValue) {
+              return "Min $minValue";
+            }
+            if (maxValue != null && parsed > maxValue) {
+              return "Max $maxValue";
+            }
+          }
           return null;
         },
+        onChanged: (val) => _saveField(keyName, val),
         onSaved: (val) => _saveField(keyName, val),
         style: theme.textTheme.bodyMedium,
       ),
@@ -1336,8 +1318,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
               val == null || val.isEmpty
                   ? null
                   : val == otherLabel
-                      ? otherCtrl.text
-                      : val,
+                  ? otherCtrl.text
+                  : val,
             ),
           ),
           if (hasOther && (showOtherField || otherCtrl.text.isNotEmpty)) ...[
@@ -1350,9 +1332,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
               ),
               onChanged: (val) => _saveField(keyName, val),
               validator: (val) {
-                if (isOtherSelected &&
-                    val != null &&
-                    val.trim().isEmpty) {
+                if (isOtherSelected && val != null && val.trim().isEmpty) {
                   return _t("required");
                 }
                 return null;
@@ -1388,7 +1368,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
           return _t("select_one");
         }
         final hasCustom =
-            parts.any((p) => !options.contains(p)) || parts.contains(otherLabel);
+            parts.any((p) => !options.contains(p)) ||
+            parts.contains(otherLabel);
         if (hasCustom && otherCtrl.text.trim().isEmpty) {
           return _t("required");
         }
@@ -1397,9 +1378,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       onSaved: (value) => _saveField(keyName, value),
       builder: (state) {
         final raw = state.value ?? '';
-        final selected = <String>{
-          if (raw.isNotEmpty) ...raw.split(', '),
-        };
+        final selected = <String>{if (raw.isNotEmpty) ...raw.split(', ')};
 
         bool otherSelected = false;
         String? customOther;
@@ -1445,7 +1424,9 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                 spacing: 8,
                 runSpacing: 4,
                 children: options.map((o) {
-                  final isSelected = o == otherLabel ? otherSelected : selected.contains(o);
+                  final isSelected = o == otherLabel
+                      ? otherSelected
+                      : selected.contains(o);
                   return FilterChip(
                     label: Text(o),
                     selected: isSelected,

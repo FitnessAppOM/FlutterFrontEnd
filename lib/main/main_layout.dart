@@ -18,7 +18,8 @@ class MainLayout extends StatefulWidget {
 class _MainLayoutState extends State<MainLayout> {
   late int _index;
 
-  final GlobalKey<DashboardPageState> _dashboardKey = GlobalKey<DashboardPageState>();
+  final GlobalKey<DashboardPageState> _dashboardKey =
+      GlobalKey<DashboardPageState>();
   final GlobalKey<DietPageState> _dietKey = GlobalKey<DietPageState>();
 
   late final List<Widget?> _pages = List<Widget?>.filled(5, null);
@@ -37,13 +38,23 @@ class _MainLayoutState extends State<MainLayout> {
       backgroundColor: AppColors.black,
       body: IndexedStack(
         index: _index,
-        children: List.generate(
-          5,
-          (i) => _pages[i] ?? const SizedBox.shrink(),
-        ),
+        children: List.generate(5, (i) => _pages[i] ?? const SizedBox.shrink()),
       ),
       bottomNavigationBar: _buildBottomNav(),
     );
+  }
+
+  void _selectTab(int idx) {
+    if (idx < 0 || idx > 4) return;
+    setState(() {
+      _index = idx;
+      _pages[idx] ??= _buildPage(idx);
+    });
+    if (idx == 2) {
+      _dietKey.currentState?.refreshTrainingLock();
+      // Refetch targets and day summary so surplus from calories burned shows without manual refresh.
+      _dietKey.currentState?.refreshTargetsAndMeals();
+    }
   }
 
   Widget _buildBottomNav() {
@@ -70,22 +81,14 @@ class _MainLayoutState extends State<MainLayout> {
     final selected = idx == _index;
 
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          _index = idx;
-          _pages[idx] ??= _buildPage(idx);
-        });
-        if (idx == 2) {
-          _dietKey.currentState?.refreshTrainingLock();
-          // Refetch targets and day summary so surplus from calories burned shows without manual refresh.
-          _dietKey.currentState?.refreshTargetsAndMeals();
-        }
-      },
+      onTap: () => _selectTab(idx),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: selected ? AppColors.accent.withValues(alpha: 0.2) : Colors.transparent,
+          color: selected
+              ? AppColors.accent.withValues(alpha: 0.2)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(
@@ -100,7 +103,7 @@ class _MainLayoutState extends State<MainLayout> {
   Widget _buildPage(int index) {
     switch (index) {
       case 0:
-        return DashboardPage(key: _dashboardKey);
+        return DashboardPage(key: _dashboardKey, onNavigateToTab: _selectTab);
       case 1:
         return const TrainPage();
       case 2:

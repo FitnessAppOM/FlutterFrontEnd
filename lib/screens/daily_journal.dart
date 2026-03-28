@@ -208,6 +208,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
         motivationToTrain: _motivationToTrain,
         tookSupplementsOrMedications: _tookSupplements,
       );
+      AccountStorage.notifyJournalChanged();
       if (mounted) {
         AppToast.show(
           context,
@@ -224,6 +225,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
       if (mounted) {
         final isConflict = e.toString().contains("already_submitted");
         if (isConflict) {
+          AccountStorage.notifyJournalChanged();
           AppToast.show(
             context,
             t("daily_journal_already_submitted"),
@@ -248,7 +250,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
     }
   }
 
-  Future<void> _copyLastAndSave() async {
+  Future<void> _fillFromLastEntry() async {
     if (_isSubmitting) return;
     final userId = await AccountStorage.getUserId();
     if (userId == null) {
@@ -278,58 +280,24 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
         return;
       }
 
-      await DailyJournalApi.upsert(
-        userId: userId,
-        entryDate: _selectedDate,
-        sleepHours: last.sleepHours,
-        sleepQuality: last.sleepQuality,
-        caffeineYes: last.caffeineYes,
-        caffeineCups: last.caffeineCups,
-        alcoholYes: last.alcoholYes,
-        alcoholDrinks: last.alcoholDrinks,
-        hydrationLiters: last.hydrationLiters,
-        sorenessOrPain: last.sorenessOrPain,
-        stressLevel: last.stressLevel,
-        moodUponWaking: last.moodUponWaking,
-        sexualActivity: last.sexualActivity,
-        screenTimeBeforeBed: last.screenTimeBeforeBed,
-        productivityFocus: last.productivityFocus,
-        motivationToTrain: last.motivationToTrain,
-        tookSupplementsOrMedications: last.tookSupplementsOrMedications,
-      );
-
       if (mounted) {
+        setState(() {
+          _seedForm(last);
+          _seededFromWidgets = true;
+        });
         AppToast.show(
           context,
           t("daily_journal_copied"),
           type: AppToastType.success,
         );
-        setState(() {
-          _formHidden = true;
-        });
       }
-      await NotificationService.rescheduleDailyJournalRemindersForTomorrow();
-      await _refresh();
     } catch (e) {
       if (mounted) {
-        final isConflict = e.toString().contains("already_submitted");
-        if (isConflict) {
-          AppToast.show(
-            context,
-            t("daily_journal_already_submitted"),
-            type: AppToastType.info,
-          );
-          setState(() {
-            _formHidden = true;
-          });
-          await NotificationService.rescheduleDailyJournalRemindersForTomorrow();
-        } else {
-          AppToast.show(
-            context,
-            t("daily_journal_failed_copy").replaceAll("{error}", "$e"),
-            type: AppToastType.error,
-          );
-        }
+        AppToast.show(
+          context,
+          t("daily_journal_failed_copy").replaceAll("{error}", "$e"),
+          type: AppToastType.error,
+        );
       }
     } finally {
       if (mounted) {
@@ -604,7 +572,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
                                       child: TextButton.icon(
                                         onPressed: _isSubmitting
                                             ? null
-                                            : _copyLastAndSave,
+                                            : _fillFromLastEntry,
                                         icon: const Icon(Icons.replay),
                                         label: Text(
                                           t("daily_journal_copy_last"),

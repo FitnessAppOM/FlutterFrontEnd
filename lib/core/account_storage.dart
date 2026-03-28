@@ -47,6 +47,7 @@ class AccountStorage {
   static final ValueNotifier<int> accountChange = ValueNotifier(0);
   static final ValueNotifier<int> trainingChange = ValueNotifier(0);
   static final ValueNotifier<int> dietChange = ValueNotifier(0);
+  static final ValueNotifier<int> journalChange = ValueNotifier(0);
 
   static void notifyWhoopChanged() {
     whoopChange.value++;
@@ -62,6 +63,10 @@ class AccountStorage {
 
   static void notifyDietChanged() {
     dietChange.value++;
+  }
+
+  static void notifyJournalChanged() {
+    journalChange.value++;
   }
 
   static Future<void> setWhoopLinked(bool linked) async {

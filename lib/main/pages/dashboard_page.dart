@@ -96,7 +96,9 @@ class _LocalTrainingProgress {
 }
 
 class DashboardPage extends StatefulWidget {
-  const DashboardPage({super.key});
+  const DashboardPage({super.key, this.onNavigateToTab});
+
+  final ValueChanged<int>? onNavigateToTab;
 
   @override
   State<DashboardPage> createState() => DashboardPageState();
@@ -512,6 +514,7 @@ class DashboardPageState extends State<DashboardPage>
     AccountStorage.accountChange.addListener(_onAccountChanged);
     AccountStorage.trainingChange.addListener(_onTrainingChanged);
     AccountStorage.dietChange.addListener(_onDietChanged);
+    AccountStorage.journalChange.addListener(_onJournalChanged);
     _loadStatOrder();
     _loadWhoopLinkedHint();
     _loadFitbitLinkedHint();
@@ -539,6 +542,28 @@ class DashboardPageState extends State<DashboardPage>
     _loadWhoopLinkedHint();
     _loadFitbitLinkedHint();
     setState(() {
+      _whoopLinked = false;
+      _whoopLinkedKnown = false;
+      _whoopLinkedHint = null;
+      _whoopRecovery = null;
+      _whoopSleepHours = null;
+      _whoopSleepScore = null;
+      _whoopSleepDelta = null;
+      _whoopRecoveryDelta = null;
+      _whoopCycleStrain = null;
+      _whoopBodyWeightKg = null;
+      _whoopLoading = false;
+      _whoopLoadingDate = null;
+
+      _fitbitLinked = false;
+      _fitbitLinkedHint = null;
+      _fitbitActivity = null;
+      _fitbitHeart = null;
+      _fitbitSleep = null;
+      _fitbitVitals = null;
+      _fitbitBody = null;
+      _setFitbitLoadingFlags(false);
+
       _trendWeekStart = null;
       _trendCaloriesLoadedWeekStart = null;
       _trendSleep = const [];
@@ -566,6 +591,10 @@ class DashboardPageState extends State<DashboardPage>
     _loadStreak();
   }
 
+  void _onJournalChanged() {
+    _loadStreak();
+  }
+
   @override
   void dispose() {
     _wiggleController?.dispose();
@@ -573,6 +602,7 @@ class DashboardPageState extends State<DashboardPage>
     AccountStorage.accountChange.removeListener(_onAccountChanged);
     AccountStorage.trainingChange.removeListener(_onTrainingChanged);
     AccountStorage.dietChange.removeListener(_onDietChanged);
+    AccountStorage.journalChange.removeListener(_onJournalChanged);
     super.dispose();
   }
 
@@ -809,7 +839,7 @@ class DashboardPageState extends State<DashboardPage>
         accentColor: const Color(0xFF6A5AE0),
       ),
     ];
-    if (_fitbitLinked) {
+    if (_fitbitLinked || _fitbitLinkedHint == true) {
       all.add(
         WidgetLibraryOption(
           keyName: 'fitbit_activity',
@@ -993,7 +1023,11 @@ class DashboardPageState extends State<DashboardPage>
     final hint = await AccountStorage.getWhoopLinked();
     if (!mounted) return;
     if (hint == null) {
-      setState(() => _whoopLinkedHint = null);
+      setState(() {
+        _whoopLinkedHint = null;
+        _whoopLinked = false;
+        _whoopLinkedKnown = false;
+      });
       return;
     }
     setState(() {
@@ -1020,7 +1054,13 @@ class DashboardPageState extends State<DashboardPage>
   Future<void> _loadFitbitLinkedHint() async {
     final hint = await AccountStorage.getFitbitLinked();
     if (!mounted) return;
-    if (hint == null) return;
+    if (hint == null) {
+      setState(() {
+        _fitbitLinkedHint = null;
+        _fitbitLinked = false;
+      });
+      return;
+    }
     setState(() {
       _fitbitLinkedHint = hint;
       _fitbitLinked = hint;
@@ -1074,7 +1114,7 @@ class DashboardPageState extends State<DashboardPage>
   void _pruneDeviceWidgets() {
     var changed = false;
     var sleepChanged = false;
-    if (!_fitbitLinked) {
+    if (_fitbitLinkedHint == false) {
       if (_statOrder.remove('fitbit_activity')) changed = true;
       if (_statOrder.remove('fitbit_heart')) changed = true;
       if (_statOrder.remove('fitbit_sleep')) {
@@ -1084,7 +1124,7 @@ class DashboardPageState extends State<DashboardPage>
       if (_statOrder.remove('fitbit_vitals')) changed = true;
       if (_statOrder.remove('fitbit_body')) changed = true;
     }
-    if (_whoopLinkedKnown && !_whoopLinked) {
+    if (_whoopLinkedHint == false) {
       const whoopKeys = [
         'whoop_sleep',
         'whoop_recovery',
@@ -1491,8 +1531,8 @@ class DashboardPageState extends State<DashboardPage>
       _pruneDeviceWidgets();
       return;
     }
-    // If user has not linked Fitbit, do not call the status endpoint.
-    if (_fitbitLinkedHint != true) {
+    // Explicitly unlinked for this user: keep disabled and prune Fitbit widgets.
+    if (_fitbitLinkedHint == false) {
       if (_fitbitLinked) {
         setState(() => _fitbitLinked = false);
       }
@@ -1509,10 +1549,7 @@ class DashboardPageState extends State<DashboardPage>
           .timeout(const Duration(seconds: 12));
       if (!mounted) return;
       if (statusRes.statusCode != 200) {
-        if (_fitbitLinkedHint == true) return;
-        setState(() => _fitbitLinked = false);
-        AccountStorage.setFitbitLinked(false);
-        _pruneDeviceWidgets();
+        // Keep previous linked state on transient backend errors.
         return;
       }
       final statusData = jsonDecode(statusRes.body) as Map<String, dynamic>;
@@ -1523,12 +1560,8 @@ class DashboardPageState extends State<DashboardPage>
       AccountStorage.setFitbitLinked(linked);
       _pruneDeviceWidgets();
     } catch (_) {
-      if (!mounted) return;
-      if (_fitbitLinkedHint == true) return;
-      setState(() => _fitbitLinked = false);
-      _fitbitLinkedHint = false;
-      AccountStorage.setFitbitLinked(false);
-      _pruneDeviceWidgets();
+      // Keep last known linked state on transient errors.
+      return;
     }
   }
 
@@ -3922,6 +3955,14 @@ class DashboardPageState extends State<DashboardPage>
     ).push(MaterialPageRoute(builder: (_) => AnnouncementsPage(items: _news)));
   }
 
+  void _openTrainingPage() {
+    widget.onNavigateToTab?.call(1);
+  }
+
+  void _openDietPage() {
+    widget.onNavigateToTab?.call(2);
+  }
+
   Widget _buildAvatar() {
     // Prefer stored file if present
     if (_avatarPath != null && _avatarPath!.isNotEmpty) {
@@ -4145,126 +4186,135 @@ class DashboardPageState extends State<DashboardPage>
             ),
         ],
         const SizedBox(height: 16),
-        CardContainer(
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                SizedBox(
-                  height: 72,
-                  width: 72,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      CircularProgressIndicator(
-                        value: 1,
-                        strokeWidth: 8,
-                        valueColor: AlwaysStoppedAnimation(
-                          Colors.white.withOpacity(0.08),
-                        ),
-                      ),
-                      CircularProgressIndicator(
-                        value: (_exerciseTotal != null && _exerciseTotal != 0)
-                            ? ((_exerciseCompleted ?? 0) /
-                                      (_exerciseTotal!.toDouble()))
-                                  .clamp(0.0, 1.0)
-                            : 0.0,
-                        strokeWidth: 8,
-                        valueColor: const AlwaysStoppedAnimation(
-                          AppColors.accent,
-                        ),
-                        backgroundColor: Colors.transparent,
-                      ),
-                      Center(
-                        child: _exerciseLoading
-                            ? const SizedBox(
-                                height: 18,
-                                width: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.accent,
-                                ),
-                              )
-                            : Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    (_exerciseCompleted ?? 0).toString(),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                  ),
-                                  Text(
-                                    _exerciseTotal == null
-                                        ? "—"
-                                        : "/ ${_exerciseTotal.toString()}",
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Training progress",
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      if (showTrainingSub)
-                        Text(
-                          (_exerciseTotal == null &&
-                                  _nextTrainingDayLabel == null &&
-                                  !_nextTrainingDayAllDone)
-                              ? t("dash_exercise_unavailable")
-                              : _nextTrainingDayAllDone
-                              ? "Done for the week"
-                              : "Next up: ${(_nextTrainingDayLabel ?? "…")}",
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 13,
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _wiggling ? null : _openTrainingPage,
+          child: CardContainer(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  SizedBox(
+                    height: 72,
+                    width: 72,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        CircularProgressIndicator(
+                          value: 1,
+                          strokeWidth: 8,
+                          valueColor: AlwaysStoppedAnimation(
+                            Colors.white.withOpacity(0.08),
                           ),
                         ),
-                      if (_exerciseProgramMode == "old")
-                        const Padding(
-                          padding: EdgeInsets.only(top: 4),
-                          child: Text(
-                            "Old program",
-                            style: TextStyle(
-                              color: Colors.white54,
-                              fontSize: 11,
+                        CircularProgressIndicator(
+                          value: (_exerciseTotal != null && _exerciseTotal != 0)
+                              ? ((_exerciseCompleted ?? 0) /
+                                        (_exerciseTotal!.toDouble()))
+                                    .clamp(0.0, 1.0)
+                              : 0.0,
+                          strokeWidth: 8,
+                          valueColor: const AlwaysStoppedAnimation(
+                            AppColors.accent,
+                          ),
+                          backgroundColor: Colors.transparent,
+                        ),
+                        Center(
+                          child: _exerciseLoading
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.accent,
+                                  ),
+                                )
+                              : Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      (_exerciseCompleted ?? 0).toString(),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                    ),
+                                    Text(
+                                      _exerciseTotal == null
+                                          ? "—"
+                                          : "/ ${_exerciseTotal.toString()}",
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Training progress",
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                        const SizedBox(height: 6),
+                        if (showTrainingSub)
+                          Text(
+                            (_exerciseTotal == null &&
+                                    _nextTrainingDayLabel == null &&
+                                    !_nextTrainingDayAllDone)
+                                ? t("dash_exercise_unavailable")
+                                : _nextTrainingDayAllDone
+                                ? "Done for the week"
+                                : "Next up: ${(_nextTrainingDayLabel ?? "…")}",
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
                             ),
                           ),
-                        ),
-                    ],
+                        if (_exerciseProgramMode == "old")
+                          const Padding(
+                            padding: EdgeInsets.only(top: 4),
+                            child: Text(
+                              "Old program",
+                              style: TextStyle(
+                                color: Colors.white54,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
         const SizedBox(height: 16),
         if (!noEntriesForSelectedDate) ...[
-          DietProgressCard(
-            loading: _dietProgressLoading,
-            consumedCalories: _dietConsumedCalories,
-            targetCalories: _dietTargetCalories,
-            dayType: _dietDayType,
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _wiggling ? null : _openDietPage,
+            child: DietProgressCard(
+              loading: _dietProgressLoading,
+              consumedCalories: _dietConsumedCalories,
+              targetCalories: _dietTargetCalories,
+              dayType: _dietDayType,
+            ),
           ),
           const SizedBox(height: 12),
           _PlaceholderMetricCard(

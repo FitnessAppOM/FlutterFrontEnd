@@ -424,7 +424,7 @@ class AppLocalizations {
       "other": "Other",
 
       "body_type": "Current body type",
-      "slender": "Slender",
+      "slender": "Slim",
       "average": "Average",
       "muscular": "Muscular",
       "heavy": "Heavy",
