@@ -16,6 +16,7 @@ class FitbitSleepSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final logs = summary?.logs ?? const [];
+    final stageEntries = _orderedStages(summary?.stageMinutes ?? const {});
     return Container(
       padding: EdgeInsets.fromLTRB(20, 16, 20, 16 + bottomInset),
       decoration: BoxDecoration(
@@ -41,8 +42,10 @@ class FitbitSleepSheet extends StatelessWidget {
           ),
           Row(
             children: [
-              Text("Fitbit sleep",
-                  style: AppTextStyles.subtitle.copyWith(color: Colors.white)),
+              Text(
+                "Fitbit sleep",
+                style: AppTextStyles.subtitle.copyWith(color: Colors.white),
+              ),
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.close, color: Colors.white70),
@@ -69,6 +72,22 @@ class FitbitSleepSheet extends StatelessWidget {
                 ? "—"
                 : _fmtMinutes(summary!.sleepGoalMinutes!),
           ),
+          if (stageEntries.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                "Sleep stages",
+                style: AppTextStyles.small.copyWith(color: Colors.white70),
+              ),
+            ),
+            const SizedBox(height: 8),
+            for (final entry in stageEntries)
+              _MetricRow(
+                label: _stageLabel(entry.key),
+                value: _fmtMinutes(entry.value),
+              ),
+          ],
           if (logs.isNotEmpty) ...[
             const SizedBox(height: 8),
             Align(
@@ -92,16 +111,57 @@ class FitbitSleepSheet extends StatelessWidget {
     final m = minutes % 60;
     return "${h}h ${m}m";
   }
+
+  List<MapEntry<String, int>> _orderedStages(Map<String, int> stages) {
+    const order = <String, int>{
+      "deep": 0,
+      "light": 1,
+      "rem": 2,
+      "wake": 3,
+      "awake": 3,
+      "asleep": 4,
+      "restless": 5,
+    };
+    final entries = stages.entries.where((e) => e.value > 0).toList();
+    entries.sort((a, b) {
+      final aKey = a.key.toLowerCase();
+      final bKey = b.key.toLowerCase();
+      final oa = order[aKey] ?? 999;
+      final ob = order[bKey] ?? 999;
+      if (oa != ob) return oa.compareTo(ob);
+      return aKey.compareTo(bKey);
+    });
+    return entries;
+  }
+
+  String _stageLabel(String raw) {
+    final key = raw.toLowerCase();
+    switch (key) {
+      case "rem":
+        return "REM";
+      case "wake":
+      case "awake":
+        return "Awake";
+      case "light":
+        return "Light";
+      case "deep":
+        return "Deep";
+      case "restless":
+        return "Restless";
+      case "asleep":
+        return "Asleep";
+      default:
+        if (raw.isEmpty) return "Stage";
+        return "${raw[0].toUpperCase()}${raw.substring(1)}";
+    }
+  }
 }
 
 class _MetricRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _MetricRow({
-    required this.label,
-    required this.value,
-  });
+  const _MetricRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -140,9 +200,15 @@ class _LogRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final start = log.start?.toLocal();
     final end = log.end?.toLocal();
-    final startLabel = start == null ? "—" : "${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}";
-    final endLabel = end == null ? "—" : "${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}";
-    final duration = log.minutesAsleep == null ? "—" : "${log.minutesAsleep} min";
+    final startLabel = start == null
+        ? "—"
+        : "${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}";
+    final endLabel = end == null
+        ? "—"
+        : "${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}";
+    final duration = log.minutesAsleep == null
+        ? "—"
+        : "${log.minutesAsleep} min";
     final main = log.isMainSleep == true ? "Main sleep" : "Nap/other";
 
     return Container(

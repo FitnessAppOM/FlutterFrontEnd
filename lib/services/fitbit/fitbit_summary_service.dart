@@ -37,7 +37,41 @@ class FitbitSummaryService {
 
   bool _isToday(DateTime date) {
     final now = DateTime.now();
-    return date.year == now.year && date.month == now.month && date.day == now.day;
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
+  }
+
+  Map<String, int> _parseSleepStageMinutes(dynamic raw) {
+    int? _int(dynamic v) {
+      if (v == null) return null;
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      return int.tryParse(v.toString());
+    }
+
+    if (raw is String) {
+      try {
+        return _parseSleepStageMinutes(jsonDecode(raw));
+      } catch (_) {
+        return const {};
+      }
+    }
+    if (raw is! Map) return const {};
+
+    final fromSummary = raw["summary"];
+    final fromStages = raw["stages"];
+    final source = fromSummary is Map
+        ? fromSummary
+        : (fromStages is Map ? fromStages : raw);
+    final out = <String, int>{};
+    source.forEach((k, v) {
+      if (k is! String) return;
+      final minutes = v is Map ? _int(v["minutes"]) : _int(v);
+      if (minutes == null || minutes <= 0) return;
+      out[k] = minutes;
+    });
+    return out;
   }
 
   Future<FitbitSummaryBundle?> fetchSummary(DateTime date) async {
@@ -48,7 +82,9 @@ class FitbitSummaryService {
     if (userId == null) return null;
     final dateStr = _dateParam(date);
     final headers = await AccountStorage.getAuthHeaders();
-    final url = Uri.parse("${ApiConfig.baseUrl}/fitbit/summary?user_id=$userId&date=$dateStr");
+    final url = Uri.parse(
+      "${ApiConfig.baseUrl}/fitbit/summary?user_id=$userId&date=$dateStr",
+    );
 
     final res = await http.get(url, headers: headers);
     if (res.statusCode != 200) {
@@ -103,7 +139,9 @@ class FitbitSummaryService {
       final goals = sleepNode["goals"] is Map<String, dynamic>
           ? sleepNode["goals"] as Map<String, dynamic>
           : <String, dynamic>{};
-      final logsRaw = sleepNode["sleep"] is List ? sleepNode["sleep"] as List : const [];
+      final logsRaw = sleepNode["sleep"] is List
+          ? sleepNode["sleep"] as List
+          : const [];
 
       int? _int(dynamic v) {
         if (v == null) return null;
@@ -118,8 +156,14 @@ class FitbitSummaryService {
       }
 
       final logs = <FitbitSleepLog>[];
+      Map<String, int> stageMinutes = _parseSleepStageMinutes(
+        summary["stages"],
+      );
       for (final item in logsRaw) {
         if (item is! Map) continue;
+        if (stageMinutes.isEmpty && item["isMainSleep"] == true) {
+          stageMinutes = _parseSleepStageMinutes(item["levels"]);
+        }
         logs.add(
           FitbitSleepLog(
             start: _dt(item["startTime"]),
@@ -134,11 +178,17 @@ class FitbitSummaryService {
           ),
         );
       }
+      if (stageMinutes.isEmpty && logsRaw.isNotEmpty && logsRaw.first is Map) {
+        stageMinutes = _parseSleepStageMinutes(
+          (logsRaw.first as Map)["levels"],
+        );
+      }
 
       sleep = FitbitSleepSummary(
         totalMinutesAsleep: _int(summary["totalMinutesAsleep"]),
         totalTimeInBed: _int(summary["totalTimeInBed"]),
         sleepGoalMinutes: _int(goals["minDuration"]),
+        stageMinutes: stageMinutes,
         logs: logs,
       );
     }
@@ -164,14 +214,21 @@ class FitbitSummaryService {
         return double.tryParse(v.toString());
       }
 
-      final zones = heartNode is Map<String, dynamic> && heartNode["zones"] is List
+      final zones =
+          heartNode is Map<String, dynamic> && heartNode["zones"] is List
           ? heartNode["zones"] as List
           : const [];
-      final vo2 = cardioNode is Map<String, dynamic> ? cardioNode["vo2max"]?.toString() : null;
+      final vo2 = cardioNode is Map<String, dynamic>
+          ? cardioNode["vo2max"]?.toString()
+          : null;
 
       heart = FitbitHeartSummary(
-        restingHr: _int(heartNode is Map<String, dynamic> ? heartNode["resting_hr"] : null),
-        hrvRmssd: _double(hrvNode is Map<String, dynamic> ? hrvNode["daily_rmssd"] : null),
+        restingHr: _int(
+          heartNode is Map<String, dynamic> ? heartNode["resting_hr"] : null,
+        ),
+        hrvRmssd: _double(
+          hrvNode is Map<String, dynamic> ? hrvNode["daily_rmssd"] : null,
+        ),
         vo2Max: vo2,
         zones: zones,
       );
@@ -193,12 +250,7 @@ class FitbitSummaryService {
           ? vitalsNode["ecg"] as Map<String, dynamic>
           : null;
 
-      final summary = _parseVitals(
-        spo2,
-        temp,
-        breathing,
-        ecg,
-      );
+      final summary = _parseVitals(spo2, temp, breathing, ecg);
       vitals = summary;
     }
 
@@ -259,11 +311,15 @@ class FitbitSummaryService {
     }
 
     FitbitSleepSummary? sleep;
-    if (row["sleep_minutes_asleep"] != null || row["sleep_time_in_bed"] != null) {
+    final stageMinutes = _parseSleepStageMinutes(row["sleep_stages_json"]);
+    if (row["sleep_minutes_asleep"] != null ||
+        row["sleep_time_in_bed"] != null ||
+        stageMinutes.isNotEmpty) {
       sleep = FitbitSleepSummary(
         totalMinutesAsleep: _int(row["sleep_minutes_asleep"]),
         totalTimeInBed: _int(row["sleep_time_in_bed"]),
         sleepGoalMinutes: null,
+        stageMinutes: stageMinutes,
         logs: const [],
       );
     }
@@ -303,7 +359,11 @@ class FitbitSummaryService {
       body = FitbitBodySummary(weightKg: _double(row["weight_kg"]));
     }
 
-    if (activity == null && heart == null && sleep == null && vitals == null && body == null) {
+    if (activity == null &&
+        heart == null &&
+        sleep == null &&
+        vitals == null &&
+        body == null) {
       return null;
     }
 
