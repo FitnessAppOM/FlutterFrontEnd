@@ -45,6 +45,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   String? _sex;
   String? _mainGoal;
   String? _trainingDays;
+  String? _trainingLocation;
   String? _fitnessExperience;
   String? _dailyActivity;
   /// Diet preferences (multi-choice, same as questionnaire); "other" uses _dietOtherCtrl
@@ -101,6 +102,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _mainGoal = _mapOptionKey(goalRaw, _goalOptions()) ??
         _mapLegacyGoal(goalRaw);
     _trainingDays = _matchOption(p["training_days"], _trainingDaysOptions());
+    _trainingLocation = _matchOption(p["training_location"], _trainingLocationOptions());
     _fitnessExperience =
         _mapOptionKey(_str(p["fitness_experience"]), _fitnessExperienceOptions()) ??
             _matchOption(p["fitness_experience"], _fitnessExperienceOptions());
@@ -212,6 +214,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ];
   List<String> _trainingDaysOptions() =>
       List<String>.generate(6, (i) => "${i + 1}");
+  List<String> _trainingLocationOptions() => ["home", "gym"];
   List<String> _fitnessExperienceOptions() =>
       ["beginner", "intermediate", "advanced"];
   List<String> _dailyActivityOptions() =>
@@ -450,6 +453,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final newTrainingDays = trainingDaysKey;
     final trainingDaysChanged = initialTrainingDays != newTrainingDays;
 
+    // Check if training location changed — only send the field if it was modified
+    final initialTrainingLocation =
+        _matchOption(_str(_initial["training_location"]), _trainingLocationOptions()) ?? "";
+    final newTrainingLocation = _trainingLocation ?? initialTrainingLocation;
+    final trainingLocationChanged =
+        newTrainingLocation.isNotEmpty && initialTrainingLocation != newTrainingLocation;
+    if (trainingLocationChanged) {
+      payload["training_location"] = newTrainingLocation;
+    }
+
     // Check if main goal or nutrition (diet type) changed — we'll regenerate diet only after save
     final rawInitialGoal = (initialStr("fitness_goal").trim().isNotEmpty
         ? initialStr("fitness_goal")
@@ -467,8 +480,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     setState(() => _saving = true);
 
-    // If training days changed, prompt the user before regenerating training + diet.
-    if (trainingDaysChanged) {
+    // If training days or location changed, prompt the user before regenerating training + diet.
+    if (trainingDaysChanged || trainingLocationChanged) {
       if (!mounted) return;
       final confirmed = await showDialog<bool>(
         context: context,
@@ -690,6 +703,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               _dietMultiChoiceField(),
               const SizedBox(height: 12),
               _sectionTitle(t.translate("section_training_title")),
+              _trainingLocationToggle(),
               _dropdownField(
                 label: t.translate("training_style"),
                 value: _trainingStyle,
@@ -1038,6 +1052,56 @@ class _EditProfilePageState extends State<EditProfilePage> {
             const SizedBox(height: 8),
             _textField(_dietOtherCtrl, t.translate("other")),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _trainingLocationToggle() {
+    final options = _trainingLocationOptions();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _t("training_location"),
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: options.map((o) {
+              final isSelected = _trainingLocation == o;
+              final isLast = o == options.last;
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(right: isLast ? 0 : 8),
+                  child: GestureDetector(
+                    onTap: () => setState(() => _trainingLocation = o),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppColors.accent : Colors.transparent,
+                        border: Border.all(
+                          color: isSelected ? AppColors.accent : AppColors.greyDark,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _t(o),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: isSelected ? Colors.black : Colors.white70,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
         ],
       ),
     );
