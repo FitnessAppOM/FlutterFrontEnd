@@ -623,12 +623,23 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     if (_isCardioExercise()) {
       final distanceKm = session['distanceKm'] as double?;
       final paceMinKm = session['paceMinKm'] as double?;
+      final restoredSteps = session['steps'];
+      final restoredRoute = _parseCardioRoutePoints(session['routePoints']);
       setState(() {
         if (distanceKm != null) {
           _cardioDistanceMeters = distanceKm * 1000.0;
         }
         if (paceMinKm != null && paceMinKm > 0.01) {
           _cardioSpeedKmh = 60.0 / paceMinKm;
+        }
+        final parsedSteps = restoredSteps is int
+            ? restoredSteps
+            : (restoredSteps is num ? restoredSteps.toInt() : _cardioSteps);
+        if (parsedSteps != null && parsedSteps >= 0) {
+          _cardioSteps = parsedSteps;
+        }
+        if (restoredRoute.isNotEmpty) {
+          _cardioRoute = restoredRoute;
         }
       });
     }
@@ -848,6 +859,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           seconds: currentSeconds,
           distanceKm: distanceKm,
           paceMinKm: paceMinKm,
+          steps: isCardio ? _cardioSteps : null,
         );
       }
     });
@@ -885,6 +897,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
             ? (_cardioDistanceMeters / 1000.0)
             : null,
         paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
+        steps: _isCardioExercise() ? _cardioSteps : null,
       ),
     );
   }
@@ -902,7 +915,15 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         _adjustStepsOnResume = false;
         _cardioPausedAtSteps = null;
       }
-      _cardioStartSteps ??= event.steps;
+      if (_cardioStartSteps == null) {
+        final restoredSteps = _cardioSteps;
+        if (restoredSteps != null && restoredSteps > 0) {
+          final baseline = event.steps - restoredSteps;
+          _cardioStartSteps = baseline >= 0 ? baseline : event.steps;
+        } else {
+          _cardioStartSteps = event.steps;
+        }
+      }
       _cardioSteps = event.steps - (_cardioStartSteps ?? event.steps);
       if (mounted) setState(() {});
     }, onError: (_) {});
@@ -928,6 +949,27 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
 
   double _currentPaceMinPerKm() {
     return _paceMinPerKm(_cardioSpeedKmh);
+  }
+
+  List<Map<String, dynamic>> _cardioRoutePayload() {
+    return _cardioRoute
+        .map((p) => {"lat": p.lat, "lng": p.lng, if (p.paused) "paused": true})
+        .toList();
+  }
+
+  List<CardioPoint> _parseCardioRoutePoints(dynamic raw) {
+    if (raw is! List) return const [];
+    final points = <CardioPoint>[];
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final lat = _toDouble(item['lat'] ?? item['latitude']);
+      final lng = _toDouble(item['lng'] ?? item['longitude']);
+      if (lat == null || lng == null) continue;
+      points.add(
+        CardioPoint(lat: lat, lng: lng, paused: _toBool(item['paused'])),
+      );
+    }
+    return points;
   }
 
   void _mergeIncomingCardioRoute(List<CardioPoint> incoming) {
@@ -984,6 +1026,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
               ? (_cardioDistanceMeters / 1000.0)
               : null,
           paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
+          steps: _isCardioExercise() ? _cardioSteps : null,
+          routePoints: _isCardioExercise() ? _cardioRoutePayload() : null,
         );
       }
       await _startCardioStepsTracking();
@@ -998,6 +1042,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
               ? (_cardioDistanceMeters / 1000.0)
               : null,
           paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
+          steps: _isCardioExercise() ? _cardioSteps : null,
+          routePoints: _isCardioExercise() ? _cardioRoutePayload() : null,
         );
       } else {
         await TrainingActivityService.startSession(
@@ -1009,6 +1055,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
               ? (_cardioDistanceMeters / 1000.0)
               : null,
           paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
+          steps: _isCardioExercise() ? _cardioSteps : null,
+          routePoints: _isCardioExercise() ? _cardioRoutePayload() : null,
         );
       }
       widget.onStarted?.call();
@@ -1079,6 +1127,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
             ? (_cardioDistanceMeters / 1000.0)
             : null,
         paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
+        steps: _isCardioExercise() ? _cardioSteps : null,
+        routePoints: _isCardioExercise() ? _cardioRoutePayload() : null,
       );
     } else {
       await TrainingActivityService.startSession(
@@ -1090,6 +1140,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
             ? (_cardioDistanceMeters / 1000.0)
             : null,
         paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
+        steps: _isCardioExercise() ? _cardioSteps : null,
+        routePoints: _isCardioExercise() ? _cardioRoutePayload() : null,
       );
     }
     _ensureActiveSetSelected();
@@ -2524,6 +2576,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       seconds: seconds,
       distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
       paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
+      steps: _isCardioExercise() ? _cardioSteps : null,
+      routePoints: _isCardioExercise() ? _cardioRoutePayload() : null,
     );
   }
 
@@ -2542,6 +2596,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
               ? (_cardioDistanceMeters / 1000.0)
               : null,
           paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
+          steps: _isCardioExercise() ? _cardioSteps : null,
+          routePoints: _isCardioExercise() ? _cardioRoutePayload() : null,
           startMs: _sessionStartMs,
         );
       }
@@ -2579,6 +2635,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
               ? (_cardioDistanceMeters / 1000.0)
               : null,
           paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
+          steps: _isCardioExercise() ? _cardioSteps : null,
         );
       }
     }
@@ -2795,6 +2852,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                               hasToken: hasToken,
                               expanded: _cardioMapExpanded,
                               height: MediaQuery.of(context).size.height * 0.9,
+                              initialDistanceMeters: _cardioDistanceMeters,
+                              initialSpeedKmh: _cardioSpeedKmh,
+                              initialRoute: _cardioRoute,
                               steps: _cardioSteps,
                               elapsedSeconds: seconds,
                               running: started && !_paused,
@@ -2815,6 +2875,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                                     seconds: seconds,
                                     distanceKm: _cardioDistanceMeters / 1000.0,
                                     paceMinKm: _currentPaceMinPerKm(),
+                                    steps: _cardioSteps,
+                                    routePoints: _cardioRoutePayload(),
                                     paused: true,
                                     pausedSeconds: seconds,
                                   );
@@ -2828,6 +2890,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                                     seconds: seconds,
                                     distanceKm: _cardioDistanceMeters / 1000.0,
                                     paceMinKm: _currentPaceMinPerKm(),
+                                    steps: _cardioSteps,
                                   );
                                 }
                               },
@@ -2845,6 +2908,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                                     seconds: seconds,
                                     distanceKm: _cardioDistanceMeters / 1000.0,
                                     paceMinKm: _currentPaceMinPerKm(),
+                                    steps: _cardioSteps,
                                   );
                                 }
                               },

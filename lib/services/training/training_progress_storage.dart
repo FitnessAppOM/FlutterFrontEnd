@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/account_storage.dart';
+import 'training_reset_coordinator.dart';
 
 class TrainingProgressSnapshot {
   const TrainingProgressSnapshot({
@@ -224,7 +225,7 @@ class TrainingProgressStorage {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return;
     final sp = await SharedPreferences.getInstance();
-    final today = _dateKey(DateTime.now());
+    final today = await TrainingResetCoordinator.currentDayToken();
     final key = _userKey(userId, 'ex_instr_seen_${programExerciseId}_$today');
     await sp.setBool(key, true);
   }
@@ -233,7 +234,7 @@ class TrainingProgressStorage {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return false;
     final sp = await SharedPreferences.getInstance();
-    final today = _dateKey(DateTime.now());
+    final today = await TrainingResetCoordinator.currentDayToken();
     final key = _userKey(userId, 'ex_instr_seen_${programExerciseId}_$today');
     return sp.getBool(key) ?? false;
   }
@@ -242,7 +243,7 @@ class TrainingProgressStorage {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return;
     final sp = await SharedPreferences.getInstance();
-    final today = _dateKey(DateTime.now());
+    final today = await TrainingResetCoordinator.currentDayToken();
     final key = _userKey(userId, 'last_ex_finished_ms_$today');
     await sp.setInt(key, ms);
   }
@@ -256,7 +257,7 @@ class TrainingProgressStorage {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return;
     final sp = await SharedPreferences.getInstance();
-    final today = _dateKey(DateTime.now());
+    final today = await TrainingResetCoordinator.currentDayToken();
     final key = _userKey(userId, 'session_done_ex_names_$today');
     final List<Map<String, dynamic>> items = [];
     final raw = sp.getString(key);
@@ -291,7 +292,7 @@ class TrainingProgressStorage {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return const [];
     final sp = await SharedPreferences.getInstance();
-    final today = _dateKey(DateTime.now());
+    final today = await TrainingResetCoordinator.currentDayToken();
     final key = _userKey(userId, 'session_done_ex_names_$today');
     final raw = sp.getString(key);
     if (raw == null || raw.isEmpty) return const [];
@@ -321,7 +322,7 @@ class TrainingProgressStorage {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return null;
     final sp = await SharedPreferences.getInstance();
-    final today = _dateKey(DateTime.now());
+    final today = await TrainingResetCoordinator.currentDayToken();
     final key = _userKey(userId, 'last_ex_finished_ms_$today');
     return sp.getInt(key);
   }
@@ -330,7 +331,7 @@ class TrainingProgressStorage {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return;
     final sp = await SharedPreferences.getInstance();
-    final today = _dateKey(DateTime.now());
+    final today = await TrainingResetCoordinator.currentDayToken();
     final key = _userKey(userId, 'workout_start_ms_$today');
     final dayIndexKey = _userKey(userId, 'workout_day_index_$today');
     if (!sp.containsKey(key)) {
@@ -347,7 +348,7 @@ class TrainingProgressStorage {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return null;
     final sp = await SharedPreferences.getInstance();
-    final today = _dateKey(DateTime.now());
+    final today = await TrainingResetCoordinator.currentDayToken();
     final key = _userKey(userId, 'workout_start_ms_$today');
     return sp.getInt(key);
   }
@@ -356,7 +357,7 @@ class TrainingProgressStorage {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return null;
     final sp = await SharedPreferences.getInstance();
-    final today = _dateKey(DateTime.now());
+    final today = await TrainingResetCoordinator.currentDayToken();
     final key = _userKey(userId, 'workout_day_index_$today');
     return sp.getInt(key);
   }
@@ -365,7 +366,7 @@ class TrainingProgressStorage {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return;
     final sp = await SharedPreferences.getInstance();
-    final today = _dateKey(DateTime.now());
+    final today = await TrainingResetCoordinator.currentDayToken();
     final startKey = _userKey(userId, 'workout_start_ms_$today');
     final dayIndexKey = _userKey(userId, 'workout_day_index_$today');
     await sp.remove(startKey);
@@ -393,7 +394,7 @@ class TrainingProgressStorage {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return;
     final sp = await SharedPreferences.getInstance();
-    final today = _dateKey(DateTime.now());
+    final today = await TrainingResetCoordinator.currentDayToken();
     final prefix = _userKey(userId, 'ex_rest_cd_$today');
     await sp.setInt('${prefix}_total', totalSeconds);
     await sp.setInt('${prefix}_started', startedAtMs);
@@ -403,7 +404,7 @@ class TrainingProgressStorage {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return null;
     final sp = await SharedPreferences.getInstance();
-    final today = _dateKey(DateTime.now());
+    final today = await TrainingResetCoordinator.currentDayToken();
     final prefix = _userKey(userId, 'ex_rest_cd_$today');
     final total = sp.getInt('${prefix}_total');
     final started = sp.getInt('${prefix}_started');
@@ -415,7 +416,7 @@ class TrainingProgressStorage {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return;
     final sp = await SharedPreferences.getInstance();
-    final today = _dateKey(DateTime.now());
+    final today = await TrainingResetCoordinator.currentDayToken();
     final prefix = _userKey(userId, 'ex_rest_cd_$today');
     await sp.remove('${prefix}_total');
     await sp.remove('${prefix}_started');

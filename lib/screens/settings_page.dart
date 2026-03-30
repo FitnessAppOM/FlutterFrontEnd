@@ -19,6 +19,7 @@ import '../config/base_url.dart';
 import '../consents/consent_manager.dart';
 import '../auth/expert_questionnaire.dart';
 import '../services/core/notification_service.dart';
+import '../services/health/apple_watch_detection_service.dart';
 import '../services/whoop/whoop_daily_sync.dart';
 import '../services/whoop/whoop_latest_service.dart';
 import '../screens/welcome.dart';
@@ -50,6 +51,8 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _stravaLinked = false;
   bool _stravaLoading = false;
   bool _stravaAuthInFlight = false;
+  bool? _appleWatchDetected;
+  bool _appleWatchChecking = false;
 
   bool _isAuthCancelled(Object e) {
     if (e is PlatformException) {
@@ -77,6 +80,7 @@ class _SettingsPageState extends State<SettingsPage> {
     _loadWhoopStatus();
     _loadFitbitStatus();
     _loadStravaStatus();
+    _loadAppleWatchStatus();
     _refreshAccountStatus();
     AccountStorage.accountChange.addListener(_handleAccountChanged);
   }
@@ -230,12 +234,15 @@ class _SettingsPageState extends State<SettingsPage> {
       _whoopLinked = false;
       _fitbitLinked = false;
       _stravaLinked = false;
+      _appleWatchDetected = null;
+      _appleWatchChecking = false;
     });
     _loadEmail();
     _loadExpertFlag();
     _loadWhoopStatus();
     _loadFitbitStatus();
     _loadStravaStatus();
+    _loadAppleWatchStatus();
     _refreshAccountStatus();
   }
 
@@ -362,6 +369,49 @@ class _SettingsPageState extends State<SettingsPage> {
     } catch (_) {
       setState(() => _stravaLinked = false);
     }
+  }
+
+  Future<void> _loadAppleWatchStatus({
+    bool requestPermissionIfNeeded = false,
+  }) async {
+    if (!Platform.isIOS) {
+      if (mounted) setState(() => _appleWatchDetected = false);
+      return;
+    }
+
+    final userId = await AccountStorage.getUserId();
+    if (!mounted || userId == null || userId == 0) {
+      if (mounted) setState(() => _appleWatchDetected = null);
+      return;
+    }
+
+    if (!requestPermissionIfNeeded) {
+      final hint = await AccountStorage.getAppleWatchDetected();
+      if (mounted && hint != null) {
+        setState(() => _appleWatchDetected = hint);
+      }
+    }
+
+    final previous = _appleWatchDetected;
+    if (mounted) setState(() => _appleWatchChecking = true);
+    try {
+      final detected = await AppleWatchDetectionService().detect(
+        requestPermissionIfNeeded: requestPermissionIfNeeded,
+      );
+      if (!mounted) return;
+      setState(() => _appleWatchDetected = detected);
+      await AccountStorage.setAppleWatchDetected(detected);
+      if (detected == true && previous != true) {
+        AccountStorage.notifyAppleWatchChanged();
+      }
+    } finally {
+      if (mounted) setState(() => _appleWatchChecking = false);
+    }
+  }
+
+  Future<void> _handleAppleWatchTap() async {
+    if (_appleWatchChecking || !Platform.isIOS || _isDeactivated) return;
+    await _loadAppleWatchStatus(requestPermissionIfNeeded: true);
   }
 
   Future<void> _connectWhoop() async {
@@ -1326,6 +1376,35 @@ class _SettingsPageState extends State<SettingsPage> {
                   fontSize: 14,
                 ),
               ),
+            ),
+          ),
+          _SettingsTile(
+            title: !Platform.isIOS
+                ? "Apple Watch unavailable"
+                : _appleWatchChecking
+                ? "Checking Apple Watch..."
+                : (_appleWatchDetected == true
+                      ? "Apple Watch detected"
+                      : "Detect Apple Watch"),
+            subtitle: !Platform.isIOS
+                ? "Apple Watch detection works on iPhone only"
+                : (_appleWatchDetected == true
+                      ? "Health data from Apple Watch is available"
+                      : "Tap to scan Apple Health data sources"),
+            icon: _appleWatchChecking ? Icons.hourglass_bottom : Icons.watch,
+            onTap: (!Platform.isIOS || _isDeactivated || _appleWatchChecking)
+                ? null
+                : _handleAppleWatchTap,
+            color: _appleWatchDetected == true ? const Color(0xFF4CD964) : null,
+            leading: Container(
+              height: 28,
+              width: 28,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: const Color(0xFF7A7A7A),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Icon(Icons.watch, color: Colors.white, size: 16),
             ),
           ),
           const SizedBox(height: 24),

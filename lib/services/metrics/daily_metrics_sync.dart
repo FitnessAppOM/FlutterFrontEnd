@@ -31,6 +31,7 @@ class DailyMetricsSync {
     final steps = await _steps.fetchStepsForDay(target);
     final calories = await _calories.fetchCaloriesForDay(target);
     final sleepHours = await _sleep.fetchSleepForDay(target);
+    final sleepMetrics = await _sleep.fetchSleepMetricsForDay(target);
     final waterLiters = await _water.getIntakeForDay(target);
 
     await DailyMetricsApi.upsert(
@@ -39,11 +40,21 @@ class DailyMetricsSync {
       steps: steps,
       calories: calories,
       sleepHours: sleepHours,
+      sleepMinutesAsleep: sleepMetrics?.asleepMinutes,
+      sleepMinutesInBed: sleepMetrics?.inBedMinutes,
+      sleepMinutesAwake: sleepMetrics?.awakeMinutes,
+      sleepMinutesLight: sleepMetrics?.lightMinutes,
+      sleepMinutesDeep: sleepMetrics?.deepMinutes,
+      sleepMinutesRem: sleepMetrics?.remMinutes,
       waterLiters: waterLiters,
     );
 
     // Submit burn for this date so surplus is set (surplus = calories burned). Every submit overwrites.
-    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final today = DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+    );
     try {
       await DailyMetricsApi.submitBurn(
         userId: userId,

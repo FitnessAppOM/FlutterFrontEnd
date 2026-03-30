@@ -18,6 +18,7 @@ class AccountStorage {
   static const _kWhoopLinked = 'whoop_linked';
   static const _kFitbitLinked = 'fitbit_linked';
   static const _kStravaLinked = 'strava_linked';
+  static const _kAppleWatchDetected = 'apple_watch_detected';
   static const _kSkipDailyJournalPromptOnce = 'skip_daily_journal_prompt_once';
   static const _kProfileEditBlockedUntil = 'profile_edit_blocked_until';
   static const _kDismissDeactivatedPrompt = 'dismiss_deactivated_prompt';
@@ -27,6 +28,9 @@ class AccountStorage {
       userId == null ? _kFitbitLinked : "${_kFitbitLinked}_u$userId";
   static String _stravaLinkedKey(int? userId) =>
       userId == null ? _kStravaLinked : "${_kStravaLinked}_u$userId";
+  static String _appleWatchDetectedKey(int? userId) => userId == null
+      ? _kAppleWatchDetected
+      : "${_kAppleWatchDetected}_u$userId";
   static String _skipDailyJournalPromptOnceKey(int userId) =>
       "${_kSkipDailyJournalPromptOnce}_u$userId";
   static String _profileEditBlockedUntilKey(int userId) =>
@@ -45,6 +49,7 @@ class AccountStorage {
   // In-app signal to refresh Whoop status across screens.
   static final ValueNotifier<int> whoopChange = ValueNotifier(0);
   static final ValueNotifier<int> accountChange = ValueNotifier(0);
+  static final ValueNotifier<int> appleWatchChange = ValueNotifier(0);
   static final ValueNotifier<int> trainingChange = ValueNotifier(0);
   static final ValueNotifier<int> dietChange = ValueNotifier(0);
   static final ValueNotifier<int> journalChange = ValueNotifier(0);
@@ -55,6 +60,10 @@ class AccountStorage {
 
   static void notifyAccountChanged() {
     accountChange.value++;
+  }
+
+  static void notifyAppleWatchChanged() {
+    appleWatchChange.value++;
   }
 
   static void notifyTrainingChanged() {
@@ -107,6 +116,20 @@ class AccountStorage {
     final sp = await SharedPreferences.getInstance();
     final userId = sp.getInt(_kUserId);
     final key = _stravaLinkedKey(userId);
+    if (!sp.containsKey(key)) return null;
+    return sp.getBool(key);
+  }
+
+  static Future<void> setAppleWatchDetected(bool detected) async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    await sp.setBool(_appleWatchDetectedKey(userId), detected);
+  }
+
+  static Future<bool?> getAppleWatchDetected() async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    final key = _appleWatchDetectedKey(userId);
     if (!sp.containsKey(key)) return null;
     return sp.getBool(key);
   }
@@ -446,6 +469,7 @@ class AccountStorage {
       await sp.remove(_whoopLinkedKey(currentUserId));
       await sp.remove(_fitbitLinkedKey(currentUserId));
       await sp.remove(_stravaLinkedKey(currentUserId));
+      await sp.remove(_appleWatchDetectedKey(currentUserId));
       await sp.remove(_skipDailyJournalPromptOnceKey(currentUserId));
       await sp.remove(_profileEditBlockedUntilKey(currentUserId));
       await sp.remove(_dismissDeactivatedPromptKey(currentUserId));
@@ -453,6 +477,7 @@ class AccountStorage {
     await sp.remove(_kWhoopLinked);
     await sp.remove(_kFitbitLinked);
     await sp.remove(_kStravaLinked);
+    await sp.remove(_kAppleWatchDetected);
 
     notifyAccountChanged();
   }
@@ -466,6 +491,7 @@ class AccountStorage {
       await sp.remove(_whoopLinkedKey(currentUserId));
       await sp.remove(_fitbitLinkedKey(currentUserId));
       await sp.remove(_stravaLinkedKey(currentUserId));
+      await sp.remove(_appleWatchDetectedKey(currentUserId));
       await sp.remove(_skipDailyJournalPromptOnceKey(currentUserId));
       await sp.remove(_profileEditBlockedUntilKey(currentUserId));
       await sp.remove(_dismissDeactivatedPromptKey(currentUserId));
@@ -473,6 +499,7 @@ class AccountStorage {
     await sp.remove(_kWhoopLinked);
     await sp.remove(_kFitbitLinked);
     await sp.remove(_kStravaLinked);
+    await sp.remove(_kAppleWatchDetected);
     // Keep email + name + verified → so “Login as…” still works
     notifyAccountChanged();
   }
@@ -495,6 +522,7 @@ class AccountStorage {
       await sp.remove(_whoopLinkedKey(currentUserId));
       await sp.remove(_fitbitLinkedKey(currentUserId));
       await sp.remove(_stravaLinkedKey(currentUserId));
+      await sp.remove(_appleWatchDetectedKey(currentUserId));
       await sp.remove(_skipDailyJournalPromptOnceKey(currentUserId));
       await sp.remove(_profileEditBlockedUntilKey(currentUserId));
       await sp.remove(_dismissDeactivatedPromptKey(currentUserId));
@@ -502,6 +530,7 @@ class AccountStorage {
     await sp.remove(_kWhoopLinked);
     await sp.remove(_kFitbitLinked);
     await sp.remove(_kStravaLinked);
+    await sp.remove(_kAppleWatchDetected);
     notifyAccountChanged();
   }
 }

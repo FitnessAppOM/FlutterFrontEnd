@@ -180,6 +180,7 @@ class DashboardPageState extends State<DashboardPage>
   int? _waterDelta;
   int? _weeklySteps;
   bool _weeklyStepsLoading = false;
+  bool _pendingAppleWatchDetectedNotice = false;
   List<double> _trendSleep = const [];
   List<double> _trendCalories = const [];
   bool _trendSleepLoading = false;
@@ -512,6 +513,7 @@ class DashboardPageState extends State<DashboardPage>
     _ensureWiggle();
     AccountStorage.whoopChange.addListener(_onWhoopChanged);
     AccountStorage.accountChange.addListener(_onAccountChanged);
+    AccountStorage.appleWatchChange.addListener(_onAppleWatchChanged);
     AccountStorage.trainingChange.addListener(_onTrainingChanged);
     AccountStorage.dietChange.addListener(_onDietChanged);
     AccountStorage.journalChange.addListener(_onJournalChanged);
@@ -595,11 +597,53 @@ class DashboardPageState extends State<DashboardPage>
     _loadStreak();
   }
 
+  void _showAppleWatchDetectedNotice() {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.watch, size: 16, color: Colors.white),
+            SizedBox(width: 8),
+            Text("Apple Watch detected"),
+          ],
+        ),
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _onAppleWatchChanged() async {
+    final detected = await AccountStorage.getAppleWatchDetected();
+    if (!mounted || detected != true) return;
+    final isCurrent = ModalRoute.of(context)?.isCurrent ?? true;
+    if (isCurrent) {
+      _showAppleWatchDetectedNotice();
+    } else {
+      _pendingAppleWatchDetectedNotice = true;
+    }
+  }
+
+  void _maybeShowPendingAppleWatchNotice() {
+    if (!_pendingAppleWatchDetectedNotice) return;
+    final isCurrent = ModalRoute.of(context)?.isCurrent ?? true;
+    if (!isCurrent) return;
+    _pendingAppleWatchDetectedNotice = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showAppleWatchDetectedNotice();
+    });
+  }
+
   @override
   void dispose() {
     _wiggleController?.dispose();
     AccountStorage.whoopChange.removeListener(_onWhoopChanged);
     AccountStorage.accountChange.removeListener(_onAccountChanged);
+    AccountStorage.appleWatchChange.removeListener(_onAppleWatchChanged);
     AccountStorage.trainingChange.removeListener(_onTrainingChanged);
     AccountStorage.dietChange.removeListener(_onDietChanged);
     AccountStorage.journalChange.removeListener(_onJournalChanged);
@@ -3993,6 +4037,7 @@ class DashboardPageState extends State<DashboardPage>
 
   @override
   Widget build(BuildContext context) {
+    _maybeShowPendingAppleWatchNotice();
     final t = AppLocalizations.of(context).translate;
     final locale = AppLocalizations.of(context).locale.languageCode;
     final bottomInset = MediaQuery.of(context).padding.bottom;

@@ -16,6 +16,9 @@ class CardioMap extends StatefulWidget {
     required this.hasToken,
     required this.expanded,
     this.height,
+    this.initialDistanceMeters,
+    this.initialSpeedKmh,
+    this.initialRoute,
     this.onStart,
     this.onCountdownStart,
     this.onPause,
@@ -33,6 +36,9 @@ class CardioMap extends StatefulWidget {
   final bool hasToken;
   final bool expanded;
   final double? height;
+  final double? initialDistanceMeters;
+  final double? initialSpeedKmh;
+  final List<CardioPoint>? initialRoute;
   final VoidCallback? onStart;
   final VoidCallback? onCountdownStart;
   final VoidCallback? onPause;
@@ -74,6 +80,7 @@ class _CardioMapState extends State<CardioMap> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _applyInitialSnapshot(force: true);
   }
 
   @override
@@ -87,6 +94,11 @@ class _CardioMapState extends State<CardioMap> with WidgetsBindingObserver {
   @override
   void didUpdateWidget(covariant CardioMap oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.initialDistanceMeters != oldWidget.initialDistanceMeters ||
+        widget.initialSpeedKmh != oldWidget.initialSpeedKmh ||
+        widget.initialRoute != oldWidget.initialRoute) {
+      _applyInitialSnapshot(force: false);
+    }
     if (widget.expanded && !oldWidget.expanded) {
       _recenterWithRetry();
     }
@@ -103,9 +115,7 @@ class _CardioMapState extends State<CardioMap> with WidgetsBindingObserver {
         _ignoreNextDistance = true;
       }
     }
-    if (widget.trackingEnabled &&
-        (widget.running ?? false) &&
-        !_tracking) {
+    if (widget.trackingEnabled && (widget.running ?? false) && !_tracking) {
       _ignoreNextDistance = true;
       _startTracking();
     }
@@ -161,7 +171,9 @@ class _CardioMapState extends State<CardioMap> with WidgetsBindingObserver {
           MapWidget(
             key: const ValueKey("cardio-map"),
             gestureRecognizers: {
-              Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer()),
+              Factory<OneSequenceGestureRecognizer>(
+                () => EagerGestureRecognizer(),
+              ),
             },
             cameraOptions: CameraOptions(
               center: Point(coordinates: Position(2.3522, 48.8566)),
@@ -182,6 +194,7 @@ class _CardioMapState extends State<CardioMap> with WidgetsBindingObserver {
                 // Ignore if gestures settings are not available.
               }
               _enableUserLocation();
+              _redrawSeededRoute();
               _recenterWithRetry();
             },
           ),
@@ -248,6 +261,75 @@ class _CardioMapState extends State<CardioMap> with WidgetsBindingObserver {
         ],
       ),
     );
+  }
+
+  void _applyInitialSnapshot({required bool force}) {
+    var changed = false;
+
+    final initialDistanceMeters = widget.initialDistanceMeters;
+    if (initialDistanceMeters != null &&
+        (force || (!_tracking && initialDistanceMeters > _distanceMeters))) {
+      _distanceMeters = initialDistanceMeters;
+      changed = true;
+    }
+
+    final initialSpeedKmh = widget.initialSpeedKmh;
+    if (initialSpeedKmh != null &&
+        (force || (!_tracking && initialSpeedKmh > _speedKmh))) {
+      _speedKmh = initialSpeedKmh;
+      changed = true;
+    }
+
+    final route = widget.initialRoute;
+    final canSeedRoute =
+        route != null &&
+        route.isNotEmpty &&
+        (force || (!_tracking && route.length > _routePositions.length));
+    if (canSeedRoute) {
+      _seedRouteFromSnapshot(route);
+      changed = true;
+      if (_map != null) {
+        unawaited(_redrawSeededRoute());
+      }
+    }
+
+    if (changed) {
+      _hasTrackingData = _routePositions.isNotEmpty || _distanceMeters > 0.1;
+      if (!force && mounted) {
+        setState(() {});
+      }
+    }
+  }
+
+  void _seedRouteFromSnapshot(List<CardioPoint> route) {
+    _routePositions
+      ..clear()
+      ..addAll(route.map((p) => Position(p.lng, p.lat)));
+    _segments.clear();
+    if (route.isEmpty) return;
+
+    _RouteSegment? activeSegment;
+    Position? previous;
+    for (final point in route) {
+      final mapped = Position(point.lng, point.lat);
+      if (activeSegment == null || activeSegment.paused != point.paused) {
+        activeSegment = _RouteSegment(paused: point.paused, points: []);
+        if (previous != null) {
+          activeSegment.points.add(previous);
+        }
+        _segments.add(activeSegment);
+      }
+      activeSegment.points.add(mapped);
+      previous = mapped;
+    }
+  }
+
+  Future<void> _redrawSeededRoute() async {
+    if (_disposed || _map == null || _segments.isEmpty) return;
+    await _clearRouteLines(clearSegments: false);
+    for (final segment in _segments) {
+      await _updateSegmentLine(segment);
+    }
   }
 
   Future<void> _enableUserLocation() async {
@@ -318,7 +400,8 @@ class _CardioMapState extends State<CardioMap> with WidgetsBindingObserver {
     final ok = await _ensureLocationPermission();
     if (!ok || _disposed) return;
     final elapsed = widget.elapsedSeconds ?? 0;
-    final isResume = (widget.running ?? false) || elapsed > 0 || _hasTrackingData;
+    final isResume =
+        (widget.running ?? false) || elapsed > 0 || _hasTrackingData;
     if (!isResume) {
       _resetTrackingState();
       await _clearRouteLines();
@@ -381,7 +464,7 @@ class _CardioMapState extends State<CardioMap> with WidgetsBindingObserver {
     _polylineManager = await map.annotations.createPolylineAnnotationManager();
   }
 
-  Future<void> _clearRouteLines() async {
+  Future<void> _clearRouteLines({bool clearSegments = true}) async {
     if (_disposed) return;
     if (_polylineManager != null) {
       for (final segment in _segments) {
@@ -389,9 +472,12 @@ class _CardioMapState extends State<CardioMap> with WidgetsBindingObserver {
         if (line != null) {
           await _polylineManager!.delete(line);
         }
+        segment.line = null;
       }
     }
-    _segments.clear();
+    if (clearSegments) {
+      _segments.clear();
+    }
   }
 
   Future<void> _startNewSegment({required bool paused}) async {
@@ -421,7 +507,9 @@ class _CardioMapState extends State<CardioMap> with WidgetsBindingObserver {
     if (segment.points.length < 2) return;
     await _ensurePolylineManager();
     if (_polylineManager == null) return;
-    final lineString = LineString(coordinates: List<Position>.from(segment.points));
+    final lineString = LineString(
+      coordinates: List<Position>.from(segment.points),
+    );
     final color = segment.paused ? _pausedLineColor : _activeLineColor;
     if (segment.line == null) {
       segment.line = await _polylineManager!.create(
@@ -509,12 +597,13 @@ class _CardioMapState extends State<CardioMap> with WidgetsBindingObserver {
       }
       final windowSeconds = _recentPositions.length >= 2
           ? _recentPositions.last.time
-                  .difference(_recentPositions.first.time)
-                  .inMilliseconds /
-              1000.0
+                    .difference(_recentPositions.first.time)
+                    .inMilliseconds /
+                1000.0
           : 0.0;
-      double nextSpeed =
-          (windowSeconds > 0) ? (windowMeters / windowSeconds) * 3.6 : 0.0;
+      double nextSpeed = (windowSeconds > 0)
+          ? (windowMeters / windowSeconds) * 3.6
+          : 0.0;
       if (nextSpeed.isNaN || nextSpeed < 0.2) nextSpeed = 0;
 
       // Avoid non-zero speed before user actually moves a bit
@@ -579,7 +668,10 @@ class _CardioMapState extends State<CardioMap> with WidgetsBindingObserver {
             const SizedBox(height: 8),
             Text(
               title,
-              style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w700),
+              style: const TextStyle(
+                color: Colors.white70,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -612,11 +704,13 @@ class _CardioMapState extends State<CardioMap> with WidgetsBindingObserver {
     final points = <CardioPoint>[];
     for (final segment in _segments) {
       for (final p in segment.points) {
-        points.add(CardioPoint(
-          lat: p.lat.toDouble(),
-          lng: p.lng.toDouble(),
-          paused: segment.paused,
-        ));
+        points.add(
+          CardioPoint(
+            lat: p.lat.toDouble(),
+            lng: p.lng.toDouble(),
+            paused: segment.paused,
+          ),
+        );
       }
     }
     return points;
@@ -627,10 +721,7 @@ class CardioMetrics {
   final double distanceMeters;
   final double speedKmh;
 
-  const CardioMetrics({
-    required this.distanceMeters,
-    required this.speedKmh,
-  });
+  const CardioMetrics({required this.distanceMeters, required this.speedKmh});
 }
 
 class CardioPoint {
@@ -653,11 +744,7 @@ class _TimedPosition {
 }
 
 class _RouteSegment {
-  _RouteSegment({
-    required this.paused,
-    required this.points,
-    this.line,
-  });
+  _RouteSegment({required this.paused, required this.points});
 
   final bool paused;
   final List<Position> points;

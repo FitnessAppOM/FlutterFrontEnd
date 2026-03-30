@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../services/training/training_service.dart';
+import '../../services/training/training_reset_coordinator.dart';
 
 class ExerciseCard extends StatelessWidget {
   final Map<String, dynamic> exercise;
@@ -9,6 +10,7 @@ class ExerciseCard extends StatelessWidget {
   final VoidCallback onReplace;
   final bool disabled;
   final bool inProgress;
+  final bool forceCompleted;
 
   const ExerciseCard({
     super.key,
@@ -17,6 +19,7 @@ class ExerciseCard extends StatelessWidget {
     required this.onReplace,
     this.disabled = false,
     this.inProgress = false,
+    this.forceCompleted = false,
   });
 
   Map<String, dynamic>? _extractCompliance(dynamic value) {
@@ -77,15 +80,11 @@ class ExerciseCard extends StatelessWidget {
       return null;
     }
 
-    DateTime _startOfCurrentWeekMonday() {
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      // In Dart, Monday == 1. We want the most recent Monday 00:00.
-      final daysSinceMonday = (now.weekday + 6) % 7;
-      return today.subtract(Duration(days: daysSinceMonday));
-    }
-
-    final DateTime _weekStart = _startOfCurrentWeekMonday();
+    final resetNow = TrainingResetCoordinator.currentNowUtc();
+    final DateTime _weekStart = TrainingResetCoordinator.weekStartMonday(
+      resetNow,
+    );
+    final DateTime _weekEnd = TrainingResetCoordinator.weekEndSunday(resetNow);
     final Map<String, dynamic>? compliance =
         _extractCompliance(exercise['program_compliance']) ??
         _extractCompliance(exercise['compliance']);
@@ -93,7 +92,6 @@ class ExerciseCard extends StatelessWidget {
       final candidates = [
         ex['logged_at'],
         ex['completed_at'],
-        ex['updated_at'],
         ex['performed_at'],
         ex['last_performed_at'],
       ];
@@ -106,7 +104,11 @@ class ExerciseCard extends StatelessWidget {
 
     bool _isCurrentWeekDate(DateTime? dt) {
       if (dt == null) return false;
-      return !dt.isBefore(_weekStart);
+      return TrainingResetCoordinator.isInWeek(
+        dt,
+        weekStart: _weekStart,
+        weekEnd: _weekEnd,
+      );
     }
 
     final completionDate = _completionDateForExercise(exercise);
@@ -114,7 +116,11 @@ class ExerciseCard extends StatelessWidget {
     bool _isInCurrentWeek(dynamic loggedAt) {
       final dt = _parseDate(loggedAt);
       if (dt == null) return false;
-      return !dt.isBefore(_weekStart);
+      return TrainingResetCoordinator.isInWeek(
+        dt,
+        weekStart: _weekStart,
+        weekEnd: _weekEnd,
+      );
     }
 
     bool _isCompleted(dynamic value) {
@@ -210,6 +216,7 @@ class ExerciseCard extends StatelessWidget {
     ];
 
     final bool completed =
+        forceCompleted ||
         complianceDone ||
         (hasCurrentWeekDate && completionFields.any(_isCompleted));
     final bool showProgress = inProgress;

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
@@ -11,7 +12,9 @@ class TrainingActivityService {
   static int _lastUpdateSecond = -1;
   static double? _lastDistanceKm;
   static double? _lastPaceMinKm;
-  static const MethodChannel _liveActivityChannel = MethodChannel('training_live_activity');
+  static const MethodChannel _liveActivityChannel = MethodChannel(
+    'training_live_activity',
+  );
   static String? _liveActivitySessionId;
   static int? _sessionStartMs;
   static const _kSessionActive = 'training_session_active';
@@ -21,6 +24,8 @@ class TrainingActivityService {
   static const _kSessionReps = 'training_session_reps';
   static const _kSessionDistance = 'training_session_distance';
   static const _kSessionPace = 'training_session_speed';
+  static const _kSessionSteps = 'training_session_steps';
+  static const _kSessionRoutePoints = 'training_session_route_points';
   static const _kSessionPaused = 'training_session_paused';
   static const _kSessionPausedSeconds = 'training_session_paused_seconds';
 
@@ -69,6 +74,8 @@ class TrainingActivityService {
     required int seconds,
     double? distanceKm,
     double? paceMinKm,
+    int? steps,
+    List<Map<String, dynamic>>? routePoints,
     bool paused = false,
     int? pausedSeconds,
   }) async {
@@ -85,10 +92,13 @@ class TrainingActivityService {
         reps: reps,
         distanceKm: distanceKm,
         paceMinKm: paceMinKm,
+        steps: steps,
+        routePoints: routePoints,
         startMs: _sessionStartMs!,
       );
       if (Platform.isIOS) {
-        _liveActivitySessionId = DateTime.now().millisecondsSinceEpoch.toString();
+        _liveActivitySessionId = DateTime.now().millisecondsSinceEpoch
+            .toString();
         await _startLiveActivity(
           exerciseName: exerciseName,
           sets: sets,
@@ -119,6 +129,8 @@ class TrainingActivityService {
       seconds: seconds,
       distanceKm: distanceKm,
       paceMinKm: paceMinKm,
+      steps: steps,
+      routePoints: routePoints,
       startMs: _sessionStartMs,
     );
   }
@@ -130,12 +142,19 @@ class TrainingActivityService {
     required int seconds,
     double? distanceKm,
     double? paceMinKm,
+    int? steps,
+    List<Map<String, dynamic>>? routePoints,
     int? startMs,
   }) async {
     if (!_active) return;
-    final distanceChanged = _hasSignificantDelta(_lastDistanceKm, distanceKm, 0.01);
+    final distanceChanged = _hasSignificantDelta(
+      _lastDistanceKm,
+      distanceKm,
+      0.01,
+    );
     final paceChanged = _hasSignificantDelta(_lastPaceMinKm, paceMinKm, 0.1);
-    if (seconds == _lastUpdateSecond && !distanceChanged && !paceChanged) return;
+    if (seconds == _lastUpdateSecond && !distanceChanged && !paceChanged)
+      return;
     _lastUpdateSecond = seconds;
     _lastDistanceKm = distanceKm ?? _lastDistanceKm;
     _lastPaceMinKm = paceMinKm ?? _lastPaceMinKm;
@@ -147,6 +166,8 @@ class TrainingActivityService {
       reps: reps,
       distanceKm: distanceKm,
       paceMinKm: paceMinKm,
+      steps: steps,
+      routePoints: routePoints,
     );
 
     if (Platform.isAndroid) {
@@ -219,6 +240,8 @@ class TrainingActivityService {
     required int seconds,
     double? distanceKm,
     double? paceMinKm,
+    int? steps,
+    List<Map<String, dynamic>>? routePoints,
   }) async {
     if (!_active) return;
     _lastUpdateSecond = seconds;
@@ -231,6 +254,8 @@ class TrainingActivityService {
       reps: reps,
       distanceKm: distanceKm,
       paceMinKm: paceMinKm,
+      steps: steps,
+      routePoints: routePoints,
       startMs: null,
     );
 
@@ -278,6 +303,8 @@ class TrainingActivityService {
     required int seconds,
     double? distanceKm,
     double? paceMinKm,
+    int? steps,
+    List<Map<String, dynamic>>? routePoints,
   }) async {
     if (!_active) return;
     _lastUpdateSecond = seconds;
@@ -291,6 +318,8 @@ class TrainingActivityService {
       reps: reps,
       distanceKm: distanceKm,
       paceMinKm: paceMinKm,
+      steps: steps,
+      routePoints: routePoints,
       startMs: _sessionStartMs,
     );
     await updateSession(
@@ -300,6 +329,8 @@ class TrainingActivityService {
       seconds: seconds,
       distanceKm: distanceKm,
       paceMinKm: paceMinKm,
+      steps: steps,
+      routePoints: routePoints,
       startMs: _sessionStartMs,
     );
   }
@@ -308,6 +339,18 @@ class TrainingActivityService {
     final sp = await SharedPreferences.getInstance();
     final active = sp.getBool(_kSessionActive) ?? false;
     if (!active) return null;
+    List<dynamic>? routePoints;
+    final rawRoute = sp.getString(_kSessionRoutePoints);
+    if (rawRoute != null && rawRoute.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawRoute);
+        if (decoded is List) {
+          routePoints = decoded;
+        }
+      } catch (_) {
+        routePoints = null;
+      }
+    }
     return {
       'startMs': sp.getInt(_kSessionStartMs),
       'name': sp.getString(_kSessionName),
@@ -315,6 +358,8 @@ class TrainingActivityService {
       'reps': sp.getInt(_kSessionReps),
       'distanceKm': sp.getDouble(_kSessionDistance),
       'paceMinKm': sp.getDouble(_kSessionPace),
+      'steps': sp.getInt(_kSessionSteps),
+      'routePoints': routePoints,
       'paused': sp.getBool(_kSessionPaused) ?? false,
       'pausedSeconds': sp.getInt(_kSessionPausedSeconds),
     };
@@ -417,6 +462,8 @@ class TrainingActivityService {
     required int reps,
     double? distanceKm,
     double? paceMinKm,
+    int? steps,
+    List<Map<String, dynamic>>? routePoints,
     int? startMs,
   }) async {
     final sp = await SharedPreferences.getInstance();
@@ -434,6 +481,12 @@ class TrainingActivityService {
     }
     if (paceMinKm != null) {
       await sp.setDouble(_kSessionPace, paceMinKm);
+    }
+    if (steps != null) {
+      await sp.setInt(_kSessionSteps, steps);
+    }
+    if (routePoints != null) {
+      await sp.setString(_kSessionRoutePoints, jsonEncode(routePoints));
     }
   }
 
@@ -456,11 +509,17 @@ class TrainingActivityService {
     await sp.remove(_kSessionReps);
     await sp.remove(_kSessionDistance);
     await sp.remove(_kSessionPace);
+    await sp.remove(_kSessionSteps);
+    await sp.remove(_kSessionRoutePoints);
     await sp.remove(_kSessionPaused);
     await sp.remove(_kSessionPausedSeconds);
   }
 
-  static bool _hasSignificantDelta(double? prev, double? next, double threshold) {
+  static bool _hasSignificantDelta(
+    double? prev,
+    double? next,
+    double threshold,
+  ) {
     if (next == null) return false;
     if (prev == null) return true;
     return (next - prev).abs() >= threshold;

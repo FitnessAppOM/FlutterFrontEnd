@@ -34,12 +34,17 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
   DateTime? _rangeEnd;
   bool _metricsLoading = false;
   _WhoopSleepMetrics? _whoopMetrics;
+  DailyMetricsEntry? _nativeMetricsEntry;
+  bool _nativeMetricsLoading = false;
+  bool _nativeMetricsHasData = false;
   DateTime _metricsDate = DateTime.now();
   int _metricsReqId = 0;
+  int _nativeMetricsReqId = 0;
   int? _napCount;
   double? _napHours;
   bool _metricsHasData = false;
   final Map<DateTime, _WhoopSleepMetrics?> _metricsCache = {};
+  final Map<DateTime, DailyMetricsEntry?> _nativeMetricsCache = {};
   final Map<DateTime, int?> _napCountCache = {};
   final Map<DateTime, double?> _napHoursCache = {};
   final Map<DateTime, bool> _metricsHasDataCache = {};
@@ -83,6 +88,8 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     super.initState();
     if (widget.useWhoop) {
       _metricsLoading = true;
+    } else {
+      _nativeMetricsLoading = true;
     }
     _loadGoal();
     _loadRange();
@@ -193,6 +200,8 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
           });
           if (widget.useWhoop) {
             await _loadWhoopMetrics();
+          } else {
+            await _loadNativeMetrics();
           }
           return;
         }
@@ -232,15 +241,24 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
         final manual = await SleepService().getManualEntries();
         manual.forEach((day, hours) {
           if (!day.isBefore(DateTime(start.year, start.month, start.day)) &&
-              !day.isAfter(DateTime(effectiveEnd.year, effectiveEnd.month, effectiveEnd.day))) {
+              !day.isAfter(
+                DateTime(
+                  effectiveEnd.year,
+                  effectiveEnd.month,
+                  effectiveEnd.day,
+                ),
+              )) {
             data[DateTime(day.year, day.month, day.day)] = hours;
           }
         });
 
         // For current day, prefer HealthKit/Health Connect if no manual override exists.
         final todayKey = DateTime(now.year, now.month, now.day);
-        final inRange = !todayKey.isBefore(DateTime(start.year, start.month, start.day)) &&
-            !todayKey.isAfter(DateTime(effectiveEnd.year, effectiveEnd.month, effectiveEnd.day));
+        final inRange =
+            !todayKey.isBefore(DateTime(start.year, start.month, start.day)) &&
+            !todayKey.isAfter(
+              DateTime(effectiveEnd.year, effectiveEnd.month, effectiveEnd.day),
+            );
         if (inRange && !manual.containsKey(todayKey)) {
           final todaySleep = await SleepService().fetchSleepHoursLast24h();
           if (todaySleep > 0) {
@@ -261,6 +279,8 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       });
       if (widget.useWhoop) {
         await _loadWhoopMetrics();
+      } else {
+        await _loadNativeMetrics();
       }
     } catch (_) {
       if (!mounted) return;
@@ -269,6 +289,9 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
         _selectedBarIndex = null;
         _loading = false;
       });
+      if (!widget.useWhoop) {
+        await _loadNativeMetrics();
+      }
     }
   }
 
@@ -347,6 +370,77 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     }
   }
 
+  bool _nativeEntryHasData(DailyMetricsEntry? entry) {
+    if (entry == null) return false;
+    return entry.sleepHours != null ||
+        entry.sleepMinutesAsleep != null ||
+        entry.sleepMinutesInBed != null ||
+        entry.sleepMinutesAwake != null ||
+        entry.sleepMinutesLight != null ||
+        entry.sleepMinutesDeep != null ||
+        entry.sleepMinutesRem != null;
+  }
+
+  DateTime _onlyDate(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  Future<void> _loadNativeMetrics({bool force = false}) async {
+    if (widget.useWhoop) return;
+    final requestId = ++_nativeMetricsReqId;
+    final dayKey = _onlyDate(_metricsDate);
+    final hasCache = _nativeMetricsCache.containsKey(dayKey);
+
+    if (!mounted) return;
+    setState(() {
+      if (hasCache && !force) {
+        final cached = _nativeMetricsCache[dayKey];
+        _nativeMetricsEntry = cached;
+        _nativeMetricsHasData = _nativeEntryHasData(cached);
+        _nativeMetricsLoading = false;
+      } else {
+        _nativeMetricsLoading = true;
+      }
+    });
+    if (hasCache && !force) return;
+
+    final userId = await AccountStorage.getUserId();
+    if (!mounted || requestId != _nativeMetricsReqId) return;
+    if (userId == null || userId == 0) {
+      setState(() {
+        _nativeMetricsEntry = null;
+        _nativeMetricsHasData = false;
+        _nativeMetricsLoading = false;
+      });
+      return;
+    }
+
+    try {
+      final entry = await DailyMetricsApi.fetchForDate(userId, dayKey);
+      if (!mounted || requestId != _nativeMetricsReqId) return;
+      _nativeMetricsCache[dayKey] = entry;
+      setState(() {
+        _nativeMetricsEntry = entry;
+        _nativeMetricsHasData = _nativeEntryHasData(entry);
+        _nativeMetricsLoading = false;
+      });
+    } catch (_) {
+      if (!mounted || requestId != _nativeMetricsReqId) return;
+      if (_nativeMetricsCache.containsKey(dayKey)) {
+        final cached = _nativeMetricsCache[dayKey];
+        setState(() {
+          _nativeMetricsEntry = cached;
+          _nativeMetricsHasData = _nativeEntryHasData(cached);
+          _nativeMetricsLoading = false;
+        });
+        return;
+      }
+      setState(() {
+        _nativeMetricsEntry = null;
+        _nativeMetricsHasData = false;
+        _nativeMetricsLoading = false;
+      });
+    }
+  }
+
   Future<Map<DateTime, double>> _loadWhoopRangeOrLatest({
     required DateTime start,
     required DateTime end,
@@ -357,8 +451,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     final endKey = DateTime(end.year, end.month, end.day);
     final now = DateTime.now();
     final todayKey = DateTime(now.year, now.month, now.day);
-    final inRange =
-        !todayKey.isBefore(startKey) && !todayKey.isAfter(endKey);
+    final inRange = !todayKey.isBefore(startKey) && !todayKey.isAfter(endKey);
     if (inRange) {
       final userId = await AccountStorage.getUserId();
       double? todayHours;
@@ -392,8 +485,6 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context).translate;
     final theme = Theme.of(context);
-    final totalHours = _daily.values.fold<double>(0, (a, b) => a + b);
-    final avgHours = _daily.isEmpty ? 0 : totalHours / _daily.length;
     final bars = _buildBars(theme);
 
     return Scaffold(
@@ -402,43 +493,40 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
         backgroundColor: AppColors.black,
       ),
       backgroundColor: AppColors.black,
-      body: widget.useWhoop
-          ? DefaultTabController(
-              length: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      body: DefaultTabController(
+        length: 2,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TabBar(
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.white54,
+                indicatorColor: AppColors.accent,
+                labelStyle: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+                tabs: const [
+                  Tab(text: "Sleep trends"),
+                  Tab(text: "Sleep metrics"),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Expanded(
+                child: TabBarView(
                   children: [
-                    TabBar(
-                      labelColor: Colors.white,
-                      unselectedLabelColor: Colors.white54,
-                      indicatorColor: AppColors.accent,
-                      labelStyle: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                      tabs: const [
-                        Tab(text: "Sleep trends"),
-                        Tab(text: "Sleep metrics"),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    Expanded(
-                      child: TabBarView(
-                        children: [
-                          _buildTrendsTab(t, theme, bars),
-                          _buildMetricsTab(theme),
-                        ],
-                      ),
-                    ),
+                    _buildTrendsTab(t, theme, bars),
+                    widget.useWhoop
+                        ? _buildMetricsTab(theme)
+                        : _buildNativeMetricsTab(theme),
                   ],
                 ),
               ),
-            )
-          : Padding(
-              padding: const EdgeInsets.all(20),
-              child: _buildTrendsTab(t, theme, bars),
-            ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -843,6 +931,188 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     );
   }
 
+  Widget _buildNativeMetricsTab(ThemeData theme) {
+    final entry = _nativeMetricsEntry;
+    final isLoading = _nativeMetricsLoading;
+    final hasData = _nativeMetricsHasData && entry != null;
+    if (!hasData && !isLoading) {
+      return SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _nativeMetricsDateHeader(theme),
+            const SizedBox(height: 12),
+            _nativeNoDataCard(theme),
+          ],
+        ),
+      );
+    }
+
+    double? sleepHours = entry?.sleepHours;
+    final asleepMinutes = entry?.sleepMinutesAsleep;
+    final inBedMinutes = entry?.sleepMinutesInBed;
+    final awakeMinutes = entry?.sleepMinutesAwake;
+    final lightMinutes = entry?.sleepMinutesLight;
+    final deepMinutes = entry?.sleepMinutesDeep;
+    final remMinutes = entry?.sleepMinutesRem;
+    if (sleepHours == null && asleepMinutes != null) {
+      sleepHours = asleepMinutes / 60.0;
+    }
+
+    final inBedHours = inBedMinutes == null ? null : (inBedMinutes / 60.0);
+    final awakeHours = awakeMinutes == null ? null : (awakeMinutes / 60.0);
+    final lightHours = lightMinutes == null ? null : (lightMinutes / 60.0);
+    final deepHours = deepMinutes == null ? null : (deepMinutes / 60.0);
+    final remHours = remMinutes == null ? null : (remMinutes / 60.0);
+
+    double? efficiency;
+    if (inBedMinutes != null && inBedMinutes > 0) {
+      int? sleepMinutesForEfficiency = asleepMinutes;
+      if (sleepMinutesForEfficiency == null && sleepHours != null) {
+        sleepMinutesForEfficiency = (sleepHours * 60).round();
+      }
+      if (sleepMinutesForEfficiency != null) {
+        efficiency = sleepMinutesForEfficiency / inBedMinutes;
+      }
+    }
+
+    final stageTotal =
+        (lightMinutes ?? 0) + (deepMinutes ?? 0) + (remMinutes ?? 0);
+    final hasStages = stageTotal > 0;
+    final lightPct = hasStages ? (lightMinutes! / stageTotal) : 0.0;
+    final deepPct = hasStages ? (deepMinutes! / stageTotal) : 0.0;
+    final remPct = hasStages ? (remMinutes! / stageTotal) : 0.0;
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _nativeMetricsDateHeader(theme),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: SleepMetricTile(
+                  title: "Total sleep",
+                  value: (isLoading || !hasData || sleepHours == null)
+                      ? "—"
+                      : _formatHours(sleepHours),
+                  subtitle: "Saved daily metrics",
+                  accentColor: const Color(0xFF9B8CFF),
+                  icon: Icons.nights_stay,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: SleepMetricTile(
+                  title: "Time in bed",
+                  value: (isLoading || !hasData || inBedHours == null)
+                      ? "—"
+                      : _formatHours(inBedHours),
+                  subtitle: "In-bed duration",
+                  accentColor: const Color(0xFF35B6FF),
+                  icon: Icons.king_bed,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SleepMetricTile(
+            title: "Sleep efficiency",
+            value: (isLoading || !hasData || efficiency == null)
+                ? "—"
+                : "${(efficiency * 100).toStringAsFixed(0)}%",
+            subtitle: "Sleep time / time in bed",
+            accentColor: const Color(0xFF00BFA6),
+            icon: Icons.speed,
+            child: SleepProgressBar(
+              value: (isLoading || !hasData || efficiency == null)
+                  ? 0
+                  : efficiency,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: SleepMetricTile(
+                  title: "Awake time",
+                  value: (isLoading || !hasData || awakeHours == null)
+                      ? "—"
+                      : _formatHours(awakeHours),
+                  subtitle: "Awake during sleep window",
+                  accentColor: const Color(0xFFFF8A00),
+                  icon: Icons.wb_sunny_outlined,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: SleepMetricTile(
+                  title: "Stage data",
+                  value: (isLoading || !hasData)
+                      ? "—"
+                      : (hasStages ? "Available" : "Unavailable"),
+                  subtitle: "Deep + Light + REM",
+                  accentColor: const Color(0xFF6A5AE0),
+                  icon: Icons.insights_outlined,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SleepMetricTile(
+            title: "Sleep stages",
+            value: "",
+            subtitle: "Apple Watch stage distribution",
+            accentColor: const Color(0xFF2D7CFF),
+            icon: Icons.pie_chart,
+            child: Row(
+              children: [
+                SleepStageRing(
+                  lightPct: (isLoading || !hasStages) ? 0 : lightPct,
+                  deepPct: (isLoading || !hasStages) ? 0 : deepPct,
+                  remPct: (isLoading || !hasStages) ? 0 : remPct,
+                  size: 120,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _stageLegend(
+                        color: const Color(0xFF7BD4FF),
+                        label: "Light",
+                        value: (isLoading || !hasStages)
+                            ? "—"
+                            : "${(lightPct * 100).toStringAsFixed(0)}% (${_formatHours(lightHours ?? 0)})",
+                      ),
+                      const SizedBox(height: 6),
+                      _stageLegend(
+                        color: const Color(0xFF9B8CFF),
+                        label: "Deep",
+                        value: (isLoading || !hasStages)
+                            ? "—"
+                            : "${(deepPct * 100).toStringAsFixed(0)}% (${_formatHours(deepHours ?? 0)})",
+                      ),
+                      const SizedBox(height: 6),
+                      _stageLegend(
+                        color: const Color(0xFF00BFA6),
+                        label: "REM",
+                        value: (isLoading || !hasStages)
+                            ? "—"
+                            : "${(remPct * 100).toStringAsFixed(0)}% (${_formatHours(remHours ?? 0)})",
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _metricsDateHeader() {
     final dateLabel = "${_monthName(_metricsDate.month)} ${_metricsDate.day}";
     final today = DateTime.now();
@@ -861,6 +1131,81 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     );
   }
 
+  Widget _nativeMetricsDateHeader(ThemeData theme) {
+    final dateLabel = "${_monthName(_metricsDate.month)} ${_metricsDate.day}";
+    final today = DateTime.now();
+    final todayOnly = DateTime(today.year, today.month, today.day);
+    final selected = DateTime(
+      _metricsDate.year,
+      _metricsDate.month,
+      _metricsDate.day,
+    );
+    final canGoNext = selected.isBefore(todayOnly);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DateSwitcher(
+          label: dateLabel,
+          onPrev: () => _changeMetricsDate(-1),
+          onNext: () => _changeMetricsDate(1),
+          canGoNext: canGoNext,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          "Saved daily metrics",
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: Colors.white60,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _nativeNoDataCard(ThemeData theme) {
+    final dateLabel = "${_monthName(_metricsDate.month)} ${_metricsDate.day}";
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardDark,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 36,
+            width: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFF2D7CFF).withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _nativeMetricsLoading
+                  ? Icons.hourglass_bottom
+                  : Icons.info_outline,
+              color: const Color(0xFF2D7CFF),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _nativeMetricsLoading
+                  ? "Loading sleep metrics..."
+                  : "No saved sleep metrics for $dateLabel",
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.white60,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _changeMetricsDate(int delta) {
     final next = DateTime(
       _metricsDate.year,
@@ -871,7 +1216,11 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     final todayOnly = DateTime(today.year, today.month, today.day);
     if (next.isAfter(todayOnly)) return;
     setState(() => _metricsDate = next);
-    _loadWhoopMetrics();
+    if (widget.useWhoop) {
+      _loadWhoopMetrics();
+    } else {
+      _loadNativeMetrics();
+    }
   }
 
   String _monthName(int m) {

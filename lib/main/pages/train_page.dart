@@ -22,6 +22,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/training/training_progress_storage.dart';
 import '../../services/training/training_activity_service.dart';
 import '../../services/health/workout_health_sync_service.dart';
+import '../../services/training/training_reset_coordinator.dart';
 
 class TrainPage extends StatefulWidget {
   const TrainPage({super.key});
@@ -55,6 +56,9 @@ class _TrainPageState extends State<TrainPage> {
   String? _activeSessionExerciseName;
   int _inProgressLoadSeq = 0;
   Set<String> _finishedDayKeysForWeek = <String>{};
+  Set<String> _sessionCompletedExerciseNames = <String>{};
+  String? _activeWeekToken;
+  bool _weekRefreshInProgress = false;
 
   int? _userId;
   int? _pendingCompletionDayIndex;
@@ -97,6 +101,7 @@ class _TrainPageState extends State<TrainPage> {
   }
 
   Future<void> _init() async {
+    await TrainingResetCoordinator.ensureInitialized();
     _userId = await AccountStorage.getUserId();
     await _loadProgram();
     await _loadWorkoutTimer();
@@ -286,7 +291,8 @@ class _TrainPageState extends State<TrainPage> {
         : false;
     await TrainingProgressStorage.clearWorkoutStart();
     if (hasCompletedExerciseInSession) {
-      await TrainingProgressStorage.recordTrainingDayCompleted(now);
+      final resetNow = TrainingResetCoordinator.currentNowUtc();
+      await TrainingProgressStorage.recordTrainingDayCompleted(resetNow);
       if (shouldShowDayCompletePopup) {
         await _markDayFinishedForCurrentWeek(finishedDayIndex);
       } else {
@@ -458,10 +464,20 @@ class _TrainPageState extends State<TrainPage> {
 
   Future<void> _loadProgram() async {
     bool showedCache = false;
+    var localCompleted = _sessionCompletedExerciseNames;
     try {
+      await TrainingResetCoordinator.ensureInitialized();
       final userId = _userId ?? await AccountStorage.getUserId();
       if (userId == null) throw Exception("User not found");
       _userId = userId;
+      final localCompletedNames =
+          await TrainingProgressStorage.getSessionCompletedExerciseNamesSince(
+            0,
+          );
+      localCompleted = localCompletedNames
+          .map(_normalizeExerciseName)
+          .where((e) => e.isNotEmpty)
+          .toSet();
       await _loadFinishedDaysForCurrentWeek();
 
       // Show cached program immediately if available (no blank UI), except
@@ -482,6 +498,7 @@ class _TrainPageState extends State<TrainPage> {
               program = cached;
               loading = false;
               isOffline = false;
+              _sessionCompletedExerciseNames = localCompleted;
               _dayOrder = orderResult.order;
               _dayCompletedByIndex = orderResult.completedByIndex;
               selectedDay = _firstDayInOrder(orderResult, cachedDayCount);
@@ -529,6 +546,7 @@ class _TrainPageState extends State<TrainPage> {
         loading = false;
         isOffline = false;
         completedExerciseNames = completed;
+        _sessionCompletedExerciseNames = localCompleted;
         _dayOrder = orderResult.order;
         _dayCompletedByIndex = orderResult.completedByIndex;
         selectedDay = _firstDayInOrder(orderResult, serverDayCount);
@@ -545,6 +563,7 @@ class _TrainPageState extends State<TrainPage> {
         setState(() {
           loading = false;
           isOffline = true;
+          _sessionCompletedExerciseNames = localCompleted;
         });
         if (showedCache) {
           final t = AppLocalizations.of(context);
@@ -560,6 +579,7 @@ class _TrainPageState extends State<TrainPage> {
           loading = false;
           program = null;
           isOffline = false;
+          _sessionCompletedExerciseNames = localCompleted;
           _dayOrder = const [];
           _dayCompletedByIndex = const [];
           _inProgressExerciseIds.clear();
@@ -680,32 +700,41 @@ class _TrainPageState extends State<TrainPage> {
     if (days.isEmpty) {
       return const _DayOrderResult(order: [], completedByIndex: []);
     }
-    final now = DateTime.now();
+    final now = TrainingResetCoordinator.currentNowUtc();
     final weekStart = _weekStartMonday(now);
+    _activeWeekToken = _dateToken(weekStart);
     final weekEnd = _weekEndSunday(now);
     final completedByIndex = List<bool>.filled(days.length, false);
+    final greenByIndex = List<bool>.filled(days.length, false);
     for (var i = 0; i < days.length; i++) {
       final day = days[i];
       if (day is Map<String, dynamic>) {
-        completedByIndex[i] =
+        final isCompleted =
             _isDayFinishedForCurrentWeek(day, i, weekStart) ||
             _isDayFullyCompletedForWeek(
               day,
               weekStart: weekStart,
               weekEnd: weekEnd,
             );
+        completedByIndex[i] = isCompleted;
+        greenByIndex[i] =
+            isCompleted || _isDayWorkedForWeek(day, weekStart, weekEnd);
       } else if (day is Map) {
         final dayMap = Map<String, dynamic>.from(day);
-        completedByIndex[i] =
+        final isCompleted =
             _isDayFinishedForCurrentWeek(dayMap, i, weekStart) ||
             _isDayFullyCompletedForWeek(
               dayMap,
               weekStart: weekStart,
               weekEnd: weekEnd,
             );
+        completedByIndex[i] = isCompleted;
+        greenByIndex[i] =
+            isCompleted || _isDayWorkedForWeek(dayMap, weekStart, weekEnd);
       }
     }
-    final order = _orderByCompletionFlags(completedByIndex);
+    // Keep current week "green" days (worked or complete) at the end.
+    final order = _orderByCompletionFlags(greenByIndex);
     return _DayOrderResult(order: order, completedByIndex: completedByIndex);
   }
 
@@ -928,21 +957,15 @@ class _TrainPageState extends State<TrainPage> {
   }
 
   DateTime _weekStartMonday(DateTime d) {
-    final day = DateTime(d.year, d.month, d.day);
-    final daysSinceMonday = (day.weekday + 6) % 7;
-    return day.subtract(Duration(days: daysSinceMonday));
+    return TrainingResetCoordinator.weekStartMonday(d);
   }
 
   DateTime _weekEndSunday(DateTime d) {
-    final start = _weekStartMonday(d);
-    return start.add(const Duration(days: 6));
+    return TrainingResetCoordinator.weekEndSunday(d);
   }
 
   String _dateToken(DateTime d) {
-    final y = d.year.toString().padLeft(4, '0');
-    final m = d.month.toString().padLeft(2, '0');
-    final day = d.day.toString().padLeft(2, '0');
-    return "$y-$m-$day";
+    return TrainingResetCoordinator.dateToken(d);
   }
 
   DateTime? _parseDateTime(dynamic value) {
@@ -975,7 +998,11 @@ class _TrainPageState extends State<TrainPage> {
   }
 
   bool _isInWeek(DateTime date, DateTime weekStart, DateTime weekEnd) {
-    return !date.isBefore(weekStart) && !date.isAfter(weekEnd);
+    return TrainingResetCoordinator.isInWeek(
+      date,
+      weekStart: weekStart,
+      weekEnd: weekEnd,
+    );
   }
 
   bool _complianceCompletedForWeek(
@@ -988,7 +1015,6 @@ class _TrainPageState extends State<TrainPage> {
       final loggedAt = _parseDateTime(
         compliance['logged_at'] ??
             compliance['completed_at'] ??
-            compliance['updated_at'] ??
             compliance['performed_at'],
       );
       if (loggedAt == null) return false;
@@ -1026,7 +1052,6 @@ class _TrainPageState extends State<TrainPage> {
     final candidates = [
       ex['logged_at'],
       ex['completed_at'],
-      ex['updated_at'],
       ex['performed_at'],
       ex['last_performed_at'],
     ];
@@ -1074,12 +1099,7 @@ class _TrainPageState extends State<TrainPage> {
     DateTime weekStart,
     DateTime weekEnd,
   ) {
-    final flags = [
-      day['is_completed'],
-      day['completed'],
-      day['program_compliance_completed'],
-    ];
-    if (flags.any(_flagTrue)) return true;
+    if (_isDayFlaggedCompletedForWeek(day, weekStart, weekEnd)) return true;
     if (_complianceCompletedForWeek(
           day['program_compliance'],
           weekStart,
@@ -1112,12 +1132,7 @@ class _TrainPageState extends State<TrainPage> {
     DateTime weekStart,
     DateTime weekEnd,
   ) {
-    final flags = [
-      day['is_completed'],
-      day['completed'],
-      day['program_compliance_completed'],
-    ];
-    if (flags.any(_flagTrue)) return true;
+    if (_isDayFlaggedCompletedForWeek(day, weekStart, weekEnd)) return true;
     if (_complianceCompletedForWeek(
           day['program_compliance'],
           weekStart,
@@ -1203,32 +1218,10 @@ class _TrainPageState extends State<TrainPage> {
     }
   }
 
-  bool _isExerciseCompletedSimple(Map<String, dynamic> ex) {
-    if (_flagTrue(ex['is_completed']) ||
-        _flagTrue(ex['completed']) ||
-        _flagTrue(ex['program_compliance_completed']) ||
-        _flagTrue(ex['performed_sets']) ||
-        _flagTrue(ex['performed_reps']) ||
-        _flagTrue(ex['performed_time_seconds']) ||
-        _flagTrue(ex['weight_used'])) {
-      return true;
-    }
-    final pc = ex['program_compliance'];
-    if (pc is Map) {
-      return _flagTrue(pc['completed']) ||
-          _flagTrue(pc['is_completed']) ||
-          _flagTrue(pc['performed_sets']) ||
-          _flagTrue(pc['performed_reps']) ||
-          _flagTrue(pc['performed_time_seconds']) ||
-          _flagTrue(pc['weight_used']);
-    }
-    return false;
-  }
-
   bool _isDayFullyCompletedForCurrentWeek(int dayIndex) {
     final day = _dayAtIndex(dayIndex);
     if (day == null) return false;
-    final now = DateTime.now();
+    final now = TrainingResetCoordinator.currentNowUtc();
     return _isDayFullyCompletedForWeek(
       day,
       weekStart: _weekStartMonday(now),
@@ -1254,12 +1247,40 @@ class _TrainPageState extends State<TrainPage> {
       if (ex == null) continue;
       if (_isCardioExercise(ex)) continue;
       hasTrainExercise = true;
-      final completed =
-          _isExerciseCompletedForWeek(ex, weekStart, weekEnd) ||
-          _isExerciseCompletedSimple(ex);
+      final completed = _isExerciseCompletedForWeek(ex, weekStart, weekEnd);
       if (!completed) return false;
     }
     return hasTrainExercise;
+  }
+
+  DateTime? _dayCompletionDate(Map<String, dynamic> day) {
+    final candidates = [
+      day['logged_at'],
+      day['completed_at'],
+      day['performed_at'],
+      day['last_performed_at'],
+    ];
+    for (final c in candidates) {
+      final dt = _parseDateTime(c);
+      if (dt != null) return dt;
+    }
+    return null;
+  }
+
+  bool _isDayFlaggedCompletedForWeek(
+    Map<String, dynamic> day,
+    DateTime weekStart,
+    DateTime weekEnd,
+  ) {
+    final flags = [
+      day['is_completed'],
+      day['completed'],
+      day['program_compliance_completed'],
+    ];
+    if (!flags.any(_flagTrue)) return false;
+    final completionDate = _dayCompletionDate(day);
+    if (completionDate == null) return false;
+    return _isInWeek(completionDate, weekStart, weekEnd);
   }
 
   bool _isDayFinishedForCurrentWeek(
@@ -1278,7 +1299,7 @@ class _TrainPageState extends State<TrainPage> {
       return;
     }
     final sp = await SharedPreferences.getInstance();
-    final weekToken = _dateToken(_weekStartMonday(DateTime.now()));
+    final weekToken = await TrainingResetCoordinator.currentWeekStartToken();
     final prefix = _finishedDayStoragePrefix(userId, weekToken);
     final markerPrefix = "train_day_finished_u${userId}_";
     final loaded = <String>{};
@@ -1295,7 +1316,9 @@ class _TrainPageState extends State<TrainPage> {
     if (day == null) return;
     final userId = _userId ?? await AccountStorage.getUserId();
     if (userId == null) return;
-    final weekStart = _weekStartMonday(DateTime.now());
+    final weekStart = _weekStartMonday(
+      TrainingResetCoordinator.currentNowUtc(),
+    );
     final dayKey = _dayCompletionKey(day, dayIndex, weekStart);
     final sp = await SharedPreferences.getInstance();
     await sp.setBool(_finishedDayStorageKey(userId, dayKey), true);
@@ -1304,7 +1327,7 @@ class _TrainPageState extends State<TrainPage> {
 
   Future<void> _reconcileFinishedDaysWithProgram(List days) async {
     if (days.isEmpty || _finishedDayKeysForWeek.isEmpty) return;
-    final now = DateTime.now();
+    final now = TrainingResetCoordinator.currentNowUtc();
     final weekStart = _weekStartMonday(now);
     final weekEnd = _weekEndSunday(now);
     final staleDayKeys = <String>{};
@@ -1346,7 +1369,9 @@ class _TrainPageState extends State<TrainPage> {
     if (day == null) return;
     final userId = _userId ?? await AccountStorage.getUserId();
     if (userId == null) return;
-    final weekStart = _weekStartMonday(DateTime.now());
+    final weekStart = _weekStartMonday(
+      TrainingResetCoordinator.currentNowUtc(),
+    );
     final dayKey = _dayCompletionKey(day, dayIndex, weekStart);
     final sp = await SharedPreferences.getInstance();
     await sp.remove(_finishedDayStorageKey(userId, dayKey));
@@ -1366,7 +1391,7 @@ class _TrainPageState extends State<TrainPage> {
     final day = days[index];
     if (day is! Map<String, dynamic>) return;
 
-    final now = DateTime.now();
+    final now = TrainingResetCoordinator.currentNowUtc();
     final weekStart = _weekStartMonday(now);
     final dayKey = _dayCompletionKey(day, index, weekStart);
     if (!_finishedDayKeysForWeek.contains(dayKey)) return;
@@ -1387,6 +1412,39 @@ class _TrainPageState extends State<TrainPage> {
       backgroundColor: Colors.transparent,
       builder: (_) => TrainingDayCompleteSheet(dayLabel: label),
     );
+  }
+
+  void _scheduleWeekRefreshIfNeeded() {
+    if (_weekRefreshInProgress || program == null) return;
+    final currentWeekToken = _dateToken(
+      _weekStartMonday(TrainingResetCoordinator.currentNowUtc()),
+    );
+    if (_activeWeekToken == currentWeekToken) return;
+    _activeWeekToken = currentWeekToken;
+    unawaited(_refreshWeekScopedUiState());
+  }
+
+  Future<void> _refreshWeekScopedUiState() async {
+    if (_weekRefreshInProgress) return;
+    _weekRefreshInProgress = true;
+    try {
+      await _loadFinishedDaysForCurrentWeek();
+      final data = program;
+      if (data == null) return;
+      final days = data['days'];
+      if (days is! List) return;
+      await _reconcileFinishedDaysWithProgram(days);
+      final orderResult = _buildDayOrder(days);
+      if (!mounted) return;
+      setState(() {
+        _dayOrder = orderResult.order;
+        _dayCompletedByIndex = orderResult.completedByIndex;
+        selectedDay = _firstDayInOrder(orderResult, days.length);
+        _rebuildExerciseLists();
+      });
+    } finally {
+      _weekRefreshInProgress = false;
+    }
   }
 
   Widget _tabButton({
@@ -1439,6 +1497,8 @@ class _TrainPageState extends State<TrainPage> {
       return Center(child: Text(t.translate("no_active_training_program")));
     }
 
+    _scheduleWeekRefreshIfNeeded();
+
     final List days = program!['days'] ?? [];
     final dayOrder = _effectiveDayOrder(days);
     final completedInOrder = dayOrder
@@ -1448,7 +1508,7 @@ class _TrainPageState extends State<TrainPage> {
               : false,
         )
         .toList();
-    final nowForWorked = DateTime.now();
+    final nowForWorked = TrainingResetCoordinator.currentNowUtc();
     final weekStartForWorked = _weekStartMonday(nowForWorked);
     final weekEndForWorked = _weekEndSunday(nowForWorked);
     final workedInOrder = dayOrder.map((i) {
@@ -1938,6 +1998,11 @@ class _TrainPageState extends State<TrainPage> {
                                 _activeSessionExerciseName != null &&
                                 normalizedName.isNotEmpty &&
                                 normalizedName == _activeSessionExerciseName;
+                            final locallyCompleted =
+                                normalizedName.isNotEmpty &&
+                                _sessionCompletedExerciseNames.contains(
+                                  normalizedName,
+                                );
                             final exKey = ValueKey("train_ex_$rawId");
                             return Padding(
                               key: exKey,
@@ -1947,6 +2012,7 @@ class _TrainPageState extends State<TrainPage> {
                                 onTap: () => _startExerciseFlow(ex),
                                 onReplace: () => _openReplaceSheet(ex),
                                 disabled: disableTrainingToday,
+                                forceCompleted: locallyCompleted,
                                 inProgress: inProgressById || inProgressByName,
                               ),
                             );

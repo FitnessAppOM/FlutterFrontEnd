@@ -7,6 +7,7 @@ import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
 import 'training_program_storage.dart';
 import 'training_progress_storage.dart';
+import 'training_reset_coordinator.dart';
 import '../core/feedback_questions_storage.dart';
 
 class TrainingApiException implements Exception {
@@ -38,6 +39,12 @@ class TrainingService {
   static final Map<String, ImageProvider> _gifProviders = {};
   static final Set<String> _gifEverLoaded = <String>{};
   static final Map<String, ImageInfo> _gifFrames = {};
+
+  static void _recordServerClock(http.BaseResponse response) {
+    unawaited(
+      TrainingResetCoordinator.captureServerTimeFromHeaders(response.headers),
+    );
+  }
 
   /// Use full [animationUrl] (signed GCS). Ignore [animationRelPath] to avoid
   /// local /static fallbacks; return empty string if unavailable.
@@ -244,6 +251,7 @@ class TrainingService {
     required Map<String, String> headers,
   }) async {
     final response = await http.get(url, headers: headers);
+    _recordServerClock(response);
     await AccountStorage.handle401(response.statusCode);
     if (response.statusCode == 404) return null;
     if (response.statusCode != 200) {
@@ -299,6 +307,7 @@ class TrainingService {
     final url = Uri.parse('$baseUrl/training/generate/$userId');
     final headers = await AccountStorage.getAuthHeaders();
     final response = await http.post(url, headers: headers);
+    _recordServerClock(response);
 
     await AccountStorage.handle401(response.statusCode);
     if (response.statusCode == 200 || response.statusCode == 202) {
@@ -317,6 +326,7 @@ class TrainingService {
     final url = Uri.parse('$baseUrl/training/generation/status/$userId');
     final headers = await AccountStorage.getAuthHeaders();
     final response = await http.get(url, headers: headers);
+    _recordServerClock(response);
     await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
       throw Exception('Failed to load training generation status');
@@ -348,6 +358,7 @@ class TrainingService {
     final url = Uri.parse('$baseUrl/training/current/$userId');
     final headers = await AccountStorage.getAuthHeaders();
     final response = await http.get(url, headers: headers);
+    _recordServerClock(response);
     await AccountStorage.handle401(response.statusCode);
 
     if (response.statusCode == 202) {
@@ -425,6 +436,7 @@ class TrainingService {
         if (entryDate != null) 'entry_date': _dateParam(entryDate),
       }),
     );
+    _recordServerClock(res);
     await AccountStorage.handle401(res.statusCode);
     if (res.statusCode != 200) {
       throw Exception("Failed to start exercise");
@@ -445,6 +457,7 @@ class TrainingService {
         'weight_used': weight,
       }),
     );
+    _recordServerClock(res);
     await AccountStorage.handle401(res.statusCode);
   }
 
@@ -473,6 +486,7 @@ class TrainingService {
         if (entryDate != null) 'entry_date': _dateParam(entryDate),
       }),
     );
+    _recordServerClock(res);
     await AccountStorage.handle401(res.statusCode);
   }
 
@@ -482,6 +496,7 @@ class TrainingService {
     final url = Uri.parse('$baseUrl/training/exercise/$programExerciseId/sets');
     final headers = await AccountStorage.getAuthHeaders();
     final res = await http.get(url, headers: headers);
+    _recordServerClock(res);
     await AccountStorage.handle401(res.statusCode);
     if (res.statusCode != 200) {
       throw Exception("Failed to load exercise sets");
@@ -522,6 +537,7 @@ class TrainingService {
         'clone_last': cloneLast,
       }),
     );
+    _recordServerClock(res);
     await AccountStorage.handle401(res.statusCode);
     if (res.statusCode != 200) {
       throw Exception("Failed to add set");
@@ -558,6 +574,7 @@ class TrainingService {
       if (restAfterSeconds != null) 'rest_after_seconds': restAfterSeconds,
     };
     final res = await http.post(url, headers: headers, body: json.encode(body));
+    _recordServerClock(res);
     await AccountStorage.handle401(res.statusCode);
     if (res.statusCode != 200) {
       throw Exception("Failed to save set");
@@ -584,6 +601,7 @@ class TrainingService {
         'set_index': setIndex,
       }),
     );
+    _recordServerClock(res);
     await AccountStorage.handle401(res.statusCode);
     if (res.statusCode != 200) {
       throw Exception("Failed to delete set");
@@ -597,6 +615,7 @@ class TrainingService {
     final url = Uri.parse('$baseUrl/training/session/current');
     final headers = await AccountStorage.getAuthHeaders();
     final res = await http.get(url, headers: headers);
+    _recordServerClock(res);
     await AccountStorage.handle401(res.statusCode);
     if (res.statusCode != 200) {
       throw Exception("Failed to load current session");
@@ -651,6 +670,7 @@ class TrainingService {
       headers: headers,
       body: json.encode({'entry_date': _dateParam(entryDate)}),
     );
+    _recordServerClock(res);
     await AccountStorage.handle401(res.statusCode);
     if (res.statusCode != 200) {
       throw Exception("Failed to finish session");
@@ -684,6 +704,7 @@ class TrainingService {
     if (routePoints != null) body['route_points'] = routePoints;
     if (entryDate != null) body['entry_date'] = _dateParam(entryDate);
     final res = await http.post(url, headers: headers, body: json.encode(body));
+    _recordServerClock(res);
     await AccountStorage.handle401(res.statusCode);
     if (res.statusCode != 200) {
       throw Exception("Failed to save cardio session");
@@ -699,6 +720,7 @@ class TrainingService {
     );
     final headers = await AccountStorage.getAuthHeaders();
     final res = await http.get(url, headers: headers);
+    _recordServerClock(res);
     await AccountStorage.handle401(res.statusCode);
     if (res.statusCode != 200) {
       throw Exception("Failed to load cardio history");
@@ -719,6 +741,7 @@ class TrainingService {
     );
     final headers = await AccountStorage.getAuthHeaders();
     final res = await http.get(url, headers: headers);
+    _recordServerClock(res);
     await AccountStorage.handle401(res.statusCode);
     if (res.statusCode != 200) {
       throw Exception("Failed to load cardio history detail");
@@ -733,6 +756,7 @@ class TrainingService {
   static Future<List<Map<String, dynamic>>> fetchCardioExercises() async {
     final url = Uri.parse('$baseUrl/training/cardio/exercises');
     final res = await http.get(url);
+    _recordServerClock(res);
     if (res.statusCode != 200) {
       throw Exception("Failed to load cardio exercises");
     }
@@ -752,6 +776,7 @@ class TrainingService {
     );
     final headers = await AccountStorage.getAuthHeaders();
     final res = await http.get(url, headers: headers);
+    _recordServerClock(res);
     await AccountStorage.handle401(res.statusCode);
     if (res.statusCode != 200) {
       throw Exception("Failed to load training history");
@@ -770,6 +795,7 @@ class TrainingService {
         '$baseUrl/training/exercise/$safeName/feedback-questions',
       );
       final response = await http.get(url);
+      _recordServerClock(response);
 
       if (response.statusCode != 200) {
         throw Exception("Failed to load feedback questions");
@@ -820,12 +846,14 @@ class TrainingService {
         'answer': answer,
       }),
     );
+    _recordServerClock(res);
     await AccountStorage.handle401(res.statusCode);
   }
 
   static Future<List<dynamic>> fetchAllExercises() async {
     final url = Uri.parse('$baseUrl/training/exercises');
     final response = await http.get(url);
+    _recordServerClock(response);
     if (response.statusCode != 200) {
       throw Exception("Failed to load exercises");
     }
@@ -836,6 +864,7 @@ class TrainingService {
     final url = Uri.parse('$baseUrl/training/exercises/completed/$userId');
     final headers = await AccountStorage.getAuthHeaders();
     final response = await http.get(url, headers: headers);
+    _recordServerClock(response);
     await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
       throw Exception("Failed to load completed exercise names");
@@ -850,6 +879,7 @@ class TrainingService {
   static Future<List<String>> fetchExerciseMuscles() async {
     final url = Uri.parse('$baseUrl/training/exercises/muscles');
     final response = await http.get(url);
+    _recordServerClock(response);
     if (response.statusCode != 200) {
       throw Exception("Failed to load muscles");
     }
@@ -864,6 +894,7 @@ class TrainingService {
       '$baseUrl/training/exercise/$programExerciseId/replace-suggestions',
     );
     final response = await http.get(url);
+    _recordServerClock(response);
     if (response.statusCode != 200) {
       throw Exception("Failed to load suggestions");
     }
@@ -892,6 +923,7 @@ class TrainingService {
         'reason': reason,
       }),
     );
+    _recordServerClock(response);
 
     await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {

@@ -8,6 +8,12 @@ import '../../core/account_storage.dart';
 class DailyMetricsEntry {
   final DateTime entryDate;
   final double? sleepHours;
+  final int? sleepMinutesAsleep;
+  final int? sleepMinutesInBed;
+  final int? sleepMinutesAwake;
+  final int? sleepMinutesLight;
+  final int? sleepMinutesDeep;
+  final int? sleepMinutesRem;
   final int? calories;
   final double? waterLiters;
   final int? steps;
@@ -15,6 +21,12 @@ class DailyMetricsEntry {
   DailyMetricsEntry({
     required this.entryDate,
     this.sleepHours,
+    this.sleepMinutesAsleep,
+    this.sleepMinutesInBed,
+    this.sleepMinutesAwake,
+    this.sleepMinutesLight,
+    this.sleepMinutesDeep,
+    this.sleepMinutesRem,
     this.calories,
     this.waterLiters,
     this.steps,
@@ -23,14 +35,21 @@ class DailyMetricsEntry {
   factory DailyMetricsEntry.fromJson(Map<String, dynamic> json) {
     DateTime parseDate(dynamic v) =>
         v is DateTime ? v : DateTime.parse(v.toString());
-    double? parseDouble(dynamic v) =>
-        v == null ? null : (v is num ? v.toDouble() : double.tryParse(v.toString()));
+    double? parseDouble(dynamic v) => v == null
+        ? null
+        : (v is num ? v.toDouble() : double.tryParse(v.toString()));
     int? parseInt(dynamic v) =>
         v == null ? null : (v is num ? v.toInt() : int.tryParse(v.toString()));
 
     return DailyMetricsEntry(
       entryDate: parseDate(json['entry_date']),
       sleepHours: parseDouble(json['sleep_hours']),
+      sleepMinutesAsleep: parseInt(json['sleep_minutes_asleep']),
+      sleepMinutesInBed: parseInt(json['sleep_minutes_in_bed']),
+      sleepMinutesAwake: parseInt(json['sleep_minutes_awake']),
+      sleepMinutesLight: parseInt(json['sleep_minutes_light']),
+      sleepMinutesDeep: parseInt(json['sleep_minutes_deep']),
+      sleepMinutesRem: parseInt(json['sleep_minutes_rem']),
       calories: parseInt(json['calories']),
       waterLiters: parseDouble(json['water_liters']),
       steps: parseInt(json['steps']),
@@ -42,7 +61,8 @@ class DailyMetricsApi {
   static final Map<String, DailyMetricsEntry?> _cache = {};
   static final Map<String, Future<DailyMetricsEntry?>> _inFlight = {};
   static final Map<String, Map<DateTime, DailyMetricsEntry>> _rangeCache = {};
-  static final Map<String, Future<Map<DateTime, DailyMetricsEntry>>> _rangeInFlight = {};
+  static final Map<String, Future<Map<DateTime, DailyMetricsEntry>>>
+  _rangeInFlight = {};
 
   static void clearCache() {
     _cache.clear();
@@ -53,6 +73,12 @@ class DailyMetricsApi {
     required int userId,
     required DateTime entryDate,
     double? sleepHours,
+    int? sleepMinutesAsleep,
+    int? sleepMinutesInBed,
+    int? sleepMinutesAwake,
+    int? sleepMinutesLight,
+    int? sleepMinutesDeep,
+    int? sleepMinutesRem,
     int? calories,
     double? waterLiters,
     int? steps,
@@ -62,17 +88,23 @@ class DailyMetricsApi {
       "user_id": userId,
       "entry_date": entryDate.toIso8601String().split("T").first,
       if (sleepHours != null) "sleep_hours": sleepHours,
+      if (sleepMinutesAsleep != null)
+        "sleep_minutes_asleep": sleepMinutesAsleep,
+      if (sleepMinutesInBed != null) "sleep_minutes_in_bed": sleepMinutesInBed,
+      if (sleepMinutesAwake != null) "sleep_minutes_awake": sleepMinutesAwake,
+      if (sleepMinutesLight != null) "sleep_minutes_light": sleepMinutesLight,
+      if (sleepMinutesDeep != null) "sleep_minutes_deep": sleepMinutesDeep,
+      if (sleepMinutesRem != null) "sleep_minutes_rem": sleepMinutesRem,
       if (calories != null) "calories": calories,
       if (waterLiters != null) "water_liters": waterLiters,
       if (steps != null) "steps": steps,
     };
 
-    final headers = {"Content-Type": "application/json", ...await AccountStorage.getAuthHeaders()};
-    final res = await http.post(
-      url,
-      headers: headers,
-      body: jsonEncode(body),
-    );
+    final headers = {
+      "Content-Type": "application/json",
+      ...await AccountStorage.getAuthHeaders(),
+    };
+    final res = await http.post(url, headers: headers, body: jsonEncode(body));
 
     await AccountStorage.handle401(res.statusCode);
     if (res.statusCode == 200 || res.statusCode == 409) {
@@ -94,15 +126,21 @@ class DailyMetricsApi {
     DateTime? entryDate,
   }) async {
     // Backend accepts int or float; coerce negative/NaN to 0
-    final n = caloriesBurned is num ? caloriesBurned.toDouble() : 0.0;
+    final n = caloriesBurned.toDouble();
     final normalized = (n.isNaN || n.isNegative) ? 0.0 : n;
     final body = <String, dynamic>{
       "user_id": userId,
-      "calories_burned": normalized == normalized.roundToDouble() ? normalized.toInt() : normalized,
-      if (entryDate != null) "entry_date": entryDate.toIso8601String().split("T").first,
+      "calories_burned": normalized == normalized.roundToDouble()
+          ? normalized.toInt()
+          : normalized,
+      if (entryDate != null)
+        "entry_date": entryDate.toIso8601String().split("T").first,
     };
     final url = Uri.parse("${ApiConfig.baseUrl}/daily-metrics/submit-burn");
-    final headers = {"Content-Type": "application/json", ...await AccountStorage.getAuthHeaders()};
+    final headers = {
+      "Content-Type": "application/json",
+      ...await AccountStorage.getAuthHeaders(),
+    };
     final res = await http.post(url, headers: headers, body: jsonEncode(body));
     await AccountStorage.handle401(res.statusCode);
     if (res.statusCode != 200) {
@@ -110,7 +148,10 @@ class DailyMetricsApi {
     }
   }
 
-  static Future<DailyMetricsEntry?> fetchForDate(int userId, DateTime date) async {
+  static Future<DailyMetricsEntry?> fetchForDate(
+    int userId,
+    DateTime date,
+  ) async {
     final dateStr = date.toIso8601String().split("T").first;
     final todayStr = DateTime.now().toIso8601String().split("T").first;
     final cacheKey = "$userId-$dateStr";
@@ -123,7 +164,9 @@ class DailyMetricsApi {
       return _inFlight[cacheKey];
     }
 
-    final url = Uri.parse("${ApiConfig.baseUrl}/daily-metrics/$userId/date/$dateStr");
+    final url = Uri.parse(
+      "${ApiConfig.baseUrl}/daily-metrics/$userId/date/$dateStr",
+    );
     final future = http.get(url).then((res) {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
@@ -159,7 +202,9 @@ class DailyMetricsApi {
     if (_rangeInFlight.containsKey(cacheKey)) {
       return _rangeInFlight[cacheKey]!;
     }
-    final url = Uri.parse("${ApiConfig.baseUrl}/daily-metrics/$userId/range?start=$startStr&end=$endStr");
+    final url = Uri.parse(
+      "${ApiConfig.baseUrl}/daily-metrics/$userId/range?start=$startStr&end=$endStr",
+    );
 
     final future = http.get(url).then((res) {
       if (res.statusCode == 200) {
@@ -168,7 +213,11 @@ class DailyMetricsApi {
         for (final item in data) {
           if (item is Map<String, dynamic>) {
             final entry = DailyMetricsEntry.fromJson(item);
-            final key = DateTime(entry.entryDate.year, entry.entryDate.month, entry.entryDate.day);
+            final key = DateTime(
+              entry.entryDate.year,
+              entry.entryDate.month,
+              entry.entryDate.day,
+            );
             out[key] = entry;
           }
         }
