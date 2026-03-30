@@ -39,16 +39,14 @@ class TrainingResetCoordinator {
   }
 
   static String dateToken(DateTime dt) {
-    final utc = dt.toUtc();
-    final y = utc.year.toString().padLeft(4, '0');
-    final m = utc.month.toString().padLeft(2, '0');
-    final d = utc.day.toString().padLeft(2, '0');
+    final y = dt.year.toString().padLeft(4, '0');
+    final m = dt.month.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
     return '$y-$m-$d';
   }
 
   static DateTime weekStartMonday(DateTime dt) {
-    final utc = dt.toUtc();
-    final day = DateTime.utc(utc.year, utc.month, utc.day);
+    final day = DateTime(dt.year, dt.month, dt.day);
     final daysSinceMonday = (day.weekday + 6) % 7; // Monday=0 ... Sunday=6
     return day.subtract(Duration(days: daysSinceMonday));
   }
@@ -63,10 +61,10 @@ class TrainingResetCoordinator {
     required DateTime weekStart,
     required DateTime weekEnd,
   }) {
-    final valueUtc = date.toUtc();
-    final startUtc = weekStart.toUtc();
-    final endUtc = weekEnd.toUtc();
-    return !valueUtc.isBefore(startUtc) && !valueUtc.isAfter(endUtc);
+    final value = DateTime(date.year, date.month, date.day);
+    final start = DateTime(weekStart.year, weekStart.month, weekStart.day);
+    final end = DateTime(weekEnd.year, weekEnd.month, weekEnd.day);
+    return !value.isBefore(start) && !value.isAfter(end);
   }
 
   static Future<String> currentDayToken() async {

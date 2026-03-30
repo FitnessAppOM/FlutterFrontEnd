@@ -93,6 +93,7 @@ class ExerciseCard extends StatelessWidget {
         ex['logged_at'],
         ex['completed_at'],
         ex['performed_at'],
+        ex['entry_date'],
         ex['last_performed_at'],
       ];
       for (final c in candidates) {
@@ -150,7 +151,16 @@ class ExerciseCard extends StatelessWidget {
         }
       }
       if (compliance is Map) {
-        if (!_isInCurrentWeek(compliance['logged_at'])) return false;
+        final complianceDate =
+            _parseDate(
+              compliance['logged_at'] ??
+                  compliance['completed_at'] ??
+                  compliance['performed_at'] ??
+                  compliance['entry_date'],
+            );
+        if (complianceDate == null || !_isInCurrentWeek(complianceDate)) {
+          return false;
+        }
         // Check common fields returned from program_compliance payloads. Ignore logged_at alone;
         // we only consider explicit completion flags or logged performance metrics.
         final possibleFlags = [

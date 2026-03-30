@@ -76,6 +76,7 @@ import '../../widgets/confirm_dialog.dart';
 import '../../services/training/training_service.dart';
 import '../../services/training/training_progress_storage.dart';
 import '../../services/training/training_calendar_service.dart';
+import '../../services/training/training_reset_coordinator.dart';
 import '../../widgets/primary_button.dart';
 import '../../screens/whoop_test_page.dart';
 import '../../widgets/release_notes_notice.dart';
@@ -1635,9 +1636,125 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   DateTime _weekStartMonday(DateTime d) {
-    final day = DateTime(d.year, d.month, d.day);
-    final daysSinceMonday = (day.weekday + 6) % 7; // Monday=0 ... Sunday=6
-    return day.subtract(Duration(days: daysSinceMonday));
+    return TrainingResetCoordinator.weekStartMonday(d);
+  }
+
+  String _dateToken(DateTime d) {
+    return TrainingResetCoordinator.dateToken(d);
+  }
+
+  int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    final raw = value.toString().trim();
+    if (raw.isEmpty) return null;
+    final parsed = int.tryParse(raw);
+    if (parsed != null) return parsed;
+    final match = RegExp(r'\d+').firstMatch(raw);
+    if (match == null) return null;
+    return int.tryParse(match.group(0)!);
+  }
+
+  String _normalizeToken(dynamic value) {
+    final raw = (value ?? '').toString().trim().toLowerCase();
+    if (raw.isEmpty) return '';
+    return raw.replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  String _historyDayIdentityKey(Map<String, dynamic> item) {
+    final dayId = _parseInt(
+      item['training_day_id'] ?? item['day_id'] ?? item['id'],
+    );
+    if (dayId != null && dayId > 0) return 'id:$dayId';
+
+    final dayKey = _normalizeToken(item['day_key'] ?? item['dayKey']);
+    if (dayKey.isNotEmpty) return 'key:$dayKey';
+
+    final dayLabel = _normalizeToken(
+      item['label'] ?? item['day_label'] ?? item['day_name'],
+    );
+    if (dayLabel.isNotEmpty) return 'label:$dayLabel';
+
+    final dayIndex = _parseInt(
+      item['day_index'] ?? item['day_number'] ?? item['day_no'] ?? item['day'],
+    );
+    if (dayIndex != null && dayIndex > 0) return 'index:$dayIndex';
+
+    final dayDate = _parseDateTime(
+      item['latest_date'] ??
+          item['entry_date'] ??
+          item['logged_at'] ??
+          item['completed_at'] ??
+          item['performed_at'],
+    );
+    if (dayDate != null) return 'date:${_dateToken(dayDate)}';
+
+    return 'row:${item.hashCode}';
+  }
+
+  bool _historyRowInWeek(
+    Map<String, dynamic> item,
+    DateTime weekStart,
+    DateTime weekEnd,
+  ) {
+    final explicitWeekStart = _parseDateTime(item['week_start']);
+    if (explicitWeekStart != null) {
+      return _dateToken(_weekStartMonday(explicitWeekStart)) ==
+          _dateToken(weekStart);
+    }
+    final rowDate = _parseDateTime(
+      item['latest_date'] ??
+          item['entry_date'] ??
+          item['logged_at'] ??
+          item['completed_at'] ??
+          item['performed_at'],
+    );
+    if (rowDate == null) return false;
+    return _isInWeek(rowDate, weekStart, weekEnd);
+  }
+
+  bool _historyRowWorked(Map<String, dynamic> item) {
+    if (_flagTrue(item['is_completed_day'])) return true;
+    if (_flagTrue(item['worked']) || _flagTrue(item['has_progress'])) {
+      return true;
+    }
+    final completedCount = _parseInt(item['completed_count']) ?? 0;
+    if (completedCount > 0) return true;
+    final completedExercises = item['completed_exercises'];
+    if (completedExercises is List && completedExercises.isNotEmpty) {
+      return true;
+    }
+    final status = (item['status_text'] ?? item['status'] ?? '')
+        .toString()
+        .trim()
+        .toLowerCase();
+    if (status.isEmpty) return false;
+    return status.contains('progress') ||
+        status.contains('complete') ||
+        status.contains('done') ||
+        status.contains('finish');
+  }
+
+  Future<int?> _historyWorkedDaysForWeek(
+    int userId,
+    DateTime weekStart,
+    DateTime weekEnd,
+  ) async {
+    final resetNow = TrainingResetCoordinator.currentNowUtc();
+    final deltaDays = resetNow.difference(weekStart).inDays.abs() + 14;
+    final limitDays = math.min(540, math.max(42, deltaDays));
+    final history = await TrainingService.fetchTrainingHistory(
+      userId: userId,
+      limitDays: limitDays,
+    );
+    final workedKeys = <String>{};
+    for (final row in history) {
+      if (!_historyRowInWeek(row, weekStart, weekEnd)) continue;
+      if (!_historyRowWorked(row)) continue;
+      workedKeys.add(_historyDayIdentityKey(row));
+    }
+    return workedKeys.length;
   }
 
   DateTime? _parseDateTime(dynamic value) {
@@ -1667,7 +1784,11 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   bool _isInWeek(DateTime date, DateTime weekStart, DateTime weekEnd) {
-    return !date.isBefore(weekStart) && !date.isAfter(weekEnd);
+    return TrainingResetCoordinator.isInWeek(
+      date,
+      weekStart: weekStart,
+      weekEnd: weekEnd,
+    );
   }
 
   bool _complianceCompletedForWeek(
@@ -1680,8 +1801,8 @@ class DashboardPageState extends State<DashboardPage>
       final loggedAt = _parseDateTime(
         compliance['logged_at'] ??
             compliance['completed_at'] ??
-            compliance['updated_at'] ??
-            compliance['performed_at'],
+            compliance['performed_at'] ??
+            compliance['entry_date'],
       );
       if (loggedAt == null) return false;
       if (!_isInWeek(loggedAt, weekStart, weekEnd)) return false;
@@ -1718,8 +1839,8 @@ class DashboardPageState extends State<DashboardPage>
     final candidates = [
       ex['logged_at'],
       ex['completed_at'],
-      ex['updated_at'],
       ex['performed_at'],
+      ex['entry_date'],
       ex['last_performed_at'],
     ];
     for (final c in candidates) {
@@ -1727,6 +1848,37 @@ class DashboardPageState extends State<DashboardPage>
       if (dt != null) return dt;
     }
     return null;
+  }
+
+  DateTime? _dayCompletionDate(Map<String, dynamic> day) {
+    final candidates = [
+      day['logged_at'],
+      day['completed_at'],
+      day['performed_at'],
+      day['entry_date'],
+      day['last_performed_at'],
+    ];
+    for (final c in candidates) {
+      final dt = _parseDateTime(c);
+      if (dt != null) return dt;
+    }
+    return null;
+  }
+
+  bool _isDayFlaggedCompletedForWeek(
+    Map<String, dynamic> day,
+    DateTime weekStart,
+    DateTime weekEnd,
+  ) {
+    final flags = [
+      day['is_completed'],
+      day['completed'],
+      day['program_compliance_completed'],
+    ];
+    if (!flags.any(_flagTrue)) return false;
+    final completionDate = _dayCompletionDate(day);
+    if (completionDate == null) return false;
+    return _isInWeek(completionDate, weekStart, weekEnd);
   }
 
   bool _isExerciseCompletedForWeek(
@@ -1769,6 +1921,9 @@ class DashboardPageState extends State<DashboardPage>
     DateTime weekStart,
     DateTime weekEnd,
   ) {
+    if (_isDayFlaggedCompletedForWeek(day, weekStart, weekEnd)) {
+      return true;
+    }
     if (_complianceCompletedForWeek(
           day['program_compliance'],
           weekStart,
@@ -1777,12 +1932,6 @@ class DashboardPageState extends State<DashboardPage>
         _complianceCompletedForWeek(day['compliance'], weekStart, weekEnd)) {
       return true;
     }
-    final flags = [
-      day['is_completed'],
-      day['completed'],
-      day['program_compliance_completed'],
-    ];
-    if (flags.any(_flagTrue)) return true;
 
     final exercises = day['exercises'];
     if (exercises is! List || exercises.isEmpty) {
@@ -1854,8 +2003,8 @@ class DashboardPageState extends State<DashboardPage>
           logged = _parseDateTime(
             compliance['logged_at'] ??
                 compliance['completed_at'] ??
-                compliance['updated_at'] ??
-                compliance['performed_at'],
+                compliance['performed_at'] ??
+                compliance['entry_date'],
           );
         }
         if (logged == null) {
@@ -1958,9 +2107,10 @@ class DashboardPageState extends State<DashboardPage>
         _selectedDate.month,
         _selectedDate.day,
       );
+      await TrainingResetCoordinator.ensureInitialized();
       final weekStart = _weekStartMonday(anchor);
       final weekEnd = weekStart.add(const Duration(days: 6));
-      final today = DateTime.now();
+      final today = TrainingResetCoordinator.currentNowUtc();
       final todayOnly = DateTime(today.year, today.month, today.day);
       final isCurrentDay = anchor == todayOnly;
 
@@ -1970,13 +2120,31 @@ class DashboardPageState extends State<DashboardPage>
           start: weekStart,
           end: weekEnd,
         );
-        final total = (progress["total"] ?? 0) as int;
-        final done = (progress["completed"] ?? 0) as int;
+        final totalRaw = progress["total"];
+        final total = totalRaw is int
+            ? totalRaw
+            : (totalRaw is num ? totalRaw.toInt() : 0);
+        final doneRaw = progress["completed"];
+        final doneFromProgress = doneRaw is int
+            ? doneRaw
+            : (doneRaw is num ? doneRaw.toInt() : 0);
         final mode = progress["program_mode"] as String?;
+        int? doneFromHistory;
+        try {
+          doneFromHistory = await _historyWorkedDaysForWeek(
+            userId,
+            weekStart,
+            weekEnd,
+          );
+        } catch (_) {
+          // Keep backend progress value when history lookup fails.
+        }
+        final resolvedDone = doneFromHistory ?? doneFromProgress;
         final local = isCurrentDay
             ? await TrainingProgressStorage.getProgressForWeek(anchor)
             : null;
-        final int? overrideCompleted = (local != null && local.completed > done)
+        final int? overrideCompleted =
+            (local != null && local.completed > resolvedDone)
             ? local.completed
             : null;
         final int? overrideTotal = (local != null && local.total > 0)
@@ -1984,20 +2152,21 @@ class DashboardPageState extends State<DashboardPage>
             : null;
         debugPrint(
           "Training progress db: user=$userId start=${weekStart.toIso8601String().split('T').first} "
-          "end=${weekEnd.toIso8601String().split('T').first} completed=$done total=$total",
+          "end=${weekEnd.toIso8601String().split('T').first} completed=$resolvedDone total=$total"
+          "${doneFromHistory != null ? " source=history" : ""}",
         );
 
         if (!mounted) return;
         setState(() {
           _exerciseTotal = overrideTotal ?? total;
-          _exerciseCompleted = overrideCompleted ?? done;
+          _exerciseCompleted = overrideCompleted ?? resolvedDone;
           _exerciseLoadedOnce = true;
-          _exerciseProgramMode = mode;
+          _exerciseProgramMode = doneFromHistory != null ? "history" : mode;
         });
         if (isCurrentDay) {
           _cachedTodayExerciseTotal = overrideTotal ?? total;
-          _cachedTodayExerciseCompleted = overrideCompleted ?? done;
-          _cachedTodayProgramMode = mode;
+          _cachedTodayExerciseCompleted = overrideCompleted ?? resolvedDone;
+          _cachedTodayProgramMode = doneFromHistory != null ? "history" : mode;
           _cachedTodayLoadedOnce = true;
         }
         await _loadNextTrainingDayLabel(
@@ -2099,7 +2268,7 @@ class DashboardPageState extends State<DashboardPage>
     required DateTime weekEnd,
     required bool allowNetwork,
   }) async {
-    final today = DateTime.now();
+    final today = TrainingResetCoordinator.currentNowUtc();
     final selectedDayOnly = DateTime(
       selectedDate.year,
       selectedDate.month,
@@ -2134,10 +2303,6 @@ class DashboardPageState extends State<DashboardPage>
       setState(() {
         _nextTrainingDayLabel = result.label;
         _nextTrainingDayAllDone = result.allDone;
-        if (localProgress != null) {
-          _exerciseCompleted = localProgress.completed;
-          _exerciseTotal = localProgress.total;
-        }
       });
       if (isCurrentDay &&
           todaysTrainingDayId != null &&
@@ -2162,10 +2327,6 @@ class DashboardPageState extends State<DashboardPage>
       if (isCurrentDay) {
         _cachedTodayNextTrainingDayLabel = result.label;
         _cachedTodayNextAllDone = result.allDone;
-        if (localProgress != null) {
-          _cachedTodayExerciseCompleted = localProgress.completed;
-          _cachedTodayExerciseTotal = localProgress.total;
-        }
         _cachedTodayLoadedOnce =
             _cachedTodayLoadedOnce || localProgress != null;
       }

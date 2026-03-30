@@ -59,6 +59,9 @@ class _TrainPageState extends State<TrainPage> {
   Set<String> _sessionCompletedExerciseNames = <String>{};
   String? _activeWeekToken;
   bool _weekRefreshInProgress = false;
+  Set<String> _historyWorkedDayTokensForWeek = <String>{};
+  String? _historyWorkedWeekToken;
+  bool _historyWorkedLoadedForWeek = false;
 
   int? _userId;
   int? _pendingCompletionDayIndex;
@@ -479,6 +482,7 @@ class _TrainPageState extends State<TrainPage> {
           .where((e) => e.isNotEmpty)
           .toSet();
       await _loadFinishedDaysForCurrentWeek();
+      await _loadHistoryWorkedDaysForCurrentWeek(force: true);
 
       // Show cached program immediately if available (no blank UI), except
       // right after a regeneration where cache may still be the old plan.
@@ -718,7 +722,8 @@ class _TrainPageState extends State<TrainPage> {
             );
         completedByIndex[i] = isCompleted;
         greenByIndex[i] =
-            isCompleted || _isDayWorkedForWeek(day, weekStart, weekEnd);
+            isCompleted ||
+            _isDayWorkedForWeek(day, weekStart, weekEnd, dayIndex: i);
       } else if (day is Map) {
         final dayMap = Map<String, dynamic>.from(day);
         final isCompleted =
@@ -730,7 +735,8 @@ class _TrainPageState extends State<TrainPage> {
             );
         completedByIndex[i] = isCompleted;
         greenByIndex[i] =
-            isCompleted || _isDayWorkedForWeek(dayMap, weekStart, weekEnd);
+            isCompleted ||
+            _isDayWorkedForWeek(dayMap, weekStart, weekEnd, dayIndex: i);
       }
     }
     // Keep current week "green" days (worked or complete) at the end.
@@ -984,6 +990,174 @@ class _TrainPageState extends State<TrainPage> {
     return null;
   }
 
+  int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    final raw = value.toString().trim();
+    if (raw.isEmpty) return null;
+    final parsed = int.tryParse(raw);
+    if (parsed != null) return parsed;
+    final match = RegExp(r'\d+').firstMatch(raw);
+    if (match == null) return null;
+    return int.tryParse(match.group(0)!);
+  }
+
+  String _normalizeDayIdentity(dynamic value) {
+    final raw = (value ?? '').toString().trim().toLowerCase();
+    if (raw.isEmpty) return '';
+    return raw.replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  Set<String> _programDayIdentityTokens(Map<String, dynamic> day, int index) {
+    final tokens = <String>{'index:${index + 1}'};
+    final dayId = _parseInt(
+      day['day_id'] ?? day['training_day_id'] ?? day['id'],
+    );
+    if (dayId != null && dayId > 0) {
+      tokens.add('id:$dayId');
+    }
+
+    final dayKey = _normalizeDayIdentity(day['day_key']);
+    if (dayKey.isNotEmpty) {
+      tokens.add('key:$dayKey');
+      tokens.add('label:$dayKey');
+    }
+
+    final labels = [day['day_label'], day['label'], day['day_name']];
+    for (final label in labels) {
+      final normalized = _normalizeDayIdentity(label);
+      if (normalized.isEmpty) continue;
+      tokens.add('label:$normalized');
+      tokens.add('key:$normalized');
+    }
+    return tokens;
+  }
+
+  Set<String> _historyDayIdentityTokens(Map<String, dynamic> item) {
+    final tokens = <String>{};
+    final dayId = _parseInt(
+      item['training_day_id'] ?? item['day_id'] ?? item['id'],
+    );
+    if (dayId != null && dayId > 0) {
+      tokens.add('id:$dayId');
+    }
+
+    final dayIndex = _parseInt(
+      item['day_index'] ?? item['day_number'] ?? item['day_no'] ?? item['day'],
+    );
+    if (dayIndex != null && dayIndex > 0) {
+      tokens.add('index:$dayIndex');
+    }
+
+    final keys = [item['day_key'], item['dayKey']];
+    for (final key in keys) {
+      final normalized = _normalizeDayIdentity(key);
+      if (normalized.isEmpty) continue;
+      tokens.add('key:$normalized');
+      tokens.add('label:$normalized');
+    }
+
+    final labels = [item['label'], item['day_label'], item['day_name']];
+    for (final label in labels) {
+      final normalized = _normalizeDayIdentity(label);
+      if (normalized.isEmpty) continue;
+      tokens.add('label:$normalized');
+      tokens.add('key:$normalized');
+    }
+    return tokens;
+  }
+
+  bool _historyRowHasWorkedState(Map<String, dynamic> item) {
+    if (_flagTrue(item['is_completed_day'])) return true;
+    if (_flagTrue(item['worked']) || _flagTrue(item['has_progress'])) {
+      return true;
+    }
+
+    final completedCount = _parseInt(item['completed_count']) ?? 0;
+    if (completedCount > 0) return true;
+
+    final completedExercises = item['completed_exercises'];
+    if (completedExercises is List && completedExercises.isNotEmpty) {
+      return true;
+    }
+
+    final status = (item['status_text'] ?? item['status'] ?? '')
+        .toString()
+        .trim()
+        .toLowerCase();
+    if (status.isEmpty) return false;
+    return status.contains('progress') ||
+        status.contains('complete') ||
+        status.contains('done') ||
+        status.contains('finish');
+  }
+
+  bool _historyRowInCurrentWeek(
+    Map<String, dynamic> item,
+    DateTime weekStart,
+    DateTime weekEnd,
+  ) {
+    final explicitWeekStart = _parseDateTime(item['week_start']);
+    if (explicitWeekStart != null) {
+      return _dateToken(_weekStartMonday(explicitWeekStart)) ==
+          _dateToken(weekStart);
+    }
+
+    final rowDate = _parseDateTime(
+      item['latest_date'] ??
+          item['entry_date'] ??
+          item['logged_at'] ??
+          item['completed_at'] ??
+          item['performed_at'],
+    );
+    if (rowDate == null) return false;
+    return _isInWeek(rowDate, weekStart, weekEnd);
+  }
+
+  Future<void> _loadHistoryWorkedDaysForCurrentWeek({
+    bool force = false,
+  }) async {
+    final weekStart = _weekStartMonday(
+      TrainingResetCoordinator.currentNowUtc(),
+    );
+    final weekEnd = _weekEndSunday(weekStart);
+    final weekToken = _dateToken(weekStart);
+    if (!force &&
+        _historyWorkedLoadedForWeek &&
+        _historyWorkedWeekToken == weekToken) {
+      return;
+    }
+
+    final userId = _userId ?? await AccountStorage.getUserId();
+    if (userId == null) {
+      _historyWorkedDayTokensForWeek = <String>{};
+      _historyWorkedWeekToken = weekToken;
+      _historyWorkedLoadedForWeek = false;
+      return;
+    }
+
+    try {
+      final history = await TrainingService.fetchTrainingHistory(
+        userId: userId,
+        limitDays: 42,
+      );
+      final workedTokens = <String>{};
+      for (final row in history) {
+        if (!_historyRowInCurrentWeek(row, weekStart, weekEnd)) continue;
+        if (!_historyRowHasWorkedState(row)) continue;
+        workedTokens.addAll(_historyDayIdentityTokens(row));
+      }
+      _historyWorkedDayTokensForWeek = workedTokens;
+      _historyWorkedWeekToken = weekToken;
+      _historyWorkedLoadedForWeek = true;
+    } catch (_) {
+      _historyWorkedDayTokensForWeek = <String>{};
+      _historyWorkedWeekToken = weekToken;
+      _historyWorkedLoadedForWeek = false;
+    }
+  }
+
   bool _flagTrue(dynamic value) {
     if (value == null) return false;
     if (value is bool) return value;
@@ -1015,7 +1189,8 @@ class _TrainPageState extends State<TrainPage> {
       final loggedAt = _parseDateTime(
         compliance['logged_at'] ??
             compliance['completed_at'] ??
-            compliance['performed_at'],
+            compliance['performed_at'] ??
+            compliance['entry_date'],
       );
       if (loggedAt == null) return false;
       if (!_isInWeek(loggedAt, weekStart, weekEnd)) return false;
@@ -1053,6 +1228,7 @@ class _TrainPageState extends State<TrainPage> {
       ex['logged_at'],
       ex['completed_at'],
       ex['performed_at'],
+      ex['entry_date'],
       ex['last_performed_at'],
     ];
     for (final c in candidates) {
@@ -1130,8 +1306,18 @@ class _TrainPageState extends State<TrainPage> {
   bool _isDayWorkedForWeek(
     Map<String, dynamic> day,
     DateTime weekStart,
-    DateTime weekEnd,
-  ) {
+    DateTime weekEnd, {
+    int? dayIndex,
+  }) {
+    final weekToken = _dateToken(weekStart);
+    if (_historyWorkedLoadedForWeek &&
+        _historyWorkedWeekToken == weekToken &&
+        dayIndex != null &&
+        dayIndex >= 0) {
+      final tokens = _programDayIdentityTokens(day, dayIndex);
+      return tokens.any(_historyWorkedDayTokensForWeek.contains);
+    }
+
     if (_isDayFlaggedCompletedForWeek(day, weekStart, weekEnd)) return true;
     if (_complianceCompletedForWeek(
           day['program_compliance'],
@@ -1196,6 +1382,7 @@ class _TrainPageState extends State<TrainPage> {
     final userId = _userId ?? await AccountStorage.getUserId();
     if (userId == null) return;
     try {
+      await _loadHistoryWorkedDaysForCurrentWeek(force: true);
       final data = await TrainingService.fetchActiveProgram(userId);
       final serverDays = data['days'];
       final serverDayCount = serverDays is List ? serverDays.length : 0;
@@ -1258,6 +1445,7 @@ class _TrainPageState extends State<TrainPage> {
       day['logged_at'],
       day['completed_at'],
       day['performed_at'],
+      day['entry_date'],
       day['last_performed_at'],
     ];
     for (final c in candidates) {
@@ -1429,6 +1617,7 @@ class _TrainPageState extends State<TrainPage> {
     _weekRefreshInProgress = true;
     try {
       await _loadFinishedDaysForCurrentWeek();
+      await _loadHistoryWorkedDaysForCurrentWeek(force: true);
       final data = program;
       if (data == null) return;
       final days = data['days'];
@@ -1521,7 +1710,12 @@ class _TrainPageState extends State<TrainPage> {
         day = Map<String, dynamic>.from(rawDay);
       }
       if (day == null) return false;
-      return _isDayWorkedForWeek(day, weekStartForWorked, weekEndForWorked);
+      return _isDayWorkedForWeek(
+        day,
+        weekStartForWorked,
+        weekEndForWorked,
+        dayIndex: i,
+      );
     }).toList();
     final disableTrainingToday = _isDeactivated;
     final workoutLockDayIndex =
