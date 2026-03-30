@@ -37,6 +37,7 @@ import '../../widgets/dashboard/fitbit_body_card.dart';
 import '../../widgets/dashboard/fitbit_body_sheet.dart';
 import '../../widgets/dashboard/fitbit_extras_card.dart';
 import '../../widgets/dashboard/diet_progress_card.dart';
+import '../../widgets/dashboard/taqa_score_widget.dart';
 import '../../widgets/dashboard/edit_mode_bubble.dart';
 import '../../widgets/dashboard/widget_library_sheet.dart';
 import '../../screens/whoop_insights_page.dart';
@@ -49,6 +50,7 @@ import '../../core/account_storage.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/metrics/daily_metrics_api.dart';
 import '../../services/metrics/daily_metrics_sync.dart';
+import '../../services/scores/taqa_score_api.dart';
 import '../../config/base_url.dart';
 import '../../services/health/steps_service.dart';
 import '../../services/health/sleep_service.dart';
@@ -69,6 +71,7 @@ import '../../screens/sleep_detail_page.dart';
 import '../../screens/steps_detail_page.dart';
 import '../../screens/calories_detail_page.dart';
 import '../../screens/daily_journal.dart';
+import '../../screens/taqa_score_detail_page.dart';
 import '../../localization/app_localizations.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/common/date_header.dart';
@@ -360,6 +363,9 @@ class DashboardPageState extends State<DashboardPage>
   int? _dietTargetCalories;
   String? _dietDayType;
 
+  TaqaDailyScore? _taqaScore;
+  bool _taqaScoreLoading = false;
+
   static const _stepsGoalKey = "dashboard_steps_goal";
   static const _sleepGoalKey = "dashboard_sleep_goal";
   static const _caloriesGoalKey = "dashboard_calories_goal";
@@ -452,6 +458,7 @@ class DashboardPageState extends State<DashboardPage>
     }
     _loadWhoopRecovery(force: shouldForceWhoopTodayRefresh);
     _loadFitbitSummary(force: true);
+    _loadTaqaScore();
   }
 
   void _openDateSheet() {
@@ -577,7 +584,10 @@ class DashboardPageState extends State<DashboardPage>
       _whoopSnapshotCache.clear();
       _fitbitSummaryCache.clear();
       _fitbitSummaryLoadingDate = null;
+      _taqaScore = null;
+      _taqaScoreLoading = false;
     });
+    TaqaScoreApi.clearCache();
     _refreshAll();
     _loadExerciseProgress(force: true);
     unawaited(_maybeShowDailyJournalPrompt());
@@ -1504,6 +1514,21 @@ class DashboardPageState extends State<DashboardPage>
     return _wiggleWrap(decorated);
   }
 
+  Future<void> _loadTaqaScore() async {
+    final userId = await AccountStorage.getUserId();
+    if (!mounted || userId == null || userId <= 0) return;
+    setState(() => _taqaScoreLoading = true);
+    final result = await TaqaScoreApi.fetchDaily(
+      userId: userId,
+      date: _selectedDate,
+    );
+    if (!mounted) return;
+    setState(() {
+      _taqaScore = result;
+      _taqaScoreLoading = false;
+    });
+  }
+
   Future<void> _loadInitialData() async {
     await Future.wait([
       _loadUserInfo(),
@@ -1519,6 +1544,7 @@ class DashboardPageState extends State<DashboardPage>
       _loadTrendCalories(),
       _loadStreak(),
       _loadWhoopRecovery(force: true),
+      _loadTaqaScore(),
     ]);
     if (!mounted) return;
     _loadFitbitSummary(force: true);
@@ -1547,6 +1573,7 @@ class DashboardPageState extends State<DashboardPage>
       _loading = true;
     });
     DailyMetricsApi.clearCache();
+    TaqaScoreApi.clearCache();
     await Future.wait([
       _loadUserInfo(),
       _loadNews(),
@@ -1558,6 +1585,7 @@ class DashboardPageState extends State<DashboardPage>
       _loadTrendSleep(),
       _loadTrendCalories(),
       _loadWhoopRecovery(force: true),
+      _loadTaqaScore(),
     ]);
     _loadFitbitSummary();
   }
@@ -4523,11 +4551,19 @@ class DashboardPageState extends State<DashboardPage>
             ),
           ),
           const SizedBox(height: 12),
-          _PlaceholderMetricCard(
-            title: t("dash_taqa_score"),
-            subtitle: t("dash_placeholder"),
-            icon: Icons.bolt,
-            accentColor: const Color(0xFF6A5AE0),
+          TaqaScoreWidget(
+            score: _taqaScore,
+            loading: _taqaScoreLoading,
+            provider: _taqaScore?.provider,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => TaqaScoreDetailPage(
+                    initialDate: _selectedDate,
+                  ),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 16),
           LayoutBuilder(
