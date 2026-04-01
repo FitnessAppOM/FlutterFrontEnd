@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../consents/consent_manager.dart';
 import '../auth/profile_storage.dart';
+import '../training/training_calorie_estimator.dart';
 
 enum WorkoutSessionWriteStatus { written, skippedDuplicate, failed }
 
@@ -33,9 +34,6 @@ class WorkoutHealthSyncService {
   static const MethodChannel _iosWorkoutMetadataChannel = MethodChannel(
     'health_workout_metadata',
   );
-  static const double _defaultWeightKg = 70.0;
-  static const double _strengthMet = 6.0;
-  static const double _cardioMet = 8.0;
   static const Duration _dedupeWindow = Duration(seconds: 8);
   static const int _maxStoredDedupeSignatures = 6000;
   static const String _dedupeSignaturesStorageKey =
@@ -243,19 +241,6 @@ class WorkoutHealthSyncService {
     final profile = await ProfileStorage.loadProfile();
     if (profile == null) return null;
     return _toDouble(profile['weight_kg']);
-  }
-
-  int _estimateCaloriesKcal({
-    required int durationSeconds,
-    required bool isCardio,
-    required double weightKg,
-  }) {
-    final met = isCardio ? _cardioMet : _strengthMet;
-    final hours = durationSeconds <= 0
-        ? (1 / 3600.0)
-        : (durationSeconds / 3600.0);
-    final kcal = (met * weightKg * hours).round();
-    return kcal.clamp(1, 5000);
   }
 
   HealthWorkoutActivityType _activityTypeFromName(
@@ -683,10 +668,11 @@ class WorkoutHealthSyncService {
           'WorkoutHealthSyncService: signature cached locally but missing in Health; rewriting.',
         );
       }
-      final weightKg = await _loadWeightKg() ?? _defaultWeightKg;
+      final weightKg =
+          await _loadWeightKg() ?? TrainingCalorieEstimator.defaultWeightKg;
       final calories =
           activeCaloriesKcal ??
-          _estimateCaloriesKcal(
+          TrainingCalorieEstimator.estimateCaloriesKcal(
             durationSeconds: durationSeconds,
             isCardio: isCardio,
             weightKg: weightKg,

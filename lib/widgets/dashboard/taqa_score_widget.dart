@@ -15,7 +15,7 @@ class TaqaScoreWidget extends StatefulWidget {
 
   final TaqaDailyScore? score;
   final bool loading;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final String? provider;
   final String? scoreDayLabel;
   final String emptyMessage;
@@ -71,16 +71,19 @@ class _TaqaScoreWidgetState extends State<TaqaScoreWidget>
     }
 
     final miniScores = _buildMiniScores();
+    final isPressable = widget.onTap != null;
 
     return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        widget.onTap();
-      },
-      onTapCancel: () => setState(() => _pressed = false),
+      onTapDown: isPressable ? (_) => setState(() => _pressed = true) : null,
+      onTapUp: isPressable
+          ? (_) {
+              setState(() => _pressed = false);
+              widget.onTap?.call();
+            }
+          : null,
+      onTapCancel: isPressable ? () => setState(() => _pressed = false) : null,
       child: AnimatedScale(
-        scale: _pressed ? 0.97 : 1.0,
+        scale: (isPressable && _pressed) ? 0.97 : 1.0,
         duration: const Duration(milliseconds: 90),
         child: Container(
           padding: const EdgeInsets.all(20),
@@ -177,7 +180,9 @@ class _TaqaScoreWidgetState extends State<TaqaScoreWidget>
                               const Spacer(),
                               Icon(
                                 Icons.chevron_right,
-                                color: Colors.white.withValues(alpha: 0.4),
+                                color: Colors.white.withValues(
+                                  alpha: isPressable ? 0.4 : 0.18,
+                                ),
                                 size: 20,
                               ),
                             ],
@@ -217,7 +222,9 @@ class _TaqaScoreWidgetState extends State<TaqaScoreWidget>
                             Text(
                               taqaValue == null
                                   ? widget.emptyMessage
-                                  : "Tap to see details",
+                                  : (isPressable
+                                        ? "Tap to see details"
+                                        : "Details available on current day"),
                               style: const TextStyle(
                                 color: Colors.white38,
                                 fontSize: 12,

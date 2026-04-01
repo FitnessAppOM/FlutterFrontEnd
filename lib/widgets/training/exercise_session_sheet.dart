@@ -12,6 +12,7 @@ import '../../services/training/exercise_action_queue.dart';
 import '../../services/training/training_completion_storage.dart';
 import '../../services/training/training_progress_storage.dart';
 import '../../services/training/training_activity_service.dart';
+import '../../services/training/training_calories_service.dart';
 import '../../services/health/workout_health_sync_service.dart';
 import '../../consents/consent_manager.dart';
 import '../../core/account_storage.dart';
@@ -64,6 +65,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   bool _instructionCheckStarted = false;
   bool _timerStateRestored = false;
   bool _exerciseFinished = false;
+  bool _sessionCaloriesRecorded = false;
 
   int seconds = 0;
   Timer? timer;
@@ -175,6 +177,25 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     return _toDouble(
       compliance?['weight_used'] ?? widget.exercise['weight_used'],
     );
+  }
+
+  Future<void> _recordEstimatedTrainingCalories({
+    required DateTime day,
+    required bool isCardio,
+    required int durationSeconds,
+  }) async {
+    if (_sessionCaloriesRecorded || isCardio) return;
+    try {
+      final service = TrainingCaloriesService();
+      final estimated = await service.estimateCalories(
+        durationSeconds: durationSeconds <= 0 ? 1 : durationSeconds,
+        isCardio: isCardio,
+      );
+      await service.addEstimatedCaloriesForDay(day, estimated);
+      _sessionCaloriesRecorded = true;
+    } catch (_) {
+      // Ignore estimation/storage failures and continue normal finish flow.
+    }
   }
 
   List<Map<String, dynamic>> _normalizeSetRows(List<dynamic> rows) {
@@ -2438,11 +2459,16 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       if (needsSync && mounted) {
         AppToast.show(
           context,
-          t.translate("exercise_saved_offline") ??
-              "Exercise saved offline. Will sync when online.",
+          t.translate("exercise_saved_offline"),
           type: AppToastType.info,
         );
       }
+
+      await _recordEstimatedTrainingCalories(
+        day: now,
+        isCardio: isCardio,
+        durationSeconds: seconds,
+      );
 
       // For cardio: close this sheet, then show achievement sheet from root.
       if (isCardio && mounted) {

@@ -260,7 +260,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
               DateTime(effectiveEnd.year, effectiveEnd.month, effectiveEnd.day),
             );
         if (inRange && !manual.containsKey(todayKey)) {
-          final todaySleep = await SleepService().fetchSleepHoursLast24h();
+          final todaySleep = await SleepService().fetchSleepForDay(todayKey);
           if (todaySleep > 0) {
             data[todayKey] = todaySleep;
           }
@@ -432,15 +432,11 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
   }) async {
     if (_nativeEntryHasData(entry)) return entry;
 
-    final nowKey = _onlyDate(DateTime.now());
-    final isToday = _isSameDay(dayKey, nowKey);
     final sleep = SleepService();
-    final liveMetrics = isToday
-        ? await sleep.fetchSleepMetricsLast24h()
-        : await sleep.fetchSleepMetricsForDay(dayKey);
-    final liveHours = isToday
-        ? await sleep.fetchSleepHoursLast24h()
-        : await sleep.fetchSleepForDay(dayKey);
+    // Use strict day-based reads for every selected date (including today)
+    // to avoid showing previous-day values from "last 24h".
+    final liveMetrics = await sleep.fetchSleepMetricsForDay(dayKey);
+    final liveHours = await sleep.fetchSleepForDay(dayKey);
     return _mergeLiveSleepIntoEntry(
       dayKey: dayKey,
       entry: entry,
@@ -484,8 +480,9 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     DailyMetricsEntry? entry;
     if (isToday) {
       // Current-day metrics should come from live HealthKit/Health Connect.
-      // Skip backend fetch to avoid stale/incomplete same-day rows.
-      entry = _nativeMetricsCache[dayKey];
+      // Skip backend fetch and ignore cached same-day rows to avoid carrying
+      // forward stale values from previous-day "last 24h" reads.
+      entry = null;
     } else {
       try {
         entry = await DailyMetricsApi.fetchForDate(userId, dayKey);
@@ -1763,7 +1760,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     final controller = TextEditingController(
       text: _todaySleepHours() > 0 ? _todaySleepHours().toStringAsFixed(1) : '',
     );
-    final result = await showDialog<double>(
+    final result = await showDialog<Object>(
       context: context,
       builder: (ctx) {
         return AlertDialog(
@@ -1787,6 +1784,10 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
               child: const Text("Cancel"),
             ),
             TextButton(
+              onPressed: () => Navigator.pop(ctx, 'reset'),
+              child: const Text("Reset"),
+            ),
+            TextButton(
               onPressed: () {
                 final val = double.tryParse(controller.text.trim());
                 if (val != null && val > 0) {
@@ -1802,7 +1803,17 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       },
     );
 
-    if (result != null) {
+    if (result == 'reset') {
+      final today = DateTime.now();
+      final day = DateTime(today.year, today.month, today.day);
+      await SleepService().clearManualEntry(day);
+      if (mounted) {
+        _loadRange(force: true);
+      }
+      return;
+    }
+
+    if (result is double) {
       final today = DateTime.now();
       final day = DateTime(today.year, today.month, today.day);
       await SleepService().saveManualEntry(day, result);

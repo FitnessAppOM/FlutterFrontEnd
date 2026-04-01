@@ -40,7 +40,13 @@ class ReleaseNotesDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ReleaseNoteHighlight(text: 'v1.0.21 • Train patches'),
+          _ReleaseNoteHighlight(text: 'v1.0.22'),
+          SizedBox(height: 10),
+          _ReleaseNoteItem(text: 'Wearable detection'),
+          _ReleaseNoteItem(text: 'Wearable metrics (Apple, Samsung, etc...)'),
+          _ReleaseNoteItem(text: 'TAQA score (in progress)'),
+          _ReleaseNoteItem(text: 'Train calories'),
+          _ReleaseNoteItem(text: 'Bugs and fixes'),
         ],
       ),
       actions: [
@@ -65,6 +71,26 @@ class _ReleaseNoteHighlight extends StatelessWidget {
       style: const TextStyle(
         fontWeight: FontWeight.w800,
         color: Color(0xFFD4AF37),
+      ),
+    );
+  }
+}
+
+class _ReleaseNoteItem extends StatelessWidget {
+  final String text;
+
+  const _ReleaseNoteItem({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Text(
+        '• $text',
+        style: const TextStyle(
+          fontWeight: FontWeight.w500,
+          color: Colors.black87,
+        ),
       ),
     );
   }
