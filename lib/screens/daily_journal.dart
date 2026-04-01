@@ -242,7 +242,6 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
       }
       await NotificationService.rescheduleDailyJournalRemindersForTomorrow();
       await _refresh();
-      await _checkAndShowScreening(userId);
     } catch (e) {
       if (mounted) {
         final isConflict = e.toString().contains("already_submitted");
@@ -345,17 +344,6 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
   }
 
   bool get _isYesterdaySelected => _isSameDay(_selectedDate, localYesterday());
-
-  Future<void> _checkAndShowScreening(int userId) async {
-    if (!mounted) return;
-    try {
-      final pending = await ScreeningApi.checkPending(userId);
-      if (!mounted || !pending.isDue) return;
-      await ScreeningFormSheet.show(context, pending);
-    } catch (_) {
-      // Non-critical — silently skip if screening check fails.
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

@@ -235,6 +235,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
 
     cards.add(
       _PillarCard(
+        metricKey: 'sleep',
         label: t("taqa_label_sleep"),
         score: s.sleep.score,
         icon: Icons.nights_stay_rounded,
@@ -252,6 +253,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
 
     cards.add(
       _PillarCard(
+        metricKey: 'recovery',
         label: t("taqa_label_recovery"),
         score: s.recovery.score,
         icon: Icons.favorite_rounded,
@@ -269,6 +271,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
 
     cards.add(
       _PillarCard(
+        metricKey: 'stress',
         label: t("taqa_label_stress"),
         score: s.stress.score,
         icon: Icons.psychology_rounded,
@@ -286,6 +289,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
 
     cards.add(
       _PillarCard(
+        metricKey: 'training_load',
         label: t("taqa_label_training_load"),
         score: s.trainingLoad.score,
         icon: Icons.fitness_center_rounded,
@@ -303,6 +307,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
 
     cards.add(
       _PillarCard(
+        metricKey: 'nutrition',
         label: t("taqa_label_nutrition"),
         score: s.nutrition.score,
         icon: Icons.restaurant_rounded,
@@ -310,9 +315,12 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
         path: s.nutrition.path,
         details: s.nutrition.details,
         detailLabels: {
-          'adherence': t("taqa_detail_adherence"),
-          'meal_consistency': t("taqa_detail_meal_consistency"),
-          'meals_logged': t("taqa_detail_meals_logged"),
+          'calorie_adherence': t("taqa_detail_calorie_adherence"),
+          'protein_adherence': t("taqa_detail_protein_adherence"),
+          'calories_target': t("taqa_detail_calories_target"),
+          'calories_consumed': t("taqa_detail_calories_consumed"),
+          'protein_target_g': t("taqa_detail_protein_target"),
+          'protein_consumed_g': t("taqa_detail_protein_consumed"),
         },
       ),
     );
@@ -320,6 +328,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     if (s.hasReadiness) {
       cards.add(
         _PillarCard(
+          metricKey: 'readiness',
           label: t("taqa_label_readiness"),
           score: s.readiness.score,
           icon: Icons.flash_on_rounded,
@@ -339,6 +348,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     if (s.hasLifestyleBalance) {
       cards.add(
         _PillarCard(
+          metricKey: 'lifestyle_balance',
           label: t("taqa_label_lifestyle"),
           score: s.lifestyleBalance.score,
           icon: Icons.balance_rounded,
@@ -495,6 +505,7 @@ class _ProviderBadge extends StatelessWidget {
 }
 
 class _PillarCard extends StatefulWidget {
+  final String metricKey;
   final String label;
   final double? score;
   final IconData icon;
@@ -505,6 +516,7 @@ class _PillarCard extends StatefulWidget {
   final Map<String, String> detailLabels;
 
   const _PillarCard({
+    required this.metricKey,
     required this.label,
     required this.score,
     required this.icon,
@@ -526,6 +538,7 @@ class _PillarCardState extends State<_PillarCard> {
 
   @override
   Widget build(BuildContext context) {
+    final statusMessage = _statusMessage();
     final hasDetails =
         widget.detailLabels.isNotEmpty && widget.details.isNotEmpty;
     final scoreDisplay = widget.score == null
@@ -618,6 +631,16 @@ class _PillarCardState extends State<_PillarCard> {
                 ],
               ],
             ),
+            if (statusMessage != null) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  statusMessage,
+                  style: const TextStyle(color: Colors.white60, fontSize: 12),
+                ),
+              ),
+            ],
             if (_expanded && hasDetails) ...[
               const SizedBox(height: 12),
               const Divider(color: Colors.white12, height: 1),
@@ -657,6 +680,21 @@ class _PillarCardState extends State<_PillarCard> {
         ),
       ),
     );
+  }
+
+  String? _statusMessage() {
+    if (widget.metricKey == 'training_load') {
+      if (widget.score == null) {
+        return t("taqa_training_no_data");
+      }
+      if (widget.score == 0 && widget.path == 'no_workout') {
+        return t("taqa_training_no_workout");
+      }
+    }
+    if (widget.metricKey == 'nutrition' && widget.score == null) {
+      return t("taqa_nutrition_no_data");
+    }
+    return null;
   }
 }
 

@@ -237,7 +237,6 @@ class _MyAppState extends State<MyApp> {
       print("ExerciseActionQueue sync skipped: $e");
     }
     await NotificationService.refreshDailyJournalRemindersForCurrentUser();
-    await ScreeningPromptService.checkAndPromptIfDue();
   }
 
   void _handleAccountChange() {
