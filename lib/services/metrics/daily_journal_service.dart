@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import '../../core/date_utils.dart';
 
 class DailyJournalEntry {
   final DateTime entryDate;
@@ -15,6 +16,8 @@ class DailyJournalEntry {
   final int? alcoholDrinks;
   final double? hydrationLiters;
   final bool? sorenessOrPain;
+  final int? sorenessLevel;
+  final int? wakeUpCount;
   final int? stressLevel;
   final int? moodUponWaking;
   final bool? sexualActivity;
@@ -33,6 +36,8 @@ class DailyJournalEntry {
     this.alcoholDrinks,
     this.hydrationLiters,
     this.sorenessOrPain,
+    this.sorenessLevel,
+    this.wakeUpCount,
     this.stressLevel,
     this.moodUponWaking,
     this.sexualActivity,
@@ -78,14 +83,17 @@ class DailyJournalEntry {
       alcoholDrinks: parseInt(json['alcohol_drinks']),
       hydrationLiters: parseDouble(json['hydration_liters']),
       sorenessOrPain: parseBool(json['soreness_or_pain']),
+      sorenessLevel: parseInt(json['soreness_level']),
+      wakeUpCount: parseInt(json['wake_up_count']),
       stressLevel: parseInt(json['stress_level']),
       moodUponWaking: parseInt(json['mood_upon_waking']),
       sexualActivity: parseBool(json['sexual_activity']),
       screenTimeBeforeBed: parseBool(json['screen_time_before_bed']),
       productivityFocus: parseInt(json['productivity_focus']),
       motivationToTrain: parseInt(json['motivation_to_train']),
-      tookSupplementsOrMedications:
-          parseBool(json['took_supplements_or_medications']),
+      tookSupplementsOrMedications: parseBool(
+        json['took_supplements_or_medications'],
+      ),
     );
   }
 }
@@ -107,9 +115,14 @@ class DailyJournalApi {
     throw Exception("Failed to fetch daily journal: ${res.body}");
   }
 
-  static Future<DailyJournalEntry?> fetchForDate(int userId, DateTime date) async {
+  static Future<DailyJournalEntry?> fetchForDate(
+    int userId,
+    DateTime date,
+  ) async {
     final dateStr = date.toIso8601String().split("T").first;
-    final url = Uri.parse("${ApiConfig.baseUrl}/daily-journal/$userId/date/$dateStr");
+    final url = Uri.parse(
+      "${ApiConfig.baseUrl}/daily-journal/$userId/date/$dateStr",
+    );
     final res = await http.get(url);
 
     if (res.statusCode == 200) {
@@ -135,6 +148,8 @@ class DailyJournalApi {
     int? alcoholDrinks,
     double? hydrationLiters,
     bool? sorenessOrPain,
+    int? sorenessLevel,
+    int? wakeUpCount,
     int? stressLevel,
     int? moodUponWaking,
     bool? sexualActivity,
@@ -144,9 +159,10 @@ class DailyJournalApi {
     bool? tookSupplementsOrMedications,
   }) async {
     final url = Uri.parse("${ApiConfig.baseUrl}/daily-journal/");
+    final effectiveEntryDate = dateOnly(entryDate ?? localYesterday());
     final body = <String, dynamic>{
       "user_id": userId,
-      if (entryDate != null) "entry_date": entryDate.toIso8601String().split("T").first,
+      "entry_date": effectiveEntryDate.toIso8601String().split("T").first,
       if (sleepHours != null) "sleep_hours": sleepHours,
       if (sleepQuality != null) "sleep_quality": sleepQuality,
       if (caffeineYes != null) "caffeine_yes": caffeineYes,
@@ -155,22 +171,24 @@ class DailyJournalApi {
       if (alcoholDrinks != null) "alcohol_drinks": alcoholDrinks,
       if (hydrationLiters != null) "hydration_liters": hydrationLiters,
       if (sorenessOrPain != null) "soreness_or_pain": sorenessOrPain,
+      if (sorenessLevel != null) "soreness_level": sorenessLevel,
+      if (wakeUpCount != null) "wake_up_count": wakeUpCount,
       if (stressLevel != null) "stress_level": stressLevel,
       if (moodUponWaking != null) "mood_upon_waking": moodUponWaking,
       if (sexualActivity != null) "sexual_activity": sexualActivity,
-      if (screenTimeBeforeBed != null) "screen_time_before_bed": screenTimeBeforeBed,
+      if (screenTimeBeforeBed != null)
+        "screen_time_before_bed": screenTimeBeforeBed,
       if (productivityFocus != null) "productivity_focus": productivityFocus,
       if (motivationToTrain != null) "motivation_to_train": motivationToTrain,
       if (tookSupplementsOrMedications != null)
         "took_supplements_or_medications": tookSupplementsOrMedications,
     };
 
-    final headers = {"Content-Type": "application/json", ...await AccountStorage.getAuthHeaders()};
-    final res = await http.post(
-      url,
-      headers: headers,
-      body: jsonEncode(body),
-    );
+    final headers = {
+      "Content-Type": "application/json",
+      ...await AccountStorage.getAuthHeaders(),
+    };
+    final res = await http.post(url, headers: headers, body: jsonEncode(body));
 
     await AccountStorage.handle401(res.statusCode);
     if (res.statusCode == 200) return;

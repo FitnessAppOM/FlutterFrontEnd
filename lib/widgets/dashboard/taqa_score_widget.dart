@@ -9,12 +9,16 @@ class TaqaScoreWidget extends StatefulWidget {
     required this.loading,
     required this.onTap,
     this.provider,
+    this.scoreDayLabel,
+    this.emptyMessage = "No score data yet",
   });
 
   final TaqaDailyScore? score;
   final bool loading;
   final VoidCallback onTap;
   final String? provider;
+  final String? scoreDayLabel;
+  final String emptyMessage;
 
   @override
   State<TaqaScoreWidget> createState() => _TaqaScoreWidgetState();
@@ -33,9 +37,10 @@ class _TaqaScoreWidgetState extends State<TaqaScoreWidget>
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 0.92, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
-    );
+    _pulseAnim = Tween<double>(
+      begin: 0.92,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -48,7 +53,9 @@ class _TaqaScoreWidgetState extends State<TaqaScoreWidget>
   Widget build(BuildContext context) {
     final taqaValue = widget.score?.taqaValueScore;
     final display = taqaValue == null ? "--" : taqaValue.round().toString();
-    final progress = taqaValue == null ? 0.0 : (taqaValue / 100).clamp(0.0, 1.0);
+    final progress = taqaValue == null
+        ? 0.0
+        : (taqaValue / 100).clamp(0.0, 1.0);
 
     final Color ringColor;
     if (taqaValue == null) {
@@ -127,10 +134,10 @@ class _TaqaScoreWidgetState extends State<TaqaScoreWidget>
                               child: CircularProgressIndicator(
                                 value: progress,
                                 strokeWidth: 7,
-                                backgroundColor:
-                                    Colors.white.withValues(alpha: 0.08),
-                                valueColor:
-                                    AlwaysStoppedAnimation(ringColor),
+                                backgroundColor: Colors.white.withValues(
+                                  alpha: 0.08,
+                                ),
+                                valueColor: AlwaysStoppedAnimation(ringColor),
                                 strokeCap: StrokeCap.round,
                               ),
                             ),
@@ -175,14 +182,24 @@ class _TaqaScoreWidgetState extends State<TaqaScoreWidget>
                               ),
                             ],
                           ),
+                          if (widget.scoreDayLabel != null) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              widget.scoreDayLabel!,
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
                           if (widget.provider != null) ...[
                             const SizedBox(height: 4),
                             Text(
                               widget.provider == 'fitbit'
                                   ? 'Fitbit'
                                   : widget.provider == 'whoop'
-                                      ? 'WHOOP'
-                                      : widget.provider!,
+                                  ? 'WHOOP'
+                                  : widget.provider!,
                               style: const TextStyle(
                                 color: Colors.white38,
                                 fontSize: 11,
@@ -199,7 +216,7 @@ class _TaqaScoreWidgetState extends State<TaqaScoreWidget>
                           else
                             Text(
                               taqaValue == null
-                                  ? "No data yet"
+                                  ? widget.emptyMessage
                                   : "Tap to see details",
                               style: const TextStyle(
                                 color: Colors.white38,
@@ -231,8 +248,12 @@ class _TaqaScoreWidgetState extends State<TaqaScoreWidget>
     }
     if (s.stress.score != null) {
       items.add(
-        _MiniItem("Stress", s.stress.score!, const Color(0xFFFF6B6B),
-            inverted: true),
+        _MiniItem(
+          "Stress",
+          s.stress.score!,
+          const Color(0xFFFF6B6B),
+          inverted: true,
+        ),
       );
     }
     if (s.trainingLoad.score != null) {
@@ -305,10 +326,7 @@ class _MiniScorePill extends StatelessWidget {
           Container(
             width: 6,
             height: 6,
-            decoration: BoxDecoration(
-              color: dotColor,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
           ),
           const SizedBox(width: 4),
           Text(

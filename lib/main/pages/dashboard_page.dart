@@ -47,6 +47,7 @@ import '../../screens/whoop_cycle_detail_page.dart';
 import '../../screens/whoop_body_detail_page.dart';
 import '../../theme/app_theme.dart';
 import '../../core/account_storage.dart';
+import '../../core/date_utils.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/metrics/daily_metrics_api.dart';
 import '../../services/metrics/daily_metrics_sync.dart';
@@ -1518,9 +1519,10 @@ class DashboardPageState extends State<DashboardPage>
     final userId = await AccountStorage.getUserId();
     if (!mounted || userId == null || userId <= 0) return;
     setState(() => _taqaScoreLoading = true);
+    final scoreDate = localYesterday();
     final result = await TaqaScoreApi.fetchDaily(
       userId: userId,
-      date: _selectedDate,
+      date: scoreDate,
     );
     if (!mounted) return;
     setState(() {
@@ -4559,11 +4561,13 @@ class DashboardPageState extends State<DashboardPage>
             score: _taqaScore,
             loading: _taqaScoreLoading,
             provider: _taqaScore?.provider,
+            scoreDayLabel: t("dash_taqa_yesterday_scores"),
+            emptyMessage: t("taqa_no_data_yesterday_hint"),
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) =>
-                      TaqaScoreDetailPage(initialDate: _selectedDate),
+                      TaqaScoreDetailPage(initialDate: localYesterday()),
                 ),
               );
             },

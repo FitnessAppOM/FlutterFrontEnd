@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../core/account_storage.dart';
+import '../core/date_utils.dart';
 import '../localization/app_localizations.dart';
 import '../services/scores/taqa_score_api.dart';
 import '../theme/app_theme.dart';
@@ -18,7 +19,7 @@ class TaqaScoreDetailPage extends StatefulWidget {
 }
 
 class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
-  DateTime _selectedDate = DateTime.now();
+  DateTime _selectedDate = localYesterday();
   TaqaDailyScore? _score;
   bool _loading = true;
   bool _trendLoading = false;
@@ -55,7 +56,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
 
   Future<void> _loadTrend(int userId) async {
     setState(() => _trendLoading = true);
-    final end = DateTime.now();
+    final end = localYesterday();
     final start = end.subtract(const Duration(days: 6));
     final result = await TaqaScoreApi.fetchRange(
       userId: userId,
@@ -76,23 +77,22 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
   }
 
   void _goToNextDay() {
-    final tomorrow = DateTime.now().add(const Duration(days: 1));
+    final yesterday = localYesterday();
     final next = _selectedDate.add(const Duration(days: 1));
-    if (next.isAfter(tomorrow)) return;
+    if (next.isAfter(yesterday)) return;
     _selectedDate = next;
     final uid = _userId;
     if (uid != null) _loadScore(uid);
   }
 
   bool get _canGoNext {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = localYesterday();
     final sel = DateTime(
       _selectedDate.year,
       _selectedDate.month,
       _selectedDate.day,
     );
-    return sel.isBefore(today);
+    return sel.isBefore(yesterday);
   }
 
   String get _locale =>
@@ -110,7 +110,10 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
         backgroundColor: AppColors.black,
         title: Text(
           t("taqa_detail_title"),
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         leading: const BackButton(color: Colors.white),
         elevation: 0,
@@ -361,11 +364,18 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
       alignment: Alignment.center,
       child: Column(
         children: [
-          Icon(Icons.cloud_off_rounded, size: 48, color: Colors.white.withValues(alpha: 0.25)),
+          Icon(
+            Icons.cloud_off_rounded,
+            size: 48,
+            color: Colors.white.withValues(alpha: 0.25),
+          ),
           const SizedBox(height: 12),
           Text(
-            t("taqa_no_data"),
+            _isSelectedYesterday
+                ? t("taqa_no_data_yesterday_hint")
+                : t("taqa_no_data"),
             style: const TextStyle(color: Colors.white54, fontSize: 15),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -388,12 +398,16 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     if (_trendScores.isEmpty) return const SizedBox.shrink();
 
     final values = <double?>[];
-    final now = DateTime.now();
+    final end = localYesterday();
     for (int i = 6; i >= 0; i--) {
-      final day = now.subtract(Duration(days: i));
+      final day = end.subtract(Duration(days: i));
       final dayKey = DateTime(day.year, day.month, day.day);
       final match = _trendScores.where((s) {
-        final sd = DateTime(s.entryDate.year, s.entryDate.month, s.entryDate.day);
+        final sd = DateTime(
+          s.entryDate.year,
+          s.entryDate.month,
+          s.entryDate.day,
+        );
         return sd == dayKey;
       });
       values.add(match.isNotEmpty ? match.first.taqaValueScore : null);
@@ -432,6 +446,15 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
       ],
     );
   }
+
+  bool get _isSelectedYesterday {
+    final day = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
+    return day == localYesterday();
+  }
 }
 
 Color _scoreColor(double score, {bool inverted = false}) {
@@ -451,8 +474,8 @@ class _ProviderBadge extends StatelessWidget {
     final label = provider == 'fitbit'
         ? 'Fitbit'
         : provider == 'whoop'
-            ? 'WHOOP'
-            : provider;
+        ? 'WHOOP'
+        : provider;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -505,10 +528,12 @@ class _PillarCardState extends State<_PillarCard> {
   Widget build(BuildContext context) {
     final hasDetails =
         widget.detailLabels.isNotEmpty && widget.details.isNotEmpty;
-    final scoreDisplay =
-        widget.score == null ? "--" : widget.score!.round().toString();
-    final barValue =
-        widget.score == null ? 0.0 : (widget.score! / 100).clamp(0.0, 1.0);
+    final scoreDisplay = widget.score == null
+        ? "--"
+        : widget.score!.round().toString();
+    final barValue = widget.score == null
+        ? 0.0
+        : (widget.score! / 100).clamp(0.0, 1.0);
     final barColor = widget.score == null
         ? Colors.white24
         : _scoreColor(widget.score!, inverted: widget.inverted);
@@ -644,17 +669,17 @@ class _PathChip extends StatelessWidget {
     final label = path == 'wearable'
         ? 'Wearable'
         : path == 'journal'
-            ? 'Journal'
-            : path == 'diet_data'
-                ? 'Diet'
-                : path;
+        ? 'Journal'
+        : path == 'diet_data'
+        ? 'Diet'
+        : path;
     final icon = path == 'wearable'
         ? Icons.watch_rounded
         : path == 'journal'
-            ? Icons.edit_note_rounded
-            : path == 'diet_data'
-                ? Icons.restaurant_rounded
-                : Icons.data_usage_rounded;
+        ? Icons.edit_note_rounded
+        : path == 'diet_data'
+        ? Icons.restaurant_rounded
+        : Icons.data_usage_rounded;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(

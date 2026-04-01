@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/account_storage.dart';
+import '../core/date_utils.dart';
 import '../main/main_layout.dart';
 import '../services/metrics/daily_metrics_api.dart';
 import '../services/metrics/daily_journal_service.dart';
@@ -7,9 +8,11 @@ import '../services/core/navigation_service.dart';
 import '../services/core/notification_service.dart';
 import '../services/health/sleep_service.dart';
 import '../services/health/water_service.dart';
+import '../services/screenings/screening_service.dart';
 import '../services/whoop/whoop_sleep_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_toast.dart';
+import '../widgets/screening/screening_form_sheet.dart';
 import '../localization/app_localizations.dart';
 import '../widgets/common/date_header.dart';
 
@@ -21,15 +24,15 @@ class DailyJournalPage extends StatefulWidget {
 }
 
 class _DailyJournalPageState extends State<DailyJournalPage> {
-  static const int _journalResetHour = 6;
-
   Future<DailyJournalEntry?>? _future;
   bool _seededFromRemote = false;
   bool _seededFromWidgets = false;
   bool _isSubmitting = false;
   bool _formHidden = false;
-  DateTime _selectedDate = _journalDay(DateTime.now());
+  DateTime _selectedDate = localYesterday();
   late final bool _fromNotification;
+
+  ScreeningPendingResult? _screeningPending;
 
   final _sleepHoursCtrl = TextEditingController();
   final _caffeineCupsCtrl = TextEditingController();
@@ -41,6 +44,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
   int? _moodUponWaking;
   int? _productivityFocus;
   int? _motivationToTrain;
+  int? _sorenessLevel;
 
   bool? _caffeineYes;
   bool? _alcoholYes;
@@ -49,12 +53,24 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
   bool? _screenTimeBeforeBed;
   bool? _tookSupplements;
 
+  final _wakeUpCountCtrl = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     NavigationService.isOnJournalPage = true;
     _fromNotification = NavigationService.consumeJournalNotification();
     _refresh();
+    _loadScreeningStatus();
+  }
+
+  Future<void> _loadScreeningStatus() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null || !mounted) return;
+    try {
+      final result = await ScreeningApi.checkPending(userId);
+      if (mounted) setState(() => _screeningPending = result);
+    } catch (_) {}
   }
 
   Future<void> _refresh() async {
@@ -80,6 +96,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
     _caffeineCupsCtrl.dispose();
     _alcoholDrinksCtrl.dispose();
     _hydrationCtrl.dispose();
+    _wakeUpCountCtrl.dispose();
     super.dispose();
   }
 
@@ -92,6 +109,8 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
     _alcoholDrinksCtrl.text = entry.alcoholDrinks?.toString() ?? "";
     _hydrationCtrl.text = entry.hydrationLiters?.toString() ?? "";
     _sorenessOrPain = entry.sorenessOrPain;
+    _sorenessLevel = entry.sorenessLevel;
+    _wakeUpCountCtrl.text = entry.wakeUpCount?.toString() ?? "";
     _stressLevel = entry.stressLevel;
     _moodUponWaking = entry.moodUponWaking;
     _sexualActivity = entry.sexualActivity;
@@ -200,6 +219,8 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
         alcoholDrinks: _parseInt(_alcoholDrinksCtrl),
         hydrationLiters: _parseDouble(_hydrationCtrl),
         sorenessOrPain: _sorenessOrPain,
+        sorenessLevel: _sorenessLevel,
+        wakeUpCount: _parseInt(_wakeUpCountCtrl),
         stressLevel: _stressLevel,
         moodUponWaking: _moodUponWaking,
         sexualActivity: _sexualActivity,
@@ -221,6 +242,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
       }
       await NotificationService.rescheduleDailyJournalRemindersForTomorrow();
       await _refresh();
+      await _checkAndShowScreening(userId);
     } catch (e) {
       if (mounted) {
         final isConflict = e.toString().contains("already_submitted");
@@ -307,22 +329,33 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
   }
 
   void _changeDay(int deltaDays) {
-    final nextDate = _dateOnly(_selectedDate.add(Duration(days: deltaDays)));
-    final todayDate = _journalDay(DateTime.now());
+    final nextDate = dateOnly(_selectedDate.add(Duration(days: deltaDays)));
+    final latestAllowedDate = localYesterday();
     // Prevent navigating into the future
-    if (nextDate.isAfter(todayDate)) {
+    if (nextDate.isAfter(latestAllowedDate)) {
       return;
     }
     setState(() {
       _selectedDate = nextDate;
-      _formHidden = !_isTodaySelected;
+      _formHidden = !_isYesterdaySelected;
       _seededFromRemote = false;
       _seededFromWidgets = false;
       _future = _loadForSelectedDate();
     });
   }
 
-  bool get _isTodaySelected => _isToday(_selectedDate);
+  bool get _isYesterdaySelected => _isSameDay(_selectedDate, localYesterday());
+
+  Future<void> _checkAndShowScreening(int userId) async {
+    if (!mounted) return;
+    try {
+      final pending = await ScreeningApi.checkPending(userId);
+      if (!mounted || !pending.isDue) return;
+      await ScreeningFormSheet.show(context, pending);
+    } catch (_) {
+      // Non-critical — silently skip if screening check fails.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -375,21 +408,21 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
           final hasEntry = entry != null;
           final displayEntry =
               entry ?? DailyJournalEntry(entryDate: _selectedDate);
-          if (entry != null && !_seededFromRemote && _isTodaySelected) {
+          if (entry != null && !_seededFromRemote && _isYesterdaySelected) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _seedForm(entry);
               setState(() => _seededFromRemote = true);
             });
           }
-          if (entry == null && !_seededFromWidgets && _isTodaySelected) {
+          if (entry == null && !_seededFromWidgets && _isYesterdaySelected) {
             WidgetsBinding.instance.addPostFrameCallback((_) async {
               await _prefillFromWidgets();
             });
           }
           final bool hideForm =
               _formHidden ||
-              !_isTodaySelected ||
-              (entry != null && _isToday(entry.entryDate));
+              !_isYesterdaySelected ||
+              (entry != null && _isSameDay(entry.entryDate, _selectedDate));
 
           return RefreshIndicator(
             onRefresh: _refresh,
@@ -403,18 +436,34 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
                     selectedDate: _selectedDate,
                     onPrev: () => _changeDay(-1),
                     onNext: () => _changeDay(1),
-                    canGoNext: !_isTodaySelected,
+                    canGoNext: !_isYesterdaySelected,
                     label: hasEntry
                         ? t("daily_journal_entry_for")
                         : t("daily_journal_no_entry_for"),
                   ),
+                  if (_screeningPending != null &&
+                      _screeningPending!.isDue) ...[
+                    const SizedBox(height: 10),
+                    _ScreeningDueBanner(
+                      pending: _screeningPending!,
+                      onTap: () async {
+                        final submitted = await ScreeningFormSheet.show(
+                          context,
+                          _screeningPending!,
+                        );
+                        if (submitted == true && mounted) {
+                          setState(() => _screeningPending = null);
+                        }
+                      },
+                    ),
+                  ],
                   if (!hasEntry) ...[
                     const SizedBox(height: 10),
                     _InlineBanner(
-                      title: _isTodaySelected
+                      title: _isYesterdaySelected
                           ? t("daily_journal_no_entry_today")
                           : t("daily_journal_no_entry_date"),
-                      message: _isTodaySelected
+                      message: _isYesterdaySelected
                           ? t("daily_journal_prompt_today")
                           : t("daily_journal_prompt_other"),
                     ),
@@ -490,13 +539,23 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
                                       hint: t("daily_journal_hydration_hint"),
                                     ),
                                     const SizedBox(height: 10),
-                                    _BooleanRow(
-                                      label: t("daily_journal_soreness_label"),
-                                      value: _sorenessOrPain,
+                                    _ScorePicker(
+                                      label: t(
+                                        "daily_journal_soreness_level_label",
+                                      ),
+                                      value: _sorenessLevel,
                                       onChanged: (v) =>
-                                          setState(() => _sorenessOrPain = v),
-                                      yesLabel: t("daily_journal_yes"),
-                                      noLabel: t("daily_journal_no"),
+                                          setState(() => _sorenessLevel = v),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    _NumberField(
+                                      controller: _wakeUpCountCtrl,
+                                      label: t(
+                                        "daily_journal_wake_up_count_label",
+                                      ),
+                                      hint: t(
+                                        "daily_journal_wake_up_count_hint",
+                                      ),
                                     ),
                                     const SizedBox(height: 10),
                                     _ScorePicker(
@@ -548,7 +607,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
                                     const SizedBox(height: 10),
                                     _ScorePicker(
                                       label: t(
-                                        "daily_journal_motivation_label",
+                                        "daily_journal_energy_level_label",
                                       ),
                                       value: _motivationToTrain,
                                       onChanged: (v) => setState(
@@ -628,12 +687,14 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
                         _formatScore(displayEntry.moodUponWaking),
                       ),
                       _JournalRow(
-                        t("daily_journal_soreness_row"),
-                        _formatBool(
-                          displayEntry.sorenessOrPain,
-                          yesLabel: t("daily_journal_yes"),
-                          noLabel: t("daily_journal_no"),
-                        ),
+                        t("daily_journal_soreness_level_row"),
+                        _formatScore(displayEntry.sorenessLevel),
+                      ),
+                      _JournalRow(
+                        t("daily_journal_wake_up_count_row"),
+                        displayEntry.wakeUpCount == null
+                            ? "—"
+                            : "${displayEntry.wakeUpCount}",
                       ),
                     ],
                   ),
@@ -695,7 +756,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
                         _formatScore(displayEntry.productivityFocus),
                       ),
                       _JournalRow(
-                        t("daily_journal_motivation_row"),
+                        t("daily_journal_energy_level_row"),
                         _formatScore(displayEntry.motivationToTrain),
                       ),
                       _JournalRow(
@@ -819,6 +880,65 @@ class _InlineBanner extends StatelessWidget {
   }
 }
 
+class _ScreeningDueBanner extends StatelessWidget {
+  final ScreeningPendingResult pending;
+  final VoidCallback onTap;
+
+  const _ScreeningDueBanner({required this.pending, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
+    final isFirst = pending.reason == 'first_screening';
+    final days = pending.daysRemaining;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.accent.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(AppRadii.tile),
+          border: Border.all(color: AppColors.accent.withValues(alpha: 0.30)),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.assignment_outlined,
+              color: AppColors.accent,
+              size: 22,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isFirst
+                        ? t("screening_first_time_banner")
+                        : t("screening_cycle_banner"),
+                    style: AppTextStyles.subtitle,
+                  ),
+                  if (days != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      t(
+                        "screening_days_remaining",
+                      ).replaceAll("{days}", "$days"),
+                      style: AppTextStyles.small,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.white38, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _CenteredState extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -890,21 +1010,8 @@ String _formatCount(
   return "$count $noun";
 }
 
-bool _isToday(DateTime date) {
-  final now = _journalDay(DateTime.now());
-  return date.year == now.year &&
-      date.month == now.month &&
-      date.day == now.day;
-}
-
-DateTime _dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
-
-DateTime _journalDay(DateTime date) {
-  final shifted = date.subtract(
-    const Duration(hours: _DailyJournalPageState._journalResetHour),
-  );
-  return DateTime(shifted.year, shifted.month, shifted.day);
-}
+bool _isSameDay(DateTime a, DateTime b) =>
+    a.year == b.year && a.month == b.month && a.day == b.day;
 
 class _InputCard extends StatelessWidget {
   final String title;

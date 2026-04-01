@@ -5,6 +5,7 @@ import 'pages/train_page.dart';
 import 'pages/diet_page.dart';
 import 'pages/community_page.dart';
 import 'pages/profile_page.dart';
+import '../services/screenings/screening_prompt_service.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key, this.initialIndex = 0});
@@ -30,6 +31,9 @@ class _MainLayoutState extends State<MainLayout> {
     final idx = widget.initialIndex;
     _index = (idx >= 0 && idx < 5) ? idx : 0;
     _pages[_index] = _buildPage(_index);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ScreeningPromptService.checkAndPromptIfDue();
+    });
   }
 
   @override
