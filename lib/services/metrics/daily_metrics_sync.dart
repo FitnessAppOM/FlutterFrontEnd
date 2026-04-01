@@ -7,6 +7,7 @@ import 'daily_metrics_api.dart';
 import '../health/sleep_service.dart';
 import '../health/steps_service.dart';
 import '../health/water_service.dart';
+import '../health/health_recovery_load_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Pulls device/dashboard values for today and pushes them to the backend
@@ -16,6 +17,7 @@ class DailyMetricsSync {
   final CaloriesService _calories = CaloriesService();
   final SleepService _sleep = SleepService();
   final WaterService _water = WaterService();
+  final HealthRecoveryLoadService _recoveryLoad = HealthRecoveryLoadService();
   static const _lastPushKey = "daily_metrics_last_push_date";
 
   Future<void> pushForDate(DateTime day) async {
@@ -33,6 +35,7 @@ class DailyMetricsSync {
     final sleepHours = await _sleep.fetchSleepForDay(target);
     final sleepMetrics = await _sleep.fetchSleepMetricsForDay(target);
     final waterLiters = await _water.getIntakeForDay(target);
+    final recoveryLoad = await _recoveryLoad.fetchSummary(target);
 
     await DailyMetricsApi.upsert(
       userId: userId,
@@ -46,6 +49,13 @@ class DailyMetricsSync {
       sleepMinutesLight: sleepMetrics?.lightMinutes,
       sleepMinutesDeep: sleepMetrics?.deepMinutes,
       sleepMinutesRem: sleepMetrics?.remMinutes,
+      restingHr: recoveryLoad?.restingHeartRate,
+      hrvMs: recoveryLoad?.hrvMs,
+      activeMinutes: recoveryLoad?.activeMinutes,
+      heartZoneOutOfRangeMinutes: recoveryLoad?.zones?.outOfRangeMinutes,
+      heartZoneFatBurnMinutes: recoveryLoad?.zones?.fatBurnMinutes,
+      heartZoneCardioMinutes: recoveryLoad?.zones?.cardioMinutes,
+      heartZonePeakMinutes: recoveryLoad?.zones?.peakMinutes,
       waterLiters: waterLiters,
     );
 

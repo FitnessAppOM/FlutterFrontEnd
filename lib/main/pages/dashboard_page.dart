@@ -36,6 +36,8 @@ import '../../widgets/dashboard/fitbit_vitals_sheet.dart';
 import '../../widgets/dashboard/fitbit_body_card.dart';
 import '../../widgets/dashboard/fitbit_body_sheet.dart';
 import '../../widgets/dashboard/fitbit_extras_card.dart';
+import '../../widgets/dashboard/health_recovery_load_card.dart';
+import '../../widgets/dashboard/health_recovery_load_sheet.dart';
 import '../../widgets/dashboard/diet_progress_card.dart';
 import '../../widgets/dashboard/taqa_score_widget.dart';
 import '../../widgets/dashboard/edit_mode_bubble.dart';
@@ -55,6 +57,7 @@ import '../../services/scores/taqa_score_api.dart';
 import '../../config/base_url.dart';
 import '../../services/health/steps_service.dart';
 import '../../services/health/sleep_service.dart';
+import '../../services/health/health_recovery_load_service.dart';
 import '../../services/whoop/whoop_sleep_service.dart';
 import '../../services/whoop/whoop_widget_data_service.dart';
 import '../../services/diet/calories_service.dart';
@@ -129,6 +132,7 @@ class DashboardPageState extends State<DashboardPage>
     'water',
     'calories',
     'body',
+    'health_recovery_load',
     'fitbit_activity',
     'fitbit_heart',
     'fitbit_sleep',
@@ -185,7 +189,8 @@ class DashboardPageState extends State<DashboardPage>
   int? _waterDelta;
   int? _weeklySteps;
   bool _weeklyStepsLoading = false;
-  bool _pendingAppleWatchDetectedNotice = false;
+  bool _wearableBubbleVisible = false;
+  String? _wearableBubbleType;
   List<double> _trendSleep = const [];
   List<double> _trendCalories = const [];
   bool _trendSleepLoading = false;
@@ -337,6 +342,11 @@ class DashboardPageState extends State<DashboardPage>
   FitbitBodySummary? _fitbitBodyLast;
   final Map<DateTime, FitbitSummaryBundle?> _fitbitSummaryCache = {};
   DateTime? _fitbitSummaryLoadingDate;
+  bool _healthRecoveryLoadLoading = false;
+  HealthRecoveryLoadSummary? _healthRecoveryLoad;
+  HealthRecoveryLoadSummary? _healthRecoveryLoadLast;
+  final Map<DateTime, HealthRecoveryLoadSummary?> _healthRecoveryLoadCache = {};
+  DateTime? _healthRecoveryLoadLoadingDate;
   DateTime _selectedDate = DateTime.now();
   int _weeklyDaysCount = 7;
   int? _exerciseTotal;
@@ -459,6 +469,7 @@ class DashboardPageState extends State<DashboardPage>
     }
     _loadWhoopRecovery(force: shouldForceWhoopTodayRefresh);
     _loadFitbitSummary(force: true);
+    _loadHealthRecoveryLoad(force: true);
     _loadTaqaScore();
   }
 
@@ -529,6 +540,7 @@ class DashboardPageState extends State<DashboardPage>
     _loadStatOrder();
     _loadWhoopLinkedHint();
     _loadFitbitLinkedHint();
+    unawaited(_syncWearableDetectionBubble());
     _loadInitialData();
     unawaited(_syncBackfillThenRefreshTrends());
     _loadExerciseProgress();
@@ -585,12 +597,20 @@ class DashboardPageState extends State<DashboardPage>
       _whoopSnapshotCache.clear();
       _fitbitSummaryCache.clear();
       _fitbitSummaryLoadingDate = null;
+      _healthRecoveryLoad = null;
+      _healthRecoveryLoadLast = null;
+      _healthRecoveryLoadLoading = false;
+      _healthRecoveryLoadLoadingDate = null;
+      _healthRecoveryLoadCache.clear();
       _taqaScore = null;
       _taqaScoreLoading = false;
+      _wearableBubbleVisible = false;
+      _wearableBubbleType = null;
     });
     TaqaScoreApi.clearCache();
     _refreshAll();
     _loadExerciseProgress(force: true);
+    unawaited(_syncWearableDetectionBubble());
     unawaited(_maybeShowDailyJournalPrompt());
   }
 
@@ -609,44 +629,17 @@ class DashboardPageState extends State<DashboardPage>
     _loadStreak();
   }
 
-  void _showAppleWatchDetectedNotice() {
-    if (!mounted) return;
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    if (messenger == null) return;
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.watch, size: 16, color: Colors.white),
-            SizedBox(width: 8),
-            Text("Apple Watch detected"),
-          ],
-        ),
-        duration: Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
   Future<void> _onAppleWatchChanged() async {
-    final detected = await AccountStorage.getAppleWatchDetected();
-    if (!mounted || detected != true) return;
-    final isCurrent = ModalRoute.of(context)?.isCurrent ?? true;
-    if (isCurrent) {
-      _showAppleWatchDetectedNotice();
-    } else {
-      _pendingAppleWatchDetectedNotice = true;
-    }
+    await _syncWearableDetectionBubble();
   }
 
-  void _maybeShowPendingAppleWatchNotice() {
-    if (!_pendingAppleWatchDetectedNotice) return;
-    final isCurrent = ModalRoute.of(context)?.isCurrent ?? true;
-    if (!isCurrent) return;
-    _pendingAppleWatchDetectedNotice = false;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showAppleWatchDetectedNotice();
+  Future<void> _syncWearableDetectionBubble() async {
+    final detected = await AccountStorage.getAppleWatchDetected();
+    final wearableType = await AccountStorage.getWearableDetectedType();
+    if (!mounted) return;
+    setState(() {
+      _wearableBubbleVisible = detected == true;
+      _wearableBubbleType = detected == true ? wearableType : null;
     });
   }
 
@@ -894,6 +887,13 @@ class DashboardPageState extends State<DashboardPage>
         icon: Icons.person,
         accentColor: const Color(0xFF6A5AE0),
       ),
+      WidgetLibraryOption(
+        keyName: 'health_recovery_load',
+        title: "Recovery & load",
+        subtitle: "RHR, HRV, zones, active minutes",
+        icon: Icons.monitor_heart,
+        accentColor: const Color(0xFF2EC4B6),
+      ),
     ];
     if (_fitbitLinked || _fitbitLinkedHint == true) {
       all.add(
@@ -1053,6 +1053,7 @@ class DashboardPageState extends State<DashboardPage>
           pruned.addAll(_defaultStatOrder);
         }
         final hasWhoop = pruned.any((item) => item.startsWith('whoop_'));
+        final hasHealthRecoveryLoad = pruned.contains('health_recovery_load');
         if (!mounted) return;
         setState(() {
           _statOrder
@@ -1061,6 +1062,9 @@ class DashboardPageState extends State<DashboardPage>
         });
         if (hasWhoop) {
           _loadWhoopRecovery();
+        }
+        if (hasHealthRecoveryLoad) {
+          _loadHealthRecoveryLoad(force: true);
         }
         _loadTrendSleep(force: true);
       }
@@ -1150,6 +1154,8 @@ class DashboardPageState extends State<DashboardPage>
   bool get _hasFitbitSleepWidget => _statOrder.contains('fitbit_sleep');
   bool get _hasFitbitVitalsWidget => _statOrder.contains('fitbit_vitals');
   bool get _hasFitbitBodyWidget => _statOrder.contains('fitbit_body');
+  bool get _hasHealthRecoveryLoadWidget =>
+      _statOrder.contains('health_recovery_load');
   bool get _hasWhoopSleepWidget => _statOrder.contains('whoop_sleep');
   bool get _hasAnyWhoopWidget =>
       _statOrder.contains('whoop_sleep') ||
@@ -1266,6 +1272,9 @@ class DashboardPageState extends State<DashboardPage>
     }
     if (key == 'fitbit_body') {
       _loadFitbitSummary();
+    }
+    if (key == 'health_recovery_load') {
+      _loadHealthRecoveryLoad(force: true);
     }
   }
 
@@ -1546,6 +1555,7 @@ class DashboardPageState extends State<DashboardPage>
       _loadTrendCalories(),
       _loadStreak(),
       _loadWhoopRecovery(force: true),
+      _loadHealthRecoveryLoad(force: true),
       _loadTaqaScore(),
     ]);
     if (!mounted) return;
@@ -1576,6 +1586,7 @@ class DashboardPageState extends State<DashboardPage>
     });
     DailyMetricsApi.clearCache();
     TaqaScoreApi.clearCache();
+    _healthRecoveryLoadCache.clear();
     await Future.wait([
       _loadUserInfo(),
       _loadNews(),
@@ -1587,6 +1598,7 @@ class DashboardPageState extends State<DashboardPage>
       _loadTrendSleep(),
       _loadTrendCalories(),
       _loadWhoopRecovery(force: true),
+      _loadHealthRecoveryLoad(force: true),
       _loadTaqaScore(),
     ]);
     _loadFitbitSummary();
@@ -3010,6 +3022,103 @@ class DashboardPageState extends State<DashboardPage>
     }
   }
 
+  void _applyHealthRecoveryLoad(HealthRecoveryLoadSummary? summary) {
+    _healthRecoveryLoad = summary;
+    _healthRecoveryLoadLast = summary ?? _healthRecoveryLoadLast;
+    _healthRecoveryLoadLoading = false;
+  }
+
+  HealthRecoveryLoadSummary? _healthRecoveryLoadFromEntry(
+    DailyMetricsEntry? entry,
+  ) {
+    if (entry == null) return null;
+    final zones = HealthHeartZones(
+      outOfRangeMinutes: entry.heartZoneOutOfRangeMinutes ?? 0,
+      fatBurnMinutes: entry.heartZoneFatBurnMinutes ?? 0,
+      cardioMinutes: entry.heartZoneCardioMinutes ?? 0,
+      peakMinutes: entry.heartZonePeakMinutes ?? 0,
+    );
+    final summary = HealthRecoveryLoadSummary(
+      restingHeartRate: entry.restingHr,
+      hrvMs: entry.hrvMs,
+      activeMinutes: entry.activeMinutes,
+      zones: zones.totalMinutes > 0 ? zones : null,
+    );
+    return summary.hasAnyData ? summary : null;
+  }
+
+  Future<void> _loadHealthRecoveryLoad({bool force = false}) async {
+    if (!_hasHealthRecoveryLoadWidget) return;
+    final selectedDay = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
+    if (!force &&
+        _healthRecoveryLoadLoading &&
+        _healthRecoveryLoadLoadingDate == selectedDay) {
+      return;
+    }
+    if (!force && _healthRecoveryLoadCache.containsKey(selectedDay)) {
+      final cached = _healthRecoveryLoadCache[selectedDay];
+      if (!mounted) return;
+      setState(() {
+        _applyHealthRecoveryLoad(cached);
+        _healthRecoveryLoadLoadingDate = null;
+      });
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _healthRecoveryLoadLoading = true;
+      _healthRecoveryLoadLoadingDate = selectedDay;
+    });
+    try {
+      final now = DateTime.now();
+      final todayOnly = DateTime(now.year, now.month, now.day);
+      final isToday = selectedDay == todayOnly;
+      HealthRecoveryLoadSummary? summary;
+
+      final userId = await AccountStorage.getUserId();
+      if (userId != null) {
+        final entry = await DailyMetricsApi.fetchForDate(userId, selectedDay);
+        summary = _healthRecoveryLoadFromEntry(entry);
+      }
+      if (summary == null && isToday) {
+        summary = await HealthRecoveryLoadService().fetchSummary(selectedDay);
+      }
+      if (!mounted) return;
+      _healthRecoveryLoadCache[selectedDay] = summary;
+      if (_healthRecoveryLoadCache.length > 21) {
+        final keys = _healthRecoveryLoadCache.keys.toList()..sort();
+        while (_healthRecoveryLoadCache.length > 21 && keys.isNotEmpty) {
+          _healthRecoveryLoadCache.remove(keys.removeAt(0));
+        }
+      }
+      setState(() {
+        _applyHealthRecoveryLoad(summary);
+        _healthRecoveryLoadLoadingDate = null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _healthRecoveryLoad = null;
+        _healthRecoveryLoadLoading = false;
+        _healthRecoveryLoadLoadingDate = null;
+      });
+    } finally {
+      if (!mounted) return;
+      if (_healthRecoveryLoadLoading &&
+          _healthRecoveryLoadLoadingDate == selectedDay) {
+        setState(() {
+          _healthRecoveryLoadLoading = false;
+          _healthRecoveryLoadLoadingDate = null;
+        });
+      }
+    }
+  }
+
   Future<void> _loadFitbitActivity({int attempt = 0}) async {
     if (_fitbitActivityLoading) return;
     final userId = await AccountStorage.getUserId();
@@ -4232,7 +4341,6 @@ class DashboardPageState extends State<DashboardPage>
 
   @override
   Widget build(BuildContext context) {
-    _maybeShowPendingAppleWatchNotice();
     final t = AppLocalizations.of(context).translate;
     final locale = AppLocalizations.of(context).locale.languageCode;
     final bottomInset = MediaQuery.of(context).padding.bottom;
@@ -4756,6 +4864,30 @@ class DashboardPageState extends State<DashboardPage>
                         );
                       },
                     );
+                  case 'health_recovery_load':
+                    final recoveryLoad = _healthRecoveryLoadLoading
+                        ? (_healthRecoveryLoadLast ?? _healthRecoveryLoad)
+                        : _healthRecoveryLoad;
+                    final loading =
+                        _healthRecoveryLoadLoading && recoveryLoad == null;
+                    return HealthRecoveryLoadCard(
+                      loading: loading,
+                      restingHr: recoveryLoad?.restingHeartRate,
+                      hrvMs: recoveryLoad?.hrvMs,
+                      activeMinutes: recoveryLoad?.activeMinutes,
+                      zones: recoveryLoad?.zones,
+                      onTap: () async {
+                        await showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          isScrollControlled: true,
+                          builder: (_) => HealthRecoveryLoadSheet(
+                            summary: recoveryLoad,
+                            date: _selectedDate,
+                          ),
+                        );
+                      },
+                    );
                   case 'fitbit_activity':
                     final summary = _fitbitActivityLoading
                         ? (_fitbitActivityLast ?? _fitbitActivity)
@@ -5116,6 +5248,64 @@ class DashboardPageState extends State<DashboardPage>
                 child: EditModeBubble(
                   visible: _wiggling && isCurrentDay,
                   onTap: _openWidgetLibrary,
+                ),
+              ),
+              Positioned(
+                left: 20,
+                bottom: 20 + bottomInset,
+                child: IgnorePointer(
+                  ignoring: true,
+                  child: AnimatedOpacity(
+                    opacity: (!_wiggling && _wearableBubbleVisible) ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 180),
+                    child: AnimatedScale(
+                      scale: (!_wiggling && _wearableBubbleVisible)
+                          ? 1.0
+                          : 0.96,
+                      duration: const Duration(milliseconds: 180),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.accent.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(28),
+                          border: Border.all(
+                            color: AppColors.accent.withValues(alpha: 0.35),
+                          ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black54,
+                              blurRadius: 12,
+                              offset: Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.watch,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                            if (_wearableBubbleType == 'apple') ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                "Apple Watch",
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(
+                                      color: Colors.white70,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
               Positioned(

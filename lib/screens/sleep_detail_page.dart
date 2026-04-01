@@ -372,26 +372,94 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
 
   bool _nativeEntryHasData(DailyMetricsEntry? entry) {
     if (entry == null) return false;
-    return entry.sleepHours != null ||
-        entry.sleepMinutesAsleep != null ||
-        entry.sleepMinutesInBed != null ||
-        entry.sleepMinutesAwake != null ||
-        entry.sleepMinutesLight != null ||
-        entry.sleepMinutesDeep != null ||
-        entry.sleepMinutesRem != null;
+    return (entry.sleepHours ?? 0) > 0 ||
+        (entry.sleepMinutesAsleep ?? 0) > 0 ||
+        (entry.sleepMinutesInBed ?? 0) > 0 ||
+        (entry.sleepMinutesAwake ?? 0) > 0 ||
+        (entry.sleepMinutesLight ?? 0) > 0 ||
+        (entry.sleepMinutesDeep ?? 0) > 0 ||
+        (entry.sleepMinutesRem ?? 0) > 0;
   }
 
   DateTime _onlyDate(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  int? _positiveInt(int? value) => (value != null && value > 0) ? value : null;
+
+  double? _positiveDouble(double? value) =>
+      (value != null && value > 0) ? value : null;
+
+  DailyMetricsEntry? _mergeLiveSleepIntoEntry({
+    required DateTime dayKey,
+    required DailyMetricsEntry? entry,
+    required double? liveHours,
+    required SleepDayMetrics? liveMetrics,
+  }) {
+    final merged = DailyMetricsEntry(
+      entryDate: dayKey,
+      sleepHours:
+          _positiveDouble(entry?.sleepHours) ?? _positiveDouble(liveHours),
+      sleepMinutesAsleep:
+          _positiveInt(entry?.sleepMinutesAsleep) ??
+          _positiveInt(liveMetrics?.asleepMinutes),
+      sleepMinutesInBed:
+          _positiveInt(entry?.sleepMinutesInBed) ??
+          _positiveInt(liveMetrics?.inBedMinutes),
+      sleepMinutesAwake:
+          _positiveInt(entry?.sleepMinutesAwake) ??
+          _positiveInt(liveMetrics?.awakeMinutes),
+      sleepMinutesLight:
+          _positiveInt(entry?.sleepMinutesLight) ??
+          _positiveInt(liveMetrics?.lightMinutes),
+      sleepMinutesDeep:
+          _positiveInt(entry?.sleepMinutesDeep) ??
+          _positiveInt(liveMetrics?.deepMinutes),
+      sleepMinutesRem:
+          _positiveInt(entry?.sleepMinutesRem) ??
+          _positiveInt(liveMetrics?.remMinutes),
+      calories: entry?.calories,
+      waterLiters: entry?.waterLiters,
+      steps: entry?.steps,
+    );
+    return _nativeEntryHasData(merged) ? merged : entry;
+  }
+
+  Future<DailyMetricsEntry?> _resolveNativeSleepEntry({
+    required DateTime dayKey,
+    required DailyMetricsEntry? entry,
+  }) async {
+    if (_nativeEntryHasData(entry)) return entry;
+
+    final nowKey = _onlyDate(DateTime.now());
+    final isToday = _isSameDay(dayKey, nowKey);
+    final sleep = SleepService();
+    final liveMetrics = isToday
+        ? await sleep.fetchSleepMetricsLast24h()
+        : await sleep.fetchSleepMetricsForDay(dayKey);
+    final liveHours = isToday
+        ? await sleep.fetchSleepHoursLast24h()
+        : await sleep.fetchSleepForDay(dayKey);
+    return _mergeLiveSleepIntoEntry(
+      dayKey: dayKey,
+      entry: entry,
+      liveHours: liveHours,
+      liveMetrics: liveMetrics,
+    );
+  }
 
   Future<void> _loadNativeMetrics({bool force = false}) async {
     if (widget.useWhoop) return;
     final requestId = ++_nativeMetricsReqId;
     final dayKey = _onlyDate(_metricsDate);
+    final isToday = _isSameDay(dayKey, _onlyDate(DateTime.now()));
     final hasCache = _nativeMetricsCache.containsKey(dayKey);
+    final canUseCache = hasCache && !force && !isToday;
 
     if (!mounted) return;
     setState(() {
-      if (hasCache && !force) {
+      if (canUseCache) {
         final cached = _nativeMetricsCache[dayKey];
         _nativeMetricsEntry = cached;
         _nativeMetricsHasData = _nativeEntryHasData(cached);
@@ -400,7 +468,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
         _nativeMetricsLoading = true;
       }
     });
-    if (hasCache && !force) return;
+    if (canUseCache) return;
 
     final userId = await AccountStorage.getUserId();
     if (!mounted || requestId != _nativeMetricsReqId) return;
@@ -413,32 +481,32 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       return;
     }
 
-    try {
-      final entry = await DailyMetricsApi.fetchForDate(userId, dayKey);
-      if (!mounted || requestId != _nativeMetricsReqId) return;
-      _nativeMetricsCache[dayKey] = entry;
-      setState(() {
-        _nativeMetricsEntry = entry;
-        _nativeMetricsHasData = _nativeEntryHasData(entry);
-        _nativeMetricsLoading = false;
-      });
-    } catch (_) {
-      if (!mounted || requestId != _nativeMetricsReqId) return;
-      if (_nativeMetricsCache.containsKey(dayKey)) {
-        final cached = _nativeMetricsCache[dayKey];
-        setState(() {
-          _nativeMetricsEntry = cached;
-          _nativeMetricsHasData = _nativeEntryHasData(cached);
-          _nativeMetricsLoading = false;
-        });
-        return;
+    DailyMetricsEntry? entry;
+    if (isToday) {
+      // Current-day metrics should come from live HealthKit/Health Connect.
+      // Skip backend fetch to avoid stale/incomplete same-day rows.
+      entry = _nativeMetricsCache[dayKey];
+    } else {
+      try {
+        entry = await DailyMetricsApi.fetchForDate(userId, dayKey);
+      } catch (_) {
+        entry = _nativeMetricsCache[dayKey];
       }
-      setState(() {
-        _nativeMetricsEntry = null;
-        _nativeMetricsHasData = false;
-        _nativeMetricsLoading = false;
-      });
     }
+    if (!mounted || requestId != _nativeMetricsReqId) return;
+
+    final resolved = await _resolveNativeSleepEntry(
+      dayKey: dayKey,
+      entry: entry,
+    );
+    if (!mounted || requestId != _nativeMetricsReqId) return;
+
+    _nativeMetricsCache[dayKey] = resolved;
+    setState(() {
+      _nativeMetricsEntry = resolved;
+      _nativeMetricsHasData = _nativeEntryHasData(resolved);
+      _nativeMetricsLoading = false;
+    });
   }
 
   Future<Map<DateTime, double>> _loadWhoopRangeOrLatest({
@@ -1045,7 +1113,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
           SleepMetricTile(
             title: "Sleep stages",
             value: "",
-            subtitle: "Apple Watch stage distribution",
+            subtitle: "",
             accentColor: const Color(0xFF2D7CFF),
             icon: Icons.pie_chart,
             child: Row(
