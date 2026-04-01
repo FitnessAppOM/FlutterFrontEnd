@@ -46,9 +46,54 @@ class SleepDayMetrics {
       stageTotalMinutes > 0 ? (remMinutes / stageTotalMinutes) : 0.0;
 }
 
+class _SleepDurationBucket {
+  int asleepMinutes = 0;
+  int lightMinutes = 0;
+  int deepMinutes = 0;
+  int remMinutes = 0;
+
+  void addSample(HealthDataType type, int minutes) {
+    switch (type) {
+      case HealthDataType.SLEEP_ASLEEP:
+        asleepMinutes += minutes;
+        break;
+      case HealthDataType.SLEEP_LIGHT:
+        lightMinutes += minutes;
+        break;
+      case HealthDataType.SLEEP_DEEP:
+        deepMinutes += minutes;
+        break;
+      case HealthDataType.SLEEP_REM:
+        remMinutes += minutes;
+        break;
+      default:
+        break;
+    }
+  }
+
+  void merge(_SleepDurationBucket other) {
+    asleepMinutes += other.asleepMinutes;
+    lightMinutes += other.lightMinutes;
+    deepMinutes += other.deepMinutes;
+    remMinutes += other.remMinutes;
+  }
+
+  int get stageMinutes => lightMinutes + deepMinutes + remMinutes;
+  int get preferredMinutes => asleepMinutes > 0 ? asleepMinutes : stageMinutes;
+  double get preferredHours => preferredMinutes / 60.0;
+}
+
 class SleepService {
   final Health _health = Health();
   static const _manualKey = "manual_sleep_entries";
+  static const List<HealthDataType> _sleepBasicTypes = [
+    HealthDataType.SLEEP_ASLEEP,
+  ];
+  static const List<HealthDataType> _sleepStageTypes = [
+    HealthDataType.SLEEP_LIGHT,
+    HealthDataType.SLEEP_DEEP,
+    HealthDataType.SLEEP_REM,
+  ];
   static const List<HealthDataType> _sleepMetricTypes = [
     HealthDataType.SLEEP_IN_BED,
     HealthDataType.SLEEP_ASLEEP,
@@ -56,33 +101,59 @@ class SleepService {
     HealthDataType.SLEEP_LIGHT,
     HealthDataType.SLEEP_DEEP,
     HealthDataType.SLEEP_REM,
-    HealthDataType.SLEEP_AWAKE_IN_BED,
-    HealthDataType.SLEEP_OUT_OF_BED,
-    HealthDataType.SLEEP_UNKNOWN,
   ];
-  static final List<HealthDataAccess> _sleepMetricPermissions = List.filled(
-    _sleepMetricTypes.length,
-    HealthDataAccess.READ,
-  );
-
   Future<bool> _ensurePermission() async {
-    // Request steps + sleep + calories in one prompt to avoid multiple sheets.
-    return ConsentManager.requestAllHealth();
+    // Scope permission to sleep only so unrelated denied scopes (e.g. workout)
+    // don't block sleep reads.
+    return ConsentManager.requestHealthPermissionsJIT(
+      steps: false,
+      sleep: true,
+      calories: false,
+    );
   }
 
   Future<bool> _ensureSleepMetricPermission() async {
     if (!Platform.isIOS) return false;
     try {
+      final permissions = List<HealthDataAccess>.filled(
+        _sleepMetricTypes.length,
+        HealthDataAccess.READ,
+      );
       var granted =
           await _health.hasPermissions(
             _sleepMetricTypes,
-            permissions: _sleepMetricPermissions,
+            permissions: permissions,
           ) ??
           false;
       if (!granted) {
         granted = await _health.requestAuthorization(
           _sleepMetricTypes,
-          permissions: _sleepMetricPermissions,
+          permissions: permissions,
+        );
+      }
+      return granted;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> _ensureSleepStagePermission() async {
+    if (!Platform.isIOS) return false;
+    try {
+      final permissions = List<HealthDataAccess>.filled(
+        _sleepStageTypes.length,
+        HealthDataAccess.READ,
+      );
+      var granted =
+          await _health.hasPermissions(
+            _sleepStageTypes,
+            permissions: permissions,
+          ) ??
+          false;
+      if (!granted) {
+        granted = await _health.requestAuthorization(
+          _sleepStageTypes,
+          permissions: permissions,
         );
       }
       return granted;
@@ -183,44 +254,65 @@ class SleepService {
     final manual = await _loadManualEntries();
     final today = DateTime.now();
     final todayKey = DateTime(today.year, today.month, today.day);
+    final manualHours = manual[todayKey];
+
+    // Manual entry for today explicitly overrides HealthKit/Health Connect.
+    if (manualHours != null && manualHours > 0) {
+      return manualHours;
+    }
+
+    if (Platform.isIOS) {
+      try {
+        final metricGranted = await _ensureSleepMetricPermission();
+        if (metricGranted) {
+          final now = DateTime.now();
+          final start = now.subtract(const Duration(hours: 24));
+          final metrics = await _fetchSleepMetricsInRange(
+            start: start,
+            end: now,
+          );
+          final metricHours = (metrics?.totalSleepMinutes ?? 0) / 60.0;
+          if (metricHours > 0) return metricHours;
+        }
+      } catch (_) {
+        // Fall through to existing scoped sleep read path.
+      }
+    }
 
     final ok = await _ensurePermission();
     if (!ok) {
-      return manual[todayKey] ?? 0;
+      return manualHours ?? 0;
     }
 
     try {
       final now = DateTime.now();
       final start = now.subtract(const Duration(hours: 24));
-      final samples = await _health.getHealthDataFromTypes(
+      final basicSamples = await _health.getHealthDataFromTypes(
         startTime: start,
         endTime: now,
-        types: const [HealthDataType.SLEEP_ASLEEP, HealthDataType.SLEEP_IN_BED],
+        types: _sleepBasicTypes,
       );
+      final bucket = _bucketFromSamples(basicSamples);
 
-      double asleepHours = 0;
-      double inBedHours = 0;
-      for (final s in samples.where(
-        (e) =>
-            e.type == HealthDataType.SLEEP_ASLEEP ||
-            e.type == HealthDataType.SLEEP_IN_BED,
-      )) {
-        final minutes = _minutesForSample(s);
-        if (s.type == HealthDataType.SLEEP_ASLEEP) {
-          asleepHours += minutes / 60.0;
-        } else if (s.type == HealthDataType.SLEEP_IN_BED) {
-          inBedHours += minutes / 60.0;
+      if (Platform.isIOS && bucket.asleepMinutes <= 0) {
+        final stagePermission = await _ensureSleepStagePermission();
+        if (stagePermission) {
+          final stageSamples = await _health.getHealthDataFromTypes(
+            startTime: start,
+            endTime: now,
+            types: _sleepStageTypes,
+          );
+          bucket.merge(_bucketFromSamples(stageSamples));
         }
       }
-      final totalHours = asleepHours > 0 ? asleepHours : inBedHours;
+      final totalHours = bucket.preferredHours;
 
-      if (manual.containsKey(todayKey)) return manual[todayKey]!;
-      return totalHours;
+      return totalHours > 0 ? totalHours : (manualHours ?? 0);
     } catch (e) {
       // Unsupported platform/Health Connect missing—fallback to manual data.
       // ignore: avoid_print
       print("SleepService: sleep fetch failed, falling back to manual: $e");
-      return manual[todayKey] ?? 0;
+      return manualHours ?? 0;
     }
   }
 
@@ -230,38 +322,42 @@ class SleepService {
     required DateTime end,
   }) async {
     final ok = await _ensurePermission();
-    if (!ok) return {};
+    if (!ok) {
+      final manual = await _loadManualEntries();
+      return _manualEntriesInRange(manual, start: start, end: end);
+    }
 
     try {
-      final samples = await _health.getHealthDataFromTypes(
+      final basicSamples = await _health.getHealthDataFromTypes(
         startTime: start,
         endTime: end,
-        types: const [HealthDataType.SLEEP_ASLEEP, HealthDataType.SLEEP_IN_BED],
+        types: _sleepBasicTypes,
       );
+      final buckets = _bucketsByDay(basicSamples);
 
-      final Map<DateTime, double> asleepTotals = {};
-      final Map<DateTime, double> inBedTotals = {};
-      for (final s in samples.where(
-        (e) =>
-            e.type == HealthDataType.SLEEP_ASLEEP ||
-            e.type == HealthDataType.SLEEP_IN_BED,
-      )) {
-        final minutes = _minutesForSample(s);
-        final dt = s.dateFrom;
-        final dayKey = DateTime(dt.year, dt.month, dt.day);
-        if (s.type == HealthDataType.SLEEP_ASLEEP) {
-          asleepTotals[dayKey] = (asleepTotals[dayKey] ?? 0) + minutes / 60.0;
-        } else if (s.type == HealthDataType.SLEEP_IN_BED) {
-          inBedTotals[dayKey] = (inBedTotals[dayKey] ?? 0) + minutes / 60.0;
+      final hasAsleepData = buckets.values.any((b) => b.asleepMinutes > 0);
+      if (Platform.isIOS && !hasAsleepData) {
+        final stagePermission = await _ensureSleepStagePermission();
+        if (stagePermission) {
+          final stageSamples = await _health.getHealthDataFromTypes(
+            startTime: start,
+            endTime: end,
+            types: _sleepStageTypes,
+          );
+          final stageBuckets = _bucketsByDay(stageSamples);
+          stageBuckets.forEach((day, bucket) {
+            buckets.putIfAbsent(day, _SleepDurationBucket.new).merge(bucket);
+          });
         }
       }
+
       final Map<DateTime, double> totals = {};
-      final allKeys = <DateTime>{...asleepTotals.keys, ...inBedTotals.keys};
-      for (final key in allKeys) {
-        final asleep = asleepTotals[key] ?? 0;
-        final inBed = inBedTotals[key] ?? 0;
-        totals[key] = asleep > 0 ? asleep : inBed;
-      }
+      buckets.forEach((day, bucket) {
+        final hours = bucket.preferredHours;
+        if (hours > 0) {
+          totals[day] = hours;
+        }
+      });
 
       // Manual entries override the day's value.
       final manual = await _loadManualEntries();
@@ -279,7 +375,7 @@ class SleepService {
         "SleepService: daily sleep fetch failed, returning manual data: $e",
       );
       final manual = await _loadManualEntries();
-      return manual;
+      return _manualEntriesInRange(manual, start: start, end: end);
     }
   }
 
@@ -296,6 +392,49 @@ class SleepService {
     final mins = s.dateTo.difference(s.dateFrom).inMinutes;
     if (mins > 0) return mins.toDouble();
     return double.tryParse(s.value.toString()) ?? 0;
+  }
+
+  _SleepDurationBucket _bucketFromSamples(Iterable<HealthDataPoint> samples) {
+    final bucket = _SleepDurationBucket();
+    for (final sample in samples) {
+      final minutes = _minutesForSample(sample).round();
+      if (minutes <= 0) continue;
+      bucket.addSample(sample.type, minutes);
+    }
+    return bucket;
+  }
+
+  Map<DateTime, _SleepDurationBucket> _bucketsByDay(
+    Iterable<HealthDataPoint> samples,
+  ) {
+    final buckets = <DateTime, _SleepDurationBucket>{};
+    for (final sample in samples) {
+      final minutes = _minutesForSample(sample).round();
+      if (minutes <= 0) continue;
+      final from = sample.dateFrom;
+      final dayKey = DateTime(from.year, from.month, from.day);
+      buckets
+          .putIfAbsent(dayKey, _SleepDurationBucket.new)
+          .addSample(sample.type, minutes);
+    }
+    return buckets;
+  }
+
+  Map<DateTime, double> _manualEntriesInRange(
+    Map<DateTime, double> manual, {
+    required DateTime start,
+    required DateTime end,
+  }) {
+    final from = DateTime(start.year, start.month, start.day);
+    final to = DateTime(end.year, end.month, end.day);
+    final filtered = <DateTime, double>{};
+    manual.forEach((day, hours) {
+      final key = DateTime(day.year, day.month, day.day);
+      if (!key.isBefore(from) && !key.isAfter(to)) {
+        filtered[key] = hours;
+      }
+    });
+    return filtered;
   }
 
   Future<void> saveManualEntry(DateTime day, double hours) async {

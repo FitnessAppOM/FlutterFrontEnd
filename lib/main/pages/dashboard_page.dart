@@ -3524,10 +3524,14 @@ class DashboardPageState extends State<DashboardPage>
       final localSleep = await SleepService().fetchSleepHoursLast24h();
       final localCalories = await CaloriesService().fetchTodayCalories();
       final localWater = await WaterService().getIntakeForDay(todayKey);
+      final currentSleep = current?.sleepHours;
+      final resolvedSleep = (currentSleep != null && currentSleep > 0)
+          ? currentSleep
+          : localSleep;
       map[todayKey] = DailyMetricsEntry(
         entryDate: todayKey,
         steps: current?.steps ?? localSteps,
-        sleepHours: current?.sleepHours ?? localSleep,
+        sleepHours: resolvedSleep,
         calories: current?.calories ?? localCalories,
         waterLiters: current?.waterLiters ?? localWater,
       );
@@ -4558,9 +4562,8 @@ class DashboardPageState extends State<DashboardPage>
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => TaqaScoreDetailPage(
-                    initialDate: _selectedDate,
-                  ),
+                  builder: (_) =>
+                      TaqaScoreDetailPage(initialDate: _selectedDate),
                 ),
               );
             },

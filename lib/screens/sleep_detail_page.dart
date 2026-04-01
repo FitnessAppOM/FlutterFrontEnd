@@ -1032,32 +1032,14 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: SleepMetricTile(
-                  title: "Awake time",
-                  value: (isLoading || !hasData || awakeHours == null)
-                      ? "—"
-                      : _formatHours(awakeHours),
-                  subtitle: "Awake during sleep window",
-                  accentColor: const Color(0xFFFF8A00),
-                  icon: Icons.wb_sunny_outlined,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: SleepMetricTile(
-                  title: "Stage data",
-                  value: (isLoading || !hasData)
-                      ? "—"
-                      : (hasStages ? "Available" : "Unavailable"),
-                  subtitle: "Deep + Light + REM",
-                  accentColor: const Color(0xFF6A5AE0),
-                  icon: Icons.insights_outlined,
-                ),
-              ),
-            ],
+          SleepMetricTile(
+            title: "Awake time",
+            value: (isLoading || !hasData || awakeHours == null)
+                ? "—"
+                : _formatHours(awakeHours),
+            subtitle: "Awake during sleep window",
+            accentColor: const Color(0xFFFF8A00),
+            icon: Icons.wb_sunny_outlined,
           ),
           const SizedBox(height: 12),
           SleepMetricTile(

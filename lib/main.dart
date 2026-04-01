@@ -129,7 +129,6 @@ void main() async {
   // check-in body reflects the surplus-adjusted target, not the base target.
   try {
     await DailyMetricsSync().pushIfNewDay();
-    await DailyMetricsSync().pushToday();
     await WhoopDailySync().pushIfNewDay();
     await FitbitDailySync().pushIfNewDay();
   } catch (e) {
@@ -221,7 +220,6 @@ class _MyAppState extends State<MyApp> {
     _maybeRequestAndroidHealthPermission();
     try {
       await DailyMetricsSync().pushIfNewDay();
-      await DailyMetricsSync().pushToday();
       await WhoopDailySync().pushIfNewDay();
       await FitbitDailySync().pushIfNewDay();
     } catch (e) {
