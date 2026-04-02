@@ -5,8 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/account_storage.dart';
 import '../services/diet/calories_service.dart';
-import '../services/diet/diet_service.dart';
 import '../services/metrics/daily_metrics_api.dart';
+import '../services/training/training_calories_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/charts/ranged_bar_chart.dart';
 import '../localization/app_localizations.dart';
@@ -148,17 +148,44 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
       final manual = await CaloriesService().getManualEntries();
       manual.forEach((day, calories) {
         if (!day.isBefore(DateTime(start.year, start.month, start.day)) &&
-            !day.isAfter(DateTime(effectiveEnd.year, effectiveEnd.month, effectiveEnd.day))) {
+            !day.isAfter(
+              DateTime(effectiveEnd.year, effectiveEnd.month, effectiveEnd.day),
+            )) {
+          data[DateTime(day.year, day.month, day.day)] = calories;
+        }
+      });
+      // Apply manual total display overrides (all days); these win over DB/health values.
+      final manualTotals = await CaloriesService()
+          .getManualTotalDisplayEntries();
+      manualTotals.forEach((day, calories) {
+        if (!day.isBefore(DateTime(start.year, start.month, start.day)) &&
+            !day.isAfter(
+              DateTime(effectiveEnd.year, effectiveEnd.month, effectiveEnd.day),
+            )) {
           data[DateTime(day.year, day.month, day.day)] = calories;
         }
       });
 
       // For current day, prefer HealthKit/Health Connect (unless manual override exists).
       final todayKey = DateTime(now.year, now.month, now.day);
-      final inRange = !todayKey.isBefore(DateTime(start.year, start.month, start.day)) &&
-          !todayKey.isAfter(DateTime(effectiveEnd.year, effectiveEnd.month, effectiveEnd.day));
-      if (inRange && !manual.containsKey(todayKey)) {
-        final todayCalories = await CaloriesService().fetchTodayCalories();
+      final inRange =
+          !todayKey.isBefore(DateTime(start.year, start.month, start.day)) &&
+          !todayKey.isAfter(
+            DateTime(effectiveEnd.year, effectiveEnd.month, effectiveEnd.day),
+          );
+      if (inRange && manualTotals.containsKey(todayKey)) {
+        data[todayKey] = manualTotals[todayKey]!;
+      } else if (inRange && manual.containsKey(todayKey)) {
+        final trainingCalories = await TrainingCaloriesService()
+            .fetchEstimatedCaloriesForDay(todayKey);
+        if (trainingCalories > 0) {
+          data[todayKey] = (data[todayKey] ?? 0) + trainingCalories;
+        }
+      } else if (inRange && !manual.containsKey(todayKey)) {
+        final baseCalories = await CaloriesService().fetchTodayCalories();
+        final trainingCalories = await TrainingCaloriesService()
+            .fetchEstimatedCaloriesForDay(todayKey);
+        final todayCalories = baseCalories + trainingCalories;
         if (todayCalories > 0) {
           data[todayKey] = todayCalories;
         }
@@ -603,7 +630,7 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
     final controller = TextEditingController(
       text: _todayCalories() > 0 ? _todayCalories().toString() : '',
     );
-    final result = await showDialog<int>(
+    final result = await showDialog<Object>(
       context: context,
       builder: (ctx) {
         return AlertDialog(
@@ -627,6 +654,10 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
               child: const Text("Cancel"),
             ),
             TextButton(
+              onPressed: () => Navigator.pop(ctx, 'reset'),
+              child: const Text("Reset"),
+            ),
+            TextButton(
               onPressed: () {
                 final val = int.tryParse(controller.text.trim());
                 if (val != null && val >= 0) {
@@ -642,29 +673,20 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
       },
     );
 
-    if (result != null) {
+    if (result == 'reset') {
       final today = DateTime.now();
       final day = DateTime(today.year, today.month, today.day);
-      await CaloriesService().saveManualEntry(day, result);
-      // Submit burn so surplus rule runs (e.g. when user lowers value, targets go down).
-      final userId = await AccountStorage.getUserId();
-      if (userId != null) {
-        try {
-          await DailyMetricsApi.submitBurn(
-            userId: userId,
-            caloriesBurned: result,
-            entryDate: day,
-          );
-          if (day.year == today.year &&
-              day.month == today.month &&
-              day.day == today.day) {
-            await DietService.fetchCurrentTargets(userId);
-            DietService.notifyTargetsUpdatedAfterBurn();
-          }
-        } catch (_) {
-          // Ignore; next dashboard load or sync will submit.
-        }
+      await CaloriesService().clearManualTotalDisplayEntry(day);
+      if (mounted) {
+        _loadRange();
       }
+      return;
+    }
+
+    if (result is int) {
+      final today = DateTime.now();
+      final day = DateTime(today.year, today.month, today.day);
+      await CaloriesService().saveManualTotalDisplayEntry(day, result);
       if (mounted) {
         _loadRange();
       }

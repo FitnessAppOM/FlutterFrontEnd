@@ -9,6 +9,7 @@ import '../metrics/daily_metrics_sync.dart';
 class CaloriesService {
   final Health _health = Health();
   static const _manualKey = "manual_calories_entries";
+  static const _manualTotalDisplayKey = "manual_total_calories_entries";
 
   num _valueToNum(dynamic value) {
     if (value is num) return value;
@@ -45,7 +46,9 @@ class CaloriesService {
     } catch (e) {
       // Unsupported platform/Health Connect missing—fallback to manual data.
       // ignore: avoid_print
-      print("CaloriesService: calories fetch failed, falling back to manual: $e");
+      print(
+        "CaloriesService: calories fetch failed, falling back to manual: $e",
+      );
       return manual[todayKey] ?? 0;
     }
   }
@@ -66,9 +69,11 @@ class CaloriesService {
       );
 
       final Map<DateTime, int> totals = {};
-      for (final s in data.where((e) => e.type == HealthDataType.ACTIVE_ENERGY_BURNED)) {
+      for (final s in data.where(
+        (e) => e.type == HealthDataType.ACTIVE_ENERGY_BURNED,
+      )) {
         final num val = _valueToNum(s.value);
-        final dt = s.dateFrom ?? DateTime.now();
+        final dt = s.dateFrom;
         final dayKey = DateTime(dt.year, dt.month, dt.day);
         final current = totals[dayKey] ?? 0;
         totals[dayKey] = current + val.round();
@@ -84,7 +89,9 @@ class CaloriesService {
     } catch (e) {
       // Unsupported platform/Health Connect missing—fallback to manual data.
       // ignore: avoid_print
-      print("CaloriesService: daily calories fetch failed, returning manual data: $e");
+      print(
+        "CaloriesService: daily calories fetch failed, returning manual data: $e",
+      );
       final manual = await _loadManualEntries();
       return manual;
     }
@@ -92,20 +99,65 @@ class CaloriesService {
 
   Future<int> fetchCaloriesForDay(DateTime day) async {
     final start = DateTime(day.year, day.month, day.day);
-    final end = start.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
+    final end = start
+        .add(const Duration(days: 1))
+        .subtract(const Duration(milliseconds: 1));
     final map = await fetchDailyCalories(start: start, end: end);
     return map[start] ?? 0;
   }
 
   Future<void> saveManualEntry(DateTime day, int calories) async {
-    final sp = await SharedPreferences.getInstance();
-    final existing = await _loadManualEntries();
+    final entries = await _loadManualEntries();
     final normalized = DateTime(day.year, day.month, day.day);
-    existing[normalized] = calories;
-    final encoded = existing.map((k, v) => MapEntry(
+    entries[normalized] = calories;
+    await _saveEntries(_manualKey, entries);
+  }
+
+  Future<void> saveManualTotalDisplayEntry(
+    DateTime day,
+    int totalCalories,
+  ) async {
+    final entries = await _loadManualTotalDisplayEntries();
+    final normalized = DateTime(day.year, day.month, day.day);
+    entries[normalized] = totalCalories;
+    await _saveEntries(_manualTotalDisplayKey, entries);
+
+    // Keep cardio calories intact when user edits total display calories:
+    // remove any legacy manual cardio override for the same day.
+    final legacyCardioEntries = await _loadManualEntries();
+    if (legacyCardioEntries.remove(normalized) != null) {
+      await _saveEntries(_manualKey, legacyCardioEntries);
+    }
+  }
+
+  Future<void> clearManualTotalDisplayEntry(DateTime day) async {
+    final normalized = DateTime(day.year, day.month, day.day);
+
+    final totalEntries = await _loadManualTotalDisplayEntries();
+    if (totalEntries.remove(normalized) != null) {
+      await _saveEntries(_manualTotalDisplayKey, totalEntries);
+    }
+
+    // Also clear legacy manual cardio override for this day, if present.
+    final legacyCardioEntries = await _loadManualEntries();
+    if (legacyCardioEntries.remove(normalized) != null) {
+      await _saveEntries(_manualKey, legacyCardioEntries);
+    }
+  }
+
+  Future<Map<DateTime, int>> getManualTotalDisplayEntries() async {
+    return _loadManualTotalDisplayEntries();
+  }
+
+  Future<void> _saveEntries(String baseKey, Map<DateTime, int> entries) async {
+    final sp = await SharedPreferences.getInstance();
+    final encoded = entries.map(
+      (k, v) => MapEntry(
         "${k.year}-${k.month.toString().padLeft(2, '0')}-${k.day.toString().padLeft(2, '0')}",
-        v));
-    final key = await _scopedKey(_manualKey);
+        v,
+      ),
+    );
+    final key = await _scopedKey(baseKey);
     await sp.setString(key, jsonEncode(encoded));
   }
 
@@ -114,8 +166,16 @@ class CaloriesService {
   }
 
   Future<Map<DateTime, int>> _loadManualEntries() async {
+    return _loadEntries(_manualKey);
+  }
+
+  Future<Map<DateTime, int>> _loadManualTotalDisplayEntries() async {
+    return _loadEntries(_manualTotalDisplayKey);
+  }
+
+  Future<Map<DateTime, int>> _loadEntries(String baseKey) async {
     final sp = await SharedPreferences.getInstance();
-    final key = await _scopedKey(_manualKey);
+    final key = await _scopedKey(baseKey);
     final raw = sp.getString(key);
     if (raw == null) return {};
     final Map<String, dynamic> decoded = jsonDecode(raw);

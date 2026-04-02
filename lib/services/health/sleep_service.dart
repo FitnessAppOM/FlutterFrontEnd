@@ -94,7 +94,7 @@ class SleepService {
     HealthDataType.SLEEP_DEEP,
     HealthDataType.SLEEP_REM,
   ];
-  static const List<HealthDataType> _sleepMetricTypes = [
+  static const List<HealthDataType> _sleepMetricTypesIos = [
     HealthDataType.SLEEP_IN_BED,
     HealthDataType.SLEEP_ASLEEP,
     HealthDataType.SLEEP_AWAKE,
@@ -102,6 +102,21 @@ class SleepService {
     HealthDataType.SLEEP_DEEP,
     HealthDataType.SLEEP_REM,
   ];
+  static const List<HealthDataType> _sleepMetricTypesAndroid = [
+    HealthDataType.SLEEP_ASLEEP,
+    HealthDataType.SLEEP_AWAKE,
+    HealthDataType.SLEEP_AWAKE_IN_BED,
+    HealthDataType.SLEEP_OUT_OF_BED,
+    HealthDataType.SLEEP_LIGHT,
+    HealthDataType.SLEEP_DEEP,
+    HealthDataType.SLEEP_REM,
+  ];
+
+  List<HealthDataType> _sleepMetricTypesForPlatform() {
+    if (Platform.isAndroid) return _sleepMetricTypesAndroid;
+    return _sleepMetricTypesIos;
+  }
+
   Future<bool> _ensurePermission() async {
     // Scope permission to sleep only so unrelated denied scopes (e.g. workout)
     // don't block sleep reads.
@@ -113,21 +128,18 @@ class SleepService {
   }
 
   Future<bool> _ensureSleepMetricPermission() async {
-    if (!Platform.isIOS) return false;
     try {
+      final types = _sleepMetricTypesForPlatform();
       final permissions = List<HealthDataAccess>.filled(
-        _sleepMetricTypes.length,
+        types.length,
         HealthDataAccess.READ,
       );
       var granted =
-          await _health.hasPermissions(
-            _sleepMetricTypes,
-            permissions: permissions,
-          ) ??
+          await _health.hasPermissions(types, permissions: permissions) ??
           false;
       if (!granted) {
         granted = await _health.requestAuthorization(
-          _sleepMetricTypes,
+          types,
           permissions: permissions,
         );
       }
@@ -138,7 +150,6 @@ class SleepService {
   }
 
   Future<bool> _ensureSleepStagePermission() async {
-    if (!Platform.isIOS) return false;
     try {
       final permissions = List<HealthDataAccess>.filled(
         _sleepStageTypes.length,
@@ -167,10 +178,11 @@ class SleepService {
     required DateTime end,
   }) async {
     try {
+      final types = _sleepMetricTypesForPlatform();
       final samples = await _health.getHealthDataFromTypes(
         startTime: start,
         endTime: end,
-        types: _sleepMetricTypes,
+        types: types,
       );
 
       int inBed = 0;
@@ -261,22 +273,17 @@ class SleepService {
       return manualHours;
     }
 
-    if (Platform.isIOS) {
-      try {
-        final metricGranted = await _ensureSleepMetricPermission();
-        if (metricGranted) {
-          final now = DateTime.now();
-          final start = now.subtract(const Duration(hours: 24));
-          final metrics = await _fetchSleepMetricsInRange(
-            start: start,
-            end: now,
-          );
-          final metricHours = (metrics?.totalSleepMinutes ?? 0) / 60.0;
-          if (metricHours > 0) return metricHours;
-        }
-      } catch (_) {
-        // Fall through to existing scoped sleep read path.
+    try {
+      final metricGranted = await _ensureSleepMetricPermission();
+      if (metricGranted) {
+        final now = DateTime.now();
+        final start = now.subtract(const Duration(hours: 24));
+        final metrics = await _fetchSleepMetricsInRange(start: start, end: now);
+        final metricHours = (metrics?.totalSleepMinutes ?? 0) / 60.0;
+        if (metricHours > 0) return metricHours;
       }
+    } catch (_) {
+      // Fall through to existing scoped sleep read path.
     }
 
     final ok = await _ensurePermission();
@@ -294,7 +301,7 @@ class SleepService {
       );
       final bucket = _bucketFromSamples(basicSamples);
 
-      if (Platform.isIOS && bucket.asleepMinutes <= 0) {
+      if (bucket.asleepMinutes <= 0) {
         final stagePermission = await _ensureSleepStagePermission();
         if (stagePermission) {
           final stageSamples = await _health.getHealthDataFromTypes(
@@ -336,7 +343,7 @@ class SleepService {
       final buckets = _bucketsByDay(basicSamples);
 
       final hasAsleepData = buckets.values.any((b) => b.asleepMinutes > 0);
-      if (Platform.isIOS && !hasAsleepData) {
+      if (!hasAsleepData) {
         final stagePermission = await _ensureSleepStagePermission();
         if (stagePermission) {
           final stageSamples = await _health.getHealthDataFromTypes(
@@ -449,6 +456,25 @@ class SleepService {
       ),
     );
     final key = await _scopedKey(_manualKey);
+    await sp.setString(key, jsonEncode(encoded));
+  }
+
+  Future<void> clearManualEntry(DateTime day) async {
+    final sp = await SharedPreferences.getInstance();
+    final existing = await _loadManualEntries();
+    final normalized = DateTime(day.year, day.month, day.day);
+    if (existing.remove(normalized) == null) return;
+    final key = await _scopedKey(_manualKey);
+    if (existing.isEmpty) {
+      await sp.remove(key);
+      return;
+    }
+    final encoded = existing.map(
+      (k, v) => MapEntry(
+        "${k.year}-${k.month.toString().padLeft(2, '0')}-${k.day.toString().padLeft(2, '0')}",
+        v,
+      ),
+    );
     await sp.setString(key, jsonEncode(encoded));
   }
 

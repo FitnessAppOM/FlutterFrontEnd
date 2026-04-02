@@ -52,6 +52,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _stravaLoading = false;
   bool _stravaAuthInFlight = false;
   bool? _appleWatchDetected;
+  String? _wearableDetectedType;
   bool _appleWatchChecking = false;
 
   bool _isAuthCancelled(Object e) {
@@ -235,6 +236,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _fitbitLinked = false;
       _stravaLinked = false;
       _appleWatchDetected = null;
+      _wearableDetectedType = null;
       _appleWatchChecking = false;
     });
     _loadEmail();
@@ -375,32 +377,56 @@ class _SettingsPageState extends State<SettingsPage> {
     bool requestPermissionIfNeeded = false,
   }) async {
     if (!Platform.isIOS) {
-      if (mounted) setState(() => _appleWatchDetected = false);
+      if (mounted) {
+        setState(() {
+          _appleWatchDetected = false;
+          _wearableDetectedType = null;
+        });
+      }
       return;
     }
 
     final userId = await AccountStorage.getUserId();
     if (!mounted || userId == null || userId == 0) {
-      if (mounted) setState(() => _appleWatchDetected = null);
+      if (mounted) {
+        setState(() {
+          _appleWatchDetected = null;
+          _wearableDetectedType = null;
+        });
+      }
       return;
     }
 
     if (!requestPermissionIfNeeded) {
       final hint = await AccountStorage.getAppleWatchDetected();
+      final hintType = await AccountStorage.getWearableDetectedType();
       if (mounted && hint != null) {
-        setState(() => _appleWatchDetected = hint);
+        setState(() {
+          _appleWatchDetected = hint;
+          _wearableDetectedType = hint ? hintType : null;
+        });
       }
     }
 
     final previous = _appleWatchDetected;
     if (mounted) setState(() => _appleWatchChecking = true);
     try {
-      final detected = await AppleWatchDetectionService().detect(
+      final result = await AppleWatchDetectionService().detectAny(
         requestPermissionIfNeeded: requestPermissionIfNeeded,
       );
+      final detected = result.detected;
+      final type = switch (result.kind) {
+        WearableDetectionKind.apple => 'apple',
+        WearableDetectionKind.other => 'other',
+        WearableDetectionKind.none => null,
+      };
       if (!mounted) return;
-      setState(() => _appleWatchDetected = detected);
+      setState(() {
+        _appleWatchDetected = detected;
+        _wearableDetectedType = type;
+      });
       await AccountStorage.setAppleWatchDetected(detected);
+      await AccountStorage.setWearableDetectedType(type);
       if (detected == true && previous != true) {
         AccountStorage.notifyAppleWatchChanged();
       }
@@ -1304,20 +1330,14 @@ class _SettingsPageState extends State<SettingsPage> {
             icon: _whoopLoading ? Icons.hourglass_bottom : Icons.monitor_heart,
             onTap: (_whoopLoading || _isDeactivated) ? null : _handleWhoopTap,
             color: _whoopLinked ? const Color(0xFF4CD964) : null,
-            leading: Container(
+            leading: SizedBox(
               height: 28,
               width: 28,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: const Color(0xFF2D7CFF),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Text(
-                "W",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
+              child: Center(
+                child: Image.asset(
+                  'assets/images/whoop.png',
+                  height: 18,
+                  fit: BoxFit.contain,
                 ),
               ),
             ),
@@ -1332,20 +1352,14 @@ class _SettingsPageState extends State<SettingsPage> {
                 : Icons.directions_walk,
             onTap: (_fitbitLoading || _isDeactivated) ? null : _handleFitbitTap,
             color: _fitbitLinked ? const Color(0xFF4CD964) : null,
-            leading: Container(
+            leading: SizedBox(
               height: 28,
               width: 28,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: const Color(0xFF00B0B9),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Text(
-                "F",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
+              child: Center(
+                child: Image.asset(
+                  'assets/images/fitbit.png',
+                  height: 14,
+                  fit: BoxFit.contain,
                 ),
               ),
             ),
@@ -1380,17 +1394,21 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           _SettingsTile(
             title: !Platform.isIOS
-                ? "Apple Watch unavailable"
+                ? "Wearable detection unavailable"
                 : _appleWatchChecking
-                ? "Checking Apple Watch..."
+                ? "Checking wearables..."
                 : (_appleWatchDetected == true
-                      ? "Apple Watch detected"
-                      : "Detect Apple Watch"),
+                      ? (_wearableDetectedType == 'apple'
+                            ? "Apple Watch detected"
+                            : "Wearable detected")
+                      : "Wearable not detected"),
             subtitle: !Platform.isIOS
-                ? "Apple Watch detection works on iPhone only"
+                ? "Wearable source detection works on iPhone only"
                 : (_appleWatchDetected == true
-                      ? "Health data from Apple Watch is available"
-                      : "Tap to scan Apple Health data sources"),
+                      ? (_wearableDetectedType == 'apple'
+                            ? "Health data from Apple Watch is available"
+                            : "Health data from a connected wearable is available")
+                      : "No wearable source found in Apple Health data"),
             icon: _appleWatchChecking ? Icons.hourglass_bottom : Icons.watch,
             onTap: (!Platform.isIOS || _isDeactivated || _appleWatchChecking)
                 ? null

@@ -14,6 +14,13 @@ class DailyMetricsEntry {
   final int? sleepMinutesLight;
   final int? sleepMinutesDeep;
   final int? sleepMinutesRem;
+  final int? restingHr;
+  final double? hrvMs;
+  final int? activeMinutes;
+  final int? heartZoneOutOfRangeMinutes;
+  final int? heartZoneFatBurnMinutes;
+  final int? heartZoneCardioMinutes;
+  final int? heartZonePeakMinutes;
   final int? calories;
   final double? waterLiters;
   final int? steps;
@@ -27,6 +34,13 @@ class DailyMetricsEntry {
     this.sleepMinutesLight,
     this.sleepMinutesDeep,
     this.sleepMinutesRem,
+    this.restingHr,
+    this.hrvMs,
+    this.activeMinutes,
+    this.heartZoneOutOfRangeMinutes,
+    this.heartZoneFatBurnMinutes,
+    this.heartZoneCardioMinutes,
+    this.heartZonePeakMinutes,
     this.calories,
     this.waterLiters,
     this.steps,
@@ -50,6 +64,15 @@ class DailyMetricsEntry {
       sleepMinutesLight: parseInt(json['sleep_minutes_light']),
       sleepMinutesDeep: parseInt(json['sleep_minutes_deep']),
       sleepMinutesRem: parseInt(json['sleep_minutes_rem']),
+      restingHr: parseInt(json['resting_hr']),
+      hrvMs: parseDouble(json['hrv_ms']),
+      activeMinutes: parseInt(json['active_minutes']),
+      heartZoneOutOfRangeMinutes: parseInt(
+        json['heart_zone_out_of_range_minutes'],
+      ),
+      heartZoneFatBurnMinutes: parseInt(json['heart_zone_fat_burn_minutes']),
+      heartZoneCardioMinutes: parseInt(json['heart_zone_cardio_minutes']),
+      heartZonePeakMinutes: parseInt(json['heart_zone_peak_minutes']),
       calories: parseInt(json['calories']),
       waterLiters: parseDouble(json['water_liters']),
       steps: parseInt(json['steps']),
@@ -79,6 +102,13 @@ class DailyMetricsApi {
     int? sleepMinutesLight,
     int? sleepMinutesDeep,
     int? sleepMinutesRem,
+    int? restingHr,
+    double? hrvMs,
+    int? activeMinutes,
+    int? heartZoneOutOfRangeMinutes,
+    int? heartZoneFatBurnMinutes,
+    int? heartZoneCardioMinutes,
+    int? heartZonePeakMinutes,
     int? calories,
     double? waterLiters,
     int? steps,
@@ -95,6 +125,17 @@ class DailyMetricsApi {
       if (sleepMinutesLight != null) "sleep_minutes_light": sleepMinutesLight,
       if (sleepMinutesDeep != null) "sleep_minutes_deep": sleepMinutesDeep,
       if (sleepMinutesRem != null) "sleep_minutes_rem": sleepMinutesRem,
+      if (restingHr != null) "resting_hr": restingHr,
+      if (hrvMs != null) "hrv_ms": hrvMs,
+      if (activeMinutes != null) "active_minutes": activeMinutes,
+      if (heartZoneOutOfRangeMinutes != null)
+        "heart_zone_out_of_range_minutes": heartZoneOutOfRangeMinutes,
+      if (heartZoneFatBurnMinutes != null)
+        "heart_zone_fat_burn_minutes": heartZoneFatBurnMinutes,
+      if (heartZoneCardioMinutes != null)
+        "heart_zone_cardio_minutes": heartZoneCardioMinutes,
+      if (heartZonePeakMinutes != null)
+        "heart_zone_peak_minutes": heartZonePeakMinutes,
       if (calories != null) "calories": calories,
       if (waterLiters != null) "water_liters": waterLiters,
       if (steps != null) "steps": steps,

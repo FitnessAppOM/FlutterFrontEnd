@@ -293,9 +293,10 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
     );
     final grouped = <String, _TrainingHistoryPlanGroupBuilder>{};
     for (final entry in entries) {
+      final weekToken = _dateToken(entry.weekStart);
       final key = entry.programId != null
-          ? "program:${entry.programId}"
-          : "local:${entry.planDaysPerWeek ?? 0}";
+          ? "program:${entry.programId}|week:$weekToken"
+          : "local:${entry.planDaysPerWeek ?? 0}|week:$weekToken";
       final builder = grouped.putIfAbsent(
         key,
         () => _TrainingHistoryPlanGroupBuilder(programId: entry.programId),
@@ -1025,11 +1026,15 @@ class _TrainingHistoryPlanGroupBuilder {
   final List<_TrainingHistoryEntry> _entries = [];
   int? _planDaysPerWeek;
   DateTime? _latestDate;
+  String? _weekLabel;
 
   void add(_TrainingHistoryEntry entry) {
     _entries.add(entry);
     if (entry.planDaysPerWeek != null && entry.planDaysPerWeek! > 0) {
       _planDaysPerWeek = entry.planDaysPerWeek;
+    }
+    if ((_weekLabel ?? '').isEmpty) {
+      _weekLabel = entry.weekLabel;
     }
     if (_latestDate == null || entry.latestDate.isAfter(_latestDate!)) {
       _latestDate = entry.latestDate;
@@ -1038,9 +1043,11 @@ class _TrainingHistoryPlanGroupBuilder {
 
   _TrainingHistoryPlanGroup build() {
     final daysPerWeek = _planDaysPerWeek;
-    final title = (daysPerWeek != null && daysPerWeek > 0)
+    final baseTitle = (daysPerWeek != null && daysPerWeek > 0)
         ? "$daysPerWeek days plan"
         : (programId != null ? "Plan #$programId" : "Training plan");
+    final weekLabel = (_weekLabel ?? '').trim();
+    final title = weekLabel.isNotEmpty ? "$baseTitle • $weekLabel" : baseTitle;
     _entries.sort((a, b) => b.latestDate.compareTo(a.latestDate));
     final latestDate = _latestDate ?? DateTime.fromMillisecondsSinceEpoch(0);
     return _TrainingHistoryPlanGroup(

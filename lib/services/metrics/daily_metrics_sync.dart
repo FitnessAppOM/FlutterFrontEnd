@@ -7,6 +7,8 @@ import 'daily_metrics_api.dart';
 import '../health/sleep_service.dart';
 import '../health/steps_service.dart';
 import '../health/water_service.dart';
+import '../health/health_recovery_load_service.dart';
+import '../training/training_calories_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Pulls device/dashboard values for today and pushes them to the backend
@@ -16,6 +18,8 @@ class DailyMetricsSync {
   final CaloriesService _calories = CaloriesService();
   final SleepService _sleep = SleepService();
   final WaterService _water = WaterService();
+  final HealthRecoveryLoadService _recoveryLoad = HealthRecoveryLoadService();
+  final TrainingCaloriesService _trainingCalories = TrainingCaloriesService();
   static const _lastPushKey = "daily_metrics_last_push_date";
 
   Future<void> pushForDate(DateTime day) async {
@@ -29,16 +33,20 @@ class DailyMetricsSync {
     // `ConsentManager.requestAllHealth()` uses a single in-flight guard; parallel
     // reads can make some metric calls return "not granted" and produce zeros.
     final steps = await _steps.fetchStepsForDay(target);
-    final calories = await _calories.fetchCaloriesForDay(target);
+    final cardioCalories = await _calories.fetchCaloriesForDay(target);
+    final estimatedTrainingCalories = await _trainingCalories
+        .fetchEstimatedCaloriesForDay(target);
+    final displayCalories = cardioCalories + estimatedTrainingCalories;
     final sleepHours = await _sleep.fetchSleepForDay(target);
     final sleepMetrics = await _sleep.fetchSleepMetricsForDay(target);
     final waterLiters = await _water.getIntakeForDay(target);
+    final recoveryLoad = await _recoveryLoad.fetchSummary(target);
 
     await DailyMetricsApi.upsert(
       userId: userId,
       entryDate: target,
       steps: steps,
-      calories: calories,
+      calories: displayCalories,
       sleepHours: sleepHours,
       sleepMinutesAsleep: sleepMetrics?.asleepMinutes,
       sleepMinutesInBed: sleepMetrics?.inBedMinutes,
@@ -46,6 +54,13 @@ class DailyMetricsSync {
       sleepMinutesLight: sleepMetrics?.lightMinutes,
       sleepMinutesDeep: sleepMetrics?.deepMinutes,
       sleepMinutesRem: sleepMetrics?.remMinutes,
+      restingHr: recoveryLoad?.restingHeartRate,
+      hrvMs: recoveryLoad?.hrvMs,
+      activeMinutes: recoveryLoad?.activeMinutes,
+      heartZoneOutOfRangeMinutes: recoveryLoad?.zones?.outOfRangeMinutes,
+      heartZoneFatBurnMinutes: recoveryLoad?.zones?.fatBurnMinutes,
+      heartZoneCardioMinutes: recoveryLoad?.zones?.cardioMinutes,
+      heartZonePeakMinutes: recoveryLoad?.zones?.peakMinutes,
       waterLiters: waterLiters,
     );
 
@@ -58,7 +73,7 @@ class DailyMetricsSync {
     try {
       await DailyMetricsApi.submitBurn(
         userId: userId,
-        caloriesBurned: calories,
+        caloriesBurned: cardioCalories,
         entryDate: target,
       );
       if (target == today) {

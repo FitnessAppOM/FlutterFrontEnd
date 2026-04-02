@@ -156,15 +156,24 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
         final manual = await StepsService().getManualEntries();
         manual.forEach((day, steps) {
           if (!day.isBefore(DateTime(start.year, start.month, start.day)) &&
-              !day.isAfter(DateTime(effectiveEnd.year, effectiveEnd.month, effectiveEnd.day))) {
+              !day.isAfter(
+                DateTime(
+                  effectiveEnd.year,
+                  effectiveEnd.month,
+                  effectiveEnd.day,
+                ),
+              )) {
             data[DateTime(day.year, day.month, day.day)] = steps;
           }
         });
 
         // For current day, prefer HealthKit/Health Connect if no manual override exists.
         final todayKey = DateTime(now.year, now.month, now.day);
-        final inRange = !todayKey.isBefore(DateTime(start.year, start.month, start.day)) &&
-            !todayKey.isAfter(DateTime(effectiveEnd.year, effectiveEnd.month, effectiveEnd.day));
+        final inRange =
+            !todayKey.isBefore(DateTime(start.year, start.month, start.day)) &&
+            !todayKey.isAfter(
+              DateTime(effectiveEnd.year, effectiveEnd.month, effectiveEnd.day),
+            );
         if (inRange && !manual.containsKey(todayKey)) {
           final todaySteps = await StepsService().fetchTodaySteps();
           if (todaySteps > 0) {
@@ -613,7 +622,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
     final controller = TextEditingController(
       text: _todaySteps() > 0 ? _todaySteps().toString() : '',
     );
-    final result = await showDialog<int>(
+    final result = await showDialog<Object>(
       context: context,
       builder: (ctx) {
         return AlertDialog(
@@ -637,6 +646,10 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
               child: const Text("Cancel"),
             ),
             TextButton(
+              onPressed: () => Navigator.pop(ctx, 'reset'),
+              child: const Text("Reset"),
+            ),
+            TextButton(
               onPressed: () {
                 final val = int.tryParse(controller.text.trim());
                 if (val != null && val >= 0) {
@@ -652,7 +665,17 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
       },
     );
 
-    if (result != null) {
+    if (result == 'reset') {
+      final today = DateTime.now();
+      final day = DateTime(today.year, today.month, today.day);
+      await StepsService().clearManualEntry(day);
+      if (mounted) {
+        _loadRange();
+      }
+      return;
+    }
+
+    if (result is int) {
       final today = DateTime.now();
       final day = DateTime(today.year, today.month, today.day);
       await StepsService().saveManualEntry(day, result);

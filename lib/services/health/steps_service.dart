@@ -175,6 +175,25 @@ class StepsService {
     await sp.setString(key, jsonEncode(encoded));
   }
 
+  Future<void> clearManualEntry(DateTime day) async {
+    final sp = await SharedPreferences.getInstance();
+    final existing = await _loadManualEntries();
+    final normalized = DateTime(day.year, day.month, day.day);
+    if (existing.remove(normalized) == null) return;
+    final key = await _scopedKey(_manualKey);
+    if (existing.isEmpty) {
+      await sp.remove(key);
+      return;
+    }
+    final encoded = existing.map(
+      (k, v) => MapEntry(
+        "${k.year}-${k.month.toString().padLeft(2, '0')}-${k.day.toString().padLeft(2, '0')}",
+        v,
+      ),
+    );
+    await sp.setString(key, jsonEncode(encoded));
+  }
+
   Future<Map<DateTime, int>> getManualEntries() async {
     return _loadManualEntries();
   }

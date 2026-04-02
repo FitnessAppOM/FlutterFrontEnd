@@ -19,6 +19,7 @@ class AccountStorage {
   static const _kFitbitLinked = 'fitbit_linked';
   static const _kStravaLinked = 'strava_linked';
   static const _kAppleWatchDetected = 'apple_watch_detected';
+  static const _kWearableDetectedType = 'wearable_detected_type';
   static const _kSkipDailyJournalPromptOnce = 'skip_daily_journal_prompt_once';
   static const _kProfileEditBlockedUntil = 'profile_edit_blocked_until';
   static const _kDismissDeactivatedPrompt = 'dismiss_deactivated_prompt';
@@ -31,6 +32,9 @@ class AccountStorage {
   static String _appleWatchDetectedKey(int? userId) => userId == null
       ? _kAppleWatchDetected
       : "${_kAppleWatchDetected}_u$userId";
+  static String _wearableDetectedTypeKey(int? userId) => userId == null
+      ? _kWearableDetectedType
+      : "${_kWearableDetectedType}_u$userId";
   static String _skipDailyJournalPromptOnceKey(int userId) =>
       "${_kSkipDailyJournalPromptOnce}_u$userId";
   static String _profileEditBlockedUntilKey(int userId) =>
@@ -132,6 +136,26 @@ class AccountStorage {
     final key = _appleWatchDetectedKey(userId);
     if (!sp.containsKey(key)) return null;
     return sp.getBool(key);
+  }
+
+  static Future<void> setWearableDetectedType(String? type) async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    final key = _wearableDetectedTypeKey(userId);
+    if (type == null || type.trim().isEmpty) {
+      await sp.remove(key);
+      return;
+    }
+    await sp.setString(key, type.trim().toLowerCase());
+  }
+
+  static Future<String?> getWearableDetectedType() async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    final key = _wearableDetectedTypeKey(userId);
+    final raw = sp.getString(key);
+    if (raw == null || raw.trim().isEmpty) return null;
+    return raw.trim().toLowerCase();
   }
 
   // Save everything after login (do not call with userId <= 0 or empty token)
@@ -470,6 +494,7 @@ class AccountStorage {
       await sp.remove(_fitbitLinkedKey(currentUserId));
       await sp.remove(_stravaLinkedKey(currentUserId));
       await sp.remove(_appleWatchDetectedKey(currentUserId));
+      await sp.remove(_wearableDetectedTypeKey(currentUserId));
       await sp.remove(_skipDailyJournalPromptOnceKey(currentUserId));
       await sp.remove(_profileEditBlockedUntilKey(currentUserId));
       await sp.remove(_dismissDeactivatedPromptKey(currentUserId));
@@ -478,6 +503,7 @@ class AccountStorage {
     await sp.remove(_kFitbitLinked);
     await sp.remove(_kStravaLinked);
     await sp.remove(_kAppleWatchDetected);
+    await sp.remove(_kWearableDetectedType);
 
     notifyAccountChanged();
   }
@@ -492,6 +518,7 @@ class AccountStorage {
       await sp.remove(_fitbitLinkedKey(currentUserId));
       await sp.remove(_stravaLinkedKey(currentUserId));
       await sp.remove(_appleWatchDetectedKey(currentUserId));
+      await sp.remove(_wearableDetectedTypeKey(currentUserId));
       await sp.remove(_skipDailyJournalPromptOnceKey(currentUserId));
       await sp.remove(_profileEditBlockedUntilKey(currentUserId));
       await sp.remove(_dismissDeactivatedPromptKey(currentUserId));
@@ -500,6 +527,7 @@ class AccountStorage {
     await sp.remove(_kFitbitLinked);
     await sp.remove(_kStravaLinked);
     await sp.remove(_kAppleWatchDetected);
+    await sp.remove(_kWearableDetectedType);
     // Keep email + name + verified → so “Login as…” still works
     notifyAccountChanged();
   }
@@ -523,6 +551,7 @@ class AccountStorage {
       await sp.remove(_fitbitLinkedKey(currentUserId));
       await sp.remove(_stravaLinkedKey(currentUserId));
       await sp.remove(_appleWatchDetectedKey(currentUserId));
+      await sp.remove(_wearableDetectedTypeKey(currentUserId));
       await sp.remove(_skipDailyJournalPromptOnceKey(currentUserId));
       await sp.remove(_profileEditBlockedUntilKey(currentUserId));
       await sp.remove(_dismissDeactivatedPromptKey(currentUserId));
@@ -531,6 +560,7 @@ class AccountStorage {
     await sp.remove(_kFitbitLinked);
     await sp.remove(_kStravaLinked);
     await sp.remove(_kAppleWatchDetected);
+    await sp.remove(_kWearableDetectedType);
     notifyAccountChanged();
   }
 }
