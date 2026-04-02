@@ -26,10 +26,13 @@ class WhoopDailySync {
       if (last == todayKey) return;
 
       // Only proceed if WHOOP is linked.
-      final statusUrl = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId&backfill=1");
+      final statusUrl = Uri.parse(
+        "${ApiConfig.baseUrl}/whoop/status?user_id=$userId&backfill=1",
+      );
       final headers = await AccountStorage.getAuthHeaders();
-      final statusRes =
-          await http.get(statusUrl, headers: headers).timeout(const Duration(seconds: 12));
+      final statusRes = await http
+          .get(statusUrl, headers: headers)
+          .timeout(const Duration(seconds: 12));
       if (statusRes.statusCode != 200) return;
       final status = jsonDecode(statusRes.body);
       if (status is! Map || status["linked"] != true) return;
@@ -37,8 +40,7 @@ class WhoopDailySync {
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
       final start = today.subtract(const Duration(days: 7));
-      final end = today.subtract(const Duration(days: 1));
-      if (end.isBefore(start)) return;
+      final end = today;
 
       final startStr = _dateKey(start);
       final endStr = _dateKey(end);
@@ -64,7 +66,9 @@ class WhoopDailySync {
         final url = Uri.parse(
           "${ApiConfig.baseUrl}/whoop/day?user_id=$userId&date=$day&persist=1",
         );
-        await http.get(url, headers: headers).timeout(const Duration(seconds: 25));
+        await http
+            .get(url, headers: headers)
+            .timeout(const Duration(seconds: 25));
       }
 
       if (missingDates.isEmpty) {
@@ -99,10 +103,13 @@ class WhoopDailySync {
       if (linkedHint != true) return;
 
       // Only proceed if WHOOP is linked.
-      final statusUrl = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId&backfill=1");
+      final statusUrl = Uri.parse(
+        "${ApiConfig.baseUrl}/whoop/status?user_id=$userId&backfill=1",
+      );
       final headers = await AccountStorage.getAuthHeaders();
-      final statusRes =
-          await http.get(statusUrl, headers: headers).timeout(const Duration(seconds: 12));
+      final statusRes = await http
+          .get(statusUrl, headers: headers)
+          .timeout(const Duration(seconds: 12));
       if (statusRes.statusCode != 200) return;
       final status = jsonDecode(statusRes.body);
       if (status is! Map || status["linked"] != true) return;
@@ -110,16 +117,16 @@ class WhoopDailySync {
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
       final start = today.subtract(Duration(days: days));
-      final end = today.subtract(const Duration(days: 1));
-      if (end.isBefore(start)) return;
+      final end = today;
 
       final startStr = _dateKey(start);
       final endStr = _dateKey(end);
       final rangeUrl = Uri.parse(
         "${ApiConfig.baseUrl}/whoop/daily-metrics/range?user_id=$userId&start=$startStr&end=$endStr",
       );
-      final rangeRes =
-          await http.get(rangeUrl, headers: headers).timeout(const Duration(seconds: 20));
+      final rangeRes = await http
+          .get(rangeUrl, headers: headers)
+          .timeout(const Duration(seconds: 20));
       if (rangeRes.statusCode != 200) return;
 
       final List<dynamic> rows = jsonDecode(rangeRes.body) as List<dynamic>;
@@ -137,7 +144,9 @@ class WhoopDailySync {
           final url = Uri.parse(
             "${ApiConfig.baseUrl}/whoop/day?user_id=$userId&date=$key&persist=1",
           );
-          await http.get(url, headers: headers).timeout(const Duration(seconds: 25));
+          await http
+              .get(url, headers: headers)
+              .timeout(const Duration(seconds: 25));
         }
         cursor = cursor.subtract(const Duration(days: 1));
       }
@@ -158,8 +167,9 @@ class WhoopDailySync {
     final rangeUrl = Uri.parse(
       "${ApiConfig.baseUrl}/whoop/daily-metrics/range?user_id=$userId&start=$startStr&end=$endStr",
     );
-    final rangeRes =
-        await http.get(rangeUrl, headers: headers).timeout(const Duration(seconds: 20));
+    final rangeRes = await http
+        .get(rangeUrl, headers: headers)
+        .timeout(const Duration(seconds: 20));
     if (rangeRes.statusCode != 200) return null;
 
     final decoded = jsonDecode(rangeRes.body);

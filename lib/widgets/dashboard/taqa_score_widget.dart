@@ -248,12 +248,7 @@ class _TaqaScoreWidgetState extends State<TaqaScoreWidget>
     }
     if (s.stress.score != null) {
       items.add(
-        _MiniItem(
-          "Stress",
-          s.stress.score!,
-          const Color(0xFFFF6B6B),
-          inverted: true,
-        ),
+        _MiniItem("Stress", s.stress.score!, const Color(0xFF4CD964)),
       );
     }
     if (s.trainingLoad.score != null) {

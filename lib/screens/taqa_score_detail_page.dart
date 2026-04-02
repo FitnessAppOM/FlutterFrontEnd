@@ -275,9 +275,8 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
         label: t("taqa_label_stress"),
         score: s.stress.score,
         icon: Icons.psychology_rounded,
-        color: const Color(0xFFFF6B6B),
+        color: const Color(0xFF4CD964),
         path: s.stress.path,
-        inverted: true,
         details: s.stress.details,
         detailLabels: {
           'hrv_drop_pct': t("taqa_detail_hrv_drop"),
@@ -315,12 +314,11 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
         path: s.nutrition.path,
         details: s.nutrition.details,
         detailLabels: {
-          'calorie_adherence': t("taqa_detail_calorie_adherence"),
-          'protein_adherence': t("taqa_detail_protein_adherence"),
+          'adherence': t("taqa_detail_adherence"),
+          'meal_consistency': t("taqa_detail_meal_consistency"),
           'calories_target': t("taqa_detail_calories_target"),
           'calories_consumed': t("taqa_detail_calories_consumed"),
-          'protein_target_g': t("taqa_detail_protein_target"),
-          'protein_consumed_g': t("taqa_detail_protein_consumed"),
+          'meals_count': t("taqa_detail_meals_logged"),
         },
       ),
     );
@@ -338,8 +336,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
           detailLabels: {
             'recovery_component': t("taqa_detail_recovery_comp"),
             'sleep_component': t("taqa_detail_sleep_comp"),
-            'stress_inverted': t("taqa_detail_stress_inv"),
-            'hrv_trend': t("taqa_detail_hrv_trend"),
+            'training_load_component': t("taqa_detail_training_load_comp"),
           },
         ),
       );
@@ -355,7 +352,11 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
           color: const Color(0xFF35B6FF),
           path: s.lifestyleBalance.path,
           details: s.lifestyleBalance.details,
-          detailLabels: const {},
+          detailLabels: {
+            'nutrition_component': t("taqa_detail_nutrition_comp"),
+            'steps_score': t("taqa_detail_steps_score"),
+            'stress_component': t("taqa_detail_stress_comp"),
+          },
         ),
       );
     }
