@@ -4,7 +4,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../../core/account_storage.dart';
 import '../../services/share/cardio_share_service.dart';
+import '../../services/strava/strava_service.dart';
 
 import '../../widgets/cardio/cardio_map.dart';
 import '../../widgets/cardio/cardio_route_utils.dart';
@@ -38,10 +40,35 @@ class CardioAchievementSheet extends StatefulWidget {
 
 class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
   final GlobalKey _captureKey = GlobalKey();
+  final StravaService _stravaService = StravaService();
   bool _saving = false;
   bool _snapshotReady = false;
   bool _sharing = false;
   bool _hideMapForCapture = false;
+  bool _stravaLinked = false;
+  bool _stravaUploading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStravaLinked();
+  }
+
+  Future<void> _loadStravaLinked() async {
+    final cached = await AccountStorage.getStravaLinked();
+    if (cached != null && mounted) {
+      setState(() => _stravaLinked = cached);
+    }
+    try {
+      final status = await _stravaService.fetchStatus();
+      final linked = status["linked"] == true;
+      if (!mounted) return;
+      setState(() => _stravaLinked = linked);
+      unawaited(AccountStorage.setStravaLinked(linked));
+    } catch (_) {
+      // Keep cached value if status request fails.
+    }
+  }
 
   String _formatTime(int seconds) {
     final mm = (seconds ~/ 60).toString().padLeft(2, '0');
@@ -63,10 +90,7 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
       return widget.snapshotUrl!;
     }
     final token = dotenv.maybeGet('MAPBOX_PUBLIC_KEY') ?? '';
-    return buildCardioSnapshotUrlMaster(
-      token: token,
-      route: widget.route,
-    );
+    return buildCardioSnapshotUrlMaster(token: token, route: widget.route);
   }
 
   String _sessionDateLabel() {
@@ -88,16 +112,17 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
         }
         return;
       }
-      final boundary = _captureKey.currentContext?.findRenderObject()
-          as RenderRepaintBoundary?;
+      final boundary =
+          _captureKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
       if (boundary == null) return;
       final output = await _buildExportBytes(boundary);
       if (output == null) return;
       await CardioShareService.savePngBytes(output);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Saved to Photos')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Saved to Photos')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -159,14 +184,64 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
     setState(() => _sharing = true);
     try {
       await _ensureSnapshotPainted();
-      final boundary = _captureKey.currentContext?.findRenderObject()
-          as RenderRepaintBoundary?;
+      final boundary =
+          _captureKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
       if (boundary == null) return;
       final output = await _buildExportBytes(boundary);
       if (output == null) return;
+      if (!mounted) return;
       await CardioShareService.sharePngBytes(context, output);
     } finally {
       if (mounted) setState(() => _sharing = false);
+    }
+  }
+
+  String _friendlyStravaError(String raw) {
+    final lower = raw.toLowerCase();
+    if (lower.contains("activity:write_permission") ||
+        lower.contains("activity:write")) {
+      return "Strava write permission is missing. Disconnect and reconnect Strava, then try again.";
+    }
+    if (lower.contains("strava request failed (401)")) {
+      return "Strava authorization failed. Reconnect Strava and try again.";
+    }
+    return "Failed to upload activity to Strava.";
+  }
+
+  Future<void> _uploadToStrava() async {
+    if (_stravaUploading) return;
+    setState(() => _stravaUploading = true);
+    try {
+      final sessionDate = (widget.sessionDate ?? DateTime.now()).toLocal();
+      final elapsed = widget.durationSeconds > 0 ? widget.durationSeconds : 1;
+      final distanceMeters = widget.distanceKm > 0
+          ? widget.distanceKm * 1000.0
+          : null;
+      final name = "TAQA Cardio ${_sessionDateLabel()}";
+      final description =
+          "Duration ${_formatTime(widget.durationSeconds)} • Distance ${widget.distanceKm.toStringAsFixed(2)} km • Pace ${_avgPaceLabel()} • Steps ${widget.steps}";
+
+      await _stravaService.createActivity(
+        name: name,
+        type: "Run",
+        startDateLocal: StravaService.formatLocalForStrava(sessionDate),
+        elapsedTimeSeconds: elapsed,
+        description: description,
+        distanceMeters: distanceMeters,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Uploaded to Strava.")));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_friendlyStravaError(e.toString()))),
+      );
+    } finally {
+      if (mounted) setState(() => _stravaUploading = false);
     }
   }
 
@@ -220,133 +295,157 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                       children: [
                         Row(
                           children: [
-                                Container(
-                                  width: 42,
-                                  height: 42,
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [Color(0xFF2D7CFF), Color(0xFF48E1B9)],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                  child: const Icon(Icons.fitness_center, color: Colors.black, size: 20),
+                            Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF2D7CFF),
+                                    Color(0xFF48E1B9),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Taqa Fitness',
-                                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w800,
-                                              letterSpacing: 0.3,
-                                            ),
-                                      ),
-                                      Text(
-                                        widget.userName != null && widget.userName!.trim().isNotEmpty
-                                            ? widget.userName!
-                                            : 'Cardio Achievement',
-                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                              color: Colors.white70,
-                                            ),
-                                      ),
-                                    ],
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(
+                                Icons.fitness_center,
+                                color: Colors.black,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Taqa Fitness',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 0.3,
+                                        ),
                                   ),
+                                  Text(
+                                    widget.userName != null &&
+                                            widget.userName!.trim().isNotEmpty
+                                        ? widget.userName!
+                                        : 'Cardio Achievement',
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(color: Colors.white70),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white10,
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(color: Colors.white12),
+                              ),
+                              child: Text(
+                                _sessionDateLabel(),
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
                                 ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white10,
-                                    borderRadius: BorderRadius.circular(999),
-                                    border: Border.all(color: Colors.white12),
-                                  ),
-                                  child: Text(
-                                    _sessionDateLabel(),
-                                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                                  ),
-                                ),
+                              ),
+                            ),
                           ],
                         ),
-                      if (!_hideMapForCapture) ...[
-                        const SizedBox(height: 14),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: SizedBox(
-                            height: 220,
-                            child: snapshotUrl.isEmpty
-                                ? Container(
-                                    color: Colors.white12,
-                                    alignment: Alignment.center,
-                                    child: const Text(
-                                      'Route unavailable',
-                                      style: TextStyle(color: Colors.white70),
-                                    ),
-                                  )
-                                : ClipRect(
-                                    child: Transform.scale(
-                                      scale: 1.5,
-                                      child: Image.network(
-                                        snapshotUrl,
-                                        fit: BoxFit.cover,
-                                        gaplessPlayback: true,
-                                        loadingBuilder: (context, child, progress) {
-                                          if (progress == null) {
-                                            if (!_snapshotReady) {
-                                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                                if (mounted) setState(() => _snapshotReady = true);
-                                              });
+                        if (!_hideMapForCapture) ...[
+                          const SizedBox(height: 14),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: SizedBox(
+                              height: 220,
+                              child: snapshotUrl.isEmpty
+                                  ? Container(
+                                      color: Colors.white12,
+                                      alignment: Alignment.center,
+                                      child: const Text(
+                                        'Route unavailable',
+                                        style: TextStyle(color: Colors.white70),
+                                      ),
+                                    )
+                                  : ClipRect(
+                                      child: Transform.scale(
+                                        scale: 1.5,
+                                        child: Image.network(
+                                          snapshotUrl,
+                                          fit: BoxFit.cover,
+                                          gaplessPlayback: true,
+                                          loadingBuilder: (context, child, progress) {
+                                            if (progress == null) {
+                                              if (!_snapshotReady) {
+                                                WidgetsBinding.instance
+                                                    .addPostFrameCallback((_) {
+                                                      if (mounted) {
+                                                        setState(
+                                                          () => _snapshotReady =
+                                                              true,
+                                                        );
+                                                      }
+                                                    });
+                                              }
+                                              return child;
                                             }
-                                            return child;
-                                          }
-                                          return Container(
-                                            color: Colors.white10,
-                                            alignment: Alignment.center,
-                                            child: const CircularProgressIndicator(),
-                                          );
-                                        },
+                                            return Container(
+                                              color: Colors.white10,
+                                              alignment: Alignment.center,
+                                              child:
+                                                  const CircularProgressIndicator(),
+                                            );
+                                          },
+                                        ),
                                       ),
                                     ),
-                                  ),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                      ],
-                      if (_hideMapForCapture) const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _MetricChip(
-                              label: 'Time',
-                              value: _formatTime(widget.durationSeconds),
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _MetricChip(
-                              label: 'Distance',
-                              value: '${widget.distanceKm.toStringAsFixed(2)} km',
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _MetricChip(
-                              label: 'Pace',
-                              value: _avgPaceLabel(),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _MetricChip(
-                              label: 'Steps',
-                              value: '${widget.steps}',
-                            ),
-                          ),
+                          const SizedBox(height: 14),
                         ],
-                      ),
+                        if (_hideMapForCapture) const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _MetricChip(
+                                label: 'Time',
+                                value: _formatTime(widget.durationSeconds),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _MetricChip(
+                                label: 'Distance',
+                                value:
+                                    '${widget.distanceKm.toStringAsFixed(2)} km',
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _MetricChip(
+                                label: 'Pace',
+                                value: _avgPaceLabel(),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _MetricChip(
+                                label: 'Steps',
+                                value: '${widget.steps}',
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -357,8 +456,16 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: (_saving || !_snapshotReady) ? null : _saveScreenshot,
-                child: Text(_saving ? 'Saving...' : _snapshotReady ? 'Save to Photos' : 'Preparing...'),
+                onPressed: (_saving || !_snapshotReady)
+                    ? null
+                    : _saveScreenshot,
+                child: Text(
+                  _saving
+                      ? 'Saving...'
+                      : _snapshotReady
+                      ? 'Save to Photos'
+                      : 'Preparing...',
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -366,8 +473,16 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: (_sharing || !_snapshotReady) ? null : _shareScreenshot,
-                    child: Text(_sharing ? 'Sharing...' : _snapshotReady ? 'Share' : 'Preparing...'),
+                    onPressed: (_sharing || !_snapshotReady)
+                        ? null
+                        : _shareScreenshot,
+                    child: Text(
+                      _sharing
+                          ? 'Sharing...'
+                          : _snapshotReady
+                          ? 'Share'
+                          : 'Preparing...',
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -380,8 +495,11 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                                 builder: (_) => OtherModelsPage(
                                   snapshotUrl: snapshotUrl,
                                   route: widget.route,
-                                  durationLabel: _formatTime(widget.durationSeconds),
-                                  distanceLabel: "${widget.distanceKm.toStringAsFixed(2)} km",
+                                  durationLabel: _formatTime(
+                                    widget.durationSeconds,
+                                  ),
+                                  distanceLabel:
+                                      "${widget.distanceKm.toStringAsFixed(2)} km",
                                   paceLabel: _avgPaceLabel(),
                                   userName: widget.userName,
                                   dateLabel: _sessionDateLabel(),
@@ -395,6 +513,25 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                 ),
               ],
             ),
+            if (_stravaLinked) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _stravaUploading ? null : _uploadToStrava,
+                  icon: const Icon(Icons.upload, size: 18),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFFC4C02),
+                    side: const BorderSide(color: Color(0xFFFC4C02)),
+                  ),
+                  label: Text(
+                    _stravaUploading
+                        ? 'Uploading to Strava...'
+                        : 'Upload to Strava',
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
@@ -461,6 +598,3 @@ class _MetricChip extends StatelessWidget {
     );
   }
 }
-
-
- 

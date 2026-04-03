@@ -150,15 +150,42 @@ class HealthRecoveryLoadService {
     return zones.totalMinutes > 0 ? zones : null;
   }
 
+  double? _averagePositive(Iterable<double> values) {
+    final filtered = values.where((v) => v > 0).toList();
+    if (filtered.isEmpty) return null;
+    return filtered.reduce((a, b) => a + b) / filtered.length;
+  }
+
+  Future<double?> _latestHrvFromLookback({
+    required DateTime end,
+    required HealthDataType hrvType,
+  }) async {
+    try {
+      final start = end.subtract(const Duration(hours: 36));
+      final hrvSamples = await _health.getHealthDataFromTypes(
+        startTime: start,
+        endTime: end,
+        types: [hrvType],
+      );
+      final values = hrvSamples.where((s) => s.type == hrvType).toList()
+        ..sort((a, b) => b.dateTo.compareTo(a.dateTo));
+      for (final sample in values) {
+        final value = _valueToDouble(sample.value);
+        if (value > 0) return value;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Future<HealthRecoveryLoadSummary?> fetchSummary(DateTime day) async {
     final granted = await _ensurePermission();
     if (!granted) return null;
 
     final start = DateTime(day.year, day.month, day.day);
     final now = DateTime.now();
-    final end = _isSameDay(start, DateTime(now.year, now.month, now.day))
-        ? now
-        : start.add(const Duration(days: 1));
+    final today = DateTime(now.year, now.month, now.day);
+    final isToday = _isSameDay(start, today);
+    final end = isToday ? now : start.add(const Duration(days: 1));
 
     try {
       final types = _typesForPlatform();
@@ -168,10 +195,11 @@ class HealthRecoveryLoadService {
         types: types,
       );
 
-      final restingSamples = samples
-          .where((s) => s.type == HealthDataType.RESTING_HEART_RATE)
-          .toList()
-        ..sort((a, b) => a.dateTo.compareTo(b.dateTo));
+      final restingSamples =
+          samples
+              .where((s) => s.type == HealthDataType.RESTING_HEART_RATE)
+              .toList()
+            ..sort((a, b) => a.dateTo.compareTo(b.dateTo));
       int? restingHr;
       if (restingSamples.isNotEmpty) {
         final v = _valueToDouble(restingSamples.last.value).round();
@@ -181,14 +209,13 @@ class HealthRecoveryLoadService {
       final hrvType = Platform.isIOS
           ? HealthDataType.HEART_RATE_VARIABILITY_SDNN
           : HealthDataType.HEART_RATE_VARIABILITY_RMSSD;
-      final hrvValues = samples
-          .where((s) => s.type == hrvType)
-          .map((s) => _valueToDouble(s.value))
-          .where((v) => v > 0)
-          .toList();
-      double? hrvMs;
-      if (hrvValues.isNotEmpty) {
-        hrvMs = hrvValues.reduce((a, b) => a + b) / hrvValues.length;
+      double? hrvMs = _averagePositive(
+        samples
+            .where((s) => s.type == hrvType)
+            .map((s) => _valueToDouble(s.value)),
+      );
+      if (hrvMs == null && Platform.isIOS && isToday) {
+        hrvMs = await _latestHrvFromLookback(end: end, hrvType: hrvType);
       }
 
       final exerciseSamples = samples.where(
