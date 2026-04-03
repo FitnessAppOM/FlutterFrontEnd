@@ -485,8 +485,10 @@ class _ProviderBadge extends StatelessWidget {
     final label = provider == 'fitbit'
         ? 'Fitbit'
         : provider == 'whoop'
-        ? 'WHOOP'
-        : provider;
+            ? 'WHOOP'
+            : provider == 'healthkit'
+                ? 'Apple / Samsung Watch'
+                : provider;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(

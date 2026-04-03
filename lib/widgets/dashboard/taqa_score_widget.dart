@@ -203,8 +203,10 @@ class _TaqaScoreWidgetState extends State<TaqaScoreWidget>
                               widget.provider == 'fitbit'
                                   ? 'Fitbit'
                                   : widget.provider == 'whoop'
-                                  ? 'WHOOP'
-                                  : widget.provider!,
+                                      ? 'WHOOP'
+                                      : widget.provider == 'healthkit'
+                                          ? 'Apple / Samsung Watch'
+                                          : widget.provider!,
                               style: const TextStyle(
                                 color: Colors.white38,
                                 fontSize: 11,
