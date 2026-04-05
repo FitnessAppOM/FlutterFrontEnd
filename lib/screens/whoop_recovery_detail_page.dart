@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/account_storage.dart';
 import '../theme/app_theme.dart';
 import '../services/whoop/whoop_recovery_service.dart';
 import '../widgets/charts/simple_line_chart.dart';
@@ -7,22 +8,22 @@ import '../widgets/recovery/recovery_metric_card.dart';
 import '../widgets/common/date_switcher.dart';
 
 class WhoopRecoveryDetailPage extends StatefulWidget {
-  const WhoopRecoveryDetailPage({
-    super.key,
-    this.initialDate,
-  });
+  const WhoopRecoveryDetailPage({super.key, this.initialDate});
 
   final DateTime? initialDate;
 
   @override
-  State<WhoopRecoveryDetailPage> createState() => _WhoopRecoveryDetailPageState();
+  State<WhoopRecoveryDetailPage> createState() =>
+      _WhoopRecoveryDetailPageState();
 }
 
 class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
   bool _loading = true;
   Map<DateTime, Map<String, dynamic>> _daily = {};
-  final Map<DateTime, Map<String, dynamic>> _dailyCache = {};
-  final Map<String, Map<DateTime, Map<String, dynamic>>> _rangeCache = {};
+  static final Map<DateTime, Map<String, dynamic>> _dailyCache = {};
+  static final Map<String, Map<DateTime, Map<String, dynamic>>> _rangeCache =
+      {};
+  static int? _cacheUserId;
   late DateTime _selectedDate;
   int _reqId = 0;
 
@@ -36,10 +37,20 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
 
   Future<void> _loadRange() async {
     final requestId = ++_reqId;
-    final day = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final day = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
     final start = day.subtract(const Duration(days: 6));
     final end = day;
-    final rangeKey = _rangeKey(start, end);
+    final userId = await AccountStorage.getUserId();
+    if (_cacheUserId != userId) {
+      _cacheUserId = userId;
+      _dailyCache.clear();
+      _rangeCache.clear();
+    }
+    final rangeKey = _rangeKey(userId, start, end);
 
     final cachedRange = _rangeCache[rangeKey];
     if (cachedRange != null) {
@@ -76,7 +87,11 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final dayKey = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final dayKey = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
     final metrics = _currentMetrics(_daily[dayKey] ?? _dailyCache[dayKey]);
     final hasAnyData = _daily.isNotEmpty || _dailyCache.isNotEmpty;
     final headerDate = dayKey;
@@ -106,7 +121,9 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
               Center(child: _sectionTitle("Recovery Trend (7 Days)")),
               const SizedBox(height: 8),
               _loading && !hasAnyData
-                  ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+                  ? const Center(
+                      child: CircularProgressIndicator(color: AppColors.accent),
+                    )
                   : Center(
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 520),
@@ -136,7 +153,9 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
       decoration: BoxDecoration(
         color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.18)),
+        border: Border.all(
+          color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
+        ),
       ),
       child: Row(
         children: [
@@ -154,9 +173,9 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
             child: Text(
               "No recovery data yet for this day",
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white60,
-                    fontWeight: FontWeight.w600,
-                  ),
+                color: Colors.white60,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -165,7 +184,11 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
   }
 
   List<double?> _recoverySeries() {
-    final day = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final day = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
     final start = day.subtract(const Duration(days: 6));
     final values = <double?>[];
     for (int i = 0; i < 7; i++) {
@@ -196,9 +219,9 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
           Text(
             "Recovery Details",
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                ),
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ],
       ),
@@ -206,7 +229,11 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
   }
 
   void _changeDay(int delta) {
-    final next = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day + delta);
+    final next = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day + delta,
+    );
     final today = DateTime.now();
     final todayOnly = DateTime(today.year, today.month, today.day);
     if (next.isAfter(todayOnly)) return;
@@ -217,7 +244,11 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
   bool get _canGoNext {
     final today = DateTime.now();
     final todayOnly = DateTime(today.year, today.month, today.day);
-    final selected = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final selected = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
     return selected.isBefore(todayOnly);
   }
 
@@ -225,9 +256,9 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
     return Text(
       title,
       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-          ),
+        color: Colors.white,
+        fontWeight: FontWeight.w700,
+      ),
     );
   }
 
@@ -327,10 +358,10 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
     return names[m - 1];
   }
 
-  String _rangeKey(DateTime start, DateTime end) {
+  String _rangeKey(int? userId, DateTime start, DateTime end) {
     final s = DateTime(start.year, start.month, start.day).toIso8601String();
     final e = DateTime(end.year, end.month, end.day).toIso8601String();
-    return "$s|$e";
+    return "${userId ?? 0}|$s|$e";
   }
 
   double? _numFromAny(dynamic v) {
@@ -340,7 +371,11 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
   }
 
   Widget _weekdayLabels() {
-    final day = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final day = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
     final start = day.subtract(const Duration(days: 6));
     final labels = List.generate(7, (i) {
       final d = start.add(Duration(days: i));

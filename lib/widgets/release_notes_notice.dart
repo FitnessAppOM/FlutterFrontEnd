@@ -40,13 +40,10 @@ class ReleaseNotesDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ReleaseNoteHighlight(text: 'v1.0.22'),
+          _ReleaseNoteHighlight(text: 'v1.0.23'),
           SizedBox(height: 10),
-          _ReleaseNoteItem(text: 'Wearable detection'),
-          _ReleaseNoteItem(text: 'Wearable metrics (Apple, Samsung, etc...)'),
-          _ReleaseNoteItem(text: 'TAQA score (in progress)'),
-          _ReleaseNoteItem(text: 'Train calories'),
-          _ReleaseNoteItem(text: 'Bugs and fixes'),
+          _ReleaseNoteItem(text: 'Dashboard and TAQA score fixes'),
+          _ReleaseNoteItem(text: 'Strava integration'),
         ],
       ),
       actions: [

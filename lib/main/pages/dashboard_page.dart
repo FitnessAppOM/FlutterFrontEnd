@@ -50,10 +50,9 @@ import '../../screens/whoop_cycle_detail_page.dart';
 import '../../screens/whoop_body_detail_page.dart';
 import '../../theme/app_theme.dart';
 import '../../core/account_storage.dart';
-import '../../core/date_utils.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/metrics/daily_metrics_api.dart';
-import '../../services/metrics/daily_metrics_sync.dart';
+import '../../services/core/daily_provider_push_service.dart';
 import '../../services/scores/taqa_score_api.dart';
 import '../../config/base_url.dart';
 import '../../services/health/steps_service.dart';
@@ -72,6 +71,7 @@ import '../../services/fitbit/fitbit_vitals_service.dart';
 import '../../services/fitbit/fitbit_body_service.dart';
 import '../../services/fitbit/fitbit_summary_service.dart';
 import '../../services/fitbit/fitbit_db_service.dart';
+import '../../services/strava/strava_service.dart';
 import '../../screens/sleep_detail_page.dart';
 import '../../screens/steps_detail_page.dart';
 import '../../screens/calories_detail_page.dart';
@@ -160,9 +160,7 @@ class DashboardPageState extends State<DashboardPage>
     'whoop_recovery',
     'whoop_cycle',
     'whoop_body',
-    'strava_athlete',
     'strava_activities',
-    'strava_network',
   };
   static final Map<String, List<double>> _trendSleepWeekCache = {};
   static final Map<String, List<double>> _trendCaloriesWeekCache = {};
@@ -372,7 +370,6 @@ class DashboardPageState extends State<DashboardPage>
   int? _whoopSleepDelta;
   int? _whoopRecoveryDelta;
   double? _whoopCycleStrain;
-  double? _whoopCycleStrainLast;
   double? _whoopBodyWeightKg;
   final Map<DateTime, WhoopWidgetSnapshot> _whoopSnapshotCache = {};
   DateTime? _whoopLoadingDate;
@@ -382,6 +379,9 @@ class DashboardPageState extends State<DashboardPage>
   bool _fitbitLinked = false;
   bool? _stravaLinkedHint;
   bool _stravaLinked = false;
+  bool _stravaActivitiesLoading = false;
+  int? _stravaActivitiesCount;
+  int _stravaActivitiesReqId = 0;
   bool _fitbitSummaryLoading = false;
   bool _fitbitActivityLoading = false;
   FitbitActivitySummary? _fitbitActivity;
@@ -610,6 +610,7 @@ class DashboardPageState extends State<DashboardPage>
     super.initState();
     _ensureWiggle();
     AccountStorage.whoopChange.addListener(_onWhoopChanged);
+    AccountStorage.stravaChange.addListener(_onStravaChanged);
     AccountStorage.accountChange.addListener(_onAccountChanged);
     AccountStorage.appleWatchChange.addListener(_onAppleWatchChanged);
     AccountStorage.trainingChange.addListener(_onTrainingChanged);
@@ -639,6 +640,17 @@ class DashboardPageState extends State<DashboardPage>
     _loadTrendSleep(force: true);
   }
 
+  void _onStravaChanged() {
+    if (!_isWidgetActive('strava_activities')) return;
+    unawaited(_refreshStravaActivitiesWidgetAfterSignal());
+  }
+
+  Future<void> _refreshStravaActivitiesWidgetAfterSignal() async {
+    await _loadStravaStatus();
+    if (!mounted) return;
+    await _loadStravaActivitiesCount(force: true);
+  }
+
   void _onAccountChanged() {
     _loadStatOrder();
     _loadWhoopLinkedHint();
@@ -662,6 +674,8 @@ class DashboardPageState extends State<DashboardPage>
       _fitbitLinkedHint = null;
       _stravaLinked = false;
       _stravaLinkedHint = null;
+      _stravaActivitiesLoading = false;
+      _stravaActivitiesCount = null;
       _fitbitActivity = null;
       _fitbitHeart = null;
       _fitbitSleep = null;
@@ -740,6 +754,7 @@ class DashboardPageState extends State<DashboardPage>
   void dispose() {
     _wiggleController?.dispose();
     AccountStorage.whoopChange.removeListener(_onWhoopChanged);
+    AccountStorage.stravaChange.removeListener(_onStravaChanged);
     AccountStorage.accountChange.removeListener(_onAccountChanged);
     AccountStorage.appleWatchChange.removeListener(_onAppleWatchChanged);
     AccountStorage.trainingChange.removeListener(_onTrainingChanged);
@@ -1070,24 +1085,10 @@ class DashboardPageState extends State<DashboardPage>
     if (_stravaLinked || _stravaLinkedHint == true) {
       all.addAll([
         WidgetLibraryOption(
-          keyName: 'strava_athlete',
-          title: "Strava Athlete Data",
-          subtitle: "Profile, stats, and zones",
-          icon: Icons.person,
-          accentColor: const Color(0xFFFC4C02),
-        ),
-        WidgetLibraryOption(
           keyName: 'strava_activities',
           title: "Strava Activities",
           subtitle: "Your activities with key metrics",
           icon: Icons.directions_run,
-          accentColor: const Color(0xFFFC4C02),
-        ),
-        WidgetLibraryOption(
-          keyName: 'strava_network',
-          title: "Strava Routes",
-          subtitle: "Your routes and gear",
-          icon: Icons.route,
           accentColor: const Color(0xFFFC4C02),
         ),
       ]);
@@ -1337,11 +1338,7 @@ class DashboardPageState extends State<DashboardPage>
       }
     }
     if (_stravaLinkedHint == false) {
-      const stravaKeys = [
-        'strava_athlete',
-        'strava_activities',
-        'strava_network',
-      ];
+      const stravaKeys = ['strava_activities'];
       for (final key in stravaKeys) {
         if (_statOrder.remove(key)) {
           changed = true;
@@ -1391,9 +1388,7 @@ class DashboardPageState extends State<DashboardPage>
         AppToast.show(context, "Connect Whoop first", type: AppToastType.info);
         return;
       }
-    } else if (key == 'strava_athlete' ||
-        key == 'strava_activities' ||
-        key == 'strava_network') {
+    } else if (key == 'strava_activities') {
       if (!_stravaLinked) {
         AppToast.show(context, "Connect Strava first", type: AppToastType.info);
         return;
@@ -1409,22 +1404,14 @@ class DashboardPageState extends State<DashboardPage>
     }
 
     if (key.startsWith('whoop_')) {
-      _loadWhoopRecovery();
+      _loadWhoopRecovery(force: true);
     }
-    if (key == 'fitbit_activity') {
-      _loadFitbitSummary();
+    if (key.startsWith('fitbit_')) {
+      _loadFitbitSummary(force: true);
     }
-    if (key == 'fitbit_heart') {
-      _loadFitbitSummary();
-    }
-    if (key == 'fitbit_sleep') {
-      _loadFitbitSummary();
-    }
-    if (key == 'fitbit_vitals') {
-      _loadFitbitSummary();
-    }
-    if (key == 'fitbit_body') {
-      _loadFitbitSummary();
+    if (key.startsWith('strava_')) {
+      _loadStravaStatus();
+      _loadStravaActivitiesCount(force: true);
     }
     if (key == 'health_recovery_load') {
       _loadHealthRecoveryLoad(force: true);
@@ -1678,6 +1665,7 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   Future<void> _loadTaqaScore() async {
+    await TrainingResetCoordinator.ensureInitialized();
     final userId = await AccountStorage.getUserId();
     if (!mounted || userId == null || userId <= 0) return;
     final scoreDate = _taqaScoreDateForSelection();
@@ -1698,11 +1686,30 @@ class DashboardPageState extends State<DashboardPage>
     });
   }
 
+  DateTime _taqaTodayByResetClock() {
+    final now = TrainingResetCoordinator.currentNowUtc();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  bool _isTaqaTodaySelection() {
+    return _dayKey(_selectedDate) == _taqaTodayByResetClock();
+  }
+
   DateTime _taqaScoreDateForSelection() {
-    if (_isToday()) {
-      return localYesterday();
+    if (_isTaqaTodaySelection()) {
+      return _taqaTodayByResetClock().subtract(const Duration(days: 1));
     }
-    return DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    return _dayKey(_selectedDate);
+  }
+
+  bool _isWhoopLoadingForSelectedDate() {
+    if (!_whoopLoading || _whoopLoadingDate == null) return false;
+    final selected = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
+    return _whoopLoadingDate == selected;
   }
 
   Future<void> _loadInitialData() async {
@@ -1732,7 +1739,7 @@ class DashboardPageState extends State<DashboardPage>
     if (_trendSyncRefreshInFlight) return;
     _trendSyncRefreshInFlight = true;
     try {
-      await DailyMetricsSync().pushIfNewDay();
+      await DailyProviderPushService().pushIfAfterOneAmLocal();
       if (!mounted) return;
       await Future.wait([
         _loadWeeklySteps(),
@@ -1746,7 +1753,10 @@ class DashboardPageState extends State<DashboardPage>
     }
   }
 
-  Future<void> _refreshAll() async {
+  Future<void> _refreshAll({
+    bool refreshStrava = true,
+    bool refreshTaqaScore = true,
+  }) async {
     setState(() {
       _loading = true;
     });
@@ -1755,7 +1765,7 @@ class DashboardPageState extends State<DashboardPage>
     _healthRecoveryLoadCache.clear();
     _dietSummaryCache.clear();
     _exerciseProgressCache.clear();
-    await Future.wait([
+    final futures = <Future<void>>[
       _loadUserInfo(),
       _loadNews(),
       _loadSteps(),
@@ -1767,9 +1777,14 @@ class DashboardPageState extends State<DashboardPage>
       _loadTrendCalories(),
       _loadWhoopRecovery(force: true),
       _loadHealthRecoveryLoad(force: true),
-      _loadStravaStatus(),
-      _loadTaqaScore(),
-    ]);
+    ];
+    if (refreshStrava) {
+      futures.add(_loadStravaStatus());
+    }
+    if (refreshTaqaScore) {
+      futures.add(_loadTaqaScore());
+    }
+    await Future.wait(futures);
     _loadFitbitSummary();
   }
 
@@ -1833,6 +1848,8 @@ class DashboardPageState extends State<DashboardPage>
       if (!mounted) return;
       setState(() {
         _stravaLinked = false;
+        _stravaActivitiesLoading = false;
+        _stravaActivitiesCount = null;
       });
       _pruneDeviceWidgets();
       return;
@@ -1842,6 +1859,13 @@ class DashboardPageState extends State<DashboardPage>
       if (_stravaLinked) {
         setState(() {
           _stravaLinked = false;
+          _stravaActivitiesLoading = false;
+          _stravaActivitiesCount = null;
+        });
+      } else if (_stravaActivitiesLoading || _stravaActivitiesCount != null) {
+        setState(() {
+          _stravaActivitiesLoading = false;
+          _stravaActivitiesCount = null;
         });
       }
       _pruneDeviceWidgets();
@@ -1865,13 +1889,50 @@ class DashboardPageState extends State<DashboardPage>
       if (!mounted) return;
       setState(() {
         _stravaLinked = linked;
+        if (!linked) {
+          _stravaActivitiesLoading = false;
+          _stravaActivitiesCount = null;
+        }
       });
       _stravaLinkedHint = linked;
       AccountStorage.setStravaLinked(linked);
       _pruneDeviceWidgets();
+      if (linked && _statOrder.contains('strava_activities')) {
+        _loadStravaActivitiesCount(force: true);
+      }
     } catch (_) {
       // Keep last known linked state on transient errors.
       return;
+    }
+  }
+
+  Future<void> _loadStravaActivitiesCount({bool force = false}) async {
+    if (!_stravaLinked) return;
+    if (!_statOrder.contains('strava_activities')) return;
+    if (_stravaActivitiesLoading && !force) return;
+    final reqId = ++_stravaActivitiesReqId;
+    if (mounted) {
+      setState(() {
+        _stravaActivitiesLoading = true;
+      });
+    }
+    try {
+      final data = await StravaService().fetchActivitiesOverview(
+        perPage: 50,
+        forceRefresh: force,
+      );
+      final raw = data['activities'];
+      final count = raw is List ? raw.length : 0;
+      if (!mounted || reqId != _stravaActivitiesReqId) return;
+      setState(() {
+        _stravaActivitiesCount = count;
+        _stravaActivitiesLoading = false;
+      });
+    } catch (_) {
+      if (!mounted || reqId != _stravaActivitiesReqId) return;
+      setState(() {
+        _stravaActivitiesLoading = false;
+      });
     }
   }
 
@@ -3317,6 +3378,13 @@ class DashboardPageState extends State<DashboardPage>
       return;
     }
 
+    final cachedServiceSnapshot = WhoopWidgetDataService.cachedSnapshotForDate(
+      userId: userId,
+      date: targetDate,
+    );
+    if (cachedServiceSnapshot != null) {
+      _whoopSnapshotCache[targetDate] = cachedServiceSnapshot;
+    }
     final cached = _whoopSnapshotCache[targetDate];
     if (!force && cached != null) {
       if (requestId != _whoopReqId) return;
@@ -3350,10 +3418,6 @@ class DashboardPageState extends State<DashboardPage>
       return;
     }
 
-    // Preserve last known strain before refresh so UI doesn't drop to "—".
-    if (_whoopCycleStrain != null) {
-      _whoopCycleStrainLast = _whoopCycleStrain;
-    }
     setState(() {
       _whoopLoading = true;
       _whoopLoadingDate = targetDate;
@@ -3377,9 +3441,6 @@ class DashboardPageState extends State<DashboardPage>
         _whoopLoadingDate = null;
         _whoopCycleStrain = snapshot.cycleStrain;
         _whoopBodyWeightKg = snapshot.bodyWeightKg;
-        if (snapshot.cycleStrain != null && isCurrentDay) {
-          _whoopCycleStrainLast = snapshot.cycleStrain;
-        }
       });
       _whoopSnapshotCache[targetDate] = snapshot;
       if (_whoopSnapshotCache.length > 21) {
@@ -3557,6 +3618,7 @@ class DashboardPageState extends State<DashboardPage>
       if (isToday && _needsHealthRecoveryLoadFallback(summary)) {
         localSummary = await HealthRecoveryLoadService().fetchSummary(
           selectedDay,
+          forceRefresh: force,
         );
         summary = _mergeHealthRecoveryLoad(summary, localSummary);
       }
@@ -3889,7 +3951,10 @@ class DashboardPageState extends State<DashboardPage>
           return;
         }
 
-        final bundle = await FitbitSummaryService().fetchSummary(selectedDay);
+        final bundle = await FitbitSummaryService().fetchSummary(
+          selectedDay,
+          forceRefresh: force,
+        );
         if (!mounted) return;
         _fitbitSummaryCache[selectedDay] = bundle;
         if (_fitbitSummaryCache.length > 21) {
@@ -5165,16 +5230,16 @@ class DashboardPageState extends State<DashboardPage>
             score: _taqaScore,
             loading: _taqaScoreLoading,
             provider: _taqaScore?.provider,
-            scoreDayLabel: _isToday()
+            scoreDayLabel: _isTaqaTodaySelection()
                 ? t("dash_taqa_yesterday_scores")
                 : DateFormat(
                     'dd/MM',
                     locale,
                   ).format(_taqaScoreDateForSelection()),
-            emptyMessage: _isToday()
+            emptyMessage: _isTaqaTodaySelection()
                 ? t("taqa_no_data_yesterday_hint")
                 : t("taqa_no_data"),
-            onTap: !_isToday()
+            onTap: !_isTaqaTodaySelection()
                 ? null
                 : () {
                     Navigator.of(context).push(
@@ -5272,7 +5337,7 @@ class DashboardPageState extends State<DashboardPage>
                     );
                   case 'whoop_sleep':
                     return WhoopSleepCard(
-                      loading: false,
+                      loading: _isWhoopLoadingForSelectedDate(),
                       linked: _whoopLinked,
                       linkedKnown:
                           _whoopLinkedKnown || _whoopLinkedHint != null,
@@ -5293,7 +5358,7 @@ class DashboardPageState extends State<DashboardPage>
                     );
                   case 'whoop_recovery':
                     return WhoopRecoveryCard(
-                      loading: false,
+                      loading: _isWhoopLoadingForSelectedDate(),
                       linked: _whoopLinked,
                       score: _whoopRecovery,
                       delta: _whoopRecoveryDelta,
@@ -5310,13 +5375,10 @@ class DashboardPageState extends State<DashboardPage>
                           : null,
                     );
                   case 'whoop_cycle':
-                    final strain = isCurrentDay
-                        ? (_whoopCycleStrain ?? _whoopCycleStrainLast)
-                        : _whoopCycleStrain;
                     return WhoopCycleCard(
-                      loading: false,
+                      loading: _isWhoopLoadingForSelectedDate(),
                       linked: _whoopLinked,
-                      strain: strain,
+                      strain: _whoopCycleStrain,
                       onTap: isCurrentDay
                           ? () async {
                               await Navigator.of(context).push(
@@ -5331,7 +5393,7 @@ class DashboardPageState extends State<DashboardPage>
                     );
                   case 'whoop_body':
                     return WhoopBodyCard(
-                      loading: false,
+                      loading: _isWhoopLoadingForSelectedDate(),
                       linked: _whoopLinked,
                       weightKg: _whoopBodyWeightKg,
                       onTap: isCurrentDay
@@ -5344,65 +5406,62 @@ class DashboardPageState extends State<DashboardPage>
                             }
                           : null,
                     );
-                  case 'strava_athlete':
-                    return StatCard(
-                      title: "Strava Athlete Data",
-                      value: "Profile + stats + zones",
-                      subtitle: "Open detailed card",
-                      icon: Icons.person,
-                      accentColor: const Color(0xFFFC4C02),
-                      onTap: isCurrentDay
-                          ? () async {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const StravaDetailPage(
-                                    kind: StravaDetailKind.athlete,
-                                  ),
-                                ),
-                              );
-                              await _loadStravaStatus();
-                            }
-                          : null,
-                    );
                   case 'strava_activities':
-                    return StatCard(
-                      title: "Strava Activities",
-                      value: "List + details",
-                      subtitle: "Your metrics and laps",
-                      icon: Icons.directions_run,
-                      accentColor: const Color(0xFFFC4C02),
-                      onTap: isCurrentDay
-                          ? () async {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const StravaDetailPage(
-                                    kind: StravaDetailKind.activities,
-                                  ),
+                    final stravaActivitiesValue = _stravaActivitiesLoading
+                        ? '...'
+                        : '${_stravaActivitiesCount ?? 0}';
+                    const stravaOrange = Color(0xFFFF6A2A);
+                    return Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        StatCard(
+                          title: "Strava Activities",
+                          value: stravaActivitiesValue,
+                          subtitle: "sessions done",
+                          icon: Icons.directions_run,
+                          accentColor: stravaOrange,
+                          borderColor: stravaOrange,
+                          borderWidth: 2.2,
+                          onTap: isCurrentDay
+                              ? () async {
+                                  await Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => const StravaDetailPage(
+                                        kind: StravaDetailKind.activities,
+                                      ),
+                                    ),
+                                  );
+                                  await _loadStravaStatus();
+                                }
+                              : null,
+                        ),
+                        Positioned(
+                          top: -10,
+                          right: 10,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: stravaOrange,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 3),
                                 ),
-                              );
-                              await _loadStravaStatus();
-                            }
-                          : null,
-                    );
-                  case 'strava_network':
-                    return StatCard(
-                      title: "Strava Routes",
-                      value: "Routes overview",
-                      subtitle: "Your routes and gear",
-                      icon: Icons.route,
-                      accentColor: const Color(0xFFFC4C02),
-                      onTap: isCurrentDay
-                          ? () async {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const StravaDetailPage(
-                                    kind: StravaDetailKind.network,
-                                  ),
-                                ),
-                              );
-                              await _loadStravaStatus();
-                            }
-                          : null,
+                              ],
+                            ),
+                            child: Image.asset(
+                              'assets/images/strava_logo_icon_170697.png',
+                              height: 14,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                      ],
                     );
                   case 'water':
                     return WaterIntakeCard(
@@ -5688,8 +5747,7 @@ class DashboardPageState extends State<DashboardPage>
                             sleepScore: _whoopSleepScore,
                             sleepGoal: _sleepGoal,
                             sleepDelta: _whoopSleepDelta,
-                            cycleStrain:
-                                _whoopCycleStrainLast ?? _whoopCycleStrain,
+                            cycleStrain: _whoopCycleStrain,
                             hideSleep: _statOrder.contains('whoop_sleep'),
                             hideRecovery: _statOrder.contains('whoop_recovery'),
                             hideCycle: _statOrder.contains('whoop_cycle'),
@@ -5820,7 +5878,9 @@ class DashboardPageState extends State<DashboardPage>
         color: AppColors.accent,
         backgroundColor: AppColors.cardDark,
         notificationPredicate: (_) => isCurrentDay,
-        onRefresh: (!_wiggling && isCurrentDay) ? _refreshAll : () async {},
+        onRefresh: (!_wiggling && isCurrentDay)
+            ? () => _refreshAll(refreshStrava: false, refreshTaqaScore: false)
+            : () async {},
         child: GestureDetector(
           behavior: HitTestBehavior.translucent,
           onTap: _stopWiggle,

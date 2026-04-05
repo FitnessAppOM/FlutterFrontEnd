@@ -41,6 +41,9 @@ class HealthRecoveryLoadSummary {
 
 class HealthRecoveryLoadService {
   final Health _health = Health();
+  static final Map<String, HealthRecoveryLoadSummary?> _summaryCache = {};
+  static final Map<String, DateTime> _summaryCacheAt = {};
+  static const Duration _todayCacheTtl = Duration(minutes: 2);
 
   static const List<HealthDataType> _commonTypes = [
     HealthDataType.RESTING_HEART_RATE,
@@ -85,6 +88,14 @@ class HealthRecoveryLoadService {
 
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
+
+  String _dayKey(DateTime day) {
+    final d = DateTime(day.year, day.month, day.day);
+    final yyyy = d.year.toString().padLeft(4, '0');
+    final mm = d.month.toString().padLeft(2, '0');
+    final dd = d.day.toString().padLeft(2, '0');
+    return "$yyyy-$mm-$dd";
+  }
 
   double _valueToDouble(dynamic value) {
     if (value is num) return value.toDouble();
@@ -177,14 +188,29 @@ class HealthRecoveryLoadService {
     return null;
   }
 
-  Future<HealthRecoveryLoadSummary?> fetchSummary(DateTime day) async {
+  Future<HealthRecoveryLoadSummary?> fetchSummary(
+    DateTime day, {
+    bool forceRefresh = false,
+  }) async {
+    final dayOnly = DateTime(day.year, day.month, day.day);
+    final now = DateTime.now();
+    final todayOnly = DateTime(now.year, now.month, now.day);
+    final isToday = _isSameDay(dayOnly, todayOnly);
+    final cacheKey = _dayKey(dayOnly);
+    if (!forceRefresh && _summaryCache.containsKey(cacheKey)) {
+      if (!isToday) {
+        return _summaryCache[cacheKey];
+      }
+      final cachedAt = _summaryCacheAt[cacheKey];
+      if (cachedAt != null && now.difference(cachedAt) <= _todayCacheTtl) {
+        return _summaryCache[cacheKey];
+      }
+    }
+
     final granted = await _ensurePermission();
     if (!granted) return null;
 
     final start = DateTime(day.year, day.month, day.day);
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final isToday = _isSameDay(start, today);
     final end = isToday ? now : start.add(const Duration(days: 1));
 
     try {
@@ -239,7 +265,18 @@ class HealthRecoveryLoadService {
         activeMinutes: resolvedActiveMinutes,
         zones: zones,
       );
-      return summary.hasAnyData ? summary : null;
+      final result = summary.hasAnyData ? summary : null;
+      _summaryCache[cacheKey] = result;
+      _summaryCacheAt[cacheKey] = DateTime.now();
+      if (_summaryCache.length > 120) {
+        final keys = _summaryCache.keys.toList(growable: false);
+        final removeCount = _summaryCache.length - 120;
+        for (var i = 0; i < removeCount; i++) {
+          _summaryCache.remove(keys[i]);
+          _summaryCacheAt.remove(keys[i]);
+        }
+      }
+      return result;
     } catch (_) {
       return null;
     }

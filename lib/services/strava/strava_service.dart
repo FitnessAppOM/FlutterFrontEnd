@@ -6,6 +6,10 @@ import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
 
 class StravaService {
+  static final Map<String, Map<String, dynamic>> _activitiesOverviewCache = {};
+  static final Map<String, Future<Map<String, dynamic>>>
+  _activitiesOverviewInFlight = {};
+
   Future<int> _requireUserId() async {
     final userId = await AccountStorage.getUserId();
     if (userId == null || userId <= 0) {
@@ -80,33 +84,85 @@ class StravaService {
     return decoded;
   }
 
-  Future<Map<String, dynamic>> fetchAthleteOverview() {
-    return _get("/strava/athlete/overview");
-  }
-
   Future<Map<String, dynamic>> fetchStatus() {
     return _get("/strava/status");
+  }
+
+  static String _activitiesOverviewCacheKey({
+    required int userId,
+    required int page,
+    required int perPage,
+    int? activityId,
+  }) {
+    final selected = activityId ?? 0;
+    return "$userId|$page|$perPage|$selected";
+  }
+
+  static void _clearActivitiesOverviewCacheForUser(int userId) {
+    final prefix = "$userId|";
+    final keys = _activitiesOverviewCache.keys
+        .where((k) => k.startsWith(prefix))
+        .toList(growable: false);
+    for (final key in keys) {
+      _activitiesOverviewCache.remove(key);
+      _activitiesOverviewInFlight.remove(key);
+    }
+  }
+
+  static void clearActivitiesOverviewCache() {
+    _activitiesOverviewCache.clear();
+    _activitiesOverviewInFlight.clear();
+  }
+
+  Future<Map<String, dynamic>?> getCachedActivitiesOverview({
+    int page = 1,
+    int perPage = 20,
+    int? activityId,
+  }) async {
+    final userId = await _requireUserId();
+    final key = _activitiesOverviewCacheKey(
+      userId: userId,
+      page: page,
+      perPage: perPage,
+      activityId: activityId,
+    );
+    return _activitiesOverviewCache[key];
   }
 
   Future<Map<String, dynamic>> fetchActivitiesOverview({
     int page = 1,
     int perPage = 20,
     int? activityId,
-  }) {
+    bool forceRefresh = false,
+  }) async {
+    final userId = await _requireUserId();
+    final key = _activitiesOverviewCacheKey(
+      userId: userId,
+      page: page,
+      perPage: perPage,
+      activityId: activityId,
+    );
+    if (!forceRefresh && _activitiesOverviewCache.containsKey(key)) {
+      return _activitiesOverviewCache[key]!;
+    }
+    if (!forceRefresh && _activitiesOverviewInFlight.containsKey(key)) {
+      return _activitiesOverviewInFlight[key]!;
+    }
+
     final query = <String, String>{
       "page": "$page",
       "per_page": "$perPage",
       if (activityId != null) "activity_id": "$activityId",
     };
-    return _get("/strava/activities/overview", query: query);
-  }
-
-  Future<Map<String, dynamic>> fetchNetworkOverview({
-    int page = 1,
-    int perPage = 20,
-  }) {
-    final query = <String, String>{"page": "$page", "per_page": "$perPage"};
-    return _get("/strava/network/overview", query: query);
+    final future = _get("/strava/activities/overview", query: query);
+    _activitiesOverviewInFlight[key] = future;
+    try {
+      final result = await future;
+      _activitiesOverviewCache[key] = result;
+      return result;
+    } finally {
+      _activitiesOverviewInFlight.remove(key);
+    }
   }
 
   Future<Map<String, dynamic>> createActivity({
@@ -116,7 +172,8 @@ class StravaService {
     required int elapsedTimeSeconds,
     String? description,
     double? distanceMeters,
-  }) {
+  }) async {
+    final userId = await _requireUserId();
     final payload = <String, dynamic>{
       "name": name,
       "type": type,
@@ -126,7 +183,9 @@ class StravaService {
         "description": description.trim(),
       if (distanceMeters != null) "distance": distanceMeters,
     };
-    return _postJson("/strava/activities/create", payload);
+    final result = await _postJson("/strava/activities/create", payload);
+    _clearActivitiesOverviewCacheForUser(userId);
+    return result;
   }
 
   static String formatLocalForStrava(DateTime dt) {

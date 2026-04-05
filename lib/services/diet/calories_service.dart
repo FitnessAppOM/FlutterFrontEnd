@@ -26,7 +26,11 @@ class CaloriesService {
     final today = DateTime.now();
     final todayKey = DateTime(today.year, today.month, today.day);
 
-    final granted = await ConsentManager.requestAllHealth();
+    final granted = await ConsentManager.requestHealthPermissionsJIT(
+      steps: false,
+      sleep: false,
+      calories: true,
+    );
     if (!granted) return manual[todayKey] ?? 0;
 
     final now = DateTime.now();
@@ -58,7 +62,11 @@ class CaloriesService {
     required DateTime start,
     required DateTime end,
   }) async {
-    final granted = await ConsentManager.requestAllHealth();
+    final granted = await ConsentManager.requestHealthPermissionsJIT(
+      steps: false,
+      sleep: false,
+      calories: true,
+    );
     if (!granted) return {};
 
     try {

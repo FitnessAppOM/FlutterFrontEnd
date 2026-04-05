@@ -12,8 +12,7 @@ import '../auth/expert_questionnaire.dart';
 import '../screens/daily_journal.dart';
 import '../services/core/navigation_service.dart';
 import '../services/core/notification_service.dart';
-import '../services/metrics/daily_metrics_sync.dart';
-import '../services/whoop/whoop_daily_sync.dart';
+import '../services/core/daily_provider_push_service.dart';
 import '../screens/welcome.dart';
 
 class AccountRestorePage extends StatefulWidget {
@@ -250,8 +249,7 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
       );
 
       NotificationService.refreshDailyJournalRemindersForCurrentUser();
-      DailyMetricsSync().pushIfNewDay().catchError((_) {});
-      WhoopDailySync().pushIfNewDay().catchError((_) {});
+      DailyProviderPushService().pushIfAfterOneAmLocal().catchError((_) {});
 
       await _navigatePostRestore(userId: userId);
     } catch (e) {

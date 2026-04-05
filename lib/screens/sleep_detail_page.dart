@@ -43,11 +43,11 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
   int? _napCount;
   double? _napHours;
   bool _metricsHasData = false;
-  final Map<DateTime, _WhoopSleepMetrics?> _metricsCache = {};
-  final Map<DateTime, DailyMetricsEntry?> _nativeMetricsCache = {};
-  final Map<DateTime, int?> _napCountCache = {};
-  final Map<DateTime, double?> _napHoursCache = {};
-  final Map<DateTime, bool> _metricsHasDataCache = {};
+  static final Map<String, _WhoopSleepMetrics?> _metricsCache = {};
+  static final Map<String, DailyMetricsEntry?> _nativeMetricsCache = {};
+  static final Map<String, int?> _napCountCache = {};
+  static final Map<String, double?> _napHoursCache = {};
+  static final Map<String, bool> _metricsHasDataCache = {};
   int? _selectedBarIndex;
   Timer? _barValueTimer;
 
@@ -56,6 +56,12 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
 
   String _dayToken(DateTime date) =>
       "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+
+  Future<String> _userDayCacheKey(DateTime date) async {
+    final userId = await AccountStorage.getUserId();
+    final scopedUserId = userId ?? 0;
+    return "$scopedUserId|${_dayToken(date)}";
+  }
 
   String? _rangeCacheKey({
     required int? userId,
@@ -302,14 +308,15 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       _metricsDate.month,
       _metricsDate.day,
     );
-    final cachedHasData = _metricsHasDataCache[dayKey];
-    final cachedMetrics = _metricsCache[dayKey];
+    final cacheKey = await _userDayCacheKey(dayKey);
+    final cachedHasData = _metricsHasDataCache[cacheKey];
+    final cachedMetrics = _metricsCache[cacheKey];
     final hasCache = cachedMetrics != null || cachedHasData != null;
     setState(() {
       if (hasCache) {
         _whoopMetrics = cachedMetrics;
-        _napCount = _napCountCache[dayKey];
-        _napHours = _napHoursCache[dayKey];
+        _napCount = _napCountCache[cacheKey];
+        _napHours = _napHoursCache[cacheKey];
         _metricsHasData = cachedHasData ?? cachedMetrics != null;
         _metricsLoading = false;
       } else {
@@ -338,18 +345,18 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       final napCount = details?["nap_count"];
       final napHours = details?["nap_hours"];
       final hasData = metrics != null;
-      _metricsCache[dayKey] = metrics;
-      _napCountCache[dayKey] = napCount is num
+      _metricsCache[cacheKey] = metrics;
+      _napCountCache[cacheKey] = napCount is num
           ? napCount.round()
           : int.tryParse("$napCount");
-      _napHoursCache[dayKey] = napHours is num
+      _napHoursCache[cacheKey] = napHours is num
           ? napHours.toDouble()
           : double.tryParse("$napHours");
-      _metricsHasDataCache[dayKey] = hasData;
+      _metricsHasDataCache[cacheKey] = hasData;
       setState(() {
         _whoopMetrics = metrics;
-        _napCount = _napCountCache[dayKey];
-        _napHours = _napHoursCache[dayKey];
+        _napCount = _napCountCache[cacheKey];
+        _napHours = _napHoursCache[cacheKey];
         _metricsHasData = hasData;
         _metricsLoading = false;
       });
@@ -449,14 +456,15 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     if (widget.useWhoop) return;
     final requestId = ++_nativeMetricsReqId;
     final dayKey = _onlyDate(_metricsDate);
+    final cacheKey = await _userDayCacheKey(dayKey);
     final isToday = _isSameDay(dayKey, _onlyDate(DateTime.now()));
-    final hasCache = _nativeMetricsCache.containsKey(dayKey);
+    final hasCache = _nativeMetricsCache.containsKey(cacheKey);
     final canUseCache = hasCache && !force && !isToday;
 
     if (!mounted) return;
     setState(() {
       if (canUseCache) {
-        final cached = _nativeMetricsCache[dayKey];
+        final cached = _nativeMetricsCache[cacheKey];
         _nativeMetricsEntry = cached;
         _nativeMetricsHasData = _nativeEntryHasData(cached);
         _nativeMetricsLoading = false;
@@ -487,7 +495,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       try {
         entry = await DailyMetricsApi.fetchForDate(userId, dayKey);
       } catch (_) {
-        entry = _nativeMetricsCache[dayKey];
+        entry = _nativeMetricsCache[cacheKey];
       }
     }
     if (!mounted || requestId != _nativeMetricsReqId) return;
@@ -498,7 +506,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     );
     if (!mounted || requestId != _nativeMetricsReqId) return;
 
-    _nativeMetricsCache[dayKey] = resolved;
+    _nativeMetricsCache[cacheKey] = resolved;
     setState(() {
       _nativeMetricsEntry = resolved;
       _nativeMetricsHasData = _nativeEntryHasData(resolved);

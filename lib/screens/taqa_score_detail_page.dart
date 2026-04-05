@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../core/account_storage.dart';
-import '../core/date_utils.dart';
 import '../localization/app_localizations.dart';
 import '../services/scores/taqa_score_api.dart';
+import '../services/training/training_reset_coordinator.dart';
 import '../theme/app_theme.dart';
 import '../widgets/charts/simple_line_chart.dart';
 import '../widgets/common/date_switcher.dart';
@@ -19,7 +19,7 @@ class TaqaScoreDetailPage extends StatefulWidget {
 }
 
 class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
-  DateTime _selectedDate = localYesterday();
+  DateTime _selectedDate = DateTime.now();
   TaqaDailyScore? _score;
   bool _loading = true;
   bool _trendLoading = false;
@@ -29,16 +29,36 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
   @override
   void initState() {
     super.initState();
-    if (widget.initialDate != null) _selectedDate = widget.initialDate!;
     _init();
   }
 
   Future<void> _init() async {
+    await TrainingResetCoordinator.ensureInitialized();
+    final maxDate = _maxSelectableDate();
+    if (widget.initialDate != null) {
+      final initial = _dateOnly(widget.initialDate!);
+      _selectedDate = initial.isAfter(maxDate) ? maxDate : initial;
+    } else {
+      _selectedDate = maxDate;
+    }
+
     final uid = await AccountStorage.getUserId();
     if (!mounted) return;
     setState(() => _userId = uid);
     if (uid == null) return;
     await Future.wait([_loadScore(uid), _loadTrend(uid)]);
+  }
+
+  DateTime _dateOnly(DateTime date) =>
+      DateTime(date.year, date.month, date.day);
+
+  DateTime _todayByResetClock() {
+    final now = TrainingResetCoordinator.currentNowUtc();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  DateTime _maxSelectableDate() {
+    return _todayByResetClock().subtract(const Duration(days: 1));
   }
 
   Future<void> _loadScore(int userId) async {
@@ -56,7 +76,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
 
   Future<void> _loadTrend(int userId) async {
     setState(() => _trendLoading = true);
-    final end = localYesterday();
+    final end = _maxSelectableDate();
     final start = end.subtract(const Duration(days: 6));
     final result = await TaqaScoreApi.fetchRange(
       userId: userId,
@@ -77,7 +97,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
   }
 
   void _goToNextDay() {
-    final yesterday = localYesterday();
+    final yesterday = _maxSelectableDate();
     final next = _selectedDate.add(const Duration(days: 1));
     if (next.isAfter(yesterday)) return;
     _selectedDate = next;
@@ -86,7 +106,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
   }
 
   bool get _canGoNext {
-    final yesterday = localYesterday();
+    final yesterday = _maxSelectableDate();
     final sel = DateTime(
       _selectedDate.year,
       _selectedDate.month,
@@ -409,7 +429,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     if (_trendScores.isEmpty) return const SizedBox.shrink();
 
     final values = <double?>[];
-    final end = localYesterday();
+    final end = _maxSelectableDate();
     for (int i = 6; i >= 0; i--) {
       final day = end.subtract(Duration(days: i));
       final dayKey = DateTime(day.year, day.month, day.day);
@@ -464,7 +484,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
       _selectedDate.month,
       _selectedDate.day,
     );
-    return day == localYesterday();
+    return day == _maxSelectableDate();
   }
 }
 

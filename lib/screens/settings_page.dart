@@ -18,6 +18,7 @@ import 'package:path_provider/path_provider.dart';
 import '../config/base_url.dart';
 import '../consents/consent_manager.dart';
 import '../auth/expert_questionnaire.dart';
+import '../services/core/daily_provider_push_service.dart';
 import '../services/core/notification_service.dart';
 import '../services/health/apple_watch_detection_service.dart';
 import '../services/whoop/whoop_daily_sync.dart';
@@ -475,7 +476,7 @@ class _SettingsPageState extends State<SettingsPage> {
         AccountStorage.notifyAccountChanged();
         try {
           await WhoopDailySync().forceBackfillRecent();
-          await WhoopDailySync().pushIfNewDay();
+          await DailyProviderPushService().pushIfAfterOneAmLocal();
           WhoopLatestService.clear();
           AccountStorage.notifyWhoopChanged();
         } catch (_) {}
@@ -1374,20 +1375,14 @@ class _SettingsPageState extends State<SettingsPage> {
                 : Icons.directions_bike,
             onTap: (_stravaLoading || _isDeactivated) ? null : _handleStravaTap,
             color: _stravaLinked ? const Color(0xFF4CD964) : null,
-            leading: Container(
+            leading: SizedBox(
               height: 28,
               width: 28,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFC4C02),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Text(
-                "S",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
+              child: Center(
+                child: Image.asset(
+                  'assets/images/strava_logo_icon_170697.png',
+                  height: 18,
+                  fit: BoxFit.contain,
                 ),
               ),
             ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/account_storage.dart';
 import '../theme/app_theme.dart';
 import '../services/whoop/whoop_profile_service.dart';
 
@@ -12,6 +13,8 @@ class WhoopBodyDetailPage extends StatefulWidget {
 class _WhoopBodyDetailPageState extends State<WhoopBodyDetailPage> {
   bool _loading = true;
   WhoopBodyMetrics? _metrics;
+  static final Map<int, WhoopBodyMetrics?> _cachedMetricsByUser = {};
+  static final Set<int> _loadedUsers = <int>{};
 
   @override
   void initState() {
@@ -20,10 +23,23 @@ class _WhoopBodyDetailPageState extends State<WhoopBodyDetailPage> {
   }
 
   Future<void> _load() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId != null && _loadedUsers.contains(userId)) {
+      setState(() {
+        _metrics = _cachedMetricsByUser[userId];
+        _loading = false;
+      });
+      return;
+    }
+
     setState(() => _loading = true);
     try {
       final metrics = await WhoopProfileService().fetchBodyMetrics();
       if (!mounted) return;
+      if (userId != null) {
+        _cachedMetricsByUser[userId] = metrics;
+        _loadedUsers.add(userId);
+      }
       setState(() {
         _metrics = metrics;
         _loading = false;
@@ -50,31 +66,31 @@ class _WhoopBodyDetailPageState extends State<WhoopBodyDetailPage> {
                 child: CircularProgressIndicator(color: AppColors.accent),
               )
             : (metrics == null || !_hasAny(metrics))
-                ? _emptyCard()
-                : Column(
-                    children: [
-                      _metricCard(
-                        title: "Height",
-                        value: _fmtMeters(metrics.heightMeters),
-                        icon: Icons.height,
-                        accent: const Color(0xFF2D7CFF),
-                      ),
-                      const SizedBox(height: 12),
-                      _metricCard(
-                        title: "Weight",
-                        value: _fmtKg(metrics.weightKg),
-                        icon: Icons.monitor_weight,
-                        accent: const Color(0xFF00BFA6),
-                      ),
-                      const SizedBox(height: 12),
-                      _metricCard(
-                        title: "Max HR",
-                        value: _fmtBpm(metrics.maxHr),
-                        icon: Icons.favorite,
-                        accent: const Color(0xFFFF8A00),
-                      ),
-                    ],
+            ? _emptyCard()
+            : Column(
+                children: [
+                  _metricCard(
+                    title: "Height",
+                    value: _fmtMeters(metrics.heightMeters),
+                    icon: Icons.height,
+                    accent: const Color(0xFF2D7CFF),
                   ),
+                  const SizedBox(height: 12),
+                  _metricCard(
+                    title: "Weight",
+                    value: _fmtKg(metrics.weightKg),
+                    icon: Icons.monitor_weight,
+                    accent: const Color(0xFF00BFA6),
+                  ),
+                  const SizedBox(height: 12),
+                  _metricCard(
+                    title: "Max HR",
+                    value: _fmtBpm(metrics.maxHr),
+                    icon: Icons.favorite,
+                    accent: const Color(0xFFFF8A00),
+                  ),
+                ],
+              ),
       ),
     );
   }
@@ -91,7 +107,9 @@ class _WhoopBodyDetailPageState extends State<WhoopBodyDetailPage> {
       decoration: BoxDecoration(
         color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.18)),
+        border: Border.all(
+          color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
+        ),
       ),
       child: Row(
         children: [
@@ -109,9 +127,9 @@ class _WhoopBodyDetailPageState extends State<WhoopBodyDetailPage> {
             child: Text(
               "No body measurements yet",
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white60,
-                    fontWeight: FontWeight.w600,
-                  ),
+                color: Colors.white60,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],

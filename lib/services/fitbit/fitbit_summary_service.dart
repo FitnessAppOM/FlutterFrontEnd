@@ -28,11 +28,17 @@ class FitbitSummaryBundle {
 }
 
 class FitbitSummaryService {
+  static final Map<String, FitbitSummaryBundle?> _todaySummaryCache = {};
+
   static String _dateParam(DateTime d) {
     final yyyy = d.year.toString().padLeft(4, '0');
     final mm = d.month.toString().padLeft(2, '0');
     final dd = d.day.toString().padLeft(2, '0');
     return "$yyyy-$mm-$dd";
+  }
+
+  static String _todayCacheKey({required int userId, required DateTime date}) {
+    return "$userId|${_dateParam(date)}";
   }
 
   bool _isToday(DateTime date) {
@@ -74,12 +80,19 @@ class FitbitSummaryService {
     return out;
   }
 
-  Future<FitbitSummaryBundle?> fetchSummary(DateTime date) async {
+  Future<FitbitSummaryBundle?> fetchSummary(
+    DateTime date, {
+    bool forceRefresh = false,
+  }) async {
     if (!_isToday(date)) {
       return _fetchSummaryFromDb(date);
     }
     final userId = await AccountStorage.getUserId();
     if (userId == null) return null;
+    final cacheKey = _todayCacheKey(userId: userId, date: date);
+    if (!forceRefresh && _todaySummaryCache.containsKey(cacheKey)) {
+      return _todaySummaryCache[cacheKey];
+    }
     final dateStr = _dateParam(date);
     final headers = await AccountStorage.getAuthHeaders();
     final url = Uri.parse(
@@ -263,13 +276,22 @@ class FitbitSummaryService {
       body = _parseBody(weight);
     }
 
-    return FitbitSummaryBundle(
+    final bundle = FitbitSummaryBundle(
       activity: activity,
       heart: heart,
       sleep: sleep,
       vitals: vitals,
       body: body,
     );
+    _todaySummaryCache[cacheKey] = bundle;
+    if (_todaySummaryCache.length > 120) {
+      final keys = _todaySummaryCache.keys.toList(growable: false);
+      final removeCount = _todaySummaryCache.length - 120;
+      for (var i = 0; i < removeCount; i++) {
+        _todaySummaryCache.remove(keys[i]);
+      }
+    }
+    return bundle;
   }
 
   Future<FitbitSummaryBundle?> _fetchSummaryFromDb(DateTime date) async {
