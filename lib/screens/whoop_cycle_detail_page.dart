@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/account_storage.dart';
 import '../theme/app_theme.dart';
 import '../services/whoop/whoop_cycle_service.dart';
 import '../widgets/recovery/recovery_metric_card.dart';
@@ -6,10 +7,7 @@ import '../widgets/charts/simple_line_chart.dart';
 import '../widgets/common/date_switcher.dart';
 
 class WhoopCycleDetailPage extends StatefulWidget {
-  const WhoopCycleDetailPage({
-    super.key,
-    this.initialDate,
-  });
+  const WhoopCycleDetailPage({super.key, this.initialDate});
 
   final DateTime? initialDate;
 
@@ -21,8 +19,10 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
   bool _loading = true;
   late DateTime _selectedDate;
   Map<DateTime, Map<String, dynamic>> _daily = {};
-  final Map<DateTime, Map<String, dynamic>> _dailyCache = {};
-  final Map<String, Map<DateTime, Map<String, dynamic>>> _rangeCache = {};
+  static final Map<DateTime, Map<String, dynamic>> _dailyCache = {};
+  static final Map<String, Map<DateTime, Map<String, dynamic>>> _rangeCache =
+      {};
+  static int? _cacheUserId;
   int _reqId = 0;
 
   @override
@@ -35,10 +35,20 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
 
   Future<void> _loadRange() async {
     final requestId = ++_reqId;
-    final day = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final day = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
     final start = day.subtract(const Duration(days: 6));
     final end = day;
-    final rangeKey = _rangeKey(start, end);
+    final userId = await AccountStorage.getUserId();
+    if (_cacheUserId != userId) {
+      _cacheUserId = userId;
+      _dailyCache.clear();
+      _rangeCache.clear();
+    }
+    final rangeKey = _rangeKey(userId, start, end);
 
     final cachedRange = _rangeCache[rangeKey];
     if (cachedRange != null) {
@@ -54,7 +64,10 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
     final hasSelectedDayCached = _dailyCache.containsKey(day);
     setState(() => _loading = !hasSelectedDayCached);
     try {
-      final data = await WhoopCycleService().fetchDailyCycles(start: start, end: end);
+      final data = await WhoopCycleService().fetchDailyCycles(
+        start: start,
+        end: end,
+      );
       if (!mounted) return;
       if (requestId != _reqId) return;
       setState(() {
@@ -72,7 +85,11 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final dayKey = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final dayKey = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
     final bool isPastDay = _isPastDay(dayKey);
     final metrics = _daily[dayKey] ?? _dailyCache[dayKey];
     return Scaffold(
@@ -99,9 +116,9 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
                 child: Text(
                   "Average HR Trend (7 Days)",
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
@@ -149,7 +166,9 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
         decoration: BoxDecoration(
           color: AppColors.cardDark,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.18)),
+          border: Border.all(
+            color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
+          ),
         ),
         child: Row(
           children: [
@@ -167,9 +186,9 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
               child: Text(
                 "No cycle data yet for this day",
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white60,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  color: Colors.white60,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -293,7 +312,11 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
   }
 
   List<double?> _avgHrSeries() {
-    final day = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final day = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
     final start = day.subtract(const Duration(days: 6));
     final values = <double?>[];
     for (int i = 0; i < 7; i++) {
@@ -310,10 +333,15 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
   }
 
   Widget _avgHrNote() {
-    final dayKey = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final dayKey = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
     final yesterdayKey = dayKey.subtract(const Duration(days: 1));
     final today = (_daily[dayKey] ?? _dailyCache[dayKey])?["avg_hr"];
-    final yesterday = (_daily[yesterdayKey] ?? _dailyCache[yesterdayKey])?["avg_hr"];
+    final yesterday =
+        (_daily[yesterdayKey] ?? _dailyCache[yesterdayKey])?["avg_hr"];
     if (today is! num || yesterday is! num) {
       return const SizedBox.shrink();
     }
@@ -357,7 +385,11 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
   }
 
   void _changeDay(int delta) {
-    final next = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day + delta);
+    final next = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day + delta,
+    );
     final today = DateTime.now();
     final todayOnly = DateTime(today.year, today.month, today.day);
     if (next.isAfter(todayOnly)) return;
@@ -370,7 +402,11 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
   bool get _canGoNext {
     final today = DateTime.now();
     final todayOnly = DateTime(today.year, today.month, today.day);
-    final selected = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final selected = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
     return selected.isBefore(todayOnly);
   }
 
@@ -380,10 +416,10 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
     return d.isBefore(today);
   }
 
-  String _rangeKey(DateTime start, DateTime end) {
+  String _rangeKey(int? userId, DateTime start, DateTime end) {
     final s = DateTime(start.year, start.month, start.day).toIso8601String();
     final e = DateTime(end.year, end.month, end.day).toIso8601String();
-    return "$s|$e";
+    return "${userId ?? 0}|$s|$e";
   }
 
   String _monthName(int m) {

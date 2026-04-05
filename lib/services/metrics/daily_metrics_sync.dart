@@ -11,8 +11,9 @@ import '../health/health_recovery_load_service.dart';
 import '../training/training_calories_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Pulls device/dashboard values for today and pushes them to the backend
-/// daily_metrics table for the current signed-in user.
+/// Pulls device/dashboard values for historical days and pushes them to
+/// the backend daily_metrics table for the current signed-in user.
+/// Current day is intentionally skipped.
 class DailyMetricsSync {
   final StepsService _steps = StepsService();
   final CaloriesService _calories = CaloriesService();
@@ -21,13 +22,19 @@ class DailyMetricsSync {
   final HealthRecoveryLoadService _recoveryLoad = HealthRecoveryLoadService();
   final TrainingCaloriesService _trainingCalories = TrainingCaloriesService();
   static const _lastPushKey = "daily_metrics_last_push_date";
+  static bool _syncInFlight = false;
 
-  Future<void> pushForDate(DateTime day) async {
+  Future<bool> pushForDate(DateTime day) async {
     final userId = await AccountStorage.getUserId();
     if (userId == null) {
       throw Exception("NO_USER");
     }
     final target = DateTime(day.year, day.month, day.day);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (target == today) {
+      return false;
+    }
 
     // Fetch health metrics sequentially.
     // `ConsentManager.requestAllHealth()` uses a single in-flight guard; parallel
@@ -41,6 +48,29 @@ class DailyMetricsSync {
     final sleepMetrics = await _sleep.fetchSleepMetricsForDay(target);
     final waterLiters = await _water.getIntakeForDay(target);
     final recoveryLoad = await _recoveryLoad.fetchSummary(target);
+
+    final hasMeaningfulData = _hasMeaningfulDailyMetricsPayload(
+      steps: steps,
+      calories: displayCalories,
+      sleepHours: sleepHours,
+      sleepMinutesAsleep: sleepMetrics?.asleepMinutes,
+      sleepMinutesInBed: sleepMetrics?.inBedMinutes,
+      sleepMinutesAwake: sleepMetrics?.awakeMinutes,
+      sleepMinutesLight: sleepMetrics?.lightMinutes,
+      sleepMinutesDeep: sleepMetrics?.deepMinutes,
+      sleepMinutesRem: sleepMetrics?.remMinutes,
+      restingHr: recoveryLoad?.restingHeartRate,
+      hrvMs: recoveryLoad?.hrvMs,
+      activeMinutes: recoveryLoad?.activeMinutes,
+      heartZoneOutOfRangeMinutes: recoveryLoad?.zones?.outOfRangeMinutes,
+      heartZoneFatBurnMinutes: recoveryLoad?.zones?.fatBurnMinutes,
+      heartZoneCardioMinutes: recoveryLoad?.zones?.cardioMinutes,
+      heartZonePeakMinutes: recoveryLoad?.zones?.peakMinutes,
+      waterLiters: waterLiters,
+    );
+    if (!hasMeaningfulData) {
+      return false;
+    }
 
     await DailyMetricsApi.upsert(
       userId: userId,
@@ -65,91 +95,186 @@ class DailyMetricsSync {
     );
 
     // Submit burn for this date so surplus is set (surplus = calories burned). Every submit overwrites.
-    final today = DateTime(
-      DateTime.now().year,
-      DateTime.now().month,
-      DateTime.now().day,
-    );
     try {
       await DailyMetricsApi.submitBurn(
         userId: userId,
         caloriesBurned: cardioCalories,
         entryDate: target,
       );
-      if (target == today) {
-        await DietService.fetchCurrentTargets(userId);
-        DietService.notifyTargetsUpdatedAfterBurn();
-      }
+      await DietService.fetchCurrentTargets(userId);
+      DietService.notifyTargetsUpdatedAfterBurn();
     } catch (_) {
       // Ignore; diet page will refetch when opened; day summary uses backend surplus.
     }
 
-    final sp = await SharedPreferences.getInstance();
-    await sp.setString(_userScopedKey(userId), _dateKey(DateTime.now()));
+    return true;
   }
 
   /// Pushes metrics for yesterday the first time the app opens on a new day.
-  Future<void> pushYesterdayIfNewDay() async {
+  Future<bool> pushYesterdayIfNewDay() async {
     final userId = await AccountStorage.getUserId();
-    if (userId == null) return;
+    if (userId == null) return false;
 
     final yesterday = DateTime.now().subtract(const Duration(days: 1));
-    await pushForDate(yesterday);
+    return pushForDate(yesterday);
   }
 
-  /// Convenience for manual entries to overwrite today immediately.
+  /// Retained for compatibility; current day writes are intentionally skipped.
   Future<void> pushToday() async {
     await pushForDate(DateTime.now());
   }
 
   /// Pushes metrics if we haven't already pushed for the current calendar day.
   Future<void> pushIfNewDay() async {
-    final userId = await AccountStorage.getUserId();
-    if (userId == null) return;
+    if (_syncInFlight) return;
+    _syncInFlight = true;
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null) return;
 
-    final sp = await SharedPreferences.getInstance();
-    final lastKey = _userScopedKey(userId);
-    final last = sp.getString(lastKey);
-    final todayKey = _dateKey(DateTime.now());
-    if (last == todayKey) return;
+      final sp = await SharedPreferences.getInstance();
+      final lastKey = _userScopedKey(userId);
+      final last = sp.getString(lastKey);
+      final todayKey = _dateKey(DateTime.now());
+      if (last == todayKey) return;
 
-    await pushYesterdayIfNewDay();
-    await backfillMissingIfNeeded();
+      await pushYesterdayIfNewDay();
+      final backfillSettled = await backfillMissingIfNeeded();
+      if (backfillSettled) {
+        await sp.setString(lastKey, todayKey);
+      }
+    } finally {
+      _syncInFlight = false;
+    }
   }
 
-  /// Backfill missing days in the last 7 days (excluding today) if more than 3 are missing.
-  Future<void> backfillMissingIfNeeded() async {
+  /// Backfill missing or incomplete days in the last 7 days (excluding today).
+  Future<bool> backfillMissingIfNeeded() async {
     final userId = await AccountStorage.getUserId();
-    if (userId == null) return;
+    if (userId == null) return true;
 
     final today = DateTime.now();
     final todayKey = DateTime(today.year, today.month, today.day);
     final start = todayKey.subtract(const Duration(days: 7));
     final end = todayKey.subtract(const Duration(days: 1));
 
-    if (end.isBefore(start)) return;
+    if (end.isBefore(start)) return true;
 
+    DailyMetricsApi.clearCache();
     final existing = await DailyMetricsApi.fetchRange(
       userId: userId,
       start: start,
       end: end,
     );
 
-    final missing = <DateTime>[];
-    var cursor = start;
-    while (!cursor.isAfter(end)) {
-      if (!existing.containsKey(cursor)) {
-        missing.add(cursor);
-      }
-      cursor = cursor.add(const Duration(days: 1));
-    }
+    final missing = _findMissingOrIncompleteDays(
+      existing: existing,
+      start: start,
+      end: end,
+    );
+    if (missing.isEmpty) return true;
 
     for (final day in missing) {
       await pushForDate(day);
     }
+
+    DailyMetricsApi.clearCache();
+    final refreshed = await DailyMetricsApi.fetchRange(
+      userId: userId,
+      start: start,
+      end: end,
+    );
+    final stillMissing = _findMissingOrIncompleteDays(
+      existing: refreshed,
+      start: start,
+      end: end,
+    );
+    return stillMissing.isEmpty;
   }
 
   String _userScopedKey(int userId) => "${_lastPushKey}_$userId";
   String _dateKey(DateTime dt) =>
       "${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}";
+
+  bool _isPositiveNum(num? value) => value != null && value > 0;
+
+  bool _hasMeaningfulDailyMetricsPayload({
+    required int? steps,
+    required int? calories,
+    required double? sleepHours,
+    required int? sleepMinutesAsleep,
+    required int? sleepMinutesInBed,
+    required int? sleepMinutesAwake,
+    required int? sleepMinutesLight,
+    required int? sleepMinutesDeep,
+    required int? sleepMinutesRem,
+    required int? restingHr,
+    required double? hrvMs,
+    required int? activeMinutes,
+    required int? heartZoneOutOfRangeMinutes,
+    required int? heartZoneFatBurnMinutes,
+    required int? heartZoneCardioMinutes,
+    required int? heartZonePeakMinutes,
+    required double? waterLiters,
+  }) {
+    final hasSleep =
+        _isPositiveNum(sleepHours) ||
+        _isPositiveNum(sleepMinutesAsleep) ||
+        _isPositiveNum(sleepMinutesInBed) ||
+        _isPositiveNum(sleepMinutesAwake) ||
+        _isPositiveNum(sleepMinutesLight) ||
+        _isPositiveNum(sleepMinutesDeep) ||
+        _isPositiveNum(sleepMinutesRem);
+    final hasActivity =
+        _isPositiveNum(steps) ||
+        _isPositiveNum(calories) ||
+        _isPositiveNum(activeMinutes) ||
+        _isPositiveNum(heartZoneOutOfRangeMinutes) ||
+        _isPositiveNum(heartZoneFatBurnMinutes) ||
+        _isPositiveNum(heartZoneCardioMinutes) ||
+        _isPositiveNum(heartZonePeakMinutes);
+    final hasRecovery = _isPositiveNum(restingHr) || _isPositiveNum(hrvMs);
+    final hasWater = _isPositiveNum(waterLiters);
+    return hasSleep || hasActivity || hasRecovery || hasWater;
+  }
+
+  bool _isPersistedDailyMetricsRow(DailyMetricsEntry row) {
+    return _hasMeaningfulDailyMetricsPayload(
+      steps: row.steps,
+      calories: row.calories,
+      sleepHours: row.sleepHours,
+      sleepMinutesAsleep: row.sleepMinutesAsleep,
+      sleepMinutesInBed: row.sleepMinutesInBed,
+      sleepMinutesAwake: row.sleepMinutesAwake,
+      sleepMinutesLight: row.sleepMinutesLight,
+      sleepMinutesDeep: row.sleepMinutesDeep,
+      sleepMinutesRem: row.sleepMinutesRem,
+      restingHr: row.restingHr,
+      hrvMs: row.hrvMs,
+      activeMinutes: row.activeMinutes,
+      heartZoneOutOfRangeMinutes: row.heartZoneOutOfRangeMinutes,
+      heartZoneFatBurnMinutes: row.heartZoneFatBurnMinutes,
+      heartZoneCardioMinutes: row.heartZoneCardioMinutes,
+      heartZonePeakMinutes: row.heartZonePeakMinutes,
+      waterLiters: row.waterLiters,
+    );
+  }
+
+  List<DateTime> _findMissingOrIncompleteDays({
+    required Map<DateTime, DailyMetricsEntry> existing,
+    required DateTime start,
+    required DateTime end,
+  }) {
+    final missing = <DateTime>[];
+    var cursor = start;
+    while (!cursor.isAfter(end)) {
+      final key = DateTime(cursor.year, cursor.month, cursor.day);
+      final row = existing[key];
+      if (row == null || !_isPersistedDailyMetricsRow(row)) {
+        missing.add(key);
+      }
+      cursor = cursor.add(const Duration(days: 1));
+    }
+    return missing;
+  }
 }

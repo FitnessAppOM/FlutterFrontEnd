@@ -44,8 +44,11 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
     super.dispose();
   }
 
-  Future<void> _loadLogs() async {
+  Future<void> _loadLogs({bool forceRefresh = false}) async {
     try {
+      if (forceRefresh) {
+        DailyMetricsApi.clearCache();
+      }
       final userId = await AccountStorage.getUserId();
       if (userId == null) return;
       final end = DateTime.now();
@@ -98,26 +101,42 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
     }
     setState(() => _saving = true);
     try {
+      String? syncNotice;
       if (goal != null && goal > 0) {
         await WaterService().setGoal(goal);
       }
       if (intake != null && intake >= 0) {
         final current = await WaterService().getTodayIntake();
-        if (current == intake) {
-          if (mounted) {
-            AppToast.show(context, "No change to save", type: AppToastType.info);
-            setState(() => _saving = false);
-          }
-          return;
+        final changed = current != intake;
+        if (changed) {
+          await WaterService().setTodayIntake(intake);
         }
-        await WaterService().setTodayIntake(intake);
+
+        if (intake > 0) {
+          try {
+            final today = DateTime.now();
+            await DailyMetricsApi.upsert(
+              userId: userId,
+              entryDate: DateTime(today.year, today.month, today.day),
+              waterLiters: intake,
+            );
+            DailyMetricsApi.clearCache();
+          } catch (_) {
+            syncNotice = "Saved locally. DB sync failed, will retry later.";
+          }
+        } else if (!changed) {
+          syncNotice = "No change to save";
+        }
+      }
+      await _loadLogs(forceRefresh: true);
+      if (syncNotice != null && mounted) {
+        AppToast.show(context, syncNotice, type: AppToastType.info);
       }
     } catch (e) {
       AppToast.show(context, "Failed to save: $e", type: AppToastType.error);
       if (mounted) setState(() => _saving = false);
       return;
     }
-    await _loadLogs();
     if (!mounted) return;
     setState(() => _saving = false);
     widget.onSaved?.call();

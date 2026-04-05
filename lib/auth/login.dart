@@ -25,8 +25,7 @@ import 'expert_questionnaire.dart';
 import '../widgets/app_toast.dart';
 import '../services/core/notification_service.dart';
 import '../services/core/navigation_service.dart';
-import '../services/metrics/daily_metrics_sync.dart';
-import '../services/whoop/whoop_daily_sync.dart';
+import '../services/core/daily_provider_push_service.dart';
 
 class LoginPage extends StatefulWidget {
   final String? prefilledEmail;
@@ -268,8 +267,7 @@ class _LoginPageState extends State<LoginPage> {
 
         // Fire-and-forget: do not block navigation if these fail.
         NotificationService.refreshDailyJournalRemindersForCurrentUser();
-        DailyMetricsSync().pushIfNewDay().catchError((_) {});
-        WhoopDailySync().pushIfNewDay().catchError((_) {});
+        DailyProviderPushService().pushIfAfterOneAmLocal().catchError((_) {});
 
         return;
       }
@@ -406,8 +404,7 @@ class _LoginPageState extends State<LoginPage> {
 
     // Fire-and-forget: do not block navigation if these fail.
     NotificationService.refreshDailyJournalRemindersForCurrentUser();
-    DailyMetricsSync().pushIfNewDay().catchError((_) {});
-    WhoopDailySync().pushIfNewDay().catchError((_) {});
+    DailyProviderPushService().pushIfAfterOneAmLocal().catchError((_) {});
   }
 
   Future<void> handleAppleLogin() async {
@@ -493,8 +490,7 @@ class _LoginPageState extends State<LoginPage> {
 
     // Fire-and-forget: do not block navigation if these fail.
     NotificationService.refreshDailyJournalRemindersForCurrentUser();
-    DailyMetricsSync().pushIfNewDay().catchError((_) {});
-    WhoopDailySync().pushIfNewDay().catchError((_) {});
+    DailyProviderPushService().pushIfAfterOneAmLocal().catchError((_) {});
   }
 
 

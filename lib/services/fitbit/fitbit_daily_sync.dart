@@ -26,10 +26,13 @@ class FitbitDailySync {
       if (last == todayKey) return;
 
       // Re-validate against backend only when local linked hint is true.
-      final statusUrl = Uri.parse("${ApiConfig.baseUrl}/fitbit/status?user_id=$userId");
+      final statusUrl = Uri.parse(
+        "${ApiConfig.baseUrl}/fitbit/status?user_id=$userId",
+      );
       final headers = await AccountStorage.getAuthHeaders();
-      final statusRes =
-          await http.get(statusUrl, headers: headers).timeout(const Duration(seconds: 12));
+      final statusRes = await http
+          .get(statusUrl, headers: headers)
+          .timeout(const Duration(seconds: 12));
       if (statusRes.statusCode != 200) return;
       final status = jsonDecode(statusRes.body);
       if (status is! Map || status["linked"] != true) return;
@@ -64,7 +67,9 @@ class FitbitDailySync {
         final url = Uri.parse(
           "${ApiConfig.baseUrl}/fitbit/day?user_id=$userId&date=$day&persist=1",
         );
-        await http.get(url, headers: headers).timeout(const Duration(seconds: 25));
+        await http
+            .get(url, headers: headers)
+            .timeout(const Duration(seconds: 25));
       }
 
       if (missingDates.isEmpty) {
@@ -99,10 +104,13 @@ class FitbitDailySync {
       if (linkedHint != true) return;
 
       // Re-validate against backend only when local linked hint is true.
-      final statusUrl = Uri.parse("${ApiConfig.baseUrl}/fitbit/status?user_id=$userId");
+      final statusUrl = Uri.parse(
+        "${ApiConfig.baseUrl}/fitbit/status?user_id=$userId",
+      );
       final headers = await AccountStorage.getAuthHeaders();
-      final statusRes =
-          await http.get(statusUrl, headers: headers).timeout(const Duration(seconds: 12));
+      final statusRes = await http
+          .get(statusUrl, headers: headers)
+          .timeout(const Duration(seconds: 12));
       if (statusRes.statusCode != 200) return;
       final status = jsonDecode(statusRes.body);
       if (status is! Map || status["linked"] != true) return;
@@ -118,14 +126,17 @@ class FitbitDailySync {
       final rangeUrl = Uri.parse(
         "${ApiConfig.baseUrl}/fitbit/daily-metrics/range?user_id=$userId&start=$startStr&end=$endStr",
       );
-      final rangeRes =
-          await http.get(rangeUrl, headers: headers).timeout(const Duration(seconds: 20));
+      final rangeRes = await http
+          .get(rangeUrl, headers: headers)
+          .timeout(const Duration(seconds: 20));
       if (rangeRes.statusCode != 200) return;
 
       final List<dynamic> rows = jsonDecode(rangeRes.body) as List<dynamic>;
       final existingDates = <String>{};
       for (final row in rows) {
-        if (row is Map && row["entry_date"] != null) {
+        if (row is Map &&
+            row["entry_date"] != null &&
+            _isPersistedFitbitDayRow(row)) {
           existingDates.add(row["entry_date"].toString().split("T").first);
         }
       }
@@ -137,7 +148,9 @@ class FitbitDailySync {
           final url = Uri.parse(
             "${ApiConfig.baseUrl}/fitbit/day?user_id=$userId&date=$key&persist=1",
           );
-          await http.get(url, headers: headers).timeout(const Duration(seconds: 25));
+          await http
+              .get(url, headers: headers)
+              .timeout(const Duration(seconds: 25));
         }
         cursor = cursor.subtract(const Duration(days: 1));
       }
@@ -158,19 +171,75 @@ class FitbitDailySync {
     final rangeUrl = Uri.parse(
       "${ApiConfig.baseUrl}/fitbit/daily-metrics/range?user_id=$userId&start=$startStr&end=$endStr",
     );
-    final rangeRes =
-        await http.get(rangeUrl, headers: headers).timeout(const Duration(seconds: 20));
+    final rangeRes = await http
+        .get(rangeUrl, headers: headers)
+        .timeout(const Duration(seconds: 20));
     if (rangeRes.statusCode != 200) return null;
 
     final decoded = jsonDecode(rangeRes.body);
     if (decoded is! List) return null;
     final existingDates = <String>{};
     for (final row in decoded) {
-      if (row is Map && row["entry_date"] != null) {
+      if (row is Map &&
+          row["entry_date"] != null &&
+          _isPersistedFitbitDayRow(row)) {
         existingDates.add(row["entry_date"].toString().split("T").first);
       }
     }
     return existingDates;
+  }
+
+  bool _isPositiveNum(dynamic value) {
+    if (value == null) return false;
+    if (value is num) return value > 0;
+    final parsed = double.tryParse(value.toString());
+    return parsed != null && parsed > 0;
+  }
+
+  bool _hasNonEmptyStructured(dynamic value) {
+    if (value == null) return false;
+    if (value is Map) return value.isNotEmpty;
+    if (value is List) return value.isNotEmpty;
+    final text = value.toString().trim();
+    if (text.isEmpty) return false;
+    if (text == '{}' || text == '[]' || text.toLowerCase() == 'null') {
+      return false;
+    }
+    return true;
+  }
+
+  bool _isPersistedFitbitDayRow(Map row) {
+    final hasActivity =
+        _isPositiveNum(row["steps"]) ||
+        _isPositiveNum(row["distance_km"]) ||
+        _isPositiveNum(row["calories_out"]) ||
+        _isPositiveNum(row["floors"]) ||
+        _isPositiveNum(row["active_minutes"]);
+
+    final hasSleep =
+        _isPositiveNum(row["sleep_minutes_asleep"]) ||
+        _isPositiveNum(row["sleep_time_in_bed"]) ||
+        _isPositiveNum(row["sleep_efficiency"]) ||
+        _hasNonEmptyStructured(row["sleep_stages_json"]);
+
+    final hasRecovery =
+        _isPositiveNum(row["resting_hr"]) ||
+        _isPositiveNum(row["hrv_daily_rmssd"]) ||
+        _isPositiveNum(row["hrv_deep_rmssd"]) ||
+        _hasNonEmptyStructured(row["heart_zones"]);
+
+    final hasVitals =
+        _isPositiveNum(row["cardio_vo2max"]) ||
+        _isPositiveNum(row["spo2_avg"]) ||
+        _isPositiveNum(row["spo2_min"]) ||
+        _isPositiveNum(row["spo2_max"]) ||
+        _isPositiveNum(row["skin_temp_c"]) ||
+        _isPositiveNum(row["breathing_rate"]) ||
+        _isPositiveNum(row["ecg_avg_hr"]) ||
+        _hasNonEmptyStructured(row["ecg_summary"]);
+
+    final hasBody = _isPositiveNum(row["weight_kg"]);
+    return hasActivity || hasSleep || hasRecovery || hasVitals || hasBody;
   }
 
   String _userScopedKey(int userId) => "${_lastPushKey}_$userId";

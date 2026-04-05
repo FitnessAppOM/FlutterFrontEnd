@@ -30,7 +30,11 @@ class StepsService {
       return manual[todayKey]!;
     }
 
-    final granted = await ConsentManager.requestUnifiedHealthPermissionsJIT();
+    final granted = await ConsentManager.requestHealthPermissionsJIT(
+      steps: true,
+      sleep: false,
+      calories: false,
+    );
     if (!granted) {
       // Debug: permission was denied or unavailable.
       // ignore: avoid_print
@@ -86,7 +90,11 @@ class StepsService {
     required DateTime start,
     required DateTime end,
   }) async {
-    final granted = await ConsentManager.requestUnifiedHealthPermissionsJIT();
+    final granted = await ConsentManager.requestHealthPermissionsJIT(
+      steps: true,
+      sleep: false,
+      calories: false,
+    );
     if (!granted) return {};
 
     try {
@@ -135,7 +143,11 @@ class StepsService {
   }
 
   Future<int> fetchStepsBetween(DateTime start, DateTime end) async {
-    final granted = await ConsentManager.requestUnifiedHealthPermissionsJIT();
+    final granted = await ConsentManager.requestHealthPermissionsJIT(
+      steps: true,
+      sleep: false,
+      calories: false,
+    );
     if (!granted) return 0;
 
     try {

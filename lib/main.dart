@@ -17,9 +17,7 @@ import 'consents/consent_manager.dart';
 import 'services/core/notification_service.dart';
 import 'screens/daily_journal.dart';
 import 'services/core/navigation_service.dart';
-import 'services/metrics/daily_metrics_sync.dart';
-import 'services/whoop/whoop_daily_sync.dart';
-import 'services/fitbit/fitbit_daily_sync.dart';
+import 'services/core/daily_provider_push_service.dart';
 import 'services/training/exercise_action_queue.dart';
 import 'services/training/cardio_session_queue.dart';
 import 'services/training/training_activity_service.dart';
@@ -129,9 +127,7 @@ void main() async {
   // Submit today's burn BEFORE scheduling notifications so the 9pm diet
   // check-in body reflects the surplus-adjusted target, not the base target.
   try {
-    await DailyMetricsSync().pushIfNewDay();
-    await WhoopDailySync().pushIfNewDay();
-    await FitbitDailySync().pushIfNewDay();
+    await DailyProviderPushService().pushIfAfterOneAmLocal();
   } catch (e) {
     // ignore: avoid_print
     print("DailyMetricsSync daily push skipped: $e");
@@ -220,9 +216,7 @@ class _MyAppState extends State<MyApp> {
   void _handleLifecycle() async {
     _maybeRequestAndroidHealthPermission();
     try {
-      await DailyMetricsSync().pushIfNewDay();
-      await WhoopDailySync().pushIfNewDay();
-      await FitbitDailySync().pushIfNewDay();
+      await DailyProviderPushService().pushIfAfterOneAmLocal();
     } catch (e) {
       // ignore: avoid_print
       print("DailyMetricsSync resume push skipped: $e");
@@ -241,7 +235,7 @@ class _MyAppState extends State<MyApp> {
 
   void _handleAccountChange() {
     NotificationService.refreshDailyJournalRemindersForCurrentUser();
-    FitbitDailySync().pushIfNewDay().catchError((_) {});
+    DailyProviderPushService().pushIfAfterOneAmLocal().catchError((_) {});
     _maybeRequestAndroidHealthPermission();
   }
 

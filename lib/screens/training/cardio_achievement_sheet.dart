@@ -230,6 +230,7 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
         description: description,
         distanceMeters: distanceMeters,
       );
+      AccountStorage.notifyStravaChanged();
 
       if (!mounted) return;
       ScaffoldMessenger.of(

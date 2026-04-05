@@ -11,8 +11,7 @@ import '../localization/app_localizations.dart'; // ADDED
 import 'verification_success_page.dart';
 import '../widgets/app_toast.dart';
 import '../services/core/notification_service.dart';
-import '../services/metrics/daily_metrics_sync.dart';
-import '../services/whoop/whoop_daily_sync.dart';
+import '../services/core/daily_provider_push_service.dart';
 
 class EmailVerificationPage extends StatefulWidget {
   final String email;
@@ -119,8 +118,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
         // Fire-and-forget: do not block navigation if these fail.
         NotificationService.refreshDailyJournalRemindersForCurrentUser();
         if (token != null && token.isNotEmpty) {
-          DailyMetricsSync().pushIfNewDay().catchError((_) {});
-          WhoopDailySync().pushIfNewDay().catchError((_) {});
+          DailyProviderPushService().pushIfAfterOneAmLocal().catchError((_) {});
         }
         return;
       } else {

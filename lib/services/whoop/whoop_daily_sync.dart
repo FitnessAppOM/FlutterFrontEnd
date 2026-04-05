@@ -40,7 +40,8 @@ class WhoopDailySync {
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
       final start = today.subtract(const Duration(days: 7));
-      final end = today;
+      final end = today.subtract(const Duration(days: 1));
+      if (end.isBefore(start)) return;
 
       final startStr = _dateKey(start);
       final endStr = _dateKey(end);
@@ -117,25 +118,18 @@ class WhoopDailySync {
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
       final start = today.subtract(Duration(days: days));
-      final end = today;
+      final end = today.subtract(const Duration(days: 1));
+      if (end.isBefore(start)) return;
 
       final startStr = _dateKey(start);
       final endStr = _dateKey(end);
-      final rangeUrl = Uri.parse(
-        "${ApiConfig.baseUrl}/whoop/daily-metrics/range?user_id=$userId&start=$startStr&end=$endStr",
+      final existingDates = await _fetchExistingDates(
+        userId: userId,
+        startStr: startStr,
+        endStr: endStr,
+        headers: headers,
       );
-      final rangeRes = await http
-          .get(rangeUrl, headers: headers)
-          .timeout(const Duration(seconds: 20));
-      if (rangeRes.statusCode != 200) return;
-
-      final List<dynamic> rows = jsonDecode(rangeRes.body) as List<dynamic>;
-      final existingDates = <String>{};
-      for (final row in rows) {
-        if (row is Map && row["entry_date"] != null) {
-          existingDates.add(row["entry_date"].toString().split("T").first);
-        }
-      }
+      if (existingDates == null) return;
 
       var cursor = end;
       while (!cursor.isBefore(start)) {
@@ -176,11 +170,40 @@ class WhoopDailySync {
     if (decoded is! List) return null;
     final existingDates = <String>{};
     for (final row in decoded) {
-      if (row is Map && row["entry_date"] != null) {
+      if (row is Map &&
+          row["entry_date"] != null &&
+          _isPersistedWhoopDayRow(row)) {
         existingDates.add(row["entry_date"].toString().split("T").first);
       }
     }
     return existingDates;
+  }
+
+  // Keep client-side "existing day" logic aligned with backend backfill logic
+  // so partial rows (for example strain-only rows) do not block full persistence.
+  bool _isPersistedWhoopDayRow(Map row) {
+    if (row["nap_count"] == null) return false;
+    final hasSleepStages =
+        row["sleep_stage_light_ms"] != null ||
+        row["sleep_stage_slow_wave_ms"] != null ||
+        row["sleep_stage_rem_ms"] != null;
+    final hasSleep =
+        hasSleepStages ||
+        row["total_sleep_minutes"] != null ||
+        row["time_in_bed_minutes"] != null ||
+        row["sleep_score"] != null;
+    final hasRecovery =
+        row["recovery_score"] != null ||
+        row["resting_hr"] != null ||
+        row["hrv_rmssd"] != null ||
+        row["spo2_percent"] != null ||
+        row["skin_temp_c"] != null;
+    final hasCycle =
+        row["strain"] != null ||
+        row["avg_hr"] != null ||
+        row["max_hr"] != null ||
+        row["energy_kj"] != null;
+    return hasSleep && hasRecovery && hasCycle;
   }
 
   String _userScopedKey(int userId) => "${_lastPushKey}_$userId";

@@ -18,8 +18,7 @@ import '../core/account_storage.dart';
 import 'questionnaire.dart';
 import 'expert_questionnaire.dart';
 import '../services/core/notification_service.dart';
-import '../services/metrics/daily_metrics_sync.dart';
-import '../services/whoop/whoop_daily_sync.dart';
+import '../services/core/daily_provider_push_service.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key, this.isExpert = false});
@@ -218,8 +217,7 @@ class _SignupPageState extends State<SignupPage> {
     }
 
     await NotificationService.refreshDailyJournalRemindersForCurrentUser();
-    await DailyMetricsSync().pushIfNewDay();
-    await WhoopDailySync().pushIfNewDay();
+    await DailyProviderPushService().pushIfAfterOneAmLocal();
 
     if (!mounted) return;
 
@@ -332,8 +330,7 @@ class _SignupPageState extends State<SignupPage> {
     }
 
     await NotificationService.refreshDailyJournalRemindersForCurrentUser();
-    await DailyMetricsSync().pushIfNewDay();
-    await WhoopDailySync().pushIfNewDay();
+    await DailyProviderPushService().pushIfAfterOneAmLocal();
 
     if (!mounted) return;
 

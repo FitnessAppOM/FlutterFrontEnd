@@ -52,6 +52,7 @@ class AccountStorage {
 
   // In-app signal to refresh Whoop status across screens.
   static final ValueNotifier<int> whoopChange = ValueNotifier(0);
+  static final ValueNotifier<int> stravaChange = ValueNotifier(0);
   static final ValueNotifier<int> accountChange = ValueNotifier(0);
   static final ValueNotifier<int> appleWatchChange = ValueNotifier(0);
   static final ValueNotifier<int> trainingChange = ValueNotifier(0);
@@ -60,6 +61,10 @@ class AccountStorage {
 
   static void notifyWhoopChanged() {
     whoopChange.value++;
+  }
+
+  static void notifyStravaChanged() {
+    stravaChange.value++;
   }
 
   static void notifyAccountChanged() {
