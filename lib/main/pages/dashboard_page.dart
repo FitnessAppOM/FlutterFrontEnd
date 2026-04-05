@@ -5795,22 +5795,7 @@ class DashboardPageState extends State<DashboardPage>
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          _PlaceholderMetricCard(
-            title: t("dash_fueling"),
-            subtitle: t("dash_placeholder"),
-            icon: Icons.restaurant_menu,
-            accentColor: const Color(0xFF00BFA6),
-          ),
-          const SizedBox(height: 12),
-          _PlaceholderMetricCard(
-            title: t("dash_muscle"),
-            subtitle: t("dash_placeholder"),
-            icon: Icons.fitness_center,
-            accentColor: const Color(0xFFFF8A00),
-          ),
-          const SizedBox(height: 12),
-          const SizedBox(height: 60),
+          const SizedBox(height: 76),
         ],
       ],
     );
@@ -5985,66 +5970,6 @@ class DashboardPageState extends State<DashboardPage>
 
 // Backward-compatible alias for older references during hot reloads.
 typedef _DashboardPageState = DashboardPageState;
-
-class _PlaceholderMetricCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color accentColor;
-
-  const _PlaceholderMetricCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.accentColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return CardContainer(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            Container(
-              height: 44,
-              width: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [accentColor, accentColor.withOpacity(0.65)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Icon(icon, color: Colors.white),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _TrendTile extends StatelessWidget {
   final String title;
