@@ -60,16 +60,19 @@ class TaqaDailyScore {
       scoringPath: json['scoring_path'] as String?,
       taqaValueScore: _toDouble(json['taqa_value_score']),
       sleep: TaqaSubScore.fromJson(json['sleep'] as Map<String, dynamic>?),
-      recovery:
-          TaqaSubScore.fromJson(json['recovery'] as Map<String, dynamic>?),
+      recovery: TaqaSubScore.fromJson(
+        json['recovery'] as Map<String, dynamic>?,
+      ),
       stress: TaqaSubScore.fromJson(json['stress'] as Map<String, dynamic>?),
       trainingLoad: TaqaSubScore.fromJson(
         json['training_load'] as Map<String, dynamic>?,
       ),
-      nutrition:
-          TaqaSubScore.fromJson(json['nutrition'] as Map<String, dynamic>?),
-      readiness:
-          TaqaSubScore.fromJson(json['readiness'] as Map<String, dynamic>?),
+      nutrition: TaqaSubScore.fromJson(
+        json['nutrition'] as Map<String, dynamic>?,
+      ),
+      readiness: TaqaSubScore.fromJson(
+        json['readiness'] as Map<String, dynamic>?,
+      ),
       lifestyleBalance: TaqaSubScore.fromJson(
         json['lifestyle_balance'] as Map<String, dynamic>?,
       ),
@@ -111,7 +114,7 @@ class TaqaScoreApi {
     if (!forceRefresh && _cache.containsKey(key)) return _cache[key];
     if (_inFlight.containsKey(key)) return _inFlight[key];
 
-    final future = _doFetchDaily(userId, date, key);
+    final future = _doFetchDaily(userId, date, key, forceRefresh);
     _inFlight[key] = future;
     try {
       return await future;
@@ -124,13 +127,15 @@ class TaqaScoreApi {
     int userId,
     DateTime date,
     String cacheKey,
+    bool forceRefresh,
   ) async {
     final headers = await AccountStorage.getAuthHeaders();
     if (headers.isEmpty) return null;
 
     final dateStr = _fmtDate(date);
+    final refreshQuery = forceRefresh ? "&refresh=true" : "";
     final url = Uri.parse(
-      "${ApiConfig.baseUrl}/scores/$userId/daily?date=$dateStr",
+      "${ApiConfig.baseUrl}/scores/$userId/daily?date=$dateStr$refreshQuery",
     );
 
     try {

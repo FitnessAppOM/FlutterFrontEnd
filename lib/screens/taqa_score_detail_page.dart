@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../core/account_storage.dart';
 import '../localization/app_localizations.dart';
+import '../services/core/daily_provider_push_service.dart';
 import '../services/scores/taqa_score_api.dart';
 import '../services/training/training_reset_coordinator.dart';
 import '../theme/app_theme.dart';
@@ -53,8 +54,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
       DateTime(date.year, date.month, date.day);
 
   DateTime _todayByResetClock() {
-    final now = TrainingResetCoordinator.currentNowUtc();
-    return DateTime(now.year, now.month, now.day);
+    return DailyProviderPushService.effectiveLocalDay();
   }
 
   DateTime _maxSelectableDate() {
@@ -505,10 +505,10 @@ class _ProviderBadge extends StatelessWidget {
     final label = provider == 'fitbit'
         ? 'Fitbit'
         : provider == 'whoop'
-            ? 'WHOOP'
-            : provider == 'healthkit'
-                ? 'Apple / Samsung Watch'
-                : provider;
+        ? 'WHOOP'
+        : provider == 'healthkit'
+        ? 'Apple / Samsung Watch'
+        : provider;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(

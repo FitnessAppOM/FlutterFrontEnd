@@ -1674,10 +1674,18 @@ class DashboardPageState extends State<DashboardPage>
     if (mounted) {
       setState(() => _taqaScoreLoading = true);
     }
-    final result = await TaqaScoreApi.fetchDaily(
+    TaqaDailyScore? result = await TaqaScoreApi.fetchDaily(
       userId: userId,
       date: scoreDate,
     );
+    final recentCutoff = _dashboardToday().subtract(const Duration(days: 3));
+    if (result?.taqaValueScore == null && !scoreDate.isBefore(recentCutoff)) {
+      result = await TaqaScoreApi.fetchDaily(
+        userId: userId,
+        date: scoreDate,
+        forceRefresh: true,
+      );
+    }
     if (!mounted) return;
     if (reqId != _taqaScoreReqId) return;
     if (_taqaScoreDateForSelection() != scoreDate) return;
@@ -1688,8 +1696,7 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   DateTime _taqaTodayByResetClock() {
-    final now = TrainingResetCoordinator.currentNowUtc();
-    return DateTime(now.year, now.month, now.day);
+    return _dashboardToday();
   }
 
   bool _isTaqaTodaySelection() {
