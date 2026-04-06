@@ -1,6 +1,5 @@
 import '../fitbit/fitbit_daily_sync.dart';
 import '../metrics/daily_metrics_sync.dart';
-import '../strava/strava_daily_sync.dart';
 import '../whoop/whoop_daily_sync.dart';
 
 class DailyProviderPushService {
@@ -29,10 +28,6 @@ class DailyProviderPushService {
 
       try {
         await FitbitDailySync().pushIfNewDay();
-      } catch (_) {}
-
-      try {
-        await StravaDailySync().pushIfNewDay();
       } catch (_) {}
     } finally {
       _inFlight = false;

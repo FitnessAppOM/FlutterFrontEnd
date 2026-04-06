@@ -1703,10 +1703,13 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   DateTime _taqaScoreDateForSelection() {
-    if (_isTaqaTodaySelection()) {
-      return _taqaTodayByResetClock().subtract(const Duration(days: 1));
-    }
-    return _dayKey(_selectedDate);
+    final selected = _dayKey(_selectedDate);
+    final shifted = selected.subtract(const Duration(days: 1));
+    final maxScoreDay = _taqaTodayByResetClock().subtract(
+      const Duration(days: 1),
+    );
+    if (shifted.isAfter(maxScoreDay)) return maxScoreDay;
+    return shifted;
   }
 
   bool _isWhoopLoadingForSelectedDate() {
@@ -1735,7 +1738,7 @@ class DashboardPageState extends State<DashboardPage>
       _loadStreak(),
       _loadWhoopRecovery(force: true),
       _loadHealthRecoveryLoad(force: true),
-      _loadStravaStatus(),
+      _loadStravaStatus(syncRemote: true),
       _loadTaqaScore(),
     ]);
     if (!mounted) return;
@@ -1843,14 +1846,17 @@ class DashboardPageState extends State<DashboardPage>
     }
   }
 
-  Future<void> _loadStravaStatus({int attempt = 0}) async {
+  Future<void> _loadStravaStatus({
+    int attempt = 0,
+    bool syncRemote = false,
+  }) async {
     final userId = await AccountStorage.getUserId();
     if (!mounted) return;
     if (userId == null || userId == 0) {
       if (attempt < 2) {
         await Future.delayed(Duration(milliseconds: 400 + (attempt * 400)));
         if (!mounted) return;
-        return _loadStravaStatus(attempt: attempt + 1);
+        return _loadStravaStatus(attempt: attempt + 1, syncRemote: syncRemote);
       }
       if (!mounted) return;
       setState(() {
@@ -1905,7 +1911,7 @@ class DashboardPageState extends State<DashboardPage>
       AccountStorage.setStravaLinked(linked);
       _pruneDeviceWidgets();
       if (linked && _statOrder.contains('strava_activities')) {
-        _loadStravaActivitiesCount(force: true);
+        _loadStravaActivitiesCount(force: true, syncRemote: syncRemote);
       }
     } catch (_) {
       // Keep last known linked state on transient errors.
@@ -1913,7 +1919,10 @@ class DashboardPageState extends State<DashboardPage>
     }
   }
 
-  Future<void> _loadStravaActivitiesCount({bool force = false}) async {
+  Future<void> _loadStravaActivitiesCount({
+    bool force = false,
+    bool syncRemote = false,
+  }) async {
     if (!_stravaLinked) return;
     if (!_statOrder.contains('strava_activities')) return;
     if (_stravaActivitiesLoading && !force) return;
@@ -1924,9 +1933,13 @@ class DashboardPageState extends State<DashboardPage>
       });
     }
     try {
+      if (syncRemote) {
+        await StravaService().syncRecentActivities(perPage: 50);
+      }
       final data = await StravaService().fetchActivitiesOverview(
+        page: 1,
         perPage: 50,
-        forceRefresh: force,
+        forceRefresh: true,
       );
       final raw = data['activities'];
       final count = raw is List ? raw.length : 0;
@@ -1935,9 +1948,34 @@ class DashboardPageState extends State<DashboardPage>
         _stravaActivitiesCount = count;
         _stravaActivitiesLoading = false;
       });
-    } catch (_) {
+    } catch (e) {
+      final msg = e.toString().toLowerCase();
+      final authFailed =
+          msg.contains("authorization") ||
+          msg.contains("invalid") ||
+          msg.contains("not linked") ||
+          msg.contains("401") ||
+          msg.contains("403");
+      if (authFailed) {
+        await AccountStorage.setStravaLinked(false);
+        if (!mounted || reqId != _stravaActivitiesReqId) return;
+        setState(() {
+          _stravaLinked = false;
+          _stravaLinkedHint = false;
+          _stravaActivitiesLoading = false;
+          _stravaActivitiesCount = null;
+        });
+        _pruneDeviceWidgets();
+        AppToast.show(
+          context,
+          "Strava session expired. Please reconnect Strava.",
+          type: AppToastType.error,
+        );
+        return;
+      }
       if (!mounted || reqId != _stravaActivitiesReqId) return;
       setState(() {
+        _stravaActivitiesCount = null;
         _stravaActivitiesLoading = false;
       });
     }
@@ -5236,15 +5274,11 @@ class DashboardPageState extends State<DashboardPage>
             score: _taqaScore,
             loading: _taqaScoreLoading,
             provider: _taqaScore?.provider,
-            scoreDayLabel: _isTaqaTodaySelection()
-                ? t("dash_taqa_yesterday_scores")
-                : DateFormat(
-                    'dd/MM',
-                    locale,
-                  ).format(_taqaScoreDateForSelection()),
-            emptyMessage: _isTaqaTodaySelection()
-                ? t("taqa_no_data_yesterday_hint")
-                : t("taqa_no_data"),
+            scoreDayLabel: DateFormat(
+              'dd/MM',
+              locale,
+            ).format(_taqaScoreDateForSelection()),
+            emptyMessage: t("taqa_no_data"),
             onTap: !_isTaqaTodaySelection()
                 ? null
                 : () {
@@ -5437,7 +5471,6 @@ class DashboardPageState extends State<DashboardPage>
                                       ),
                                     ),
                                   );
-                                  await _loadStravaStatus();
                                 }
                               : null,
                         ),

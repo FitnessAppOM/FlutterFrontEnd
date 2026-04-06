@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/account_storage.dart';
 import '../services/strava/strava_service.dart';
 import '../widgets/Main/card_container.dart';
 
@@ -706,6 +707,7 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
             : response;
         _creating = false;
       });
+      AccountStorage.notifyStravaChanged();
     } catch (e) {
       if (!mounted) return;
       setState(() {
