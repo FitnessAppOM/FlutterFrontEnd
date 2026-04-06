@@ -22,7 +22,15 @@ class DailyMetricsSync {
   final HealthRecoveryLoadService _recoveryLoad = HealthRecoveryLoadService();
   final TrainingCaloriesService _trainingCalories = TrainingCaloriesService();
   static const _lastPushKey = "daily_metrics_last_push_date";
+  static const _localStartHour = 1; // 1:00 AM local device time
   static bool _syncInFlight = false;
+
+  DateTime _effectiveLocalDay([DateTime? now]) {
+    final reference = (now ?? DateTime.now()).subtract(
+      const Duration(hours: _localStartHour),
+    );
+    return DateTime(reference.year, reference.month, reference.day);
+  }
 
   Future<bool> pushForDate(DateTime day) async {
     final userId = await AccountStorage.getUserId();
@@ -30,8 +38,7 @@ class DailyMetricsSync {
       throw Exception("NO_USER");
     }
     final target = DateTime(day.year, day.month, day.day);
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+    final today = _effectiveLocalDay();
     if (target == today) {
       return false;
     }
@@ -115,7 +122,7 @@ class DailyMetricsSync {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return false;
 
-    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+    final yesterday = _effectiveLocalDay().subtract(const Duration(days: 1));
     return pushForDate(yesterday);
   }
 
@@ -124,7 +131,7 @@ class DailyMetricsSync {
     await pushForDate(DateTime.now());
   }
 
-  /// Pushes metrics if we haven't already pushed for the current calendar day.
+  /// Pushes and reconciles historical metrics for the current effective local day.
   Future<void> pushIfNewDay() async {
     if (_syncInFlight) return;
     _syncInFlight = true;
@@ -134,9 +141,7 @@ class DailyMetricsSync {
 
       final sp = await SharedPreferences.getInstance();
       final lastKey = _userScopedKey(userId);
-      final last = sp.getString(lastKey);
-      final todayKey = _dateKey(DateTime.now());
-      if (last == todayKey) return;
+      final todayKey = _dateKey(_effectiveLocalDay());
 
       await pushYesterdayIfNewDay();
       final backfillSettled = await backfillMissingIfNeeded();
@@ -153,8 +158,7 @@ class DailyMetricsSync {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return true;
 
-    final today = DateTime.now();
-    final todayKey = DateTime(today.year, today.month, today.day);
+    final todayKey = _effectiveLocalDay();
     final start = todayKey.subtract(const Duration(days: 7));
     final end = todayKey.subtract(const Duration(days: 1));
 

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/account_storage.dart';
 import '../../services/health/workout_health_sync_service.dart';
+import '../../services/training/training_reset_coordinator.dart';
 import '../../services/training/training_service.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/training/training_history_health_push_dialog.dart';
@@ -159,16 +160,11 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
   }
 
   DateTime _weekStartMonday(DateTime d) {
-    final day = DateTime(d.year, d.month, d.day);
-    final daysSinceMonday = (day.weekday + 6) % 7;
-    return day.subtract(Duration(days: daysSinceMonday));
+    return TrainingResetCoordinator.weekStartMonday(d);
   }
 
   String _dateToken(DateTime d) {
-    final y = d.year.toString().padLeft(4, '0');
-    final m = d.month.toString().padLeft(2, '0');
-    final day = d.day.toString().padLeft(2, '0');
-    return "$y-$m-$day";
+    return TrainingResetCoordinator.dateToken(d);
   }
 
   bool _isCompleted(dynamic value) {
@@ -424,7 +420,9 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
     final currentProgramId = _parseInt(
       widget.program['program_id'] ?? widget.program['id'],
     );
-    final currentWeekStart = _weekStartMonday(DateTime.now());
+    final currentWeekStart = _weekStartMonday(
+      TrainingResetCoordinator.currentNowUtc(),
+    );
     final entryWeekStart = _weekStartMonday(entry.weekStart);
     final isCurrentPlanThisWeek =
         currentProgramId != null &&

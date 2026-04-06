@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/account_storage.dart';
+import '../../services/core/daily_provider_push_service.dart';
 import '../../services/health/water_service.dart';
 import '../../services/metrics/daily_metrics_api.dart';
 import '../../theme/app_theme.dart';
@@ -29,6 +30,8 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
   bool _saving = false;
   List<_WaterLogEntry> _logs = const [];
 
+  DateTime _dashboardToday() => DailyProviderPushService.effectiveLocalDay();
+
   @override
   void initState() {
     super.initState();
@@ -45,34 +48,39 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
   }
 
   Future<void> _loadLogs({bool forceRefresh = false}) async {
+    final waterService = WaterService();
     try {
       if (forceRefresh) {
         DailyMetricsApi.clearCache();
       }
       final userId = await AccountStorage.getUserId();
       if (userId == null) return;
-      final end = DateTime.now();
+      final end = _dashboardToday();
       final start = end.subtract(const Duration(days: 29));
       final normalizedEnd = DateTime(end.year, end.month, end.day);
       final normalizedStart = DateTime(start.year, start.month, start.day);
       final todayKey = DateTime(end.year, end.month, end.day);
 
-      final fetched = await DailyMetricsApi.fetchRange(
-        userId: userId,
-        start: normalizedStart,
-        end: normalizedEnd,
-      );
-
-      // Override today's water with locally saved value for the current user.
-      final localToday = await WaterService().getIntakeForDay(todayKey);
+      Map<DateTime, DailyMetricsEntry> fetched = const {};
+      try {
+        fetched = await DailyMetricsApi.fetchRange(
+          userId: userId,
+          start: normalizedStart,
+          end: normalizedEnd,
+        );
+      } catch (_) {
+        // Keep showing local history even if backend range fetch fails.
+      }
 
       final entries = <_WaterLogEntry>[];
       for (int i = 0; i < 30; i++) {
         final d = normalizedStart.add(Duration(days: i));
         final entry = fetched[d];
+        final localLiters = await waterService.getIntakeForDay(d);
         double liters = entry?.waterLiters ?? 0;
-        if (d == todayKey && localToday >= 0) {
-          liters = localToday;
+        // Prefer local day value when available to reflect latest user edits.
+        if (localLiters > 0 || d == todayKey) {
+          liters = localLiters;
         }
         if (liters > 0) {
           entries.add(_WaterLogEntry(date: d, liters: liters));
@@ -95,6 +103,7 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
       return;
     }
     final userId = await AccountStorage.getUserId();
+    if (!mounted) return;
     if (userId == null) {
       AppToast.show(context, "Not authenticated", type: AppToastType.error);
       return;
@@ -106,18 +115,18 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
         await WaterService().setGoal(goal);
       }
       if (intake != null && intake >= 0) {
-        final current = await WaterService().getTodayIntake();
+        final effectiveToday = _dashboardToday();
+        final current = await WaterService().getIntakeForDay(effectiveToday);
         final changed = current != intake;
         if (changed) {
-          await WaterService().setTodayIntake(intake);
+          await WaterService().setIntakeForDay(effectiveToday, intake);
         }
 
         if (intake > 0) {
           try {
-            final today = DateTime.now();
             await DailyMetricsApi.upsert(
               userId: userId,
-              entryDate: DateTime(today.year, today.month, today.day),
+              entryDate: effectiveToday,
               waterLiters: intake,
             );
             DailyMetricsApi.clearCache();
@@ -131,10 +140,13 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
       await _loadLogs(forceRefresh: true);
       if (syncNotice != null && mounted) {
         AppToast.show(context, syncNotice, type: AppToastType.info);
+      } else if (mounted) {
+        AppToast.show(context, "Water saved.", type: AppToastType.success);
       }
     } catch (e) {
+      if (!mounted) return;
       AppToast.show(context, "Failed to save: $e", type: AppToastType.error);
-      if (mounted) setState(() => _saving = false);
+      setState(() => _saving = false);
       return;
     }
     if (!mounted) return;
@@ -183,8 +195,12 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
                   ),
                   Row(
                     children: [
-                      Text("Water intake",
-                          style: AppTextStyles.subtitle.copyWith(color: Colors.white)),
+                      Text(
+                        "Water intake",
+                        style: AppTextStyles.subtitle.copyWith(
+                          color: Colors.white,
+                        ),
+                      ),
                       const Spacer(),
                       IconButton(
                         icon: const Icon(Icons.close, color: Colors.white70),
@@ -225,7 +241,9 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       "History",
-                      style: AppTextStyles.small.copyWith(color: Colors.white70),
+                      style: AppTextStyles.small.copyWith(
+                        color: Colors.white70,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -234,7 +252,9 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       child: Text(
                         "No logs yet.",
-                        style: AppTextStyles.small.copyWith(color: AppColors.textDim),
+                        style: AppTextStyles.small.copyWith(
+                          color: AppColors.textDim,
+                        ),
                       ),
                     )
                   else
@@ -242,7 +262,7 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: _logs.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
                         return _WaterHistoryTile(entry: _logs[index]);
                       },
@@ -284,7 +304,9 @@ class _FieldRow extends StatelessWidget {
           Expanded(
             child: TextField(
               controller: controller,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 hintText: label,

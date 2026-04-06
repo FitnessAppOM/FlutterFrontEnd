@@ -208,7 +208,9 @@ class DailyMetricsApi {
     final url = Uri.parse(
       "${ApiConfig.baseUrl}/daily-metrics/$userId/date/$dateStr",
     );
-    final future = http.get(url).then((res) {
+    final headers = await AccountStorage.getAuthHeaders();
+    final future = http.get(url, headers: headers).then((res) async {
+      await AccountStorage.handle401(res.statusCode);
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         return DailyMetricsEntry.fromJson(data);
@@ -246,8 +248,10 @@ class DailyMetricsApi {
     final url = Uri.parse(
       "${ApiConfig.baseUrl}/daily-metrics/$userId/range?start=$startStr&end=$endStr",
     );
+    final headers = await AccountStorage.getAuthHeaders();
 
-    final future = http.get(url).then((res) {
+    final future = http.get(url, headers: headers).then((res) async {
+      await AccountStorage.handle401(res.statusCode);
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as List<dynamic>;
         final out = <DateTime, DailyMetricsEntry>{};
