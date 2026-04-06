@@ -1678,8 +1678,7 @@ class DashboardPageState extends State<DashboardPage>
       userId: userId,
       date: scoreDate,
     );
-    final recentCutoff = _dashboardToday().subtract(const Duration(days: 3));
-    if (result?.taqaValueScore == null && !scoreDate.isBefore(recentCutoff)) {
+    if (result?.taqaValueScore == null) {
       result = await TaqaScoreApi.fetchDaily(
         userId: userId,
         date: scoreDate,

@@ -63,10 +63,17 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
 
   Future<void> _loadScore(int userId) async {
     setState(() => _loading = true);
-    final result = await TaqaScoreApi.fetchDaily(
+    var result = await TaqaScoreApi.fetchDaily(
       userId: userId,
       date: _selectedDate,
     );
+    if (result?.taqaValueScore == null) {
+      result = await TaqaScoreApi.fetchDaily(
+        userId: userId,
+        date: _selectedDate,
+        forceRefresh: true,
+      );
+    }
     if (!mounted) return;
     setState(() {
       _score = result;
