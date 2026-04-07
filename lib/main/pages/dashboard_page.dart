@@ -1670,6 +1670,8 @@ class DashboardPageState extends State<DashboardPage>
     final userId = await AccountStorage.getUserId();
     if (!mounted || userId == null || userId <= 0) return;
     final scoreDate = _taqaScoreDateForSelection();
+    final liveDate = _taqaTodayByResetClock().subtract(const Duration(days: 1));
+    final isLiveDate = scoreDate == liveDate;
     final reqId = ++_taqaScoreReqId;
     if (mounted) {
       setState(() => _taqaScoreLoading = true);
@@ -1677,8 +1679,9 @@ class DashboardPageState extends State<DashboardPage>
     TaqaDailyScore? result = await TaqaScoreApi.fetchDaily(
       userId: userId,
       date: scoreDate,
+      forceRefresh: isLiveDate,
     );
-    if (result?.taqaValueScore == null) {
+    if (!isLiveDate && result?.taqaValueScore == null) {
       result = await TaqaScoreApi.fetchDaily(
         userId: userId,
         date: scoreDate,

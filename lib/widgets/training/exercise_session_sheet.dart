@@ -2453,6 +2453,13 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
             needsSync = true;
           }
         }
+        try {
+          await TrainingCompletionStorage.recordCardioSessionToday(
+            durationSeconds: durationSeconds,
+          );
+        } catch (_) {
+          // Ignore local cardio lock persistence failures.
+        }
       }
 
       // Show message if queued for sync

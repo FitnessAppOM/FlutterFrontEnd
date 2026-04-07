@@ -63,11 +63,13 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
 
   Future<void> _loadScore(int userId) async {
     setState(() => _loading = true);
+    final isLiveDate = _dateOnly(_selectedDate) == _maxSelectableDate();
     var result = await TaqaScoreApi.fetchDaily(
       userId: userId,
       date: _selectedDate,
+      forceRefresh: isLiveDate,
     );
-    if (result?.taqaValueScore == null) {
+    if (!isLiveDate && result?.taqaValueScore == null) {
       result = await TaqaScoreApi.fetchDaily(
         userId: userId,
         date: _selectedDate,
