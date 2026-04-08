@@ -283,6 +283,8 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
         detailLabels: {
           'hrv_component': t("taqa_detail_hrv"),
           'rhr_component': t("taqa_detail_rhr"),
+          'hrv_ratio': 'HRV ratio',
+          'rhr_ratio': 'RHR ratio',
           'sleep_component': t("taqa_detail_sleep_comp"),
           'fatigue_component': t("taqa_detail_fatigue"),
         },
@@ -319,7 +321,8 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
           'today_load': t("taqa_detail_today_load"),
           'chronic_load': t("taqa_detail_chronic"),
           'acute_load': t("taqa_detail_acute"),
-          'load_ratio': t("taqa_detail_ratio"),
+          'acwr': t("taqa_detail_ratio"),
+          'risk_zone': 'Risk zone',
         },
       ),
     );
@@ -376,6 +379,8 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
             'nutrition_component': t("taqa_detail_nutrition_comp"),
             'steps_score': t("taqa_detail_steps_score"),
             'stress_component': t("taqa_detail_stress_comp"),
+            'eq5d_component': 'EQ-5D',
+            'phq2_component': 'PHQ-2',
           },
         ),
       );
@@ -502,13 +507,7 @@ class _ProviderBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = provider == 'fitbit'
-        ? 'Fitbit'
-        : provider == 'whoop'
-            ? 'WHOOP'
-            : provider == 'healthkit'
-                ? 'Apple / Samsung Watch'
-                : provider;
+    final label = _providerLabel(provider);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -524,6 +523,23 @@ class _ProviderBadge extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _providerLabel(String provider) {
+    switch (provider) {
+      case 'fitbit':
+        return 'Fitbit';
+      case 'whoop':
+        return 'WHOOP';
+      case 'google_fit':
+        return 'Google Fit';
+      case 'samsung':
+        return 'Samsung Health';
+      case 'healthkit':
+        return 'Apple / Samsung Watch';
+      default:
+        return provider;
+    }
   }
 }
 
@@ -671,9 +687,7 @@ class _PillarCardState extends State<_PillarCard> {
               ...widget.detailLabels.entries.map((entry) {
                 final rawVal = widget.details[entry.key];
                 if (rawVal == null) return const SizedBox.shrink();
-                final val = rawVal is num
-                    ? rawVal.toStringAsFixed(1)
-                    : rawVal.toString();
+                final val = _formatDetailValue(entry.key, rawVal);
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Row(
@@ -713,11 +727,46 @@ class _PillarCardState extends State<_PillarCard> {
       if (widget.score == 0 && widget.path == 'no_workout') {
         return t("taqa_training_no_workout");
       }
+      final note = widget.details['note']?.toString();
+      if (note == 'bootstrap_assumed_acwr_1_0') {
+        return "Using starter ACWR baseline until enough history is available";
+      }
+      final riskZone = widget.details['risk_zone']?.toString();
+      if (riskZone != null && riskZone.isNotEmpty) {
+        return "Load status: ${_prettyRiskZone(riskZone)}";
+      }
     }
     if (widget.metricKey == 'nutrition' && widget.score == null) {
       return t("taqa_nutrition_no_data");
     }
     return null;
+  }
+
+  String _formatDetailValue(String key, dynamic rawVal) {
+    if (key == 'risk_zone') {
+      return _prettyRiskZone(rawVal.toString());
+    }
+    if (rawVal is num) {
+      return rawVal.toStringAsFixed(1);
+    }
+    return rawVal.toString();
+  }
+
+  String _prettyRiskZone(String raw) {
+    switch (raw) {
+      case 'optimal_zone':
+        return 'Optimal';
+      case 'low_load_warning':
+        return 'Low load warning';
+      case 'undertraining_flag':
+        return 'Undertraining flag';
+      case 'moderate_risk':
+        return 'Moderate risk';
+      case 'injury_risk_flag':
+        return 'Injury risk flag';
+      default:
+        return raw.replaceAll('_', ' ');
+    }
   }
 }
 
@@ -733,6 +782,18 @@ class _PathChip extends StatelessWidget {
         ? 'Journal'
         : path == 'diet_data'
         ? 'Diet'
+        : path == 'journal_nutrition'
+        ? 'Journal'
+        : path == 'whoop_direct'
+        ? 'WHOOP direct'
+        : path == 'fitbit_direct'
+        ? 'Fitbit direct'
+        : path == 'samsung_direct'
+        ? 'Samsung direct'
+        : path == 'samsung_direct_inverted'
+        ? 'Samsung direct'
+        : path == 'prom_aware_composite'
+        ? 'Composite'
         : path;
     final icon = path == 'wearable'
         ? Icons.watch_rounded
@@ -740,6 +801,14 @@ class _PathChip extends StatelessWidget {
         ? Icons.edit_note_rounded
         : path == 'diet_data'
         ? Icons.restaurant_rounded
+        : path == 'journal_nutrition'
+        ? Icons.edit_note_rounded
+        : path == 'whoop_direct'
+        ? Icons.bolt_rounded
+        : path == 'fitbit_direct'
+        ? Icons.bolt_rounded
+        : path == 'samsung_direct' || path == 'samsung_direct_inverted'
+        ? Icons.bolt_rounded
         : Icons.data_usage_rounded;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

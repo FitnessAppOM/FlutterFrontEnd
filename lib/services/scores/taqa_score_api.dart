@@ -23,6 +23,42 @@ class TaqaSubScore {
   }
 }
 
+class TaqaPromScores {
+  final double? eq5dScore;
+  final double? phq2Score;
+  final int? phq2Total;
+  final List<String> flags;
+  final String? path;
+  final String? screeningCreatedAt;
+
+  const TaqaPromScores({
+    this.eq5dScore,
+    this.phq2Score,
+    this.phq2Total,
+    this.flags = const [],
+    this.path,
+    this.screeningCreatedAt,
+  });
+
+  factory TaqaPromScores.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const TaqaPromScores();
+    final rawFlags = json['flags'];
+    final flags = rawFlags is List
+        ? rawFlags.map((e) => e.toString()).toList(growable: false)
+        : const <String>[];
+    return TaqaPromScores(
+      eq5dScore: _toDouble(json['eq5d_score']),
+      phq2Score: _toDouble(json['phq2_score']),
+      phq2Total: json['phq2_total'] is num
+          ? (json['phq2_total'] as num).toInt()
+          : int.tryParse('${json['phq2_total'] ?? ''}'),
+      flags: flags,
+      path: json['path'] as String?,
+      screeningCreatedAt: json['screening_created_at'] as String?,
+    );
+  }
+}
+
 class TaqaDailyScore {
   final int userId;
   final DateTime entryDate;
@@ -36,6 +72,7 @@ class TaqaDailyScore {
   final TaqaSubScore nutrition;
   final TaqaSubScore readiness;
   final TaqaSubScore lifestyleBalance;
+  final TaqaPromScores proms;
 
   const TaqaDailyScore({
     required this.userId,
@@ -50,6 +87,7 @@ class TaqaDailyScore {
     this.nutrition = const TaqaSubScore(),
     this.readiness = const TaqaSubScore(),
     this.lifestyleBalance = const TaqaSubScore(),
+    this.proms = const TaqaPromScores(),
   });
 
   factory TaqaDailyScore.fromJson(Map<String, dynamic> json) {
@@ -60,19 +98,23 @@ class TaqaDailyScore {
       scoringPath: json['scoring_path'] as String?,
       taqaValueScore: _toDouble(json['taqa_value_score']),
       sleep: TaqaSubScore.fromJson(json['sleep'] as Map<String, dynamic>?),
-      recovery:
-          TaqaSubScore.fromJson(json['recovery'] as Map<String, dynamic>?),
+      recovery: TaqaSubScore.fromJson(
+        json['recovery'] as Map<String, dynamic>?,
+      ),
       stress: TaqaSubScore.fromJson(json['stress'] as Map<String, dynamic>?),
       trainingLoad: TaqaSubScore.fromJson(
         json['training_load'] as Map<String, dynamic>?,
       ),
-      nutrition:
-          TaqaSubScore.fromJson(json['nutrition'] as Map<String, dynamic>?),
-      readiness:
-          TaqaSubScore.fromJson(json['readiness'] as Map<String, dynamic>?),
+      nutrition: TaqaSubScore.fromJson(
+        json['nutrition'] as Map<String, dynamic>?,
+      ),
+      readiness: TaqaSubScore.fromJson(
+        json['readiness'] as Map<String, dynamic>?,
+      ),
       lifestyleBalance: TaqaSubScore.fromJson(
         json['lifestyle_balance'] as Map<String, dynamic>?,
       ),
+      proms: TaqaPromScores.fromJson(json['proms'] as Map<String, dynamic>?),
     );
   }
 

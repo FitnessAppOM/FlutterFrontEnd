@@ -200,13 +200,7 @@ class _TaqaScoreWidgetState extends State<TaqaScoreWidget>
                           if (widget.provider != null) ...[
                             const SizedBox(height: 4),
                             Text(
-                              widget.provider == 'fitbit'
-                                  ? 'Fitbit'
-                                  : widget.provider == 'whoop'
-                                      ? 'WHOOP'
-                                      : widget.provider == 'healthkit'
-                                          ? 'Apple / Samsung Watch'
-                                          : widget.provider!,
+                              _providerLabel(widget.provider!),
                               style: const TextStyle(
                                 color: Colors.white38,
                                 fontSize: 11,
@@ -256,9 +250,7 @@ class _TaqaScoreWidgetState extends State<TaqaScoreWidget>
       );
     }
     if (s.stress.score != null) {
-      items.add(
-        _MiniItem("Stress", s.stress.score!, const Color(0xFF4CD964)),
-      );
+      items.add(_MiniItem("Stress", s.stress.score!, const Color(0xFF4CD964)));
     }
     if (s.trainingLoad.score != null) {
       items.add(
@@ -282,6 +274,23 @@ class _TaqaScoreWidgetState extends State<TaqaScoreWidget>
           ),
         )
         .toList();
+  }
+
+  String _providerLabel(String provider) {
+    switch (provider) {
+      case 'fitbit':
+        return 'Fitbit';
+      case 'whoop':
+        return 'WHOOP';
+      case 'google_fit':
+        return 'Google Fit';
+      case 'samsung':
+        return 'Samsung Health';
+      case 'healthkit':
+        return 'Apple / Samsung Watch';
+      default:
+        return provider;
+    }
   }
 }
 
