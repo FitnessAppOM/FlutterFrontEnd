@@ -240,7 +240,16 @@ class FitbitDailySync {
         _hasNonEmptyStructured(row["ecg_summary"]);
 
     final hasBody = _isPositiveNum(row["weight_kg"]);
-    return hasActivity || hasSleep || hasRecovery || hasVitals || hasBody;
+    final hasScores =
+        _isPositiveNum(row["sleep_score"]) ||
+        _isPositiveNum(row["readiness_score"]) ||
+        _isPositiveNum(row["stress_management_score"]);
+    return hasActivity ||
+        hasSleep ||
+        hasRecovery ||
+        hasVitals ||
+        hasScores ||
+        hasBody;
   }
 
   String _userScopedKey(int userId) => "${_lastPushKey}_$userId";

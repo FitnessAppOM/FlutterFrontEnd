@@ -31,6 +31,7 @@ import '../../widgets/dashboard/fitbit_heart_card.dart';
 import '../../widgets/dashboard/fitbit_heart_sheet.dart';
 import '../../widgets/dashboard/fitbit_sleep_card.dart';
 import '../../widgets/dashboard/fitbit_sleep_sheet.dart';
+import '../../widgets/dashboard/fitbit_scores_card.dart';
 import '../../widgets/dashboard/fitbit_vitals_card.dart';
 import '../../widgets/dashboard/fitbit_vitals_sheet.dart';
 import '../../widgets/dashboard/fitbit_body_card.dart';
@@ -69,6 +70,7 @@ import '../../services/fitbit/fitbit_heart_service.dart';
 import '../../services/fitbit/fitbit_sleep_service.dart';
 import '../../services/fitbit/fitbit_vitals_service.dart';
 import '../../services/fitbit/fitbit_body_service.dart';
+import '../../services/fitbit/fitbit_scores_service.dart';
 import '../../services/fitbit/fitbit_summary_service.dart';
 import '../../services/fitbit/fitbit_db_service.dart';
 import '../../services/strava/strava_service.dart';
@@ -154,6 +156,7 @@ class DashboardPageState extends State<DashboardPage>
     'fitbit_activity',
     'fitbit_heart',
     'fitbit_sleep',
+    'fitbit_scores',
     'fitbit_vitals',
     'fitbit_body',
     'whoop_sleep',
@@ -396,6 +399,9 @@ class DashboardPageState extends State<DashboardPage>
   bool _fitbitSleepLoading = false;
   FitbitSleepSummary? _fitbitSleep;
   FitbitSleepSummary? _fitbitSleepLast;
+  bool _fitbitScoresLoading = false;
+  FitbitScoresSummary? _fitbitScores;
+  FitbitScoresSummary? _fitbitScoresLast;
   bool _fitbitVitalsLoading = false;
   FitbitVitalsSummary? _fitbitVitals;
   FitbitVitalsSummary? _fitbitVitalsLast;
@@ -680,6 +686,7 @@ class DashboardPageState extends State<DashboardPage>
       _fitbitActivity = null;
       _fitbitHeart = null;
       _fitbitSleep = null;
+      _fitbitScores = null;
       _fitbitVitals = null;
       _fitbitBody = null;
       _setFitbitLoadingFlags(false);
@@ -1034,6 +1041,15 @@ class DashboardPageState extends State<DashboardPage>
       );
       all.add(
         WidgetLibraryOption(
+          keyName: 'fitbit_scores',
+          title: "Fitbit Scores",
+          subtitle: "Sleep, readiness, stress",
+          icon: Icons.emoji_events_outlined,
+          accentColor: const Color(0xFF0C6A73),
+        ),
+      );
+      all.add(
+        WidgetLibraryOption(
           keyName: 'fitbit_vitals',
           title: "Fitbit Health Metrics",
           subtitle: "SpO₂, temp, breathing, ECG",
@@ -1319,6 +1335,7 @@ class DashboardPageState extends State<DashboardPage>
         changed = true;
         sleepChanged = true;
       }
+      if (_statOrder.remove('fitbit_scores')) changed = true;
       if (_statOrder.remove('fitbit_vitals')) changed = true;
       if (_statOrder.remove('fitbit_body')) changed = true;
     }
@@ -1375,6 +1392,7 @@ class DashboardPageState extends State<DashboardPage>
     if (key == 'fitbit_activity' ||
         key == 'fitbit_heart' ||
         key == 'fitbit_sleep' ||
+        key == 'fitbit_scores' ||
         key == 'fitbit_vitals' ||
         key == 'fitbit_body') {
       if (!_fitbitLinked) {
@@ -3878,6 +3896,7 @@ class DashboardPageState extends State<DashboardPage>
     _fitbitActivityLoading = value;
     _fitbitHeartLoading = value;
     _fitbitSleepLoading = value;
+    _fitbitScoresLoading = value;
     _fitbitVitalsLoading = value;
     _fitbitBodyLoading = value;
   }
@@ -3886,11 +3905,13 @@ class DashboardPageState extends State<DashboardPage>
     _fitbitActivity = bundle?.activity;
     _fitbitHeart = bundle?.heart;
     _fitbitSleep = bundle?.sleep;
+    _fitbitScores = bundle?.scores;
     _fitbitVitals = bundle?.vitals;
     _fitbitBody = bundle?.body;
     _fitbitActivityLast = bundle?.activity ?? _fitbitActivityLast;
     _fitbitHeartLast = bundle?.heart ?? _fitbitHeartLast;
     _fitbitSleepLast = bundle?.sleep ?? _fitbitSleepLast;
+    _fitbitScoresLast = bundle?.scores ?? _fitbitScoresLast;
     _fitbitVitalsLast = bundle?.vitals ?? _fitbitVitalsLast;
     _fitbitBodyLast = bundle?.body ?? _fitbitBodyLast;
     _setFitbitLoadingFlags(false);
@@ -3950,6 +3971,7 @@ class DashboardPageState extends State<DashboardPage>
         _fitbitActivity = null;
         _fitbitHeart = null;
         _fitbitSleep = null;
+        _fitbitScores = null;
         _fitbitVitals = null;
         _fitbitBody = null;
         _setFitbitLoadingFlags(false);
@@ -3984,6 +4006,7 @@ class DashboardPageState extends State<DashboardPage>
             _fitbitActivity = null;
             _fitbitHeart = null;
             _fitbitSleep = null;
+            _fitbitScores = null;
             _fitbitVitals = null;
             _fitbitBody = null;
             _setFitbitLoadingFlags(false);
@@ -5641,6 +5664,18 @@ class DashboardPageState extends State<DashboardPage>
                             }
                           : null,
                     );
+                  case 'fitbit_scores':
+                    final scores = _fitbitScoresLoading
+                        ? (_fitbitScoresLast ?? _fitbitScores)
+                        : _fitbitScores;
+                    final loading = _fitbitScoresLoading && scores == null;
+                    return FitbitScoresCard(
+                      loading: loading,
+                      sleepScore: scores?.sleepScore,
+                      readinessScore: scores?.readinessScore,
+                      stressManagementScore: scores?.stressManagementScore,
+                      onTap: null,
+                    );
                   case 'fitbit_vitals':
                     final vitals = _fitbitVitalsLoading
                         ? (_fitbitVitalsLast ?? _fitbitVitals)
@@ -5805,6 +5840,7 @@ class DashboardPageState extends State<DashboardPage>
             if (!(_statOrder.contains('fitbit_activity') &&
                 _statOrder.contains('fitbit_heart') &&
                 _statOrder.contains('fitbit_sleep') &&
+                _statOrder.contains('fitbit_scores') &&
                 _statOrder.contains('fitbit_vitals') &&
                 _statOrder.contains('fitbit_body'))) ...[
               FitbitExtrasCard(

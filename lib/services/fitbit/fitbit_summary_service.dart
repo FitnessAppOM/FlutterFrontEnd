@@ -10,11 +10,13 @@ import 'fitbit_heart_service.dart';
 import 'fitbit_sleep_service.dart';
 import 'fitbit_vitals_service.dart';
 import 'fitbit_body_service.dart';
+import 'fitbit_scores_service.dart';
 
 class FitbitSummaryBundle {
   final FitbitActivitySummary? activity;
   final FitbitHeartSummary? heart;
   final FitbitSleepSummary? sleep;
+  final FitbitScoresSummary? scores;
   final FitbitVitalsSummary? vitals;
   final FitbitBodySummary? body;
 
@@ -22,6 +24,7 @@ class FitbitSummaryBundle {
     required this.activity,
     required this.heart,
     required this.sleep,
+    required this.scores,
     required this.vitals,
     required this.body,
   });
@@ -247,6 +250,26 @@ class FitbitSummaryService {
       );
     }
 
+    FitbitScoresSummary? scores;
+    final scoresNode = data["scores"];
+    if (scoresNode is Map<String, dynamic>) {
+      int? _int(dynamic v) {
+        if (v == null) return null;
+        if (v is int) return v;
+        if (v is num) return v.toInt();
+        return int.tryParse(v.toString());
+      }
+
+      final candidate = FitbitScoresSummary(
+        sleepScore: _int(scoresNode["sleep_score"]),
+        readinessScore: _int(scoresNode["readiness_score"]),
+        stressManagementScore: _int(scoresNode["stress_management_score"]),
+      );
+      if (candidate.hasAny) {
+        scores = candidate;
+      }
+    }
+
     FitbitVitalsSummary? vitals;
     final vitalsNode = data["vitals"];
     if (vitalsNode is Map<String, dynamic>) {
@@ -280,6 +303,7 @@ class FitbitSummaryService {
       activity: activity,
       heart: heart,
       sleep: sleep,
+      scores: scores,
       vitals: vitals,
       body: body,
     );
@@ -362,6 +386,16 @@ class FitbitSummaryService {
       );
     }
 
+    FitbitScoresSummary? scores;
+    final scoresCandidate = FitbitScoresSummary(
+      sleepScore: _int(row["sleep_score"]),
+      readinessScore: _int(row["readiness_score"]),
+      stressManagementScore: _int(row["stress_management_score"]),
+    );
+    if (scoresCandidate.hasAny) {
+      scores = scoresCandidate;
+    }
+
     FitbitVitalsSummary? vitals;
     final vitalsCandidate = FitbitVitalsSummary(
       spo2Percent: _double(row["spo2_avg"]),
@@ -384,6 +418,7 @@ class FitbitSummaryService {
     if (activity == null &&
         heart == null &&
         sleep == null &&
+        scores == null &&
         vitals == null &&
         body == null) {
       return null;
@@ -393,6 +428,7 @@ class FitbitSummaryService {
       activity: activity,
       heart: heart,
       sleep: sleep,
+      scores: scores,
       vitals: vitals,
       body: body,
     );
