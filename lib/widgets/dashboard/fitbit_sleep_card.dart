@@ -89,10 +89,8 @@ class FitbitSleepCard extends StatelessWidget {
     final goalLabel = goalMinutes != null
         ? "Goal: ${_fmtMinutes(goalMinutes!)}"
         : null;
-    if (goalLabel != null && stageSummary != null) {
-      return "$goalLabel • $stageSummary";
-    }
-    return goalLabel ?? stageSummary;
+    // Prioritize showing stages on the card (goal is still visible in sheet).
+    return stageSummary ?? goalLabel;
   }
 
   String? _buildStageSummary() {
@@ -104,6 +102,17 @@ class FitbitSleepCard extends StatelessWidget {
     if (deep != null && deep > 0) parts.add("D ${_fmtMinutes(deep)}");
     if (light != null && light > 0) parts.add("L ${_fmtMinutes(light)}");
     if (rem != null && rem > 0) parts.add("R ${_fmtMinutes(rem)}");
+    if (parts.isNotEmpty) return parts.join(" • ");
+
+    // Classic Fitbit stage format fallback.
+    final asleep = _stageValue("asleep");
+    final awake = _stageValue("awake") ?? _stageValue("wake");
+    final restless = _stageValue("restless");
+    if (asleep != null && asleep > 0) parts.add("As ${_fmtMinutes(asleep)}");
+    if (awake != null && awake > 0) parts.add("Aw ${_fmtMinutes(awake)}");
+    if (restless != null && restless > 0) {
+      parts.add("Rs ${_fmtMinutes(restless)}");
+    }
     return parts.isEmpty ? null : parts.join(" • ");
   }
 
