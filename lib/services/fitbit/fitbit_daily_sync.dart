@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import '../core/daily_provider_push_service.dart';
 
 class FitbitDailySync {
   static const _lastPushKey = "fitbit_daily_last_push_date";
@@ -16,16 +17,13 @@ class FitbitDailySync {
     try {
       final userId = await AccountStorage.getUserId();
       if (userId == null || userId == 0) return;
-      final linkedHint = await AccountStorage.getFitbitLinked();
-      if (linkedHint != true) return;
+      final effectiveToday = DailyProviderPushService.effectiveLocalDay();
 
       final sp = await SharedPreferences.getInstance();
       final lastKey = _userScopedKey(userId);
-      final last = sp.getString(lastKey);
-      final todayKey = _dateKey(DateTime.now());
-      if (last == todayKey) return;
+      final todayKey = _dateKey(effectiveToday);
 
-      // Re-validate against backend only when local linked hint is true.
+      // Always verify Fitbit linked state with backend to avoid stale local flags.
       final statusUrl = Uri.parse(
         "${ApiConfig.baseUrl}/fitbit/status?user_id=$userId",
       );
@@ -35,12 +33,13 @@ class FitbitDailySync {
           .timeout(const Duration(seconds: 12));
       if (statusRes.statusCode != 200) return;
       final status = jsonDecode(statusRes.body);
-      if (status is! Map || status["linked"] != true) return;
+      if (status is! Map) return;
+      final linked = status["linked"] == true;
+      await AccountStorage.setFitbitLinked(linked);
+      if (!linked) return;
 
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      final start = today.subtract(const Duration(days: 7));
-      final end = today.subtract(const Duration(days: 1));
+      final start = effectiveToday.subtract(const Duration(days: 7));
+      final end = effectiveToday.subtract(const Duration(days: 1));
       if (end.isBefore(start)) return;
 
       final startStr = _dateKey(start);
@@ -85,8 +84,10 @@ class FitbitDailySync {
       );
       if (refreshedDates == null) return;
 
-      final addedCount = refreshedDates.difference(existingDates).length;
-      if (addedCount > 0) {
+      final stillMissing = missingDates.where(
+        (day) => !refreshedDates.contains(day),
+      );
+      if (stillMissing.isEmpty) {
         await sp.setString(lastKey, todayKey);
       }
     } finally {
@@ -100,10 +101,9 @@ class FitbitDailySync {
     try {
       final userId = await AccountStorage.getUserId();
       if (userId == null || userId == 0) return;
-      final linkedHint = await AccountStorage.getFitbitLinked();
-      if (linkedHint != true) return;
+      final effectiveToday = DailyProviderPushService.effectiveLocalDay();
 
-      // Re-validate against backend only when local linked hint is true.
+      // Always verify Fitbit linked state with backend to avoid stale local flags.
       final statusUrl = Uri.parse(
         "${ApiConfig.baseUrl}/fitbit/status?user_id=$userId",
       );
@@ -113,12 +113,13 @@ class FitbitDailySync {
           .timeout(const Duration(seconds: 12));
       if (statusRes.statusCode != 200) return;
       final status = jsonDecode(statusRes.body);
-      if (status is! Map || status["linked"] != true) return;
+      if (status is! Map) return;
+      final linked = status["linked"] == true;
+      await AccountStorage.setFitbitLinked(linked);
+      if (!linked) return;
 
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      final start = today.subtract(Duration(days: days));
-      final end = today.subtract(const Duration(days: 1));
+      final start = effectiveToday.subtract(Duration(days: days));
+      final end = effectiveToday.subtract(const Duration(days: 1));
       if (end.isBefore(start)) return;
 
       final startStr = _dateKey(start);

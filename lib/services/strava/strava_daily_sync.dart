@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/account_storage.dart';
+import '../core/daily_provider_push_service.dart';
 import 'strava_service.dart';
 
 class StravaDailySync {
@@ -13,12 +14,11 @@ class StravaDailySync {
     try {
       final userId = await AccountStorage.getUserId();
       if (userId == null || userId == 0) return;
-      final linkedHint = await AccountStorage.getStravaLinked();
-      if (linkedHint != true) return;
+      final effectiveToday = DailyProviderPushService.effectiveLocalDay();
 
       final sp = await SharedPreferences.getInstance();
       final lastKey = _userScopedKey(userId);
-      final todayKey = _dateKey(DateTime.now());
+      final todayKey = _dateKey(effectiveToday);
       final last = sp.getString(lastKey);
       if (last == todayKey) return;
 
@@ -26,15 +26,16 @@ class StravaDailySync {
       final linked = status["linked"] == true;
       await AccountStorage.setStravaLinked(linked);
       if (linked) {
-        // Prime latest activity data once per day for faster first widget load.
+        // Refresh latest Strava activities into DB once per day.
+        await StravaService().syncRecentActivities(perPage: 10);
+        // Prime latest DB-backed activity data for faster first widget load.
         await StravaService().fetchActivitiesOverview(
           page: 1,
           perPage: 1,
           forceRefresh: true,
         );
+        await sp.setString(lastKey, todayKey);
       }
-
-      await sp.setString(lastKey, todayKey);
     } finally {
       _syncInFlight = false;
     }
@@ -45,4 +46,3 @@ class StravaDailySync {
   String _dateKey(DateTime dt) =>
       "${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}";
 }
-

@@ -153,7 +153,7 @@ class TaqaScoreApi {
     if (!forceRefresh && _cache.containsKey(key)) return _cache[key];
     if (_inFlight.containsKey(key)) return _inFlight[key];
 
-    final future = _doFetchDaily(userId, date, key);
+    final future = _doFetchDaily(userId, date, key, forceRefresh);
     _inFlight[key] = future;
     try {
       return await future;
@@ -166,13 +166,15 @@ class TaqaScoreApi {
     int userId,
     DateTime date,
     String cacheKey,
+    bool forceRefresh,
   ) async {
     final headers = await AccountStorage.getAuthHeaders();
     if (headers.isEmpty) return null;
 
     final dateStr = _fmtDate(date);
+    final refreshQuery = forceRefresh ? "&refresh=true" : "";
     final url = Uri.parse(
-      "${ApiConfig.baseUrl}/scores/$userId/daily?date=$dateStr",
+      "${ApiConfig.baseUrl}/scores/$userId/daily?date=$dateStr$refreshQuery",
     );
 
     try {

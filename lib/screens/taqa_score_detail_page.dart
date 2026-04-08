@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../core/account_storage.dart';
 import '../localization/app_localizations.dart';
+import '../services/core/daily_provider_push_service.dart';
 import '../services/scores/taqa_score_api.dart';
 import '../services/training/training_reset_coordinator.dart';
 import '../theme/app_theme.dart';
@@ -53,8 +54,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
       DateTime(date.year, date.month, date.day);
 
   DateTime _todayByResetClock() {
-    final now = TrainingResetCoordinator.currentNowUtc();
-    return DateTime(now.year, now.month, now.day);
+    return DailyProviderPushService.effectiveLocalDay();
   }
 
   DateTime _maxSelectableDate() {
@@ -63,10 +63,19 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
 
   Future<void> _loadScore(int userId) async {
     setState(() => _loading = true);
-    final result = await TaqaScoreApi.fetchDaily(
+    final isLiveDate = _dateOnly(_selectedDate) == _maxSelectableDate();
+    var result = await TaqaScoreApi.fetchDaily(
       userId: userId,
       date: _selectedDate,
+      forceRefresh: isLiveDate,
     );
+    if (!isLiveDate && result?.taqaValueScore == null) {
+      result = await TaqaScoreApi.fetchDaily(
+        userId: userId,
+        date: _selectedDate,
+        forceRefresh: true,
+      );
+    }
     if (!mounted) return;
     setState(() {
       _score = result;

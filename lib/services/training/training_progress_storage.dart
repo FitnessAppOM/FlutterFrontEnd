@@ -23,17 +23,15 @@ class TrainingProgressStorage {
   static const _keyPrefix = 'training_progress';
 
   static String _dateKey(DateTime d) {
-    final y = d.year.toString().padLeft(4, '0');
-    final m = d.month.toString().padLeft(2, '0');
-    final day = d.day.toString().padLeft(2, '0');
+    final local = d.isUtc ? d.toLocal() : d;
+    final y = local.year.toString().padLeft(4, '0');
+    final m = local.month.toString().padLeft(2, '0');
+    final day = local.day.toString().padLeft(2, '0');
     return '$y-$m-$day';
   }
 
   static DateTime _weekStart(DateTime d) {
-    final day = DateTime(d.year, d.month, d.day);
-    // Monday 00:00 as week start (aligns with exercise cards).
-    final daysSinceMonday = (day.weekday + 6) % 7; // Monday=0 ... Sunday=6
-    return day.subtract(Duration(days: daysSinceMonday));
+    return TrainingResetCoordinator.weekStartMonday(d);
   }
 
   static String _userKey(int userId, String key) =>
@@ -103,7 +101,10 @@ class TrainingProgressStorage {
       }
     }
 
-    days.add(_dateKey(date));
+    final dayKey = TrainingResetCoordinator.dateToken(
+      TrainingResetCoordinator.effectiveLocalDay(date),
+    );
+    days.add(dayKey);
     await sp.setString(completedKey, jsonEncode(days.toList()));
   }
 

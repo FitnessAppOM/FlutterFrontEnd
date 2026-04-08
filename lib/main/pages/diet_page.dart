@@ -641,8 +641,13 @@ class DietPageState extends State<DietPage> {
 
   int _selectedTrainingDayIndex = 0;
 
-  /// When true, user completed an exercise today so we force "training day" and disable switching to "rest day".
+  static const int _cardioLockMinDurationMinutes = 15;
+
+  /// When true, user completed a strength/resistance exercise today so we force "training day".
   bool _trainDayLockedByExercise = false;
+
+  /// When true, user completed >=15 min cardio today so we force "rest day" (relabeled as "cardio day").
+  bool _restDayLockedByCardio = false;
   int? _lockedTrainingDayId;
   String? _lockedTrainingDayLabel;
 
@@ -805,14 +810,21 @@ class DietPageState extends State<DietPage> {
       if (mounted) {
         setState(() {
           _trainDayLockedByExercise = false;
+          _restDayLockedByCardio = false;
           _lockedTrainingDayId = null;
           _lockedTrainingDayLabel = null;
         });
       }
       return;
     }
-    final didComplete =
-        await TrainingCompletionStorage.didCompleteExerciseOnDate(_mealDate);
+    final cardioLocked =
+        await TrainingCompletionStorage.didCompleteCardioAtLeastMinutesOnDate(
+          _mealDate,
+          minDurationMinutes: _cardioLockMinDurationMinutes,
+        );
+    final didComplete = cardioLocked
+        ? false
+        : await TrainingCompletionStorage.didCompleteExerciseOnDate(_mealDate);
     final lockedDay = didComplete
         ? await TrainingCompletionStorage.getCompletedTrainingDayForDate(
             _mealDate,
@@ -825,6 +837,7 @@ class DietPageState extends State<DietPage> {
     final lockedLabel = lockedDay?["training_day_label"]?.toString();
     if (!mounted) return;
     setState(() {
+      _restDayLockedByCardio = cardioLocked;
       _trainDayLockedByExercise = didComplete;
       _lockedTrainingDayId = (lockedId != null && lockedId > 0)
           ? lockedId
@@ -833,8 +846,29 @@ class DietPageState extends State<DietPage> {
           (lockedLabel != null && lockedLabel.trim().isNotEmpty)
           ? lockedLabel.trim()
           : null;
-      if (didComplete) _modeIndex = 1;
+      if (cardioLocked) {
+        _modeIndex = 0;
+      } else if (didComplete) {
+        _modeIndex = 1;
+      }
     });
+
+    if (cardioLocked) {
+      // Keep backend day-type mapping aligned with locked rest/cardio mode.
+      try {
+        final userId = await AccountStorage.getUserId();
+        if (userId != null) {
+          await TrainingCalendarService.setDay(
+            userId: userId,
+            entryDate: _mealDate,
+            dayType: 'rest',
+          );
+        }
+      } catch (_) {
+        // ignore mapping errors
+      }
+    }
+
     if (didComplete && _trainingDays.isNotEmpty) {
       setState(() {
         _selectedTrainingDayIndex = _resolveTrainingDayIndex(
@@ -843,7 +877,7 @@ class DietPageState extends State<DietPage> {
         );
       });
     }
-    if (didComplete) _loadMeals(clearExisting: true);
+    if (cardioLocked || didComplete) _loadMeals(clearExisting: true);
   }
 
   int _resolveTrainingDayIndex(
@@ -2198,15 +2232,22 @@ class DietPageState extends State<DietPage> {
                     ),
                   ),
                 ] else ...[
-                  // Mode toggle (locked to Training when user completed an exercise today)
+                  // Mode toggle (can be locked to Training after strength, or locked to Rest/Cardio after >=15m cardio)
                   LayoutBuilder(
                     builder: (context, constraints) {
                       final w = constraints.maxWidth;
+                      final primaryDayTitle = _restDayLockedByCardio
+                          ? t.translate("diet_cardio_day")
+                          : t.translate("diet_rest_day");
                       return ToggleButtons(
                         isSelected: [_modeIndex == 0, _modeIndex == 1],
                         onPressed: (idx) async {
-                          if (_trainDayLockedByExercise && idx == 0)
+                          if (_trainDayLockedByExercise && idx == 0) {
                             return; // cannot switch to Rest when trained today
+                          }
+                          if (_restDayLockedByCardio && idx == 1) {
+                            return; // cannot switch to Training when cardio lock is active
+                          }
                           setState(() {
                             _modeIndex = idx;
                           });
@@ -2248,7 +2289,7 @@ class DietPageState extends State<DietPage> {
                           minWidth: (w - 6) / 2,
                         ),
                         children: [
-                          Text(t.translate("diet_rest_day")),
+                          Text(primaryDayTitle),
                           Text(t.translate("diet_training_day")),
                         ],
                       );

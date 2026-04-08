@@ -7,6 +7,8 @@ import '../metrics/daily_metrics_sync.dart';
 class WaterService {
   static const _goalKey = "water_goal_liters";
   static const _intakeKey = "water_intake_entries";
+  String _dateKey(DateTime day) =>
+      "${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}";
 
   Future<double> getGoal() async {
     final sp = await SharedPreferences.getInstance();
@@ -26,9 +28,7 @@ class WaterService {
     final raw = sp.getString(intakeKey);
     if (raw == null) return 0;
     final Map<String, dynamic> decoded = jsonDecode(raw);
-    final today = DateTime.now();
-    final todayKey =
-        "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+    final todayKey = _dateKey(DateTime.now());
     final val = decoded[todayKey];
     if (val == null) return 0;
     return (val as num).toDouble();
@@ -40,23 +40,23 @@ class WaterService {
     final raw = sp.getString(intakeKey);
     if (raw == null) return 0;
     final Map<String, dynamic> decoded = jsonDecode(raw);
-    final dayKey =
-        "${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}";
+    final dayKey = _dateKey(day);
     final val = decoded[dayKey];
     if (val == null) return 0;
     return (val as num).toDouble();
   }
 
-  Future<void> setTodayIntake(double liters) async {
+  Future<void> setIntakeForDay(DateTime day, double liters) async {
     final sp = await SharedPreferences.getInstance();
     final intakeKey = await _scopedKey(_intakeKey);
     final raw = sp.getString(intakeKey);
-    Map<String, dynamic> decoded = raw == null ? {} : jsonDecode(raw);
-    final today = DateTime.now();
-    final todayKey =
-        "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
-    decoded[todayKey] = liters;
+    final Map<String, dynamic> decoded = raw == null ? {} : jsonDecode(raw);
+    decoded[_dateKey(day)] = liters;
     await sp.setString(intakeKey, jsonEncode(decoded));
+  }
+
+  Future<void> setTodayIntake(double liters) async {
+    await setIntakeForDay(DateTime.now(), liters);
   }
 
   Future<void> addToToday(double liters) async {

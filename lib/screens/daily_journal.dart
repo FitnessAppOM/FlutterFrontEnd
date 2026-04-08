@@ -654,117 +654,119 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
                             ],
                           ),
                   ),
-                  const SizedBox(height: 16),
-                  _JournalSection(
-                    title: t("daily_journal_section_sleep"),
-                    icon: Icons.nightlight_round,
-                    rows: [
-                      _JournalRow(
-                        t("daily_journal_sleep_hours_row"),
-                        _formatNumber(
-                          displayEntry.sleepHours,
-                          suffix: t("daily_journal_hours_suffix"),
-                        ),
-                      ),
-                      _JournalRow(
-                        t("daily_journal_sleep_quality_row"),
-                        _formatScore(displayEntry.sleepQuality),
-                      ),
-                      _JournalRow(
-                        t("daily_journal_mood_row"),
-                        _formatScore(displayEntry.moodUponWaking),
-                      ),
-                      _JournalRow(
-                        t("daily_journal_soreness_level_row"),
-                        _formatScore(displayEntry.sorenessLevel),
-                      ),
-                      _JournalRow(
-                        t("daily_journal_wake_up_count_row"),
-                        displayEntry.wakeUpCount == null
-                            ? "—"
-                            : "${displayEntry.wakeUpCount}",
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _JournalSection(
-                    title: t("daily_journal_section_hydration"),
-                    icon: Icons.local_drink,
-                    rows: [
-                      _JournalRow(
-                        t("daily_journal_hydration_row"),
-                        _formatNumber(
-                          displayEntry.hydrationLiters,
-                          suffix: t("dash_unit_l"),
-                        ),
-                      ),
-                      _JournalRow(
-                        t("daily_journal_caffeine_row"),
-                        _formatBool(
-                          displayEntry.caffeineYes,
-                          suffix: _formatCount(
-                            displayEntry.caffeineCups,
-                            singular: t("daily_journal_cup_single"),
-                            plural: t("daily_journal_cup_plural"),
+                  if (hasEntry) ...[
+                    const SizedBox(height: 16),
+                    _JournalSection(
+                      title: t("daily_journal_section_sleep"),
+                      icon: Icons.nightlight_round,
+                      rows: [
+                        _JournalRow(
+                          t("daily_journal_sleep_hours_row"),
+                          _formatNumber(
+                            displayEntry.sleepHours,
+                            suffix: t("daily_journal_hours_suffix"),
                           ),
-                          yesLabel: t("daily_journal_yes"),
-                          noLabel: t("daily_journal_no"),
                         ),
-                      ),
-                      _JournalRow(
-                        t("daily_journal_alcohol_row"),
-                        _formatBool(
-                          displayEntry.alcoholYes,
-                          suffix: _formatCount(
-                            displayEntry.alcoholDrinks,
-                            singular: t("daily_journal_drink_single"),
-                            plural: t("daily_journal_drink_plural"),
+                        _JournalRow(
+                          t("daily_journal_sleep_quality_row"),
+                          _formatScore(displayEntry.sleepQuality),
+                        ),
+                        _JournalRow(
+                          t("daily_journal_mood_row"),
+                          _formatScore(displayEntry.moodUponWaking),
+                        ),
+                        _JournalRow(
+                          t("daily_journal_soreness_level_row"),
+                          _formatScore(displayEntry.sorenessLevel),
+                        ),
+                        _JournalRow(
+                          t("daily_journal_wake_up_count_row"),
+                          displayEntry.wakeUpCount == null
+                              ? "—"
+                              : "${displayEntry.wakeUpCount}",
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _JournalSection(
+                      title: t("daily_journal_section_hydration"),
+                      icon: Icons.local_drink,
+                      rows: [
+                        _JournalRow(
+                          t("daily_journal_hydration_row"),
+                          _formatNumber(
+                            displayEntry.hydrationLiters,
+                            suffix: t("dash_unit_l"),
                           ),
-                          yesLabel: t("daily_journal_yes"),
-                          noLabel: t("daily_journal_no"),
                         ),
-                      ),
-                      _JournalRow(
-                        t("daily_journal_supplements_row"),
-                        _formatBool(
-                          displayEntry.tookSupplementsOrMedications,
-                          yesLabel: t("daily_journal_yes"),
-                          noLabel: t("daily_journal_no"),
+                        _JournalRow(
+                          t("daily_journal_caffeine_row"),
+                          _formatBool(
+                            displayEntry.caffeineYes,
+                            suffix: _formatCount(
+                              displayEntry.caffeineCups,
+                              singular: t("daily_journal_cup_single"),
+                              plural: t("daily_journal_cup_plural"),
+                            ),
+                            yesLabel: t("daily_journal_yes"),
+                            noLabel: t("daily_journal_no"),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _JournalSection(
-                    title: t("daily_journal_section_focus"),
-                    icon: Icons.fitness_center,
-                    rows: [
-                      _JournalRow(
-                        t("daily_journal_productivity_row"),
-                        _formatScore(displayEntry.productivityFocus),
-                      ),
-                      _JournalRow(
-                        t("daily_journal_energy_level_row"),
-                        _formatScore(displayEntry.motivationToTrain),
-                      ),
-                      _JournalRow(
-                        t("daily_journal_sexual_row"),
-                        _formatBool(
-                          displayEntry.sexualActivity,
-                          yesLabel: t("daily_journal_yes"),
-                          noLabel: t("daily_journal_no"),
+                        _JournalRow(
+                          t("daily_journal_alcohol_row"),
+                          _formatBool(
+                            displayEntry.alcoholYes,
+                            suffix: _formatCount(
+                              displayEntry.alcoholDrinks,
+                              singular: t("daily_journal_drink_single"),
+                              plural: t("daily_journal_drink_plural"),
+                            ),
+                            yesLabel: t("daily_journal_yes"),
+                            noLabel: t("daily_journal_no"),
+                          ),
                         ),
-                      ),
-                      _JournalRow(
-                        t("daily_journal_screen_row"),
-                        _formatBool(
-                          displayEntry.screenTimeBeforeBed,
-                          yesLabel: t("daily_journal_yes"),
-                          noLabel: t("daily_journal_no"),
+                        _JournalRow(
+                          t("daily_journal_supplements_row"),
+                          _formatBool(
+                            displayEntry.tookSupplementsOrMedications,
+                            yesLabel: t("daily_journal_yes"),
+                            noLabel: t("daily_journal_no"),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _JournalSection(
+                      title: t("daily_journal_section_focus"),
+                      icon: Icons.fitness_center,
+                      rows: [
+                        _JournalRow(
+                          t("daily_journal_productivity_row"),
+                          _formatScore(displayEntry.productivityFocus),
+                        ),
+                        _JournalRow(
+                          t("daily_journal_energy_level_row"),
+                          _formatScore(displayEntry.motivationToTrain),
+                        ),
+                        _JournalRow(
+                          t("daily_journal_sexual_row"),
+                          _formatBool(
+                            displayEntry.sexualActivity,
+                            yesLabel: t("daily_journal_yes"),
+                            noLabel: t("daily_journal_no"),
+                          ),
+                        ),
+                        _JournalRow(
+                          t("daily_journal_screen_row"),
+                          _formatBool(
+                            displayEntry.screenTimeBeforeBed,
+                            yesLabel: t("daily_journal_yes"),
+                            noLabel: t("daily_journal_no"),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

@@ -4,14 +4,18 @@ import '../theme/app_theme.dart';
 
 enum AppToastType { info, success, error }
 
+enum AppToastPosition { top, bottom }
+
 class AppToast {
   static void show(
     BuildContext context,
     String message, {
     AppToastType type = AppToastType.info,
+    AppToastPosition position = AppToastPosition.bottom,
+    bool rootOverlay = false,
     Duration duration = const Duration(seconds: 3),
   }) {
-    final overlay = Overlay.of(context);
+    final overlay = Overlay.of(context, rootOverlay: rootOverlay);
 
     final color = switch (type) {
       AppToastType.success => AppColors.accent,
@@ -31,6 +35,7 @@ class AppToast {
         message: message,
         color: color,
         icon: icon,
+        position: position,
         duration: duration,
         onDismiss: () {
           if (entry != null && entry.mounted) {
@@ -49,6 +54,7 @@ class _ToastOverlay extends StatefulWidget {
     required this.message,
     required this.color,
     required this.icon,
+    required this.position,
     required this.duration,
     required this.onDismiss,
   });
@@ -56,6 +62,7 @@ class _ToastOverlay extends StatefulWidget {
   final String message;
   final Color color;
   final IconData icon;
+  final AppToastPosition position;
   final Duration duration;
   final VoidCallback onDismiss;
 
@@ -78,8 +85,14 @@ class _ToastOverlayState extends State<_ToastOverlay>
       duration: const Duration(milliseconds: 220),
       reverseDuration: const Duration(milliseconds: 180),
     );
-    final curve = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
-    _offset = Tween<Offset>(begin: const Offset(0, 0.16), end: Offset.zero).animate(curve);
+    final curve = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    );
+    _offset = Tween<Offset>(
+      begin: const Offset(0, 0.16),
+      end: Offset.zero,
+    ).animate(curve);
     _opacity = Tween<double>(begin: 0, end: 1).animate(curve);
 
     _controller.forward();
@@ -99,10 +112,14 @@ class _ToastOverlayState extends State<_ToastOverlay>
 
   @override
   Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final topInset = mediaQuery.padding.top + 16;
+    final bottomInset = mediaQuery.padding.bottom + 16;
     return Positioned(
       left: 16,
       right: 16,
-      bottom: 32,
+      top: widget.position == AppToastPosition.top ? topInset : null,
+      bottom: widget.position == AppToastPosition.bottom ? bottomInset : null,
       child: SlideTransition(
         position: _offset,
         child: FadeTransition(

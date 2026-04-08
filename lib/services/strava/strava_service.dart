@@ -165,6 +165,31 @@ class StravaService {
     }
   }
 
+  Future<Map<String, dynamic>> fetchActivitiesLiveSummary({
+    int perPage = 200,
+    int maxPages = 20,
+    bool includeActivities = false,
+  }) {
+    return _get(
+      "/strava/activities/live/summary",
+      query: {
+        "per_page": "$perPage",
+        "max_pages": "$maxPages",
+        "include_activities": includeActivities ? "1" : "0",
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>> syncRecentActivities({int perPage = 10}) async {
+    final result = await _get(
+      "/strava/activities/sync",
+      query: {"per_page": "$perPage"},
+    );
+    final userId = await _requireUserId();
+    _clearActivitiesOverviewCacheForUser(userId);
+    return result;
+  }
+
   Future<Map<String, dynamic>> createActivity({
     required String name,
     required String type,

@@ -7,6 +7,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../core/account_storage.dart';
 import '../../services/share/cardio_share_service.dart';
 import '../../services/strava/strava_service.dart';
+import '../../widgets/app_toast.dart';
 
 import '../../widgets/cardio/cardio_map.dart';
 import '../../widgets/cardio/cardio_route_utils.dart';
@@ -209,6 +210,20 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
     return "Failed to upload activity to Strava.";
   }
 
+  void _showGlobalToast(
+    String message, {
+    AppToastType type = AppToastType.info,
+  }) {
+    if (!mounted) return;
+    AppToast.show(
+      context,
+      message,
+      type: type,
+      position: AppToastPosition.top,
+      rootOverlay: true,
+    );
+  }
+
   Future<void> _uploadToStrava() async {
     if (_stravaUploading) return;
     setState(() => _stravaUploading = true);
@@ -233,13 +248,12 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
       AccountStorage.notifyStravaChanged();
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Uploaded to Strava.")));
+      _showGlobalToast("Uploaded to Strava.", type: AppToastType.success);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_friendlyStravaError(e.toString()))),
+      _showGlobalToast(
+        _friendlyStravaError(e.toString()),
+        type: AppToastType.error,
       );
     } finally {
       if (mounted) setState(() => _stravaUploading = false);

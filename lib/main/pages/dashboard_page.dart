@@ -306,12 +306,16 @@ class DashboardPageState extends State<DashboardPage>
     }
   }
 
+  static DateTime _dashboardTodayByPushClock() {
+    return DailyProviderPushService.effectiveLocalDay();
+  }
+
+  DateTime _dashboardToday() => _dashboardTodayByPushClock();
+
   DateTime _dayKey(DateTime date) => DateTime(date.year, date.month, date.day);
 
   bool _shouldUpdateTrendForDate(DateTime date) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    return _dayKey(date) == today;
+    return _dayKey(date) == _dashboardToday();
   }
 
   bool _tryUpdateTrendSleepForDate(DateTime date, double hours) {
@@ -405,7 +409,7 @@ class DashboardPageState extends State<DashboardPage>
   HealthRecoveryLoadSummary? _healthRecoveryLoadLast;
   final Map<DateTime, HealthRecoveryLoadSummary?> _healthRecoveryLoadCache = {};
   DateTime? _healthRecoveryLoadLoadingDate;
-  DateTime _selectedDate = DateTime.now();
+  DateTime _selectedDate = DashboardPageState._dashboardTodayByPushClock();
   int _weeklyDaysCount = 7;
   int? _exerciseTotal;
   int? _exerciseCompleted;
@@ -463,8 +467,7 @@ class DashboardPageState extends State<DashboardPage>
       _selectedDate.month,
       _selectedDate.day + deltaDays,
     );
-    final today = DateTime.now();
-    final todayOnly = DateTime(today.year, today.month, today.day);
+    final todayOnly = _dashboardToday();
     if (next.isAfter(todayOnly)) return;
     final nextWeekStart = _trendWeekStartFor(next);
     final shouldReloadTrends =
@@ -584,6 +587,7 @@ class DashboardPageState extends State<DashboardPage>
                   const SizedBox(height: 12),
                   DateHeader(
                     selectedDate: _selectedDate,
+                    todayReference: _dashboardToday(),
                     onPrev: () => change(-1),
                     onNext: () => change(1),
                     canGoNext: !_isToday(),
@@ -599,10 +603,7 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   bool _isToday() {
-    final now = DateTime.now();
-    return _selectedDate.year == now.year &&
-        _selectedDate.month == now.month &&
-        _selectedDate.day == now.day;
+    return _dayKey(_selectedDate) == _dashboardToday();
   }
 
   @override
@@ -1669,14 +1670,24 @@ class DashboardPageState extends State<DashboardPage>
     final userId = await AccountStorage.getUserId();
     if (!mounted || userId == null || userId <= 0) return;
     final scoreDate = _taqaScoreDateForSelection();
+    final liveDate = _taqaTodayByResetClock().subtract(const Duration(days: 1));
+    final isLiveDate = scoreDate == liveDate;
     final reqId = ++_taqaScoreReqId;
     if (mounted) {
       setState(() => _taqaScoreLoading = true);
     }
-    final result = await TaqaScoreApi.fetchDaily(
+    TaqaDailyScore? result = await TaqaScoreApi.fetchDaily(
       userId: userId,
       date: scoreDate,
+      forceRefresh: isLiveDate,
     );
+    if (!isLiveDate && result?.taqaValueScore == null) {
+      result = await TaqaScoreApi.fetchDaily(
+        userId: userId,
+        date: scoreDate,
+        forceRefresh: true,
+      );
+    }
     if (!mounted) return;
     if (reqId != _taqaScoreReqId) return;
     if (_taqaScoreDateForSelection() != scoreDate) return;
@@ -1687,8 +1698,7 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   DateTime _taqaTodayByResetClock() {
-    final now = TrainingResetCoordinator.currentNowUtc();
-    return DateTime(now.year, now.month, now.day);
+    return _dashboardToday();
   }
 
   bool _isTaqaTodaySelection() {
@@ -1696,10 +1706,13 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   DateTime _taqaScoreDateForSelection() {
-    if (_isTaqaTodaySelection()) {
-      return _taqaTodayByResetClock().subtract(const Duration(days: 1));
-    }
-    return _dayKey(_selectedDate);
+    final selected = _dayKey(_selectedDate);
+    final shifted = selected.subtract(const Duration(days: 1));
+    final maxScoreDay = _taqaTodayByResetClock().subtract(
+      const Duration(days: 1),
+    );
+    if (shifted.isAfter(maxScoreDay)) return maxScoreDay;
+    return shifted;
   }
 
   bool _isWhoopLoadingForSelectedDate() {
@@ -1728,7 +1741,7 @@ class DashboardPageState extends State<DashboardPage>
       _loadStreak(),
       _loadWhoopRecovery(force: true),
       _loadHealthRecoveryLoad(force: true),
-      _loadStravaStatus(),
+      _loadStravaStatus(syncRemote: true),
       _loadTaqaScore(),
     ]);
     if (!mounted) return;
@@ -1836,14 +1849,17 @@ class DashboardPageState extends State<DashboardPage>
     }
   }
 
-  Future<void> _loadStravaStatus({int attempt = 0}) async {
+  Future<void> _loadStravaStatus({
+    int attempt = 0,
+    bool syncRemote = false,
+  }) async {
     final userId = await AccountStorage.getUserId();
     if (!mounted) return;
     if (userId == null || userId == 0) {
       if (attempt < 2) {
         await Future.delayed(Duration(milliseconds: 400 + (attempt * 400)));
         if (!mounted) return;
-        return _loadStravaStatus(attempt: attempt + 1);
+        return _loadStravaStatus(attempt: attempt + 1, syncRemote: syncRemote);
       }
       if (!mounted) return;
       setState(() {
@@ -1898,7 +1914,7 @@ class DashboardPageState extends State<DashboardPage>
       AccountStorage.setStravaLinked(linked);
       _pruneDeviceWidgets();
       if (linked && _statOrder.contains('strava_activities')) {
-        _loadStravaActivitiesCount(force: true);
+        _loadStravaActivitiesCount(force: true, syncRemote: syncRemote);
       }
     } catch (_) {
       // Keep last known linked state on transient errors.
@@ -1906,7 +1922,10 @@ class DashboardPageState extends State<DashboardPage>
     }
   }
 
-  Future<void> _loadStravaActivitiesCount({bool force = false}) async {
+  Future<void> _loadStravaActivitiesCount({
+    bool force = false,
+    bool syncRemote = false,
+  }) async {
     if (!_stravaLinked) return;
     if (!_statOrder.contains('strava_activities')) return;
     if (_stravaActivitiesLoading && !force) return;
@@ -1917,9 +1936,13 @@ class DashboardPageState extends State<DashboardPage>
       });
     }
     try {
+      if (syncRemote) {
+        await StravaService().syncRecentActivities(perPage: 50);
+      }
       final data = await StravaService().fetchActivitiesOverview(
+        page: 1,
         perPage: 50,
-        forceRefresh: force,
+        forceRefresh: true,
       );
       final raw = data['activities'];
       final count = raw is List ? raw.length : 0;
@@ -1928,9 +1951,34 @@ class DashboardPageState extends State<DashboardPage>
         _stravaActivitiesCount = count;
         _stravaActivitiesLoading = false;
       });
-    } catch (_) {
+    } catch (e) {
+      final msg = e.toString().toLowerCase();
+      final authFailed =
+          msg.contains("authorization") ||
+          msg.contains("invalid") ||
+          msg.contains("not linked") ||
+          msg.contains("401") ||
+          msg.contains("403");
+      if (authFailed) {
+        await AccountStorage.setStravaLinked(false);
+        if (!mounted || reqId != _stravaActivitiesReqId) return;
+        setState(() {
+          _stravaLinked = false;
+          _stravaLinkedHint = false;
+          _stravaActivitiesLoading = false;
+          _stravaActivitiesCount = null;
+        });
+        _pruneDeviceWidgets();
+        AppToast.show(
+          context,
+          "Strava session expired. Please reconnect Strava.",
+          type: AppToastType.error,
+        );
+        return;
+      }
       if (!mounted || reqId != _stravaActivitiesReqId) return;
       setState(() {
+        _stravaActivitiesCount = null;
         _stravaActivitiesLoading = false;
       });
     }
@@ -3190,8 +3238,7 @@ class DashboardPageState extends State<DashboardPage>
       _dietDayType = live?["day_type"]?.toString();
       _dietProgressLoading = false;
     });
-    final today = DateTime.now();
-    final todayOnly = DateTime(today.year, today.month, today.day);
+    final todayOnly = _dashboardToday();
     final selectedOnly = DateTime(forDate.year, forDate.month, forDate.day);
     if (selectedOnly == todayOnly) {
       _cachedTodayDietConsumedCalories = consumedCal;
@@ -3325,9 +3372,7 @@ class DashboardPageState extends State<DashboardPage>
     }
     final userId = await AccountStorage.getUserId();
     if (!mounted) return;
-    final now = DateTime.now();
-    final todayOnly = DateTime(now.year, now.month, now.day);
-    final bool isCurrentDay = targetDate == todayOnly;
+    final bool isCurrentDay = targetDate == _dashboardToday();
     if (userId == null || userId == 0) {
       if (requestId != _whoopReqId) return;
       setState(() {
@@ -3604,9 +3649,7 @@ class DashboardPageState extends State<DashboardPage>
       _healthRecoveryLoadLoadingDate = selectedDay;
     });
     try {
-      final now = DateTime.now();
-      final todayOnly = DateTime(now.year, now.month, now.day);
-      final isToday = selectedDay == todayOnly;
+      final isToday = selectedDay == _dashboardToday();
       HealthRecoveryLoadSummary? summary;
       HealthRecoveryLoadSummary? localSummary;
 
@@ -3859,9 +3902,7 @@ class DashboardPageState extends State<DashboardPage>
       _selectedDate.month,
       _selectedDate.day,
     );
-    final today = DateTime.now();
-    final todayOnly = DateTime(today.year, today.month, today.day);
-    final isToday = selectedDay == todayOnly;
+    final isToday = selectedDay == _dashboardToday();
     if (!force &&
         _fitbitSummaryLoading &&
         _fitbitSummaryLoadingDate != null &&
@@ -4165,16 +4206,23 @@ class DashboardPageState extends State<DashboardPage>
       }
     }
 
-    // Inject today's local readings when the range includes today, since DB may not be updated yet.
-    final now = DateTime.now();
-    final todayKey = DateTime(now.year, now.month, now.day);
+    // Inject dashboard-day local readings when the range includes current dashboard day.
+    final todayKey = _dashboardToday();
     final includesToday =
         !todayKey.isBefore(normalizedStart) && !todayKey.isAfter(normalizedEnd);
     if (includesToday) {
       final current = map[todayKey];
-      final localSteps = await StepsService().fetchTodaySteps();
-      final localSleep = await SleepService().fetchSleepHoursLast24h();
-      final localBaseCalories = await CaloriesService().fetchTodayCalories();
+      final calendarToday = _dayKey(DateTime.now());
+      final useLiveTodayReaders = todayKey == calendarToday;
+      final localSteps = useLiveTodayReaders
+          ? await StepsService().fetchTodaySteps()
+          : await StepsService().fetchStepsForDay(todayKey);
+      final localSleep = useLiveTodayReaders
+          ? await SleepService().fetchSleepHoursLast24h()
+          : await SleepService().fetchSleepForDay(todayKey);
+      final localBaseCalories = useLiveTodayReaders
+          ? await CaloriesService().fetchTodayCalories()
+          : await CaloriesService().fetchCaloriesForDay(todayKey);
       final localTrainingCalories = await trainingCaloriesService
           .fetchEstimatedCaloriesForDay(todayKey);
       final localCalories = localBaseCalories + localTrainingCalories;
@@ -4211,8 +4259,7 @@ class DashboardPageState extends State<DashboardPage>
         _selectedDate.day,
       );
       final monday = anchor.subtract(Duration(days: anchor.weekday - 1));
-      final today = DateTime.now();
-      final todayOnly = DateTime(today.year, today.month, today.day);
+      final todayOnly = _dashboardToday();
       final endOfWeek = monday.add(const Duration(days: 6));
       var end = anchor.isBefore(todayOnly) ? anchor : todayOnly;
       if (end.isAfter(endOfWeek)) {
@@ -4314,8 +4361,7 @@ class DashboardPageState extends State<DashboardPage>
       if (mounted && reqId == _trendSleepReqId) {
         setState(() => _trendSleepLoading = true);
       }
-      final now = DateTime.now();
-      final todayKey = DateTime(now.year, now.month, now.day);
+      final todayKey = _dashboardToday();
       final dayKeys = List.generate(7, (i) {
         final d = DateTime(
           start.year,
@@ -4398,7 +4444,10 @@ class DashboardPageState extends State<DashboardPage>
           return data[key] ?? 0.0;
         }).toList();
       } else {
-        final sleepToday = await SleepService().fetchSleepHoursLast24h();
+        final calendarToday = _dayKey(DateTime.now());
+        final sleepToday = todayKey == calendarToday
+            ? await SleepService().fetchSleepHoursLast24h()
+            : await SleepService().fetchSleepForDay(todayKey);
         if (reqId != _trendSleepReqId) return;
         var usedFitbit = false;
         if (sourceKey == 'fitbit') {
@@ -4527,15 +4576,17 @@ class DashboardPageState extends State<DashboardPage>
         return (entry?.calories ?? 0).toDouble();
       });
 
-      // Only pull HealthKit/Health Connect for current day; keep DB for past days.
-      final today = DateTime.now();
-      final todayKey = DateTime(today.year, today.month, today.day);
+      // Pull local readings for current dashboard day; keep DB for past days.
+      final todayKey = _dashboardToday();
       final todayIdx = dayKeys.indexOf(todayKey);
       if (todayIdx >= 0) {
+        final calendarToday = _dayKey(DateTime.now());
         final manualDisplayTotals = await CaloriesService()
             .getManualTotalDisplayEntries();
         final manualTodayCalories = manualDisplayTotals[todayKey];
-        final baseCalories = await CaloriesService().fetchTodayCalories();
+        final baseCalories = todayKey == calendarToday
+            ? await CaloriesService().fetchTodayCalories()
+            : await CaloriesService().fetchCaloriesForDay(todayKey);
         final trainingCalories = await TrainingCaloriesService()
             .fetchEstimatedCaloriesForDay(todayKey);
         final todayCalories =
@@ -4948,11 +4999,7 @@ class DashboardPageState extends State<DashboardPage>
         _sleepHours == null &&
         _todayCalories == null &&
         _waterIntake == null;
-    final todayOnly = DateTime(
-      DateTime.now().year,
-      DateTime.now().month,
-      DateTime.now().day,
-    );
+    final todayOnly = _dashboardToday();
     final selectedDayOnly = DateTime(
       _selectedDate.year,
       _selectedDate.month,
@@ -5230,15 +5277,11 @@ class DashboardPageState extends State<DashboardPage>
             score: _taqaScore,
             loading: _taqaScoreLoading,
             provider: _taqaScore?.provider,
-            scoreDayLabel: _isTaqaTodaySelection()
-                ? t("dash_taqa_yesterday_scores")
-                : DateFormat(
-                    'dd/MM',
-                    locale,
-                  ).format(_taqaScoreDateForSelection()),
-            emptyMessage: _isTaqaTodaySelection()
-                ? t("taqa_no_data_yesterday_hint")
-                : t("taqa_no_data"),
+            scoreDayLabel: DateFormat(
+              'dd/MM',
+              locale,
+            ).format(_taqaScoreDateForSelection()),
+            emptyMessage: t("taqa_no_data"),
             onTap: !_isTaqaTodaySelection()
                 ? null
                 : () {
@@ -5431,7 +5474,6 @@ class DashboardPageState extends State<DashboardPage>
                                       ),
                                     ),
                                   );
-                                  await _loadStravaStatus();
                                 }
                               : null,
                         ),

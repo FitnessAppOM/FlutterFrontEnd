@@ -8,6 +8,8 @@ class TrainingCompletionStorage {
   static const _keyPrefix = 'exercise_completed_date';
   static const _keyDayIdPrefix = 'exercise_completed_training_day_id';
   static const _keyDayLabelPrefix = 'exercise_completed_training_day_label';
+  static const _cardioDateKeyPrefix = 'cardio_completed_date';
+  static const _cardioDurationKeyPrefix = 'cardio_completed_duration_seconds';
 
   /// Call when the user finishes an exercise (today). Persists the current date.
   static Future<void> recordExerciseCompletedToday({
@@ -71,5 +73,52 @@ class TrainingCompletionStorage {
       if (dayLabel != null && dayLabel.trim().isNotEmpty)
         'training_day_label': dayLabel.trim(),
     };
+  }
+
+  /// Call when user finishes a cardio session (today). Persists date and max duration for that day.
+  static Future<void> recordCardioSessionToday({
+    required int durationSeconds,
+  }) async {
+    if (durationSeconds <= 0) return;
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return;
+
+    final sp = await SharedPreferences.getInstance();
+    final dayToken = await TrainingResetCoordinator.currentDayToken();
+    final dateKey = '${_cardioDateKeyPrefix}_u$userId';
+    final durationKey = '${_cardioDurationKeyPrefix}_u$userId';
+    final existingDay = sp.getString(dateKey);
+    final existingDuration = sp.getInt(durationKey) ?? 0;
+
+    if (existingDay == dayToken) {
+      if (durationSeconds > existingDuration) {
+        await sp.setInt(durationKey, durationSeconds);
+      }
+      return;
+    }
+
+    await sp.setString(dateKey, dayToken);
+    await sp.setInt(durationKey, durationSeconds);
+  }
+
+  /// Returns true if the user completed a cardio session with at least [minDurationMinutes]
+  /// on the given calendar date.
+  static Future<bool> didCompleteCardioAtLeastMinutesOnDate(
+    DateTime date, {
+    int minDurationMinutes = 15,
+  }) async {
+    if (minDurationMinutes <= 0) return true;
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return false;
+
+    final sp = await SharedPreferences.getInstance();
+    final dateKey = '${_cardioDateKeyPrefix}_u$userId';
+    final durationKey = '${_cardioDurationKeyPrefix}_u$userId';
+    final storedDate = sp.getString(dateKey);
+    if (storedDate == null) return false;
+    if (storedDate != TrainingResetCoordinator.dateToken(date)) return false;
+
+    final durationSeconds = sp.getInt(durationKey) ?? 0;
+    return durationSeconds >= (minDurationMinutes * 60);
   }
 }

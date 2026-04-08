@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/account_storage.dart';
+import '../core/daily_provider_push_service.dart';
 
 /// Centralized reset clock for training-related day/week boundaries.
 ///
@@ -11,6 +12,8 @@ import '../../core/account_storage.dart';
 /// 2) Local device UTC clock fallback
 class TrainingResetCoordinator {
   static const _keyPrefix = 'training_reset';
+  static const int localStartHour =
+      DailyProviderPushService.localStartHour; // 1:00 AM local device time
   static int? _serverOffsetMs;
   static int? _loadedForUserId;
 
@@ -45,8 +48,30 @@ class TrainingResetCoordinator {
     return '$y-$m-$d';
   }
 
+  static DateTime _toLocal(DateTime dt) => dt.isUtc ? dt.toLocal() : dt;
+
+  static DateTime _effectiveDayForWeek(DateTime dt) {
+    final local = _toLocal(dt);
+    final hasClockTime =
+        local.hour != 0 ||
+        local.minute != 0 ||
+        local.second != 0 ||
+        local.millisecond != 0 ||
+        local.microsecond != 0;
+    final shifted = hasClockTime
+        ? local.subtract(const Duration(hours: localStartHour))
+        : local;
+    return DateTime(shifted.year, shifted.month, shifted.day);
+  }
+
+  static DateTime effectiveLocalDay([DateTime? now]) {
+    final local = _toLocal(now ?? currentNowUtc());
+    final shifted = local.subtract(const Duration(hours: localStartHour));
+    return DateTime(shifted.year, shifted.month, shifted.day);
+  }
+
   static DateTime weekStartMonday(DateTime dt) {
-    final day = DateTime(dt.year, dt.month, dt.day);
+    final day = _effectiveDayForWeek(dt);
     final daysSinceMonday = (day.weekday + 6) % 7; // Monday=0 ... Sunday=6
     return day.subtract(Duration(days: daysSinceMonday));
   }
@@ -61,7 +86,7 @@ class TrainingResetCoordinator {
     required DateTime weekStart,
     required DateTime weekEnd,
   }) {
-    final value = DateTime(date.year, date.month, date.day);
+    final value = _effectiveDayForWeek(date);
     final start = DateTime(weekStart.year, weekStart.month, weekStart.day);
     final end = DateTime(weekEnd.year, weekEnd.month, weekEnd.day);
     return !value.isBefore(start) && !value.isAfter(end);
@@ -69,7 +94,7 @@ class TrainingResetCoordinator {
 
   static Future<String> currentDayToken() async {
     final now = await currentNowUtcAsync();
-    return dateToken(now);
+    return dateToken(effectiveLocalDay(now));
   }
 
   static Future<String> currentWeekStartToken() async {

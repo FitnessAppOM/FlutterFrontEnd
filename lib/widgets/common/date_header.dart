@@ -6,6 +6,7 @@ import '../../theme/app_theme.dart';
 
 class DateHeader extends StatelessWidget {
   final DateTime selectedDate;
+  final DateTime? todayReference;
   final VoidCallback onPrev;
   final VoidCallback? onNext;
   final bool canGoNext;
@@ -14,6 +15,7 @@ class DateHeader extends StatelessWidget {
   const DateHeader({
     super.key,
     required this.selectedDate,
+    this.todayReference,
     required this.onPrev,
     required this.onNext,
     required this.canGoNext,
@@ -25,13 +27,15 @@ class DateHeader extends StatelessWidget {
     final t = AppLocalizations.of(context).translate;
     final locale = AppLocalizations.of(context).locale.languageCode;
     final dateLabel = DateFormat('EEEE, MMM d', locale).format(selectedDate);
-    final isToday = _isToday(selectedDate);
-    final isYesterday = _isToday(selectedDate.subtract(const Duration(days: 1)));
+    final reference = _dateOnly(todayReference ?? DateTime.now());
+    final isToday = _dateOnly(selectedDate) == reference;
+    final isYesterday =
+        _dateOnly(selectedDate) == reference.subtract(const Duration(days: 1));
     final relative = isToday
         ? t("date_today")
         : isYesterday
-            ? t("date_yesterday")
-            : DateFormat('MMM d, y', locale).format(selectedDate);
+        ? t("date_yesterday")
+        : DateFormat('MMM d, y', locale).format(selectedDate);
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
@@ -44,11 +48,7 @@ class DateHeader extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.tile),
         border: Border.all(color: AppColors.dividerDark),
         boxShadow: const [
-          BoxShadow(
-            color: Colors.black45,
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          ),
+          BoxShadow(color: Colors.black45, blurRadius: 8, offset: Offset(0, 4)),
         ],
       ),
       child: Row(
@@ -70,10 +70,15 @@ class DateHeader extends StatelessWidget {
                     children: [
                       Text(
                         DateFormat('d', locale).format(selectedDate),
-                        style: AppTextStyles.title.copyWith(color: Colors.white),
+                        style: AppTextStyles.title.copyWith(
+                          color: Colors.white,
+                        ),
                       ),
                       Text(
-                        DateFormat('MMM', locale).format(selectedDate).toUpperCase(),
+                        DateFormat(
+                          'MMM',
+                          locale,
+                        ).format(selectedDate).toUpperCase(),
                         style: AppTextStyles.small.copyWith(
                           color: AppColors.textDim,
                           letterSpacing: 0.8,
@@ -88,17 +93,24 @@ class DateHeader extends StatelessWidget {
                   children: [
                     Text(
                       label,
-                      style: AppTextStyles.small.copyWith(color: AppColors.textDim),
+                      style: AppTextStyles.small.copyWith(
+                        color: AppColors.textDim,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(dateLabel, style: AppTextStyles.subtitle),
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.accent.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(30),
-                        border: Border.all(color: AppColors.accent.withValues(alpha: 0.25)),
+                        border: Border.all(
+                          color: AppColors.accent.withValues(alpha: 0.25),
+                        ),
                       ),
                       child: Text(
                         relative,
@@ -109,7 +121,7 @@ class DateHeader extends StatelessWidget {
                       ),
                     ),
                   ],
-                )
+                ),
               ],
             ),
           ),
@@ -123,7 +135,4 @@ class DateHeader extends StatelessWidget {
   }
 }
 
-bool _isToday(DateTime date) {
-  final now = DateTime.now();
-  return date.year == now.year && date.month == now.month && date.day == now.day;
-}
+DateTime _dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
