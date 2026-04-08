@@ -5642,16 +5642,14 @@ class DashboardPageState extends State<DashboardPage>
                     final sleep = _fitbitSleepLoading
                         ? (_fitbitSleepLast ?? _fitbitSleep)
                         : _fitbitSleep;
-                    final scoreSummary = _fitbitScoresLoading
-                        ? (_fitbitScoresLast ?? _fitbitScores)
-                        : _fitbitScores;
                     final loading = _fitbitSleepLoading && sleep == null;
                     return FitbitSleepCard(
                       loading: loading,
                       minutesAsleep: sleep?.totalMinutesAsleep,
                       minutesInBed: sleep?.totalTimeInBed,
                       goalMinutes: sleep?.sleepGoalMinutes,
-                      sleepScore: scoreSummary?.sleepScore,
+                      sleepScore: sleep?.sleepScore,
+                      stageMinutes: sleep?.stageMinutes ?? const {},
                       onTap: isCurrentDay
                           ? () async {
                               await showModalBottomSheet(
@@ -5660,7 +5658,7 @@ class DashboardPageState extends State<DashboardPage>
                                 isScrollControlled: true,
                                 builder: (_) => FitbitSleepSheet(
                                   summary: sleep,
-                                  sleepScore: scoreSummary?.sleepScore,
+                                  sleepScore: sleep?.sleepScore,
                                   date: _selectedDate,
                                 ),
                               );

@@ -30,6 +30,7 @@ class FitbitSleepSummary {
   final int? totalMinutesAsleep;
   final int? totalTimeInBed;
   final int? sleepGoalMinutes;
+  final int? sleepScore;
   final Map<String, int> stageMinutes;
   final List<FitbitSleepLog> logs;
 
@@ -37,6 +38,7 @@ class FitbitSleepSummary {
     required this.totalMinutesAsleep,
     required this.totalTimeInBed,
     required this.sleepGoalMinutes,
+    required this.sleepScore,
     required this.stageMinutes,
     required this.logs,
   });
@@ -103,13 +105,18 @@ class FitbitSleepService {
       final minutesAsleep = _int(row["sleep_minutes_asleep"]);
       final timeInBed = _int(row["sleep_time_in_bed"]);
       final stageMinutes = _parseStageMinutes(row["sleep_stages_json"]);
-      if (minutesAsleep == null && timeInBed == null && stageMinutes.isEmpty) {
+      final sleepScore = _int(row["sleep_score"]);
+      if (minutesAsleep == null &&
+          timeInBed == null &&
+          sleepScore == null &&
+          stageMinutes.isEmpty) {
         return null;
       }
       return FitbitSleepSummary(
         totalMinutesAsleep: minutesAsleep,
         totalTimeInBed: timeInBed,
         sleepGoalMinutes: null,
+        sleepScore: sleepScore,
         stageMinutes: stageMinutes,
         logs: const [],
       );
@@ -179,6 +186,12 @@ class FitbitSleepService {
       totalMinutesAsleep: _int(summary["totalMinutesAsleep"]),
       totalTimeInBed: _int(summary["totalTimeInBed"]),
       sleepGoalMinutes: _int(goals["minDuration"]),
+      sleepScore: _int(
+        summary["sleepScore"] ??
+            summary["sleep_score"] ??
+            data["sleepScore"] ??
+            data["sleep_score"],
+      ),
       stageMinutes: stageMinutes,
       logs: logs,
     );

@@ -234,7 +234,9 @@ class _FitbitInsightsPageState extends State<FitbitInsightsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final activitySummary = _activityLoading ? (_activityLast ?? _activity) : _activity;
+    final activitySummary = _activityLoading
+        ? (_activityLast ?? _activity)
+        : _activity;
     final activityBusy = _activityLoading && activitySummary == null;
     final heartSummary = _heartLoading ? (_heartLast ?? _heart) : _heart;
     final heartBusy = _heartLoading && heartSummary == null;
@@ -307,6 +309,8 @@ class _FitbitInsightsPageState extends State<FitbitInsightsPage> {
                 minutesAsleep: sleepSummary?.totalMinutesAsleep,
                 minutesInBed: sleepSummary?.totalTimeInBed,
                 goalMinutes: sleepSummary?.sleepGoalMinutes,
+                sleepScore: sleepSummary?.sleepScore,
+                stageMinutes: sleepSummary?.stageMinutes ?? const {},
                 onTap: () async {
                   await showModalBottomSheet(
                     context: context,
@@ -314,6 +318,7 @@ class _FitbitInsightsPageState extends State<FitbitInsightsPage> {
                     isScrollControlled: true,
                     builder: (_) => FitbitSleepSheet(
                       summary: sleepSummary,
+                      sleepScore: sleepSummary?.sleepScore,
                       date: widget.date,
                     ),
                   );

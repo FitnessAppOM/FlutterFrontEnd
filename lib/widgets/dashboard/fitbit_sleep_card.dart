@@ -7,6 +7,7 @@ class FitbitSleepCard extends StatelessWidget {
   final int? minutesInBed;
   final int? goalMinutes;
   final int? sleepScore;
+  final Map<String, int> stageMinutes;
   final VoidCallback? onTap;
 
   const FitbitSleepCard({
@@ -16,6 +17,7 @@ class FitbitSleepCard extends StatelessWidget {
     required this.minutesInBed,
     required this.goalMinutes,
     this.sleepScore,
+    this.stageMinutes = const {},
     this.onTap,
   });
 
@@ -25,9 +27,7 @@ class FitbitSleepCard extends StatelessWidget {
     final value = minutesAsleep != null
         ? _fmtMinutes(minutesAsleep!)
         : (loading ? "…" : "—");
-    final subtitle = goalMinutes != null
-        ? "Goal: ${_fmtMinutes(goalMinutes!)}"
-        : null;
+    final subtitle = _buildSubtitle(_buildStageSummary());
 
     return Stack(
       clipBehavior: Clip.none,
@@ -83,5 +83,37 @@ class FitbitSleepCard extends StatelessWidget {
     final h = minutes ~/ 60;
     final m = minutes % 60;
     return "${h}h ${m}m";
+  }
+
+  String? _buildSubtitle(String? stageSummary) {
+    final goalLabel = goalMinutes != null
+        ? "Goal: ${_fmtMinutes(goalMinutes!)}"
+        : null;
+    if (goalLabel != null && stageSummary != null) {
+      return "$goalLabel • $stageSummary";
+    }
+    return goalLabel ?? stageSummary;
+  }
+
+  String? _buildStageSummary() {
+    if (loading || stageMinutes.isEmpty) return null;
+    final deep = _stageValue("deep");
+    final light = _stageValue("light");
+    final rem = _stageValue("rem");
+    final parts = <String>[];
+    if (deep != null && deep > 0) parts.add("D ${_fmtMinutes(deep)}");
+    if (light != null && light > 0) parts.add("L ${_fmtMinutes(light)}");
+    if (rem != null && rem > 0) parts.add("R ${_fmtMinutes(rem)}");
+    return parts.isEmpty ? null : parts.join(" • ");
+  }
+
+  int? _stageValue(String key) {
+    if (stageMinutes.isEmpty) return null;
+    if (stageMinutes.containsKey(key)) return stageMinutes[key];
+    final lower = key.toLowerCase();
+    for (final entry in stageMinutes.entries) {
+      if (entry.key.toLowerCase() == lower) return entry.value;
+    }
+    return null;
   }
 }

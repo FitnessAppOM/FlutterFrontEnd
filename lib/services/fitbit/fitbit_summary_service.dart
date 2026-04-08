@@ -108,6 +108,18 @@ class FitbitSummaryService {
     }
     final data = jsonDecode(res.body);
     if (data is! Map<String, dynamic>) return null;
+    final scoresNode = data["scores"] is Map<String, dynamic>
+        ? data["scores"] as Map<String, dynamic>
+        : null;
+
+    int? _scoreInt(dynamic v) {
+      if (v == null) return null;
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      return int.tryParse(v.toString());
+    }
+
+    final sleepScoreFromScores = _scoreInt(scoresNode?["sleep_score"]);
 
     FitbitActivitySummary? activity;
     final activityNode = data["activity"];
@@ -204,6 +216,7 @@ class FitbitSummaryService {
         totalMinutesAsleep: _int(summary["totalMinutesAsleep"]),
         totalTimeInBed: _int(summary["totalTimeInBed"]),
         sleepGoalMinutes: _int(goals["minDuration"]),
+        sleepScore: sleepScoreFromScores,
         stageMinutes: stageMinutes,
         logs: logs,
       );
@@ -251,19 +264,11 @@ class FitbitSummaryService {
     }
 
     FitbitScoresSummary? scores;
-    final scoresNode = data["scores"];
-    if (scoresNode is Map<String, dynamic>) {
-      int? _int(dynamic v) {
-        if (v == null) return null;
-        if (v is int) return v;
-        if (v is num) return v.toInt();
-        return int.tryParse(v.toString());
-      }
-
+    if (scoresNode != null) {
       final candidate = FitbitScoresSummary(
-        sleepScore: _int(scoresNode["sleep_score"]),
-        readinessScore: _int(scoresNode["readiness_score"]),
-        stressManagementScore: _int(scoresNode["stress_management_score"]),
+        sleepScore: sleepScoreFromScores,
+        readinessScore: _scoreInt(scoresNode["readiness_score"]),
+        stressManagementScore: _scoreInt(scoresNode["stress_management_score"]),
       );
       if (candidate.hasAny) {
         scores = candidate;
@@ -360,11 +365,13 @@ class FitbitSummaryService {
     final stageMinutes = _parseSleepStageMinutes(row["sleep_stages_json"]);
     if (row["sleep_minutes_asleep"] != null ||
         row["sleep_time_in_bed"] != null ||
+        row["sleep_score"] != null ||
         stageMinutes.isNotEmpty) {
       sleep = FitbitSleepSummary(
         totalMinutesAsleep: _int(row["sleep_minutes_asleep"]),
         totalTimeInBed: _int(row["sleep_time_in_bed"]),
         sleepGoalMinutes: null,
+        sleepScore: _int(row["sleep_score"]),
         stageMinutes: stageMinutes,
         logs: const [],
       );
