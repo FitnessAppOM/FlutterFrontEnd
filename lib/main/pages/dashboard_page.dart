@@ -32,6 +32,7 @@ import '../../widgets/dashboard/fitbit_heart_sheet.dart';
 import '../../widgets/dashboard/fitbit_sleep_card.dart';
 import '../../widgets/dashboard/fitbit_sleep_sheet.dart';
 import '../../widgets/dashboard/fitbit_scores_card.dart';
+import '../../widgets/dashboard/fitbit_scores_sheet.dart';
 import '../../widgets/dashboard/fitbit_vitals_card.dart';
 import '../../widgets/dashboard/fitbit_vitals_sheet.dart';
 import '../../widgets/dashboard/fitbit_body_card.dart';
@@ -1043,7 +1044,7 @@ class DashboardPageState extends State<DashboardPage>
         WidgetLibraryOption(
           keyName: 'fitbit_scores',
           title: "Fitbit Scores",
-          subtitle: "Sleep, readiness, stress",
+          subtitle: "Readiness, stress",
           icon: Icons.emoji_events_outlined,
           accentColor: const Color(0xFF0C6A73),
         ),
@@ -5641,12 +5642,16 @@ class DashboardPageState extends State<DashboardPage>
                     final sleep = _fitbitSleepLoading
                         ? (_fitbitSleepLast ?? _fitbitSleep)
                         : _fitbitSleep;
+                    final scoreSummary = _fitbitScoresLoading
+                        ? (_fitbitScoresLast ?? _fitbitScores)
+                        : _fitbitScores;
                     final loading = _fitbitSleepLoading && sleep == null;
                     return FitbitSleepCard(
                       loading: loading,
                       minutesAsleep: sleep?.totalMinutesAsleep,
                       minutesInBed: sleep?.totalTimeInBed,
                       goalMinutes: sleep?.sleepGoalMinutes,
+                      sleepScore: scoreSummary?.sleepScore,
                       onTap: isCurrentDay
                           ? () async {
                               await showModalBottomSheet(
@@ -5655,6 +5660,7 @@ class DashboardPageState extends State<DashboardPage>
                                 isScrollControlled: true,
                                 builder: (_) => FitbitSleepSheet(
                                   summary: sleep,
+                                  sleepScore: scoreSummary?.sleepScore,
                                   date: _selectedDate,
                                 ),
                               );
@@ -5668,10 +5674,16 @@ class DashboardPageState extends State<DashboardPage>
                     final loading = _fitbitScoresLoading && scores == null;
                     return FitbitScoresCard(
                       loading: loading,
-                      sleepScore: scores?.sleepScore,
                       readinessScore: scores?.readinessScore,
                       stressManagementScore: scores?.stressManagementScore,
-                      onTap: null,
+                      onTap: () async {
+                        await showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          isScrollControlled: true,
+                          builder: (_) => FitbitScoresSheet(summary: scores),
+                        );
+                      },
                     );
                   case 'fitbit_vitals':
                     final vitals = _fitbitVitalsLoading

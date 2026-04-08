@@ -6,6 +6,7 @@ class FitbitSleepCard extends StatelessWidget {
   final int? minutesAsleep;
   final int? minutesInBed;
   final int? goalMinutes;
+  final int? sleepScore;
   final VoidCallback? onTap;
 
   const FitbitSleepCard({
@@ -14,6 +15,7 @@ class FitbitSleepCard extends StatelessWidget {
     required this.minutesAsleep,
     required this.minutesInBed,
     required this.goalMinutes,
+    this.sleepScore,
     this.onTap,
   });
 
@@ -23,7 +25,9 @@ class FitbitSleepCard extends StatelessWidget {
     final value = minutesAsleep != null
         ? _fmtMinutes(minutesAsleep!)
         : (loading ? "…" : "—");
-    final subtitle = goalMinutes != null ? "Goal: ${_fmtMinutes(goalMinutes!)}" : null;
+    final subtitle = goalMinutes != null
+        ? "Goal: ${_fmtMinutes(goalMinutes!)}"
+        : null;
 
     return Stack(
       clipBehavior: Clip.none,
@@ -36,6 +40,16 @@ class FitbitSleepCard extends StatelessWidget {
           accentColor: fitbitDark,
           borderColor: fitbitDark,
           borderWidth: 2.2,
+          footerLeft: sleepScore != null
+              ? Text(
+                  "Score: ${sleepScore!.toStringAsFixed(0)}%",
+                  style: const TextStyle(
+                    color: Colors.white60,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                )
+              : null,
           onTap: onTap,
         ),
         Positioned(

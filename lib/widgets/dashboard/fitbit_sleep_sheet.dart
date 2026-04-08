@@ -4,11 +4,13 @@ import '../../services/fitbit/fitbit_sleep_service.dart';
 
 class FitbitSleepSheet extends StatelessWidget {
   final FitbitSleepSummary? summary;
+  final int? sleepScore;
   final DateTime date;
 
   const FitbitSleepSheet({
     super.key,
     required this.summary,
+    this.sleepScore,
     required this.date,
   });
 
@@ -71,6 +73,10 @@ class FitbitSleepSheet extends StatelessWidget {
             value: summary?.sleepGoalMinutes == null
                 ? "—"
                 : _fmtMinutes(summary!.sleepGoalMinutes!),
+          ),
+          _MetricRow(
+            label: "Sleep score",
+            value: sleepScore == null ? "—" : "${sleepScore.toString()}%",
           ),
           if (stageEntries.isNotEmpty) ...[
             const SizedBox(height: 4),

@@ -4,7 +4,6 @@ import '../../widgets/dashboard/stat_card.dart';
 
 class FitbitScoresCard extends StatelessWidget {
   final bool loading;
-  final int? sleepScore;
   final int? readinessScore;
   final int? stressManagementScore;
   final VoidCallback? onTap;
@@ -12,7 +11,6 @@ class FitbitScoresCard extends StatelessWidget {
   const FitbitScoresCard({
     super.key,
     required this.loading,
-    required this.sleepScore,
     required this.readinessScore,
     required this.stressManagementScore,
     this.onTap,
@@ -67,7 +65,6 @@ class FitbitScoresCard extends StatelessWidget {
   String _buildValue() {
     if (loading) return "…";
     if (readinessScore != null) return "Readiness ${_pct(readinessScore!)}";
-    if (sleepScore != null) return "Sleep ${_pct(sleepScore!)}";
     if (stressManagementScore != null) {
       return "Stress ${_pct(stressManagementScore!)}";
     }
@@ -77,7 +74,6 @@ class FitbitScoresCard extends StatelessWidget {
   String? _buildSubtitle() {
     if (loading) return null;
     final parts = <String>[];
-    if (sleepScore != null) parts.add("Sleep ${_pct(sleepScore!)}");
     if (readinessScore != null) parts.add("Ready ${_pct(readinessScore!)}");
     if (stressManagementScore != null) {
       parts.add("Stress ${_pct(stressManagementScore!)}");
