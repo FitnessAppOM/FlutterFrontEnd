@@ -1306,8 +1306,6 @@ class DashboardPageState extends State<DashboardPage>
   bool get _hasFitbitSleepWidget => _statOrder.contains('fitbit_sleep');
   bool get _hasFitbitVitalsWidget => _statOrder.contains('fitbit_vitals');
   bool get _hasFitbitBodyWidget => _statOrder.contains('fitbit_body');
-  bool get _hasHealthRecoveryLoadWidget =>
-      _statOrder.contains('health_recovery_load');
   bool get _hasWhoopSleepWidget => _statOrder.contains('whoop_sleep');
   bool get _hasAnyWhoopWidget =>
       _statOrder.contains('whoop_sleep') ||
@@ -3640,7 +3638,6 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   Future<void> _loadHealthRecoveryLoad({bool force = false}) async {
-    if (!_hasHealthRecoveryLoadWidget) return;
     final selectedDay = DateTime(
       _selectedDate.year,
       _selectedDate.month,
