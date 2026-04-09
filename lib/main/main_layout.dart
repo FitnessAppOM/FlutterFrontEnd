@@ -55,9 +55,15 @@ class _MainLayoutState extends State<MainLayout> {
       _pages[idx] ??= _buildPage(idx);
     });
     if (idx == 2) {
-      _dietKey.currentState?.refreshTrainingLock();
-      // Refetch targets and day summary so surplus from calories burned shows without manual refresh.
-      _dietKey.currentState?.refreshTargetsAndMeals();
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final selectedDate = _dashboardKey.currentState?.selectedDate;
+        if (selectedDate != null) {
+          await _dietKey.currentState?.syncSelectedDate(selectedDate);
+          return;
+        }
+        await _dietKey.currentState?.refreshTrainingLock();
+        await _dietKey.currentState?.refreshTargetsAndMeals();
+      });
     }
   }
 

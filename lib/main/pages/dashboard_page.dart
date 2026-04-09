@@ -318,6 +318,8 @@ class DashboardPageState extends State<DashboardPage>
 
   DateTime _dayKey(DateTime date) => DateTime(date.year, date.month, date.day);
 
+  DateTime get selectedDate => _dayKey(_selectedDate);
+
   bool _shouldUpdateTrendForDate(DateTime date) {
     return _dayKey(date) == _dashboardToday();
   }

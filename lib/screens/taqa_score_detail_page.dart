@@ -443,10 +443,12 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     if (_trendScores.isEmpty) return const SizedBox.shrink();
 
     final values = <double?>[];
+    final xLabels = <String>[];
     final end = _maxSelectableDate();
     for (int i = 6; i >= 0; i--) {
       final day = end.subtract(Duration(days: i));
       final dayKey = DateTime(day.year, day.month, day.day);
+      xLabels.add(DateFormat('d/M', _locale).format(day));
       final match = _trendScores.where((s) {
         final sd = DateTime(
           s.entryDate.year,
@@ -486,6 +488,20 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
             values: values,
             color: const Color(0xFF6A5AE0),
             height: 150,
+            showPoints: true,
+            xLabels: xLabels,
+            yLabels: const ['100', '75', '50', '25', '0'],
+            yAxisTitle: 'TAQA score',
+            xAxisTitle: 'Date',
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '7-day TAQA Value trend on a 0-100 scale',
+          style: const TextStyle(
+            color: Colors.white54,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ],

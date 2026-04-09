@@ -8,16 +8,27 @@ class SimpleLineChart extends StatelessWidget {
     required this.color,
     this.height = 170,
     this.showPoints = false,
+    this.xLabels,
+    this.yLabels,
+    this.xAxisTitle,
+    this.yAxisTitle,
   });
 
   final List<double?> values;
   final Color color;
   final double height;
   final bool showPoints;
+  final List<String>? xLabels;
+  final List<String>? yLabels;
+  final String? xAxisTitle;
+  final String? yAxisTitle;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    final hasXAxis = xLabels != null && xLabels!.isNotEmpty;
+    final hasYAxis = yLabels != null && yLabels!.isNotEmpty;
+
+    Widget chart = SizedBox(
       height: height,
       width: double.infinity,
       child: CustomPaint(
@@ -27,6 +38,106 @@ class SimpleLineChart extends StatelessWidget {
           showPoints: showPoints,
         ),
       ),
+    );
+
+    if (!hasXAxis && !hasYAxis && xAxisTitle == null && yAxisTitle == null) {
+      return chart;
+    }
+
+    const yAxisWidth = 40.0;
+    final chartRow = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (hasYAxis)
+          SizedBox(
+            width: yAxisWidth,
+            height: height,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: yLabels!
+                  .map(
+                    (label) => Text(
+                      label,
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+          ),
+        if (hasYAxis) const SizedBox(width: 8),
+        Expanded(child: chart),
+      ],
+    );
+
+    final xAxisLabels = hasXAxis
+        ? Row(
+            children: [
+              if (hasYAxis) const SizedBox(width: yAxisWidth + 8),
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: xLabels!
+                      .map(
+                        (label) => Text(
+                          label,
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      )
+                      .toList(growable: false),
+                ),
+              ),
+            ],
+          )
+        : const SizedBox.shrink();
+
+    final titles = (yAxisTitle != null || xAxisTitle != null)
+        ? Row(
+            children: [
+              if (yAxisTitle != null)
+                Text(
+                  yAxisTitle!,
+                  style: const TextStyle(
+                    color: Colors.white60,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              const Spacer(),
+              if (xAxisTitle != null)
+                Text(
+                  xAxisTitle!,
+                  style: const TextStyle(
+                    color: Colors.white60,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+            ],
+          )
+        : const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (yAxisTitle != null || xAxisTitle != null) ...[
+          titles,
+          const SizedBox(height: 8),
+        ],
+        chartRow,
+        if (hasXAxis) ...[
+          const SizedBox(height: 8),
+          xAxisLabels,
+        ],
+      ],
     );
   }
 }

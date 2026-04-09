@@ -27,6 +27,8 @@ class DietPage extends StatefulWidget {
 }
 
 class DietPageState extends State<DietPage> {
+  static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
   bool _loading = true;
   String? _error;
   Map<String, dynamic>? _targets;
@@ -38,7 +40,7 @@ class DietPageState extends State<DietPage> {
   bool _mealsLoading = true;
   String? _mealsError;
   Map<String, dynamic>? _meals;
-  final DateTime _mealDate = DateTime.now();
+  DateTime _mealDate = _dateOnly(DateTime.now());
   bool _mealsFromCache = false;
   bool _freezing = false;
   int _mealsRequestId = 0;
@@ -802,6 +804,53 @@ class DietPageState extends State<DietPage> {
   /// Refreshes silently in the background — existing data stays visible (no spinners).
   Future<void> refreshTargetsAndMeals() async {
     await _loadBootstrap(silent: true);
+  }
+
+  Future<void> syncSelectedDate(DateTime date, {bool refresh = true}) async {
+    final normalized = _dateOnly(date);
+    if (_sameCalendarDay(_mealDate, normalized)) {
+      if (refresh) {
+        await refreshTrainingLock();
+        await refreshTargetsAndMeals();
+      }
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _mealDate = normalized;
+        _modeIndex = 0;
+        _trainDayLockedByExercise = false;
+        _restDayLockedByCardio = false;
+        _lockedTrainingDayId = null;
+        _lockedTrainingDayLabel = null;
+        _meals = null;
+        _mealsError = null;
+        _mealsFromCache = false;
+        _mealsLoading = true;
+        _freezing = false;
+      });
+    } else {
+      _mealDate = normalized;
+      _modeIndex = 0;
+      _trainDayLockedByExercise = false;
+      _restDayLockedByCardio = false;
+      _lockedTrainingDayId = null;
+      _lockedTrainingDayLabel = null;
+      _meals = null;
+      _mealsError = null;
+      _mealsFromCache = false;
+      _mealsLoading = true;
+      _freezing = false;
+    }
+
+    await _hydrateFromCache();
+    if (!mounted || !_sameCalendarDay(_mealDate, normalized)) return;
+
+    await _loadBootstrap(silent: false);
+    if (!mounted || !_sameCalendarDay(_mealDate, normalized)) return;
+
+    await _updateTrainingLockFromCompletion();
   }
 
   Future<void> _updateTrainingLockFromCompletion() async {
