@@ -52,44 +52,11 @@ class FitbitSummaryService {
   }
 
   Map<String, int> _parseSleepStageMinutes(dynamic raw) {
-    double? _double(dynamic v) {
+    int? _int(dynamic v) {
       if (v == null) return null;
-      if (v is double) return v;
-      if (v is num) return v.toDouble();
-      return double.tryParse(v.toString());
-    }
-
-    void _addFromStageMap(dynamic node, Map<String, double> totals) {
-      if (node is! Map) return;
-      node.forEach((k, v) {
-        if (k is! String) return;
-        final key = k.trim();
-        if (key.isEmpty) return;
-        double? minutes;
-        if (v is Map) {
-          minutes = _double(v["minutes"]);
-        } else {
-          minutes = _double(v);
-        }
-        if (minutes == null || minutes <= 0) return;
-        totals[key] = (totals[key] ?? 0) + minutes;
-      });
-    }
-
-    void _addFromTimeline(dynamic node, Map<String, double> totals) {
-      if (node is! List) return;
-      for (final event in node) {
-        if (event is! Map) continue;
-        final levelRaw = event["level"];
-        final level = levelRaw?.toString().trim();
-        if (level == null || level.isEmpty) continue;
-        final seconds = _double(event["seconds"]);
-        final minutes =
-            _double(event["minutes"]) ??
-            (seconds == null ? null : seconds / 60.0);
-        if (minutes == null || minutes <= 0) continue;
-        totals[level] = (totals[level] ?? 0) + minutes;
-      }
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      return int.tryParse(v.toString());
     }
 
     if (raw is String) {
@@ -101,20 +68,17 @@ class FitbitSummaryService {
     }
     if (raw is! Map) return const {};
 
-    final totals = <String, double>{};
-    _addFromStageMap(raw["summary"], totals);
-    _addFromStageMap(raw["stages"], totals);
-    if (totals.isEmpty) {
-      _addFromStageMap(raw, totals);
-    }
-    _addFromTimeline(raw["data"], totals);
-    _addFromTimeline(raw["shortData"], totals);
-
+    final fromSummary = raw["summary"];
+    final fromStages = raw["stages"];
+    final source = fromSummary is Map
+        ? fromSummary
+        : (fromStages is Map ? fromStages : raw);
     final out = <String, int>{};
-    totals.forEach((k, v) {
-      final rounded = v.round();
-      if (rounded <= 0) return;
-      out[k] = rounded;
+    source.forEach((k, v) {
+      if (k is! String) return;
+      final minutes = v is Map ? _int(v["minutes"]) : _int(v);
+      if (minutes == null || minutes <= 0) return;
+      out[k] = minutes;
     });
     return out;
   }
