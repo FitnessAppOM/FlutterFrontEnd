@@ -16,6 +16,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
   bool _loadingHabits = true;
   String? _habitsError;
   List<CoachHabitItem> _habits = const [];
+  final Set<int> _updatingHabitIds = <int>{};
 
   @override
   void initState() {
@@ -27,6 +28,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
     setState(() {
       _loadingHabits = true;
       _habitsError = null;
+      _updatingHabitIds.clear();
     });
 
     final userId = await AccountStorage.getUserId();
@@ -36,6 +38,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
         _loadingHabits = false;
         _habits = const [];
         _habitsError = 'missing_user';
+        _updatingHabitIds.clear();
       });
       return;
     }
@@ -50,6 +53,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
         _loadingHabits = false;
         _habits = habits;
         _habitsError = null;
+        _updatingHabitIds.clear();
       });
     } catch (e) {
       if (!mounted) return;
@@ -57,7 +61,60 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
         _loadingHabits = false;
         _habits = const [];
         _habitsError = e.toString();
+        _updatingHabitIds.clear();
       });
+    }
+  }
+
+  Future<void> _toggleHabit(CoachHabitItem habit) async {
+    if (_updatingHabitIds.contains(habit.id)) return;
+
+    final nextCompleted = !habit.isCompleted;
+    final previous = habit;
+
+    setState(() {
+      _updatingHabitIds.add(habit.id);
+      _habits = _habits
+          .map(
+            (h) => h.id == habit.id
+                ? h.copyWith(
+                    isCompleted: nextCompleted,
+                    completedAt: nextCompleted ? DateTime.now() : null,
+                    clearCompletedAt: !nextCompleted,
+                  )
+                : h,
+          )
+          .toList();
+    });
+
+    try {
+      final updated = await CoachHabitsService.setHabitCompletion(
+        habitId: habit.id,
+        isCompleted: nextCompleted,
+      );
+      if (!mounted) return;
+      setState(() {
+        _habits = _habits
+            .map((h) => h.id == updated.id ? updated : h)
+            .toList();
+      });
+    } catch (_) {
+      if (!mounted) return;
+      final t = AppLocalizations.of(context);
+      setState(() {
+        _habits = _habits
+            .map((h) => h.id == previous.id ? previous : h)
+            .toList();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(t.translate('coach_habits_load_failed'))),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _updatingHabitIds.remove(habit.id);
+        });
+      }
     }
   }
 
@@ -78,6 +135,8 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
           habitsError: _habitsError,
           emptyHabitsLabel: t.translate('coach_habits_empty'),
           loadFailedLabel: t.translate('coach_habits_load_failed'),
+          onHabitToggle: _toggleHabit,
+          updatingHabitIds: _updatingHabitIds,
           corrections: [
             _PinnedCorrection(
               title: t.translate('coach_correction_squat_title'),
@@ -141,6 +200,8 @@ class _CoachTasksCard extends StatelessWidget {
     required this.habitsError,
     required this.emptyHabitsLabel,
     required this.loadFailedLabel,
+    required this.onHabitToggle,
+    required this.updatingHabitIds,
     required this.corrections,
   });
 
@@ -153,6 +214,8 @@ class _CoachTasksCard extends StatelessWidget {
   final String? habitsError;
   final String emptyHabitsLabel;
   final String loadFailedLabel;
+  final ValueChanged<CoachHabitItem> onHabitToggle;
+  final Set<int> updatingHabitIds;
   final List<_PinnedCorrection> corrections;
 
   @override
@@ -211,7 +274,13 @@ class _CoachTasksCard extends StatelessWidget {
           if (!loadingHabits && habitsError == null && habits.isEmpty)
             _InlineInfo(icon: Icons.inbox_outlined, label: emptyHabitsLabel),
           if (!loadingHabits && habitsError == null)
-            ...habits.map((habit) => _HabitRow(habit: habit)),
+            ...habits.map(
+              (habit) => _HabitRow(
+                habit: habit,
+                isUpdating: updatingHabitIds.contains(habit.id),
+                onTap: () => onHabitToggle(habit),
+              ),
+            ),
           const SizedBox(height: 10),
           _SectionTitle(label: pinnedCorrectionsTitle),
           const SizedBox(height: 8),
@@ -243,34 +312,59 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _HabitRow extends StatelessWidget {
-  const _HabitRow({required this.habit});
+  const _HabitRow({
+    required this.habit,
+    required this.isUpdating,
+    required this.onTap,
+  });
 
   final CoachHabitItem habit;
+  final bool isUpdating;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Icon(
-            habit.isCompleted ? Icons.check_box : Icons.check_box_outline_blank,
-            color: habit.isCompleted ? AppColors.accent : Colors.white54,
-            size: 18,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              habit.habit,
-              style: TextStyle(
-                color: habit.isCompleted ? Colors.white54 : Colors.white70,
-                decoration: habit.isCompleted
-                    ? TextDecoration.lineThrough
-                    : TextDecoration.none,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: isUpdating ? null : onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(
+            children: [
+              if (isUpdating)
+                const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.accent,
+                  ),
+                )
+              else
+                Icon(
+                  habit.isCompleted
+                      ? Icons.check_box
+                      : Icons.check_box_outline_blank,
+                  color: habit.isCompleted ? AppColors.accent : Colors.white54,
+                  size: 18,
+                ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  habit.habit,
+                  style: TextStyle(
+                    color: habit.isCompleted ? Colors.white54 : Colors.white70,
+                    decoration: habit.isCompleted
+                        ? TextDecoration.lineThrough
+                        : TextDecoration.none,
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

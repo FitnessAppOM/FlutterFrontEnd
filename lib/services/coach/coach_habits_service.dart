@@ -24,6 +24,27 @@ class CoachHabitItem {
     this.completedAt,
   });
 
+  CoachHabitItem copyWith({
+    int? id,
+    int? expertId,
+    int? clientId,
+    String? habit,
+    bool? isCompleted,
+    DateTime? addedAt,
+    DateTime? completedAt,
+    bool clearCompletedAt = false,
+  }) {
+    return CoachHabitItem(
+      id: id ?? this.id,
+      expertId: expertId ?? this.expertId,
+      clientId: clientId ?? this.clientId,
+      habit: habit ?? this.habit,
+      isCompleted: isCompleted ?? this.isCompleted,
+      addedAt: addedAt ?? this.addedAt,
+      completedAt: clearCompletedAt ? null : (completedAt ?? this.completedAt),
+    );
+  }
+
   factory CoachHabitItem.fromJson(Map<String, dynamic> json) {
     int parseInt(dynamic v) {
       if (v is int) return v;
@@ -90,5 +111,46 @@ class CoachHabitsService {
         .whereType<Map>()
         .map((e) => CoachHabitItem.fromJson(Map<String, dynamic>.from(e)))
         .toList();
+  }
+
+  static Future<CoachHabitItem> setHabitCompletion({
+    required int habitId,
+    required bool isCompleted,
+  }) async {
+    final uri = Uri.parse('${ApiConfig.baseUrl}/coach/habits/item/$habitId');
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
+    final res = await http.patch(
+      uri,
+      headers: headers,
+      body: jsonEncode({'is_completed': isCompleted}),
+    );
+    await AccountStorage.handleAuthStatus(
+      res.statusCode,
+      responseBody: res.body,
+    );
+
+    if (res.statusCode != 200) {
+      String msg = 'Failed to update habit';
+      try {
+        final data = jsonDecode(res.body);
+        if (data is Map && data['detail'] != null) {
+          msg = data['detail'].toString();
+        }
+      } catch (_) {}
+      throw Exception(msg);
+    }
+
+    final data = jsonDecode(res.body);
+    if (data is! Map<String, dynamic>) {
+      throw Exception('Invalid response');
+    }
+    final rawItem = data['item'];
+    if (rawItem is! Map) {
+      throw Exception('Invalid response');
+    }
+    return CoachHabitItem.fromJson(Map<String, dynamic>.from(rawItem));
   }
 }
