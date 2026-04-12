@@ -25,6 +25,8 @@ import '../services/whoop/whoop_daily_sync.dart';
 import '../services/whoop/whoop_latest_service.dart';
 import '../screens/welcome.dart';
 import '../screens/account_restore_page.dart';
+import '../screens/coach_page.dart';
+import '../screens/expert_dashboard_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -41,6 +43,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _deletingAccount = false;
   bool _deactivatingAccount = false;
   bool _isDeactivated = false;
+  bool _isExpert = false;
   String? _scheduledPurgeAtDisplay;
   String? _email;
   bool _expertQuestionnaireDone = false;
@@ -285,8 +288,12 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _loadExpertFlag() async {
     final done = await AccountStorage.isExpertQuestionnaireDone();
+    final isExpert = await AccountStorage.isExpert();
     if (mounted) {
-      setState(() => _expertQuestionnaireDone = done);
+      setState(() {
+        _expertQuestionnaireDone = done;
+        _isExpert = isExpert;
+      });
     }
   }
 
@@ -1256,6 +1263,28 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     );
                     await _loadExpertFlag();
+                  },
+          ),
+          _SettingsTile(
+            title: t.translate("settings_coach_portal"),
+            subtitle: _isExpert
+                ? t.translate("settings_coach_portal_sub_expert")
+                : t.translate("settings_coach_portal_sub_client"),
+            icon: _isExpert
+                ? Icons.analytics_outlined
+                : Icons.record_voice_over,
+            onTap: _isDeactivated
+                ? null
+                : () async {
+                    final isExpert = await AccountStorage.isExpert();
+                    if (!mounted) return;
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => isExpert
+                            ? const ExpertDashboardPage()
+                            : const CoachPage(),
+                      ),
+                    );
                   },
           ),
           const SizedBox(height: 12),
