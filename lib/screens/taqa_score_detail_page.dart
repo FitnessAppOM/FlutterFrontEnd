@@ -747,6 +747,9 @@ class _PillarCardState extends State<_PillarCard> {
   String? _statusMessage() {
     if (widget.metricKey == 'training_load') {
       if (widget.score == null) {
+        if (widget.path == 'no_workout') {
+          return t("taqa_training_no_workout");
+        }
         return t("taqa_training_no_data");
       }
       if (widget.score == 0 && widget.path == 'no_workout') {

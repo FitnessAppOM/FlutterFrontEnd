@@ -725,26 +725,32 @@ class DashboardPageState extends State<DashboardPage>
 
   void _onTrainingChanged() {
     _exerciseProgressCache.clear();
+    TaqaScoreApi.clearCache();
     _loadExerciseProgress(force: true);
     _loadCalories();
     _loadTrendCalories(force: true);
     _dietSummaryCache.remove(_dayKey(_selectedDate));
     _loadDietProgress(forceRefresh: true);
     _loadStreak();
+    unawaited(_loadTaqaScore());
   }
 
   void _onDietChanged() {
     _dietSummaryCache.clear();
+    TaqaScoreApi.clearCache();
     _cachedTodayDietConsumedCalories = null;
     _cachedTodayDietTargetCalories = null;
     _cachedTodayDietDayType = null;
     _cachedTodayDietLoaded = false;
     _loadDietProgress(forceRefresh: true);
     _loadStreak();
+    unawaited(_loadTaqaScore());
   }
 
   void _onJournalChanged() {
     _loadStreak();
+    TaqaScoreApi.clearCache();
+    unawaited(_loadTaqaScore());
   }
 
   Future<void> _onAppleWatchChanged() async {
