@@ -44,6 +44,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _deactivatingAccount = false;
   bool _isDeactivated = false;
   bool _isExpert = false;
+  String? _expertProfileStatus;
   String? _scheduledPurgeAtDisplay;
   String? _email;
   bool _expertQuestionnaireDone = false;
@@ -289,12 +290,39 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadExpertFlag() async {
     final done = await AccountStorage.isExpertQuestionnaireDone();
     final isExpert = await AccountStorage.isExpert();
+    String? expertProfileStatus;
+    final userId = await AccountStorage.getUserId();
+    if (userId != null && userId > 0) {
+      try {
+        if (!mounted) return;
+        final lang = AppLocalizations.of(context).locale.languageCode;
+        final profile = await ProfileApi.fetchProfile(userId, lang: lang);
+        final rawStatus = (profile["expert_profile_status"] ?? "")
+            .toString()
+            .trim()
+            .toLowerCase();
+        expertProfileStatus = rawStatus.isEmpty ? null : rawStatus;
+      } catch (_) {
+        // Keep existing fallback behavior when profile API isn't reachable.
+      }
+    }
     if (mounted) {
       setState(() {
         _expertQuestionnaireDone = done;
         _isExpert = isExpert;
+        _expertProfileStatus = expertProfileStatus;
       });
     }
+  }
+
+  bool get _showBeExpertButton {
+    final status = (_expertProfileStatus ?? "").trim().toLowerCase();
+    if (status.isEmpty) return true; // No expert profile yet.
+    return status == "rejected" ||
+        status == "refused" ||
+        status == "suspended" ||
+        status == "revoked" ||
+        status == "banned";
   }
 
   Future<void> _loadWhoopStatus() async {
@@ -1220,51 +1248,52 @@ class _SettingsPageState extends State<SettingsPage> {
                 : Icons.image_outlined,
             onTap: _isDeactivated ? null : _pickAvatar,
           ),
-          _SettingsTile(
-            title: t.translate("settings_be_expert"),
-            subtitle: t.translate("settings_be_expert_sub"),
-            icon: Icons.work_outline,
-            onTap: _isDeactivated
-                ? null
-                : () async {
-                    final userId = await AccountStorage.getUserId();
-                    if (userId == null) {
-                      AppToast.show(
-                        context,
-                        t.translate("user_missing"),
-                        type: AppToastType.error,
-                      );
-                      return;
-                    }
-                    try {
-                      final lang = AppLocalizations.of(
-                        context,
-                      ).locale.languageCode;
-                      final profile = await ProfileApi.fetchProfile(
-                        userId,
-                        lang: lang,
-                      );
-                      final done =
-                          profile["filled_expert_questionnaire"] == true;
-                      if (done) {
+          if (_showBeExpertButton)
+            _SettingsTile(
+              title: t.translate("settings_be_expert"),
+              subtitle: t.translate("settings_be_expert_sub"),
+              icon: Icons.work_outline,
+              onTap: _isDeactivated
+                  ? null
+                  : () async {
+                      final userId = await AccountStorage.getUserId();
+                      if (userId == null) {
                         AppToast.show(
                           context,
-                          t.translate("expert_questionnaire_already_done"),
-                          type: AppToastType.info,
+                          t.translate("user_missing"),
+                          type: AppToastType.error,
                         );
                         return;
                       }
-                    } catch (_) {
-                      // If check fails, allow navigation so user can try
-                    }
-                    await Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const ExpertQuestionnairePage(),
-                      ),
-                    );
-                    await _loadExpertFlag();
-                  },
-          ),
+                      try {
+                        final lang = AppLocalizations.of(
+                          context,
+                        ).locale.languageCode;
+                        final profile = await ProfileApi.fetchProfile(
+                          userId,
+                          lang: lang,
+                        );
+                        final done =
+                            profile["filled_expert_questionnaire"] == true;
+                        if (done) {
+                          AppToast.show(
+                            context,
+                            t.translate("expert_questionnaire_already_done"),
+                            type: AppToastType.info,
+                          );
+                          return;
+                        }
+                      } catch (_) {
+                        // If check fails, allow navigation so user can try
+                      }
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ExpertQuestionnairePage(),
+                        ),
+                      );
+                      await _loadExpertFlag();
+                    },
+            ),
           _SettingsTile(
             title: t.translate("settings_coach_portal"),
             subtitle: _isExpert
