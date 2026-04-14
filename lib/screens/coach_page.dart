@@ -5,6 +5,7 @@ import '../localization/app_localizations.dart';
 import '../services/auth/profile_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/coach/coach_feedback_panel.dart';
+import '../widgets/coach/coach_form_check_panel.dart';
 import '../widgets/coach/coach_info_panel.dart';
 
 class CoachPage extends StatefulWidget {
@@ -92,15 +93,7 @@ class _CoachPageState extends State<CoachPage> {
                 t.translate('coach_chat_b3'),
               ],
             ),
-            CoachInfoPanel(
-              title: t.translate('coach_tab_form_check'),
-              icon: Icons.smart_toy_outlined,
-              bullets: [
-                t.translate('coach_form_check_b1'),
-                t.translate('coach_form_check_b2'),
-                t.translate('coach_form_check_b3'),
-              ],
-            ),
+            const CoachFormCheckPanel(),
           ],
         ),
       ),
