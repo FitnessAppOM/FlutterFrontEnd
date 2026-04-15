@@ -136,6 +136,7 @@ class TaqaScoreApi {
 
   static void clearCache() {
     _cache.clear();
+    _inFlight.clear();
   }
 
   static String _dayKey(int userId, DateTime date) =>

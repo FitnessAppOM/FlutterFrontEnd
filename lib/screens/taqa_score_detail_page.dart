@@ -26,10 +26,13 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
   bool _trendLoading = false;
   List<TaqaDailyScore> _trendScores = const [];
   int? _userId;
+  int _scoreReqId = 0;
+  int _trendReqId = 0;
 
   @override
   void initState() {
     super.initState();
+    AccountStorage.accountChange.addListener(_onAccountChanged);
     _init();
   }
 
@@ -50,6 +53,29 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     await Future.wait([_loadScore(uid), _loadTrend(uid)]);
   }
 
+  void _onAccountChanged() {
+    TaqaScoreApi.clearCache();
+    _reloadForActiveAccount();
+  }
+
+  Future<void> _reloadForActiveAccount() async {
+    final uid = await AccountStorage.getUserId();
+    if (!mounted) return;
+    _scoreReqId++;
+    _trendReqId++;
+    setState(() {
+      _userId = uid;
+      _score = null;
+      _trendScores = const [];
+      _loading = uid != null && uid > 0;
+      _trendLoading = uid != null && uid > 0;
+    });
+    if (uid == null || uid <= 0) {
+      return;
+    }
+    await Future.wait([_loadScore(uid), _loadTrend(uid)]);
+  }
+
   DateTime _dateOnly(DateTime date) =>
       DateTime(date.year, date.month, date.day);
 
@@ -62,21 +88,28 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
   }
 
   Future<void> _loadScore(int userId) async {
+    final reqId = ++_scoreReqId;
+    final selectedDate = _dateOnly(_selectedDate);
     setState(() => _loading = true);
-    final isLiveDate = _dateOnly(_selectedDate) == _maxSelectableDate();
+    final isLiveDate = selectedDate == _maxSelectableDate();
     var result = await TaqaScoreApi.fetchDaily(
       userId: userId,
-      date: _selectedDate,
+      date: selectedDate,
       forceRefresh: isLiveDate,
     );
     if (!isLiveDate && result?.taqaValueScore == null) {
       result = await TaqaScoreApi.fetchDaily(
         userId: userId,
-        date: _selectedDate,
+        date: selectedDate,
         forceRefresh: true,
       );
     }
     if (!mounted) return;
+    if (reqId != _scoreReqId) return;
+    if (_dateOnly(_selectedDate) != selectedDate) return;
+    final currentUserId = await AccountStorage.getUserId();
+    if (currentUserId != userId) return;
+    if (result != null && result.userId != userId) return;
     setState(() {
       _score = result;
       _loading = false;
@@ -84,6 +117,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
   }
 
   Future<void> _loadTrend(int userId) async {
+    final reqId = ++_trendReqId;
     setState(() => _trendLoading = true);
     final end = _maxSelectableDate();
     final start = end.subtract(const Duration(days: 6));
@@ -93,8 +127,11 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
       end: end,
     );
     if (!mounted) return;
+    if (reqId != _trendReqId) return;
+    final currentUserId = await AccountStorage.getUserId();
+    if (currentUserId != userId) return;
     setState(() {
-      _trendScores = result;
+      _trendScores = result.where((score) => score.userId == userId).toList();
       _trendLoading = false;
     });
   }
@@ -122,6 +159,12 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
       _selectedDate.day,
     );
     return sel.isBefore(yesterday);
+  }
+
+  @override
+  void dispose() {
+    AccountStorage.accountChange.removeListener(_onAccountChanged);
+    super.dispose();
   }
 
   String get _locale =>

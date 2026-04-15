@@ -662,6 +662,7 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   void _onAccountChanged() {
+    _taqaScoreReqId++;
     _loadStatOrder();
     _loadWhoopLinkedHint();
     _loadFitbitLinkedHint();
@@ -1716,6 +1717,9 @@ class DashboardPageState extends State<DashboardPage>
     if (!mounted) return;
     if (reqId != _taqaScoreReqId) return;
     if (_taqaScoreDateForSelection() != scoreDate) return;
+    final currentUserId = await AccountStorage.getUserId();
+    if (currentUserId != userId) return;
+    if (result != null && result.userId != userId) return;
     setState(() {
       _taqaScore = result;
       _taqaScoreLoading = false;
