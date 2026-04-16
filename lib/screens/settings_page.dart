@@ -288,8 +288,8 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _loadExpertFlag() async {
-    final done = await AccountStorage.isExpertQuestionnaireDone();
-    final isExpert = await AccountStorage.isExpert();
+    var done = await AccountStorage.isExpertQuestionnaireDone();
+    var isExpert = await AccountStorage.isExpert();
     String? expertProfileStatus;
     final userId = await AccountStorage.getUserId();
     if (userId != null && userId > 0) {
@@ -297,11 +297,22 @@ class _SettingsPageState extends State<SettingsPage> {
         if (!mounted) return;
         final lang = AppLocalizations.of(context).locale.languageCode;
         final profile = await ProfileApi.fetchProfile(userId, lang: lang);
+        final hasExpertProfile = profile["has_expert_profile"] == true;
+        final filledExpertQuestionnaire =
+            profile["filled_expert_questionnaire"] == true;
         final rawStatus = (profile["expert_profile_status"] ?? "")
             .toString()
             .trim()
             .toLowerCase();
         expertProfileStatus = rawStatus.isEmpty ? null : rawStatus;
+        done = done || filledExpertQuestionnaire;
+        isExpert = isExpert ||
+            hasExpertProfile ||
+            filledExpertQuestionnaire ||
+            rawStatus == "approved" ||
+            rawStatus == "pending";
+        await AccountStorage.setExpertQuestionnaireDone(done);
+        await AccountStorage.setIsExpert(isExpert);
       } catch (_) {
         // Keep existing fallback behavior when profile API isn't reachable.
       }
@@ -313,6 +324,11 @@ class _SettingsPageState extends State<SettingsPage> {
         _expertProfileStatus = expertProfileStatus;
       });
     }
+  }
+
+  Future<bool> _resolveExpertPortalAccess() async {
+    await _loadExpertFlag();
+    return AccountStorage.isExpert();
   }
 
   bool get _showBeExpertButton {
@@ -1305,7 +1321,7 @@ class _SettingsPageState extends State<SettingsPage> {
             onTap: _isDeactivated
                 ? null
                 : () async {
-                    final isExpert = await AccountStorage.isExpert();
+                    final isExpert = await _resolveExpertPortalAccess();
                     if (!mounted) return;
                     await Navigator.of(context).push(
                       MaterialPageRoute(
