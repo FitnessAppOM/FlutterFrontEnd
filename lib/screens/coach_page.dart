@@ -17,6 +17,7 @@ class CoachPage extends StatefulWidget {
 
 class _CoachPageState extends State<CoachPage> {
   String? _assignedCoachName;
+  String? _assignedCoachSpecialty;
   bool _profileLoaded = false;
 
   @override
@@ -35,18 +36,43 @@ class _CoachPageState extends State<CoachPage> {
       final lang = AppLocalizations.of(context).locale.languageCode;
       final profile = await ProfileApi.fetchProfile(userId, lang: lang);
       final raw = (profile["assigned_expert_name"] ?? "").toString().trim();
+      final rawSpecialty = (profile["assigned_expert_specialty"] ?? "")
+          .toString()
+          .trim();
       if (!mounted) return;
       setState(() {
         _assignedCoachName = raw.isEmpty ? null : raw;
+        _assignedCoachSpecialty = _formatSpecialtyLabel(rawSpecialty);
       });
     } catch (_) {
       // Keep page usable when coach assignment is unavailable.
     }
   }
 
+  String? _formatSpecialtyLabel(String raw) {
+    if (raw.isEmpty) return null;
+    final parts = raw.split('_').where((part) => part.trim().isNotEmpty);
+    if (parts.isEmpty) return null;
+    return parts
+        .map((part) {
+          final cleaned = part.trim();
+          return '${cleaned[0].toUpperCase()}${cleaned.substring(1)}';
+        })
+        .join(' ');
+  }
+
+  String? _coachSubtitle() {
+    final name = (_assignedCoachName ?? '').trim();
+    if (name.isEmpty) return null;
+    final specialty = (_assignedCoachSpecialty ?? '').trim();
+    if (specialty.isEmpty) return name;
+    return '$name · $specialty';
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final coachSubtitle = _coachSubtitle();
 
     return DefaultTabController(
       length: 3,
@@ -59,9 +85,9 @@ class _CoachPageState extends State<CoachPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text('Expert Page'),
-              if ((_assignedCoachName ?? '').isNotEmpty)
+              if ((coachSubtitle ?? '').isNotEmpty)
                 Text(
-                  _assignedCoachName!,
+                  coachSubtitle!,
                   style: const TextStyle(
                     color: Colors.white60,
                     fontSize: 12,
