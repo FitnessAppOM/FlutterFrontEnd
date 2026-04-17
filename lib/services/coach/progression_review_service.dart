@@ -110,6 +110,8 @@ class ProgressionReviewItem {
   final int reviewItemId;
   final int programExerciseId;
   final int? programDayId;
+  final int? dayIndex;
+  final String? dayLabel;
   final String exerciseName;
   final int currentSets;
   final int currentReps;
@@ -142,6 +144,8 @@ class ProgressionReviewItem {
     required this.aiRecommendedReps,
     required this.expertDecision,
     this.programDayId,
+    this.dayIndex,
+    this.dayLabel,
     this.currentWeightKg,
     this.observedSets,
     this.observedReps,
@@ -183,6 +187,8 @@ class ProgressionReviewItem {
       reviewItemId: parseInt(json['review_item_id']),
       programExerciseId: parseInt(json['program_exercise_id']),
       programDayId: json['program_day_id'] == null ? null : parseInt(json['program_day_id']),
+      dayIndex: json['day_index'] == null ? null : parseInt(json['day_index']),
+      dayLabel: json['day_label']?.toString(),
       exerciseName: (json['exercise_name'] ?? '').toString(),
       currentSets: parseInt(json['current_sets']),
       currentReps: parseInt(json['current_reps']),

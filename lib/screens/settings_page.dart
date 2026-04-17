@@ -331,6 +331,77 @@ class _SettingsPageState extends State<SettingsPage> {
     return AccountStorage.isExpert();
   }
 
+  Future<void> _openCoachPortal() async {
+    final isExpert = await _resolveExpertPortalAccess();
+    if (!mounted) return;
+
+    if (!isExpert) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const CoachPage()),
+      );
+      return;
+    }
+
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.cardDark,
+          title: const Text(
+            'Open coach portal',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.analytics_outlined, color: Colors.white),
+                title: const Text(
+                  'Expert Dashboard',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: const Text(
+                  'Approve and apply recommendations',
+                  style: TextStyle(color: Colors.white60),
+                ),
+                onTap: () => Navigator.of(context).pop('expert'),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.record_voice_over, color: Colors.white),
+                title: const Text(
+                  'Client Coach Page',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: const Text(
+                  'Open feedback/chat/form-check view',
+                  style: TextStyle(color: Colors.white60),
+                ),
+                onTap: () => Navigator.of(context).pop('client'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || choice == null) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => choice == 'expert'
+            ? const ExpertDashboardPage()
+            : const CoachPage(),
+      ),
+    );
+  }
+
   bool get _showBeExpertButton {
     final status = (_expertProfileStatus ?? "").trim().toLowerCase();
     if (status.isEmpty) return true; // No expert profile yet.
@@ -1320,17 +1391,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 : Icons.record_voice_over,
             onTap: _isDeactivated
                 ? null
-                : () async {
-                    final isExpert = await _resolveExpertPortalAccess();
-                    if (!mounted) return;
-                    await Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => isExpert
-                            ? const ExpertDashboardPage()
-                            : const CoachPage(),
-                      ),
-                    );
-                  },
+                : _openCoachPortal,
           ),
           const SizedBox(height: 12),
           Text(

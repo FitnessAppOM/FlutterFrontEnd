@@ -22,6 +22,7 @@ class _ExpertProgressionReviewPageState
   ProgressionReviewDetail? _review;
   bool _loading = true;
   bool _saving = false;
+  Set<String> _expandedDayKeys = <String>{};
 
   @override
   void initState() {
@@ -35,7 +36,10 @@ class _ExpertProgressionReviewPageState
       final review =
           await ProgressionReviewService.fetchReviewDetail(widget.reviewId);
       if (!mounted) return;
-      setState(() => _review = review);
+      setState(() {
+        _review = review;
+        _ensureExpandedDays(review);
+      });
     } catch (e) {
       if (!mounted) return;
       AppToast.show(
@@ -48,13 +52,28 @@ class _ExpertProgressionReviewPageState
     }
   }
 
+  void _ensureExpandedDays(ProgressionReviewDetail review) {
+    final dayKeys = _groupedDays(review).map((group) => group.key).toList();
+    if (dayKeys.isEmpty) {
+      _expandedDayKeys = <String>{};
+      return;
+    }
+    _expandedDayKeys = _expandedDayKeys.where(dayKeys.contains).toSet();
+    if (_expandedDayKeys.isEmpty) {
+      _expandedDayKeys = {dayKeys.first};
+    }
+  }
+
   Future<void> _applyReview() async {
     if (_saving) return;
     setState(() => _saving = true);
     try {
       final updated = await ProgressionReviewService.applyReview(widget.reviewId);
       if (!mounted) return;
-      setState(() => _review = updated);
+      setState(() {
+        _review = updated;
+        _ensureExpandedDays(updated);
+      });
       AppToast.show(
         context,
         'Progression changes applied to the active program.',
@@ -182,7 +201,10 @@ class _ExpertProgressionReviewPageState
         expertNote: expertNote,
       );
       if (!mounted) return;
-      setState(() => _review = updated);
+      setState(() {
+        _review = updated;
+        _ensureExpandedDays(updated);
+      });
       AppToast.show(
         context,
         'Review item updated.',
@@ -199,6 +221,7 @@ class _ExpertProgressionReviewPageState
   @override
   Widget build(BuildContext context) {
     final review = _review;
+    final groupedDays = review == null ? const <_DayGroup>[] : _groupedDays(review);
     final canApply = review != null &&
         !review.isApplied &&
         review.items.any((item) => item.isApprovedLike);
@@ -210,7 +233,7 @@ class _ExpertProgressionReviewPageState
         title: Text(
           review == null
               ? 'Progression Review'
-              : 'Review • ${review.weekStart ?? ''}',
+              : 'Review - ${review.weekStart ?? ''}',
         ),
         actions: [
           if (canApply)
@@ -241,15 +264,25 @@ class _ExpertProgressionReviewPageState
                     children: [
                       _ReviewHeaderCard(review: review),
                       const SizedBox(height: 16),
-                      ...review.items.map(
-                        (item) => Padding(
+                      ...groupedDays.map(
+                        (group) => Padding(
                           padding: const EdgeInsets.only(bottom: 14),
-                          child: _ReviewItemCard(
-                            item: item,
+                          child: _DaySectionCard(
+                            group: group,
+                            expanded: _expandedDayKeys.contains(group.key),
                             busy: _saving,
-                            onApprove: () => _approveItem(item),
-                            onReject: () => _rejectItem(item),
-                            onEdit: () => _editItem(item),
+                            onToggle: () {
+                              setState(() {
+                                if (_expandedDayKeys.contains(group.key)) {
+                                  _expandedDayKeys.remove(group.key);
+                                } else {
+                                  _expandedDayKeys.add(group.key);
+                                }
+                              });
+                            },
+                            onApprove: _approveItem,
+                            onReject: _rejectItem,
+                            onEdit: _editItem,
                           ),
                         ),
                       ),
@@ -340,6 +373,192 @@ class _ReviewHeaderCard extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _DayGroup {
+  const _DayGroup({
+    required this.key,
+    required this.title,
+    required this.subtitle,
+    required this.items,
+  });
+
+  final String key;
+  final String title;
+  final String subtitle;
+  final List<ProgressionReviewItem> items;
+
+  int get suggestedCount =>
+      items.where((item) => item.aiAction != 'no_change').length;
+  int get approvedCount =>
+      items.where((item) => item.expertDecision == 'approved').length;
+  int get editedCount =>
+      items.where((item) => item.expertDecision == 'edited').length;
+  int get rejectedCount =>
+      items.where((item) => item.expertDecision == 'rejected').length;
+  int get pendingCount =>
+      items.where((item) => item.expertDecision == 'pending').length;
+}
+
+List<_DayGroup> _groupedDays(ProgressionReviewDetail review) {
+  final grouped = <String, List<ProgressionReviewItem>>{};
+  for (final item in review.items) {
+    final dayIndex = item.dayIndex;
+    final dayLabel = (item.dayLabel ?? '').trim();
+    final key =
+        '${dayIndex ?? 999}-${item.programDayId ?? 0}-${dayLabel.isEmpty ? 'day' : dayLabel}';
+    grouped.putIfAbsent(key, () => <ProgressionReviewItem>[]).add(item);
+  }
+
+  final groups = grouped.entries.map((entry) {
+    final first = entry.value.first;
+    final index = first.dayIndex;
+    final label = (first.dayLabel ?? '').trim();
+    final title = index != null
+        ? 'Day $index${label.isNotEmpty ? ' - $label' : ''}'
+        : (label.isNotEmpty ? label : 'Training Day');
+    return _DayGroup(
+      key: entry.key,
+      title: title,
+      subtitle: '${entry.value.length} exercises',
+      items: entry.value,
+    );
+  }).toList();
+
+  groups.sort((a, b) {
+    final aIndex = a.items.first.dayIndex ?? 999;
+    final bIndex = b.items.first.dayIndex ?? 999;
+    if (aIndex != bIndex) return aIndex.compareTo(bIndex);
+    return a.title.compareTo(b.title);
+  });
+  return groups;
+}
+
+class _DaySectionCard extends StatelessWidget {
+  const _DaySectionCard({
+    required this.group,
+    required this.expanded,
+    required this.busy,
+    required this.onToggle,
+    required this.onApprove,
+    required this.onReject,
+    required this.onEdit,
+  });
+
+  final _DayGroup group;
+  final bool expanded;
+  final bool busy;
+  final VoidCallback onToggle;
+  final Future<void> Function(ProgressionReviewItem item) onApprove;
+  final Future<void> Function(ProgressionReviewItem item) onReject;
+  final Future<void> Function(ProgressionReviewItem item) onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.cardDark,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: onToggle,
+            borderRadius: BorderRadius.circular(14),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          group.title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      Icon(
+                        expanded ? Icons.expand_less : Icons.expand_more,
+                        color: Colors.white70,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    group.subtitle,
+                    style: const TextStyle(color: Colors.white60),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _SummaryChip(label: '${group.suggestedCount} suggested'),
+                      _SummaryChip(label: '${group.pendingCount} pending'),
+                      _SummaryChip(label: '${group.approvedCount} approved'),
+                      _SummaryChip(label: '${group.editedCount} edited'),
+                      _SummaryChip(label: '${group.rejectedCount} rejected'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (expanded) ...[
+            const Divider(height: 1, color: Colors.white10),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                children: [
+                  for (var i = 0; i < group.items.length; i++) ...[
+                    _ReviewItemCard(
+                      item: group.items[i],
+                      busy: busy,
+                      onApprove: () => onApprove(group.items[i]),
+                      onReject: () => onReject(group.items[i]),
+                      onEdit: () => onEdit(group.items[i]),
+                    ),
+                    if (i < group.items.length - 1) const SizedBox(height: 12),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryChip extends StatelessWidget {
+  const _SummaryChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white10,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white70,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -436,19 +655,19 @@ class _ReviewItemCard extends StatelessWidget {
           const SizedBox(height: 12),
           _metricRow(
             'Current',
-            '${item.currentSets} sets • ${item.currentReps} reps • ${_fmtWeight(item.currentWeightKg)}',
+            '${item.currentSets} sets / ${item.currentReps} reps / ${_fmtWeight(item.currentWeightKg)}',
           ),
           _metricRow(
             'Observed',
-            '${item.observedSets ?? '-'} sets • ${item.observedReps ?? '-'} reps • ${_fmtWeight(item.observedWeightKg)} • RIR ${item.observedRir ?? '-'}',
+            '${item.observedSets ?? '-'} sets / ${item.observedReps ?? '-'} reps / ${_fmtWeight(item.observedWeightKg)} / RIR ${item.observedRir ?? '-'}',
           ),
           _metricRow(
             'AI',
-            '${item.aiAction} • ${item.aiRecommendedSets} sets • ${item.aiRecommendedReps} reps • ${_fmtWeight(item.aiRecommendedWeightKg)}',
+            '${item.aiAction} / ${item.aiRecommendedSets} sets / ${item.aiRecommendedReps} reps / ${_fmtWeight(item.aiRecommendedWeightKg)}',
           ),
           _metricRow(
             'Final',
-            '$finalSets sets • $finalReps reps • ${_fmtWeight(finalWeight)}',
+            '$finalSets sets / $finalReps reps / ${_fmtWeight(finalWeight)}',
           ),
           if ((item.aiReason ?? '').trim().isNotEmpty) ...[
             const SizedBox(height: 8),
