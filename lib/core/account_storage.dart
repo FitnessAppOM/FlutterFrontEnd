@@ -329,6 +329,8 @@ class AccountStorage {
 
   static Future<void> setIsExpert(bool isExpert) async {
     final sp = await SharedPreferences.getInstance();
+    final previous = sp.getBool(_kIsExpert);
+    if (previous == isExpert) return;
     await sp.setBool(_kIsExpert, isExpert);
     notifyAccountChanged();
   }

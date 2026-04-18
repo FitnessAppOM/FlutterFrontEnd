@@ -237,9 +237,7 @@ class _SettingsPageState extends State<SettingsPage> {
   void _handleAccountChanged() {
     if (!mounted) return;
     setState(() {
-      _whoopLinked = false;
-      _fitbitLinked = false;
-      _stravaLinked = false;
+      // Keep current wearable link states while reloading to avoid visual flicker.
       _appleWatchDetected = null;
       _wearableDetectedType = null;
       _appleWatchChecking = false;
@@ -306,7 +304,8 @@ class _SettingsPageState extends State<SettingsPage> {
             .toLowerCase();
         expertProfileStatus = rawStatus.isEmpty ? null : rawStatus;
         done = done || filledExpertQuestionnaire;
-        isExpert = isExpert ||
+        isExpert =
+            isExpert ||
             hasExpertProfile ||
             filledExpertQuestionnaire ||
             rawStatus == "approved" ||
@@ -336,9 +335,9 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!mounted) return;
 
     if (!isExpert) {
-      await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const CoachPage()),
-      );
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const CoachPage()));
       return;
     }
 
@@ -356,7 +355,10 @@ class _SettingsPageState extends State<SettingsPage> {
             children: [
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.analytics_outlined, color: Colors.white),
+                leading: const Icon(
+                  Icons.analytics_outlined,
+                  color: Colors.white,
+                ),
                 title: const Text(
                   'Expert Dashboard',
                   style: TextStyle(color: Colors.white),
@@ -369,7 +371,10 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.record_voice_over, color: Colors.white),
+                leading: const Icon(
+                  Icons.record_voice_over,
+                  color: Colors.white,
+                ),
                 title: const Text(
                   'Client Coach Page',
                   style: TextStyle(color: Colors.white),
@@ -419,6 +424,10 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() => _whoopLinked = false);
       return;
     }
+    final linkedHint = await AccountStorage.getWhoopLinked();
+    if (linkedHint != null && mounted) {
+      setState(() => _whoopLinked = linkedHint);
+    }
     try {
       final url = Uri.parse(
         "${ApiConfig.baseUrl}/whoop/status?user_id=$userId&backfill=0",
@@ -437,62 +446,89 @@ class _SettingsPageState extends State<SettingsPage> {
       await AccountStorage.setWhoopLinked(linked);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _whoopLinked = false);
+      final fallback = await AccountStorage.getWhoopLinked();
+      if (!mounted) return;
+      if (fallback != null) {
+        setState(() => _whoopLinked = fallback);
+      }
     }
   }
 
   Future<void> _loadFitbitStatus() async {
+    final linkedHint = await AccountStorage.getFitbitLinked();
+    if (linkedHint != null && mounted) {
+      setState(() => _fitbitLinked = linkedHint);
+    }
     try {
       final userId = await AccountStorage.getUserId();
       if (userId == null) {
-        setState(() => _fitbitLinked = false);
-        return;
-      }
-      final linkedHint = await AccountStorage.getFitbitLinked();
-      if (linkedHint != true) {
-        setState(() => _fitbitLinked = false);
+        if (mounted) setState(() => _fitbitLinked = false);
         return;
       }
       final url = Uri.parse(
         "${ApiConfig.baseUrl}/fitbit/status?user_id=$userId",
       );
       final headers = await AccountStorage.getAuthHeaders();
-      final response = await http.get(url, headers: headers);
+      final response = await http
+          .get(url, headers: headers)
+          .timeout(const Duration(seconds: 12));
       if (response.statusCode != 200) {
-        setState(() => _fitbitLinked = false);
+        if (linkedHint != null && mounted) {
+          setState(() => _fitbitLinked = linkedHint);
+        }
         return;
       }
       final data = json.decode(response.body);
       final linked = data["linked"] == true;
+      if (!mounted) return;
       setState(() => _fitbitLinked = linked);
       await AccountStorage.setFitbitLinked(linked);
     } catch (_) {
-      setState(() => _fitbitLinked = false);
+      if (!mounted) return;
+      final fallback = await AccountStorage.getFitbitLinked();
+      if (!mounted) return;
+      if (fallback != null) {
+        setState(() => _fitbitLinked = fallback);
+      }
     }
   }
 
   Future<void> _loadStravaStatus() async {
+    final linkedHint = await AccountStorage.getStravaLinked();
+    if (linkedHint != null && mounted) {
+      setState(() => _stravaLinked = linkedHint);
+    }
     try {
       final userId = await AccountStorage.getUserId();
       if (userId == null) {
-        setState(() => _stravaLinked = false);
+        if (mounted) setState(() => _stravaLinked = false);
         return;
       }
       final url = Uri.parse(
         "${ApiConfig.baseUrl}/strava/status?user_id=$userId",
       );
       final headers = await AccountStorage.getAuthHeaders();
-      final response = await http.get(url, headers: headers);
+      final response = await http
+          .get(url, headers: headers)
+          .timeout(const Duration(seconds: 12));
       if (response.statusCode != 200) {
-        setState(() => _stravaLinked = false);
+        if (linkedHint != null && mounted) {
+          setState(() => _stravaLinked = linkedHint);
+        }
         return;
       }
       final data = json.decode(response.body);
       final linked = data["linked"] == true;
+      if (!mounted) return;
       setState(() => _stravaLinked = linked);
       await AccountStorage.setStravaLinked(linked);
     } catch (_) {
-      setState(() => _stravaLinked = false);
+      if (!mounted) return;
+      final fallback = await AccountStorage.getStravaLinked();
+      if (!mounted) return;
+      if (fallback != null) {
+        setState(() => _stravaLinked = fallback);
+      }
     }
   }
 
@@ -1389,9 +1425,7 @@ class _SettingsPageState extends State<SettingsPage> {
             icon: _isExpert
                 ? Icons.analytics_outlined
                 : Icons.record_voice_over,
-            onTap: _isDeactivated
-                ? null
-                : _openCoachPortal,
+            onTap: _isDeactivated ? null : _openCoachPortal,
           ),
           const SizedBox(height: 12),
           Text(
