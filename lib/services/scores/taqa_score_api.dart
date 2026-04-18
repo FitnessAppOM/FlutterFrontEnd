@@ -151,15 +151,19 @@ class TaqaScoreApi {
     bool forceRefresh = false,
   }) async {
     final key = _dayKey(userId, date);
+    final inFlightKey = forceRefresh ? "$key|refresh" : key;
     if (!forceRefresh && _cache.containsKey(key)) return _cache[key];
-    if (_inFlight.containsKey(key)) return _inFlight[key];
+    if (_inFlight.containsKey(inFlightKey)) return _inFlight[inFlightKey];
+    if (!forceRefresh && _inFlight.containsKey("$key|refresh")) {
+      return _inFlight["$key|refresh"];
+    }
 
     final future = _doFetchDaily(userId, date, key, forceRefresh);
-    _inFlight[key] = future;
+    _inFlight[inFlightKey] = future;
     try {
       return await future;
     } finally {
-      _inFlight.remove(key);
+      _inFlight.remove(inFlightKey);
     }
   }
 

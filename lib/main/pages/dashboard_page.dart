@@ -39,7 +39,6 @@ import '../../widgets/dashboard/fitbit_body_card.dart';
 import '../../widgets/dashboard/fitbit_body_sheet.dart';
 import '../../widgets/dashboard/fitbit_extras_card.dart';
 import '../../widgets/dashboard/health_recovery_load_card.dart';
-import '../../widgets/dashboard/health_recovery_load_sheet.dart';
 import '../../widgets/dashboard/diet_progress_card.dart';
 import '../../widgets/dashboard/taqa_score_widget.dart';
 import '../../widgets/dashboard/edit_mode_bubble.dart';
@@ -5573,26 +5572,27 @@ class DashboardPageState extends State<DashboardPage>
                           : null,
                     );
                   case 'health_recovery_load':
-                    final recoveryLoad = _healthRecoveryLoadLoading
-                        ? (_healthRecoveryLoadLast ?? _healthRecoveryLoad)
-                        : _healthRecoveryLoad;
+                    final recoveryLoadScore = _taqaScore?.recovery.score;
+                    final trainingLoadScore = _taqaScore?.trainingLoad.score;
                     final loading =
-                        _healthRecoveryLoadLoading && recoveryLoad == null;
+                        _taqaScoreLoading &&
+                        recoveryLoadScore == null &&
+                        trainingLoadScore == null;
                     return HealthRecoveryLoadCard(
                       loading: loading,
-                      restingHr: recoveryLoad?.restingHeartRate,
-                      hrvMs: recoveryLoad?.hrvMs,
-                      activeMinutes: recoveryLoad?.activeMinutes,
-                      zones: recoveryLoad?.zones,
+                      recoveryScore: recoveryLoadScore,
+                      trainingLoadScore: trainingLoadScore,
+                      scoreDayLabel: DateFormat(
+                        'dd/MM',
+                        locale,
+                      ).format(_taqaScoreDateForSelection()),
                       onTap: isCurrentDay
                           ? () async {
-                              await showModalBottomSheet(
-                                context: context,
-                                backgroundColor: Colors.transparent,
-                                isScrollControlled: true,
-                                builder: (_) => HealthRecoveryLoadSheet(
-                                  summary: recoveryLoad,
-                                  date: _selectedDate,
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => TaqaScoreDetailPage(
+                                    initialDate: _taqaScoreDateForSelection(),
+                                  ),
                                 ),
                               );
                             }
