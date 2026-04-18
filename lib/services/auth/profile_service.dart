@@ -66,6 +66,63 @@ class ProfileApi {
     throw Exception("Failed to load profile (${res.statusCode})");
   }
 
+  static Future<Map<String, dynamic>> detachCoach({
+    required int expertUserId,
+  }) async {
+    final url = Uri.parse(
+      "${ApiConfig.baseUrl}/coach/connections/$expertUserId",
+    );
+    final headers = await AccountStorage.getAuthHeaders();
+    final res = await http.delete(url, headers: headers);
+
+    await AccountStorage.handleAuthStatus(
+      res.statusCode,
+      responseBody: res.body,
+    );
+
+    if (res.statusCode == 200) {
+      return _decodeMap(res.body);
+    }
+
+    String msg = "Failed to detach coach";
+    try {
+      final data = _decodeMap(res.body);
+      msg = data["detail"]?.toString() ?? msg;
+    } catch (_) {}
+    throw Exception(msg);
+  }
+
+  static Future<Map<String, dynamic>> connectCoachByCode({
+    required String code,
+  }) async {
+    final url = Uri.parse("${ApiConfig.baseUrl}/coach/connections/by-code");
+    final headers = {
+      "Content-Type": "application/json",
+      ...await AccountStorage.getAuthHeaders(),
+    };
+    final res = await http.post(
+      url,
+      headers: headers,
+      body: jsonEncode({"code": code}),
+    );
+
+    await AccountStorage.handleAuthStatus(
+      res.statusCode,
+      responseBody: res.body,
+    );
+
+    if (res.statusCode == 200) {
+      return _decodeMap(res.body);
+    }
+
+    String msg = "Failed to connect coach";
+    try {
+      final data = _decodeMap(res.body);
+      msg = data["detail"]?.toString() ?? msg;
+    } catch (_) {}
+    throw Exception(msg);
+  }
+
   static Future<String> uploadAvatar(int userId, String filePath) async {
     final url = Uri.parse("${ApiConfig.baseUrl}/profile/$userId/avatar");
     final request = http.MultipartRequest("POST", url);
