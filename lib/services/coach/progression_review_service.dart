@@ -9,16 +9,59 @@ class ProgressionClient {
   final int userId;
   final String? name;
   final String? email;
+  final String? avatarUrl;
   final String? specialty;
   final String? expertProfileStatus;
+  final String? activityStatus;
+  final int? inactiveDays;
+  final String? lastActionDate;
+  final String? lastTrainingDate;
+  final String? lastCardioDate;
+  final String? lastHabitDate;
 
   const ProgressionClient({
     required this.userId,
     this.name,
     this.email,
+    this.avatarUrl,
     this.specialty,
     this.expertProfileStatus,
+    this.activityStatus,
+    this.inactiveDays,
+    this.lastActionDate,
+    this.lastTrainingDate,
+    this.lastCardioDate,
+    this.lastHabitDate,
   });
+
+  ProgressionClient copyWith({
+    String? name,
+    String? email,
+    String? avatarUrl,
+    String? specialty,
+    String? expertProfileStatus,
+    String? activityStatus,
+    int? inactiveDays,
+    String? lastActionDate,
+    String? lastTrainingDate,
+    String? lastCardioDate,
+    String? lastHabitDate,
+  }) {
+    return ProgressionClient(
+      userId: userId,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      specialty: specialty ?? this.specialty,
+      expertProfileStatus: expertProfileStatus ?? this.expertProfileStatus,
+      activityStatus: activityStatus ?? this.activityStatus,
+      inactiveDays: inactiveDays ?? this.inactiveDays,
+      lastActionDate: lastActionDate ?? this.lastActionDate,
+      lastTrainingDate: lastTrainingDate ?? this.lastTrainingDate,
+      lastCardioDate: lastCardioDate ?? this.lastCardioDate,
+      lastHabitDate: lastHabitDate ?? this.lastHabitDate,
+    );
+  }
 
   factory ProgressionClient.fromJson(Map<String, dynamic> json) {
     int parseInt(dynamic value) {
@@ -27,12 +70,44 @@ class ProgressionClient {
       return int.tryParse(value?.toString() ?? '') ?? 0;
     }
 
+    String? parseString(dynamic value) {
+      final raw = value?.toString().trim() ?? '';
+      return raw.isEmpty ? null : raw;
+    }
+
+    String? pickFirstNonEmpty(List<dynamic> values) {
+      for (final value in values) {
+        final parsed = parseString(value);
+        if (parsed != null) return parsed;
+      }
+      return null;
+    }
+
+    int? parseIntOrNull(dynamic value) {
+      if (value == null) return null;
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value.toString());
+    }
+
     return ProgressionClient(
       userId: parseInt(json['user_id']),
-      name: json['name']?.toString(),
-      email: json['email']?.toString(),
-      specialty: json['specialty']?.toString(),
-      expertProfileStatus: json['expert_profile_status']?.toString(),
+      name: parseString(json['name']),
+      email: parseString(json['email']),
+      avatarUrl: pickFirstNonEmpty([
+        json['avatar_url'],
+        json['avatarUrl'],
+        json['profile_avatar_url'],
+        json['profile_image_url'],
+      ]),
+      specialty: parseString(json['specialty']),
+      expertProfileStatus: parseString(json['expert_profile_status']),
+      activityStatus: parseString(json['activity_status']),
+      inactiveDays: parseIntOrNull(json['inactive_days']),
+      lastActionDate: parseString(json['last_action_date']),
+      lastTrainingDate: parseString(json['last_training_date']),
+      lastCardioDate: parseString(json['last_cardio_date']),
+      lastHabitDate: parseString(json['last_habit_date']),
     );
   }
 }
@@ -180,24 +255,37 @@ class ProgressionReviewItem {
 
     List<String> parseStringList(dynamic value) {
       if (value is! List) return const [];
-      return value.map((e) => e?.toString() ?? '').where((e) => e.isNotEmpty).toList();
+      return value
+          .map((e) => e?.toString() ?? '')
+          .where((e) => e.isNotEmpty)
+          .toList();
     }
 
     return ProgressionReviewItem(
       reviewItemId: parseInt(json['review_item_id']),
       programExerciseId: parseInt(json['program_exercise_id']),
-      programDayId: json['program_day_id'] == null ? null : parseInt(json['program_day_id']),
+      programDayId: json['program_day_id'] == null
+          ? null
+          : parseInt(json['program_day_id']),
       dayIndex: json['day_index'] == null ? null : parseInt(json['day_index']),
       dayLabel: json['day_label']?.toString(),
       exerciseName: (json['exercise_name'] ?? '').toString(),
       currentSets: parseInt(json['current_sets']),
       currentReps: parseInt(json['current_reps']),
       currentWeightKg: parseDouble(json['current_weight_kg']),
-      observedSets: json['observed_sets'] == null ? null : parseInt(json['observed_sets']),
-      observedReps: json['observed_reps'] == null ? null : parseInt(json['observed_reps']),
-      observedRir: json['observed_rir'] == null ? null : parseInt(json['observed_rir']),
+      observedSets: json['observed_sets'] == null
+          ? null
+          : parseInt(json['observed_sets']),
+      observedReps: json['observed_reps'] == null
+          ? null
+          : parseInt(json['observed_reps']),
+      observedRir: json['observed_rir'] == null
+          ? null
+          : parseInt(json['observed_rir']),
       observedWeightKg: parseDouble(json['observed_weight_kg']),
-      observedCompletionDates: parseStringList(json['observed_completion_dates']),
+      observedCompletionDates: parseStringList(
+        json['observed_completion_dates'],
+      ),
       aiAction: (json['ai_action'] ?? '').toString(),
       aiRecommendedSets: parseInt(json['ai_recommended_sets']),
       aiRecommendedReps: parseInt(json['ai_recommended_reps']),
@@ -205,8 +293,12 @@ class ProgressionReviewItem {
       aiReason: json['ai_reason']?.toString(),
       aiConfidence: parseDouble(json['ai_confidence']),
       expertDecision: (json['expert_decision'] ?? '').toString(),
-      finalSets: json['final_sets'] == null ? null : parseInt(json['final_sets']),
-      finalReps: json['final_reps'] == null ? null : parseInt(json['final_reps']),
+      finalSets: json['final_sets'] == null
+          ? null
+          : parseInt(json['final_sets']),
+      finalReps: json['final_reps'] == null
+          ? null
+          : parseInt(json['final_reps']),
       finalWeightKg: parseDouble(json['final_weight_kg']),
       expertNote: json['expert_note']?.toString(),
     );
@@ -241,9 +333,13 @@ class ProgressionReviewDetail extends ProgressionReview {
     final rawItems = json['items'];
     final items = rawItems is List
         ? rawItems
-            .whereType<Map>()
-            .map((e) => ProgressionReviewItem.fromJson(Map<String, dynamic>.from(e)))
-            .toList()
+              .whereType<Map>()
+              .map(
+                (e) => ProgressionReviewItem.fromJson(
+                  Map<String, dynamic>.from(e),
+                ),
+              )
+              .toList()
         : <ProgressionReviewItem>[];
     return ProgressionReviewDetail(
       reviewId: base.reviewId,
@@ -268,11 +364,17 @@ class ProgressionReviewDetail extends ProgressionReview {
 }
 
 class ProgressionReviewService {
+  static final Map<int, String?> _avatarUrlCache = <int, String?>{};
+
   static Uri _uri(String path, [Map<String, String>? query]) {
-    return Uri.parse('${ApiConfig.baseUrl}$path').replace(queryParameters: query);
+    return Uri.parse(
+      '${ApiConfig.baseUrl}$path',
+    ).replace(queryParameters: query);
   }
 
-  static Future<Map<String, String>> _authHeaders({bool jsonBody = false}) async {
+  static Future<Map<String, String>> _authHeaders({
+    bool jsonBody = false,
+  }) async {
     final headers = await AccountStorage.getAuthHeaders();
     if (!jsonBody) return headers;
     return {'Content-Type': 'application/json', ...headers};
@@ -295,6 +397,40 @@ class ProgressionReviewService {
     return fallback;
   }
 
+  static String? _normalizeAvatarUrl(dynamic value) {
+    final raw = value?.toString().trim() ?? '';
+    return raw.isEmpty ? null : raw;
+  }
+
+  static Future<String?> _fetchAvatarUrlForUser(
+    int userId, {
+    Map<String, String>? headers,
+  }) async {
+    if (_avatarUrlCache.containsKey(userId)) {
+      return _avatarUrlCache[userId];
+    }
+    try {
+      final res = await http.get(
+        _uri('/profile/$userId'),
+        headers: headers ?? await _authHeaders(),
+      );
+      await _handleAuth(res);
+      if (res.statusCode != 200) {
+        _avatarUrlCache[userId] = null;
+        return null;
+      }
+      final decoded = jsonDecode(res.body);
+      final avatar = decoded is Map
+          ? _normalizeAvatarUrl(decoded['avatar_url'])
+          : null;
+      _avatarUrlCache[userId] = avatar;
+      return avatar;
+    } catch (_) {
+      _avatarUrlCache[userId] = null;
+      return null;
+    }
+  }
+
   static Future<List<ProgressionClient>> fetchClients() async {
     final res = await http.get(
       _uri('/coach/progression/clients'),
@@ -302,22 +438,57 @@ class ProgressionReviewService {
     );
     await _handleAuth(res);
     if (res.statusCode != 200) {
-      throw Exception(_extractError('Failed to load progression clients', res.body));
+      throw Exception(
+        _extractError('Failed to load progression clients', res.body),
+      );
     }
     final decoded = jsonDecode(res.body);
     final raw = decoded is Map ? decoded['clients'] : null;
     if (raw is! List) return const [];
-    return raw
+    final clients = raw
         .whereType<Map>()
         .map((e) => ProgressionClient.fromJson(Map<String, dynamic>.from(e)))
         .toList();
+
+    for (final client in clients) {
+      final avatar = _normalizeAvatarUrl(client.avatarUrl);
+      if (avatar != null) {
+        _avatarUrlCache[client.userId] = avatar;
+      }
+    }
+
+    final missingAvatarClients = clients
+        .where((client) => _normalizeAvatarUrl(client.avatarUrl) == null)
+        .toList();
+    if (missingAvatarClients.isEmpty) return clients;
+
+    final headers = await _authHeaders();
+    final fetchedAvatars = <int, String?>{};
+    await Future.wait(
+      missingAvatarClients.map((client) async {
+        fetchedAvatars[client.userId] = await _fetchAvatarUrlForUser(
+          client.userId,
+          headers: headers,
+        );
+      }),
+    );
+
+    return clients.map((client) {
+      final avatar =
+          _normalizeAvatarUrl(client.avatarUrl) ??
+          _normalizeAvatarUrl(fetchedAvatars[client.userId]);
+      if (avatar == null) return client;
+      return client.copyWith(avatarUrl: avatar);
+    }).toList();
   }
 
   static Future<List<ProgressionReview>> fetchReviews({
     String? status,
     bool includeApplied = false,
   }) async {
-    final query = <String, String>{'include_applied': includeApplied ? 'true' : 'false'};
+    final query = <String, String>{
+      'include_applied': includeApplied ? 'true' : 'false',
+    };
     if (status != null && status.trim().isNotEmpty) {
       query['status'] = status.trim();
     }
@@ -327,7 +498,9 @@ class ProgressionReviewService {
     );
     await _handleAuth(res);
     if (res.statusCode != 200) {
-      throw Exception(_extractError('Failed to load progression reviews', res.body));
+      throw Exception(
+        _extractError('Failed to load progression reviews', res.body),
+      );
     }
     final decoded = jsonDecode(res.body);
     final raw = decoded is Map ? decoded['reviews'] : null;
@@ -350,7 +523,9 @@ class ProgressionReviewService {
     );
     await _handleAuth(res);
     if (res.statusCode != 200) {
-      throw Exception(_extractError('Failed to generate progression review', res.body));
+      throw Exception(
+        _extractError('Failed to generate progression review', res.body),
+      );
     }
     final decoded = jsonDecode(res.body);
     return decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
@@ -363,7 +538,9 @@ class ProgressionReviewService {
     );
     await _handleAuth(res);
     if (res.statusCode != 200) {
-      throw Exception(_extractError('Failed to load progression review', res.body));
+      throw Exception(
+        _extractError('Failed to load progression review', res.body),
+      );
     }
     return ProgressionReviewDetail.fromJson(
       jsonDecode(res.body) as Map<String, dynamic>,
@@ -391,7 +568,9 @@ class ProgressionReviewService {
     );
     await _handleAuth(res);
     if (res.statusCode != 200) {
-      throw Exception(_extractError('Failed to update progression item', res.body));
+      throw Exception(
+        _extractError('Failed to update progression item', res.body),
+      );
     }
     return ProgressionReviewDetail.fromJson(
       jsonDecode(res.body) as Map<String, dynamic>,
@@ -405,10 +584,31 @@ class ProgressionReviewService {
     );
     await _handleAuth(res);
     if (res.statusCode != 200) {
-      throw Exception(_extractError('Failed to apply progression review', res.body));
+      throw Exception(
+        _extractError('Failed to apply progression review', res.body),
+      );
     }
     return ProgressionReviewDetail.fromJson(
       jsonDecode(res.body) as Map<String, dynamic>,
     );
+  }
+
+  static Future<Map<String, dynamic>> fetchClientAnalytics(
+    int clientUserId,
+  ) async {
+    final res = await http.get(
+      _uri('/coach/progression/clients/$clientUserId/analytics'),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to load client analytics', res.body),
+      );
+    }
+    final decoded = jsonDecode(res.body);
+    if (decoded is Map<String, dynamic>) return decoded;
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    return <String, dynamic>{};
   }
 }

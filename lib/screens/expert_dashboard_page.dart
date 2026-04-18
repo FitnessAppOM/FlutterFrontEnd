@@ -4,6 +4,7 @@ import '../localization/app_localizations.dart';
 import '../services/coach/progression_review_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_toast.dart';
+import 'expert_client_detail_page.dart';
 import 'expert_progression_review_page.dart';
 
 class ExpertDashboardPage extends StatefulWidget {
@@ -107,9 +108,17 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
     await _load();
   }
 
-  Future<void> _switchToProgression() async {
-    if (!mounted) return;
-    setState(() => _tabIndex = _tabProgression);
+  Future<void> _openClientDetail(ProgressionClient client) async {
+    final clientReviews = _reviews
+        .where((review) => review.userId == client.userId)
+        .toList();
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            ExpertClientDetailPage(client: client, reviews: clientReviews),
+      ),
+    );
+    await _load();
   }
 
   void _selectTab(int index) {
@@ -146,11 +155,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          _SectionTitle(
-            title: 'My Clients',
-            subtitle:
-                'Your assigned clients. Manage progression from the Progression tab.',
-          ),
+          const _SectionTitle(title: 'My Clients'),
           const SizedBox(height: 10),
           if (_clients.isEmpty)
             const _EmptyCard(text: 'No assigned clients yet.')
@@ -164,7 +169,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                 child: _ClientOverviewCard(
                   client: client,
                   reviewCount: totalReviews,
-                  onOpenProgression: _switchToProgression,
+                  onView: () => _openClientDetail(client),
                 ),
               );
             }),
@@ -489,10 +494,10 @@ class _MetricCard extends StatelessWidget {
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title, required this.subtitle});
+  const _SectionTitle({required this.title, this.subtitle});
 
   final String title;
-  final String subtitle;
+  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -507,8 +512,10 @@ class _SectionTitle extends StatelessWidget {
             fontSize: 18,
           ),
         ),
-        const SizedBox(height: 4),
-        Text(subtitle, style: const TextStyle(color: Colors.white60)),
+        if ((subtitle ?? '').trim().isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(subtitle!, style: const TextStyle(color: Colors.white60)),
+        ],
       ],
     );
   }
@@ -584,56 +591,168 @@ class _ClientOverviewCard extends StatelessWidget {
   const _ClientOverviewCard({
     required this.client,
     required this.reviewCount,
-    required this.onOpenProgression,
+    required this.onView,
   });
 
   final ProgressionClient client;
   final int reviewCount;
-  final VoidCallback onOpenProgression;
+  final VoidCallback onView;
 
   @override
   Widget build(BuildContext context) {
+    final clientName = client.name ?? 'Client #${client.userId}';
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white10),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            client.name ?? 'Client #${client.userId}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
+          _ClientAvatar(name: clientName, avatarUrl: client.avatarUrl),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        clientName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    _ActivityStatusDot(
+                      status: client.activityStatus,
+                      inactiveDays: client.inactiveDays,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Progression reviews: $reviewCount',
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            client.email ?? 'user_id: ${client.userId}',
-            style: const TextStyle(color: Colors.white60),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Progression reviews: $reviewCount',
-            style: const TextStyle(color: Colors.white70),
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: OutlinedButton(
-              onPressed: onOpenProgression,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white,
-                side: const BorderSide(color: Colors.white24),
-              ),
-              child: const Text('Open Progression'),
+          const SizedBox(width: 8),
+          OutlinedButton(
+            onPressed: onView,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              side: const BorderSide(color: Colors.white24),
+              minimumSize: const Size(0, 32),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
             ),
+            child: const Text('View'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ActivityStatusDot extends StatelessWidget {
+  const _ActivityStatusDot({required this.status, this.inactiveDays});
+
+  final String? status;
+  final int? inactiveDays;
+
+  Color _color() {
+    switch ((status ?? '').trim().toLowerCase()) {
+      case 'green':
+        return Colors.greenAccent.shade400;
+      case 'yellow':
+        return Colors.amber.shade400;
+      case 'red':
+        return Colors.redAccent.shade200;
+      default:
+        return Colors.redAccent.shade200;
+    }
+  }
+
+  String _label() {
+    final normalized = (status ?? '').trim().toLowerCase();
+    if (normalized == 'green') return 'Active';
+    if (normalized == 'yellow') {
+      if (inactiveDays != null) return 'Inactive ${inactiveDays!}d';
+      return 'Inactive 3d+';
+    }
+    if (inactiveDays != null) return 'Inactive ${inactiveDays!}d';
+    return 'Inactive 7d+';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _color();
+    return Tooltip(
+      message: _label(),
+      child: Container(
+        width: 10,
+        height: 10,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.45),
+              blurRadius: 6,
+              spreadRadius: 0.5,
+            ),
+          ],
+          border: Border.all(color: Colors.black, width: 0.7),
+        ),
+      ),
+    );
+  }
+}
+
+class _ClientAvatar extends StatelessWidget {
+  const _ClientAvatar({required this.name, this.avatarUrl});
+
+  final String name;
+  final String? avatarUrl;
+
+  String _initials() {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return '?';
+    final parts = trimmed
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return '${parts.first.substring(0, 1)}${parts.last.substring(0, 1)}'
+        .toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = (avatarUrl ?? '').trim();
+    return CircleAvatar(
+      radius: 18,
+      backgroundColor: Colors.white10,
+      foregroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+      onForegroundImageError: (_, _) {},
+      child: Text(
+        _initials(),
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

@@ -340,6 +340,9 @@ class _TrainPageState extends State<TrainPage> {
       }
       await _maybeShowDayCompletedPopup();
     }
+    if (hasCompletedExerciseInSession) {
+      AccountStorage.notifyTrainingChanged();
+    }
   }
 
   Future<void> _loadExRestPreset() async {

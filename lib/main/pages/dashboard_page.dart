@@ -732,6 +732,9 @@ class DashboardPageState extends State<DashboardPage>
     _loadTrendCalories(force: true);
     _dietSummaryCache.remove(_dayKey(_selectedDate));
     _loadDietProgress(forceRefresh: true);
+    if (_isWidgetActive('health_recovery_load')) {
+      unawaited(_loadHealthRecoveryLoad(force: true));
+    }
     _loadStreak();
     unawaited(_loadTaqaScore());
   }

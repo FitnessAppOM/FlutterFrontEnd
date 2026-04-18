@@ -72,6 +72,17 @@ class CoachHabitItem {
 }
 
 class CoachHabitsService {
+  static String _errorMessage(String responseBody, String fallback) {
+    try {
+      final data = jsonDecode(responseBody);
+      if (data is Map && data['detail'] != null) {
+        final raw = data['detail'].toString().trim();
+        if (raw.isNotEmpty) return raw;
+      }
+    } catch (_) {}
+    return fallback;
+  }
+
   static Future<List<CoachHabitItem>> fetchClientHabits({
     required int clientId,
     int? expertId,
@@ -93,14 +104,7 @@ class CoachHabitsService {
     );
 
     if (res.statusCode != 200) {
-      String msg = 'Failed to load habits';
-      try {
-        final data = jsonDecode(res.body);
-        if (data is Map && data['detail'] != null) {
-          msg = data['detail'].toString();
-        }
-      } catch (_) {}
-      throw Exception(msg);
+      throw Exception(_errorMessage(res.body, 'Failed to load habits'));
     }
 
     final data = jsonDecode(res.body);
@@ -133,14 +137,7 @@ class CoachHabitsService {
     );
 
     if (res.statusCode != 200) {
-      String msg = 'Failed to update habit';
-      try {
-        final data = jsonDecode(res.body);
-        if (data is Map && data['detail'] != null) {
-          msg = data['detail'].toString();
-        }
-      } catch (_) {}
-      throw Exception(msg);
+      throw Exception(_errorMessage(res.body, 'Failed to update habit'));
     }
 
     final data = jsonDecode(res.body);
@@ -152,5 +149,53 @@ class CoachHabitsService {
       throw Exception('Invalid response');
     }
     return CoachHabitItem.fromJson(Map<String, dynamic>.from(rawItem));
+  }
+
+  static Future<CoachHabitItem> addClientHabit({
+    required int clientId,
+    required String habit,
+  }) async {
+    final uri = Uri.parse('${ApiConfig.baseUrl}/coach/habits');
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
+    final res = await http.post(
+      uri,
+      headers: headers,
+      body: jsonEncode({'client_id': clientId, 'habit': habit}),
+    );
+    await AccountStorage.handleAuthStatus(
+      res.statusCode,
+      responseBody: res.body,
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception(_errorMessage(res.body, 'Failed to add habit'));
+    }
+
+    final data = jsonDecode(res.body);
+    if (data is! Map<String, dynamic>) {
+      throw Exception('Invalid response');
+    }
+    final rawItem = data['item'];
+    if (rawItem is! Map) {
+      throw Exception('Invalid response');
+    }
+    return CoachHabitItem.fromJson(Map<String, dynamic>.from(rawItem));
+  }
+
+  static Future<void> deleteClientHabit({required int habitId}) async {
+    final uri = Uri.parse('${ApiConfig.baseUrl}/coach/habits/item/$habitId');
+    final headers = await AccountStorage.getAuthHeaders();
+    final res = await http.delete(uri, headers: headers);
+    await AccountStorage.handleAuthStatus(
+      res.statusCode,
+      responseBody: res.body,
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception(_errorMessage(res.body, 'Failed to delete habit'));
+    }
   }
 }
