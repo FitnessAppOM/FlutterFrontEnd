@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../services/coach/progression_review_service.dart';
 import '../theme/app_theme.dart';
+import 'expert_weekly_metrics_detail_page.dart';
 
 class ExpertClientAnalyticsPage extends StatefulWidget {
   const ExpertClientAnalyticsPage({
@@ -108,6 +109,29 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
         .toList();
   }
 
+  String _currentClientName() {
+    final client = _map(_data['client']);
+    final raw =
+        (client['name'] ??
+                widget.client.name ??
+                'Client #${widget.client.userId}')
+            .toString()
+            .trim();
+    return raw.isEmpty ? 'Client #${widget.client.userId}' : raw;
+  }
+
+  Future<void> _openWeeklyDetail(ExpertWeeklyMetricsDetailType type) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ExpertWeeklyMetricsDetailPage(
+          type: type,
+          clientName: _currentClientName(),
+          analyticsData: _data,
+        ),
+      ),
+    );
+  }
+
   Widget _buildHeaderCard() {
     final client = _map(_data['client']);
     final name =
@@ -211,61 +235,81 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
     final stepsDays = rows.where((row) => _toInt(row['steps']) > 0).length;
     final avgSteps = stepsDays > 0 ? (totalSteps / stepsDays).round() : 0;
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Water & Steps (Last 7 Days)',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-            ),
+        onTap: () =>
+            _openWeeklyDetail(ExpertWeeklyMetricsDetailType.waterSteps),
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.cardDark,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white10),
           ),
-          const SizedBox(height: 8),
-          if (rows.isEmpty)
-            const Text(
-              'No water/steps logs available.',
-              style: TextStyle(color: Colors.white70),
-            )
-          else ...[
-            _InfoRow(
-              label: 'Water logged',
-              value: '${totalWater.toStringAsFixed(1)} L ($waterDays days)',
-            ),
-            _InfoRow(label: 'Steps total', value: '$totalSteps'),
-            _InfoRow(label: 'Avg steps/day', value: '$avgSteps'),
-            const SizedBox(height: 8),
-            const Text(
-              'Daily logs',
-              style: TextStyle(
-                color: Colors.white60,
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 6),
-            ...rows
-                .take(7)
-                .map(
-                  (row) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: _InfoRow(
-                      label: _formatDay(row['entry_date']?.toString()),
-                      value:
-                          '${_toDouble(row['water_liters']).toStringAsFixed(1)} L • ${_toInt(row['steps'])} steps',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: const [
+                  Expanded(
+                    child: Text(
+                      'Water & Steps (Last 7 Days)',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
+                  Icon(Icons.chevron_right, color: Colors.white54, size: 20),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (rows.isEmpty)
+                const Text(
+                  'No water/steps logs available.',
+                  style: TextStyle(color: Colors.white70),
+                )
+              else ...[
+                _InfoRow(
+                  label: 'Water logged',
+                  value: '${totalWater.toStringAsFixed(1)} L ($waterDays days)',
                 ),
-          ],
-        ],
+                _InfoRow(label: 'Steps total', value: '$totalSteps'),
+                _InfoRow(label: 'Avg steps/day', value: '$avgSteps'),
+                const SizedBox(height: 8),
+                const Text(
+                  'Daily logs',
+                  style: TextStyle(
+                    color: Colors.white60,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                ...rows
+                    .take(7)
+                    .map(
+                      (row) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: _InfoRow(
+                          label: _formatDay(row['entry_date']?.toString()),
+                          value:
+                              '${_toDouble(row['water_liters']).toStringAsFixed(1)} L • ${_toInt(row['steps'])} steps',
+                        ),
+                      ),
+                    ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Tap to open weekly charts',
+                  style: TextStyle(color: Colors.white54, fontSize: 11),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -279,55 +323,75 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
       return 'Non available';
     }
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Training & Cardio (Last 7 Days)',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-            ),
+        onTap: () =>
+            _openWeeklyDetail(ExpertWeeklyMetricsDetailType.trainingCardio),
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.cardDark,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white10),
           ),
-          const SizedBox(height: 8),
-          _InfoRow(
-            label: 'Training days done',
-            value: '${_toInt(training['strength_days_done'])}',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: const [
+                  Expanded(
+                    child: Text(
+                      'Training & Cardio (Last 7 Days)',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: Colors.white54, size: 20),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _InfoRow(
+                label: 'Training days done',
+                value: '${_toInt(training['strength_days_done'])}',
+              ),
+              _InfoRow(
+                label: 'Training items done',
+                value: '${_toInt(training['training_items_done'])}',
+              ),
+              _InfoRow(
+                label: 'Cardio sessions done',
+                value: '${_toInt(training['cardio_sessions_done'])}',
+              ),
+              _InfoRow(
+                label: 'Cardio distance',
+                value:
+                    '${_toDouble(training['cardio_distance_km']).toStringAsFixed(1)} km',
+              ),
+              _InfoRow(
+                label: 'Cardio steps',
+                value: '${_toInt(training['cardio_steps'])}',
+              ),
+              _InfoRow(
+                label: 'Training source',
+                value: statusLabel(training['training_status']),
+              ),
+              _InfoRow(
+                label: 'Cardio source',
+                value: statusLabel(training['cardio_status']),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Tap to open weekly charts',
+                style: TextStyle(color: Colors.white54, fontSize: 11),
+              ),
+            ],
           ),
-          _InfoRow(
-            label: 'Training items done',
-            value: '${_toInt(training['training_items_done'])}',
-          ),
-          _InfoRow(
-            label: 'Cardio sessions done',
-            value: '${_toInt(training['cardio_sessions_done'])}',
-          ),
-          _InfoRow(
-            label: 'Cardio distance',
-            value:
-                '${_toDouble(training['cardio_distance_km']).toStringAsFixed(1)} km',
-          ),
-          _InfoRow(
-            label: 'Cardio steps',
-            value: '${_toInt(training['cardio_steps'])}',
-          ),
-          _InfoRow(
-            label: 'Training source',
-            value: statusLabel(training['training_status']),
-          ),
-          _InfoRow(
-            label: 'Cardio source',
-            value: statusLabel(training['cardio_status']),
-          ),
-        ],
+        ),
       ),
     );
   }
