@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../config/base_url.dart';
 import '../core/account_storage.dart';
 import '../services/auth/profile_service.dart';
 import '../services/coach/coach_habits_service.dart';
@@ -7,7 +8,6 @@ import '../services/coach/progression_review_service.dart';
 import '../theme/app_theme.dart';
 import 'expert_client_analytics_page.dart';
 import 'expert_client_habits_page.dart';
-import 'expert_progression_review_page.dart';
 
 class ExpertClientDetailPage extends StatefulWidget {
   const ExpertClientDetailPage({
@@ -123,6 +123,29 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
         .toUpperCase();
   }
 
+  String? _normalizeAvatarUrl(String? rawValue) {
+    final raw = rawValue?.trim() ?? '';
+    if (raw.isEmpty) return null;
+    final lower = raw.toLowerCase();
+    if (lower == 'null' || lower == 'none') return null;
+    if (lower.startsWith('http://') || lower.startsWith('https://')) {
+      return raw;
+    }
+    final base = ApiConfig.baseUrl.trim();
+    if (base.isEmpty) return null;
+    try {
+      final baseUri = Uri.parse(base.endsWith('/') ? base : '$base/');
+      return baseUri.resolve(raw).toString();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String? _resolvedAvatarUrl() {
+    return _normalizeAvatarUrl(widget.client.avatarUrl) ??
+        _normalizeAvatarUrl(_profile?['avatar_url']?.toString());
+  }
+
   String _value(dynamic raw, {String fallback = '-'}) {
     final text = (raw ?? '').toString().trim();
     return text.isEmpty ? fallback : text;
@@ -156,14 +179,6 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     return 'Inactive 7+ days';
   }
 
-  Future<void> _openReview(ProgressionReview review) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ExpertProgressionReviewPage(reviewId: review.reviewId),
-      ),
-    );
-  }
-
   Future<void> _openHabitsPage() async {
     final name = _displayName();
     await Navigator.of(context).push(
@@ -171,7 +186,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
         builder: (_) => ExpertClientHabitsPage(
           clientId: widget.client.userId,
           clientName: name,
-          avatarUrl: widget.client.avatarUrl,
+          avatarUrl: _resolvedAvatarUrl(),
         ),
       ),
     );
@@ -191,7 +206,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
 
   Widget _buildClientOverviewCard() {
     final name = _displayName();
-    final avatarUrl = (widget.client.avatarUrl ?? '').trim();
+    final avatarUrl = (_resolvedAvatarUrl() ?? '').trim();
     final profile = _profile;
 
     return Container(
@@ -484,88 +499,6 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     );
   }
 
-  Widget _buildProgressionLogsCard() {
-    final reviews = List<ProgressionReview>.from(widget.reviews)
-      ..sort((a, b) {
-        final da =
-            DateTime.tryParse(a.weekStart ?? '') ??
-            DateTime.fromMillisecondsSinceEpoch(0);
-        final db =
-            DateTime.tryParse(b.weekStart ?? '') ??
-            DateTime.fromMillisecondsSinceEpoch(0);
-        return db.compareTo(da);
-      });
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Progression Logs',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 8),
-          if (reviews.isEmpty)
-            const Text(
-              'No progression logs yet.',
-              style: TextStyle(color: Colors.white70),
-            )
-          else
-            ...reviews
-                .take(8)
-                .map(
-                  (review) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(8),
-                      onTap: () => _openReview(review),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.03),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.white10),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Week ${review.weekStart ?? '-'} • ${review.itemCount} items',
-                                style: const TextStyle(color: Colors.white70),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              review.status,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final list = ListView(
@@ -577,8 +510,6 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
         _buildAnalyticsCard(),
         const SizedBox(height: 12),
         _buildHabitsCard(),
-        const SizedBox(height: 12),
-        _buildProgressionLogsCard(),
         const SizedBox(height: 24),
       ],
     );

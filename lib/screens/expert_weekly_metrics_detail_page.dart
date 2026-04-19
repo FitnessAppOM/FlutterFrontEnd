@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../services/coach/progression_review_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/charts/ranged_bar_chart.dart';
 import '../widgets/charts/simple_line_chart.dart';
@@ -13,11 +14,13 @@ class ExpertWeeklyMetricsDetailPage extends StatefulWidget {
   const ExpertWeeklyMetricsDetailPage({
     super.key,
     required this.type,
+    required this.clientUserId,
     required this.clientName,
     required this.analyticsData,
   });
 
   final ExpertWeeklyMetricsDetailType type;
+  final int clientUserId;
   final String clientName;
   final Map<String, dynamic> analyticsData;
 
@@ -30,6 +33,19 @@ class _ExpertWeeklyMetricsDetailPageState
     extends State<ExpertWeeklyMetricsDetailPage> {
   int? _selectedPrimaryBar;
   int? _selectedSecondaryBar;
+  int _weekOffset = 0;
+  bool _loadingWeek = false;
+  String? _weekError;
+  late Map<String, dynamic> _analyticsData;
+  final Map<int, Map<String, dynamic>> _weeklyCache =
+      <int, Map<String, dynamic>>{};
+
+  @override
+  void initState() {
+    super.initState();
+    _analyticsData = Map<String, dynamic>.from(widget.analyticsData);
+    _weeklyCache[0] = Map<String, dynamic>.from(widget.analyticsData);
+  }
 
   Map<String, dynamic> _map(dynamic value) {
     if (value is Map<String, dynamic>) return value;
@@ -86,6 +102,118 @@ class _ExpertWeeklyMetricsDetailPageState
   String _weekday(DateTime date) => DateFormat('EEE').format(date);
 
   String _dayDetail(DateTime date) => DateFormat('dd MMM').format(date);
+
+  String _weekRangeLabel() {
+    final source = _map(_analyticsData['daily_metrics']);
+    final start = _dateOnly(source['last_7_start']?.toString());
+    final end = _dateOnly(source['today']?.toString());
+    if (start == null || end == null) {
+      if (_weekOffset == 0) return 'Current 7 days';
+      return '${_weekOffset}w ago';
+    }
+    return '${DateFormat('dd MMM').format(start)} - ${DateFormat('dd MMM').format(end)}';
+  }
+
+  Future<void> _changeWeek(int nextOffset) async {
+    if (nextOffset < 0 || _loadingWeek) return;
+
+    final cached = _weeklyCache[nextOffset];
+    if (cached != null) {
+      setState(() {
+        _weekOffset = nextOffset;
+        _analyticsData = Map<String, dynamic>.from(cached);
+        _weekError = null;
+        _selectedPrimaryBar = null;
+        _selectedSecondaryBar = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _loadingWeek = true;
+      _weekError = null;
+    });
+    try {
+      final data = await ProgressionReviewService.fetchClientAnalytics(
+        widget.clientUserId,
+        weekOffset: nextOffset,
+      );
+      if (!mounted) return;
+      setState(() {
+        _weekOffset = nextOffset;
+        _analyticsData = Map<String, dynamic>.from(data);
+        _weeklyCache[nextOffset] = Map<String, dynamic>.from(data);
+        _selectedPrimaryBar = null;
+        _selectedSecondaryBar = null;
+        _loadingWeek = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _weekError = e.toString();
+        _loadingWeek = false;
+      });
+    }
+  }
+
+  Widget _buildWeekSwitcher() {
+    final canGoNext = _weekOffset > 0;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(18, 0, 18, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.cardDark,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Row(
+        children: [
+          OutlinedButton(
+            onPressed: _loadingWeek ? null : () => _changeWeek(_weekOffset + 1),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              side: const BorderSide(color: Colors.white24),
+              minimumSize: const Size(0, 32),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
+            ),
+            child: const Text('Prev'),
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton(
+            onPressed: _loadingWeek || !canGoNext
+                ? null
+                : () => _changeWeek(_weekOffset - 1),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              side: const BorderSide(color: Colors.white24),
+              minimumSize: const Size(0, 32),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
+            ),
+            child: const Text('Next'),
+          ),
+          const Spacer(),
+          if (_loadingWeek)
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            Text(
+              _weekRangeLabel(),
+              style: const TextStyle(
+                color: Colors.white70,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 
   String _formatCompact(double value, {int decimals = 0}) {
     final abs = value.abs();
@@ -231,7 +359,7 @@ class _ExpertWeeklyMetricsDetailPageState
   }
 
   Widget _buildWaterStepsContent() {
-    final daily = _map(widget.analyticsData['daily_metrics']);
+    final daily = _map(_analyticsData['daily_metrics']);
     final rows = _mapList(daily['last_7_days']);
     final weekDates = _weekDates(
       startRaw: daily['last_7_start']?.toString(),
@@ -311,30 +439,12 @@ class _ExpertWeeklyMetricsDetailPageState
             formatYAxis: (v) => v.toStringAsFixed(1),
           ),
         ),
-        const SizedBox(height: 12),
-        _buildChartCard(
-          title: 'Daily Breakdown',
-          child: Column(
-            children: List<Widget>.generate(weekDates.length, (i) {
-              return Padding(
-                padding: EdgeInsets.only(
-                  bottom: i == weekDates.length - 1 ? 0 : 6,
-                ),
-                child: _DetailRow(
-                  label: _dayDetail(weekDates[i]),
-                  value:
-                      '${water[i].toStringAsFixed(1)} L  •  ${_formatCompact(steps[i])} steps',
-                ),
-              );
-            }),
-          ),
-        ),
       ],
     );
   }
 
   Widget _buildTrainingCardioContent() {
-    final training = _map(widget.analyticsData['training']);
+    final training = _map(_analyticsData['training']);
     final weekDates = _weekDates(
       startRaw: training['last_7_start']?.toString(),
       endRaw: training['today']?.toString(),
@@ -523,6 +633,22 @@ class _ExpertWeeklyMetricsDetailPageState
               ],
             ),
           ),
+          if (isWater) _buildWeekSwitcher(),
+          if (isWater && _weekError != null)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(18, 0, 18, 8),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.cardDark,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white10),
+              ),
+              child: Text(
+                _weekError!,
+                style: const TextStyle(color: Colors.orangeAccent),
+              ),
+            ),
           Expanded(
             child: isWater
                 ? _buildWaterStepsContent()

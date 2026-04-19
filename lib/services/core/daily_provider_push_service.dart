@@ -20,15 +20,24 @@ class DailyProviderPushService {
     try {
       try {
         await DailyMetricsSync().pushIfNewDay();
-      } catch (_) {}
+      } catch (e) {
+        // ignore: avoid_print
+        print("DailyProviderPushService: daily metrics sync failed: $e");
+      }
 
       try {
         await WhoopDailySync().pushIfNewDay();
-      } catch (_) {}
+      } catch (e) {
+        // ignore: avoid_print
+        print("DailyProviderPushService: whoop sync failed: $e");
+      }
 
       try {
         await FitbitDailySync().pushIfNewDay();
-      } catch (_) {}
+      } catch (e) {
+        // ignore: avoid_print
+        print("DailyProviderPushService: fitbit sync failed: $e");
+      }
     } finally {
       _inFlight = false;
     }

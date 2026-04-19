@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -53,6 +54,7 @@ import '../../screens/whoop_body_detail_page.dart';
 import '../../theme/app_theme.dart';
 import '../../core/account_storage.dart';
 import '../../services/auth/profile_service.dart';
+import '../../services/auth/profile_storage.dart';
 import '../../services/metrics/daily_metrics_api.dart';
 import '../../services/core/daily_provider_push_service.dart';
 import '../../services/scores/taqa_score_api.dart';
@@ -4798,12 +4800,20 @@ class DashboardPageState extends State<DashboardPage>
 
   Future<void> _loadUserInfo() async {
     final storedAvatarRaw = await AccountStorage.getAvatarUrl();
+    final cachedProfile = await ProfileStorage.loadProfile();
+    final cachedProfileAvatar = _normalizeAvatarUrl(
+      cachedProfile?["avatar_url"]?.toString(),
+    );
     final storedAvatar =
-        (storedAvatarRaw != null && storedAvatarRaw.trim().isNotEmpty)
-        ? storedAvatarRaw
-        : null;
+        _normalizeAvatarUrl(storedAvatarRaw) ?? cachedProfileAvatar;
     final storedAvatarPath = await AccountStorage.getAvatarPath();
     final storedName = await AccountStorage.getName();
+    final cachedProfileName = cachedProfile == null
+        ? null
+        : _resolveDisplayName(cachedProfile);
+    final initialName = (storedName != null && storedName.trim().isNotEmpty)
+        ? storedName
+        : cachedProfileName;
     final userId = await AccountStorage.getUserId();
 
     if (mounted) {
@@ -4811,11 +4821,11 @@ class DashboardPageState extends State<DashboardPage>
       setState(() {
         _avatarUrl = storedAvatar;
         _avatarPath = storedAvatarPath;
-        _displayName = storedName;
+        _displayName = initialName;
       });
     }
 
-    String? fetchedName = storedName;
+    String? fetchedName = initialName;
     String? fetchedAvatar = storedAvatar;
     double? fetchedHeight;
     double? fetchedWeight;
@@ -4824,13 +4834,23 @@ class DashboardPageState extends State<DashboardPage>
       try {
         final profile = await ProfileApi.fetchProfile(userId);
         final resolvedName = _resolveDisplayName(profile);
-        final remoteAvatar = profile["avatar_url"]?.toString();
+        final remoteAvatar = _normalizeAvatarUrl(
+          profile["avatar_url"]?.toString(),
+        );
         final height = profile["height_cm"];
         final weight = profile["weight_kg"];
         if (resolvedName != null && resolvedName.trim().isNotEmpty) {
           fetchedName = resolvedName;
         }
         if (remoteAvatar != null && remoteAvatar.trim().isNotEmpty) {
+          if (mounted && remoteAvatar != storedAvatar) {
+            try {
+              await precacheImage(
+                CachedNetworkImageProvider(remoteAvatar),
+                context,
+              );
+            } catch (_) {}
+          }
           fetchedAvatar = remoteAvatar;
         }
         if (height != null) {
@@ -4847,8 +4867,13 @@ class DashboardPageState extends State<DashboardPage>
     if (!mounted) return;
     if (fetchedName != null &&
         fetchedName.trim().isNotEmpty &&
-        fetchedName != storedName) {
+        fetchedName != initialName) {
       await AccountStorage.setName(fetchedName);
+    }
+    if (fetchedAvatar != null &&
+        fetchedAvatar.trim().isNotEmpty &&
+        fetchedAvatar != storedAvatarRaw) {
+      await AccountStorage.setAvatarUrl(fetchedAvatar);
     }
     setState(() {
       _avatarUrl = fetchedAvatar;
@@ -4877,6 +4902,23 @@ class DashboardPageState extends State<DashboardPage>
     if (username.isNotEmpty) return username;
 
     return null;
+  }
+
+  String? _normalizeAvatarUrl(String? rawValue) {
+    final raw = rawValue?.trim() ?? '';
+    if (raw.isEmpty) return null;
+    final lower = raw.toLowerCase();
+    if (lower.startsWith('http://') || lower.startsWith('https://')) {
+      return raw;
+    }
+    final base = ApiConfig.baseUrl.trim();
+    if (base.isEmpty) return null;
+    try {
+      final baseUri = Uri.parse(base.endsWith('/') ? base : '$base/');
+      return baseUri.resolve(raw).toString();
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _loadBodyMeasurements() async {
@@ -4970,11 +5012,13 @@ class DashboardPageState extends State<DashboardPage>
       }
     }
 
-    if (_avatarUrl != null && _avatarUrl!.isNotEmpty) {
-      return Image.network(
-        _avatarUrl!,
+    final normalizedUrl = _normalizeAvatarUrl(_avatarUrl);
+    if (normalizedUrl != null && normalizedUrl.isNotEmpty) {
+      return Image(
+        image: CachedNetworkImageProvider(normalizedUrl),
         fit: BoxFit.cover,
         alignment: Alignment.center,
+        gaplessPlayback: true,
         errorBuilder: (_, __, ___) =>
             const Icon(Icons.person, color: Colors.white),
       );
@@ -5098,13 +5142,7 @@ class DashboardPageState extends State<DashboardPage>
               width: 44,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient:
-                    (_avatarUrl == null || _avatarUrl!.isEmpty) &&
-                        (_avatarPath == null || _avatarPath!.isEmpty)
-                    ? const LinearGradient(
-                        colors: [Color(0xFF35B6FF), AppColors.accent],
-                      )
-                    : null,
+                color: Colors.white10,
                 border: Border.all(
                   color: const Color(0xFFD4AF37).withValues(alpha: 0.35),
                   width: 1,

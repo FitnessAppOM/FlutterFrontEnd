@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../../config/base_url.dart';
 import '../../localization/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../screens/welcome.dart';
@@ -85,9 +87,7 @@ class ProfileHeader extends StatelessWidget {
             if (!context.mounted) return;
             Navigator.pushAndRemoveUntil(
               context,
-              MaterialPageRoute(
-                builder: (_) => WelcomePage(fromLogout: true),
-              ),
+              MaterialPageRoute(builder: (_) => WelcomePage(fromLogout: true)),
               (route) => false,
             );
             // Refresh notifications after leaving; don't await so we don't race with new login.
@@ -105,9 +105,27 @@ class ProfileHeader extends StatelessWidget {
         return FileImage(file);
       }
     }
-    if (avatarUrl != null && avatarUrl!.isNotEmpty) {
-      return NetworkImage(avatarUrl!);
+    final normalizedUrl = _normalizeAvatarUrl(avatarUrl);
+    if (normalizedUrl != null && normalizedUrl.isNotEmpty) {
+      return CachedNetworkImageProvider(normalizedUrl);
     }
     return null;
+  }
+
+  String? _normalizeAvatarUrl(String? rawValue) {
+    final raw = rawValue?.trim() ?? '';
+    if (raw.isEmpty) return null;
+    final lower = raw.toLowerCase();
+    if (lower.startsWith('http://') || lower.startsWith('https://')) {
+      return raw;
+    }
+    final base = ApiConfig.baseUrl.trim();
+    if (base.isEmpty) return null;
+    try {
+      final baseUri = Uri.parse(base.endsWith('/') ? base : '$base/');
+      return baseUri.resolve(raw).toString();
+    } catch (_) {
+      return null;
+    }
   }
 }

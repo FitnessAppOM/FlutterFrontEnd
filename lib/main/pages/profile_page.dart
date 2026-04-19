@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/profile/profile_header.dart';
 import '../../widgets/profile/profile_info_section.dart';
@@ -6,6 +7,7 @@ import '../../widgets/profile/profile_goals_section.dart';
 import '../../widgets/profile/profile_actions_section.dart';
 import '../../localization/app_localizations.dart';
 import '../../core/account_storage.dart';
+import '../../config/base_url.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/auth/profile_storage.dart';
 import '../../screens/edit_profile_page.dart';
@@ -67,7 +69,13 @@ class _ProfilePageState extends State<ProfilePage> {
         if (_profile == null) _loading = true;
       });
     }
-    final cachedAvatar = await AccountStorage.getAvatarUrl();
+    final cachedAvatarRaw = await AccountStorage.getAvatarUrl();
+    final cachedProfile = await ProfileStorage.loadProfile();
+    final cachedProfileAvatar = _normalizeAvatarUrl(
+      cachedProfile?["avatar_url"]?.toString(),
+    );
+    final cachedAvatar =
+        _normalizeAvatarUrl(cachedAvatarRaw) ?? cachedProfileAvatar;
     final cachedAvatarPath = await AccountStorage.getAvatarPath();
     if (mounted) {
       setState(() {
@@ -78,7 +86,6 @@ class _ProfilePageState extends State<ProfilePage> {
     // Hydrate from cache first to avoid blank UI.
     try {
       if (_profile == null) {
-        final cachedProfile = await ProfileStorage.loadProfile();
         if (cachedProfile != null && mounted) {
           setState(() {
             _profile = cachedProfile;
@@ -110,7 +117,18 @@ class _ProfilePageState extends State<ProfilePage> {
       } catch (_) {}
       final data = await ProfileApi.fetchProfile(userId, lang: lang);
       if (!mounted) return;
-      final remoteAvatar = data["avatar_url"]?.toString();
+      final remoteAvatar = _normalizeAvatarUrl(data["avatar_url"]?.toString());
+      if (remoteAvatar != null &&
+          remoteAvatar.trim().isNotEmpty &&
+          remoteAvatar != cachedAvatar &&
+          mounted) {
+        try {
+          await precacheImage(
+            CachedNetworkImageProvider(remoteAvatar),
+            context,
+          );
+        } catch (_) {}
+      }
       final normalizedAvatar =
           (remoteAvatar != null && remoteAvatar.trim().isNotEmpty)
           ? remoteAvatar
@@ -131,6 +149,23 @@ class _ProfilePageState extends State<ProfilePage> {
         _avatarUrl = cachedAvatar;
         _avatarPath = cachedAvatarPath;
       });
+    }
+  }
+
+  String? _normalizeAvatarUrl(String? rawValue) {
+    final raw = rawValue?.trim() ?? '';
+    if (raw.isEmpty) return null;
+    final lower = raw.toLowerCase();
+    if (lower.startsWith('http://') || lower.startsWith('https://')) {
+      return raw;
+    }
+    final base = ApiConfig.baseUrl.trim();
+    if (base.isEmpty) return null;
+    try {
+      final baseUri = Uri.parse(base.endsWith('/') ? base : '$base/');
+      return baseUri.resolve(raw).toString();
+    } catch (_) {
+      return null;
     }
   }
 

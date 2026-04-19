@@ -76,6 +76,10 @@ class DailyMetricsSync {
       waterLiters: waterLiters,
     );
     if (!hasMeaningfulData) {
+      // ignore: avoid_print
+      print(
+        "DailyMetricsSync: skip empty payload for ${target.toIso8601String().split('T').first} (steps=$steps calories=$displayCalories sleep=${sleepHours.toStringAsFixed(2)}h)",
+      );
       return false;
     }
 
@@ -178,8 +182,23 @@ class DailyMetricsSync {
     );
     if (missing.isEmpty) return true;
 
+    var failedDays = 0;
     for (final day in missing) {
-      await pushForDate(day);
+      try {
+        await pushForDate(day);
+      } catch (e) {
+        failedDays += 1;
+        // ignore: avoid_print
+        print(
+          "DailyMetricsSync: push failed for ${day.toIso8601String().split('T').first}: $e",
+        );
+      }
+    }
+    if (failedDays > 0) {
+      // ignore: avoid_print
+      print(
+        "DailyMetricsSync: backfill completed with $failedDays failed day(s) out of ${missing.length}.",
+      );
     }
 
     DailyMetricsApi.clearCache();

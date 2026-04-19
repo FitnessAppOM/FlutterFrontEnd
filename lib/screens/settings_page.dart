@@ -23,6 +23,7 @@ import '../services/core/notification_service.dart';
 import '../services/health/apple_watch_detection_service.dart';
 import '../services/whoop/whoop_daily_sync.dart';
 import '../services/whoop/whoop_latest_service.dart';
+import '../services/auth/profile_storage.dart';
 import '../screens/welcome.dart';
 import '../screens/account_restore_page.dart';
 import '../screens/coach_page.dart';
@@ -44,6 +45,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _deactivatingAccount = false;
   bool _isDeactivated = false;
   bool _isExpert = false;
+  bool _expertFlagReady = false;
   String? _expertProfileStatus;
   String? _scheduledPurgeAtDisplay;
   String? _email;
@@ -286,9 +288,35 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _loadExpertFlag() async {
+    if (mounted) {
+      setState(() => _expertFlagReady = false);
+    }
     var done = await AccountStorage.isExpertQuestionnaireDone();
     var isExpert = await AccountStorage.isExpert();
     String? expertProfileStatus;
+
+    try {
+      final cachedProfile = await ProfileStorage.loadProfile();
+      final rawCached = (cachedProfile?["expert_profile_status"] ?? "")
+          .toString()
+          .trim()
+          .toLowerCase();
+      expertProfileStatus = rawCached.isEmpty ? null : rawCached;
+      final cachedHasExpertProfile =
+          cachedProfile?["has_expert_profile"] == true;
+      final cachedFilledExpert =
+          cachedProfile?["filled_expert_questionnaire"] == true;
+      done = done || cachedFilledExpert;
+      isExpert =
+          isExpert ||
+          cachedHasExpertProfile ||
+          cachedFilledExpert ||
+          rawCached == "approved" ||
+          rawCached == "pending";
+    } catch (_) {
+      // Ignore cache parse failures.
+    }
+
     final userId = await AccountStorage.getUserId();
     if (userId != null && userId > 0) {
       try {
@@ -321,6 +349,7 @@ class _SettingsPageState extends State<SettingsPage> {
         _expertQuestionnaireDone = done;
         _isExpert = isExpert;
         _expertProfileStatus = expertProfileStatus;
+        _expertFlagReady = true;
       });
     }
   }
@@ -408,6 +437,8 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   bool get _showBeExpertButton {
+    if (!_expertFlagReady) return false;
+    if (_isExpert || _expertQuestionnaireDone) return false;
     final status = (_expertProfileStatus ?? "").trim().toLowerCase();
     if (status.isEmpty) return true; // No expert profile yet.
     return status == "rejected" ||

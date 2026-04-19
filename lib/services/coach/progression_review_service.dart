@@ -72,7 +72,10 @@ class ProgressionClient {
 
     String? parseString(dynamic value) {
       final raw = value?.toString().trim() ?? '';
-      return raw.isEmpty ? null : raw;
+      if (raw.isEmpty) return null;
+      final lower = raw.toLowerCase();
+      if (lower == 'null' || lower == 'none') return null;
+      return raw;
     }
 
     String? pickFirstNonEmpty(List<dynamic> values) {
@@ -399,14 +402,28 @@ class ProgressionReviewService {
 
   static String? _normalizeAvatarUrl(dynamic value) {
     final raw = value?.toString().trim() ?? '';
-    return raw.isEmpty ? null : raw;
+    if (raw.isEmpty) return null;
+    final lower = raw.toLowerCase();
+    if (lower == 'null' || lower == 'none') return null;
+    if (lower.startsWith('http://') || lower.startsWith('https://')) {
+      return raw;
+    }
+    final base = ApiConfig.baseUrl.trim();
+    if (base.isEmpty) return null;
+    try {
+      final baseUri = Uri.parse(base.endsWith('/') ? base : '$base/');
+      return baseUri.resolve(raw).toString();
+    } catch (_) {
+      return null;
+    }
   }
 
   static Future<String?> _fetchAvatarUrlForUser(
     int userId, {
     Map<String, String>? headers,
+    bool forceRefresh = false,
   }) async {
-    if (_avatarUrlCache.containsKey(userId)) {
+    if (!forceRefresh && _avatarUrlCache.containsKey(userId)) {
       return _avatarUrlCache[userId];
     }
     try {
@@ -421,7 +438,10 @@ class ProgressionReviewService {
       }
       final decoded = jsonDecode(res.body);
       final avatar = decoded is Map
-          ? _normalizeAvatarUrl(decoded['avatar_url'])
+          ? _normalizeAvatarUrl(decoded['avatar_url']) ??
+                _normalizeAvatarUrl(decoded['avatarUrl']) ??
+                _normalizeAvatarUrl(decoded['profile_avatar_url']) ??
+                _normalizeAvatarUrl(decoded['profile_image_url'])
           : null;
       _avatarUrlCache[userId] = avatar;
       return avatar;
@@ -429,6 +449,22 @@ class ProgressionReviewService {
       _avatarUrlCache[userId] = null;
       return null;
     }
+  }
+
+  static bool _needsAvatarRefresh(String? avatarUrl) {
+    final normalized = _normalizeAvatarUrl(avatarUrl);
+    if (normalized == null) return true;
+    final lower = normalized.toLowerCase();
+    if (lower.contains('/null')) return true;
+    if (lower.startsWith('gs://')) return true;
+    if (lower.contains('storage.googleapis.com') &&
+        !lower.contains('x-goog-signature=')) {
+      return true;
+    }
+    if (lower.contains('/avatars/') && !lower.contains('/static/avatars/')) {
+      return true;
+    }
+    return false;
   }
 
   static Future<List<ProgressionClient>> fetchClients() async {
@@ -450,33 +486,40 @@ class ProgressionReviewService {
         .map((e) => ProgressionClient.fromJson(Map<String, dynamic>.from(e)))
         .toList();
 
-    for (final client in clients) {
+    final normalizedClients = clients.map((client) {
       final avatar = _normalizeAvatarUrl(client.avatarUrl);
-      if (avatar != null) {
+      if (avatar == null) return client.copyWith(avatarUrl: null);
+      return client.copyWith(avatarUrl: avatar);
+    }).toList();
+
+    for (final client in normalizedClients) {
+      final avatar = _normalizeAvatarUrl(client.avatarUrl);
+      if (avatar != null && !_needsAvatarRefresh(avatar)) {
         _avatarUrlCache[client.userId] = avatar;
       }
     }
 
-    final missingAvatarClients = clients
-        .where((client) => _normalizeAvatarUrl(client.avatarUrl) == null)
+    final clientsNeedingAvatarRefresh = normalizedClients
+        .where((client) => _needsAvatarRefresh(client.avatarUrl))
         .toList();
-    if (missingAvatarClients.isEmpty) return clients;
+    if (clientsNeedingAvatarRefresh.isEmpty) return normalizedClients;
 
     final headers = await _authHeaders();
     final fetchedAvatars = <int, String?>{};
     await Future.wait(
-      missingAvatarClients.map((client) async {
+      clientsNeedingAvatarRefresh.map((client) async {
         fetchedAvatars[client.userId] = await _fetchAvatarUrlForUser(
           client.userId,
           headers: headers,
+          forceRefresh: true,
         );
       }),
     );
 
-    return clients.map((client) {
+    return normalizedClients.map((client) {
       final avatar =
-          _normalizeAvatarUrl(client.avatarUrl) ??
-          _normalizeAvatarUrl(fetchedAvatars[client.userId]);
+          _normalizeAvatarUrl(fetchedAvatars[client.userId]) ??
+          _normalizeAvatarUrl(client.avatarUrl);
       if (avatar == null) return client;
       return client.copyWith(avatarUrl: avatar);
     }).toList();
@@ -594,10 +637,15 @@ class ProgressionReviewService {
   }
 
   static Future<Map<String, dynamic>> fetchClientAnalytics(
-    int clientUserId,
-  ) async {
+    int clientUserId, {
+    int weekOffset = 0,
+  }) async {
+    final query = <String, String>{};
+    if (weekOffset > 0) {
+      query['week_offset'] = '$weekOffset';
+    }
     final res = await http.get(
-      _uri('/coach/progression/clients/$clientUserId/analytics'),
+      _uri('/coach/progression/clients/$clientUserId/analytics', query),
       headers: await _authHeaders(),
     );
     await _handleAuth(res);

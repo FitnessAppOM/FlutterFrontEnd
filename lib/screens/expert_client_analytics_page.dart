@@ -76,13 +76,6 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
     return DateFormat('dd MMM yyyy').format(dt.toLocal());
   }
 
-  String _formatDay(String? raw) {
-    if (raw == null || raw.trim().isEmpty) return '-';
-    final dt = DateTime.tryParse(raw.trim());
-    if (dt == null) return raw;
-    return DateFormat('EEE dd MMM').format(dt.toLocal());
-  }
-
   int _toInt(dynamic value, {int fallback = 0}) {
     if (value is int) return value;
     if (value is num) return value.toInt();
@@ -125,6 +118,7 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
       MaterialPageRoute(
         builder: (_) => ExpertWeeklyMetricsDetailPage(
           type: type,
+          clientUserId: widget.client.userId,
           clientName: _currentClientName(),
           analyticsData: _data,
         ),
@@ -279,28 +273,6 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
                 ),
                 _InfoRow(label: 'Steps total', value: '$totalSteps'),
                 _InfoRow(label: 'Avg steps/day', value: '$avgSteps'),
-                const SizedBox(height: 8),
-                const Text(
-                  'Daily logs',
-                  style: TextStyle(
-                    color: Colors.white60,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                ...rows
-                    .take(7)
-                    .map(
-                      (row) => Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: _InfoRow(
-                          label: _formatDay(row['entry_date']?.toString()),
-                          value:
-                              '${_toDouble(row['water_liters']).toStringAsFixed(1)} L • ${_toInt(row['steps'])} steps',
-                        ),
-                      ),
-                    ),
                 const SizedBox(height: 4),
                 const Text(
                   'Tap to open weekly charts',
@@ -510,41 +482,6 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
     );
   }
 
-  Widget _buildProgressionCard() {
-    final progression = _map(_data['progression_reviews']);
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Progression Reviews',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 8),
-          _InfoRow(label: 'Total', value: '${_toInt(progression['total'])}'),
-          _InfoRow(
-            label: 'Pending',
-            value: '${_toInt(progression['pending'])}',
-          ),
-          _InfoRow(
-            label: 'Applied',
-            value: '${_toInt(progression['applied'])}',
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final body = RefreshIndicator(
@@ -576,8 +513,6 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
           _buildTrainingCard(),
           const SizedBox(height: 12),
           _buildWearablesCard(),
-          const SizedBox(height: 12),
-          _buildProgressionCard(),
           const SizedBox(height: 20),
         ],
       ),

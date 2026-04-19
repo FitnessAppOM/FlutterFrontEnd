@@ -5,6 +5,8 @@ import 'pages/train_page.dart';
 import 'pages/diet_page.dart';
 import 'pages/community_page.dart';
 import 'pages/profile_page.dart';
+import '../core/account_storage.dart';
+import '../services/auth/profile_service.dart';
 import '../services/screenings/screening_prompt_service.dart';
 
 class MainLayout extends StatefulWidget {
@@ -64,6 +66,41 @@ class _MainLayoutState extends State<MainLayout> {
         await _dietKey.currentState?.refreshTrainingLock();
         await _dietKey.currentState?.refreshTargetsAndMeals();
       });
+    }
+    if (idx == 4) {
+      _preloadExpertFlagsForProfileTab();
+    }
+  }
+
+  Future<void> _preloadExpertFlagsForProfileTab() async {
+    try {
+      final lang = Localizations.localeOf(context).languageCode;
+      final userId = await AccountStorage.getUserId();
+      if (userId == null || userId <= 0) return;
+      final profile = await ProfileApi.fetchProfile(userId, lang: lang);
+
+      final existingDone = await AccountStorage.isExpertQuestionnaireDone();
+      final existingExpert = await AccountStorage.isExpert();
+      final hasExpertProfile = profile["has_expert_profile"] == true;
+      final filledExpertQuestionnaire =
+          profile["filled_expert_questionnaire"] == true;
+      final rawStatus = (profile["expert_profile_status"] ?? "")
+          .toString()
+          .trim()
+          .toLowerCase();
+
+      final done = existingDone || filledExpertQuestionnaire;
+      final isExpert =
+          existingExpert ||
+          hasExpertProfile ||
+          filledExpertQuestionnaire ||
+          rawStatus == "approved" ||
+          rawStatus == "pending";
+
+      await AccountStorage.setExpertQuestionnaireDone(done);
+      await AccountStorage.setIsExpert(isExpert);
+    } catch (_) {
+      // Best-effort preload only.
     }
   }
 

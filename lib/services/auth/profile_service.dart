@@ -15,6 +15,23 @@ class ProfileUpdateCooldownException implements Exception {
 }
 
 class ProfileApi {
+  static String? _normalizeAvatarUrl(dynamic rawValue) {
+    final raw = rawValue?.toString().trim() ?? "";
+    if (raw.isEmpty) return null;
+    final lower = raw.toLowerCase();
+    if (lower.startsWith("http://") || lower.startsWith("https://")) {
+      return raw;
+    }
+    final base = ApiConfig.baseUrl.trim();
+    if (base.isEmpty) return null;
+    try {
+      final baseUri = Uri.parse(base.endsWith("/") ? base : "$base/");
+      return baseUri.resolve(raw).toString();
+    } catch (_) {
+      return null;
+    }
+  }
+
   static Map<String, dynamic> _decodeMap(String raw) {
     if (raw.isEmpty) return <String, dynamic>{};
     try {
@@ -51,6 +68,13 @@ class ProfileApi {
 
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
+      final normalizedAvatar = _normalizeAvatarUrl(data["avatar_url"]);
+      if (normalizedAvatar != null) {
+        data["avatar_url"] = normalizedAvatar;
+        try {
+          await AccountStorage.setAvatarUrl(normalizedAvatar);
+        } catch (_) {}
+      }
       try {
         await ProfileStorage.saveProfile(data);
       } catch (_) {}

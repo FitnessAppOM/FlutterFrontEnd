@@ -86,6 +86,32 @@ class DailyMetricsApi {
   static final Map<String, Map<DateTime, DailyMetricsEntry>> _rangeCache = {};
   static final Map<String, Future<Map<DateTime, DailyMetricsEntry>>>
   _rangeInFlight = {};
+  static const int _int32Max = 2147483647;
+
+  static int? _sanitizeInt(int? value, {int? max}) {
+    if (value == null) return null;
+    final normalized = value < 0 ? 0 : value;
+    if (max != null && normalized > max) return max;
+    return normalized;
+  }
+
+  static double? _sanitizeDouble(
+    double? value, {
+    double? max,
+    int decimals = 2,
+  }) {
+    if (value == null || value.isNaN || !value.isFinite) return null;
+    var normalized = value < 0 ? 0.0 : value;
+    if (max != null && normalized > max) {
+      normalized = max;
+    }
+    final factor = decimals == 0
+        ? 1.0
+        : decimals == 1
+        ? 10.0
+        : 100.0;
+    return (normalized * factor).roundToDouble() / factor;
+  }
 
   static void clearCache() {
     _cache.clear();
@@ -114,31 +140,65 @@ class DailyMetricsApi {
     int? steps,
   }) async {
     final url = Uri.parse("${ApiConfig.baseUrl}/daily-metrics/");
+    final safeSleepHours = _sanitizeDouble(sleepHours, max: 99.99);
+    final safeSleepMinutesAsleep = _sanitizeInt(
+      sleepMinutesAsleep,
+      max: _int32Max,
+    );
+    final safeSleepMinutesInBed = _sanitizeInt(
+      sleepMinutesInBed,
+      max: _int32Max,
+    );
+    final safeSleepMinutesAwake = _sanitizeInt(
+      sleepMinutesAwake,
+      max: _int32Max,
+    );
+    final safeSleepMinutesLight = _sanitizeInt(
+      sleepMinutesLight,
+      max: _int32Max,
+    );
+    final safeSleepMinutesDeep = _sanitizeInt(sleepMinutesDeep, max: _int32Max);
+    final safeSleepMinutesRem = _sanitizeInt(sleepMinutesRem, max: _int32Max);
+    final safeRestingHr = _sanitizeInt(restingHr, max: _int32Max);
+    final safeHrvMs = _sanitizeDouble(hrvMs, max: 99999.99);
+    final safeActiveMinutes = _sanitizeInt(activeMinutes, max: _int32Max);
+    final safeOutOfRange = _sanitizeInt(
+      heartZoneOutOfRangeMinutes,
+      max: _int32Max,
+    );
+    final safeFatBurn = _sanitizeInt(heartZoneFatBurnMinutes, max: _int32Max);
+    final safeCardio = _sanitizeInt(heartZoneCardioMinutes, max: _int32Max);
+    final safePeak = _sanitizeInt(heartZonePeakMinutes, max: _int32Max);
+    final safeCalories = _sanitizeInt(calories, max: _int32Max);
+    final safeWaterLiters = _sanitizeDouble(waterLiters, max: 99.99);
+    final safeSteps = _sanitizeInt(steps);
+
     final body = <String, dynamic>{
       "user_id": userId,
       "entry_date": entryDate.toIso8601String().split("T").first,
-      if (sleepHours != null) "sleep_hours": sleepHours,
-      if (sleepMinutesAsleep != null)
-        "sleep_minutes_asleep": sleepMinutesAsleep,
-      if (sleepMinutesInBed != null) "sleep_minutes_in_bed": sleepMinutesInBed,
-      if (sleepMinutesAwake != null) "sleep_minutes_awake": sleepMinutesAwake,
-      if (sleepMinutesLight != null) "sleep_minutes_light": sleepMinutesLight,
-      if (sleepMinutesDeep != null) "sleep_minutes_deep": sleepMinutesDeep,
-      if (sleepMinutesRem != null) "sleep_minutes_rem": sleepMinutesRem,
-      if (restingHr != null) "resting_hr": restingHr,
-      if (hrvMs != null) "hrv_ms": hrvMs,
-      if (activeMinutes != null) "active_minutes": activeMinutes,
-      if (heartZoneOutOfRangeMinutes != null)
-        "heart_zone_out_of_range_minutes": heartZoneOutOfRangeMinutes,
-      if (heartZoneFatBurnMinutes != null)
-        "heart_zone_fat_burn_minutes": heartZoneFatBurnMinutes,
-      if (heartZoneCardioMinutes != null)
-        "heart_zone_cardio_minutes": heartZoneCardioMinutes,
-      if (heartZonePeakMinutes != null)
-        "heart_zone_peak_minutes": heartZonePeakMinutes,
-      if (calories != null) "calories": calories,
-      if (waterLiters != null) "water_liters": waterLiters,
-      if (steps != null) "steps": steps,
+      if (safeSleepHours != null) "sleep_hours": safeSleepHours,
+      if (safeSleepMinutesAsleep != null)
+        "sleep_minutes_asleep": safeSleepMinutesAsleep,
+      if (safeSleepMinutesInBed != null)
+        "sleep_minutes_in_bed": safeSleepMinutesInBed,
+      if (safeSleepMinutesAwake != null)
+        "sleep_minutes_awake": safeSleepMinutesAwake,
+      if (safeSleepMinutesLight != null)
+        "sleep_minutes_light": safeSleepMinutesLight,
+      if (safeSleepMinutesDeep != null)
+        "sleep_minutes_deep": safeSleepMinutesDeep,
+      if (safeSleepMinutesRem != null) "sleep_minutes_rem": safeSleepMinutesRem,
+      if (safeRestingHr != null) "resting_hr": safeRestingHr,
+      if (safeHrvMs != null) "hrv_ms": safeHrvMs,
+      if (safeActiveMinutes != null) "active_minutes": safeActiveMinutes,
+      if (safeOutOfRange != null)
+        "heart_zone_out_of_range_minutes": safeOutOfRange,
+      if (safeFatBurn != null) "heart_zone_fat_burn_minutes": safeFatBurn,
+      if (safeCardio != null) "heart_zone_cardio_minutes": safeCardio,
+      if (safePeak != null) "heart_zone_peak_minutes": safePeak,
+      if (safeCalories != null) "calories": safeCalories,
+      if (safeWaterLiters != null) "water_liters": safeWaterLiters,
+      if (safeSteps != null) "steps": safeSteps,
     };
 
     final headers = {
@@ -153,7 +213,9 @@ class DailyMetricsApi {
       return;
     }
 
-    throw Exception("Failed to upsert daily metrics: ${res.body}");
+    throw Exception(
+      "Failed to upsert daily metrics (${res.statusCode}): ${res.body}",
+    );
   }
 
   /// Submits calories burned for a day so the backend can run the surplus rule.

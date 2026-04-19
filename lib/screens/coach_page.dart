@@ -65,6 +65,25 @@ class _CoachPageState extends State<CoachPage> {
     return int.tryParse(value.toString());
   }
 
+  String _resolveCoachName(Map<String, dynamic> map) {
+    final direct = (map['name'] ?? '').toString().trim();
+    if (direct.isNotEmpty) return direct;
+
+    final first = (map['first_name'] ?? '').toString().trim();
+    final last = (map['last_name'] ?? '').toString().trim();
+    final full = (map['full_name'] ?? '').toString().trim();
+    final username = (map['username'] ?? '').toString().trim();
+    final email = (map['email'] ?? '').toString().trim();
+
+    if (first.isNotEmpty && last.isNotEmpty) return '$first $last';
+    if (first.isNotEmpty) return first;
+    if (last.isNotEmpty) return last;
+    if (full.isNotEmpty) return full;
+    if (username.isNotEmpty) return username;
+    if (email.isNotEmpty) return email;
+    return '';
+  }
+
   List<_CoachAssignment> _parseAssignedCoaches(Map<String, dynamic> profile) {
     final coaches = <_CoachAssignment>[];
     final rawExperts = profile['assigned_experts'];
@@ -72,14 +91,17 @@ class _CoachPageState extends State<CoachPage> {
       for (final item in rawExperts) {
         if (item is! Map) continue;
         final map = Map<String, dynamic>.from(item);
-        final name = (map['name'] ?? '').toString().trim();
+        final name = _resolveCoachName(map);
         if (name.isEmpty) continue;
         final specialty = _formatSpecialtyLabel(
           (map['specialty'] ?? '').toString().trim(),
         );
         coaches.add(
           _CoachAssignment(
-            id: _parseInt(map['id']),
+            id:
+                _parseInt(map['id']) ??
+                _parseInt(map['user_id']) ??
+                _parseInt(map['expert_user_id']),
             name: name,
             specialty: specialty,
           ),
@@ -106,6 +128,19 @@ class _CoachPageState extends State<CoachPage> {
       }
     }
     return coaches;
+  }
+
+  String _coachPageTitle() {
+    if (_assignedCoaches.isEmpty) return 'Expert';
+    final raw = _assignedCoaches.first.name.trim();
+    if (raw.isEmpty) return 'Expert';
+    final tokens = raw
+        .split(RegExp(r'\s+'))
+        .where((part) => part.trim().isNotEmpty)
+        .toList();
+    if (tokens.isEmpty) return 'Expert';
+    final firstName = tokens.first;
+    return 'Expert $firstName';
   }
 
   Future<void> _detachCoach(_CoachAssignment coach) async {
@@ -345,7 +380,11 @@ class _CoachPageState extends State<CoachPage> {
               icon: const Icon(Icons.groups_2_outlined),
             ),
           ],
-          title: const Text('Expert Page'),
+          title: Text(
+            _coachPageTitle(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
           bottom: TabBar(
             indicatorColor: AppColors.accent,
             labelColor: Colors.white,
