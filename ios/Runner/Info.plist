@@ -70,6 +70,8 @@
 	<string>We use your location to track cardio routes in the background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We use your location to show your position on the cardio map.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We need microphone access to record exercise videos for form checks.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>We use motion data to count steps during cardio sessions.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
