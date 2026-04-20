@@ -150,6 +150,17 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final prioritizedClients = [..._clients]
+      ..sort((a, b) {
+        if (a.hasFormCheckToReview != b.hasFormCheckToReview) {
+          return b.hasFormCheckToReview ? 1 : -1;
+        }
+        if (a.sharedFormCheckCount != b.sharedFormCheckCount) {
+          return b.sharedFormCheckCount.compareTo(a.sharedFormCheckCount);
+        }
+        return a.userId.compareTo(b.userId);
+      });
+
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
@@ -160,7 +171,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
           if (_clients.isEmpty)
             const _EmptyCard(text: 'No assigned clients yet.')
           else
-            ..._clients.map((client) {
+            ...prioritizedClients.map((client) {
               final totalReviews = _reviews
                   .where((r) => r.userId == client.userId)
                   .length;
@@ -643,6 +654,33 @@ class _ClientOverviewCard extends StatelessWidget {
                   'Progression reviews: $reviewCount',
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
+                if (client.hasFormCheckToReview) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.notification_important_outlined,
+                        size: 14,
+                        color: Colors.orangeAccent,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          client.sharedFormCheckCount > 1
+                              ? 'Video available for review (${client.sharedFormCheckCount})'
+                              : 'Video available for review',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.orangeAccent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

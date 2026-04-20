@@ -4799,14 +4799,21 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   Future<void> _loadUserInfo() async {
-    final storedAvatarRaw = await AccountStorage.getAvatarUrl();
-    final cachedProfile = await ProfileStorage.loadProfile();
+    final requestUserId = await AccountStorage.getUserId();
+    final storedAvatarRaw = await AccountStorage.getAvatarUrl(
+      userId: requestUserId,
+    );
+    final cachedProfile = await ProfileStorage.loadProfile(
+      userId: requestUserId,
+    );
     final cachedProfileAvatar = _normalizeAvatarUrl(
       cachedProfile?["avatar_url"]?.toString(),
     );
     final storedAvatar =
         _normalizeAvatarUrl(storedAvatarRaw) ?? cachedProfileAvatar;
-    final storedAvatarPath = await AccountStorage.getAvatarPath();
+    final storedAvatarPath = await AccountStorage.getAvatarPath(
+      userId: requestUserId,
+    );
     final storedName = await AccountStorage.getName();
     final cachedProfileName = cachedProfile == null
         ? null
@@ -4814,8 +4821,9 @@ class DashboardPageState extends State<DashboardPage>
     final initialName = (storedName != null && storedName.trim().isNotEmpty)
         ? storedName
         : cachedProfileName;
-    final userId = await AccountStorage.getUserId();
 
+    final activeUserIdBeforeHydration = await AccountStorage.getUserId();
+    if (activeUserIdBeforeHydration != requestUserId) return;
     if (mounted) {
       // Show whatever we already have immediately to avoid placeholder flicker.
       setState(() {
@@ -4830,9 +4838,9 @@ class DashboardPageState extends State<DashboardPage>
     double? fetchedHeight;
     double? fetchedWeight;
 
-    if (userId != null) {
+    if (requestUserId != null) {
       try {
-        final profile = await ProfileApi.fetchProfile(userId);
+        final profile = await ProfileApi.fetchProfile(requestUserId);
         final resolvedName = _resolveDisplayName(profile);
         final remoteAvatar = _normalizeAvatarUrl(
           profile["avatar_url"]?.toString(),
@@ -4865,6 +4873,8 @@ class DashboardPageState extends State<DashboardPage>
     }
 
     if (!mounted) return;
+    final activeUserId = await AccountStorage.getUserId();
+    if (activeUserId != requestUserId) return;
     if (fetchedName != null &&
         fetchedName.trim().isNotEmpty &&
         fetchedName != initialName) {
@@ -4873,7 +4883,7 @@ class DashboardPageState extends State<DashboardPage>
     if (fetchedAvatar != null &&
         fetchedAvatar.trim().isNotEmpty &&
         fetchedAvatar != storedAvatarRaw) {
-      await AccountStorage.setAvatarUrl(fetchedAvatar);
+      await AccountStorage.setAvatarUrl(fetchedAvatar, userId: requestUserId);
     }
     setState(() {
       _avatarUrl = fetchedAvatar;

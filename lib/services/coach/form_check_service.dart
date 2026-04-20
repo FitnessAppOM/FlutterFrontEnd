@@ -119,6 +119,7 @@ class FormCheckSubmission {
   final bool savedToLibrary;
   final bool sharedWithCoach;
   final int? sharedCoachUserId;
+  final DateTime? sharedAt;
   final String? failureReason;
   final DateTime? deleteAfter;
   final DateTime? createdAt;
@@ -141,6 +142,7 @@ class FormCheckSubmission {
     required this.savedToLibrary,
     required this.sharedWithCoach,
     this.sharedCoachUserId,
+    this.sharedAt,
     this.failureReason,
     this.deleteAfter,
     this.createdAt,
@@ -199,6 +201,7 @@ class FormCheckSubmission {
       sharedCoachUserId: json['shared_coach_user_id'] == null
           ? null
           : parseInt(json['shared_coach_user_id']),
+      sharedAt: parseDate(json['shared_at']),
       failureReason: json['failure_reason']?.toString(),
       deleteAfter: parseDate(json['delete_after']),
       createdAt: parseDate(json['created_at']),
@@ -355,6 +358,26 @@ class FormCheckService {
     if (res.statusCode != 200) {
       throw Exception(
         _extractError('Failed to update library state', res.body),
+      );
+    }
+    return FormCheckSubmission.fromJson(
+      jsonDecode(res.body) as Map<String, dynamic>,
+    );
+  }
+
+  static Future<FormCheckSubmission> updateShareState({
+    required int submissionId,
+    required bool shareWithCoach,
+  }) async {
+    final res = await http.patch(
+      _uri('/form-check/submissions/$submissionId/share'),
+      headers: {'Content-Type': 'application/json', ...await _authHeaders()},
+      body: jsonEncode({'share_with_coach': shareWithCoach}),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to update coach review visibility', res.body),
       );
     }
     return FormCheckSubmission.fromJson(

@@ -69,14 +69,23 @@ class _ProfilePageState extends State<ProfilePage> {
         if (_profile == null) _loading = true;
       });
     }
-    final cachedAvatarRaw = await AccountStorage.getAvatarUrl();
-    final cachedProfile = await ProfileStorage.loadProfile();
+    final requestUserId = await AccountStorage.getUserId();
+    final cachedAvatarRaw = await AccountStorage.getAvatarUrl(
+      userId: requestUserId,
+    );
+    final cachedProfile = await ProfileStorage.loadProfile(
+      userId: requestUserId,
+    );
     final cachedProfileAvatar = _normalizeAvatarUrl(
       cachedProfile?["avatar_url"]?.toString(),
     );
     final cachedAvatar =
         _normalizeAvatarUrl(cachedAvatarRaw) ?? cachedProfileAvatar;
-    final cachedAvatarPath = await AccountStorage.getAvatarPath();
+    final cachedAvatarPath = await AccountStorage.getAvatarPath(
+      userId: requestUserId,
+    );
+    final activeUserIdBeforeHydration = await AccountStorage.getUserId();
+    if (activeUserIdBeforeHydration != requestUserId) return;
     if (mounted) {
       setState(() {
         _avatarUrl = cachedAvatar;
@@ -96,8 +105,7 @@ class _ProfilePageState extends State<ProfilePage> {
     } catch (_) {}
     try {
       final lang = AppLocalizations.of(context).locale.languageCode;
-      final userId = await AccountStorage.getUserId();
-      if (userId == null || userId == 0) {
+      if (requestUserId == null || requestUserId == 0) {
         if (!mounted) return;
         setState(() {
           _error = "user_missing";
@@ -109,14 +117,17 @@ class _ProfilePageState extends State<ProfilePage> {
         return;
       }
       try {
-        final status = await ProfileApi.fetchAccountStatus(userId);
+        final status = await ProfileApi.fetchAccountStatus(requestUserId);
         final value = (status["status"] ?? "").toString().toLowerCase().trim();
-        if (mounted) {
+        final activeUserId = await AccountStorage.getUserId();
+        if (mounted && activeUserId == requestUserId) {
           setState(() => _isDeactivated = value == "deactivated");
         }
       } catch (_) {}
-      final data = await ProfileApi.fetchProfile(userId, lang: lang);
+      final data = await ProfileApi.fetchProfile(requestUserId, lang: lang);
       if (!mounted) return;
+      final activeUserId = await AccountStorage.getUserId();
+      if (activeUserId != requestUserId) return;
       final remoteAvatar = _normalizeAvatarUrl(data["avatar_url"]?.toString());
       if (remoteAvatar != null &&
           remoteAvatar.trim().isNotEmpty &&
@@ -141,6 +152,8 @@ class _ProfilePageState extends State<ProfilePage> {
       });
     } catch (e) {
       if (!mounted) return;
+      final activeUserId = await AccountStorage.getUserId();
+      if (activeUserId != requestUserId) return;
       setState(() {
         if (_profile == null) {
           _error = e.toString();

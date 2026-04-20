@@ -983,12 +983,12 @@ class _SettingsPageState extends State<SettingsPage> {
         final ext = picked.path.split('.').last;
         final localPath = "${dir.path}/avatar_${userId}_$stamp.$ext";
         final saved = await File(picked.path).copy(localPath);
-        await AccountStorage.setAvatarPath(saved.path);
+        await AccountStorage.setAvatarPath(saved.path, userId: userId);
       } catch (_) {
         // Fallback to picker path if copy fails
-        await AccountStorage.setAvatarPath(picked.path);
+        await AccountStorage.setAvatarPath(picked.path, userId: userId);
       }
-      await AccountStorage.setAvatarUrl(cacheBusted);
+      await AccountStorage.setAvatarUrl(cacheBusted, userId: userId);
       AccountStorage.notifyAccountChanged();
       if (!mounted) return;
       AppToast.show(

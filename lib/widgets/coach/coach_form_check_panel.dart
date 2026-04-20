@@ -275,6 +275,41 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
     }
   }
 
+  Future<void> _toggleShare(FormCheckSubmission item) async {
+    try {
+      final updated = await FormCheckService.updateShareState(
+        submissionId: item.submissionId,
+        shareWithCoach: !item.sharedWithCoach,
+      );
+      if (!mounted) return;
+
+      setState(() {
+        _items = _items
+            .map(
+              (existing) => existing.submissionId == updated.submissionId
+                  ? updated
+                  : existing,
+            )
+            .toList();
+      });
+      _showToast(
+        updated.sharedWithCoach
+            ? _tr(
+                context,
+                'coach_form_check_shared_for_review',
+                'Video available for coach review',
+              )
+            : _tr(
+                context,
+                'coach_form_check_removed_from_review',
+                'Removed from coach review',
+              ),
+      );
+    } catch (e) {
+      _showToast(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
   Future<void> _deleteSubmission(FormCheckSubmission item) async {
     final confirmed =
         await showDialog<bool>(
@@ -468,6 +503,7 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
                     onOpenOverlay: item.result.overlayUrl == null
                         ? null
                         : () => _openUrl(item.result.overlayUrl),
+                    onToggleShare: () => _toggleShare(item),
                     onToggleSave: () => _toggleSave(item),
                     onDelete: () => _deleteSubmission(item),
                   ),
@@ -852,6 +888,7 @@ class _SubmissionCard extends StatelessWidget {
     required this.deleteAfterLabel,
     required this.onOpenVideo,
     this.onOpenOverlay,
+    required this.onToggleShare,
     required this.onToggleSave,
     required this.onDelete,
   });
@@ -861,6 +898,7 @@ class _SubmissionCard extends StatelessWidget {
   final String deleteAfterLabel;
   final VoidCallback onOpenVideo;
   final VoidCallback? onOpenOverlay;
+  final VoidCallback onToggleShare;
   final VoidCallback onToggleSave;
   final VoidCallback onDelete;
 
@@ -934,6 +972,14 @@ class _SubmissionCard extends StatelessWidget {
                 label:
                     '${_tr(context, 'coach_form_check_delete_after', 'Delete after')}: $deleteAfterLabel',
               ),
+              if (item.sharedWithCoach)
+                _Meta(
+                  label: _tr(
+                    context,
+                    'coach_form_check_review_available',
+                    'Video available for review',
+                  ),
+                ),
             ],
           ),
           if (item.isProcessing) ...[
@@ -1040,6 +1086,26 @@ class _SubmissionCard extends StatelessWidget {
                   ),
                   onTap: onOpenOverlay!,
                 ),
+              _ActionButton(
+                icon: item.sharedWithCoach
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                label: item.sharedWithCoach
+                    ? _tr(
+                        context,
+                        'coach_form_check_hide_from_coach',
+                        'Remove from coach review',
+                      )
+                    : _tr(
+                        context,
+                        'coach_form_check_show_to_coach',
+                        'Show to coach for review',
+                      ),
+                onTap: onToggleShare,
+                foreground: item.sharedWithCoach
+                    ? Colors.orangeAccent
+                    : Colors.lightBlueAccent,
+              ),
               _ActionButton(
                 icon: item.savedToLibrary
                     ? Icons.bookmark_remove_outlined

@@ -41,6 +41,10 @@ class AccountStorage {
       "${_kProfileEditBlockedUntil}_u$userId";
   static String _dismissDeactivatedPromptKey(int userId) =>
       "${_kDismissDeactivatedPrompt}_u$userId";
+  static String _avatarPathKey(int? userId) =>
+      userId == null ? _kAvatarPath : "${_kAvatarPath}_u$userId";
+  static String _avatarUrlKey(int? userId) =>
+      userId == null ? _kAvatarUrl : "${_kAvatarUrl}_u$userId";
   static const _kMetricsKeys = [
     "manual_steps_entries",
     "manual_calories_entries",
@@ -469,23 +473,45 @@ class AccountStorage {
     await sp.setString(_kName, name);
   }
 
-  static Future<void> setAvatarPath(String path) async {
+  static Future<void> setAvatarPath(String path, {int? userId}) async {
     final sp = await SharedPreferences.getInstance();
+    final effectiveUserId = userId ?? sp.getInt(_kUserId);
+    if (effectiveUserId != null && effectiveUserId > 0) {
+      await sp.setString(_avatarPathKey(effectiveUserId), path);
+      return;
+    }
     await sp.setString(_kAvatarPath, path);
   }
 
-  static Future<String?> getAvatarPath() async {
+  static Future<String?> getAvatarPath({int? userId}) async {
     final sp = await SharedPreferences.getInstance();
+    final effectiveUserId = userId ?? sp.getInt(_kUserId);
+    if (effectiveUserId != null && effectiveUserId > 0) {
+      final value = sp.getString(_avatarPathKey(effectiveUserId));
+      if (value == null || value.trim().isEmpty) return null;
+      return value;
+    }
     return sp.getString(_kAvatarPath);
   }
 
-  static Future<void> setAvatarUrl(String url) async {
+  static Future<void> setAvatarUrl(String url, {int? userId}) async {
     final sp = await SharedPreferences.getInstance();
+    final effectiveUserId = userId ?? sp.getInt(_kUserId);
+    if (effectiveUserId != null && effectiveUserId > 0) {
+      await sp.setString(_avatarUrlKey(effectiveUserId), url);
+      return;
+    }
     await sp.setString(_kAvatarUrl, url);
   }
 
-  static Future<String?> getAvatarUrl() async {
+  static Future<String?> getAvatarUrl({int? userId}) async {
     final sp = await SharedPreferences.getInstance();
+    final effectiveUserId = userId ?? sp.getInt(_kUserId);
+    if (effectiveUserId != null && effectiveUserId > 0) {
+      final value = sp.getString(_avatarUrlKey(effectiveUserId));
+      if (value == null || value.trim().isEmpty) return null;
+      return value;
+    }
     return sp.getString(_kAvatarUrl);
   }
 
@@ -503,6 +529,8 @@ class AccountStorage {
     await sp.remove(_kAvatarUrl);
     await sp.remove(_kAvatarPath);
     if (currentUserId != null) {
+      await sp.remove(_avatarUrlKey(currentUserId));
+      await sp.remove(_avatarPathKey(currentUserId));
       await sp.remove(_whoopLinkedKey(currentUserId));
       await sp.remove(_fitbitLinkedKey(currentUserId));
       await sp.remove(_stravaLinkedKey(currentUserId));
@@ -560,6 +588,8 @@ class AccountStorage {
     await sp.remove(_kAvatarUrl);
     await sp.remove(_kAvatarPath);
     if (currentUserId != null) {
+      await sp.remove(_avatarUrlKey(currentUserId));
+      await sp.remove(_avatarPathKey(currentUserId));
       await sp.remove(_whoopLinkedKey(currentUserId));
       await sp.remove(_fitbitLinkedKey(currentUserId));
       await sp.remove(_stravaLinkedKey(currentUserId));

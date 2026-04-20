@@ -72,11 +72,11 @@ class ProfileApi {
       if (normalizedAvatar != null) {
         data["avatar_url"] = normalizedAvatar;
         try {
-          await AccountStorage.setAvatarUrl(normalizedAvatar);
+          await AccountStorage.setAvatarUrl(normalizedAvatar, userId: userId);
         } catch (_) {}
       }
       try {
-        await ProfileStorage.saveProfile(data);
+        await ProfileStorage.saveProfile(data, userId: userId);
       } catch (_) {}
       return data;
     }
@@ -205,6 +205,7 @@ class ProfileApi {
   static Future<Map<String, dynamic>> updateProfile(
     Map<String, dynamic> payload,
   ) async {
+    final sessionUserId = await AccountStorage.getUserId();
     final url = Uri.parse("${ApiConfig.baseUrl}/profile/update");
     final headers = {
       "Content-Type": "application/json",
@@ -225,7 +226,7 @@ class ProfileApi {
       try {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         try {
-          await ProfileStorage.saveProfile(data);
+          await ProfileStorage.saveProfile(data, userId: sessionUserId);
         } catch (_) {}
         return data;
       } catch (_) {

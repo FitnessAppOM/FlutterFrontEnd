@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../config/base_url.dart';
 import '../core/account_storage.dart';
 import '../services/auth/profile_service.dart';
 import '../services/coach/coach_habits_service.dart';
+import '../services/coach/form_check_service.dart';
 import '../services/coach/progression_review_service.dart';
 import '../theme/app_theme.dart';
 import 'expert_client_analytics_page.dart';
@@ -28,8 +30,10 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   int? _expertId;
   Map<String, dynamic>? _profile;
   List<CoachHabitItem> _habits = const [];
+  List<FormCheckSubmission> _sharedFormChecks = const [];
   String? _profileError;
   String? _habitsError;
+  String? _formChecksError;
 
   @override
   void initState() {
@@ -43,14 +47,17 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
         _loading = true;
         _profileError = null;
         _habitsError = null;
+        _formChecksError = null;
       });
     }
 
     Map<String, dynamic>? profile;
     List<CoachHabitItem> habits = const [];
+    List<FormCheckSubmission> sharedFormChecks = const [];
     int? expertId;
     String? profileError;
     String? habitsError;
+    String? formChecksError;
 
     try {
       expertId = await AccountStorage.getUserId();
@@ -74,13 +81,24 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       habitsError = _normalizeHabitsError(e);
     }
 
+    try {
+      sharedFormChecks =
+          await ProgressionReviewService.fetchClientSharedFormChecks(
+            widget.client.userId,
+          );
+    } catch (e) {
+      formChecksError = _normalizeHabitsError(e);
+    }
+
     if (!mounted) return;
     setState(() {
       _expertId = expertId;
       _profile = profile;
       _habits = habits;
+      _sharedFormChecks = sharedFormChecks;
       _profileError = profileError;
       _habitsError = habitsError;
+      _formChecksError = formChecksError;
       _loading = false;
     });
   }
@@ -177,6 +195,24 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       return 'Inactive ${widget.client.inactiveDays} days';
     }
     return 'Inactive 7+ days';
+  }
+
+  Future<void> _openUrl(String? url) async {
+    if (url == null || url.trim().isEmpty) return;
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  String _formatDateTime(DateTime? value) {
+    if (value == null) return '--';
+    final local = value.toLocal();
+    final y = local.year.toString().padLeft(4, '0');
+    final m = local.month.toString().padLeft(2, '0');
+    final d = local.day.toString().padLeft(2, '0');
+    final hh = local.hour.toString().padLeft(2, '0');
+    final mm = local.minute.toString().padLeft(2, '0');
+    return '$y-$m-$d $hh:$mm';
   }
 
   Future<void> _openHabitsPage() async {
@@ -499,6 +535,129 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     );
   }
 
+  Widget _buildFormReviewCard() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.cardDark,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Form Review',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Only videos explicitly shared by this client are shown.',
+            style: TextStyle(color: Colors.white70),
+          ),
+          const SizedBox(height: 10),
+          if (_formChecksError != null)
+            Text(
+              _formChecksError!,
+              style: const TextStyle(color: Colors.white70),
+            )
+          else if (_sharedFormChecks.isEmpty)
+            const Text(
+              'No videos available for review.',
+              style: TextStyle(color: Colors.white70),
+            )
+          else
+            ..._sharedFormChecks.map(
+              (item) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.03),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.exerciseName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Shared: ${_formatDateTime(item.sharedAt ?? item.createdAt)}',
+                        style: const TextStyle(
+                          color: Colors.white60,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () => _openUrl(item.originalVideoUrl),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white24),
+                              minimumSize: const Size(0, 34),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: const VisualDensity(
+                                horizontal: -2,
+                                vertical: -2,
+                              ),
+                            ),
+                            icon: const Icon(Icons.open_in_new, size: 16),
+                            label: const Text('Open video'),
+                          ),
+                          if ((item.result.overlayUrl ?? '').trim().isNotEmpty)
+                            OutlinedButton.icon(
+                              onPressed: () => _openUrl(item.result.overlayUrl),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                side: const BorderSide(color: Colors.white24),
+                                minimumSize: const Size(0, 34),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                visualDensity: const VisualDensity(
+                                  horizontal: -2,
+                                  vertical: -2,
+                                ),
+                              ),
+                              icon: const Icon(
+                                Icons.insights_outlined,
+                                size: 16,
+                              ),
+                              label: const Text('Open overlay'),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final list = ListView(
@@ -510,6 +669,8 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
         _buildAnalyticsCard(),
         const SizedBox(height: 12),
         _buildHabitsCard(),
+        const SizedBox(height: 12),
+        _buildFormReviewCard(),
         const SizedBox(height: 24),
       ],
     );

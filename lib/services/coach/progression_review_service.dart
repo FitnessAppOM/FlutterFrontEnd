@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import 'form_check_service.dart';
 
 class ProgressionClient {
   final int userId;
@@ -18,6 +19,8 @@ class ProgressionClient {
   final String? lastTrainingDate;
   final String? lastCardioDate;
   final String? lastHabitDate;
+  final int sharedFormCheckCount;
+  final bool hasFormCheckToReview;
 
   const ProgressionClient({
     required this.userId,
@@ -32,6 +35,8 @@ class ProgressionClient {
     this.lastTrainingDate,
     this.lastCardioDate,
     this.lastHabitDate,
+    this.sharedFormCheckCount = 0,
+    this.hasFormCheckToReview = false,
   });
 
   ProgressionClient copyWith({
@@ -46,6 +51,8 @@ class ProgressionClient {
     String? lastTrainingDate,
     String? lastCardioDate,
     String? lastHabitDate,
+    int? sharedFormCheckCount,
+    bool? hasFormCheckToReview,
   }) {
     return ProgressionClient(
       userId: userId,
@@ -60,6 +67,8 @@ class ProgressionClient {
       lastTrainingDate: lastTrainingDate ?? this.lastTrainingDate,
       lastCardioDate: lastCardioDate ?? this.lastCardioDate,
       lastHabitDate: lastHabitDate ?? this.lastHabitDate,
+      sharedFormCheckCount: sharedFormCheckCount ?? this.sharedFormCheckCount,
+      hasFormCheckToReview: hasFormCheckToReview ?? this.hasFormCheckToReview,
     );
   }
 
@@ -93,6 +102,12 @@ class ProgressionClient {
       return int.tryParse(value.toString());
     }
 
+    bool parseBool(dynamic value) {
+      if (value is bool) return value;
+      final raw = value?.toString().trim().toLowerCase() ?? '';
+      return raw == 'true' || raw == '1' || raw == 'yes';
+    }
+
     return ProgressionClient(
       userId: parseInt(json['user_id']),
       name: parseString(json['name']),
@@ -111,6 +126,8 @@ class ProgressionClient {
       lastTrainingDate: parseString(json['last_training_date']),
       lastCardioDate: parseString(json['last_cardio_date']),
       lastHabitDate: parseString(json['last_habit_date']),
+      sharedFormCheckCount: parseInt(json['shared_form_check_count']),
+      hasFormCheckToReview: parseBool(json['has_form_check_to_review']),
     );
   }
 }
@@ -502,7 +519,26 @@ class ProgressionReviewService {
     final clientsNeedingAvatarRefresh = normalizedClients
         .where((client) => _needsAvatarRefresh(client.avatarUrl))
         .toList();
-    if (clientsNeedingAvatarRefresh.isEmpty) return normalizedClients;
+    List<ProgressionClient> sortByReviewPriority(
+      List<ProgressionClient> input,
+    ) {
+      input.sort((a, b) {
+        if (a.hasFormCheckToReview != b.hasFormCheckToReview) {
+          return b.hasFormCheckToReview ? 1 : -1;
+        }
+        if (a.sharedFormCheckCount != b.sharedFormCheckCount) {
+          return b.sharedFormCheckCount.compareTo(a.sharedFormCheckCount);
+        }
+        final aName = (a.name ?? '').toLowerCase();
+        final bName = (b.name ?? '').toLowerCase();
+        return aName.compareTo(bName);
+      });
+      return input;
+    }
+
+    if (clientsNeedingAvatarRefresh.isEmpty) {
+      return sortByReviewPriority(normalizedClients);
+    }
 
     final headers = await _authHeaders();
     final fetchedAvatars = <int, String?>{};
@@ -516,13 +552,37 @@ class ProgressionReviewService {
       }),
     );
 
-    return normalizedClients.map((client) {
-      final avatar =
-          _normalizeAvatarUrl(fetchedAvatars[client.userId]) ??
-          _normalizeAvatarUrl(client.avatarUrl);
-      if (avatar == null) return client;
-      return client.copyWith(avatarUrl: avatar);
-    }).toList();
+    return sortByReviewPriority(
+      normalizedClients.map((client) {
+        final avatar =
+            _normalizeAvatarUrl(fetchedAvatars[client.userId]) ??
+            _normalizeAvatarUrl(client.avatarUrl);
+        if (avatar == null) return client;
+        return client.copyWith(avatarUrl: avatar);
+      }).toList(),
+    );
+  }
+
+  static Future<List<FormCheckSubmission>> fetchClientSharedFormChecks(
+    int clientUserId,
+  ) async {
+    final res = await http.get(
+      _uri('/coach/progression/clients/$clientUserId/form-checks'),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to load shared Form Check videos', res.body),
+      );
+    }
+    final decoded = jsonDecode(res.body);
+    final raw = decoded is Map ? decoded['items'] : null;
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((e) => FormCheckSubmission.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
   }
 
   static Future<List<ProgressionReview>> fetchReviews({

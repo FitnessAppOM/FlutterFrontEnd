@@ -8,18 +8,21 @@ class ProfileStorage {
 
   static String _userKey(int userId) => '${_keyPrefix}_u$userId';
 
-  static Future<void> saveProfile(Map<String, dynamic> profile) async {
-    final userId = await AccountStorage.getUserId();
-    if (userId == null) return;
+  static Future<void> saveProfile(
+    Map<String, dynamic> profile, {
+    int? userId,
+  }) async {
+    final effectiveUserId = userId ?? await AccountStorage.getUserId();
+    if (effectiveUserId == null || effectiveUserId <= 0) return;
     final sp = await SharedPreferences.getInstance();
-    await sp.setString(_userKey(userId), jsonEncode(profile));
+    await sp.setString(_userKey(effectiveUserId), jsonEncode(profile));
   }
 
-  static Future<Map<String, dynamic>?> loadProfile() async {
-    final userId = await AccountStorage.getUserId();
-    if (userId == null) return null;
+  static Future<Map<String, dynamic>?> loadProfile({int? userId}) async {
+    final effectiveUserId = userId ?? await AccountStorage.getUserId();
+    if (effectiveUserId == null || effectiveUserId <= 0) return null;
     final sp = await SharedPreferences.getInstance();
-    final raw = sp.getString(_userKey(userId));
+    final raw = sp.getString(_userKey(effectiveUserId));
     if (raw == null) return null;
     try {
       return jsonDecode(raw) as Map<String, dynamic>;
