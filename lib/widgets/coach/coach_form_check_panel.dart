@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../consents/consent_manager.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/coach/form_check_service.dart';
 import '../../theme/app_theme.dart';
@@ -94,25 +94,36 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
   }
 
   Future<void> _pickVideo() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['mp4', 'mov'],
-    );
-    if (result == null || result.files.isEmpty) return;
+    final photosOk = await ConsentManager.requestPhotosJIT();
+    if (!photosOk) {
+      if (!mounted) return;
+      _showToast(_tr(context, 'permissions_required', 'Permissions required'));
+      return;
+    }
 
-    final picked = result.files.first;
-    final path = picked.path;
-    if (path == null || path.trim().isEmpty) return;
+    try {
+      final picked = await _imagePicker.pickVideo(source: ImageSource.gallery);
+      if (picked == null) return;
 
-    final file = File(path);
-    final size = await file.length();
-    if (!mounted) return;
+      final file = File(picked.path);
+      final size = await file.length();
+      if (!mounted) return;
 
-    setState(() {
-      _selectedVideo = file;
-      _selectedVideoName = picked.name;
-      _selectedVideoBytes = size;
-    });
+      setState(() {
+        _selectedVideo = file;
+        _selectedVideoName = picked.name;
+        _selectedVideoBytes = size;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      _showToast(
+        _tr(
+          context,
+          'coach_form_check_pick_video_failed',
+          'Could not open video gallery on this device',
+        ),
+      );
+    }
   }
 
   Future<void> _recordVideo() async {
