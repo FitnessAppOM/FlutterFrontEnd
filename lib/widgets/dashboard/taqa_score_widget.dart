@@ -52,6 +52,10 @@ class _TaqaScoreWidgetState extends State<TaqaScoreWidget>
   @override
   Widget build(BuildContext context) {
     final taqaValue = widget.score?.taqaValueScore;
+    final displayProvider =
+        widget.score?.scoringPath == 'wearable'
+            ? (widget.provider ?? widget.score?.provider)
+            : null;
     final display = taqaValue == null ? "--" : taqaValue.round().toString();
     final progress = taqaValue == null
         ? 0.0
@@ -197,10 +201,10 @@ class _TaqaScoreWidgetState extends State<TaqaScoreWidget>
                               ),
                             ),
                           ],
-                          if (widget.provider != null) ...[
+                          if (displayProvider != null) ...[
                             const SizedBox(height: 4),
                             Text(
-                              _providerLabel(widget.provider!),
+                              _providerLabel(displayProvider),
                               style: const TextStyle(
                                 color: Colors.white38,
                                 fontSize: 11,
@@ -252,7 +256,12 @@ class _TaqaScoreWidgetState extends State<TaqaScoreWidget>
     if (s.stress.score != null) {
       items.add(_MiniItem("Stress", s.stress.score!, const Color(0xFF4CD964)));
     }
-    if (s.trainingLoad.score != null) {
+    final trainingLoadNote = s.trainingLoad.details['note']?.toString();
+    final showTrainingLoad =
+        s.trainingLoad.score != null &&
+        !(s.trainingLoad.path == 'journal' &&
+            trainingLoadNote == 'bootstrap_assumed_acwr_1_0');
+    if (showTrainingLoad) {
       items.add(
         _MiniItem("Load", s.trainingLoad.score!, const Color(0xFFFF8A00)),
       );

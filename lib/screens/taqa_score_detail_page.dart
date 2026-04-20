@@ -793,6 +793,9 @@ class _PillarCardState extends State<_PillarCard> {
         if (widget.path == 'no_workout') {
           return t("taqa_training_no_workout");
         }
+        if (widget.path == 'baseline_pending') {
+          return "Building training baseline until enough history is available";
+        }
         return t("taqa_training_no_data");
       }
       if (widget.score == 0 && widget.path == 'no_workout') {
