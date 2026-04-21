@@ -164,14 +164,57 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
     return DateFormat('MMM d, HH:mm').format(local);
   }
 
+  String _feedbackMessage(FormCheckSubmission item) {
+    if (item.coachReviewReplies.isNotEmpty) {
+      final text = item.coachReviewReplies.last.replyText.trim();
+      if (text.isNotEmpty) return text;
+    }
+    return (item.coachReview?.reviewText ?? '').trim();
+  }
+
+  FormCheckCoachReply? _latestPinnedReply(FormCheckSubmission item) {
+    for (final reply in item.coachReviewReplies.reversed) {
+      if (reply.isPinned) return reply;
+    }
+    return null;
+  }
+
+  String _pinnedFeedbackMessage(FormCheckSubmission item) {
+    final pinnedReply = _latestPinnedReply(item);
+    if (pinnedReply != null) {
+      final text = pinnedReply.replyText.trim();
+      if (text.isNotEmpty) return text;
+    }
+    if (item.coachReview?.isPinned == true) {
+      return (item.coachReview?.reviewText ?? '').trim();
+    }
+    return '';
+  }
+
+  bool _isPinned(FormCheckSubmission item) {
+    if (item.coachReview?.isPinned == true) return true;
+    return _latestPinnedReply(item) != null;
+  }
+
+  DateTime? _feedbackTime(FormCheckSubmission item) {
+    if (item.coachReviewReplies.isNotEmpty) {
+      final last = item.coachReviewReplies.last;
+      return last.createdAt ?? last.updatedAt;
+    }
+    return item.coachReview?.reviewedAt ??
+        item.updatedAt ??
+        item.sharedAt ??
+        item.createdAt;
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     final pinnedCorrections = _pinnedFeedbackItems
-        .where((item) => (item.coachReview?.reviewText ?? '').trim().isNotEmpty)
+        .where((item) => _pinnedFeedbackMessage(item).isNotEmpty)
         .map(
           (item) => _PinnedCorrection(
-            title: (item.coachReview?.reviewText ?? '').trim(),
+            title: _pinnedFeedbackMessage(item),
             exercise: item.exerciseName,
           ),
         )
@@ -234,20 +277,15 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
             (item) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: _FeedbackEntryCard(
-                dateLabel: _formatFeedDate(
-                  item.coachReview?.reviewedAt ??
-                      item.updatedAt ??
-                      item.sharedAt ??
-                      item.createdAt,
-                ),
+                dateLabel: _formatFeedDate(_feedbackTime(item)),
                 workoutLabel: item.exerciseName,
-                message: (item.coachReview?.reviewText ?? '').trim(),
-                footerLabel: (item.coachReview?.isPinned ?? false)
+                message: _feedbackMessage(item),
+                footerLabel: _isPinned(item)
                     ? 'Pinned by coach'
                     : 'Coach reply',
                 isVoiceNote: false,
                 hasNutritionNote: false,
-                isPinned: item.coachReview?.isPinned ?? false,
+                isPinned: _isPinned(item),
               ),
             ),
           ),

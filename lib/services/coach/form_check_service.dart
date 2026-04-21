@@ -163,6 +163,54 @@ class FormCheckCoachReview {
   }
 }
 
+class FormCheckCoachReply {
+  final int replyId;
+  final int submissionId;
+  final int coachUserId;
+  final String replyText;
+  final bool isPinned;
+  final DateTime? pinnedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  const FormCheckCoachReply({
+    required this.replyId,
+    required this.submissionId,
+    required this.coachUserId,
+    required this.replyText,
+    required this.isPinned,
+    this.pinnedAt,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  factory FormCheckCoachReply.fromJson(Map<String, dynamic> json) {
+    int parseInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    DateTime? parseDate(dynamic value) {
+      if (value == null) return null;
+      final raw = value.toString().trim();
+      if (raw.isEmpty) return null;
+      return DateTime.tryParse(raw);
+    }
+
+    return FormCheckCoachReply(
+      replyId: parseInt(json['reply_id']),
+      submissionId: parseInt(json['submission_id']),
+      coachUserId: parseInt(json['coach_user_id']),
+      replyText: (json['reply_text'] ?? '').toString(),
+      isPinned: json['is_pinned'] == true,
+      pinnedAt: parseDate(json['pinned_at']),
+      createdAt: parseDate(json['created_at']),
+      updatedAt: parseDate(json['updated_at']),
+    );
+  }
+}
+
 class FormCheckSubmission {
   final int submissionId;
   final int userId;
@@ -186,6 +234,7 @@ class FormCheckSubmission {
   final DateTime? updatedAt;
   final FormCheckResultData result;
   final FormCheckCoachReview? coachReview;
+  final List<FormCheckCoachReply> coachReviewReplies;
 
   const FormCheckSubmission({
     required this.submissionId,
@@ -210,6 +259,7 @@ class FormCheckSubmission {
     this.updatedAt,
     required this.result,
     this.coachReview,
+    required this.coachReviewReplies,
   });
 
   bool get isProcessing => status == 'queued' || status == 'processing';
@@ -248,6 +298,17 @@ class FormCheckSubmission {
         : (coachReviewJson is Map
               ? Map<String, dynamic>.from(coachReviewJson)
               : null);
+    final rawReplies = json['coach_review_replies'];
+    final coachReplies = rawReplies is List
+        ? rawReplies
+              .whereType<Map>()
+              .map(
+                (reply) => FormCheckCoachReply.fromJson(
+                  Map<String, dynamic>.from(reply),
+                ),
+              )
+              .toList()
+        : <FormCheckCoachReply>[];
 
     return FormCheckSubmission(
       submissionId: parseInt(json['submission_id']),
@@ -278,6 +339,7 @@ class FormCheckSubmission {
       coachReview: coachReview == null
           ? null
           : FormCheckCoachReview.fromJson(coachReview),
+      coachReviewReplies: coachReplies,
     );
   }
 }

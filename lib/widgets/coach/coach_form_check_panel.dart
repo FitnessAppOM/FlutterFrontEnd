@@ -911,6 +911,9 @@ class _SubmissionCard extends StatelessWidget {
       'queued' => Colors.amberAccent,
       _ => Colors.white54,
     };
+    final hasCoachReply =
+        item.coachReviewReplies.isNotEmpty ||
+        ((item.coachReview?.reviewText ?? '').trim().isNotEmpty);
 
     return Container(
       decoration: BoxDecoration(
@@ -972,12 +975,20 @@ class _SubmissionCard extends StatelessWidget {
                 label:
                     '${_tr(context, 'coach_form_check_delete_after', 'Delete after')}: $deleteAfterLabel',
               ),
-              if (item.sharedWithCoach)
+              if (item.sharedWithCoach && !hasCoachReply)
                 _Meta(
                   label: _tr(
                     context,
                     'coach_form_check_review_available',
                     'Video available for review',
+                  ),
+                ),
+              if (hasCoachReply)
+                _Meta(
+                  label: _tr(
+                    context,
+                    'coach_form_check_replied',
+                    'Coach replied',
                   ),
                 ),
             ],

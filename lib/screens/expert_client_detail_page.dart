@@ -34,7 +34,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   final Map<int, TextEditingController> _reviewControllers =
       <int, TextEditingController>{};
   final Set<int> _savingReviewIds = <int>{};
-  final Set<int> _pinningReviewIds = <int>{};
+  final Set<int> _pinningReplyIds = <int>{};
   String? _profileError;
   String? _habitsError;
   String? _formChecksError;
@@ -236,34 +236,12 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     for (final id in staleIds) {
       _reviewControllers.remove(id)?.dispose();
     }
-
-    for (final item in items) {
-      final submissionId = item.submissionId;
-      final serverText = (item.coachReview?.reviewText ?? '').trim();
-      final existing = _reviewControllers[submissionId];
-      if (existing == null) {
-        _reviewControllers[submissionId] = TextEditingController(
-          text: serverText,
-        );
-        continue;
-      }
-      final localText = existing.text.trim();
-      if (_savingReviewIds.contains(submissionId)) continue;
-      if (localText.isNotEmpty && localText != serverText) continue;
-      if (localText == serverText) continue;
-      existing.value = TextEditingValue(
-        text: serverText,
-        selection: TextSelection.collapsed(offset: serverText.length),
-      );
-    }
   }
 
   TextEditingController _reviewControllerFor(FormCheckSubmission item) {
     final existing = _reviewControllers[item.submissionId];
     if (existing != null) return existing;
-    final created = TextEditingController(
-      text: (item.coachReview?.reviewText ?? '').trim(),
-    );
+    final created = TextEditingController();
     _reviewControllers[item.submissionId] = created;
     return created;
   }
@@ -290,9 +268,10 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     final submissionId = item.submissionId;
     if (_savingReviewIds.contains(submissionId)) return null;
 
-    final reviewText = _reviewControllerFor(item).text.trim();
+    final controller = _reviewControllerFor(item);
+    final reviewText = controller.text.trim();
     if (reviewText.isEmpty) {
-      _showSnack('Write your note before saving.');
+      _showSnack('Write your comment before sending.');
       return null;
     }
 
@@ -306,7 +285,8 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       setState(() {
         _replaceFormCheckItem(updated);
       });
-      _showSnack('Review note saved.');
+      controller.clear();
+      _showSnack('Comment sent.');
       return updated;
     } catch (e) {
       _showSnack(e.toString().replaceFirst('Exception: ', ''));
@@ -318,39 +298,32 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     }
   }
 
-  Future<FormCheckSubmission?> _toggleReviewPinned(
-    FormCheckSubmission item,
-  ) async {
-    final submissionId = item.submissionId;
-    if (_pinningReviewIds.contains(submissionId)) return null;
-    final reviewText = (item.coachReview?.reviewText ?? '').trim();
-    if (reviewText.isEmpty) {
-      _showSnack('Add a written review before pinning.');
-      return null;
-    }
+  Future<FormCheckSubmission?> _toggleReplyPinned({
+    required FormCheckSubmission item,
+    required FormCheckCoachReply reply,
+  }) async {
+    final replyId = reply.replyId;
+    if (_pinningReplyIds.contains(replyId)) return null;
 
-    setState(() => _pinningReviewIds.add(submissionId));
+    setState(() => _pinningReplyIds.add(replyId));
     try {
-      final updated = await ProgressionReviewService.setFormCheckReviewPinned(
-        submissionId: submissionId,
-        isPinned: !(item.coachReview?.isPinned ?? false),
+      final updated = await ProgressionReviewService.setFormCheckReplyPinned(
+        submissionId: item.submissionId,
+        replyId: replyId,
+        isPinned: !reply.isPinned,
       );
       if (!mounted) return null;
       setState(() {
         _replaceFormCheckItem(updated);
       });
-      _showSnack(
-        (updated.coachReview?.isPinned ?? false)
-            ? 'Reply pinned for the client.'
-            : 'Reply removed from pinned.',
-      );
+      _showSnack(reply.isPinned ? 'Reply unpinned.' : 'Reply pinned.');
       return updated;
     } catch (e) {
       _showSnack(e.toString().replaceFirst('Exception: ', ''));
       return null;
     } finally {
       if (mounted) {
-        setState(() => _pinningReviewIds.remove(submissionId));
+        setState(() => _pinningReplyIds.remove(replyId));
       }
     }
   }
@@ -379,9 +352,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
           builder: (sheetContext, setSheetState) {
             final submissionId = current.submissionId;
             final isSaving = _savingReviewIds.contains(submissionId);
-            final isPinning = _pinningReviewIds.contains(submissionId);
-            final isPinned = current.coachReview?.isPinned ?? false;
-            final reviewedAt = current.coachReview?.reviewedAt;
+            final replies = current.coachReviewReplies;
 
             Future<void> handleSave() async {
               final updated = await _saveWrittenReview(current);
@@ -390,8 +361,11 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
               setSheetState(() {});
             }
 
-            Future<void> handlePinToggle() async {
-              final updated = await _toggleReviewPinned(current);
+            Future<void> handlePinToggle(FormCheckCoachReply reply) async {
+              final updated = await _toggleReplyPinned(
+                item: current,
+                reply: reply,
+              );
               if (updated == null || !mounted) return;
               current = _submissionById(updated.submissionId);
               setSheetState(() {});
@@ -442,19 +416,6 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                         fontSize: 12,
                       ),
                     ),
-                    if (reviewedAt != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 3),
-                        child: Text(
-                          'Reviewed: ${_formatDateTime(reviewedAt)}',
-                          style: TextStyle(
-                            color: isPinned
-                                ? Colors.orangeAccent
-                                : Colors.white54,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
                     const SizedBox(height: 10),
                     Wrap(
                       spacing: 8,
@@ -560,48 +521,121 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                               : const Icon(Icons.send, size: 14),
                           label: Text(isSaving ? 'Sending...' : 'Send'),
                         ),
-                        const SizedBox(width: 8),
-                        OutlinedButton.icon(
-                          onPressed: isPinning ? null : handlePinToggle,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: isPinned
-                                ? Colors.orangeAccent
-                                : Colors.white,
-                            side: BorderSide(
-                              color: isPinned
-                                  ? Colors.orangeAccent
-                                  : Colors.white24,
-                            ),
-                            minimumSize: const Size(0, 34),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            visualDensity: const VisualDensity(
-                              horizontal: -2,
-                              vertical: -2,
-                            ),
-                          ),
-                          icon: isPinning
-                              ? const SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white70,
-                                  ),
-                                )
-                              : Icon(
-                                  isPinned
-                                      ? Icons.push_pin
-                                      : Icons.push_pin_outlined,
-                                  size: 14,
-                                ),
-                          label: Text(isPinned ? 'Unpin' : 'Pin'),
-                        ),
                       ],
                     ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Reply History',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (replies.isEmpty)
+                      const Text(
+                        'No replies yet.',
+                        style: TextStyle(color: Colors.white54),
+                      )
+                    else
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 240),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: replies.length,
+                          itemBuilder: (context, index) {
+                            final reply = replies[replies.length - 1 - index];
+                            return Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.04),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.white12),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          _formatDateTime(
+                                            reply.createdAt ?? reply.updatedAt,
+                                          ),
+                                          style: const TextStyle(
+                                            color: Colors.white54,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                      OutlinedButton.icon(
+                                        onPressed:
+                                            _pinningReplyIds.contains(
+                                              reply.replyId,
+                                            )
+                                            ? null
+                                            : () => handlePinToggle(reply),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: reply.isPinned
+                                              ? Colors.orangeAccent
+                                              : Colors.white70,
+                                          side: BorderSide(
+                                            color: reply.isPinned
+                                                ? Colors.orangeAccent
+                                                : Colors.white24,
+                                          ),
+                                          minimumSize: const Size(0, 28),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                          tapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
+                                          visualDensity: const VisualDensity(
+                                            horizontal: -2,
+                                            vertical: -2,
+                                          ),
+                                        ),
+                                        icon:
+                                            _pinningReplyIds.contains(
+                                              reply.replyId,
+                                            )
+                                            ? const SizedBox(
+                                                width: 12,
+                                                height: 12,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      color: Colors.white70,
+                                                    ),
+                                              )
+                                            : Icon(
+                                                reply.isPinned
+                                                    ? Icons.push_pin
+                                                    : Icons.push_pin_outlined,
+                                                size: 12,
+                                              ),
+                                        label: Text(
+                                          reply.isPinned ? 'Unpin' : 'Pin',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    reply.replyText,
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -969,10 +1003,6 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
             )
           else
             ..._sharedFormChecks.map((item) {
-              final review = item.coachReview;
-              final isPinned = review?.isPinned == true;
-              final notePreview = (review?.reviewText ?? '').trim();
-
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: InkWell(
@@ -999,34 +1029,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                                 ),
                               ),
                             ),
-                            if (isPinned)
-                              const Icon(
-                                Icons.push_pin,
-                                size: 16,
-                                color: Colors.orangeAccent,
-                              ),
                           ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Shared: ${_formatDateTime(item.sharedAt ?? item.createdAt)}',
-                          style: const TextStyle(
-                            color: Colors.white60,
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          notePreview.isEmpty
-                              ? 'No reply yet. Tap to write and send.'
-                              : notePreview,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: notePreview.isEmpty
-                                ? Colors.white54
-                                : Colors.white70,
-                          ),
                         ),
                         const SizedBox(height: 6),
                         const Row(

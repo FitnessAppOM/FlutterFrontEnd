@@ -630,6 +630,27 @@ class ProgressionReviewService {
     );
   }
 
+  static Future<FormCheckSubmission> setFormCheckReplyPinned({
+    required int submissionId,
+    required int replyId,
+    required bool isPinned,
+  }) async {
+    final res = await http.patch(
+      _uri('/coach/progression/form-checks/$submissionId/replies/$replyId/pin'),
+      headers: await _authHeaders(jsonBody: true),
+      body: jsonEncode({'is_pinned': isPinned}),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to update Form Check reply pin', res.body),
+      );
+    }
+    return FormCheckSubmission.fromJson(
+      jsonDecode(res.body) as Map<String, dynamic>,
+    );
+  }
+
   static Future<List<ProgressionReview>> fetchReviews({
     String? status,
     bool includeApplied = false,

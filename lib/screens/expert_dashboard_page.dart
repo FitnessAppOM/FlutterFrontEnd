@@ -667,8 +667,8 @@ class _ClientOverviewCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           client.sharedFormCheckCount > 1
-                              ? 'Video available for review (${client.sharedFormCheckCount})'
-                              : 'Video available for review',
+                              ? 'Awaiting your reply (${client.sharedFormCheckCount})'
+                              : 'Awaiting your reply',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
