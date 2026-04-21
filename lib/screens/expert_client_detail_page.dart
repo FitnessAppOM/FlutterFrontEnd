@@ -284,14 +284,16 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _saveWrittenReview(FormCheckSubmission item) async {
+  Future<FormCheckSubmission?> _saveWrittenReview(
+    FormCheckSubmission item,
+  ) async {
     final submissionId = item.submissionId;
-    if (_savingReviewIds.contains(submissionId)) return;
+    if (_savingReviewIds.contains(submissionId)) return null;
 
     final reviewText = _reviewControllerFor(item).text.trim();
     if (reviewText.isEmpty) {
       _showSnack('Write your note before saving.');
-      return;
+      return null;
     }
 
     setState(() => _savingReviewIds.add(submissionId));
@@ -300,13 +302,15 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
         submissionId: submissionId,
         reviewText: reviewText,
       );
-      if (!mounted) return;
+      if (!mounted) return null;
       setState(() {
         _replaceFormCheckItem(updated);
       });
       _showSnack('Review note saved.');
+      return updated;
     } catch (e) {
       _showSnack(e.toString().replaceFirst('Exception: ', ''));
+      return null;
     } finally {
       if (mounted) {
         setState(() => _savingReviewIds.remove(submissionId));
@@ -314,13 +318,15 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     }
   }
 
-  Future<void> _toggleReviewPinned(FormCheckSubmission item) async {
+  Future<FormCheckSubmission?> _toggleReviewPinned(
+    FormCheckSubmission item,
+  ) async {
     final submissionId = item.submissionId;
-    if (_pinningReviewIds.contains(submissionId)) return;
+    if (_pinningReviewIds.contains(submissionId)) return null;
     final reviewText = (item.coachReview?.reviewText ?? '').trim();
     if (reviewText.isEmpty) {
       _showSnack('Add a written review before pinning.');
-      return;
+      return null;
     }
 
     setState(() => _pinningReviewIds.add(submissionId));
@@ -329,7 +335,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
         submissionId: submissionId,
         isPinned: !(item.coachReview?.isPinned ?? false),
       );
-      if (!mounted) return;
+      if (!mounted) return null;
       setState(() {
         _replaceFormCheckItem(updated);
       });
@@ -338,13 +344,272 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
             ? 'Reply pinned for the client.'
             : 'Reply removed from pinned.',
       );
+      return updated;
     } catch (e) {
       _showSnack(e.toString().replaceFirst('Exception: ', ''));
+      return null;
     } finally {
       if (mounted) {
         setState(() => _pinningReviewIds.remove(submissionId));
       }
     }
+  }
+
+  FormCheckSubmission _submissionById(int submissionId) {
+    for (final item in _sharedFormChecks) {
+      if (item.submissionId == submissionId) return item;
+    }
+    return _sharedFormChecks.firstWhere(
+      (item) => item.submissionId == submissionId,
+    );
+  }
+
+  Future<void> _openSubmissionReviewSheet(FormCheckSubmission item) async {
+    final controller = _reviewControllerFor(item);
+    var current = item;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.cardDark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            final submissionId = current.submissionId;
+            final isSaving = _savingReviewIds.contains(submissionId);
+            final isPinning = _pinningReviewIds.contains(submissionId);
+            final isPinned = current.coachReview?.isPinned ?? false;
+            final reviewedAt = current.coachReview?.reviewedAt;
+
+            Future<void> handleSave() async {
+              final updated = await _saveWrittenReview(current);
+              if (updated == null || !mounted) return;
+              current = _submissionById(updated.submissionId);
+              setSheetState(() {});
+            }
+
+            Future<void> handlePinToggle() async {
+              final updated = await _toggleReviewPinned(current);
+              if (updated == null || !mounted) return;
+              current = _submissionById(updated.submissionId);
+              setSheetState(() {});
+            }
+
+            return SafeArea(
+              top: false,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: 14,
+                  bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.video_collection_outlined,
+                          color: Colors.white70,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            current.exerciseName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          icon: const Icon(Icons.close, color: Colors.white70),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      'Shared: ${_formatDateTime(current.sharedAt ?? current.createdAt)}',
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 12,
+                      ),
+                    ),
+                    if (reviewedAt != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 3),
+                        child: Text(
+                          'Reviewed: ${_formatDateTime(reviewedAt)}',
+                          style: TextStyle(
+                            color: isPinned
+                                ? Colors.orangeAccent
+                                : Colors.white54,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () => _openUrl(current.originalVideoUrl),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.white24),
+                            minimumSize: const Size(0, 34),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: const VisualDensity(
+                              horizontal: -2,
+                              vertical: -2,
+                            ),
+                          ),
+                          icon: const Icon(Icons.open_in_new, size: 16),
+                          label: const Text('Open video'),
+                        ),
+                        if ((current.result.overlayUrl ?? '').trim().isNotEmpty)
+                          OutlinedButton.icon(
+                            onPressed: () =>
+                                _openUrl(current.result.overlayUrl),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white24),
+                              minimumSize: const Size(0, 34),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: const VisualDensity(
+                                horizontal: -2,
+                                vertical: -2,
+                              ),
+                            ),
+                            icon: const Icon(Icons.insights_outlined, size: 16),
+                            label: const Text('Open overlay'),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: controller,
+                      minLines: 2,
+                      maxLines: 6,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: 'Write review notes for the client...',
+                        hintStyle: const TextStyle(color: Colors.white38),
+                        filled: true,
+                        fillColor: Colors.white.withValues(alpha: 0.03),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Colors.white24),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Colors.white24),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: AppColors.accent),
+                        ),
+                        isDense: true,
+                        contentPadding: const EdgeInsets.all(10),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        FilledButton.icon(
+                          onPressed: isSaving ? null : handleSave,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.accent,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(0, 34),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: const VisualDensity(
+                              horizontal: -2,
+                              vertical: -2,
+                            ),
+                          ),
+                          icon: isSaving
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.send, size: 14),
+                          label: Text(isSaving ? 'Sending...' : 'Send'),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton.icon(
+                          onPressed: isPinning ? null : handlePinToggle,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: isPinned
+                                ? Colors.orangeAccent
+                                : Colors.white,
+                            side: BorderSide(
+                              color: isPinned
+                                  ? Colors.orangeAccent
+                                  : Colors.white24,
+                            ),
+                            minimumSize: const Size(0, 34),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: const VisualDensity(
+                              horizontal: -2,
+                              vertical: -2,
+                            ),
+                          ),
+                          icon: isPinning
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white70,
+                                  ),
+                                )
+                              : Icon(
+                                  isPinned
+                                      ? Icons.push_pin
+                                      : Icons.push_pin_outlined,
+                                  size: 14,
+                                ),
+                          label: Text(isPinned ? 'Unpin' : 'Pin'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _openHabitsPage() async {
@@ -704,209 +969,86 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
             )
           else
             ..._sharedFormChecks.map((item) {
-              final submissionId = item.submissionId;
               final review = item.coachReview;
-              final reviewedAt = review?.reviewedAt;
-              final controller = _reviewControllerFor(item);
-              final isSaving = _savingReviewIds.contains(submissionId);
-              final isPinning = _pinningReviewIds.contains(submissionId);
               final isPinned = review?.isPinned == true;
+              final notePreview = (review?.reviewText ?? '').trim();
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10),
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.03),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.white12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.exerciseName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () => _openSubmissionReviewSheet(item),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.03),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.white12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.exerciseName,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            if (isPinned)
+                              const Icon(
+                                Icons.push_pin,
+                                size: 16,
+                                color: Colors.orangeAccent,
+                              ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Shared: ${_formatDateTime(item.sharedAt ?? item.createdAt)}',
-                        style: const TextStyle(
-                          color: Colors.white60,
-                          fontSize: 12,
-                        ),
-                      ),
-                      if (reviewedAt != null) ...[
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 4),
                         Text(
-                          'Reviewed: ${_formatDateTime(reviewedAt)}',
-                          style: TextStyle(
-                            color: isPinned
-                                ? Colors.orangeAccent
-                                : Colors.white54,
+                          'Shared: ${_formatDateTime(item.sharedAt ?? item.createdAt)}',
+                          style: const TextStyle(
+                            color: Colors.white60,
                             fontSize: 12,
                           ),
                         ),
-                      ],
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: () => _openUrl(item.originalVideoUrl),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              side: const BorderSide(color: Colors.white24),
-                              minimumSize: const Size(0, 34),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 8,
-                              ),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              visualDensity: const VisualDensity(
-                                horizontal: -2,
-                                vertical: -2,
-                              ),
-                            ),
-                            icon: const Icon(Icons.open_in_new, size: 16),
-                            label: const Text('Open video'),
+                        const SizedBox(height: 6),
+                        Text(
+                          notePreview.isEmpty
+                              ? 'No reply yet. Tap to write and send.'
+                              : notePreview,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: notePreview.isEmpty
+                                ? Colors.white54
+                                : Colors.white70,
                           ),
-                          if ((item.result.overlayUrl ?? '').trim().isNotEmpty)
-                            OutlinedButton.icon(
-                              onPressed: () => _openUrl(item.result.overlayUrl),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                side: const BorderSide(color: Colors.white24),
-                                minimumSize: const Size(0, 34),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 8,
-                                ),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                visualDensity: const VisualDensity(
-                                  horizontal: -2,
-                                  vertical: -2,
-                                ),
-                              ),
-                              icon: const Icon(
-                                Icons.insights_outlined,
-                                size: 16,
-                              ),
-                              label: const Text('Open overlay'),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: controller,
-                        minLines: 2,
-                        maxLines: 5,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          hintText: 'Write review notes for the client...',
-                          hintStyle: const TextStyle(color: Colors.white38),
-                          filled: true,
-                          fillColor: Colors.white.withValues(alpha: 0.03),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: Colors.white24),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: Colors.white24),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(
-                              color: AppColors.accent,
-                            ),
-                          ),
-                          isDense: true,
-                          contentPadding: const EdgeInsets.all(10),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          FilledButton.icon(
-                            onPressed: isSaving
-                                ? null
-                                : () => _saveWrittenReview(item),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.accent,
-                              foregroundColor: Colors.white,
-                              minimumSize: const Size(0, 34),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              visualDensity: const VisualDensity(
-                                horizontal: -2,
-                                vertical: -2,
+                        const SizedBox(height: 6),
+                        const Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              'Tap to open',
+                              style: TextStyle(
+                                color: Colors.white54,
+                                fontSize: 12,
                               ),
                             ),
-                            icon: isSaving
-                                ? const SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Icon(Icons.send, size: 14),
-                            label: Text(isSaving ? 'Saving...' : 'Save Reply'),
-                          ),
-                          const SizedBox(width: 8),
-                          OutlinedButton.icon(
-                            onPressed: isPinning
-                                ? null
-                                : () => _toggleReviewPinned(item),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: isPinned
-                                  ? Colors.orangeAccent
-                                  : Colors.white,
-                              side: BorderSide(
-                                color: isPinned
-                                    ? Colors.orangeAccent
-                                    : Colors.white24,
-                              ),
-                              minimumSize: const Size(0, 34),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              visualDensity: const VisualDensity(
-                                horizontal: -2,
-                                vertical: -2,
-                              ),
+                            SizedBox(width: 4),
+                            Icon(
+                              Icons.chevron_right,
+                              size: 16,
+                              color: Colors.white54,
                             ),
-                            icon: isPinning
-                                ? const SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white70,
-                                    ),
-                                  )
-                                : Icon(
-                                    isPinned
-                                        ? Icons.push_pin
-                                        : Icons.push_pin_outlined,
-                                    size: 14,
-                                  ),
-                            label: Text(isPinned ? 'Unpin' : 'Pin'),
-                          ),
-                        ],
-                      ),
-                    ],
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );
