@@ -585,6 +585,51 @@ class ProgressionReviewService {
         .toList();
   }
 
+  static Future<FormCheckSubmission> submitFormCheckReview({
+    required int submissionId,
+    required String reviewText,
+    bool? pin,
+  }) async {
+    final payload = <String, dynamic>{'review_text': reviewText.trim()};
+    if (pin != null) {
+      payload['pin'] = pin;
+    }
+    final res = await http.patch(
+      _uri('/coach/progression/form-checks/$submissionId/review'),
+      headers: await _authHeaders(jsonBody: true),
+      body: jsonEncode(payload),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to submit Form Check review', res.body),
+      );
+    }
+    return FormCheckSubmission.fromJson(
+      jsonDecode(res.body) as Map<String, dynamic>,
+    );
+  }
+
+  static Future<FormCheckSubmission> setFormCheckReviewPinned({
+    required int submissionId,
+    required bool isPinned,
+  }) async {
+    final res = await http.patch(
+      _uri('/coach/progression/form-checks/$submissionId/pin'),
+      headers: await _authHeaders(jsonBody: true),
+      body: jsonEncode({'is_pinned': isPinned}),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to update Form Check pin', res.body),
+      );
+    }
+    return FormCheckSubmission.fromJson(
+      jsonDecode(res.body) as Map<String, dynamic>,
+    );
+  }
+
   static Future<List<ProgressionReview>> fetchReviews({
     String? status,
     bool includeApplied = false,

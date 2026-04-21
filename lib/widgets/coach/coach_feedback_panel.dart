@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/account_storage.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/coach/coach_habits_service.dart';
+import '../../services/coach/form_check_service.dart';
 import '../../theme/app_theme.dart';
 
 class CoachFeedbackPanel extends StatefulWidget {
@@ -17,11 +19,16 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
   String? _habitsError;
   List<CoachHabitItem> _habits = const [];
   final Set<int> _updatingHabitIds = <int>{};
+  bool _loadingFeedback = true;
+  String? _feedbackError;
+  List<FormCheckSubmission> _feedbackItems = const [];
+  List<FormCheckSubmission> _pinnedFeedbackItems = const [];
 
   @override
   void initState() {
     super.initState();
     _loadHabits();
+    _loadFeedbackFeed();
   }
 
   Future<void> _loadHabits() async {
@@ -94,9 +101,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
       );
       if (!mounted) return;
       setState(() {
-        _habits = _habits
-            .map((h) => h.id == updated.id ? updated : h)
-            .toList();
+        _habits = _habits.map((h) => h.id == updated.id ? updated : h).toList();
       });
     } catch (_) {
       if (!mounted) return;
@@ -118,9 +123,59 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
     }
   }
 
+  Future<void> _loadFeedbackFeed() async {
+    setState(() {
+      _loadingFeedback = true;
+      _feedbackError = null;
+    });
+    try {
+      final feed = await FormCheckService.fetchFeedbackFeed();
+      if (!mounted) return;
+      setState(() {
+        _feedbackItems = feed.items;
+        _pinnedFeedbackItems = feed.pinnedItems;
+        _loadingFeedback = false;
+        _feedbackError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _feedbackItems = const [];
+        _pinnedFeedbackItems = const [];
+        _loadingFeedback = false;
+        _feedbackError = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  String _formatFeedDate(DateTime? dateTime) {
+    if (dateTime == null) return '--';
+    final local = dateTime.toLocal();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(local.year, local.month, local.day);
+    final diffDays = today.difference(target).inDays;
+    if (diffDays == 0) {
+      return 'Today, ${DateFormat('HH:mm').format(local)}';
+    }
+    if (diffDays == 1) {
+      return 'Yesterday, ${DateFormat('HH:mm').format(local)}';
+    }
+    return DateFormat('MMM d, HH:mm').format(local);
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final pinnedCorrections = _pinnedFeedbackItems
+        .where((item) => (item.coachReview?.reviewText ?? '').trim().isNotEmpty)
+        .map(
+          (item) => _PinnedCorrection(
+            title: (item.coachReview?.reviewText ?? '').trim(),
+            exercise: item.exerciseName,
+          ),
+        )
+        .toList();
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -137,16 +192,8 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
           loadFailedLabel: t.translate('coach_habits_load_failed'),
           onHabitToggle: _toggleHabit,
           updatingHabitIds: _updatingHabitIds,
-          corrections: [
-            _PinnedCorrection(
-              title: t.translate('coach_correction_squat_title'),
-              exercise: t.translate('coach_exercise_back_squat'),
-            ),
-            _PinnedCorrection(
-              title: t.translate('coach_correction_deadlift_title'),
-              exercise: t.translate('coach_exercise_deadlift'),
-            ),
-          ],
+          corrections: pinnedCorrections,
+          emptyPinnedLabel: 'No pinned replies yet.',
         ),
         const SizedBox(height: 16),
         Text(
@@ -158,32 +205,52 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
           ),
         ),
         const SizedBox(height: 10),
-        _FeedbackEntryCard(
-          dateLabel: t.translate('coach_feedback_date_1'),
-          workoutLabel: t.translate('coach_feedback_workout_1'),
-          message: t.translate('coach_feedback_msg_1'),
-          readReceipt: t.translate('coach_feedback_read_receipt'),
-          isVoiceNote: true,
-          hasNutritionNote: false,
-        ),
-        const SizedBox(height: 10),
-        _FeedbackEntryCard(
-          dateLabel: t.translate('coach_feedback_date_2'),
-          workoutLabel: t.translate('coach_feedback_workout_2'),
-          message: t.translate('coach_feedback_msg_2'),
-          readReceipt: t.translate('coach_feedback_read_receipt'),
-          isVoiceNote: false,
-          hasNutritionNote: true,
-        ),
-        const SizedBox(height: 10),
-        _FeedbackEntryCard(
-          dateLabel: t.translate('coach_feedback_date_3'),
-          workoutLabel: t.translate('coach_feedback_workout_3'),
-          message: t.translate('coach_feedback_msg_3'),
-          readReceipt: t.translate('coach_feedback_read_receipt'),
-          isVoiceNote: false,
-          hasNutritionNote: false,
-        ),
+        if (_loadingFeedback)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: Center(
+              child: SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          ),
+        if (!_loadingFeedback && _feedbackError != null)
+          _InlineInfo(
+            icon: Icons.info_outline,
+            label:
+                '${t.translate('coach_habits_load_failed')}: $_feedbackError',
+          ),
+        if (!_loadingFeedback &&
+            _feedbackError == null &&
+            _feedbackItems.isEmpty)
+          const _InlineInfo(
+            icon: Icons.chat_bubble_outline,
+            label: 'No coach replies yet.',
+          ),
+        if (!_loadingFeedback && _feedbackError == null)
+          ..._feedbackItems.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _FeedbackEntryCard(
+                dateLabel: _formatFeedDate(
+                  item.coachReview?.reviewedAt ??
+                      item.updatedAt ??
+                      item.sharedAt ??
+                      item.createdAt,
+                ),
+                workoutLabel: item.exerciseName,
+                message: (item.coachReview?.reviewText ?? '').trim(),
+                footerLabel: (item.coachReview?.isPinned ?? false)
+                    ? 'Pinned by coach'
+                    : 'Coach reply',
+                isVoiceNote: false,
+                hasNutritionNote: false,
+                isPinned: item.coachReview?.isPinned ?? false,
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -203,6 +270,7 @@ class _CoachTasksCard extends StatelessWidget {
     required this.onHabitToggle,
     required this.updatingHabitIds,
     required this.corrections,
+    required this.emptyPinnedLabel,
   });
 
   final String title;
@@ -217,6 +285,7 @@ class _CoachTasksCard extends StatelessWidget {
   final ValueChanged<CoachHabitItem> onHabitToggle;
   final Set<int> updatingHabitIds;
   final List<_PinnedCorrection> corrections;
+  final String emptyPinnedLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -284,6 +353,8 @@ class _CoachTasksCard extends StatelessWidget {
           const SizedBox(height: 10),
           _SectionTitle(label: pinnedCorrectionsTitle),
           const SizedBox(height: 8),
+          if (corrections.isEmpty)
+            _InlineInfo(icon: Icons.push_pin_outlined, label: emptyPinnedLabel),
           ...corrections.map(
             (correction) => _PinnedCorrectionRow(correction: correction),
           ),
@@ -453,17 +524,19 @@ class _FeedbackEntryCard extends StatelessWidget {
     required this.dateLabel,
     required this.workoutLabel,
     required this.message,
-    required this.readReceipt,
+    required this.footerLabel,
     required this.isVoiceNote,
     required this.hasNutritionNote,
+    required this.isPinned,
   });
 
   final String dateLabel;
   final String workoutLabel;
   final String message;
-  final String readReceipt;
+  final String footerLabel;
   final bool isVoiceNote;
   final bool hasNutritionNote;
+  final bool isPinned;
 
   @override
   Widget build(BuildContext context) {
@@ -516,11 +589,18 @@ class _FeedbackEntryCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              const Icon(Icons.done_all, color: Colors.white54, size: 16),
+              Icon(
+                isPinned ? Icons.push_pin : Icons.mode_comment_outlined,
+                color: isPinned ? Colors.orangeAccent : Colors.white54,
+                size: 16,
+              ),
               const SizedBox(width: 4),
               Text(
-                readReceipt,
-                style: const TextStyle(color: Colors.white54, fontSize: 12),
+                footerLabel,
+                style: TextStyle(
+                  color: isPinned ? Colors.orangeAccent : Colors.white54,
+                  fontSize: 12,
+                ),
               ),
             ],
           ),

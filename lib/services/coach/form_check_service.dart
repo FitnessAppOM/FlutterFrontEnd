@@ -103,6 +103,66 @@ class FormCheckResultData {
   }
 }
 
+class FormCheckCoachReview {
+  final int submissionId;
+  final int coachUserId;
+  final String reviewStatus;
+  final String? reviewText;
+  final bool isPinned;
+  final DateTime? reviewedAt;
+  final DateTime? pinnedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final String? voiceNoteUrl;
+
+  const FormCheckCoachReview({
+    required this.submissionId,
+    required this.coachUserId,
+    required this.reviewStatus,
+    this.reviewText,
+    required this.isPinned,
+    this.reviewedAt,
+    this.pinnedAt,
+    this.createdAt,
+    this.updatedAt,
+    this.voiceNoteUrl,
+  });
+
+  factory FormCheckCoachReview.fromJson(Map<String, dynamic> json) {
+    int parseInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    DateTime? parseDate(dynamic value) {
+      if (value == null) return null;
+      final raw = value.toString().trim();
+      if (raw.isEmpty) return null;
+      return DateTime.tryParse(raw);
+    }
+
+    String? parseString(dynamic value) {
+      final raw = value?.toString().trim() ?? '';
+      if (raw.isEmpty) return null;
+      return raw;
+    }
+
+    return FormCheckCoachReview(
+      submissionId: parseInt(json['submission_id']),
+      coachUserId: parseInt(json['coach_user_id']),
+      reviewStatus: (json['review_status'] ?? '').toString(),
+      reviewText: parseString(json['review_text']),
+      isPinned: json['is_pinned'] == true,
+      reviewedAt: parseDate(json['reviewed_at']),
+      pinnedAt: parseDate(json['pinned_at']),
+      createdAt: parseDate(json['created_at']),
+      updatedAt: parseDate(json['updated_at']),
+      voiceNoteUrl: parseString(json['voice_note_url']),
+    );
+  }
+}
+
 class FormCheckSubmission {
   final int submissionId;
   final int userId;
@@ -125,6 +185,7 @@ class FormCheckSubmission {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final FormCheckResultData result;
+  final FormCheckCoachReview? coachReview;
 
   const FormCheckSubmission({
     required this.submissionId,
@@ -148,6 +209,7 @@ class FormCheckSubmission {
     this.createdAt,
     this.updatedAt,
     required this.result,
+    this.coachReview,
   });
 
   bool get isProcessing => status == 'queued' || status == 'processing';
@@ -180,6 +242,12 @@ class FormCheckSubmission {
         : (resultJson is Map
               ? Map<String, dynamic>.from(resultJson)
               : <String, dynamic>{});
+    final coachReviewJson = json['coach_review'];
+    final coachReview = coachReviewJson is Map<String, dynamic>
+        ? coachReviewJson
+        : (coachReviewJson is Map
+              ? Map<String, dynamic>.from(coachReviewJson)
+              : null);
 
     return FormCheckSubmission(
       submissionId: parseInt(json['submission_id']),
@@ -207,6 +275,9 @@ class FormCheckSubmission {
       createdAt: parseDate(json['created_at']),
       updatedAt: parseDate(json['updated_at']),
       result: FormCheckResultData.fromJson(result),
+      coachReview: coachReview == null
+          ? null
+          : FormCheckCoachReview.fromJson(coachReview),
     );
   }
 }
@@ -216,6 +287,44 @@ class FormCheckListResponse {
   final FormCheckUsage usage;
 
   const FormCheckListResponse({required this.items, required this.usage});
+}
+
+class FormCheckFeedbackFeed {
+  final int? clientUserId;
+  final List<FormCheckSubmission> items;
+  final List<FormCheckSubmission> pinnedItems;
+
+  const FormCheckFeedbackFeed({
+    this.clientUserId,
+    required this.items,
+    required this.pinnedItems,
+  });
+
+  factory FormCheckFeedbackFeed.fromJson(Map<String, dynamic> json) {
+    int? parseIntOrNull(dynamic value) {
+      if (value == null) return null;
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value.toString());
+    }
+
+    List<FormCheckSubmission> parseItems(dynamic raw) {
+      if (raw is! List) return const [];
+      return raw
+          .whereType<Map>()
+          .map(
+            (item) =>
+                FormCheckSubmission.fromJson(Map<String, dynamic>.from(item)),
+          )
+          .toList();
+    }
+
+    return FormCheckFeedbackFeed(
+      clientUserId: parseIntOrNull(json['client_user_id']),
+      items: parseItems(json['items']),
+      pinnedItems: parseItems(json['pinned_items']),
+    );
+  }
 }
 
 class FormCheckService {
@@ -310,6 +419,22 @@ class FormCheckService {
       );
     }
     return FormCheckSubmission.fromJson(
+      jsonDecode(res.body) as Map<String, dynamic>,
+    );
+  }
+
+  static Future<FormCheckFeedbackFeed> fetchFeedbackFeed() async {
+    final res = await http.get(
+      _uri('/form-check/feedback-feed'),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to load coach feedback feed', res.body),
+      );
+    }
+    return FormCheckFeedbackFeed.fromJson(
       jsonDecode(res.body) as Map<String, dynamic>,
     );
   }
