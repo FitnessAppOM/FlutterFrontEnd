@@ -172,6 +172,11 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
     return (item.coachReview?.reviewText ?? '').trim();
   }
 
+  FormCheckCoachReply? _latestReply(FormCheckSubmission item) {
+    if (item.coachReviewReplies.isEmpty) return null;
+    return item.coachReviewReplies.last;
+  }
+
   FormCheckCoachReply? _latestPinnedReply(FormCheckSubmission item) {
     for (final reply in item.coachReviewReplies.reversed) {
       if (reply.isPinned) return reply;
@@ -192,8 +197,9 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
   }
 
   bool _isPinned(FormCheckSubmission item) {
-    if (item.coachReview?.isPinned == true) return true;
-    return _latestPinnedReply(item) != null;
+    final latestReply = _latestReply(item);
+    if (latestReply != null) return latestReply.isPinned;
+    return item.coachReview?.isPinned == true;
   }
 
   DateTime? _feedbackTime(FormCheckSubmission item) {
@@ -218,6 +224,10 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
             exercise: item.exerciseName,
           ),
         )
+        .toList();
+    final feedbackItems = _feedbackItems
+        .where((item) => _feedbackMessage(item).isNotEmpty)
+        .where((item) => !_isPinned(item))
         .toList();
 
     return ListView(
@@ -267,13 +277,13 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
           ),
         if (!_loadingFeedback &&
             _feedbackError == null &&
-            _feedbackItems.isEmpty)
+            feedbackItems.isEmpty)
           const _InlineInfo(
             icon: Icons.chat_bubble_outline,
             label: 'No coach replies yet.',
           ),
         if (!_loadingFeedback && _feedbackError == null)
-          ..._feedbackItems.map(
+          ...feedbackItems.map(
             (item) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: _FeedbackEntryCard(
