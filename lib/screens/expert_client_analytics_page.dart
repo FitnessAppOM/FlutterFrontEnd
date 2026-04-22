@@ -315,7 +315,7 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
                 children: const [
                   Expanded(
                     child: Text(
-                      'Training & Cardio (Latest Week)',
+                      'Training & Cardio (This Week)',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
