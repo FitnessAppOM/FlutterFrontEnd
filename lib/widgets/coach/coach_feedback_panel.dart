@@ -164,19 +164,6 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
     return DateFormat('MMM d, HH:mm').format(local);
   }
 
-  String _feedbackMessage(FormCheckSubmission item) {
-    if (item.coachReviewReplies.isNotEmpty) {
-      final text = item.coachReviewReplies.last.replyText.trim();
-      if (text.isNotEmpty) return text;
-    }
-    return (item.coachReview?.reviewText ?? '').trim();
-  }
-
-  FormCheckCoachReply? _latestReply(FormCheckSubmission item) {
-    if (item.coachReviewReplies.isEmpty) return null;
-    return item.coachReviewReplies.last;
-  }
-
   FormCheckCoachReply? _latestPinnedReply(FormCheckSubmission item) {
     for (final reply in item.coachReviewReplies.reversed) {
       if (reply.isPinned) return reply;
@@ -196,21 +183,54 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
     return '';
   }
 
-  bool _isPinned(FormCheckSubmission item) {
-    final latestReply = _latestReply(item);
-    if (latestReply != null) return latestReply.isPinned;
-    return item.coachReview?.isPinned == true;
-  }
+  List<_FeedbackReplyEntry> _buildFeedbackEntries() {
+    final entries = <_FeedbackReplyEntry>[];
+    for (final item in _feedbackItems) {
+      if (item.coachReviewReplies.isNotEmpty) {
+        for (final reply in item.coachReviewReplies) {
+          final text = reply.replyText.trim();
+          if (text.isEmpty || reply.isPinned) continue;
+          entries.add(
+            _FeedbackReplyEntry(
+              workoutLabel: item.exerciseName,
+              message: text,
+              timestamp:
+                  reply.createdAt ??
+                  reply.updatedAt ??
+                  item.updatedAt ??
+                  item.sharedAt ??
+                  item.createdAt,
+            ),
+          );
+        }
+        continue;
+      }
 
-  DateTime? _feedbackTime(FormCheckSubmission item) {
-    if (item.coachReviewReplies.isNotEmpty) {
-      final last = item.coachReviewReplies.last;
-      return last.createdAt ?? last.updatedAt;
+      final fallbackText = (item.coachReview?.reviewText ?? '').trim();
+      if (fallbackText.isEmpty || (item.coachReview?.isPinned ?? false)) {
+        continue;
+      }
+      entries.add(
+        _FeedbackReplyEntry(
+          workoutLabel: item.exerciseName,
+          message: fallbackText,
+          timestamp:
+              item.coachReview?.reviewedAt ??
+              item.updatedAt ??
+              item.sharedAt ??
+              item.createdAt,
+        ),
+      );
     }
-    return item.coachReview?.reviewedAt ??
-        item.updatedAt ??
-        item.sharedAt ??
-        item.createdAt;
+    entries.sort((a, b) {
+      final aTs = a.timestamp;
+      final bTs = b.timestamp;
+      if (aTs == null && bTs == null) return 0;
+      if (aTs == null) return 1;
+      if (bTs == null) return -1;
+      return bTs.compareTo(aTs);
+    });
+    return entries;
   }
 
   @override
@@ -225,10 +245,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
           ),
         )
         .toList();
-    final feedbackItems = _feedbackItems
-        .where((item) => _feedbackMessage(item).isNotEmpty)
-        .where((item) => !_isPinned(item))
-        .toList();
+    final feedbackEntries = _buildFeedbackEntries();
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -277,25 +294,23 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
           ),
         if (!_loadingFeedback &&
             _feedbackError == null &&
-            feedbackItems.isEmpty)
+            feedbackEntries.isEmpty)
           const _InlineInfo(
             icon: Icons.chat_bubble_outline,
             label: 'No coach replies yet.',
           ),
         if (!_loadingFeedback && _feedbackError == null)
-          ...feedbackItems.map(
-            (item) => Padding(
+          ...feedbackEntries.map(
+            (entry) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: _FeedbackEntryCard(
-                dateLabel: _formatFeedDate(_feedbackTime(item)),
-                workoutLabel: item.exerciseName,
-                message: _feedbackMessage(item),
-                footerLabel: _isPinned(item)
-                    ? 'Pinned by coach'
-                    : 'Coach reply',
+                dateLabel: _formatFeedDate(entry.timestamp),
+                workoutLabel: entry.workoutLabel,
+                message: entry.message,
+                footerLabel: 'Coach reply',
                 isVoiceNote: false,
                 hasNutritionNote: false,
-                isPinned: _isPinned(item),
+                isPinned: false,
               ),
             ),
           ),
@@ -685,4 +700,16 @@ class _PinnedCorrection {
 
   final String title;
   final String exercise;
+}
+
+class _FeedbackReplyEntry {
+  const _FeedbackReplyEntry({
+    required this.workoutLabel,
+    required this.message,
+    required this.timestamp,
+  });
+
+  final String workoutLabel;
+  final String message;
+  final DateTime? timestamp;
 }
