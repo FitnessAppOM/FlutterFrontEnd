@@ -17,9 +17,10 @@ import '../widgets/sleep/monthly_details_button.dart';
 import '../widgets/common/date_switcher.dart';
 
 class SleepDetailPage extends StatefulWidget {
-  const SleepDetailPage({super.key, this.useWhoop = false});
+  const SleepDetailPage({super.key, this.useWhoop = false, this.initialDate});
 
   final bool useWhoop;
+  final DateTime? initialDate;
 
   @override
   State<SleepDetailPage> createState() => _SleepDetailPageState();
@@ -50,6 +51,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
   static final Map<String, bool> _metricsHasDataCache = {};
   int? _selectedBarIndex;
   Timer? _barValueTimer;
+  late final DateTime _anchorDate;
 
   static const _sleepGoalKey = "dashboard_sleep_goal";
   static final Map<String, Map<DateTime, double>> _rangeDataCache = {};
@@ -92,6 +94,8 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
   @override
   void initState() {
     super.initState();
+    _anchorDate = _resolvedAnchorDate(widget.initialDate);
+    _metricsDate = _anchorDate;
     if (widget.useWhoop) {
       _metricsLoading = true;
     } else {
@@ -99,6 +103,14 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     }
     _loadGoal();
     _loadRange();
+  }
+
+  DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  DateTime _resolvedAnchorDate(DateTime? date) {
+    final today = _dateOnly(DateTime.now());
+    final requested = _dateOnly(date ?? today);
+    return requested.isAfter(today) ? today : requested;
   }
 
   @override
@@ -162,27 +174,27 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
 
   Future<void> _loadRange({bool force = false}) async {
     try {
-      final now = DateTime.now();
+      final today = _dateOnly(DateTime.now());
+      final reference = _anchorDate.isAfter(today) ? today : _anchorDate;
       DateTime start;
       DateTime end;
       switch (_range) {
         case 'monthly':
-          start = DateTime(now.year, now.month, 1);
-          end = DateTime(now.year, now.month + 1, 0);
+          start = DateTime(reference.year, reference.month, 1);
+          end = DateTime(reference.year, reference.month + 1, 0);
           break;
         case 'yearly':
           // Current calendar year only (Jan 1 -> Dec 31)
-          start = DateTime(now.year, 1, 1);
-          end = DateTime(now.year, 12, 31);
+          start = DateTime(reference.year, 1, 1);
+          end = DateTime(reference.year, 12, 31);
           break;
         case 'weekly':
         default:
-          final today = DateTime(now.year, now.month, now.day);
-          start = today.subtract(Duration(days: today.weekday - 1));
+          start = reference.subtract(Duration(days: reference.weekday - 1));
           end = start.add(const Duration(days: 6));
           break;
       }
-      final effectiveEnd = now.isBefore(end) ? now : end;
+      final effectiveEnd = today.isBefore(end) ? today : end;
       final userId = await AccountStorage.getUserId();
       final cacheKey = _rangeCacheKey(
         userId: userId,
@@ -259,7 +271,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
         });
 
         // For current day, prefer HealthKit/Health Connect if no manual override exists.
-        final todayKey = DateTime(now.year, now.month, now.day);
+        final todayKey = today;
         final inRange =
             !todayKey.isBefore(DateTime(start.year, start.month, start.day)) &&
             !todayKey.isAfter(
@@ -1551,7 +1563,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
   String _rangeLabel(String Function(String) t, {bool short = false}) {
     switch (_range) {
       case 'monthly':
-        final ref = _rangeStart ?? DateTime.now();
+        final ref = _rangeStart ?? _anchorDate;
         final days = DateTime(ref.year, ref.month + 1, 0).day;
         return short ? "${days}d" : "Last $days days";
       case 'yearly':
@@ -1701,7 +1713,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       case 'weekly':
         return "Mon — Sun";
       case 'monthly':
-        final ref = _rangeStart ?? DateTime.now();
+        final ref = _rangeStart ?? _anchorDate;
         final lastDay = DateTime(ref.year, ref.month + 1, 0).day;
         return "1st — ${_ordinal(lastDay)}";
       case 'yearly':

@@ -9,12 +9,14 @@ import '../../theme/app_theme.dart';
 import '../app_toast.dart';
 
 class WaterIntakeSheet extends StatefulWidget {
+  final DateTime? targetDate;
   final double? initialGoal;
   final double? initialIntake;
   final VoidCallback? onSaved;
 
   const WaterIntakeSheet({
     super.key,
+    this.targetDate,
     this.initialGoal,
     this.initialIntake,
     this.onSaved,
@@ -29,12 +31,25 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
   final _intakeCtrl = TextEditingController();
   bool _saving = false;
   List<_WaterLogEntry> _logs = const [];
+  late final DateTime _targetDay;
 
   DateTime _dashboardToday() => DailyProviderPushService.effectiveLocalDay();
+
+  DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  DateTime _resolveTargetDay(DateTime? target) {
+    final today = _dateOnly(_dashboardToday());
+    final requested = _dateOnly(target ?? today);
+    return requested.isAfter(today) ? today : requested;
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 
   @override
   void initState() {
     super.initState();
+    _targetDay = _resolveTargetDay(widget.targetDate);
     _goalCtrl.text = (widget.initialGoal ?? 2.5).toStringAsFixed(1);
     _intakeCtrl.text = (widget.initialIntake ?? 0).toStringAsFixed(1);
     _loadLogs();
@@ -55,7 +70,7 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
       }
       final userId = await AccountStorage.getUserId();
       if (userId == null) return;
-      final end = _dashboardToday();
+      final end = _targetDay;
       final start = end.subtract(const Duration(days: 29));
       final normalizedEnd = DateTime(end.year, end.month, end.day);
       final normalizedStart = DateTime(start.year, start.month, start.day);
@@ -115,18 +130,18 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
         await WaterService().setGoal(goal);
       }
       if (intake != null && intake >= 0) {
-        final effectiveToday = _dashboardToday();
-        final current = await WaterService().getIntakeForDay(effectiveToday);
+        final targetDay = _targetDay;
+        final current = await WaterService().getIntakeForDay(targetDay);
         final changed = current != intake;
         if (changed) {
-          await WaterService().setIntakeForDay(effectiveToday, intake);
+          await WaterService().setIntakeForDay(targetDay, intake);
         }
 
         if (intake > 0) {
           try {
             await DailyMetricsApi.upsert(
               userId: userId,
-              entryDate: effectiveToday,
+              entryDate: targetDay,
               waterLiters: intake,
             );
             DailyMetricsApi.clearCache();
@@ -158,6 +173,10 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final viewInset = MediaQuery.of(context).viewInsets.bottom;
+    final isTargetToday = _isSameDay(_targetDay, _dashboardToday());
+    final intakeLabel = isTargetToday
+        ? "Today intake (L)"
+        : "Intake (${DateFormat('MMM d').format(_targetDay)})";
     return AnimatedPadding(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
@@ -216,7 +235,7 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
                   ),
                   const SizedBox(height: 12),
                   _FieldRow(
-                    label: "Today intake (L)",
+                    label: intakeLabel,
                     controller: _intakeCtrl,
                     icon: Icons.water_drop,
                   ),

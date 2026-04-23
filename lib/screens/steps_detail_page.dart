@@ -11,9 +11,10 @@ import '../localization/app_localizations.dart';
 import '../widgets/charts/ranged_bar_chart.dart';
 
 class StepsDetailPage extends StatefulWidget {
-  const StepsDetailPage({super.key, this.useFitbit = false});
+  const StepsDetailPage({super.key, this.useFitbit = false, this.initialDate});
 
   final bool useFitbit;
+  final DateTime? initialDate;
 
   @override
   State<StepsDetailPage> createState() => _StepsDetailPageState();
@@ -28,14 +29,24 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
   DateTime? _rangeEnd;
   int? _selectedBarIndex;
   Timer? _barValueTimer;
+  late final DateTime _anchorDate;
 
   static const _stepsGoalKey = "dashboard_steps_goal";
 
   @override
   void initState() {
     super.initState();
+    _anchorDate = _resolvedAnchorDate(widget.initialDate);
     _loadGoal();
     _loadRange();
+  }
+
+  DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  DateTime _resolvedAnchorDate(DateTime? date) {
+    final today = _dateOnly(DateTime.now());
+    final requested = _dateOnly(date ?? today);
+    return requested.isAfter(today) ? today : requested;
   }
 
   @override
@@ -98,26 +109,26 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
   Future<void> _loadRange() async {
     setState(() => _loading = true);
     try {
-      final now = DateTime.now();
+      final today = _dateOnly(DateTime.now());
+      final reference = _anchorDate.isAfter(today) ? today : _anchorDate;
       DateTime start;
       DateTime end;
       switch (_range) {
         case 'monthly':
-          start = DateTime(now.year, now.month, 1);
-          end = DateTime(now.year, now.month + 1, 0);
+          start = DateTime(reference.year, reference.month, 1);
+          end = DateTime(reference.year, reference.month + 1, 0);
           break;
         case 'yearly':
-          start = now.subtract(const Duration(days: 365));
-          end = now;
+          start = reference.subtract(const Duration(days: 365));
+          end = reference;
           break;
         case 'weekly':
         default:
-          final today = DateTime(now.year, now.month, now.day);
-          start = today.subtract(Duration(days: today.weekday - 1));
+          start = reference.subtract(Duration(days: reference.weekday - 1));
           end = start.add(const Duration(days: 6));
           break;
       }
-      final effectiveEnd = now.isBefore(end) ? now : end;
+      final effectiveEnd = today.isBefore(end) ? today : end;
       Map<DateTime, int> data;
       if (widget.useFitbit) {
         data = await FitbitStepsService().fetchDailySteps(
@@ -168,7 +179,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
         });
 
         // For current day, prefer HealthKit/Health Connect if no manual override exists.
-        final todayKey = DateTime(now.year, now.month, now.day);
+        final todayKey = today;
         final inRange =
             !todayKey.isBefore(DateTime(start.year, start.month, start.day)) &&
             !todayKey.isAfter(
@@ -553,7 +564,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
   String _rangeLabel(String Function(String) t) {
     switch (_range) {
       case 'monthly':
-        final ref = _rangeStart ?? DateTime.now();
+        final ref = _rangeStart ?? _anchorDate;
         final days = DateTime(ref.year, ref.month + 1, 0).day;
         return "Last $days days";
       case 'yearly':

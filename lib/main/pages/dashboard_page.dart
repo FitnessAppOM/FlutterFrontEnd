@@ -483,6 +483,14 @@ class DashboardPageState extends State<DashboardPage>
     final nextWeekStart = _trendWeekStartFor(next);
     final shouldReloadTrends =
         _trendWeekStart == null || nextWeekStart != currentWeekStart;
+    final todayIdxInNextWeek = todayOnly.difference(nextWeekStart).inDays;
+    final nextWeekIncludesToday =
+        todayIdxInNextWeek >= 0 && todayIdxInNextWeek < 7;
+    final shouldRefreshSleepTrendForMissingToday =
+        nextWeekIncludesToday &&
+        (_trendSleep.isEmpty ||
+            _trendSleep.length <= todayIdxInNextWeek ||
+            _trendSleep[todayIdxInNextWeek] <= 0);
     final nextIsToday = next == todayOnly;
     final cachedWhoopTodaySleep = _whoopSnapshotCache[todayOnly]?.sleepHours;
     final shouldForceWhoopTodayRefresh =
@@ -552,8 +560,10 @@ class DashboardPageState extends State<DashboardPage>
       _loadDietProgress();
     }
     _loadWeeklySteps();
-    if (shouldReloadTrends) {
+    if (shouldReloadTrends || shouldRefreshSleepTrendForMissingToday) {
       _loadTrendSleep();
+    }
+    if (shouldReloadTrends) {
       _loadTrendCalories();
     }
     if (!hasCachedExercise) {
@@ -855,20 +865,21 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   Future<void> _handleTrendCaloriesTap() async {
-    if (!_isToday()) return;
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const CaloriesDetailPage()));
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CaloriesDetailPage(initialDate: _selectedDate),
+      ),
+    );
     await _loadGoals();
     await _loadCalories();
   }
 
   Future<void> _handleTrendSleepTap() async {
-    if (!_isToday()) return;
     if (_statOrder.contains('whoop_sleep') && _whoopLinked) {
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => const SleepDetailPage(useWhoop: true),
+          builder: (_) =>
+              SleepDetailPage(useWhoop: true, initialDate: _selectedDate),
         ),
       );
       return;
@@ -885,9 +896,11 @@ class DashboardPageState extends State<DashboardPage>
       );
       return;
     }
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const SleepDetailPage()));
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SleepDetailPage(initialDate: _selectedDate),
+      ),
+    );
     await _loadGoals();
     await _loadSleep();
   }
@@ -1733,10 +1746,6 @@ class DashboardPageState extends State<DashboardPage>
 
   DateTime _taqaTodayByResetClock() {
     return _dashboardToday();
-  }
-
-  bool _isTaqaTodaySelection() {
-    return _dayKey(_selectedDate) == _taqaTodayByResetClock();
   }
 
   DateTime _taqaScoreDateForSelection() {
@@ -4190,6 +4199,7 @@ class DashboardPageState extends State<DashboardPage>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => WaterIntakeSheet(
+        targetDate: _selectedDate,
         initialGoal: _waterGoal ?? 2.5,
         initialIntake: _waterIntake ?? 0,
         onSaved: _loadWater,
@@ -4362,6 +4372,9 @@ class DashboardPageState extends State<DashboardPage>
       final start = _trendWeekStartFor(anchor);
       final end = start.add(const Duration(days: 6)); // Mon-Sun
       final sourceKey = _trendSleepSourceForCurrentWidgets();
+      final todayKey = _dashboardToday();
+      final todayIdx = todayKey.difference(start).inDays;
+      final weekContainsToday = todayIdx >= 0 && todayIdx < 7;
       final userId = await AccountStorage.getUserId();
       if (reqId != _trendSleepReqId) return;
       final cacheKey = userId == null || userId == 0
@@ -4374,22 +4387,36 @@ class DashboardPageState extends State<DashboardPage>
       if (!force && cacheKey != null) {
         final cached = _readTrendSleepWeekCache(cacheKey);
         if (cached != null) {
-          _activeTrendSleepCacheKey = cacheKey;
-          if (!mounted || reqId != _trendSleepReqId) return;
-          setState(() {
-            _trendWeekStart = start;
-            _trendSleep = cached;
-            _trendSleepSourceKey = sourceKey;
-            _trendSleepLoading = false;
-          });
-          return;
+          final missingTodayInCache =
+              weekContainsToday &&
+              (cached.length <= todayIdx || cached[todayIdx] <= 0);
+          if (missingTodayInCache) {
+            // Recompute this week so "today" can be refreshed from live/local sources
+            // when DB has not received today's row yet.
+          } else {
+            _activeTrendSleepCacheKey = cacheKey;
+            if (!mounted || reqId != _trendSleepReqId) return;
+            setState(() {
+              _trendWeekStart = start;
+              _trendSleep = cached;
+              _trendSleepSourceKey = sourceKey;
+              _trendSleepLoading = false;
+            });
+            return;
+          }
         }
       }
       final sourceChanged = _trendSleepSourceKey != sourceKey;
+      final missingTodayInState =
+          weekContainsToday &&
+          (_trendSleep.isEmpty ||
+              _trendSleep.length <= todayIdx ||
+              _trendSleep[todayIdx] <= 0);
       if (!force &&
           !sourceChanged &&
           _trendWeekStart != null &&
-          _trendWeekStart == start) {
+          _trendWeekStart == start &&
+          !missingTodayInState) {
         _activeTrendSleepCacheKey = cacheKey;
         if (mounted && reqId == _trendSleepReqId) {
           setState(() => _trendSleepLoading = false);
@@ -4399,7 +4426,6 @@ class DashboardPageState extends State<DashboardPage>
       if (mounted && reqId == _trendSleepReqId) {
         setState(() => _trendSleepLoading = true);
       }
-      final todayKey = _dashboardToday();
       final dayKeys = List.generate(7, (i) {
         final d = DateTime(
           start.year,
@@ -4415,11 +4441,8 @@ class DashboardPageState extends State<DashboardPage>
           end: end,
         );
         if (reqId != _trendSleepReqId) return;
-        final selectedKey = DateTime(
-          _selectedDate.year,
-          _selectedDate.month,
-          _selectedDate.day,
-        );
+        final selectedKey = _dayKey(_selectedDate);
+        final selectedIsToday = selectedKey == todayKey;
         var whoopToday = 0.0;
         if (userId != null && userId != 0) {
           whoopToday =
@@ -4429,7 +4452,7 @@ class DashboardPageState extends State<DashboardPage>
               ) ??
               0.0;
         }
-        if (selectedKey == todayKey && (_whoopSleepHours ?? 0) > 0) {
+        if (selectedIsToday && (_whoopSleepHours ?? 0) > 0) {
           whoopToday = _whoopSleepHours!;
         } else {
           final localToday = _whoopSnapshotCache[todayKey]?.sleepHours;
@@ -4437,9 +4460,7 @@ class DashboardPageState extends State<DashboardPage>
             whoopToday = localToday;
           }
         }
-        if (dayKeys.contains(todayKey) &&
-            selectedKey == todayKey &&
-            whoopToday <= 0) {
+        if (dayKeys.contains(todayKey) && whoopToday <= 0) {
           try {
             final liveToday = await WhoopWidgetDataService().fetchForDate(
               todayKey,
@@ -4771,21 +4792,28 @@ class DashboardPageState extends State<DashboardPage>
 
   List<double> _trendSleepForDisplay() {
     var out = _trendSleep.isEmpty ? <double>[] : List<double>.from(_trendSleep);
-    if (!_isToday()) return out;
     final start = _trendWeekStart ?? _trendWeekStartFor(_selectedDate);
-    final idx = _dayKey(_selectedDate).difference(start).inDays;
+    final todayKey = _dashboardToday();
+    final idx = todayKey.difference(start).inDays;
     if (idx < 0 || idx > 6) return out;
 
     double? liveHours;
     final source = _trendSleepSourceForCurrentWidgets();
     if (source == 'whoop') {
-      final todayKey = _dayKey(_selectedDate);
-      liveHours = _whoopSleepHours ?? _whoopSnapshotCache[todayKey]?.sleepHours;
+      final selectedIsToday = _dayKey(_selectedDate) == todayKey;
+      liveHours = _whoopSnapshotCache[todayKey]?.sleepHours;
+      if (selectedIsToday && (_whoopSleepHours ?? 0) > 0) {
+        liveHours = _whoopSleepHours;
+      }
     } else if (source == 'fitbit') {
-      final minutes = _fitbitSleep?.totalMinutesAsleep;
-      liveHours = (minutes != null && minutes > 0) ? minutes / 60.0 : null;
+      if (_dayKey(_selectedDate) == todayKey) {
+        final minutes = _fitbitSleep?.totalMinutesAsleep;
+        liveHours = (minutes != null && minutes > 0) ? minutes / 60.0 : null;
+      }
     } else {
-      liveHours = _sleepHours;
+      if (_dayKey(_selectedDate) == todayKey) {
+        liveHours = _sleepHours;
+      }
     }
     if (liveHours == null || liveHours <= 0) return out;
 
@@ -5224,7 +5252,7 @@ class DashboardPageState extends State<DashboardPage>
         const SizedBox(height: 16),
         GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: (_wiggling || !isCurrentDay) ? null : _openTrainingPage,
+          onTap: _wiggling ? null : _openTrainingPage,
           child: CardContainer(
             child: Padding(
               padding: const EdgeInsets.all(14),
@@ -5348,7 +5376,7 @@ class DashboardPageState extends State<DashboardPage>
         if (!noEntriesForSelectedDate) ...[
           GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: (_wiggling || !isCurrentDay) ? null : _openDietPage,
+            onTap: _wiggling ? null : _openDietPage,
             child: DietProgressCard(
               loading: _dietProgressLoading,
               consumedCalories: _dietConsumedCalories,
@@ -5366,17 +5394,15 @@ class DashboardPageState extends State<DashboardPage>
               locale,
             ).format(_taqaScoreDateForSelection()),
             emptyMessage: t("taqa_no_data"),
-            onTap: !_isTaqaTodaySelection()
-                ? null
-                : () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => TaqaScoreDetailPage(
-                          initialDate: _taqaScoreDateForSelection(),
-                        ),
-                      ),
-                    );
-                  },
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => TaqaScoreDetailPage(
+                    initialDate: _taqaScoreDateForSelection(),
+                  ),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 16),
           LayoutBuilder(
@@ -5427,17 +5453,16 @@ class DashboardPageState extends State<DashboardPage>
                                 ),
                               ],
                             ),
-                      onTap: isCurrentDay
-                          ? () async {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const StepsDetailPage(),
-                                ),
-                              );
-                              await _loadGoals();
-                              await _loadSteps();
-                            }
-                          : null,
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                StepsDetailPage(initialDate: _selectedDate),
+                          ),
+                        );
+                        await _loadGoals();
+                        await _loadSteps();
+                      },
                     );
                   case 'sleep':
                     return StatCard(
@@ -5450,17 +5475,16 @@ class DashboardPageState extends State<DashboardPage>
                       icon: Icons.nights_stay,
                       accentColor: const Color(0xFF9B8CFF),
                       deltaPercent: _sleepDelta,
-                      onTap: isCurrentDay
-                          ? () async {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const SleepDetailPage(),
-                                ),
-                              );
-                              await _loadGoals();
-                              await _loadSleep();
-                            }
-                          : null,
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                SleepDetailPage(initialDate: _selectedDate),
+                          ),
+                        );
+                        await _loadGoals();
+                        await _loadSleep();
+                      },
                     );
                   case 'whoop_sleep':
                     return WhoopSleepCard(
@@ -5472,16 +5496,16 @@ class DashboardPageState extends State<DashboardPage>
                       score: _whoopSleepScore,
                       goal: _sleepGoal,
                       delta: _whoopSleepDelta,
-                      onTap: isCurrentDay
-                          ? () async {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      const SleepDetailPage(useWhoop: true),
-                                ),
-                              );
-                            }
-                          : null,
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => SleepDetailPage(
+                              useWhoop: true,
+                              initialDate: _selectedDate,
+                            ),
+                          ),
+                        );
+                      },
                     );
                   case 'whoop_recovery':
                     return WhoopRecoveryCard(
@@ -5489,49 +5513,43 @@ class DashboardPageState extends State<DashboardPage>
                       linked: _whoopLinked,
                       score: _whoopRecovery,
                       delta: _whoopRecoveryDelta,
-                      onTap: isCurrentDay
-                          ? () async {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => WhoopRecoveryDetailPage(
-                                    initialDate: _selectedDate,
-                                  ),
-                                ),
-                              );
-                            }
-                          : null,
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => WhoopRecoveryDetailPage(
+                              initialDate: _selectedDate,
+                            ),
+                          ),
+                        );
+                      },
                     );
                   case 'whoop_cycle':
                     return WhoopCycleCard(
                       loading: _isWhoopLoadingForSelectedDate(),
                       linked: _whoopLinked,
                       strain: _whoopCycleStrain,
-                      onTap: isCurrentDay
-                          ? () async {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => WhoopCycleDetailPage(
-                                    initialDate: _selectedDate,
-                                  ),
-                                ),
-                              );
-                            }
-                          : null,
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => WhoopCycleDetailPage(
+                              initialDate: _selectedDate,
+                            ),
+                          ),
+                        );
+                      },
                     );
                   case 'whoop_body':
                     return WhoopBodyCard(
                       loading: _isWhoopLoadingForSelectedDate(),
                       linked: _whoopLinked,
                       weightKg: _whoopBodyWeightKg,
-                      onTap: isCurrentDay
-                          ? () async {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const WhoopBodyDetailPage(),
-                                ),
-                              );
-                            }
-                          : null,
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const WhoopBodyDetailPage(),
+                          ),
+                        );
+                      },
                     );
                   case 'strava_activities':
                     final stravaActivitiesValue = _stravaActivitiesLoading
@@ -5549,17 +5567,15 @@ class DashboardPageState extends State<DashboardPage>
                           accentColor: stravaOrange,
                           borderColor: stravaOrange,
                           borderWidth: 2.2,
-                          onTap: isCurrentDay
-                              ? () async {
-                                  await Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => const StravaDetailPage(
-                                        kind: StravaDetailKind.activities,
-                                      ),
-                                    ),
-                                  );
-                                }
-                              : null,
+                          onTap: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const StravaDetailPage(
+                                  kind: StravaDetailKind.activities,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                         Positioned(
                           top: -10,
@@ -5595,33 +5611,31 @@ class DashboardPageState extends State<DashboardPage>
                       intakeLiters: waterIntake,
                       goalLiters: waterGoal,
                       deltaPercent: _waterDelta,
-                      onTap: isCurrentDay ? _openWaterSheet : null,
+                      onTap: _openWaterSheet,
                     );
                   case 'body':
                     return BodyMeasurementsCard(
                       heightCm: _heightCm,
                       weightKg: _weightKg,
-                      onTap: isCurrentDay
-                          ? () async {
-                              await showModalBottomSheet(
-                                context: context,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
-                                builder: (_) => BodyMeasurementsSheet(
-                                  initialHeightCm: _heightCm,
-                                  initialWeightKg: _weightKg,
-                                  onSaved: (res) {
-                                    setState(() {
-                                      if (res.heightCm != null)
-                                        _heightCm = res.heightCm;
-                                      if (res.weightKg != null)
-                                        _weightKg = res.weightKg;
-                                    });
-                                  },
-                                ),
-                              );
-                            }
-                          : null,
+                      onTap: () async {
+                        await showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => BodyMeasurementsSheet(
+                            initialHeightCm: _heightCm,
+                            initialWeightKg: _weightKg,
+                            onSaved: (res) {
+                              setState(() {
+                                if (res.heightCm != null)
+                                  _heightCm = res.heightCm;
+                                if (res.weightKg != null)
+                                  _weightKg = res.weightKg;
+                              });
+                            },
+                          ),
+                        );
+                      },
                     );
                   case 'health_recovery_load':
                     final recoveryLoad = _healthRecoveryLoadLoading
@@ -5635,19 +5649,17 @@ class DashboardPageState extends State<DashboardPage>
                       hrvMs: recoveryLoad?.hrvMs,
                       activeMinutes: recoveryLoad?.activeMinutes,
                       zones: recoveryLoad?.zones,
-                      onTap: isCurrentDay
-                          ? () async {
-                              await showModalBottomSheet(
-                                context: context,
-                                backgroundColor: Colors.transparent,
-                                isScrollControlled: true,
-                                builder: (_) => HealthRecoveryLoadSheet(
-                                  summary: recoveryLoad,
-                                  date: _selectedDate,
-                                ),
-                              );
-                            }
-                          : null,
+                      onTap: () async {
+                        await showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          isScrollControlled: true,
+                          builder: (_) => HealthRecoveryLoadSheet(
+                            summary: recoveryLoad,
+                            date: _selectedDate,
+                          ),
+                        );
+                      },
                     );
                   case 'fitbit_activity':
                     final summary = _fitbitActivityLoading
@@ -5660,7 +5672,7 @@ class DashboardPageState extends State<DashboardPage>
                       distanceKm: summary?.distance,
                       calories: summary?.calories,
                       activeMinutes: summary?.activeMinutes,
-                      onTap: (!isCurrentDay || summary == null)
+                      onTap: summary == null
                           ? null
                           : () async {
                               await showModalBottomSheet(
@@ -5684,22 +5696,20 @@ class DashboardPageState extends State<DashboardPage>
                       restingHr: heart?.restingHr,
                       hrvRmssd: heart?.hrvRmssd,
                       vo2Max: heart?.vo2Max,
-                      onTap: isCurrentDay
-                          ? () async {
-                              await showModalBottomSheet(
-                                context: context,
-                                backgroundColor: Colors.transparent,
-                                isScrollControlled: true,
-                                builder: (_) => FitbitHeartSheet(
-                                  restingHr: heart?.restingHr,
-                                  hrvRmssd: heart?.hrvRmssd,
-                                  vo2Max: heart?.vo2Max,
-                                  zones: heart?.zones ?? const [],
-                                  date: _selectedDate,
-                                ),
-                              );
-                            }
-                          : null,
+                      onTap: () async {
+                        await showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          isScrollControlled: true,
+                          builder: (_) => FitbitHeartSheet(
+                            restingHr: heart?.restingHr,
+                            hrvRmssd: heart?.hrvRmssd,
+                            vo2Max: heart?.vo2Max,
+                            zones: heart?.zones ?? const [],
+                            date: _selectedDate,
+                          ),
+                        );
+                      },
                     );
                   case 'fitbit_sleep':
                     final sleep = _fitbitSleepLoading
@@ -5713,20 +5723,18 @@ class DashboardPageState extends State<DashboardPage>
                       goalMinutes: sleep?.sleepGoalMinutes,
                       sleepScore: sleep?.sleepScore,
                       stageMinutes: sleep?.stageMinutes ?? const {},
-                      onTap: isCurrentDay
-                          ? () async {
-                              await showModalBottomSheet(
-                                context: context,
-                                backgroundColor: Colors.transparent,
-                                isScrollControlled: true,
-                                builder: (_) => FitbitSleepSheet(
-                                  summary: sleep,
-                                  sleepScore: sleep?.sleepScore,
-                                  date: _selectedDate,
-                                ),
-                              );
-                            }
-                          : null,
+                      onTap: () async {
+                        await showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          isScrollControlled: true,
+                          builder: (_) => FitbitSleepSheet(
+                            summary: sleep,
+                            sleepScore: sleep?.sleepScore,
+                            date: _selectedDate,
+                          ),
+                        );
+                      },
                     );
                   case 'fitbit_scores':
                     final scores = _fitbitScoresLoading
@@ -5758,17 +5766,14 @@ class DashboardPageState extends State<DashboardPage>
                       breathingRate: vitals?.breathingRate,
                       ecgSummary: vitals?.ecgSummary,
                       ecgAvgHr: vitals?.ecgAvgHr,
-                      onTap: isCurrentDay
-                          ? () async {
-                              await showModalBottomSheet(
-                                context: context,
-                                backgroundColor: Colors.transparent,
-                                isScrollControlled: true,
-                                builder: (_) =>
-                                    FitbitVitalsSheet(summary: vitals),
-                              );
-                            }
-                          : null,
+                      onTap: () async {
+                        await showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          isScrollControlled: true,
+                          builder: (_) => FitbitVitalsSheet(summary: vitals),
+                        );
+                      },
                     );
                   case 'fitbit_body':
                     final body = _fitbitBodyLoading
@@ -5778,16 +5783,14 @@ class DashboardPageState extends State<DashboardPage>
                     return FitbitBodyCard(
                       loading: loading,
                       weightKg: body?.weightKg,
-                      onTap: isCurrentDay
-                          ? () async {
-                              await showModalBottomSheet(
-                                context: context,
-                                backgroundColor: Colors.transparent,
-                                isScrollControlled: true,
-                                builder: (_) => FitbitBodySheet(summary: body),
-                              );
-                            }
-                          : null,
+                      onTap: () async {
+                        await showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          isScrollControlled: true,
+                          builder: (_) => FitbitBodySheet(summary: body),
+                        );
+                      },
                     );
                   case 'calories':
                   default:
@@ -5826,17 +5829,16 @@ class DashboardPageState extends State<DashboardPage>
                                 ),
                               ],
                             ),
-                      onTap: isCurrentDay
-                          ? () async {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const CaloriesDetailPage(),
-                                ),
-                              );
-                              await _loadGoals();
-                              await _loadCalories();
-                            }
-                          : null,
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                CaloriesDetailPage(initialDate: _selectedDate),
+                          ),
+                        );
+                        await _loadGoals();
+                        await _loadCalories();
+                      },
                     );
                 }
               }
@@ -5958,7 +5960,7 @@ class DashboardPageState extends State<DashboardPage>
                 ? t("dash_loading")
                 : "$weeklySteps ${t("dash_steps_label")}",
             accentColor: const Color(0xFF35B6FF),
-            onTap: (_wiggling || !isCurrentDay) ? null : _loadWeeklySteps,
+            onTap: _wiggling ? null : _loadWeeklySteps,
           ),
           const SizedBox(height: 16),
           CardContainer(
@@ -5982,7 +5984,7 @@ class DashboardPageState extends State<DashboardPage>
                         loading: _trendSleepLoading,
                         accentColor: const Color(0xFF9B8CFF),
                         emptyLabel: t("dash_no_sleep_data"),
-                        onTap: isCurrentDay ? _handleTrendSleepTap : null,
+                        onTap: _handleTrendSleepTap,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -5993,7 +5995,7 @@ class DashboardPageState extends State<DashboardPage>
                         loading: _trendCaloriesLoading,
                         accentColor: const Color(0xFFFF8A00),
                         emptyLabel: t("dash_no_calories_data"),
-                        onTap: isCurrentDay ? _handleTrendCaloriesTap : null,
+                        onTap: _handleTrendCaloriesTap,
                       ),
                     ),
                   ],

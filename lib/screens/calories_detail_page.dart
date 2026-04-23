@@ -12,7 +12,9 @@ import '../widgets/charts/ranged_bar_chart.dart';
 import '../localization/app_localizations.dart';
 
 class CaloriesDetailPage extends StatefulWidget {
-  const CaloriesDetailPage({super.key});
+  const CaloriesDetailPage({super.key, this.initialDate});
+
+  final DateTime? initialDate;
 
   @override
   State<CaloriesDetailPage> createState() => _CaloriesDetailPageState();
@@ -27,14 +29,24 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
   Timer? _barValueTimer;
   DateTime? _rangeStart;
   DateTime? _rangeEnd;
+  late final DateTime _anchorDate;
 
   static const _caloriesGoalKey = "dashboard_calories_goal";
 
   @override
   void initState() {
     super.initState();
+    _anchorDate = _resolvedAnchorDate(widget.initialDate);
     _loadGoal();
     _loadRange();
+  }
+
+  DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  DateTime _resolvedAnchorDate(DateTime? date) {
+    final today = _dateOnly(DateTime.now());
+    final requested = _dateOnly(date ?? today);
+    return requested.isAfter(today) ? today : requested;
   }
 
   @override
@@ -97,26 +109,26 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
   Future<void> _loadRange() async {
     setState(() => _loading = true);
     try {
-      final now = DateTime.now();
+      final today = _dateOnly(DateTime.now());
+      final reference = _anchorDate.isAfter(today) ? today : _anchorDate;
       DateTime start;
       DateTime end;
       switch (_range) {
         case 'monthly':
-          start = DateTime(now.year, now.month, 1);
-          end = DateTime(now.year, now.month + 1, 0);
+          start = DateTime(reference.year, reference.month, 1);
+          end = DateTime(reference.year, reference.month + 1, 0);
           break;
         case 'yearly':
-          start = now.subtract(const Duration(days: 365));
-          end = now;
+          start = reference.subtract(const Duration(days: 365));
+          end = reference;
           break;
         case 'weekly':
         default:
-          final today = DateTime(now.year, now.month, now.day);
-          start = today.subtract(Duration(days: today.weekday - 1));
+          start = reference.subtract(Duration(days: reference.weekday - 1));
           end = start.add(const Duration(days: 6));
           break;
       }
-      final effectiveEnd = now.isBefore(end) ? now : end;
+      final effectiveEnd = today.isBefore(end) ? today : end;
       final userId = await AccountStorage.getUserId();
       if (userId == null) {
         if (!mounted) return;
@@ -167,7 +179,7 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
       });
 
       // For current day, prefer HealthKit/Health Connect (unless manual override exists).
-      final todayKey = DateTime(now.year, now.month, now.day);
+      final todayKey = today;
       final inRange =
           !todayKey.isBefore(DateTime(start.year, start.month, start.day)) &&
           !todayKey.isAfter(
@@ -609,7 +621,7 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
   String _rangeLabel(String Function(String) t) {
     switch (_range) {
       case 'monthly':
-        final ref = _rangeStart ?? DateTime.now();
+        final ref = _rangeStart ?? _anchorDate;
         final days = DateTime(ref.year, ref.month + 1, 0).day;
         return "Last $days days";
       case 'yearly':
