@@ -113,6 +113,7 @@ class FormCheckCoachReview {
   final DateTime? pinnedAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final DateTime? clientSeenAt;
   final String? voiceNoteUrl;
 
   const FormCheckCoachReview({
@@ -125,10 +126,18 @@ class FormCheckCoachReview {
     this.pinnedAt,
     this.createdAt,
     this.updatedAt,
+    this.clientSeenAt,
     this.voiceNoteUrl,
   });
 
   factory FormCheckCoachReview.fromJson(Map<String, dynamic> json) {
+    dynamic pick(List<String> keys) {
+      for (final key in keys) {
+        if (json.containsKey(key)) return json[key];
+      }
+      return null;
+    }
+
     int parseInt(dynamic value) {
       if (value is int) return value;
       if (value is num) return value.toInt();
@@ -148,17 +157,39 @@ class FormCheckCoachReview {
       return raw;
     }
 
+    bool parseBool(dynamic value) {
+      if (value is bool) return value;
+      if (value is num) return value != 0;
+      final raw = value?.toString().trim().toLowerCase() ?? '';
+      return raw == 'true' || raw == '1' || raw == 'yes';
+    }
+
     return FormCheckCoachReview(
-      submissionId: parseInt(json['submission_id']),
-      coachUserId: parseInt(json['coach_user_id']),
-      reviewStatus: (json['review_status'] ?? '').toString(),
-      reviewText: parseString(json['review_text']),
-      isPinned: json['is_pinned'] == true,
-      reviewedAt: parseDate(json['reviewed_at']),
-      pinnedAt: parseDate(json['pinned_at']),
-      createdAt: parseDate(json['created_at']),
-      updatedAt: parseDate(json['updated_at']),
-      voiceNoteUrl: parseString(json['voice_note_url']),
+      submissionId: parseInt(
+        pick(['submission_id', 'submissionId', 'form_check_submission_id']),
+      ),
+      coachUserId: parseInt(pick(['coach_user_id', 'coachUserId'])),
+      reviewStatus: (pick(['review_status', 'reviewStatus', 'status']) ?? '')
+          .toString(),
+      reviewText: parseString(
+        pick(['review_text', 'reviewText', 'text', 'message']),
+      ),
+      isPinned: parseBool(pick(['is_pinned', 'isPinned'])),
+      reviewedAt: parseDate(pick(['reviewed_at', 'reviewedAt'])),
+      pinnedAt: parseDate(pick(['pinned_at', 'pinnedAt'])),
+      createdAt: parseDate(pick(['created_at', 'createdAt'])),
+      updatedAt: parseDate(pick(['updated_at', 'updatedAt'])),
+      clientSeenAt: parseDate(pick(['client_seen_at', 'clientSeenAt'])),
+      voiceNoteUrl: parseString(
+        pick([
+          'voice_note_url',
+          'voiceNoteUrl',
+          'review_voice_note_url',
+          'reviewVoiceNoteUrl',
+          'voice_note',
+          'voiceNote',
+        ]),
+      ),
     );
   }
 }
@@ -168,23 +199,34 @@ class FormCheckCoachReply {
   final int submissionId;
   final int coachUserId;
   final String replyText;
+  final String? voiceNoteUrl;
   final bool isPinned;
   final DateTime? pinnedAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final DateTime? clientSeenAt;
 
   const FormCheckCoachReply({
     required this.replyId,
     required this.submissionId,
     required this.coachUserId,
     required this.replyText,
+    this.voiceNoteUrl,
     required this.isPinned,
     this.pinnedAt,
     this.createdAt,
     this.updatedAt,
+    this.clientSeenAt,
   });
 
   factory FormCheckCoachReply.fromJson(Map<String, dynamic> json) {
+    dynamic pick(List<String> keys) {
+      for (final key in keys) {
+        if (json.containsKey(key)) return json[key];
+      }
+      return null;
+    }
+
     int parseInt(dynamic value) {
       if (value is int) return value;
       if (value is num) return value.toInt();
@@ -198,15 +240,42 @@ class FormCheckCoachReply {
       return DateTime.tryParse(raw);
     }
 
+    bool parseBool(dynamic value) {
+      if (value is bool) return value;
+      if (value is num) return value != 0;
+      final raw = value?.toString().trim().toLowerCase() ?? '';
+      return raw == 'true' || raw == '1' || raw == 'yes';
+    }
+
+    String? parseString(dynamic value) {
+      final raw = value?.toString().trim() ?? '';
+      if (raw.isEmpty) return null;
+      return raw;
+    }
+
     return FormCheckCoachReply(
-      replyId: parseInt(json['reply_id']),
-      submissionId: parseInt(json['submission_id']),
-      coachUserId: parseInt(json['coach_user_id']),
-      replyText: (json['reply_text'] ?? '').toString(),
-      isPinned: json['is_pinned'] == true,
-      pinnedAt: parseDate(json['pinned_at']),
-      createdAt: parseDate(json['created_at']),
-      updatedAt: parseDate(json['updated_at']),
+      replyId: parseInt(pick(['reply_id', 'replyId', 'id'])),
+      submissionId: parseInt(
+        pick(['submission_id', 'submissionId', 'form_check_submission_id']),
+      ),
+      coachUserId: parseInt(pick(['coach_user_id', 'coachUserId'])),
+      replyText: (pick(['reply_text', 'replyText', 'text', 'message']) ?? '')
+          .toString(),
+      voiceNoteUrl: parseString(
+        pick([
+          'voice_note_url',
+          'voiceNoteUrl',
+          'reply_voice_note_url',
+          'replyVoiceNoteUrl',
+          'voice_note',
+          'voiceNote',
+        ]),
+      ),
+      isPinned: parseBool(pick(['is_pinned', 'isPinned'])),
+      pinnedAt: parseDate(pick(['pinned_at', 'pinnedAt'])),
+      createdAt: parseDate(pick(['created_at', 'createdAt'])),
+      updatedAt: parseDate(pick(['updated_at', 'updatedAt'])),
+      clientSeenAt: parseDate(pick(['client_seen_at', 'clientSeenAt'])),
     );
   }
 }
@@ -267,6 +336,13 @@ class FormCheckSubmission {
   bool get isFailed => status == 'failed';
 
   factory FormCheckSubmission.fromJson(Map<String, dynamic> json) {
+    dynamic pick(List<String> keys) {
+      for (final key in keys) {
+        if (json.containsKey(key)) return json[key];
+      }
+      return null;
+    }
+
     int parseInt(dynamic value) {
       if (value is int) return value;
       if (value is num) return value.toInt();
@@ -286,19 +362,123 @@ class FormCheckSubmission {
       return DateTime.tryParse(raw);
     }
 
-    final resultJson = json['result'];
+    bool parseBool(dynamic value) {
+      if (value is bool) return value;
+      if (value is num) return value != 0;
+      final raw = value?.toString().trim().toLowerCase() ?? '';
+      return raw == 'true' || raw == '1' || raw == 'yes';
+    }
+
+    String? parseString(dynamic value) {
+      final raw = value?.toString().trim() ?? '';
+      if (raw.isEmpty) return null;
+      return raw;
+    }
+
+    Map<String, dynamic>? parseMap(dynamic value) {
+      if (value is Map<String, dynamic>) return value;
+      if (value is Map) return Map<String, dynamic>.from(value);
+      return null;
+    }
+
+    final resultJson =
+        pick(['result', 'form_check_result', 'formCheckResult']) ??
+        pick(['result_payload', 'resultPayload']);
     final result = resultJson is Map<String, dynamic>
         ? resultJson
         : (resultJson is Map
               ? Map<String, dynamic>.from(resultJson)
               : <String, dynamic>{});
-    final coachReviewJson = json['coach_review'];
-    final coachReview = coachReviewJson is Map<String, dynamic>
-        ? coachReviewJson
-        : (coachReviewJson is Map
-              ? Map<String, dynamic>.from(coachReviewJson)
-              : null);
-    final rawReplies = json['coach_review_replies'];
+    final topSubmissionId = parseInt(
+      pick(['submission_id', 'submissionId', 'id']),
+    );
+    final coachReviewJson = pick(['coach_review', 'coachReview']);
+    Map<String, dynamic>? coachReview = parseMap(coachReviewJson);
+    if (coachReview == null) {
+      final flattened = <String, dynamic>{
+        'submission_id': topSubmissionId,
+        'coach_user_id': pick([
+          'coach_review_coach_user_id',
+          'coachReviewCoachUserId',
+          'review_coach_user_id',
+          'reviewCoachUserId',
+          'review_user_id',
+          'reviewUserId',
+        ]),
+        'review_status': pick([
+          'coach_review_status',
+          'coachReviewStatus',
+          'review_status',
+          'reviewStatus',
+        ]),
+        'review_text': pick([
+          'coach_review_text',
+          'coachReviewText',
+          'review_text',
+          'reviewText',
+        ]),
+        'is_pinned': pick([
+          'coach_review_is_pinned',
+          'coachReviewIsPinned',
+          'review_is_pinned',
+          'reviewIsPinned',
+          'is_review_pinned',
+          'isReviewPinned',
+        ]),
+        'reviewed_at': pick([
+          'coach_review_reviewed_at',
+          'coachReviewReviewedAt',
+          'reviewed_at',
+          'reviewedAt',
+        ]),
+        'pinned_at': pick([
+          'coach_review_pinned_at',
+          'coachReviewPinnedAt',
+          'review_pinned_at',
+          'reviewPinnedAt',
+        ]),
+        'created_at': pick([
+          'coach_review_created_at',
+          'coachReviewCreatedAt',
+          'review_created_at',
+          'reviewCreatedAt',
+        ]),
+        'updated_at': pick([
+          'coach_review_updated_at',
+          'coachReviewUpdatedAt',
+          'review_updated_at',
+          'reviewUpdatedAt',
+        ]),
+        'client_seen_at': pick([
+          'coach_review_client_seen_at',
+          'coachReviewClientSeenAt',
+          'review_client_seen_at',
+          'reviewClientSeenAt',
+        ]),
+        'voice_note_url': pick([
+          'coach_review_voice_note_url',
+          'coachReviewVoiceNoteUrl',
+          'review_voice_note_url',
+          'reviewVoiceNoteUrl',
+          'voice_note_url',
+          'voiceNoteUrl',
+          'voice_note',
+          'voiceNote',
+        ]),
+      };
+      final hasFlattenedReview =
+          parseString(flattened['review_text']) != null ||
+          parseString(flattened['voice_note_url']) != null ||
+          parseString(flattened['review_status']) != null ||
+          parseInt(flattened['coach_user_id']) > 0;
+      if (hasFlattenedReview) {
+        coachReview = flattened;
+      }
+    }
+    final rawReplies =
+        pick(['coach_review_replies', 'coachReviewReplies']) ??
+        pick(['review_replies', 'reviewReplies']) ??
+        coachReview?['replies'];
     final coachReplies = rawReplies is List
         ? rawReplies
               .whereType<Map>()
@@ -311,30 +491,49 @@ class FormCheckSubmission {
         : <FormCheckCoachReply>[];
 
     return FormCheckSubmission(
-      submissionId: parseInt(json['submission_id']),
-      userId: parseInt(json['user_id']),
-      exerciseId: json['exercise_id'] == null
+      submissionId: topSubmissionId,
+      userId: parseInt(
+        pick(['user_id', 'userId', 'client_user_id', 'clientUserId']),
+      ),
+      exerciseId: pick(['exercise_id', 'exerciseId']) == null
           ? null
-          : parseInt(json['exercise_id']),
-      exerciseName: (json['exercise_name'] ?? '').toString(),
-      originalFilename: json['original_filename']?.toString(),
-      originalVideoUrl: json['original_video_url']?.toString(),
-      overlayVideoUrl: json['overlay_video_url']?.toString(),
-      mimeType: (json['mime_type'] ?? '').toString(),
-      fileSizeBytes: parseInt(json['file_size_bytes']),
-      durationSeconds: parseDouble(json['duration_seconds']),
-      status: (json['status'] ?? '').toString(),
-      consentAccepted: json['consent_accepted'] == true,
-      savedToLibrary: json['saved_to_library'] == true,
-      sharedWithCoach: json['shared_with_coach'] == true,
-      sharedCoachUserId: json['shared_coach_user_id'] == null
+          : parseInt(pick(['exercise_id', 'exerciseId'])),
+      exerciseName: (pick(['exercise_name', 'exerciseName', 'exercise']) ?? '')
+          .toString(),
+      originalFilename: parseString(
+        pick(['original_filename', 'originalFilename', 'filename']),
+      ),
+      originalVideoUrl: parseString(
+        pick([
+          'original_video_url',
+          'originalVideoUrl',
+          'video_url',
+          'videoUrl',
+        ]),
+      ),
+      overlayVideoUrl: parseString(
+        pick(['overlay_video_url', 'overlayVideoUrl']),
+      ),
+      mimeType: (pick(['mime_type', 'mimeType']) ?? '').toString(),
+      fileSizeBytes: parseInt(pick(['file_size_bytes', 'fileSizeBytes'])),
+      durationSeconds: parseDouble(
+        pick(['duration_seconds', 'durationSeconds']),
+      ),
+      status: (pick(['status']) ?? '').toString(),
+      consentAccepted: parseBool(pick(['consent_accepted', 'consentAccepted'])),
+      savedToLibrary: parseBool(pick(['saved_to_library', 'savedToLibrary'])),
+      sharedWithCoach: parseBool(
+        pick(['shared_with_coach', 'sharedWithCoach']),
+      ),
+      sharedCoachUserId:
+          pick(['shared_coach_user_id', 'sharedCoachUserId']) == null
           ? null
-          : parseInt(json['shared_coach_user_id']),
-      sharedAt: parseDate(json['shared_at']),
-      failureReason: json['failure_reason']?.toString(),
-      deleteAfter: parseDate(json['delete_after']),
-      createdAt: parseDate(json['created_at']),
-      updatedAt: parseDate(json['updated_at']),
+          : parseInt(pick(['shared_coach_user_id', 'sharedCoachUserId'])),
+      sharedAt: parseDate(pick(['shared_at', 'sharedAt'])),
+      failureReason: parseString(pick(['failure_reason', 'failureReason'])),
+      deleteAfter: parseDate(pick(['delete_after', 'deleteAfter'])),
+      createdAt: parseDate(pick(['created_at', 'createdAt'])),
+      updatedAt: parseDate(pick(['updated_at', 'updatedAt'])),
       result: FormCheckResultData.fromJson(result),
       coachReview: coachReview == null
           ? null
@@ -363,6 +562,13 @@ class FormCheckFeedbackFeed {
   });
 
   factory FormCheckFeedbackFeed.fromJson(Map<String, dynamic> json) {
+    dynamic pick(List<String> keys) {
+      for (final key in keys) {
+        if (json.containsKey(key)) return json[key];
+      }
+      return null;
+    }
+
     int? parseIntOrNull(dynamic value) {
       if (value == null) return null;
       if (value is int) return value;
@@ -381,10 +587,35 @@ class FormCheckFeedbackFeed {
           .toList();
     }
 
+    final parsedItems = parseItems(
+      pick(['items', 'feedback_items', 'feedbackItems', 'submissions']),
+    );
+    final hasPinnedItemsKey =
+        json.containsKey('pinned_items') ||
+        json.containsKey('pinnedItems') ||
+        json.containsKey('pinned');
+    var parsedPinnedItems = parseItems(
+      pick([
+        'pinned_items',
+        'pinnedItems',
+        'pinned',
+        'pinned_feedback',
+        'pinnedFeedback',
+      ]),
+    );
+    if (!hasPinnedItemsKey && parsedPinnedItems.isEmpty) {
+      parsedPinnedItems = parsedItems.where((item) {
+        if (item.coachReview?.isPinned == true) return true;
+        return item.coachReviewReplies.any((reply) => reply.isPinned);
+      }).toList();
+    }
+
     return FormCheckFeedbackFeed(
-      clientUserId: parseIntOrNull(json['client_user_id']),
-      items: parseItems(json['items']),
-      pinnedItems: parseItems(json['pinned_items']),
+      clientUserId: parseIntOrNull(
+        pick(['client_user_id', 'clientUserId', 'user_id', 'userId']),
+      ),
+      items: parsedItems,
+      pinnedItems: parsedPinnedItems,
     );
   }
 }
@@ -496,9 +727,32 @@ class FormCheckService {
         _extractError('Failed to load coach feedback feed', res.body),
       );
     }
-    return FormCheckFeedbackFeed.fromJson(
-      jsonDecode(res.body) as Map<String, dynamic>,
-    );
+    final decoded = jsonDecode(res.body);
+    if (decoded is Map<String, dynamic>) {
+      return FormCheckFeedbackFeed.fromJson(decoded);
+    }
+    if (decoded is Map) {
+      return FormCheckFeedbackFeed.fromJson(Map<String, dynamic>.from(decoded));
+    }
+    if (decoded is List) {
+      final items = decoded
+          .whereType<Map>()
+          .map(
+            (item) =>
+                FormCheckSubmission.fromJson(Map<String, dynamic>.from(item)),
+          )
+          .toList();
+      final pinnedItems = items.where((item) {
+        if (item.coachReview?.isPinned == true) return true;
+        return item.coachReviewReplies.any((reply) => reply.isPinned);
+      }).toList();
+      return FormCheckFeedbackFeed(
+        clientUserId: null,
+        items: items,
+        pinnedItems: pinnedItems,
+      );
+    }
+    throw Exception('Invalid feedback feed response format.');
   }
 
   static Future<FormCheckSubmission> createSubmission({

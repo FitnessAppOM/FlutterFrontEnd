@@ -1,4 +1,12 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:record/record.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../config/base_url.dart';
@@ -7,6 +15,7 @@ import '../services/auth/profile_service.dart';
 import '../services/coach/coach_habits_service.dart';
 import '../services/coach/form_check_service.dart';
 import '../services/coach/progression_review_service.dart';
+import '../services/coach/voice_note_audio_service.dart';
 import '../theme/app_theme.dart';
 import 'expert_client_analytics_page.dart';
 import 'expert_client_habits_page.dart';
@@ -34,7 +43,20 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   final Map<int, TextEditingController> _reviewControllers =
       <int, TextEditingController>{};
   final Set<int> _savingReviewIds = <int>{};
+  final Set<int> _sendingVoiceNoteIds = <int>{};
+  final Set<int> _pinningReviewIds = <int>{};
   final Set<int> _pinningReplyIds = <int>{};
+  final AudioRecorder _audioRecorder = AudioRecorder();
+  final AudioPlayer _voicePlayer = AudioPlayer();
+  StreamSubscription<PlayerState>? _voicePlayerSub;
+  bool _isRecordingVoiceNote = false;
+  int? _recordingVoiceNoteSubmissionId;
+  String? _recordingVoiceNotePath;
+  int? _pendingVoiceNoteSubmissionId;
+  String? _pendingVoiceNotePath;
+  String? _activeVoiceNoteUrl;
+  String? _loadingVoiceNoteUrl;
+  StateSetter? _activeReviewSheetSetState;
   String? _profileError;
   String? _habitsError;
   String? _formChecksError;
@@ -42,6 +64,17 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   @override
   void initState() {
     super.initState();
+    _voicePlayerSub = _voicePlayer.playerStateStream.listen((_) {
+      if (mounted) {
+        setState(() {});
+      }
+      final sheetSetState = _activeReviewSheetSetState;
+      if (sheetSetState != null) {
+        try {
+          sheetSetState(() {});
+        } catch (_) {}
+      }
+    });
     _load();
   }
 
@@ -50,6 +83,14 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     for (final controller in _reviewControllers.values) {
       controller.dispose();
     }
+    final pendingPath = (_pendingVoiceNotePath ?? '').trim();
+    if (pendingPath.isNotEmpty) {
+      unawaited(_deleteLocalFile(pendingPath));
+    }
+    _activeReviewSheetSetState = null;
+    _voicePlayerSub?.cancel();
+    unawaited(_voicePlayer.dispose());
+    unawaited(_audioRecorder.dispose());
     super.dispose();
   }
 
@@ -262,11 +303,84 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  void _refreshOpenReviewSheet() {
+    final sheetSetState = _activeReviewSheetSetState;
+    if (sheetSetState != null) {
+      try {
+        sheetSetState(() {});
+      } catch (_) {}
+    }
+  }
+
+  String _normalizeVoiceNoteUrl(String? rawUrl) => (rawUrl ?? '').trim();
+
+  bool _isVoiceNoteLoading(String rawUrl) {
+    final normalized = _normalizeVoiceNoteUrl(rawUrl);
+    if (normalized.isEmpty) return false;
+    return _loadingVoiceNoteUrl == normalized;
+  }
+
+  bool _isVoiceNotePlaying(String rawUrl) {
+    final normalized = _normalizeVoiceNoteUrl(rawUrl);
+    if (normalized.isEmpty) return false;
+    return _activeVoiceNoteUrl == normalized && _voicePlayer.playing;
+  }
+
+  Future<void> _toggleVoiceNotePlayback(String rawUrl) async {
+    final normalized = _normalizeVoiceNoteUrl(rawUrl);
+    if (normalized.isEmpty) return;
+
+    if (_activeVoiceNoteUrl == normalized) {
+      if (_voicePlayer.playing) {
+        await _voicePlayer.pause();
+      } else {
+        await _voicePlayer.play();
+      }
+      _refreshOpenReviewSheet();
+      return;
+    }
+
+    setState(() {
+      _loadingVoiceNoteUrl = normalized;
+    });
+    _refreshOpenReviewSheet();
+    try {
+      await _voicePlayer.stop();
+      final localFilePath =
+          await VoiceNoteAudioService.prepareLocalVoiceNoteFile(normalized);
+      await _voicePlayer.setFilePath(localFilePath);
+      _activeVoiceNoteUrl = normalized;
+      await _voicePlayer.play();
+    } catch (e) {
+      _showSnack(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) {
+        setState(() {
+          if (_loadingVoiceNoteUrl == normalized) {
+            _loadingVoiceNoteUrl = null;
+          }
+        });
+      } else if (_loadingVoiceNoteUrl == normalized) {
+        _loadingVoiceNoteUrl = null;
+      }
+      _refreshOpenReviewSheet();
+    }
+  }
+
   Future<FormCheckSubmission?> _saveWrittenReview(
     FormCheckSubmission item,
   ) async {
     final submissionId = item.submissionId;
     if (_savingReviewIds.contains(submissionId)) return null;
+    if (_isRecordingVoiceNote &&
+        _recordingVoiceNoteSubmissionId == submissionId) {
+      _showSnack('Stop recording before sending a text comment.');
+      return null;
+    }
+    if (_hasPendingVoiceNoteForSubmission(submissionId)) {
+      _showSnack('Send or cancel the voice note before sending text.');
+      return null;
+    }
 
     final controller = _reviewControllerFor(item);
     final reviewText = controller.text.trim();
@@ -294,6 +408,240 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     } finally {
       if (mounted) {
         setState(() => _savingReviewIds.remove(submissionId));
+      }
+    }
+  }
+
+  bool _hasPendingVoiceNoteForSubmission(int submissionId) {
+    if (_pendingVoiceNoteSubmissionId != submissionId) return false;
+    return (_pendingVoiceNotePath ?? '').trim().isNotEmpty;
+  }
+
+  Future<void> _deleteLocalFile(String path) async {
+    final normalized = path.trim();
+    if (normalized.isEmpty) return;
+    try {
+      final file = File(normalized);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _clearPendingVoiceNote({
+    int? submissionId,
+    bool deleteFile = true,
+  }) async {
+    if (submissionId != null && _pendingVoiceNoteSubmissionId != submissionId) {
+      return;
+    }
+    final pendingPath = (_pendingVoiceNotePath ?? '').trim();
+    if (mounted) {
+      setState(() {
+        _pendingVoiceNoteSubmissionId = null;
+        _pendingVoiceNotePath = null;
+      });
+    } else {
+      _pendingVoiceNoteSubmissionId = null;
+      _pendingVoiceNotePath = null;
+    }
+    if (deleteFile && pendingPath.isNotEmpty) {
+      await _deleteLocalFile(pendingPath);
+    }
+  }
+
+  Future<bool> _requestMicrophonePermission() async {
+    try {
+      final allowedByRecorder = await _audioRecorder.hasPermission();
+      if (allowedByRecorder) return true;
+    } catch (_) {}
+
+    try {
+      var status = await Permission.microphone.status;
+      if (status.isGranted) return true;
+      if (status.isPermanentlyDenied || status.isRestricted) return false;
+      status = await Permission.microphone.request();
+      return status.isGranted;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> _startVoiceNoteRecording(FormCheckSubmission item) async {
+    final submissionId = item.submissionId;
+    if (_sendingVoiceNoteIds.contains(submissionId)) {
+      _showSnack('Voice note is still uploading. Please wait.');
+      return false;
+    }
+    if ((_pendingVoiceNotePath ?? '').trim().isNotEmpty) {
+      if (_pendingVoiceNoteSubmissionId == submissionId) {
+        _showSnack('Send or cancel the current voice note first.');
+      } else {
+        _showSnack(
+          'Send or cancel the current voice note before recording another one.',
+        );
+      }
+      return false;
+    }
+    if (_isRecordingVoiceNote) {
+      _showSnack('A voice note is already recording.');
+      return false;
+    }
+
+    final hasPermission = await _requestMicrophonePermission();
+    if (!hasPermission) {
+      _showSnack(
+        'Microphone permission is required. Please enable it in app settings.',
+      );
+      return false;
+    }
+
+    final tempDir = await getTemporaryDirectory();
+    final path =
+        '${tempDir.path}/voice_note_${submissionId}_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+    try {
+      await _audioRecorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: path,
+      );
+    } catch (e) {
+      _showSnack('Could not start voice recording: $e');
+      return false;
+    }
+
+    if (!mounted) {
+      try {
+        await _audioRecorder.stop();
+      } catch (_) {}
+      return false;
+    }
+
+    setState(() {
+      _isRecordingVoiceNote = true;
+      _recordingVoiceNoteSubmissionId = submissionId;
+      _recordingVoiceNotePath = path;
+    });
+    return true;
+  }
+
+  Future<void> _cancelVoiceNoteRecording() async {
+    if (!_isRecordingVoiceNote) return;
+    String? recordedPath;
+    try {
+      recordedPath = await _audioRecorder.stop();
+    } catch (_) {}
+
+    final path = (recordedPath ?? _recordingVoiceNotePath ?? '').trim();
+    if (mounted) {
+      setState(() {
+        _isRecordingVoiceNote = false;
+        _recordingVoiceNoteSubmissionId = null;
+        _recordingVoiceNotePath = null;
+      });
+    } else {
+      _isRecordingVoiceNote = false;
+      _recordingVoiceNoteSubmissionId = null;
+      _recordingVoiceNotePath = null;
+    }
+
+    if (path.isNotEmpty) {
+      try {
+        final file = File(path);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      } catch (_) {}
+    }
+  }
+
+  Future<bool> _stopVoiceNoteRecording(FormCheckSubmission item) async {
+    final submissionId = item.submissionId;
+    if (!_isRecordingVoiceNote ||
+        _recordingVoiceNoteSubmissionId != submissionId) {
+      return false;
+    }
+
+    String? recordedPath;
+    try {
+      recordedPath = await _audioRecorder.stop();
+    } catch (_) {
+      _showSnack('Could not finish voice recording.');
+      return false;
+    }
+
+    final audioPath = (recordedPath ?? _recordingVoiceNotePath ?? '').trim();
+    if (mounted) {
+      setState(() {
+        _isRecordingVoiceNote = false;
+        _recordingVoiceNoteSubmissionId = null;
+        _recordingVoiceNotePath = null;
+      });
+    } else {
+      _isRecordingVoiceNote = false;
+      _recordingVoiceNoteSubmissionId = null;
+      _recordingVoiceNotePath = null;
+    }
+    if (audioPath.isEmpty) {
+      _showSnack('No voice note was recorded.');
+      return false;
+    }
+
+    if (mounted) {
+      setState(() {
+        _pendingVoiceNoteSubmissionId = submissionId;
+        _pendingVoiceNotePath = audioPath;
+      });
+    } else {
+      _pendingVoiceNoteSubmissionId = submissionId;
+      _pendingVoiceNotePath = audioPath;
+    }
+    _showSnack('Recording stopped. Send or cancel.');
+    return true;
+  }
+
+  Future<FormCheckSubmission?> _sendPendingVoiceNote(
+    FormCheckSubmission item,
+  ) async {
+    final submissionId = item.submissionId;
+    if (_sendingVoiceNoteIds.contains(submissionId)) return null;
+    if (!_hasPendingVoiceNoteForSubmission(submissionId)) return null;
+
+    final audioPath = (_pendingVoiceNotePath ?? '').trim();
+    if (audioPath.isEmpty) {
+      _showSnack('No voice note was recorded.');
+      return null;
+    }
+
+    final controller = _reviewControllerFor(item);
+    final optionalText = controller.text.trim();
+
+    setState(() => _sendingVoiceNoteIds.add(submissionId));
+    try {
+      final updated = await ProgressionReviewService.submitFormCheckVoiceNote(
+        submissionId: submissionId,
+        audioFilePath: audioPath,
+        reviewText: optionalText.isEmpty ? null : optionalText,
+      );
+      if (!mounted) return null;
+      setState(() {
+        _replaceFormCheckItem(updated);
+      });
+      if (optionalText.isNotEmpty) {
+        controller.clear();
+      }
+      await _clearPendingVoiceNote(
+        submissionId: submissionId,
+        deleteFile: true,
+      );
+      _showSnack('Voice note sent.');
+      return updated;
+    } catch (e) {
+      _showSnack(e.toString().replaceFirst('Exception: ', ''));
+      return null;
+    } finally {
+      if (mounted) {
+        setState(() => _sendingVoiceNoteIds.remove(submissionId));
       }
     }
   }
@@ -328,6 +676,38 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     }
   }
 
+  Future<FormCheckSubmission?> _toggleReviewPinned({
+    required FormCheckSubmission item,
+  }) async {
+    final review = item.coachReview;
+    if (review == null) return null;
+    final submissionId = item.submissionId;
+    if (_pinningReviewIds.contains(submissionId)) return null;
+
+    setState(() => _pinningReviewIds.add(submissionId));
+    try {
+      final updated = await ProgressionReviewService.setFormCheckReviewPinned(
+        submissionId: submissionId,
+        isPinned: !review.isPinned,
+      );
+      if (!mounted) return null;
+      setState(() {
+        _replaceFormCheckItem(updated);
+      });
+      _showSnack(
+        review.isPinned ? 'Voice note unpinned.' : 'Voice note pinned.',
+      );
+      return updated;
+    } catch (e) {
+      _showSnack(e.toString().replaceFirst('Exception: ', ''));
+      return null;
+    } finally {
+      if (mounted) {
+        setState(() => _pinningReviewIds.remove(submissionId));
+      }
+    }
+  }
+
   FormCheckSubmission _submissionById(int submissionId) {
     for (final item in _sharedFormChecks) {
       if (item.submissionId == submissionId) return item;
@@ -335,6 +715,26 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     return _sharedFormChecks.firstWhere(
       (item) => item.submissionId == submissionId,
     );
+  }
+
+  List<FormCheckCoachReply> _sortedRepliesForHistory(
+    List<FormCheckCoachReply> replies,
+  ) {
+    final sorted = List<FormCheckCoachReply>.from(replies);
+    sorted.sort((a, b) {
+      final aCreated = a.createdAt;
+      final bCreated = b.createdAt;
+      if (aCreated != null && bCreated != null) {
+        final byCreated = aCreated.compareTo(bCreated);
+        if (byCreated != 0) return byCreated;
+      } else if (aCreated == null && bCreated != null) {
+        return 1;
+      } else if (aCreated != null && bCreated == null) {
+        return -1;
+      }
+      return a.replyId.compareTo(b.replyId);
+    });
+    return sorted;
   }
 
   Future<void> _openSubmissionReviewSheet(FormCheckSubmission item) async {
@@ -350,12 +750,71 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       builder: (sheetContext) {
         return StatefulBuilder(
           builder: (sheetContext, setSheetState) {
+            _activeReviewSheetSetState = setSheetState;
             final submissionId = current.submissionId;
             final isSaving = _savingReviewIds.contains(submissionId);
-            final replies = current.coachReviewReplies;
+            final isSendingVoice = _sendingVoiceNoteIds.contains(submissionId);
+            final isPinningReview = _pinningReviewIds.contains(submissionId);
+            final isRecordingVoice =
+                _isRecordingVoiceNote &&
+                _recordingVoiceNoteSubmissionId == submissionId;
+            final hasPendingVoice = _hasPendingVoiceNoteForSubmission(
+              submissionId,
+            );
+            final replies = _sortedRepliesForHistory(
+              current.coachReviewReplies,
+            );
+            final voiceNoteUrl = _normalizeVoiceNoteUrl(
+              current.coachReview?.voiceNoteUrl,
+            );
+            final reviewSeenAt = current.coachReview?.clientSeenAt;
+            final isVoicePlaying = _isVoiceNotePlaying(voiceNoteUrl);
+            final isVoiceLoading = _isVoiceNoteLoading(voiceNoteUrl);
+            final isReviewPinned = current.coachReview?.isPinned == true;
 
             Future<void> handleSave() async {
               final updated = await _saveWrittenReview(current);
+              if (updated == null || !mounted) return;
+              current = _submissionById(updated.submissionId);
+              setSheetState(() {});
+            }
+
+            Future<void> handleRecordToggle() async {
+              if (isRecordingVoice) {
+                final stopped = await _stopVoiceNoteRecording(current);
+                if (!stopped || !mounted) return;
+                setSheetState(() {});
+                return;
+              }
+              final started = await _startVoiceNoteRecording(current);
+              if (!started || !mounted) return;
+              setSheetState(() {});
+            }
+
+            Future<void> handlePendingVoiceSend() async {
+              final updated = await _sendPendingVoiceNote(current);
+              if (updated == null || !mounted) return;
+              current = _submissionById(updated.submissionId);
+              setSheetState(() {});
+            }
+
+            Future<void> handlePendingVoiceCancel() async {
+              await _clearPendingVoiceNote(
+                submissionId: submissionId,
+                deleteFile: true,
+              );
+              if (!mounted) return;
+              setSheetState(() {});
+            }
+
+            Future<void> handleVoicePlayback() async {
+              await _toggleVoiceNotePlayback(voiceNoteUrl);
+              if (!mounted) return;
+              setSheetState(() {});
+            }
+
+            Future<void> handleReviewPinToggle() async {
+              final updated = await _toggleReviewPinned(item: current);
               if (updated == null || !mounted) return;
               current = _submissionById(updated.submissionId);
               setSheetState(() {});
@@ -404,7 +863,14 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                           ),
                         ),
                         IconButton(
-                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          onPressed: () async {
+                            if (isRecordingVoice) {
+                              await _cancelVoiceNoteRecording();
+                            }
+                            if (sheetContext.mounted) {
+                              Navigator.of(sheetContext).pop();
+                            }
+                          },
                           icon: const Icon(Icons.close, color: Colors.white70),
                         ),
                       ],
@@ -494,7 +960,13 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                     Row(
                       children: [
                         FilledButton.icon(
-                          onPressed: isSaving ? null : handleSave,
+                          onPressed:
+                              (isSaving ||
+                                  isSendingVoice ||
+                                  isRecordingVoice ||
+                                  hasPendingVoice)
+                              ? null
+                              : handleSave,
                           style: FilledButton.styleFrom(
                             backgroundColor: AppColors.accent,
                             foregroundColor: Colors.white,
@@ -521,8 +993,269 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                               : const Icon(Icons.send, size: 14),
                           label: Text(isSaving ? 'Sending...' : 'Send'),
                         ),
+                        const SizedBox(width: 8),
+                        if (isRecordingVoice)
+                          OutlinedButton.icon(
+                            onPressed: (isSaving || isSendingVoice)
+                                ? null
+                                : handleRecordToggle,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.redAccent,
+                              side: const BorderSide(color: Colors.redAccent),
+                              minimumSize: const Size(0, 34),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: const VisualDensity(
+                                horizontal: -2,
+                                vertical: -2,
+                              ),
+                            ),
+                            icon: const Icon(Icons.stop, size: 14),
+                            label: const Text('Stop'),
+                          )
+                        else if (hasPendingVoice) ...[
+                          FilledButton.icon(
+                            onPressed: (isSaving || isSendingVoice)
+                                ? null
+                                : handlePendingVoiceSend,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.black87,
+                              minimumSize: const Size(0, 34),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: const VisualDensity(
+                                horizontal: -2,
+                                vertical: -2,
+                              ),
+                            ),
+                            icon: isSendingVoice
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.black87,
+                                    ),
+                                  )
+                                : const Icon(Icons.send, size: 14),
+                            label: Text(
+                              isSendingVoice ? 'Uploading...' : 'Send voice',
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton(
+                            onPressed: (isSaving || isSendingVoice)
+                                ? null
+                                : handlePendingVoiceCancel,
+                            child: const Text('Cancel'),
+                          ),
+                        ] else
+                          OutlinedButton.icon(
+                            onPressed: (isSaving || isSendingVoice)
+                                ? null
+                                : handleRecordToggle,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white24),
+                              minimumSize: const Size(0, 34),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: const VisualDensity(
+                                horizontal: -2,
+                                vertical: -2,
+                              ),
+                            ),
+                            icon: const Icon(Icons.mic, size: 14),
+                            label: const Text('Record voice'),
+                          ),
                       ],
                     ),
+                    if (isRecordingVoice) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: const [
+                          Icon(
+                            Icons.fiber_manual_record,
+                            size: 10,
+                            color: Colors.redAccent,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'Recording...',
+                            style: TextStyle(
+                              color: Colors.redAccent,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          _AudioWaveBars(
+                            color: Colors.redAccent,
+                            barCount: 6,
+                            minHeight: 4,
+                            maxHeight: 14,
+                            barWidth: 3,
+                            gap: 2,
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (replies.isEmpty &&
+                        voiceNoteUrl.isEmpty &&
+                        current.coachReview != null) ...[
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          reviewSeenAt == null
+                              ? 'Unseen by client'
+                              : 'Seen by client',
+                          style: TextStyle(
+                            color: reviewSeenAt == null
+                                ? Colors.orangeAccent
+                                : Colors.greenAccent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (replies.isEmpty && voiceNoteUrl.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.white12),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.mic, color: Colors.white70),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Voice note: ${_formatDateTime(current.coachReview?.updatedAt ?? current.coachReview?.reviewedAt)}',
+                                style: const TextStyle(color: Colors.white70),
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  reviewSeenAt == null ? 'Unseen' : 'Seen',
+                                  style: TextStyle(
+                                    color: reviewSeenAt == null
+                                        ? Colors.orangeAccent
+                                        : Colors.greenAccent,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      onPressed: isVoiceLoading
+                                          ? null
+                                          : handleVoicePlayback,
+                                      icon: isVoiceLoading
+                                          ? const SizedBox(
+                                              width: 16,
+                                              height: 16,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Colors.white70,
+                                              ),
+                                            )
+                                          : Icon(
+                                              isVoicePlaying
+                                                  ? Icons.pause_circle_filled
+                                                  : Icons.play_circle_fill,
+                                              color: Colors.white,
+                                            ),
+                                      tooltip: isVoicePlaying
+                                          ? 'Pause'
+                                          : 'Play',
+                                    ),
+                                    const SizedBox(width: 4),
+                                    OutlinedButton.icon(
+                                      onPressed: isPinningReview
+                                          ? null
+                                          : handleReviewPinToggle,
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: isReviewPinned
+                                            ? Colors.orangeAccent
+                                            : Colors.white70,
+                                        side: BorderSide(
+                                          color: isReviewPinned
+                                              ? Colors.orangeAccent
+                                              : Colors.white24,
+                                        ),
+                                        minimumSize: const Size(0, 28),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 6,
+                                        ),
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                        visualDensity: const VisualDensity(
+                                          horizontal: -2,
+                                          vertical: -2,
+                                        ),
+                                      ),
+                                      icon: isPinningReview
+                                          ? const SizedBox(
+                                              width: 12,
+                                              height: 12,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Colors.white70,
+                                              ),
+                                            )
+                                          : Icon(
+                                              isReviewPinned
+                                                  ? Icons.push_pin
+                                                  : Icons.push_pin_outlined,
+                                              size: 12,
+                                            ),
+                                      label: Text(
+                                        isReviewPinned ? 'Unpin' : 'Pin',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (isReviewPinned) ...[
+                        const SizedBox(height: 6),
+                        const Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            'Pinned correction',
+                            style: TextStyle(
+                              color: Colors.orangeAccent,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                     const SizedBox(height: 12),
                     const Text(
                       'Reply History',
@@ -539,16 +1272,33 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                       )
                     else
                       ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 240),
+                        constraints: const BoxConstraints(maxHeight: 380),
                         child: ListView.builder(
                           shrinkWrap: true,
                           itemCount: replies.length,
                           itemBuilder: (context, index) {
                             final reply = replies[replies.length - 1 - index];
+                            final replyVoiceNoteUrl = _normalizeVoiceNoteUrl(
+                              reply.voiceNoteUrl,
+                            );
+                            final hasReplyVoiceNote =
+                                replyVoiceNoteUrl.isNotEmpty;
+                            final isReplyVoiceLoading =
+                                hasReplyVoiceNote &&
+                                _isVoiceNoteLoading(replyVoiceNoteUrl);
+                            final isReplyVoicePlaying =
+                                hasReplyVoiceNote &&
+                                _isVoiceNotePlaying(replyVoiceNoteUrl);
+                            final replyText = reply.replyText.trim();
+                            final replyMessage = replyText.isNotEmpty
+                                ? replyText
+                                : (hasReplyVoiceNote
+                                      ? 'Voice note from coach.'
+                                      : '');
                             return Container(
                               width: double.infinity,
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.all(10),
+                              margin: const EdgeInsets.only(bottom: 6),
+                              padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: Colors.white.withValues(alpha: 0.04),
                                 borderRadius: BorderRadius.circular(10),
@@ -586,10 +1336,10 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                                                 ? Colors.orangeAccent
                                                 : Colors.white24,
                                           ),
-                                          minimumSize: const Size(0, 28),
+                                          minimumSize: const Size(0, 26),
                                           padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 6,
+                                            horizontal: 8,
+                                            vertical: 4,
                                           ),
                                           tapTargetSize:
                                               MaterialTapTargetSize.shrinkWrap,
@@ -623,11 +1373,75 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 6),
+                                  const SizedBox(height: 4),
+                                  if (replyMessage.isNotEmpty)
+                                    Text(
+                                      replyMessage,
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                  if (hasReplyVoiceNote) ...[
+                                    if (replyMessage.isNotEmpty)
+                                      const SizedBox(height: 4),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        TextButton.icon(
+                                          onPressed: isReplyVoiceLoading
+                                              ? null
+                                              : () => _toggleVoiceNotePlayback(
+                                                  replyVoiceNoteUrl,
+                                                ),
+                                          style: TextButton.styleFrom(
+                                            minimumSize: const Size(0, 26),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            tapTargetSize: MaterialTapTargetSize
+                                                .shrinkWrap,
+                                            visualDensity: const VisualDensity(
+                                              horizontal: -2,
+                                              vertical: -3,
+                                            ),
+                                          ),
+                                          icon: isReplyVoiceLoading
+                                              ? const SizedBox(
+                                                  width: 14,
+                                                  height: 14,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        color: Colors.white70,
+                                                      ),
+                                                )
+                                              : Icon(
+                                                  isReplyVoicePlaying
+                                                      ? Icons.pause
+                                                      : Icons.play_arrow,
+                                                  size: 16,
+                                                ),
+                                          label: Text(
+                                            isReplyVoicePlaying
+                                                ? 'Pause'
+                                                : 'Play',
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                  const SizedBox(height: 4),
                                   Text(
-                                    reply.replyText,
-                                    style: const TextStyle(
-                                      color: Colors.white70,
+                                    reply.clientSeenAt == null
+                                        ? 'Unseen by client'
+                                        : 'Seen by client',
+                                    style: TextStyle(
+                                      color: reply.clientSeenAt == null
+                                          ? Colors.orangeAccent
+                                          : Colors.greenAccent,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ],
@@ -644,6 +1458,29 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
         );
       },
     );
+    _activeReviewSheetSetState = null;
+    try {
+      await _voicePlayer.stop();
+    } catch (_) {}
+    if (mounted) {
+      setState(() {
+        _activeVoiceNoteUrl = null;
+        _loadingVoiceNoteUrl = null;
+      });
+    } else {
+      _activeVoiceNoteUrl = null;
+      _loadingVoiceNoteUrl = null;
+    }
+    if (_isRecordingVoiceNote &&
+        _recordingVoiceNoteSubmissionId == item.submissionId) {
+      await _cancelVoiceNoteRecording();
+    }
+    if (_pendingVoiceNoteSubmissionId == item.submissionId) {
+      await _clearPendingVoiceNote(
+        submissionId: item.submissionId,
+        deleteFile: true,
+      );
+    }
   }
 
   Future<void> _openHabitsPage() async {
@@ -1131,6 +1968,80 @@ class _InfoRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _AudioWaveBars extends StatefulWidget {
+  const _AudioWaveBars({
+    required this.color,
+    this.barCount = 5,
+    this.minHeight = 4,
+    this.maxHeight = 12,
+    this.barWidth = 3,
+    this.gap = 2,
+  });
+
+  final Color color;
+  final int barCount;
+  final double minHeight;
+  final double maxHeight;
+  final double barWidth;
+  final double gap;
+
+  @override
+  State<_AudioWaveBars> createState() => _AudioWaveBarsState();
+}
+
+class _AudioWaveBarsState extends State<_AudioWaveBars>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final t = _controller.value * math.pi * 2;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List<Widget>.generate(widget.barCount, (index) {
+            final phase = t + (index * 0.7);
+            final level = (math.sin(phase) + 1) / 2;
+            final height =
+                widget.minHeight +
+                (widget.maxHeight - widget.minHeight) * level;
+            return Padding(
+              padding: EdgeInsets.only(
+                right: index == widget.barCount - 1 ? 0 : widget.gap,
+              ),
+              child: Container(
+                width: widget.barWidth,
+                height: height,
+                decoration: BoxDecoration(
+                  color: widget.color,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+            );
+          }),
+        );
+      },
     );
   }
 }

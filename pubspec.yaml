@@ -51,6 +51,8 @@ dependencies:
   shared_preferences: ^2.3.2
   image_picker: ^1.0.8
   file_picker: ^8.0.0
+  record: ^6.1.2
+  just_audio: ^0.9.46
   url_launcher: ^6.3.1
   cached_network_image: ^3.4.1
 

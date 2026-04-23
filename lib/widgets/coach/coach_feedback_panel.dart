@@ -1,10 +1,15 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:just_audio/just_audio.dart';
 
 import '../../core/account_storage.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/coach/coach_habits_service.dart';
 import '../../services/coach/form_check_service.dart';
+import '../../services/coach/voice_note_audio_service.dart';
 import '../../theme/app_theme.dart';
 
 class CoachFeedbackPanel extends StatefulWidget {
@@ -22,13 +27,33 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
   bool _loadingFeedback = true;
   String? _feedbackError;
   List<FormCheckSubmission> _feedbackItems = const [];
-  List<FormCheckSubmission> _pinnedFeedbackItems = const [];
+  final AudioPlayer _voicePlayer = AudioPlayer();
+  StreamSubscription<PlayerState>? _voicePlayerSub;
+  String? _activeVoiceNoteUrl;
+  String? _loadingVoiceNoteUrl;
+  String? _completedVoiceNoteUrl;
 
   @override
   void initState() {
     super.initState();
+    _voicePlayerSub = _voicePlayer.playerStateStream.listen((state) {
+      if (!mounted) return;
+      setState(() {
+        if (state.processingState == ProcessingState.completed &&
+            _activeVoiceNoteUrl != null) {
+          _completedVoiceNoteUrl = _activeVoiceNoteUrl;
+        }
+      });
+    });
     _loadHabits();
     _loadFeedbackFeed();
+  }
+
+  @override
+  void dispose() {
+    _voicePlayerSub?.cancel();
+    unawaited(_voicePlayer.dispose());
+    super.dispose();
   }
 
   Future<void> _loadHabits() async {
@@ -133,7 +158,6 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
       if (!mounted) return;
       setState(() {
         _feedbackItems = feed.items;
-        _pinnedFeedbackItems = feed.pinnedItems;
         _loadingFeedback = false;
         _feedbackError = null;
       });
@@ -141,7 +165,6 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
       if (!mounted) return;
       setState(() {
         _feedbackItems = const [];
-        _pinnedFeedbackItems = const [];
         _loadingFeedback = false;
         _feedbackError = e.toString().replaceFirst('Exception: ', '');
       });
@@ -164,63 +187,178 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
     return DateFormat('MMM d, HH:mm').format(local);
   }
 
-  FormCheckCoachReply? _latestPinnedReply(FormCheckSubmission item) {
-    for (final reply in item.coachReviewReplies.reversed) {
-      if (reply.isPinned) return reply;
-    }
-    return null;
+  String _entryWorkoutLabel(FormCheckSubmission item) {
+    final workoutLabel = item.exerciseName.trim();
+    if (workoutLabel.isNotEmpty) return workoutLabel;
+    return 'Exercise';
   }
 
-  String _pinnedFeedbackMessage(FormCheckSubmission item) {
-    final pinnedReply = _latestPinnedReply(item);
-    if (pinnedReply != null) {
-      final text = pinnedReply.replyText.trim();
-      if (text.isNotEmpty) return text;
+  bool _hasVoiceNote(FormCheckCoachReview? review) {
+    final voiceNoteUrl = review?.voiceNoteUrl?.trim() ?? '';
+    return voiceNoteUrl.isNotEmpty;
+  }
+
+  String _normalizeVoiceNoteUrl(String? rawUrl) => (rawUrl ?? '').trim();
+
+  bool _isVoiceNoteLoading(String? rawUrl) {
+    final normalized = _normalizeVoiceNoteUrl(rawUrl);
+    if (normalized.isEmpty) return false;
+    return _loadingVoiceNoteUrl == normalized;
+  }
+
+  bool _isVoiceNotePlaying(String? rawUrl) {
+    final normalized = _normalizeVoiceNoteUrl(rawUrl);
+    if (normalized.isEmpty) return false;
+    return _activeVoiceNoteUrl == normalized && _voicePlayer.playing;
+  }
+
+  bool _isVoiceNoteCompleted(String? rawUrl) {
+    final normalized = _normalizeVoiceNoteUrl(rawUrl);
+    if (normalized.isEmpty) return false;
+    return _completedVoiceNoteUrl == normalized &&
+        _activeVoiceNoteUrl == normalized &&
+        !_voicePlayer.playing;
+  }
+
+  Future<void> _toggleVoiceNotePlayback(String? rawUrl) async {
+    final normalized = _normalizeVoiceNoteUrl(rawUrl);
+    if (normalized.isEmpty) return;
+
+    if (_activeVoiceNoteUrl == normalized) {
+      if (_isVoiceNoteCompleted(normalized)) {
+        await _voicePlayer.seek(Duration.zero);
+        if (mounted) {
+          setState(() => _completedVoiceNoteUrl = null);
+        } else {
+          _completedVoiceNoteUrl = null;
+        }
+        await _voicePlayer.play();
+        return;
+      }
+      if (_voicePlayer.playing) {
+        await _voicePlayer.pause();
+      } else {
+        await _voicePlayer.play();
+      }
+      return;
     }
-    if (item.coachReview?.isPinned == true) {
-      return (item.coachReview?.reviewText ?? '').trim();
+
+    if (mounted) {
+      setState(() => _loadingVoiceNoteUrl = normalized);
+    } else {
+      _loadingVoiceNoteUrl = normalized;
     }
-    return '';
+    try {
+      await _voicePlayer.stop();
+      final localPath = await VoiceNoteAudioService.prepareLocalVoiceNoteFile(
+        normalized,
+      );
+      await _voicePlayer.setFilePath(localPath);
+      if (mounted) {
+        setState(() {
+          _activeVoiceNoteUrl = normalized;
+          _completedVoiceNoteUrl = null;
+        });
+      } else {
+        _activeVoiceNoteUrl = normalized;
+        _completedVoiceNoteUrl = null;
+      }
+      await _voicePlayer.play();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          if (_loadingVoiceNoteUrl == normalized) {
+            _loadingVoiceNoteUrl = null;
+          }
+        });
+      } else if (_loadingVoiceNoteUrl == normalized) {
+        _loadingVoiceNoteUrl = null;
+      }
+    }
+  }
+
+  bool _isNutritionRelatedEntry(String value) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized.isEmpty) return false;
+    return normalized.contains('nutrition') ||
+        normalized.contains('meal') ||
+        normalized.contains('calorie') ||
+        normalized.contains('macro');
   }
 
   List<_FeedbackReplyEntry> _buildFeedbackEntries() {
     final entries = <_FeedbackReplyEntry>[];
     for (final item in _feedbackItems) {
-      if (item.coachReviewReplies.isNotEmpty) {
-        for (final reply in item.coachReviewReplies) {
-          final text = reply.replyText.trim();
-          if (text.isEmpty || reply.isPinned) continue;
-          entries.add(
-            _FeedbackReplyEntry(
-              workoutLabel: item.exerciseName,
-              message: text,
-              timestamp:
-                  reply.createdAt ??
-                  reply.updatedAt ??
-                  item.updatedAt ??
-                  item.sharedAt ??
-                  item.createdAt,
-            ),
-          );
+      final workoutLabel = _entryWorkoutLabel(item);
+      final hasNutritionNote = _isNutritionRelatedEntry(item.exerciseName);
+      var hasRenderableReplies = false;
+      final replyVoiceUrls = <String>{};
+      for (final reply in item.coachReviewReplies) {
+        final text = reply.replyText.trim();
+        final replyVoiceUrl = _normalizeVoiceNoteUrl(reply.voiceNoteUrl);
+        final hasVoiceReply = replyVoiceUrl.isNotEmpty;
+        if (text.isEmpty && !hasVoiceReply) continue;
+        hasRenderableReplies = true;
+        if (hasVoiceReply) {
+          replyVoiceUrls.add(replyVoiceUrl);
         }
-        continue;
+        entries.add(
+          _FeedbackReplyEntry(
+            workoutLabel: workoutLabel,
+            message: text.isNotEmpty ? text : 'Voice note from coach.',
+            timestamp:
+                reply.createdAt ??
+                reply.updatedAt ??
+                item.updatedAt ??
+                item.sharedAt ??
+                item.createdAt,
+            isVoiceNote: hasVoiceReply,
+            hasNutritionNote: hasNutritionNote,
+            isPinned: reply.isPinned,
+            voiceNoteUrl: hasVoiceReply ? reply.voiceNoteUrl : null,
+          ),
+        );
       }
-
+      final review = item.coachReview;
+      final hasVoiceNote = _hasVoiceNote(review);
       final fallbackText = (item.coachReview?.reviewText ?? '').trim();
-      if (fallbackText.isEmpty || (item.coachReview?.isPinned ?? false)) {
-        continue;
-      }
-      entries.add(
-        _FeedbackReplyEntry(
-          workoutLabel: item.exerciseName,
-          message: fallbackText,
-          timestamp:
-              item.coachReview?.reviewedAt ??
-              item.updatedAt ??
-              item.sharedAt ??
-              item.createdAt,
-        ),
+      final normalizedReviewVoiceUrl = _normalizeVoiceNoteUrl(
+        review?.voiceNoteUrl,
       );
+      final reviewHasRenderableContent =
+          fallbackText.isNotEmpty || hasVoiceNote;
+      final hasLegacyReviewVoiceNote =
+          hasVoiceNote && !replyVoiceUrls.contains(normalizedReviewVoiceUrl);
+      final shouldIncludeReviewEntry =
+          reviewHasRenderableContent &&
+          (!hasRenderableReplies || hasLegacyReviewVoiceNote);
+      if (shouldIncludeReviewEntry) {
+        entries.add(
+          _FeedbackReplyEntry(
+            workoutLabel: workoutLabel,
+            message: fallbackText.isNotEmpty
+                ? fallbackText
+                : 'Voice note from coach.',
+            timestamp:
+                review?.reviewedAt ??
+                review?.createdAt ??
+                review?.updatedAt ??
+                item.updatedAt ??
+                item.sharedAt ??
+                item.createdAt,
+            isVoiceNote: hasVoiceNote,
+            hasNutritionNote: hasNutritionNote,
+            isPinned: review?.isPinned == true,
+            voiceNoteUrl: hasVoiceNote ? review?.voiceNoteUrl : null,
+          ),
+        );
+      }
     }
     entries.sort((a, b) {
       final aTs = a.timestamp;
@@ -236,16 +374,23 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
-    final pinnedCorrections = _pinnedFeedbackItems
-        .where((item) => _pinnedFeedbackMessage(item).isNotEmpty)
+    final feedbackEntries = _buildFeedbackEntries();
+    final pinnedCorrections = feedbackEntries
+        .where((entry) => entry.isPinned)
         .map(
-          (item) => _PinnedCorrection(
-            title: _pinnedFeedbackMessage(item),
-            exercise: item.exerciseName,
+          (entry) => _PinnedCorrection(
+            title: entry.message,
+            exercise: entry.workoutLabel,
+            dateLabel: _formatFeedDate(entry.timestamp),
+            isVoiceNote: entry.isVoiceNote,
+            hasNutritionNote: entry.hasNutritionNote,
+            voiceNoteUrl: entry.voiceNoteUrl,
           ),
         )
         .toList();
-    final feedbackEntries = _buildFeedbackEntries();
+    final nonPinnedFeedbackEntries = feedbackEntries
+        .where((entry) => !entry.isPinned)
+        .toList();
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -264,6 +409,10 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
           updatingHabitIds: _updatingHabitIds,
           corrections: pinnedCorrections,
           emptyPinnedLabel: 'No pinned replies yet.',
+          isVoiceLoading: _isVoiceNoteLoading,
+          isVoicePlaying: _isVoiceNotePlaying,
+          isVoiceCompleted: _isVoiceNoteCompleted,
+          onVoiceToggle: _toggleVoiceNotePlayback,
         ),
         const SizedBox(height: 16),
         Text(
@@ -294,23 +443,28 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
           ),
         if (!_loadingFeedback &&
             _feedbackError == null &&
-            feedbackEntries.isEmpty)
+            nonPinnedFeedbackEntries.isEmpty)
           const _InlineInfo(
             icon: Icons.chat_bubble_outline,
             label: 'No coach replies yet.',
           ),
         if (!_loadingFeedback && _feedbackError == null)
-          ...feedbackEntries.map(
+          ...nonPinnedFeedbackEntries.map(
             (entry) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.only(bottom: 6),
               child: _FeedbackEntryCard(
                 dateLabel: _formatFeedDate(entry.timestamp),
                 workoutLabel: entry.workoutLabel,
                 message: entry.message,
-                footerLabel: 'Coach reply',
-                isVoiceNote: false,
-                hasNutritionNote: false,
-                isPinned: false,
+                isVoiceNote: entry.isVoiceNote,
+                hasNutritionNote: entry.hasNutritionNote,
+                isPinned: entry.isPinned,
+                isVoiceLoading: _isVoiceNoteLoading(entry.voiceNoteUrl),
+                isVoicePlaying: _isVoiceNotePlaying(entry.voiceNoteUrl),
+                isVoiceCompleted: _isVoiceNoteCompleted(entry.voiceNoteUrl),
+                onVoiceToggle: entry.isVoiceNote
+                    ? () => _toggleVoiceNotePlayback(entry.voiceNoteUrl)
+                    : null,
               ),
             ),
           ),
@@ -334,6 +488,10 @@ class _CoachTasksCard extends StatelessWidget {
     required this.updatingHabitIds,
     required this.corrections,
     required this.emptyPinnedLabel,
+    required this.isVoiceLoading,
+    required this.isVoicePlaying,
+    required this.isVoiceCompleted,
+    required this.onVoiceToggle,
   });
 
   final String title;
@@ -349,6 +507,10 @@ class _CoachTasksCard extends StatelessWidget {
   final Set<int> updatingHabitIds;
   final List<_PinnedCorrection> corrections;
   final String emptyPinnedLabel;
+  final bool Function(String?) isVoiceLoading;
+  final bool Function(String?) isVoicePlaying;
+  final bool Function(String?) isVoiceCompleted;
+  final Future<void> Function(String?) onVoiceToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -419,7 +581,15 @@ class _CoachTasksCard extends StatelessWidget {
           if (corrections.isEmpty)
             _InlineInfo(icon: Icons.push_pin_outlined, label: emptyPinnedLabel),
           ...corrections.map(
-            (correction) => _PinnedCorrectionRow(correction: correction),
+            (correction) => _PinnedCorrectionRow(
+              correction: correction,
+              isVoiceLoading: isVoiceLoading(correction.voiceNoteUrl),
+              isVoicePlaying: isVoicePlaying(correction.voiceNoteUrl),
+              isVoiceCompleted: isVoiceCompleted(correction.voiceNoteUrl),
+              onVoiceToggle: correction.isVoiceNote
+                  ? () => onVoiceToggle(correction.voiceNoteUrl)
+                  : null,
+            ),
           ),
         ],
       ),
@@ -536,47 +706,35 @@ class _InlineInfo extends StatelessWidget {
 }
 
 class _PinnedCorrectionRow extends StatelessWidget {
-  const _PinnedCorrectionRow({required this.correction});
+  const _PinnedCorrectionRow({
+    required this.correction,
+    required this.isVoiceLoading,
+    required this.isVoicePlaying,
+    required this.isVoiceCompleted,
+    this.onVoiceToggle,
+  });
 
   final _PinnedCorrection correction;
+  final bool isVoiceLoading;
+  final bool isVoicePlaying;
+  final bool isVoiceCompleted;
+  final VoidCallback? onVoiceToggle;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.push_pin_outlined,
-            color: Colors.orangeAccent,
-            size: 18,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  correction.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  correction.exercise,
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-        ],
+      margin: const EdgeInsets.only(bottom: 6),
+      child: _FeedbackEntryCard(
+        dateLabel: correction.dateLabel,
+        workoutLabel: correction.exercise,
+        message: correction.title,
+        isVoiceNote: correction.isVoiceNote,
+        hasNutritionNote: correction.hasNutritionNote,
+        isPinned: true,
+        isVoiceLoading: isVoiceLoading,
+        isVoicePlaying: isVoicePlaying,
+        isVoiceCompleted: isVoiceCompleted,
+        onVoiceToggle: onVoiceToggle,
       ),
     );
   }
@@ -587,23 +745,32 @@ class _FeedbackEntryCard extends StatelessWidget {
     required this.dateLabel,
     required this.workoutLabel,
     required this.message,
-    required this.footerLabel,
     required this.isVoiceNote,
     required this.hasNutritionNote,
     required this.isPinned,
+    required this.isVoiceLoading,
+    required this.isVoicePlaying,
+    required this.isVoiceCompleted,
+    this.onVoiceToggle,
   });
 
   final String dateLabel;
   final String workoutLabel;
   final String message;
-  final String footerLabel;
   final bool isVoiceNote;
   final bool hasNutritionNote;
   final bool isPinned;
+  final bool isVoiceLoading;
+  final bool isVoicePlaying;
+  final bool isVoiceCompleted;
+  final VoidCallback? onVoiceToggle;
 
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final statusIcon = isPinned ? Icons.push_pin : Icons.mode_comment_outlined;
+    final statusColor = isPinned ? Colors.orangeAccent : Colors.white54;
+    final statusLabel = isPinned ? 'Pinned reply' : 'Coach reply';
 
     return Container(
       decoration: BoxDecoration(
@@ -611,7 +778,7 @@ class _FeedbackEntryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white10),
       ),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -632,10 +799,10 @@ class _FeedbackEntryCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: 5,
+            runSpacing: 4,
             children: [
               _MetaChip(
                 label: isVoiceNote
@@ -646,24 +813,64 @@ class _FeedbackEntryCard extends StatelessWidget {
                 _MetaChip(label: t.translate('coach_chip_nutrition_note')),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(message, style: const TextStyle(color: Colors.white70)),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Icon(
-                isPinned ? Icons.push_pin : Icons.mode_comment_outlined,
-                color: isPinned ? Colors.orangeAccent : Colors.white54,
-                size: 16,
-              ),
+              if (isVoiceNote && onVoiceToggle != null) ...[
+                TextButton.icon(
+                  onPressed: isVoiceLoading ? null : onVoiceToggle,
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(0, 26),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: const VisualDensity(
+                      horizontal: -2,
+                      vertical: -3,
+                    ),
+                  ),
+                  icon: isVoiceLoading
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white70,
+                          ),
+                        )
+                      : (isVoicePlaying
+                            ? const _AudioWaveBars(
+                                color: Colors.white70,
+                                barCount: 4,
+                                minHeight: 4,
+                                maxHeight: 12,
+                                barWidth: 2.5,
+                                gap: 1.5,
+                              )
+                            : Icon(
+                                isVoiceCompleted
+                                    ? Icons.done
+                                    : Icons.play_arrow,
+                                size: 16,
+                              )),
+                  label: Text(
+                    isVoicePlaying
+                        ? 'Pause'
+                        : (isVoiceCompleted ? 'Start' : 'Play'),
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
+              Icon(statusIcon, color: statusColor, size: 16),
               const SizedBox(width: 4),
               Text(
-                footerLabel,
-                style: TextStyle(
-                  color: isPinned ? Colors.orangeAccent : Colors.white54,
-                  fontSize: 12,
-                ),
+                statusLabel,
+                style: TextStyle(color: statusColor, fontSize: 12),
               ),
             ],
           ),
@@ -681,7 +888,7 @@ class _MetaChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: AppColors.accent.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(999),
@@ -695,11 +902,96 @@ class _MetaChip extends StatelessWidget {
   }
 }
 
+class _AudioWaveBars extends StatefulWidget {
+  const _AudioWaveBars({
+    required this.color,
+    this.barCount = 5,
+    this.minHeight = 4,
+    this.maxHeight = 12,
+    this.barWidth = 3,
+    this.gap = 2,
+  });
+
+  final Color color;
+  final int barCount;
+  final double minHeight;
+  final double maxHeight;
+  final double barWidth;
+  final double gap;
+
+  @override
+  State<_AudioWaveBars> createState() => _AudioWaveBarsState();
+}
+
+class _AudioWaveBarsState extends State<_AudioWaveBars>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final t = _controller.value * math.pi * 2;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List<Widget>.generate(widget.barCount, (index) {
+            final phase = t + (index * 0.7);
+            final level = (math.sin(phase) + 1) / 2;
+            final height =
+                widget.minHeight +
+                (widget.maxHeight - widget.minHeight) * level;
+            return Padding(
+              padding: EdgeInsets.only(
+                right: index == widget.barCount - 1 ? 0 : widget.gap,
+              ),
+              child: Container(
+                width: widget.barWidth,
+                height: height,
+                decoration: BoxDecoration(
+                  color: widget.color,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
+}
+
 class _PinnedCorrection {
-  const _PinnedCorrection({required this.title, required this.exercise});
+  const _PinnedCorrection({
+    required this.title,
+    required this.exercise,
+    required this.dateLabel,
+    required this.isVoiceNote,
+    required this.hasNutritionNote,
+    required this.voiceNoteUrl,
+  });
 
   final String title;
   final String exercise;
+  final String dateLabel;
+  final bool isVoiceNote;
+  final bool hasNutritionNote;
+  final String? voiceNoteUrl;
 }
 
 class _FeedbackReplyEntry {
@@ -707,9 +999,17 @@ class _FeedbackReplyEntry {
     required this.workoutLabel,
     required this.message,
     required this.timestamp,
+    required this.isVoiceNote,
+    required this.hasNutritionNote,
+    required this.isPinned,
+    required this.voiceNoteUrl,
   });
 
   final String workoutLabel;
   final String message;
   final DateTime? timestamp;
+  final bool isVoiceNote;
+  final bool hasNutritionNote;
+  final bool isPinned;
+  final String? voiceNoteUrl;
 }

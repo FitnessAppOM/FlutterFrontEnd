@@ -610,6 +610,37 @@ class ProgressionReviewService {
     );
   }
 
+  static Future<FormCheckSubmission> submitFormCheckVoiceNote({
+    required int submissionId,
+    required String audioFilePath,
+    String? reviewText,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      _uri('/coach/progression/form-checks/$submissionId/voice-note'),
+    );
+    request.headers.addAll(await _authHeaders());
+    final normalizedReviewText = (reviewText ?? '').trim();
+    if (normalizedReviewText.isNotEmpty) {
+      request.fields['review_text'] = normalizedReviewText;
+    }
+    request.files.add(
+      await http.MultipartFile.fromPath('voice_note', audioFilePath),
+    );
+
+    final streamed = await request.send();
+    final res = await http.Response.fromStream(streamed);
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to submit Form Check voice note', res.body),
+      );
+    }
+    return FormCheckSubmission.fromJson(
+      jsonDecode(res.body) as Map<String, dynamic>,
+    );
+  }
+
   static Future<FormCheckSubmission> setFormCheckReviewPinned({
     required int submissionId,
     required bool isPinned,
