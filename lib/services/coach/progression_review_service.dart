@@ -816,4 +816,31 @@ class ProgressionReviewService {
     if (decoded is Map) return Map<String, dynamic>.from(decoded);
     return <String, dynamic>{};
   }
+
+  static Future<List<Map<String, dynamic>>> fetchClientTrainingHistory({
+    required int clientUserId,
+    int limitDays = 180,
+  }) async {
+    final res = await http.get(
+      _uri('/coach/progression/clients/$clientUserId/training-history', {
+        'limit_days': '$limitDays',
+      }),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to load client training history', res.body),
+      );
+    }
+    final decoded = jsonDecode(res.body);
+    final raw = decoded is Map
+        ? (decoded['items'] ?? decoded['history'] ?? decoded['entries'])
+        : decoded;
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+  }
 }

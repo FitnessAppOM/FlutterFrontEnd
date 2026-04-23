@@ -288,12 +288,6 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
 
   Widget _buildTrainingCard() {
     final training = _map(_data['training']);
-    String statusLabel(dynamic value) {
-      final normalized = (value ?? '').toString().trim().toLowerCase();
-      if (normalized == 'ok') return 'Available';
-      if (normalized == 'no_data') return 'No data';
-      return 'Non available';
-    }
 
     return Material(
       color: Colors.transparent,
@@ -347,14 +341,6 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
               _InfoRow(
                 label: 'Cardio steps',
                 value: '${_toInt(training['cardio_steps'])}',
-              ),
-              _InfoRow(
-                label: 'Training source',
-                value: statusLabel(training['training_status']),
-              ),
-              _InfoRow(
-                label: 'Cardio source',
-                value: statusLabel(training['cardio_status']),
               ),
               const SizedBox(height: 4),
               const Text(

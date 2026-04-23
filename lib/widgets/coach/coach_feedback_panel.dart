@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../../core/account_storage.dart';
@@ -174,17 +173,10 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
   String _formatFeedDate(DateTime? dateTime) {
     if (dateTime == null) return '--';
     final local = dateTime.toLocal();
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final target = DateTime(local.year, local.month, local.day);
-    final diffDays = today.difference(target).inDays;
-    if (diffDays == 0) {
-      return 'Today, ${DateFormat('HH:mm').format(local)}';
-    }
-    if (diffDays == 1) {
-      return 'Yesterday, ${DateFormat('HH:mm').format(local)}';
-    }
-    return DateFormat('MMM d, HH:mm').format(local);
+    final y = local.year.toString().padLeft(4, '0');
+    final m = local.month.toString().padLeft(2, '0');
+    final d = local.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
   }
 
   String _entryWorkoutLabel(FormCheckSubmission item) {
@@ -200,6 +192,25 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
 
   String _normalizeVoiceNoteUrl(String? rawUrl) => (rawUrl ?? '').trim();
 
+  String _canonicalVoiceNoteKey(String? rawUrl) {
+    final normalized = _normalizeVoiceNoteUrl(rawUrl);
+    if (normalized.isEmpty) return '';
+    final resolved = VoiceNoteAudioService.resolveUri(normalized);
+    final parsed = resolved ?? Uri.tryParse(normalized);
+    if (parsed == null) {
+      final noQuery = normalized.split('?').first.trim();
+      return noQuery.isEmpty ? normalized : noQuery;
+    }
+    final clean = parsed.replace(query: null, fragment: null);
+    final scheme = clean.scheme.toLowerCase();
+    final host = clean.host.toLowerCase();
+    final port = clean.hasPort ? ':${clean.port}' : '';
+    if (scheme.isNotEmpty && host.isNotEmpty) {
+      return '$scheme://$host$port${clean.path}';
+    }
+    return clean.path.isEmpty ? normalized : clean.path;
+  }
+
   bool _isVoiceNoteLoading(String? rawUrl) {
     final normalized = _normalizeVoiceNoteUrl(rawUrl);
     if (normalized.isEmpty) return false;
@@ -209,7 +220,9 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
   bool _isVoiceNotePlaying(String? rawUrl) {
     final normalized = _normalizeVoiceNoteUrl(rawUrl);
     if (normalized.isEmpty) return false;
-    return _activeVoiceNoteUrl == normalized && _voicePlayer.playing;
+    if (_activeVoiceNoteUrl != normalized) return false;
+    return _voicePlayer.playing &&
+        _voicePlayer.processingState != ProcessingState.completed;
   }
 
   bool _isVoiceNoteCompleted(String? rawUrl) {
@@ -217,7 +230,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
     if (normalized.isEmpty) return false;
     return _completedVoiceNoteUrl == normalized &&
         _activeVoiceNoteUrl == normalized &&
-        !_voicePlayer.playing;
+        _voicePlayer.processingState == ProcessingState.completed;
   }
 
   Future<void> _toggleVoiceNotePlayback(String? rawUrl) async {
@@ -298,15 +311,17 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
       final workoutLabel = _entryWorkoutLabel(item);
       final hasNutritionNote = _isNutritionRelatedEntry(item.exerciseName);
       var hasRenderableReplies = false;
-      final replyVoiceUrls = <String>{};
+      final replyVoiceKeys = <String>{};
+      final seenReplyIds = <int>{};
       for (final reply in item.coachReviewReplies) {
+        if (!seenReplyIds.add(reply.replyId)) continue;
         final text = reply.replyText.trim();
         final replyVoiceUrl = _normalizeVoiceNoteUrl(reply.voiceNoteUrl);
         final hasVoiceReply = replyVoiceUrl.isNotEmpty;
         if (text.isEmpty && !hasVoiceReply) continue;
         hasRenderableReplies = true;
         if (hasVoiceReply) {
-          replyVoiceUrls.add(replyVoiceUrl);
+          replyVoiceKeys.add(_canonicalVoiceNoteKey(replyVoiceUrl));
         }
         entries.add(
           _FeedbackReplyEntry(
@@ -328,13 +343,13 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
       final review = item.coachReview;
       final hasVoiceNote = _hasVoiceNote(review);
       final fallbackText = (item.coachReview?.reviewText ?? '').trim();
-      final normalizedReviewVoiceUrl = _normalizeVoiceNoteUrl(
+      final reviewVoiceKey = _canonicalVoiceNoteKey(
         review?.voiceNoteUrl,
       );
       final reviewHasRenderableContent =
           fallbackText.isNotEmpty || hasVoiceNote;
       final hasLegacyReviewVoiceNote =
-          hasVoiceNote && !replyVoiceUrls.contains(normalizedReviewVoiceUrl);
+          hasVoiceNote && !replyVoiceKeys.contains(reviewVoiceKey);
       final shouldIncludeReviewEntry =
           reviewHasRenderableContent &&
           (!hasRenderableReplies || hasLegacyReviewVoiceNote);
@@ -411,7 +426,6 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
           emptyPinnedLabel: 'No pinned replies yet.',
           isVoiceLoading: _isVoiceNoteLoading,
           isVoicePlaying: _isVoiceNotePlaying,
-          isVoiceCompleted: _isVoiceNoteCompleted,
           onVoiceToggle: _toggleVoiceNotePlayback,
         ),
         const SizedBox(height: 16),
@@ -461,7 +475,6 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
                 isPinned: entry.isPinned,
                 isVoiceLoading: _isVoiceNoteLoading(entry.voiceNoteUrl),
                 isVoicePlaying: _isVoiceNotePlaying(entry.voiceNoteUrl),
-                isVoiceCompleted: _isVoiceNoteCompleted(entry.voiceNoteUrl),
                 onVoiceToggle: entry.isVoiceNote
                     ? () => _toggleVoiceNotePlayback(entry.voiceNoteUrl)
                     : null,
@@ -490,7 +503,6 @@ class _CoachTasksCard extends StatelessWidget {
     required this.emptyPinnedLabel,
     required this.isVoiceLoading,
     required this.isVoicePlaying,
-    required this.isVoiceCompleted,
     required this.onVoiceToggle,
   });
 
@@ -509,7 +521,6 @@ class _CoachTasksCard extends StatelessWidget {
   final String emptyPinnedLabel;
   final bool Function(String?) isVoiceLoading;
   final bool Function(String?) isVoicePlaying;
-  final bool Function(String?) isVoiceCompleted;
   final Future<void> Function(String?) onVoiceToggle;
 
   @override
@@ -585,7 +596,6 @@ class _CoachTasksCard extends StatelessWidget {
               correction: correction,
               isVoiceLoading: isVoiceLoading(correction.voiceNoteUrl),
               isVoicePlaying: isVoicePlaying(correction.voiceNoteUrl),
-              isVoiceCompleted: isVoiceCompleted(correction.voiceNoteUrl),
               onVoiceToggle: correction.isVoiceNote
                   ? () => onVoiceToggle(correction.voiceNoteUrl)
                   : null,
@@ -710,14 +720,12 @@ class _PinnedCorrectionRow extends StatelessWidget {
     required this.correction,
     required this.isVoiceLoading,
     required this.isVoicePlaying,
-    required this.isVoiceCompleted,
     this.onVoiceToggle,
   });
 
   final _PinnedCorrection correction;
   final bool isVoiceLoading;
   final bool isVoicePlaying;
-  final bool isVoiceCompleted;
   final VoidCallback? onVoiceToggle;
 
   @override
@@ -733,7 +741,6 @@ class _PinnedCorrectionRow extends StatelessWidget {
         isPinned: true,
         isVoiceLoading: isVoiceLoading,
         isVoicePlaying: isVoicePlaying,
-        isVoiceCompleted: isVoiceCompleted,
         onVoiceToggle: onVoiceToggle,
       ),
     );
@@ -750,7 +757,6 @@ class _FeedbackEntryCard extends StatelessWidget {
     required this.isPinned,
     required this.isVoiceLoading,
     required this.isVoicePlaying,
-    required this.isVoiceCompleted,
     this.onVoiceToggle,
   });
 
@@ -762,7 +768,6 @@ class _FeedbackEntryCard extends StatelessWidget {
   final bool isPinned;
   final bool isVoiceLoading;
   final bool isVoicePlaying;
-  final bool isVoiceCompleted;
   final VoidCallback? onVoiceToggle;
 
   @override
@@ -852,17 +857,8 @@ class _FeedbackEntryCard extends StatelessWidget {
                                 barWidth: 2.5,
                                 gap: 1.5,
                               )
-                            : Icon(
-                                isVoiceCompleted
-                                    ? Icons.done
-                                    : Icons.play_arrow,
-                                size: 16,
-                              )),
-                  label: Text(
-                    isVoicePlaying
-                        ? 'Pause'
-                        : (isVoiceCompleted ? 'Start' : 'Play'),
-                  ),
+                            : const Icon(Icons.play_arrow, size: 16)),
+                  label: Text(isVoicePlaying ? 'Pause' : 'Play'),
                 ),
                 const SizedBox(width: 6),
               ],

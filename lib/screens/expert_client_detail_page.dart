@@ -264,9 +264,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     final y = local.year.toString().padLeft(4, '0');
     final m = local.month.toString().padLeft(2, '0');
     final d = local.day.toString().padLeft(2, '0');
-    final hh = local.hour.toString().padLeft(2, '0');
-    final mm = local.minute.toString().padLeft(2, '0');
-    return '$y-$m-$d $hh:$mm';
+    return '$y-$m-$d';
   }
 
   void _syncReviewControllers(List<FormCheckSubmission> items) {
@@ -323,7 +321,9 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   bool _isVoiceNotePlaying(String rawUrl) {
     final normalized = _normalizeVoiceNoteUrl(rawUrl);
     if (normalized.isEmpty) return false;
-    return _activeVoiceNoteUrl == normalized && _voicePlayer.playing;
+    if (_activeVoiceNoteUrl != normalized) return false;
+    return _voicePlayer.playing &&
+        _voicePlayer.processingState != ProcessingState.completed;
   }
 
   Future<void> _toggleVoiceNotePlayback(String rawUrl) async {
@@ -331,6 +331,12 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     if (normalized.isEmpty) return;
 
     if (_activeVoiceNoteUrl == normalized) {
+      if (_voicePlayer.processingState == ProcessingState.completed) {
+        await _voicePlayer.seek(Duration.zero);
+        await _voicePlayer.play();
+        _refreshOpenReviewSheet();
+        return;
+      }
       if (_voicePlayer.playing) {
         await _voicePlayer.pause();
       } else {

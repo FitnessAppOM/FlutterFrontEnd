@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -32,10 +33,12 @@ class ExpertWeeklyMetricsDetailPage extends StatefulWidget {
 class _ExpertWeeklyMetricsDetailPageState
     extends State<ExpertWeeklyMetricsDetailPage> {
   int? _selectedPrimaryBar;
-  int? _selectedSecondaryBar;
   int _weekOffset = 0;
   bool _loadingWeek = false;
   String? _weekError;
+  bool _loadingExerciseHistory = false;
+  String? _exerciseHistoryError;
+  List<Map<String, dynamic>> _exerciseHistoryEntries = const [];
   late Map<String, dynamic> _analyticsData;
   final Map<int, Map<String, dynamic>> _weeklyCache =
       <int, Map<String, dynamic>>{};
@@ -45,6 +48,10 @@ class _ExpertWeeklyMetricsDetailPageState
     super.initState();
     _analyticsData = Map<String, dynamic>.from(widget.analyticsData);
     _weeklyCache[0] = Map<String, dynamic>.from(widget.analyticsData);
+    if (widget.type == ExpertWeeklyMetricsDetailType.trainingCardio) {
+      unawaited(_loadExerciseHistory());
+      unawaited(_changeWeek(1));
+    }
   }
 
   Map<String, dynamic> _map(dynamic value) {
@@ -124,7 +131,6 @@ class _ExpertWeeklyMetricsDetailPageState
         _analyticsData = Map<String, dynamic>.from(cached);
         _weekError = null;
         _selectedPrimaryBar = null;
-        _selectedSecondaryBar = null;
       });
       return;
     }
@@ -144,7 +150,6 @@ class _ExpertWeeklyMetricsDetailPageState
         _analyticsData = Map<String, dynamic>.from(data);
         _weeklyCache[nextOffset] = Map<String, dynamic>.from(data);
         _selectedPrimaryBar = null;
-        _selectedSecondaryBar = null;
         _loadingWeek = false;
       });
     } catch (e) {
@@ -152,6 +157,32 @@ class _ExpertWeeklyMetricsDetailPageState
       setState(() {
         _weekError = e.toString();
         _loadingWeek = false;
+      });
+    }
+  }
+
+  Future<void> _loadExerciseHistory() async {
+    if (mounted) {
+      setState(() {
+        _loadingExerciseHistory = true;
+        _exerciseHistoryError = null;
+      });
+    }
+    try {
+      final entries = await ProgressionReviewService.fetchClientTrainingHistory(
+        clientUserId: widget.clientUserId,
+        limitDays: 540,
+      );
+      if (!mounted) return;
+      setState(() {
+        _exerciseHistoryEntries = entries;
+        _loadingExerciseHistory = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _exerciseHistoryError = e.toString().replaceFirst('Exception: ', '');
+        _loadingExerciseHistory = false;
       });
     }
   }
@@ -461,7 +492,6 @@ class _ExpertWeeklyMetricsDetailPageState
 
     final cardioStepsByDate = <String, int>{};
     final cardioDistanceByDate = <String, double>{};
-    final cardioSessionsByDate = <String, int>{};
     for (final row in cardioRows) {
       final date = _dateOnly(row['entry_date']?.toString());
       if (date == null) continue;
@@ -470,20 +500,19 @@ class _ExpertWeeklyMetricsDetailPageState
           (cardioStepsByDate[key] ?? 0) + _toInt(row['steps']);
       cardioDistanceByDate[key] =
           (cardioDistanceByDate[key] ?? 0) + _toDouble(row['distance_km']);
-      cardioSessionsByDate[key] = (cardioSessionsByDate[key] ?? 0) + 1;
     }
 
     final trainingItems = <double>[];
     final cardioSteps = <double>[];
     final cardioDistance = <double>[];
-    final cardioSessions = <double>[];
     for (final date in weekDates) {
       final key = _dateKey(date);
       trainingItems.add((trainingItemsByDate[key] ?? 0).toDouble());
       cardioSteps.add((cardioStepsByDate[key] ?? 0).toDouble());
       cardioDistance.add(cardioDistanceByDate[key] ?? 0);
-      cardioSessions.add((cardioSessionsByDate[key] ?? 0).toDouble());
     }
+
+    final selectedWeekHistory = _selectedWeekHistoryEntries();
 
     return ListView(
       padding: const EdgeInsets.all(18),
@@ -524,6 +553,12 @@ class _ExpertWeeklyMetricsDetailPageState
         ),
         const SizedBox(height: 12),
         _buildChartCard(
+          title: 'Exercises',
+          subtitle: 'From training history logs',
+          child: _buildSelectedWeekExercisesContent(selectedWeekHistory),
+        ),
+        const SizedBox(height: 12),
+        _buildChartCard(
           title: 'Training Items per Day',
           subtitle: _selectedPrimaryBar == null
               ? 'Tap a bar to inspect a day.'
@@ -540,7 +575,18 @@ class _ExpertWeeklyMetricsDetailPageState
         ),
         const SizedBox(height: 12),
         _buildChartCard(
-          title: 'Cardio Distance per Day',
+          title: 'Cardio Sessions Steps',
+          child: _buildLineChart(
+            weekDates: weekDates,
+            values: cardioSteps,
+            color: const Color(0xFF4BE4C7),
+            yAxisTitle: 'Steps',
+            formatYAxis: (v) => _formatCompact(v),
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildChartCard(
+          title: 'Cardio Sessions Distance',
           child: _buildLineChart(
             weekDates: weekDates,
             values: cardioDistance,
@@ -549,42 +595,201 @@ class _ExpertWeeklyMetricsDetailPageState
             formatYAxis: (v) => v.toStringAsFixed(1),
           ),
         ),
-        const SizedBox(height: 12),
-        _buildChartCard(
-          title: 'Cardio Steps per Day',
-          subtitle: _selectedSecondaryBar == null
-              ? 'Tap a bar to inspect a day.'
-              : '${_dayDetail(weekDates[_selectedSecondaryBar!])}: ${_formatCompact(cardioSteps[_selectedSecondaryBar!])} steps',
-          child: _buildBarChart(
-            weekDates: weekDates,
-            values: cardioSteps,
-            gradient: const [Color(0xFF4BE4C7), Color(0xFF73C2FF)],
-            selectedGradient: const [Color(0xFF67F0D5), Color(0xFF9BD2FF)],
-            axisFormatter: (v) => _formatCompact(v),
-            selectedIndex: _selectedSecondaryBar,
-            onTap: (i) => setState(() => _selectedSecondaryBar = i),
-          ),
+      ],
+    );
+  }
+
+  DateTime? _selectedTrainingWeekStart() {
+    final training = _map(_analyticsData['training']);
+    return _dateOnly(training['week_start']?.toString()) ??
+        _dateOnly(training['last_7_start']?.toString());
+  }
+
+  List<Map<String, dynamic>> _selectedWeekHistoryEntries() {
+    final selectedWeekStart = _selectedTrainingWeekStart();
+    if (selectedWeekStart == null) return const [];
+    final targetKey = _dateKey(selectedWeekStart);
+    final out = _exerciseHistoryEntries.where((entry) {
+      final weekStart = _dateOnly(entry['week_start']?.toString());
+      if (weekStart == null) return false;
+      return _dateKey(weekStart) == targetKey;
+    }).toList();
+    out.sort((a, b) {
+      final aRaw = (a['latest_date'] ?? '').toString().trim();
+      final bRaw = (b['latest_date'] ?? '').toString().trim();
+      final aDate = DateTime.tryParse(aRaw);
+      final bDate = DateTime.tryParse(bRaw);
+      if (aDate != null && bDate != null) return bDate.compareTo(aDate);
+      return bRaw.compareTo(aRaw);
+    });
+    return out;
+  }
+
+  Widget _buildSelectedWeekExercisesContent(
+    List<Map<String, dynamic>> weekEntries,
+  ) {
+    if (_loadingExerciseHistory) {
+      return const Center(
+        child: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
         ),
-        const SizedBox(height: 12),
-        _buildChartCard(
-          title: 'Weekly Daily Breakdown',
-          child: Column(
-            children: List<Widget>.generate(weekDates.length, (i) {
-              return Padding(
-                padding: EdgeInsets.only(
-                  bottom: i == weekDates.length - 1 ? 0 : 6,
+      );
+    }
+    if (_exerciseHistoryError != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _exerciseHistoryError!,
+            style: const TextStyle(color: Colors.orangeAccent),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: _loadExerciseHistory,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              side: const BorderSide(color: Colors.white24),
+            ),
+            child: const Text('Retry'),
+          ),
+        ],
+      );
+    }
+    if (weekEntries.isEmpty) {
+      return const Text(
+        'No exercises logged.',
+        style: TextStyle(color: Colors.white70),
+      );
+    }
+    return Column(
+      children: weekEntries.map(_buildWeekExerciseDayBlock).toList(),
+    );
+  }
+
+  Widget _buildWeekExerciseDayBlock(Map<String, dynamic> entry) {
+    final label = (entry['label'] ?? entry['day_label'] ?? 'Training day')
+        .toString();
+    final completedCount = _toInt(entry['completed_count']);
+    final totalCount = _toInt(entry['total_count']);
+    final exercises = _mapList(entry['completed_exercises']);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-                child: _DetailRow(
-                  label: _dayDetail(weekDates[i]),
-                  value:
-                      '${_formatCompact(trainingItems[i])} items  •  ${cardioSessions[i].toInt()} sessions  •  ${cardioDistance[i].toStringAsFixed(1)} km  •  ${_formatCompact(cardioSteps[i])} steps',
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '$completedCount/$totalCount completed',
+            style: const TextStyle(color: Colors.white60, fontSize: 12),
+          ),
+          if (exercises.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ...exercises.map((exercise) {
+              final title = (exercise['exercise_name'] ?? '').toString().trim();
+              final compliance = _map(exercise['program_compliance']);
+              final sets = _exerciseValueAsText(
+                compliance['performed_sets'] ??
+                    exercise['performed_sets'] ??
+                    exercise['sets'],
+              );
+              final reps = _exerciseValueAsText(
+                compliance['performed_reps'] ??
+                    exercise['performed_reps'] ??
+                    exercise['reps'],
+              );
+              final rir = _exerciseValueAsText(
+                compliance['performed_rir'] ??
+                    exercise['performed_rir'] ??
+                    exercise['rir'],
+              );
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.03),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white10),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title.isEmpty ? 'Exercise' : title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '$sets x $reps',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'RIR $rir',
+                        style: const TextStyle(
+                          color: Colors.white60,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             }),
-          ),
-        ),
-      ],
+          ],
+        ],
+      ),
     );
+  }
+
+  String _exerciseValueAsText(dynamic value) {
+    if (value == null) return '-';
+    if (value is int) return value <= 0 ? '-' : '$value';
+    if (value is num) {
+      if (value <= 0) return '-';
+      final asInt = value.toInt();
+      return asInt.toDouble() == value.toDouble()
+          ? '$asInt'
+          : value.toStringAsFixed(1);
+    }
+    final text = value.toString().trim();
+    if (text.isEmpty || text == '0') return '-';
+    return text;
   }
 
   @override
@@ -633,8 +838,8 @@ class _ExpertWeeklyMetricsDetailPageState
               ],
             ),
           ),
-          if (isWater) _buildWeekSwitcher(),
-          if (isWater && _weekError != null)
+          _buildWeekSwitcher(),
+          if (_weekError != null)
             Container(
               width: double.infinity,
               margin: const EdgeInsets.fromLTRB(18, 0, 18, 8),
@@ -656,35 +861,6 @@ class _ExpertWeeklyMetricsDetailPageState
           ),
         ],
       ),
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  const _DetailRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(label, style: const TextStyle(color: Colors.white60)),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            value,
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
