@@ -391,7 +391,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
           timestamp: comment.createdAt ?? comment.updatedAt,
           isVoiceNote: false,
           hasNutritionNote: true,
-          isPinned: false,
+          isPinned: comment.isPinned,
           voiceNoteUrl: null,
         ),
       );

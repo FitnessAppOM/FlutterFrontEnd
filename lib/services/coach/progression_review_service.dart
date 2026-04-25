@@ -392,6 +392,8 @@ class CoachDietComment {
   final int? mealIndex;
   final String? mealTitle;
   final String commentText;
+  final bool isPinned;
+  final DateTime? pinnedAt;
   final DateTime? clientSeenAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -405,6 +407,8 @@ class CoachDietComment {
     this.mealIndex,
     this.mealTitle,
     required this.commentText,
+    required this.isPinned,
+    this.pinnedAt,
     this.clientSeenAt,
     this.createdAt,
     this.updatedAt,
@@ -434,6 +438,8 @@ class CoachDietComment {
           : parseInt(json['meal_index']),
       mealTitle: json['meal_title']?.toString(),
       commentText: (json['comment_text'] ?? '').toString(),
+      isPinned: json['is_pinned'] == true,
+      pinnedAt: parseDate(json['pinned_at']),
       clientSeenAt: parseDate(json['client_seen_at']),
       createdAt: parseDate(json['created_at']),
       updatedAt: parseDate(json['updated_at']),
@@ -659,7 +665,7 @@ class ProgressionReviewService {
       query['meal_date'] = _dateOnly(mealDate);
     }
     final res = await http.get(
-      _uri('/coach/progression/clients/$clientUserId/diet-log', query),
+      _uri('/diet/meals/$clientUserId', {...query, 'auto_open': 'false'}),
       headers: await _authHeaders(),
     );
     await _handleAuth(res);
@@ -669,9 +675,30 @@ class ProgressionReviewService {
       );
     }
     final decoded = jsonDecode(res.body);
-    if (decoded is Map<String, dynamic>) return decoded;
-    if (decoded is Map) return Map<String, dynamic>.from(decoded);
-    return <String, dynamic>{};
+    final log = decoded is Map
+        ? Map<String, dynamic>.from(decoded)
+        : <String, dynamic>{};
+    final meals = log['meals'];
+    var loggedItemsCount = 0;
+    if (meals is List) {
+      for (final meal in meals) {
+        if (meal is! Map) continue;
+        final items = meal['items'];
+        if (items is List) {
+          loggedItemsCount += items.length;
+        }
+      }
+    }
+    final mealDateToken = query['meal_date'] ?? _dateOnly(DateTime.now());
+    return {
+      'coach_user_id': null,
+      'client_user_id': clientUserId,
+      'meal_date': mealDateToken,
+      'logged_dates': const <String>[],
+      'has_logged_items': loggedItemsCount > 0,
+      'logged_items_count': loggedItemsCount,
+      'diet_log': log,
+    };
   }
 
   static Future<List<CoachDietComment>> fetchClientDietComments({
@@ -685,6 +712,9 @@ class ProgressionReviewService {
       headers: await _authHeaders(),
     );
     await _handleAuth(res);
+    if (res.statusCode == 403) {
+      return const [];
+    }
     if (res.statusCode != 200) {
       throw Exception(
         _extractError('Failed to load client diet comments', res.body),
@@ -724,6 +754,46 @@ class ProgressionReviewService {
       throw Exception('Invalid response while saving diet comment');
     }
     return CoachDietComment.fromJson(Map<String, dynamic>.from(raw));
+  }
+
+  static Future<CoachDietComment> setClientDietCommentPinned({
+    required int clientUserId,
+    required int commentId,
+    required bool isPinned,
+  }) async {
+    final res = await http.patch(
+      _uri(
+        '/coach/progression/clients/$clientUserId/diet-comments/$commentId/pin',
+      ),
+      headers: await _authHeaders(jsonBody: true),
+      body: jsonEncode({'is_pinned': isPinned}),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to update diet comment pin', res.body),
+      );
+    }
+    final decoded = jsonDecode(res.body);
+    final raw = decoded is Map ? decoded['item'] : null;
+    if (raw is! Map) {
+      throw Exception('Invalid response while updating diet comment pin');
+    }
+    return CoachDietComment.fromJson(Map<String, dynamic>.from(raw));
+  }
+
+  static Future<void> deleteClientDietComment({
+    required int clientUserId,
+    required int commentId,
+  }) async {
+    final res = await http.delete(
+      _uri('/coach/progression/clients/$clientUserId/diet-comments/$commentId'),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(_extractError('Failed to delete diet comment', res.body));
+    }
   }
 
   static Future<FormCheckSubmission> submitFormCheckReview({

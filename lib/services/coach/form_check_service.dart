@@ -559,6 +559,8 @@ class DietFeedbackComment {
   final int? mealIndex;
   final String? mealTitle;
   final String commentText;
+  final bool isPinned;
+  final DateTime? pinnedAt;
   final DateTime? clientSeenAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -572,6 +574,8 @@ class DietFeedbackComment {
     this.mealIndex,
     this.mealTitle,
     required this.commentText,
+    required this.isPinned,
+    this.pinnedAt,
     this.clientSeenAt,
     this.createdAt,
     this.updatedAt,
@@ -605,6 +609,8 @@ class DietFeedbackComment {
           ? null
           : parseString(json['meal_title']),
       commentText: parseString(json['comment_text']),
+      isPinned: json['is_pinned'] == true,
+      pinnedAt: parseDate(json['pinned_at']),
       clientSeenAt: parseDate(json['client_seen_at']),
       createdAt: parseDate(json['created_at']),
       updatedAt: parseDate(json['updated_at']),

@@ -26,6 +26,8 @@ class _ExpertClientDietReviewPageState
   bool _loadingLog = true;
   bool _loadingComments = true;
   bool _sendingComment = false;
+  final Set<int> _updatingPinnedCommentIds = <int>{};
+  final Set<int> _deletingCommentIds = <int>{};
   String? _logError;
   String? _commentsError;
   Map<String, dynamic>? _dietLog;
@@ -238,6 +240,69 @@ class _ExpertClientDietReviewPageState
       );
     } finally {
       if (mounted) setState(() => _sendingComment = false);
+    }
+  }
+
+  Future<void> _toggleCommentPin(CoachDietComment comment) async {
+    if (_updatingPinnedCommentIds.contains(comment.commentId)) return;
+    setState(() => _updatingPinnedCommentIds.add(comment.commentId));
+    try {
+      await ProgressionReviewService.setClientDietCommentPinned(
+        clientUserId: widget.clientUserId,
+        commentId: comment.commentId,
+        isPinned: !comment.isPinned,
+      );
+      if (!mounted) return;
+      await _loadComments();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _updatingPinnedCommentIds.remove(comment.commentId));
+      }
+    }
+  }
+
+  Future<void> _deleteComment(CoachDietComment comment) async {
+    if (_deletingCommentIds.contains(comment.commentId)) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete comment?'),
+        content: const Text('This will remove the comment for the client.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _deletingCommentIds.add(comment.commentId));
+    try {
+      await ProgressionReviewService.deleteClientDietComment(
+        clientUserId: widget.clientUserId,
+        commentId: comment.commentId,
+      );
+      if (!mounted) return;
+      await _loadComments();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _deletingCommentIds.remove(comment.commentId));
+      }
     }
   }
 
@@ -454,6 +519,15 @@ class _ExpertClientDietReviewPageState
           (item) => selectedMealId == null || item.mealId == selectedMealId,
         )
         .toList();
+    commentsForDate.sort((a, b) {
+      if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
+      final aTs = a.createdAt ?? a.updatedAt;
+      final bTs = b.createdAt ?? b.updatedAt;
+      if (aTs == null && bTs == null) return 0;
+      if (aTs == null) return 1;
+      if (bTs == null) return -1;
+      return bTs.compareTo(aTs);
+    });
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -495,21 +569,49 @@ class _ExpertClientDietReviewPageState
               style: const TextStyle(color: Colors.white70),
             )
           else
-            ...commentsForDate.map(
-              (comment) => Container(
+            ...commentsForDate.map((comment) {
+              final isPinUpdating = _updatingPinnedCommentIds.contains(
+                comment.commentId,
+              );
+              final isDeleting = _deletingCommentIds.contains(
+                comment.commentId,
+              );
+              return Container(
+                width: double.infinity,
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.03),
+                  color: comment.isPinned
+                      ? Colors.orange.withValues(alpha: 0.08)
+                      : Colors.white.withValues(alpha: 0.03),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.white12),
+                  border: Border.all(
+                    color: comment.isPinned
+                        ? Colors.orangeAccent.withValues(alpha: 0.6)
+                        : Colors.white12,
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      comment.commentText,
-                      style: const TextStyle(color: Colors.white70),
+                    Row(
+                      children: [
+                        if (comment.isPinned)
+                          const Padding(
+                            padding: EdgeInsets.only(right: 6),
+                            child: Icon(
+                              Icons.push_pin,
+                              size: 14,
+                              color: Colors.orangeAccent,
+                            ),
+                          ),
+                        Expanded(
+                          child: Text(
+                            comment.commentText,
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                        ),
+                      ],
                     ),
                     if ((comment.mealTitle ?? '').trim().isNotEmpty) ...[
                       const SizedBox(height: 4),
@@ -521,18 +623,46 @@ class _ExpertClientDietReviewPageState
                         ),
                       ),
                     ],
-                    const SizedBox(height: 4),
-                    Text(
-                      comment.createdAt?.toLocal().toString() ?? '',
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 12,
-                      ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Text(
+                          comment.createdAt?.toLocal().toString() ?? '',
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const Spacer(),
+                        TextButton.icon(
+                          onPressed: (isPinUpdating || isDeleting)
+                              ? null
+                              : () => _toggleCommentPin(comment),
+                          icon: Icon(
+                            comment.isPinned
+                                ? Icons.push_pin_outlined
+                                : Icons.push_pin,
+                            size: 14,
+                          ),
+                          label: Text(
+                            isPinUpdating
+                                ? '...'
+                                : (comment.isPinned ? 'Unpin' : 'Pin'),
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: (isPinUpdating || isDeleting)
+                              ? null
+                              : () => _deleteComment(comment),
+                          icon: const Icon(Icons.delete_outline, size: 14),
+                          label: Text(isDeleting ? '...' : 'Delete'),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ),
-            ),
+              );
+            }),
           const SizedBox(height: 10),
           TextField(
             controller: _commentController,
