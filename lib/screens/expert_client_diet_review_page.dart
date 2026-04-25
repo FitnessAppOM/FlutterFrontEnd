@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
@@ -162,6 +163,8 @@ class _ExpertClientDietReviewPageState
 
   String _normalizeVoiceNoteUrl(String? rawUrl) => (rawUrl ?? '').trim();
 
+  String _pendingVoiceSourceKey(String path) => 'local:${path.trim()}';
+
   bool _isVoiceNoteLoading(String? rawUrl) {
     final normalized = _normalizeVoiceNoteUrl(rawUrl);
     if (normalized.isEmpty) return false;
@@ -231,6 +234,60 @@ class _ExpertClientDietReviewPageState
     }
   }
 
+  Future<void> _togglePendingVoicePlayback(String localPath) async {
+    final normalizedPath = localPath.trim();
+    if (normalizedPath.isEmpty) return;
+    final sourceKey = _pendingVoiceSourceKey(normalizedPath);
+
+    if (_activeVoiceNoteUrl == sourceKey) {
+      if (_voicePlayer.processingState == ProcessingState.completed) {
+        await _voicePlayer.seek(Duration.zero);
+        await _voicePlayer.play();
+        return;
+      }
+      if (_voicePlayer.playing) {
+        await _voicePlayer.pause();
+      } else {
+        await _voicePlayer.play();
+      }
+      return;
+    }
+
+    if (mounted) {
+      setState(() => _loadingVoiceNoteUrl = sourceKey);
+    } else {
+      _loadingVoiceNoteUrl = sourceKey;
+    }
+
+    try {
+      await _voicePlayer.stop();
+      await _voicePlayer.setFilePath(normalizedPath);
+      if (mounted) {
+        setState(() {
+          _activeVoiceNoteUrl = sourceKey;
+        });
+      } else {
+        _activeVoiceNoteUrl = sourceKey;
+      }
+      await _voicePlayer.play();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          if (_loadingVoiceNoteUrl == sourceKey) {
+            _loadingVoiceNoteUrl = null;
+          }
+        });
+      } else if (_loadingVoiceNoteUrl == sourceKey) {
+        _loadingVoiceNoteUrl = null;
+      }
+    }
+  }
+
   bool _hasPendingVoiceNoteForSelectedMeal() {
     final mealId = _selectedMealId;
     if (mealId == null) return false;
@@ -267,6 +324,27 @@ class _ExpertClientDietReviewPageState
 
   Future<void> _clearPendingVoiceNote({bool deleteFile = true}) async {
     final pendingPath = (_pendingVoiceNotePath ?? '').trim();
+    final pendingKey = pendingPath.isEmpty
+        ? null
+        : _pendingVoiceSourceKey(pendingPath);
+    if (pendingKey != null && _activeVoiceNoteUrl == pendingKey) {
+      try {
+        await _voicePlayer.stop();
+      } catch (_) {}
+      if (mounted) {
+        setState(() {
+          _activeVoiceNoteUrl = null;
+          if (_loadingVoiceNoteUrl == pendingKey) {
+            _loadingVoiceNoteUrl = null;
+          }
+        });
+      } else {
+        _activeVoiceNoteUrl = null;
+        if (_loadingVoiceNoteUrl == pendingKey) {
+          _loadingVoiceNoteUrl = null;
+        }
+      }
+    }
     if (mounted) {
       setState(() {
         _pendingVoiceMealId = null;
@@ -448,30 +526,7 @@ class _ExpertClientDietReviewPageState
     return true;
   }
 
-  Future<void> _cancelVoiceNoteRecording() async {
-    if (!_isRecordingVoiceNote) return;
-    String? recordedPath;
-    try {
-      recordedPath = await _audioRecorder.stop();
-    } catch (_) {}
-    final path = (recordedPath ?? _recordingVoiceNotePath ?? '').trim();
-    if (mounted) {
-      setState(() {
-        _isRecordingVoiceNote = false;
-        _recordingVoiceMealId = null;
-        _recordingVoiceNotePath = null;
-      });
-    } else {
-      _isRecordingVoiceNote = false;
-      _recordingVoiceMealId = null;
-      _recordingVoiceNotePath = null;
-    }
-    if (path.isNotEmpty) {
-      await _deleteLocalFile(path);
-    }
-  }
-
-  Future<bool> _stopVoiceNoteRecording() async {
+  Future<bool> _stopVoiceNoteRecording({bool showHint = true}) async {
     final mealId = _selectedMealId;
     if (!_isRecordingVoiceNote || _recordingVoiceMealId != mealId) {
       return false;
@@ -510,9 +565,11 @@ class _ExpertClientDietReviewPageState
         _pendingVoiceMealId = mealId;
         _pendingVoiceNotePath = audioPath;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Recording stopped. Send or cancel.')),
-      );
+      if (showHint) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Recording stopped. Send or cancel.')),
+        );
+      }
     } else {
       _pendingVoiceMealId = mealId;
       _pendingVoiceNotePath = audioPath;
@@ -563,22 +620,6 @@ class _ExpertClientDietReviewPageState
     final text = _commentController.text.trim();
     final mealId = _selectedMealId;
     if (text.isEmpty || _sendingComment) return;
-    if (_isRecordingVoiceNote) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Stop recording before sending a text comment.'),
-        ),
-      );
-      return;
-    }
-    if (_hasPendingVoiceNoteForSelectedMeal()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Send or cancel the voice note before sending text.'),
-        ),
-      );
-      return;
-    }
     if (mealId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -612,6 +653,41 @@ class _ExpertClientDietReviewPageState
     } finally {
       if (mounted) setState(() => _sendingComment = false);
     }
+  }
+
+  Future<void> _handlePrimarySend() async {
+    if (_sendingComment || _sendingVoiceNote) return;
+    final mealId = _selectedMealId;
+    if (mealId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Select a logged meal before commenting.'),
+        ),
+      );
+      return;
+    }
+
+    if (_isRecordingVoiceNote) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Stop recording before sending.')),
+      );
+      return;
+    }
+
+    if (_hasPendingVoiceNoteForSelectedMeal()) {
+      await _sendPendingVoiceNote();
+      return;
+    }
+
+    final text = _commentController.text.trim();
+    if (text.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Write your comment before sending.')),
+      );
+      return;
+    }
+    await _sendComment();
   }
 
   Future<void> _toggleCommentPin(CoachDietComment comment) async {
@@ -919,6 +995,22 @@ class _ExpertClientDietReviewPageState
       if (bTs == null) return -1;
       return bTs.compareTo(aTs);
     });
+    final isSaving = _sendingComment;
+    final isSendingVoice = _sendingVoiceNote;
+    final isRecordingVoice =
+        _isRecordingVoiceNote && _recordingVoiceMealId == selectedMealId;
+    final hasPendingVoice = _hasPendingVoiceNoteForSelectedMeal();
+    final pendingVoicePath = hasPendingVoice
+        ? (_pendingVoiceNotePath ?? '').trim()
+        : '';
+    final pendingVoiceKey = pendingVoicePath.isEmpty
+        ? ''
+        : _pendingVoiceSourceKey(pendingVoicePath);
+    final isPendingVoiceLoading =
+        pendingVoiceKey.isNotEmpty && _isVoiceNoteLoading(pendingVoiceKey);
+    final isPendingVoicePlaying =
+        pendingVoiceKey.isNotEmpty && _isVoiceNotePlaying(pendingVoiceKey);
+    final isAnySending = isSaving || isSendingVoice;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -1152,85 +1244,187 @@ class _ExpertClientDietReviewPageState
           const SizedBox(height: 10),
           TextField(
             controller: _commentController,
-            maxLines: 3,
+            minLines: 2,
+            maxLines: 6,
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
               hintText: selectedMealId == null
                   ? 'Select a logged meal first...'
-                  : 'Write feedback for ${_selectedMealLabel()}...',
+                  : 'Write review notes for the client...',
               hintStyle: const TextStyle(color: Colors.white38),
               filled: true,
-              fillColor: Colors.white.withValues(alpha: 0.04),
+              fillColor: Colors.white.withValues(alpha: 0.03),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Colors.white12),
+                borderSide: const BorderSide(color: Colors.white24),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Colors.white12),
+                borderSide: const BorderSide(color: Colors.white24),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: const BorderSide(color: AppColors.accent),
               ),
+              isDense: true,
+              contentPadding: const EdgeInsets.all(10),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Row(
             children: [
-              if (_isRecordingVoiceNote &&
-                  _recordingVoiceMealId == selectedMealId) ...[
-                TextButton.icon(
-                  onPressed: _cancelVoiceNoteRecording,
-                  icon: const Icon(Icons.close, size: 14),
-                  label: const Text('Cancel Rec'),
+              FilledButton.icon(
+                onPressed:
+                    (isAnySending ||
+                        selectedMealId == null ||
+                        _isRecordingVoiceNote)
+                    ? null
+                    : _handlePrimarySend,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(0, 34),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: const VisualDensity(
+                    horizontal: -2,
+                    vertical: -2,
+                  ),
                 ),
-                const SizedBox(width: 6),
+                icon: isAnySending
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.send, size: 14),
+                label: Text(isAnySending ? 'Sending...' : 'Send'),
+              ),
+              const SizedBox(width: 8),
+              if (isRecordingVoice)
                 OutlinedButton.icon(
-                  onPressed: _stopVoiceNoteRecording,
+                  onPressed: (isSaving || isSendingVoice)
+                      ? null
+                      : _stopVoiceNoteRecording,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.redAccent,
+                    side: const BorderSide(color: Colors.redAccent),
+                    minimumSize: const Size(0, 34),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: const VisualDensity(
+                      horizontal: -2,
+                      vertical: -2,
+                    ),
+                  ),
                   icon: const Icon(Icons.stop, size: 14),
                   label: const Text('Stop'),
-                ),
-              ] else if (_hasPendingVoiceNoteForSelectedMeal()) ...[
-                const Icon(Icons.mic, size: 14, color: Colors.orangeAccent),
-                const SizedBox(width: 4),
-                const Text(
-                  'Voice note ready',
-                  style: TextStyle(color: Colors.orangeAccent, fontSize: 12),
+                )
+              else if (hasPendingVoice) ...[
+                TextButton.icon(
+                  onPressed:
+                      (isSaving || isSendingVoice || pendingVoicePath.isEmpty)
+                      ? null
+                      : () => _togglePendingVoicePlayback(pendingVoicePath),
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(0, 26),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: const VisualDensity(
+                      horizontal: -2,
+                      vertical: -3,
+                    ),
+                  ),
+                  icon: isPendingVoiceLoading
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white70,
+                          ),
+                        )
+                      : Icon(
+                          isPendingVoicePlaying ? Icons.pause : Icons.play_arrow,
+                          size: 16,
+                        ),
+                  label: Text(
+                    isPendingVoicePlaying ? 'Pause preview' : 'Play preview',
+                  ),
                 ),
                 const SizedBox(width: 8),
-                TextButton.icon(
-                  onPressed: () => _clearPendingVoiceNote(deleteFile: true),
-                  icon: const Icon(Icons.close, size: 14),
-                  label: const Text('Cancel'),
-                ),
-                const SizedBox(width: 6),
-                OutlinedButton.icon(
-                  onPressed: _sendingVoiceNote ? null : _sendPendingVoiceNote,
-                  icon: const Icon(Icons.send, size: 14),
-                  label: Text(_sendingVoiceNote ? 'Sending...' : 'Send Voice'),
+                TextButton(
+                  onPressed: (isSaving || isSendingVoice)
+                      ? null
+                      : () => _clearPendingVoiceNote(deleteFile: true),
+                  child: const Text('Cancel'),
                 ),
               ] else
                 OutlinedButton.icon(
-                  onPressed: selectedMealId == null
+                  onPressed:
+                      (isSaving || isSendingVoice || selectedMealId == null)
                       ? null
                       : _startVoiceNoteRecording,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white24),
+                    minimumSize: const Size(0, 34),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: const VisualDensity(
+                      horizontal: -2,
+                      vertical: -2,
+                    ),
+                  ),
                   icon: const Icon(Icons.mic, size: 14),
-                  label: const Text('Record Voice'),
+                  label: const Text('Record voice'),
                 ),
-              const Spacer(),
-              ElevatedButton.icon(
-                onPressed:
-                    (_sendingComment ||
-                        _sendingVoiceNote ||
-                        selectedMealId == null)
-                    ? null
-                    : _sendComment,
-                icon: const Icon(Icons.send_outlined, size: 16),
-                label: Text(_sendingComment ? 'Sending...' : 'Send Comment'),
-              ),
             ],
           ),
+          if (isRecordingVoice) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: const [
+                Icon(
+                  Icons.fiber_manual_record,
+                  size: 10,
+                  color: Colors.redAccent,
+                ),
+                SizedBox(width: 6),
+                Text(
+                  'Recording...',
+                  style: TextStyle(
+                    color: Colors.redAccent,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(width: 8),
+                _AudioWaveBars(
+                  color: Colors.redAccent,
+                  barCount: 6,
+                  minHeight: 4,
+                  maxHeight: 14,
+                  barWidth: 3,
+                  gap: 2,
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -1351,6 +1545,80 @@ class _InfoRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _AudioWaveBars extends StatefulWidget {
+  const _AudioWaveBars({
+    required this.color,
+    this.barCount = 5,
+    this.minHeight = 4,
+    this.maxHeight = 12,
+    this.barWidth = 3,
+    this.gap = 2,
+  });
+
+  final Color color;
+  final int barCount;
+  final double minHeight;
+  final double maxHeight;
+  final double barWidth;
+  final double gap;
+
+  @override
+  State<_AudioWaveBars> createState() => _AudioWaveBarsState();
+}
+
+class _AudioWaveBarsState extends State<_AudioWaveBars>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final t = _controller.value * math.pi * 2;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List<Widget>.generate(widget.barCount, (index) {
+            final phase = t + (index * 0.7);
+            final level = (math.sin(phase) + 1) / 2;
+            final height =
+                widget.minHeight +
+                (widget.maxHeight - widget.minHeight) * level;
+            return Padding(
+              padding: EdgeInsets.only(
+                right: index == widget.barCount - 1 ? 0 : widget.gap,
+              ),
+              child: Container(
+                width: widget.barWidth,
+                height: height,
+                decoration: BoxDecoration(
+                  color: widget.color,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+            );
+          }),
+        );
+      },
     );
   }
 }

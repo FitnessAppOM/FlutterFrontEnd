@@ -696,6 +696,7 @@ class AppLocalizations {
       "coach_chip_voice_note": "Voice note",
       "coach_chip_text_note": "Text note",
       "coach_chip_nutrition_note": "Nutrition note",
+      "coach_chip_video_note": "Video note",
       "expert_dashboard_title": "Coach / Expert Dashboard",
       "expert_dash_sec_clients": "Global Client Dashboard",
       "expert_dash_sec_clients_body":
@@ -1665,6 +1666,7 @@ class AppLocalizations {
       "coach_chip_voice_note": "ملاحظة صوتية",
       "coach_chip_text_note": "ملاحظة نصية",
       "coach_chip_nutrition_note": "ملاحظة تغذية",
+      "coach_chip_video_note": "ملاحظة فيديو",
       "expert_dashboard_title": "لوحة تحكم المدرب / الخبير",
       "expert_dash_sec_clients": "لوحة العملاء العامة",
       "expert_dash_sec_clients_body":
