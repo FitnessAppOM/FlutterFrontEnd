@@ -483,14 +483,6 @@ class DashboardPageState extends State<DashboardPage>
     final nextWeekStart = _trendWeekStartFor(next);
     final shouldReloadTrends =
         _trendWeekStart == null || nextWeekStart != currentWeekStart;
-    final todayIdxInNextWeek = todayOnly.difference(nextWeekStart).inDays;
-    final nextWeekIncludesToday =
-        todayIdxInNextWeek >= 0 && todayIdxInNextWeek < 7;
-    final shouldRefreshSleepTrendForMissingToday =
-        nextWeekIncludesToday &&
-        (_trendSleep.isEmpty ||
-            _trendSleep.length <= todayIdxInNextWeek ||
-            _trendSleep[todayIdxInNextWeek] <= 0);
     final nextIsToday = next == todayOnly;
     final cachedWhoopTodaySleep = _whoopSnapshotCache[todayOnly]?.sleepHours;
     final shouldForceWhoopTodayRefresh =
@@ -560,7 +552,7 @@ class DashboardPageState extends State<DashboardPage>
       _loadDietProgress();
     }
     _loadWeeklySteps();
-    if (shouldReloadTrends || shouldRefreshSleepTrendForMissingToday) {
+    if (shouldReloadTrends) {
       _loadTrendSleep();
     }
     if (shouldReloadTrends) {

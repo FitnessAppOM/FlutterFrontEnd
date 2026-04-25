@@ -383,6 +383,64 @@ class ProgressionReviewDetail extends ProgressionReview {
   }
 }
 
+class CoachDietComment {
+  final int commentId;
+  final int clientUserId;
+  final int coachUserId;
+  final String mealDate;
+  final int? mealId;
+  final int? mealIndex;
+  final String? mealTitle;
+  final String commentText;
+  final DateTime? clientSeenAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  const CoachDietComment({
+    required this.commentId,
+    required this.clientUserId,
+    required this.coachUserId,
+    required this.mealDate,
+    this.mealId,
+    this.mealIndex,
+    this.mealTitle,
+    required this.commentText,
+    this.clientSeenAt,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  factory CoachDietComment.fromJson(Map<String, dynamic> json) {
+    int parseInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    DateTime? parseDate(dynamic value) {
+      final raw = value?.toString().trim() ?? '';
+      if (raw.isEmpty) return null;
+      return DateTime.tryParse(raw);
+    }
+
+    return CoachDietComment(
+      commentId: parseInt(json['comment_id']),
+      clientUserId: parseInt(json['client_user_id']),
+      coachUserId: parseInt(json['coach_user_id']),
+      mealDate: (json['meal_date'] ?? '').toString(),
+      mealId: json['meal_id'] == null ? null : parseInt(json['meal_id']),
+      mealIndex: json['meal_index'] == null
+          ? null
+          : parseInt(json['meal_index']),
+      mealTitle: json['meal_title']?.toString(),
+      commentText: (json['comment_text'] ?? '').toString(),
+      clientSeenAt: parseDate(json['client_seen_at']),
+      createdAt: parseDate(json['created_at']),
+      updatedAt: parseDate(json['updated_at']),
+    );
+  }
+}
+
 class ProgressionReviewService {
   static final Map<int, String?> _avatarUrlCache = <int, String?>{};
 
@@ -415,6 +473,13 @@ class ProgressionReviewService {
       }
     } catch (_) {}
     return fallback;
+  }
+
+  static String _dateOnly(DateTime date) {
+    final y = date.year.toString().padLeft(4, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    final d = date.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
   }
 
   static String? _normalizeAvatarUrl(dynamic value) {
@@ -583,6 +648,82 @@ class ProgressionReviewService {
         .whereType<Map>()
         .map((e) => FormCheckSubmission.fromJson(Map<String, dynamic>.from(e)))
         .toList();
+  }
+
+  static Future<Map<String, dynamic>> fetchClientDietLog({
+    required int clientUserId,
+    DateTime? mealDate,
+  }) async {
+    final query = <String, String>{};
+    if (mealDate != null) {
+      query['meal_date'] = _dateOnly(mealDate);
+    }
+    final res = await http.get(
+      _uri('/coach/progression/clients/$clientUserId/diet-log', query),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to load client diet log', res.body),
+      );
+    }
+    final decoded = jsonDecode(res.body);
+    if (decoded is Map<String, dynamic>) return decoded;
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    return <String, dynamic>{};
+  }
+
+  static Future<List<CoachDietComment>> fetchClientDietComments({
+    required int clientUserId,
+    int limit = 80,
+  }) async {
+    final res = await http.get(
+      _uri('/coach/progression/clients/$clientUserId/diet-comments', {
+        'limit': '$limit',
+      }),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to load client diet comments', res.body),
+      );
+    }
+    final decoded = jsonDecode(res.body);
+    final raw = decoded is Map ? decoded['items'] : null;
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((e) => CoachDietComment.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
+  static Future<CoachDietComment> addClientDietComment({
+    required int clientUserId,
+    required DateTime mealDate,
+    required int mealId,
+    required String commentText,
+  }) async {
+    final res = await http.post(
+      _uri('/coach/progression/clients/$clientUserId/diet-comments'),
+      headers: await _authHeaders(jsonBody: true),
+      body: jsonEncode({
+        'meal_date': _dateOnly(mealDate),
+        'meal_id': mealId,
+        'comment_text': commentText.trim(),
+      }),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(_extractError('Failed to save diet comment', res.body));
+    }
+    final decoded = jsonDecode(res.body);
+    final raw = decoded is Map ? decoded['item'] : null;
+    if (raw is! Map) {
+      throw Exception('Invalid response while saving diet comment');
+    }
+    return CoachDietComment.fromJson(Map<String, dynamic>.from(raw));
   }
 
   static Future<FormCheckSubmission> submitFormCheckReview({

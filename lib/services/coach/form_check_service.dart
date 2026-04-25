@@ -550,15 +550,79 @@ class FormCheckListResponse {
   const FormCheckListResponse({required this.items, required this.usage});
 }
 
+class DietFeedbackComment {
+  final int commentId;
+  final int clientUserId;
+  final int coachUserId;
+  final String mealDate;
+  final int? mealId;
+  final int? mealIndex;
+  final String? mealTitle;
+  final String commentText;
+  final DateTime? clientSeenAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  const DietFeedbackComment({
+    required this.commentId,
+    required this.clientUserId,
+    required this.coachUserId,
+    required this.mealDate,
+    this.mealId,
+    this.mealIndex,
+    this.mealTitle,
+    required this.commentText,
+    this.clientSeenAt,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  factory DietFeedbackComment.fromJson(Map<String, dynamic> json) {
+    int parseInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    String parseString(dynamic value) => value?.toString().trim() ?? '';
+
+    DateTime? parseDate(dynamic value) {
+      final raw = parseString(value);
+      if (raw.isEmpty) return null;
+      return DateTime.tryParse(raw);
+    }
+
+    return DietFeedbackComment(
+      commentId: parseInt(json['comment_id']),
+      clientUserId: parseInt(json['client_user_id']),
+      coachUserId: parseInt(json['coach_user_id']),
+      mealDate: parseString(json['meal_date']),
+      mealId: json['meal_id'] == null ? null : parseInt(json['meal_id']),
+      mealIndex: json['meal_index'] == null
+          ? null
+          : parseInt(json['meal_index']),
+      mealTitle: parseString(json['meal_title']).isEmpty
+          ? null
+          : parseString(json['meal_title']),
+      commentText: parseString(json['comment_text']),
+      clientSeenAt: parseDate(json['client_seen_at']),
+      createdAt: parseDate(json['created_at']),
+      updatedAt: parseDate(json['updated_at']),
+    );
+  }
+}
+
 class FormCheckFeedbackFeed {
   final int? clientUserId;
   final List<FormCheckSubmission> items;
   final List<FormCheckSubmission> pinnedItems;
+  final List<DietFeedbackComment> dietComments;
 
   const FormCheckFeedbackFeed({
     this.clientUserId,
     required this.items,
     required this.pinnedItems,
+    required this.dietComments,
   });
 
   factory FormCheckFeedbackFeed.fromJson(Map<String, dynamic> json) {
@@ -584,6 +648,18 @@ class FormCheckFeedbackFeed {
             (item) =>
                 FormCheckSubmission.fromJson(Map<String, dynamic>.from(item)),
           )
+          .toList();
+    }
+
+    List<DietFeedbackComment> parseDietComments(dynamic raw) {
+      if (raw is! List) return const [];
+      return raw
+          .whereType<Map>()
+          .map(
+            (item) =>
+                DietFeedbackComment.fromJson(Map<String, dynamic>.from(item)),
+          )
+          .where((item) => item.commentText.trim().isNotEmpty)
           .toList();
     }
 
@@ -616,6 +692,14 @@ class FormCheckFeedbackFeed {
       ),
       items: parsedItems,
       pinnedItems: parsedPinnedItems,
+      dietComments: parseDietComments(
+        pick([
+          'diet_comments',
+          'dietComments',
+          'diet_feedback',
+          'dietFeedback',
+        ]),
+      ),
     );
   }
 }
@@ -750,6 +834,7 @@ class FormCheckService {
         clientUserId: null,
         items: items,
         pinnedItems: pinnedItems,
+        dietComments: const [],
       );
     }
     throw Exception('Invalid feedback feed response format.');

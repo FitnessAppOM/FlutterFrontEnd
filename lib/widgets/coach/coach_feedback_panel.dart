@@ -26,6 +26,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
   bool _loadingFeedback = true;
   String? _feedbackError;
   List<FormCheckSubmission> _feedbackItems = const [];
+  List<DietFeedbackComment> _dietFeedbackComments = const [];
   final AudioPlayer _voicePlayer = AudioPlayer();
   StreamSubscription<PlayerState>? _voicePlayerSub;
   String? _activeVoiceNoteUrl;
@@ -157,6 +158,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
       if (!mounted) return;
       setState(() {
         _feedbackItems = feed.items;
+        _dietFeedbackComments = feed.dietComments;
         _loadingFeedback = false;
         _feedbackError = null;
       });
@@ -164,6 +166,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
       if (!mounted) return;
       setState(() {
         _feedbackItems = const [];
+        _dietFeedbackComments = const [];
         _loadingFeedback = false;
         _feedbackError = e.toString().replaceFirst('Exception: ', '');
       });
@@ -343,9 +346,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
       final review = item.coachReview;
       final hasVoiceNote = _hasVoiceNote(review);
       final fallbackText = (item.coachReview?.reviewText ?? '').trim();
-      final reviewVoiceKey = _canonicalVoiceNoteKey(
-        review?.voiceNoteUrl,
-      );
+      final reviewVoiceKey = _canonicalVoiceNoteKey(review?.voiceNoteUrl);
       final reviewHasRenderableContent =
           fallbackText.isNotEmpty || hasVoiceNote;
       final hasLegacyReviewVoiceNote =
@@ -374,6 +375,26 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
           ),
         );
       }
+    }
+    for (final comment in _dietFeedbackComments) {
+      final mealDate = comment.mealDate.trim();
+      final mealTitle = (comment.mealTitle ?? '').trim();
+      final mealSuffix = mealTitle.isNotEmpty
+          ? mealTitle
+          : (comment.mealIndex != null ? 'Meal ${comment.mealIndex}' : '');
+      final labelCore = mealDate.isEmpty ? 'Diet log' : 'Diet log • $mealDate';
+      final label = mealSuffix.isEmpty ? labelCore : '$labelCore • $mealSuffix';
+      entries.add(
+        _FeedbackReplyEntry(
+          workoutLabel: label,
+          message: comment.commentText,
+          timestamp: comment.createdAt ?? comment.updatedAt,
+          isVoiceNote: false,
+          hasNutritionNote: true,
+          isPinned: false,
+          voiceNoteUrl: null,
+        ),
+      );
     }
     entries.sort((a, b) {
       final aTs = a.timestamp;
