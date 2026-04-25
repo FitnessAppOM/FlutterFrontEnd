@@ -74,6 +74,16 @@ class _ExpertClientDietReviewPageState
     return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
   }
 
+  String _formatDateTime(DateTime? dateTime) {
+    if (dateTime == null) return '-';
+    final local = dateTime.toLocal();
+    final mm = local.month.toString().padLeft(2, '0');
+    final dd = local.day.toString().padLeft(2, '0');
+    final hh = local.hour.toString().padLeft(2, '0');
+    final min = local.minute.toString().padLeft(2, '0');
+    return '$mm/$dd ${local.year} $hh:$min';
+  }
+
   int _asInt(dynamic value) {
     if (value is int) return value;
     if (value is num) return value.toInt();
@@ -220,7 +230,7 @@ class _ExpertClientDietReviewPageState
     }
     setState(() => _sendingComment = true);
     try {
-      await ProgressionReviewService.addClientDietComment(
+      final created = await ProgressionReviewService.addClientDietComment(
         clientUserId: widget.clientUserId,
         mealDate: _selectedDate,
         mealId: mealId,
@@ -228,7 +238,9 @@ class _ExpertClientDietReviewPageState
       );
       if (!mounted) return;
       _commentController.clear();
-      await _loadComments();
+      setState(() {
+        _comments = [created, ..._comments];
+      });
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -247,13 +259,17 @@ class _ExpertClientDietReviewPageState
     if (_updatingPinnedCommentIds.contains(comment.commentId)) return;
     setState(() => _updatingPinnedCommentIds.add(comment.commentId));
     try {
-      await ProgressionReviewService.setClientDietCommentPinned(
+      final updated = await ProgressionReviewService.setClientDietCommentPinned(
         clientUserId: widget.clientUserId,
         commentId: comment.commentId,
         isPinned: !comment.isPinned,
       );
       if (!mounted) return;
-      await _loadComments();
+      setState(() {
+        _comments = _comments
+            .map((item) => item.commentId == updated.commentId ? updated : item)
+            .toList(growable: false);
+      });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -293,7 +309,11 @@ class _ExpertClientDietReviewPageState
         commentId: comment.commentId,
       );
       if (!mounted) return;
-      await _loadComments();
+      setState(() {
+        _comments = _comments
+            .where((item) => item.commentId != comment.commentId)
+            .toList(growable: false);
+      });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -520,7 +540,6 @@ class _ExpertClientDietReviewPageState
         )
         .toList();
     commentsForDate.sort((a, b) {
-      if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
       final aTs = a.createdAt ?? a.updatedAt;
       final bTs = b.createdAt ?? b.updatedAt;
       if (aTs == null && bTs == null) return 0;
@@ -578,43 +597,105 @@ class _ExpertClientDietReviewPageState
               );
               return Container(
                 width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(10),
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: comment.isPinned
-                      ? Colors.orange.withValues(alpha: 0.08)
-                      : Colors.white.withValues(alpha: 0.03),
+                  color: Colors.white.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: comment.isPinned
-                        ? Colors.orangeAccent.withValues(alpha: 0.6)
-                        : Colors.white12,
-                  ),
+                  border: Border.all(color: Colors.white12),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        if (comment.isPinned)
-                          const Padding(
-                            padding: EdgeInsets.only(right: 6),
-                            child: Icon(
-                              Icons.push_pin,
-                              size: 14,
-                              color: Colors.orangeAccent,
-                            ),
-                          ),
                         Expanded(
                           child: Text(
-                            comment.commentText,
-                            style: const TextStyle(color: Colors.white70),
+                            _formatDateTime(
+                              comment.createdAt ?? comment.updatedAt,
+                            ),
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 12,
+                            ),
                           ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: (isPinUpdating || isDeleting)
+                              ? null
+                              : () => _toggleCommentPin(comment),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: comment.isPinned
+                                ? Colors.orangeAccent
+                                : Colors.white70,
+                            side: BorderSide(
+                              color: comment.isPinned
+                                  ? Colors.orangeAccent
+                                  : Colors.white24,
+                            ),
+                            minimumSize: const Size(0, 26),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: const VisualDensity(
+                              horizontal: -2,
+                              vertical: -2,
+                            ),
+                          ),
+                          icon: isPinUpdating
+                              ? const SizedBox(
+                                  width: 12,
+                                  height: 12,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white70,
+                                  ),
+                                )
+                              : Icon(
+                                  comment.isPinned
+                                      ? Icons.push_pin
+                                      : Icons.push_pin_outlined,
+                                  size: 12,
+                                ),
+                          label: Text(comment.isPinned ? 'Unpin' : 'Pin'),
+                        ),
+                        const SizedBox(width: 6),
+                        TextButton.icon(
+                          onPressed: (isPinUpdating || isDeleting)
+                              ? null
+                              : () => _deleteComment(comment),
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(0, 26),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: const VisualDensity(
+                              horizontal: -2,
+                              vertical: -3,
+                            ),
+                          ),
+                          icon: isDeleting
+                              ? const SizedBox(
+                                  width: 12,
+                                  height: 12,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white70,
+                                  ),
+                                )
+                              : const Icon(Icons.delete_outline, size: 12),
+                          label: const Text('Delete'),
                         ),
                       ],
                     ),
-                    if ((comment.mealTitle ?? '').trim().isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    if ((comment.mealTitle ?? '').trim().isNotEmpty)
                       const SizedBox(height: 4),
+                    if ((comment.mealTitle ?? '').trim().isNotEmpty)
                       Text(
                         comment.mealTitle!.trim(),
                         style: const TextStyle(
@@ -622,43 +703,25 @@ class _ExpertClientDietReviewPageState
                           fontSize: 12,
                         ),
                       ),
-                    ],
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Text(
-                          comment.createdAt?.toLocal().toString() ?? '',
-                          style: const TextStyle(
-                            color: Colors.white54,
-                            fontSize: 12,
-                          ),
-                        ),
-                        const Spacer(),
-                        TextButton.icon(
-                          onPressed: (isPinUpdating || isDeleting)
-                              ? null
-                              : () => _toggleCommentPin(comment),
-                          icon: Icon(
-                            comment.isPinned
-                                ? Icons.push_pin_outlined
-                                : Icons.push_pin,
-                            size: 14,
-                          ),
-                          label: Text(
-                            isPinUpdating
-                                ? '...'
-                                : (comment.isPinned ? 'Unpin' : 'Pin'),
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: (isPinUpdating || isDeleting)
-                              ? null
-                              : () => _deleteComment(comment),
-                          icon: const Icon(Icons.delete_outline, size: 14),
-                          label: Text(isDeleting ? '...' : 'Delete'),
-                        ),
-                      ],
+                    const SizedBox(height: 4),
+                    Text(
+                      comment.commentText,
+                      style: const TextStyle(color: Colors.white70),
                     ),
+                    if (comment.isPinned) ...[
+                      const SizedBox(height: 6),
+                      const Align(
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          'Pinned correction',
+                          style: TextStyle(
+                            color: Colors.orangeAccent,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               );
