@@ -338,6 +338,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
                 item.createdAt,
             isVoiceNote: hasVoiceReply,
             hasNutritionNote: hasNutritionNote,
+            hasVideoNote: true,
             isPinned: reply.isPinned,
             isNew: reply.clientSeenAt == null,
             voiceNoteUrl: hasVoiceReply ? reply.voiceNoteUrl : null,
@@ -371,6 +372,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
                 item.createdAt,
             isVoiceNote: hasVoiceNote,
             hasNutritionNote: hasNutritionNote,
+            hasVideoNote: true,
             isPinned: review?.isPinned == true,
             isNew: review?.clientSeenAt == null,
             voiceNoteUrl: hasVoiceNote ? review?.voiceNoteUrl : null,
@@ -384,8 +386,14 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
       final mealSuffix = mealTitle.isNotEmpty
           ? mealTitle
           : (comment.mealIndex != null ? 'Meal ${comment.mealIndex}' : '');
-      final labelCore = mealDate.isEmpty ? 'Diet log' : 'Diet log • $mealDate';
-      final label = mealSuffix.isEmpty ? labelCore : '$labelCore • $mealSuffix';
+      final labelParts = <String>[];
+      if (mealDate.isNotEmpty) {
+        labelParts.add(mealDate);
+      }
+      if (mealSuffix.isNotEmpty) {
+        labelParts.add(mealSuffix);
+      }
+      final label = labelParts.isEmpty ? 'Meal' : labelParts.join(' • ');
       final voiceUrl = _normalizeVoiceNoteUrl(comment.voiceNoteUrl);
       final hasVoice = voiceUrl.isNotEmpty;
       final text = comment.commentText.trim();
@@ -396,6 +404,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
           timestamp: comment.createdAt ?? comment.updatedAt,
           isVoiceNote: hasVoice,
           hasNutritionNote: true,
+          hasVideoNote: false,
           isPinned: comment.isPinned,
           isNew: comment.clientSeenAt == null,
           voiceNoteUrl: hasVoice ? comment.voiceNoteUrl : null,
@@ -426,6 +435,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
             dateLabel: _formatFeedDate(entry.timestamp),
             isVoiceNote: entry.isVoiceNote,
             hasNutritionNote: entry.hasNutritionNote,
+            hasVideoNote: entry.hasVideoNote,
             isNew: entry.isNew,
             voiceNoteUrl: entry.voiceNoteUrl,
           ),
@@ -500,6 +510,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
                 message: entry.message,
                 isVoiceNote: entry.isVoiceNote,
                 hasNutritionNote: entry.hasNutritionNote,
+                hasVideoNote: entry.hasVideoNote,
                 isPinned: entry.isPinned,
                 isNew: entry.isNew,
                 isVoiceLoading: _isVoiceNoteLoading(entry.voiceNoteUrl),
@@ -767,6 +778,7 @@ class _PinnedCorrectionRow extends StatelessWidget {
         message: correction.title,
         isVoiceNote: correction.isVoiceNote,
         hasNutritionNote: correction.hasNutritionNote,
+        hasVideoNote: correction.hasVideoNote,
         isPinned: true,
         isNew: correction.isNew,
         isVoiceLoading: isVoiceLoading,
@@ -784,6 +796,7 @@ class _FeedbackEntryCard extends StatelessWidget {
     required this.message,
     required this.isVoiceNote,
     required this.hasNutritionNote,
+    required this.hasVideoNote,
     required this.isPinned,
     required this.isNew,
     required this.isVoiceLoading,
@@ -796,6 +809,7 @@ class _FeedbackEntryCard extends StatelessWidget {
   final String message;
   final bool isVoiceNote;
   final bool hasNutritionNote;
+  final bool hasVideoNote;
   final bool isPinned;
   final bool isNew;
   final bool isVoiceLoading;
@@ -810,6 +824,7 @@ class _FeedbackEntryCard extends StatelessWidget {
     final statusLabel = isPinned ? 'Pinned reply' : 'Coach reply';
 
     return Stack(
+      clipBehavior: Clip.none,
       children: [
         Container(
           decoration: BoxDecoration(
@@ -850,6 +865,8 @@ class _FeedbackEntryCard extends StatelessWidget {
                   ),
                   if (hasNutritionNote)
                     _MetaChip(label: t.translate('coach_chip_nutrition_note')),
+                  if (hasVideoNote)
+                    _MetaChip(label: t.translate('coach_chip_video_note')),
                 ],
               ),
               const SizedBox(height: 6),
@@ -909,23 +926,29 @@ class _FeedbackEntryCard extends StatelessWidget {
         ),
         if (isNew)
           Positioned(
-            top: 0,
-            right: 0,
+            top: -8,
+            right: 10,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: const BoxDecoration(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
                 color: Colors.orangeAccent,
-                borderRadius: BorderRadius.only(
-                  topRight: Radius.circular(12),
-                  bottomLeft: Radius.circular(12),
-                ),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: Colors.black, width: 0.8),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black45,
+                    blurRadius: 3,
+                    offset: Offset(0, 1),
+                  ),
+                ],
               ),
               child: const Text(
                 'NEW',
                 style: TextStyle(
                   color: Colors.black,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.2,
                 ),
               ),
             ),
@@ -1038,6 +1061,7 @@ class _PinnedCorrection {
     required this.dateLabel,
     required this.isVoiceNote,
     required this.hasNutritionNote,
+    required this.hasVideoNote,
     required this.isNew,
     required this.voiceNoteUrl,
   });
@@ -1047,6 +1071,7 @@ class _PinnedCorrection {
   final String dateLabel;
   final bool isVoiceNote;
   final bool hasNutritionNote;
+  final bool hasVideoNote;
   final bool isNew;
   final String? voiceNoteUrl;
 }
@@ -1058,6 +1083,7 @@ class _FeedbackReplyEntry {
     required this.timestamp,
     required this.isVoiceNote,
     required this.hasNutritionNote,
+    required this.hasVideoNote,
     required this.isPinned,
     required this.isNew,
     required this.voiceNoteUrl,
@@ -1068,6 +1094,7 @@ class _FeedbackReplyEntry {
   final DateTime? timestamp;
   final bool isVoiceNote;
   final bool hasNutritionNote;
+  final bool hasVideoNote;
   final bool isPinned;
   final bool isNew;
   final String? voiceNoteUrl;

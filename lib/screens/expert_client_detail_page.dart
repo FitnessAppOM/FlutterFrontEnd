@@ -313,6 +313,8 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
 
   String _normalizeVoiceNoteUrl(String? rawUrl) => (rawUrl ?? '').trim();
 
+  String _pendingVoiceSourceKey(String path) => 'local:${path.trim()}';
+
   bool _isVoiceNoteLoading(String rawUrl) {
     final normalized = _normalizeVoiceNoteUrl(rawUrl);
     if (normalized.isEmpty) return false;
@@ -368,6 +370,52 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
           }
         });
       } else if (_loadingVoiceNoteUrl == normalized) {
+        _loadingVoiceNoteUrl = null;
+      }
+      _refreshOpenReviewSheet();
+    }
+  }
+
+  Future<void> _togglePendingVoiceNotePlayback(String localPath) async {
+    final normalizedPath = localPath.trim();
+    if (normalizedPath.isEmpty) return;
+    final sourceKey = _pendingVoiceSourceKey(normalizedPath);
+
+    if (_activeVoiceNoteUrl == sourceKey) {
+      if (_voicePlayer.processingState == ProcessingState.completed) {
+        await _voicePlayer.seek(Duration.zero);
+        await _voicePlayer.play();
+        _refreshOpenReviewSheet();
+        return;
+      }
+      if (_voicePlayer.playing) {
+        await _voicePlayer.pause();
+      } else {
+        await _voicePlayer.play();
+      }
+      _refreshOpenReviewSheet();
+      return;
+    }
+
+    setState(() {
+      _loadingVoiceNoteUrl = sourceKey;
+    });
+    _refreshOpenReviewSheet();
+    try {
+      await _voicePlayer.stop();
+      await _voicePlayer.setFilePath(normalizedPath);
+      _activeVoiceNoteUrl = sourceKey;
+      await _voicePlayer.play();
+    } catch (e) {
+      _showSnack(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) {
+        setState(() {
+          if (_loadingVoiceNoteUrl == sourceKey) {
+            _loadingVoiceNoteUrl = null;
+          }
+        });
+      } else if (_loadingVoiceNoteUrl == sourceKey) {
         _loadingVoiceNoteUrl = null;
       }
       _refreshOpenReviewSheet();
@@ -443,6 +491,28 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       return;
     }
     final pendingPath = (_pendingVoiceNotePath ?? '').trim();
+    final pendingKey = pendingPath.isEmpty
+        ? null
+        : _pendingVoiceSourceKey(pendingPath);
+    if (pendingKey != null && _activeVoiceNoteUrl == pendingKey) {
+      try {
+        await _voicePlayer.stop();
+      } catch (_) {}
+      if (mounted) {
+        setState(() {
+          _activeVoiceNoteUrl = null;
+          if (_loadingVoiceNoteUrl == pendingKey) {
+            _loadingVoiceNoteUrl = null;
+          }
+        });
+      } else {
+        _activeVoiceNoteUrl = null;
+        if (_loadingVoiceNoteUrl == pendingKey) {
+          _loadingVoiceNoteUrl = null;
+        }
+      }
+      _refreshOpenReviewSheet();
+    }
     if (mounted) {
       setState(() {
         _pendingVoiceNoteSubmissionId = null;
@@ -653,6 +723,27 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     }
   }
 
+  Future<FormCheckSubmission?> _handlePrimarySend(
+    FormCheckSubmission item,
+  ) async {
+    final submissionId = item.submissionId;
+    if (_savingReviewIds.contains(submissionId) ||
+        _sendingVoiceNoteIds.contains(submissionId)) {
+      return null;
+    }
+
+    if (_isRecordingVoiceNote) {
+      _showSnack('Stop recording before sending.');
+      return null;
+    }
+
+    if (_hasPendingVoiceNoteForSubmission(submissionId)) {
+      return _sendPendingVoiceNote(item);
+    }
+
+    return _saveWrittenReview(item);
+  }
+
   Future<FormCheckSubmission?> _toggleReplyPinned({
     required FormCheckSubmission item,
     required FormCheckCoachReply reply,
@@ -768,6 +859,18 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
             final hasPendingVoice = _hasPendingVoiceNoteForSubmission(
               submissionId,
             );
+            final pendingVoicePath = hasPendingVoice
+                ? (_pendingVoiceNotePath ?? '').trim()
+                : '';
+            final pendingVoiceKey = pendingVoicePath.isEmpty
+                ? ''
+                : _pendingVoiceSourceKey(pendingVoicePath);
+            final isPendingVoiceLoading =
+                pendingVoiceKey.isNotEmpty &&
+                _isVoiceNoteLoading(pendingVoiceKey);
+            final isPendingVoicePlaying =
+                pendingVoiceKey.isNotEmpty &&
+                _isVoiceNotePlaying(pendingVoiceKey);
             final replies = _sortedRepliesForHistory(
               current.coachReviewReplies,
             );
@@ -779,8 +882,8 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
             final isVoiceLoading = _isVoiceNoteLoading(voiceNoteUrl);
             final isReviewPinned = current.coachReview?.isPinned == true;
 
-            Future<void> handleSave() async {
-              final updated = await _saveWrittenReview(current);
+            Future<void> handleSend() async {
+              final updated = await _handlePrimarySend(current);
               if (updated == null || !mounted) return;
               current = _submissionById(updated.submissionId);
               setSheetState(() {});
@@ -795,13 +898,6 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
               }
               final started = await _startVoiceNoteRecording(current);
               if (!started || !mounted) return;
-              setSheetState(() {});
-            }
-
-            Future<void> handlePendingVoiceSend() async {
-              final updated = await _sendPendingVoiceNote(current);
-              if (updated == null || !mounted) return;
-              current = _submissionById(updated.submissionId);
               setSheetState(() {});
             }
 
@@ -967,13 +1063,11 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                     Row(
                       children: [
                         FilledButton.icon(
-                          onPressed:
-                              (isSaving ||
+                          onPressed: (isSaving ||
                                   isSendingVoice ||
-                                  isRecordingVoice ||
-                                  hasPendingVoice)
+                                  _isRecordingVoiceNote)
                               ? null
-                              : handleSave,
+                              : handleSend,
                           style: FilledButton.styleFrom(
                             backgroundColor: AppColors.accent,
                             foregroundColor: Colors.white,
@@ -1024,36 +1118,46 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                             label: const Text('Stop'),
                           )
                         else if (hasPendingVoice) ...[
-                          FilledButton.icon(
-                            onPressed: (isSaving || isSendingVoice)
+                          TextButton.icon(
+                            onPressed:
+                                (isSaving ||
+                                    isSendingVoice ||
+                                    pendingVoicePath.isEmpty)
                                 ? null
-                                : handlePendingVoiceSend,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.black87,
-                              minimumSize: const Size(0, 34),
+                                : () => _togglePendingVoiceNotePlayback(
+                                    pendingVoicePath,
+                                  ),
+                            style: TextButton.styleFrom(
+                              minimumSize: const Size(0, 26),
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
+                                horizontal: 8,
+                                vertical: 4,
                               ),
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               visualDensity: const VisualDensity(
                                 horizontal: -2,
-                                vertical: -2,
+                                vertical: -3,
                               ),
                             ),
-                            icon: isSendingVoice
+                            icon: isPendingVoiceLoading
                                 ? const SizedBox(
                                     width: 14,
                                     height: 14,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      color: Colors.black87,
+                                      color: Colors.white70,
                                     ),
                                   )
-                                : const Icon(Icons.send, size: 14),
+                                : Icon(
+                                    isPendingVoicePlaying
+                                        ? Icons.pause
+                                        : Icons.play_arrow,
+                                    size: 16,
+                                  ),
                             label: Text(
-                              isSendingVoice ? 'Uploading...' : 'Send voice',
+                              isPendingVoicePlaying
+                                  ? 'Pause preview'
+                                  : 'Play preview',
                             ),
                           ),
                           const SizedBox(width: 8),

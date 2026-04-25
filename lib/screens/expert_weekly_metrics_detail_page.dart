@@ -9,7 +9,7 @@ import '../theme/app_theme.dart';
 import '../widgets/charts/ranged_bar_chart.dart';
 import '../widgets/charts/simple_line_chart.dart';
 
-enum ExpertWeeklyMetricsDetailType { waterSteps, trainingCardio }
+enum ExpertWeeklyMetricsDetailType { waterSteps, trainingCardio, wearables }
 
 class ExpertWeeklyMetricsDetailPage extends StatefulWidget {
   const ExpertWeeklyMetricsDetailPage({
@@ -599,6 +599,212 @@ class _ExpertWeeklyMetricsDetailPageState
     );
   }
 
+  Map<String, Map<String, dynamic>> _rowsByDate(
+    List<Map<String, dynamic>> rows,
+  ) {
+    final out = <String, Map<String, dynamic>>{};
+    for (final row in rows) {
+      final date = _dateOnly(row['entry_date']?.toString());
+      if (date == null) continue;
+      out[_dateKey(date)] = row;
+    }
+    return out;
+  }
+
+  bool _hasMetricForWeek({
+    required List<DateTime> weekDates,
+    required Map<String, Map<String, dynamic>> byDate,
+    required String key,
+  }) {
+    for (final day in weekDates) {
+      final row = byDate[_dateKey(day)];
+      if (row != null && row[key] != null) return true;
+    }
+    return false;
+  }
+
+  List<double> _metricValuesForWeek({
+    required List<DateTime> weekDates,
+    required Map<String, Map<String, dynamic>> byDate,
+    required String key,
+    double multiplier = 1.0,
+  }) {
+    return weekDates
+        .map((day) {
+          final row = byDate[_dateKey(day)];
+          return _toDouble(row?[key]) * multiplier;
+        })
+        .toList(growable: false);
+  }
+
+  Widget _buildWearablesContent() {
+    final daily = _map(_analyticsData['daily_metrics']);
+    final wearables = _map(_analyticsData['wearables']);
+    final whoop = _map(wearables['whoop']);
+    final fitbit = _map(wearables['fitbit']);
+    final whoopRows = _mapList(whoop['last_7_days']);
+    final fitbitRows = _mapList(fitbit['last_7_days']);
+    final whoopByDate = _rowsByDate(whoopRows);
+    final fitbitByDate = _rowsByDate(fitbitRows);
+    final weekDates = _weekDates(
+      startRaw: daily['last_7_start']?.toString(),
+      endRaw: daily['today']?.toString(),
+    );
+
+    final whoopConnected =
+        whoop['linked'] == true || whoop['has_metrics'] == true;
+    final fitbitConnected =
+        fitbit['linked'] == true || fitbit['has_metrics'] == true;
+    final selectedIndex =
+        (_selectedPrimaryBar != null &&
+            _selectedPrimaryBar! >= 0 &&
+            _selectedPrimaryBar! < weekDates.length)
+        ? _selectedPrimaryBar
+        : null;
+
+    Widget? metricCard({
+      required String title,
+      required Map<String, Map<String, dynamic>> byDate,
+      required String key,
+      required List<Color> gradient,
+      required List<Color> selectedGradient,
+      required String Function(double value) formatValue,
+      double multiplier = 1.0,
+    }) {
+      final hasData = _hasMetricForWeek(
+        weekDates: weekDates,
+        byDate: byDate,
+        key: key,
+      );
+      if (!hasData) return null;
+      final values = _metricValuesForWeek(
+        weekDates: weekDates,
+        byDate: byDate,
+        key: key,
+        multiplier: multiplier,
+      );
+      return _buildChartCard(
+        title: title,
+        subtitle: selectedIndex == null
+            ? 'Tap a bar to inspect a day.'
+            : '${_dayDetail(weekDates[selectedIndex])}: ${formatValue(values[selectedIndex])}',
+        child: _buildBarChart(
+          weekDates: weekDates,
+          values: values,
+          gradient: gradient,
+          selectedGradient: selectedGradient,
+          axisFormatter: formatValue,
+          selectedIndex: selectedIndex,
+          onTap: (i) => setState(() => _selectedPrimaryBar = i),
+        ),
+      );
+    }
+
+    final chartCards = <Widget>[
+      ...[
+        metricCard(
+          title: 'Whoop Recovery (7 Days)',
+          byDate: whoopByDate,
+          key: 'recovery_score',
+          gradient: const [Color(0xFF3BC7FF), Color(0xFF67F3C9)],
+          selectedGradient: const [Color(0xFF6FDCFF), Color(0xFF96FFE1)],
+          formatValue: (v) => v.toStringAsFixed(0),
+        ),
+        metricCard(
+          title: 'Whoop Strain (7 Days)',
+          byDate: whoopByDate,
+          key: 'strain',
+          gradient: const [Color(0xFF5D9CFF), Color(0xFF9C7DFF)],
+          selectedGradient: const [Color(0xFF80B7FF), Color(0xFFB49BFF)],
+          formatValue: (v) => v.toStringAsFixed(1),
+        ),
+        metricCard(
+          title: 'Whoop Sleep (Hours)',
+          byDate: whoopByDate,
+          key: 'total_sleep_minutes',
+          multiplier: 1 / 60,
+          gradient: const [Color(0xFF6A7CFF), Color(0xFF6BD6FF)],
+          selectedGradient: const [Color(0xFF8A97FF), Color(0xFF93E4FF)],
+          formatValue: (v) => '${v.toStringAsFixed(1)} h',
+        ),
+        metricCard(
+          title: 'Fitbit Steps (7 Days)',
+          byDate: fitbitByDate,
+          key: 'steps',
+          gradient: const [Color(0xFF3CB6FF), Color(0xFF8B85FF)],
+          selectedGradient: const [Color(0xFF65CBFF), Color(0xFFA8A2FF)],
+          formatValue: (v) => _formatCompact(v),
+        ),
+        metricCard(
+          title: 'Fitbit Calories Out (7 Days)',
+          byDate: fitbitByDate,
+          key: 'calories_out',
+          gradient: const [Color(0xFFFF9B5C), Color(0xFFFF6E7B)],
+          selectedGradient: const [Color(0xFFFFB07D), Color(0xFFFF929C)],
+          formatValue: (v) => _formatCompact(v),
+        ),
+        metricCard(
+          title: 'Fitbit Sleep (Hours)',
+          byDate: fitbitByDate,
+          key: 'sleep_minutes_asleep',
+          multiplier: 1 / 60,
+          gradient: const [Color(0xFF4B8EFF), Color(0xFF4BE4C7)],
+          selectedGradient: const [Color(0xFF6AA2FF), Color(0xFF75EDD6)],
+          formatValue: (v) => '${v.toStringAsFixed(1)} h',
+        ),
+      ].whereType<Widget>(),
+    ];
+
+    return ListView(
+      padding: const EdgeInsets.all(18),
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _buildSummaryPill(
+              label: 'Whoop',
+              value: whoopConnected ? 'Connected' : 'Not connected',
+              accent: whoopConnected
+                  ? const Color(0xFF4BE4C7)
+                  : Colors.orangeAccent,
+            ),
+            _buildSummaryPill(
+              label: 'Whoop data days',
+              value: '${whoopRows.length}/7',
+              accent: const Color(0xFF63D5FF),
+            ),
+            _buildSummaryPill(
+              label: 'Fitbit',
+              value: fitbitConnected ? 'Connected' : 'Not connected',
+              accent: fitbitConnected
+                  ? const Color(0xFF4BE4C7)
+                  : Colors.orangeAccent,
+            ),
+            _buildSummaryPill(
+              label: 'Fitbit data days',
+              value: '${fitbitRows.length}/7',
+              accent: const Color(0xFFA4AEFF),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (chartCards.isEmpty)
+          const Text(
+            'No wearable metrics available for this week.',
+            style: TextStyle(color: Colors.white70),
+          )
+        else
+          ...List<Widget>.generate(chartCards.length, (index) {
+            if (index == 0) return chartCards[index];
+            return Column(
+              children: [const SizedBox(height: 12), chartCards[index]],
+            );
+          }),
+      ],
+    );
+  }
+
   DateTime? _selectedTrainingWeekStart() {
     final training = _map(_analyticsData['training']);
     return _dateOnly(training['week_start']?.toString()) ??
@@ -795,9 +1001,11 @@ class _ExpertWeeklyMetricsDetailPageState
   @override
   Widget build(BuildContext context) {
     final isWater = widget.type == ExpertWeeklyMetricsDetailType.waterSteps;
+    final isTraining =
+        widget.type == ExpertWeeklyMetricsDetailType.trainingCardio;
     final title = isWater
         ? 'Water & Steps Details'
-        : 'Training & Cardio Details';
+        : (isTraining ? 'Training & Cardio Details' : 'Wearables Details');
 
     return Scaffold(
       backgroundColor: AppColors.black,
@@ -857,7 +1065,9 @@ class _ExpertWeeklyMetricsDetailPageState
           Expanded(
             child: isWater
                 ? _buildWaterStepsContent()
-                : _buildTrainingCardioContent(),
+                : (isTraining
+                      ? _buildTrainingCardioContent()
+                      : _buildWearablesContent()),
           ),
         ],
       ),
