@@ -392,6 +392,7 @@ class CoachDietComment {
   final int? mealIndex;
   final String? mealTitle;
   final String commentText;
+  final String? voiceNoteUrl;
   final bool isPinned;
   final DateTime? pinnedAt;
   final DateTime? clientSeenAt;
@@ -407,6 +408,7 @@ class CoachDietComment {
     this.mealIndex,
     this.mealTitle,
     required this.commentText,
+    this.voiceNoteUrl,
     required this.isPinned,
     this.pinnedAt,
     this.clientSeenAt,
@@ -438,6 +440,7 @@ class CoachDietComment {
           : parseInt(json['meal_index']),
       mealTitle: json['meal_title']?.toString(),
       commentText: (json['comment_text'] ?? '').toString(),
+      voiceNoteUrl: json['voice_note_url']?.toString(),
       isPinned: json['is_pinned'] == true,
       pinnedAt: parseDate(json['pinned_at']),
       clientSeenAt: parseDate(json['client_seen_at']),
@@ -752,6 +755,44 @@ class ProgressionReviewService {
     final raw = decoded is Map ? decoded['item'] : null;
     if (raw is! Map) {
       throw Exception('Invalid response while saving diet comment');
+    }
+    return CoachDietComment.fromJson(Map<String, dynamic>.from(raw));
+  }
+
+  static Future<CoachDietComment> addClientDietVoiceNote({
+    required int clientUserId,
+    required DateTime mealDate,
+    required int mealId,
+    required String audioFilePath,
+    String? commentText,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      _uri('/coach/progression/clients/$clientUserId/diet-comments/voice-note'),
+    );
+    request.headers.addAll(await _authHeaders());
+    request.fields['meal_date'] = _dateOnly(mealDate);
+    request.fields['meal_id'] = '$mealId';
+    final normalizedCommentText = (commentText ?? '').trim();
+    if (normalizedCommentText.isNotEmpty) {
+      request.fields['comment_text'] = normalizedCommentText;
+    }
+    request.files.add(
+      await http.MultipartFile.fromPath('voice_note', audioFilePath),
+    );
+
+    final streamed = await request.send();
+    final res = await http.Response.fromStream(streamed);
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to save diet voice note comment', res.body),
+      );
+    }
+    final decoded = jsonDecode(res.body);
+    final raw = decoded is Map ? decoded['item'] : null;
+    if (raw is! Map) {
+      throw Exception('Invalid response while saving diet voice note comment');
     }
     return CoachDietComment.fromJson(Map<String, dynamic>.from(raw));
   }

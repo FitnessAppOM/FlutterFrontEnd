@@ -384,15 +384,18 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
           : (comment.mealIndex != null ? 'Meal ${comment.mealIndex}' : '');
       final labelCore = mealDate.isEmpty ? 'Diet log' : 'Diet log • $mealDate';
       final label = mealSuffix.isEmpty ? labelCore : '$labelCore • $mealSuffix';
+      final voiceUrl = _normalizeVoiceNoteUrl(comment.voiceNoteUrl);
+      final hasVoice = voiceUrl.isNotEmpty;
+      final text = comment.commentText.trim();
       entries.add(
         _FeedbackReplyEntry(
           workoutLabel: label,
-          message: comment.commentText,
+          message: text.isNotEmpty ? text : 'Voice note from coach.',
           timestamp: comment.createdAt ?? comment.updatedAt,
-          isVoiceNote: false,
+          isVoiceNote: hasVoice,
           hasNutritionNote: true,
           isPinned: comment.isPinned,
-          voiceNoteUrl: null,
+          voiceNoteUrl: hasVoice ? comment.voiceNoteUrl : null,
         ),
       );
     }
