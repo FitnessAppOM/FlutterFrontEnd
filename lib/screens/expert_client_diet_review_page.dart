@@ -1031,6 +1031,190 @@ class _ExpertClientDietReviewPageState
             ),
           ),
           const SizedBox(height: 8),
+          TextField(
+            controller: _commentController,
+            minLines: 2,
+            maxLines: 6,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: selectedMealId == null
+                  ? 'Select a logged meal first...'
+                  : 'Write review notes for the client...',
+              hintStyle: const TextStyle(color: Colors.white38),
+              filled: true,
+              fillColor: Colors.white.withValues(alpha: 0.03),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Colors.white24),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Colors.white24),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: AppColors.accent),
+              ),
+              isDense: true,
+              contentPadding: const EdgeInsets.all(10),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              FilledButton.icon(
+                onPressed:
+                    (isAnySending ||
+                        selectedMealId == null ||
+                        _isRecordingVoiceNote)
+                    ? null
+                    : _handlePrimarySend,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(0, 34),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: const VisualDensity(
+                    horizontal: -2,
+                    vertical: -2,
+                  ),
+                ),
+                icon: isAnySending
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.send, size: 14),
+                label: Text(isAnySending ? 'Sending...' : 'Send'),
+              ),
+              const SizedBox(width: 8),
+              if (isRecordingVoice)
+                OutlinedButton.icon(
+                  onPressed: (isSaving || isSendingVoice)
+                      ? null
+                      : _stopVoiceNoteRecording,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.redAccent,
+                    side: const BorderSide(color: Colors.redAccent),
+                    minimumSize: const Size(0, 34),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: const VisualDensity(
+                      horizontal: -2,
+                      vertical: -2,
+                    ),
+                  ),
+                  icon: const Icon(Icons.stop, size: 14),
+                  label: const Text('Stop'),
+                )
+              else if (hasPendingVoice) ...[
+                TextButton.icon(
+                  onPressed:
+                      (isSaving || isSendingVoice || pendingVoicePath.isEmpty)
+                      ? null
+                      : () => _togglePendingVoicePlayback(pendingVoicePath),
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(0, 26),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: const VisualDensity(
+                      horizontal: -2,
+                      vertical: -3,
+                    ),
+                  ),
+                  icon: isPendingVoiceLoading
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white70,
+                          ),
+                        )
+                      : Icon(
+                          isPendingVoicePlaying ? Icons.pause : Icons.play_arrow,
+                          size: 16,
+                        ),
+                  label: Text(
+                    isPendingVoicePlaying ? 'Pause preview' : 'Play preview',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: (isSaving || isSendingVoice)
+                      ? null
+                      : () => _clearPendingVoiceNote(deleteFile: true),
+                  child: const Text('Cancel'),
+                ),
+              ] else
+                OutlinedButton.icon(
+                  onPressed:
+                      (isSaving || isSendingVoice || selectedMealId == null)
+                      ? null
+                      : _startVoiceNoteRecording,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white24),
+                    minimumSize: const Size(0, 34),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: const VisualDensity(
+                      horizontal: -2,
+                      vertical: -2,
+                    ),
+                  ),
+                  icon: const Icon(Icons.mic, size: 14),
+                  label: const Text('Record voice'),
+                ),
+            ],
+          ),
+          if (isRecordingVoice) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: const [
+                Icon(
+                  Icons.fiber_manual_record,
+                  size: 10,
+                  color: Colors.redAccent,
+                ),
+                SizedBox(width: 6),
+                Text(
+                  'Recording...',
+                  style: TextStyle(
+                    color: Colors.redAccent,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(width: 8),
+                _AudioWaveBars(
+                  color: Colors.redAccent,
+                  barCount: 6,
+                  minHeight: 4,
+                  maxHeight: 14,
+                  barWidth: 3,
+                  gap: 2,
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 12),
           if (_loadingComments)
             const Center(
               child: SizedBox(
@@ -1241,190 +1425,6 @@ class _ExpertClientDietReviewPageState
                 ),
               );
             }),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _commentController,
-            minLines: 2,
-            maxLines: 6,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: selectedMealId == null
-                  ? 'Select a logged meal first...'
-                  : 'Write review notes for the client...',
-              hintStyle: const TextStyle(color: Colors.white38),
-              filled: true,
-              fillColor: Colors.white.withValues(alpha: 0.03),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Colors.white24),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Colors.white24),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppColors.accent),
-              ),
-              isDense: true,
-              contentPadding: const EdgeInsets.all(10),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              FilledButton.icon(
-                onPressed:
-                    (isAnySending ||
-                        selectedMealId == null ||
-                        _isRecordingVoiceNote)
-                    ? null
-                    : _handlePrimarySend,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(0, 34),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: const VisualDensity(
-                    horizontal: -2,
-                    vertical: -2,
-                  ),
-                ),
-                icon: isAnySending
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.send, size: 14),
-                label: Text(isAnySending ? 'Sending...' : 'Send'),
-              ),
-              const SizedBox(width: 8),
-              if (isRecordingVoice)
-                OutlinedButton.icon(
-                  onPressed: (isSaving || isSendingVoice)
-                      ? null
-                      : _stopVoiceNoteRecording,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.redAccent,
-                    side: const BorderSide(color: Colors.redAccent),
-                    minimumSize: const Size(0, 34),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: const VisualDensity(
-                      horizontal: -2,
-                      vertical: -2,
-                    ),
-                  ),
-                  icon: const Icon(Icons.stop, size: 14),
-                  label: const Text('Stop'),
-                )
-              else if (hasPendingVoice) ...[
-                TextButton.icon(
-                  onPressed:
-                      (isSaving || isSendingVoice || pendingVoicePath.isEmpty)
-                      ? null
-                      : () => _togglePendingVoicePlayback(pendingVoicePath),
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(0, 26),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: const VisualDensity(
-                      horizontal: -2,
-                      vertical: -3,
-                    ),
-                  ),
-                  icon: isPendingVoiceLoading
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white70,
-                          ),
-                        )
-                      : Icon(
-                          isPendingVoicePlaying ? Icons.pause : Icons.play_arrow,
-                          size: 16,
-                        ),
-                  label: Text(
-                    isPendingVoicePlaying ? 'Pause preview' : 'Play preview',
-                  ),
-                ),
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: (isSaving || isSendingVoice)
-                      ? null
-                      : () => _clearPendingVoiceNote(deleteFile: true),
-                  child: const Text('Cancel'),
-                ),
-              ] else
-                OutlinedButton.icon(
-                  onPressed:
-                      (isSaving || isSendingVoice || selectedMealId == null)
-                      ? null
-                      : _startVoiceNoteRecording,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white24),
-                    minimumSize: const Size(0, 34),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: const VisualDensity(
-                      horizontal: -2,
-                      vertical: -2,
-                    ),
-                  ),
-                  icon: const Icon(Icons.mic, size: 14),
-                  label: const Text('Record voice'),
-                ),
-            ],
-          ),
-          if (isRecordingVoice) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: const [
-                Icon(
-                  Icons.fiber_manual_record,
-                  size: 10,
-                  color: Colors.redAccent,
-                ),
-                SizedBox(width: 6),
-                Text(
-                  'Recording...',
-                  style: TextStyle(
-                    color: Colors.redAccent,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                SizedBox(width: 8),
-                _AudioWaveBars(
-                  color: Colors.redAccent,
-                  barCount: 6,
-                  minHeight: 4,
-                  maxHeight: 14,
-                  barWidth: 3,
-                  gap: 2,
-                ),
-              ],
-            ),
-          ],
         ],
       ),
     );
