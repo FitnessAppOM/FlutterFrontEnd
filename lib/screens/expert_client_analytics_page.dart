@@ -358,13 +358,12 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
     final wearables = _map(_data['wearables']);
     final whoop = _map(wearables['whoop']);
     final fitbit = _map(wearables['fitbit']);
-    final whoopLatest = _map(whoop['latest_metrics']);
-    final fitbitLatest = _map(fitbit['latest_metrics']);
     final whoopLinked = whoop['linked'] == true;
     final fitbitLinked = fitbit['linked'] == true;
-    final whoopHasData = whoop['has_metrics'] == true || whoopLatest.isNotEmpty;
-    final fitbitHasData =
-        fitbit['has_metrics'] == true || fitbitLatest.isNotEmpty;
+    final whoopHasData = whoop['has_metrics'] == true;
+    final fitbitHasData = fitbit['has_metrics'] == true;
+    final hasAnyWearable =
+        whoopLinked || whoopHasData || fitbitLinked || fitbitHasData;
 
     String wearableLabel({
       required bool linked,
@@ -372,98 +371,79 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
       required String? status,
     }) {
       final normalized = (status ?? '').trim().toLowerCase();
-      if (linked || normalized == 'connected') return 'Connected';
-      if (hasData || normalized == 'data_only') return 'Data available';
+      if (linked ||
+          hasData ||
+          normalized == 'connected' ||
+          normalized == 'data_only') {
+        return 'Connected';
+      }
       return 'Not connected';
     }
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Wearables',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-            ),
+        onTap: hasAnyWearable
+            ? () => _openWeeklyDetail(ExpertWeeklyMetricsDetailType.wearables)
+            : null,
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.cardDark,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white10),
           ),
-          const SizedBox(height: 8),
-          _InfoRow(
-            label: 'Whoop',
-            value: wearableLabel(
-              linked: whoopLinked,
-              hasData: whoopHasData,
-              status: whoop['status']?.toString(),
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Wearables',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  if (hasAnyWearable)
+                    const Icon(
+                      Icons.chevron_right,
+                      color: Colors.white54,
+                      size: 20,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _InfoRow(
+                label: 'Whoop',
+                value: wearableLabel(
+                  linked: whoopLinked,
+                  hasData: whoopHasData,
+                  status: whoop['status']?.toString(),
+                ),
+              ),
+              _InfoRow(
+                label: 'Fitbit',
+                value: wearableLabel(
+                  linked: fitbitLinked,
+                  hasData: fitbitHasData,
+                  status: fitbit['status']?.toString(),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                hasAnyWearable
+                    ? 'Tap to open weekly wearable charts'
+                    : 'No wearable connection detected.',
+                style: const TextStyle(color: Colors.white54, fontSize: 11),
+              ),
+            ],
           ),
-          if (whoopLinked || whoopHasData) ...[
-            _InfoRow(
-              label: 'Whoop recovery',
-              value: whoopLatest['recovery_score']?.toString() ?? '-',
-            ),
-            _InfoRow(
-              label: 'Whoop strain',
-              value: whoopLatest['strain']?.toString() ?? '-',
-            ),
-            _InfoRow(
-              label: 'Whoop resting HR',
-              value: whoopLatest['resting_hr']?.toString() ?? '-',
-            ),
-            _InfoRow(
-              label: 'Whoop HRV',
-              value: whoopLatest['hrv_rmssd']?.toString() ?? '-',
-            ),
-            _InfoRow(
-              label: 'Whoop sleep',
-              value: whoopLatest['total_sleep_minutes'] == null
-                  ? '-'
-                  : '${(_toInt(whoopLatest['total_sleep_minutes']) / 60).toStringAsFixed(1)} h',
-            ),
-          ],
-          const SizedBox(height: 8),
-          Divider(color: Colors.white.withValues(alpha: 0.1), height: 1),
-          const SizedBox(height: 8),
-          _InfoRow(
-            label: 'Fitbit',
-            value: wearableLabel(
-              linked: fitbitLinked,
-              hasData: fitbitHasData,
-              status: fitbit['status']?.toString(),
-            ),
-          ),
-          if (fitbitLinked || fitbitHasData) ...[
-            _InfoRow(
-              label: 'Fitbit steps',
-              value: fitbitLatest['steps']?.toString() ?? '-',
-            ),
-            _InfoRow(
-              label: 'Fitbit calories',
-              value: fitbitLatest['calories_out']?.toString() ?? '-',
-            ),
-            _InfoRow(
-              label: 'Fitbit resting HR',
-              value: fitbitLatest['resting_hr']?.toString() ?? '-',
-            ),
-            _InfoRow(
-              label: 'Fitbit HRV',
-              value: fitbitLatest['hrv_daily_rmssd']?.toString() ?? '-',
-            ),
-            _InfoRow(
-              label: 'Fitbit sleep',
-              value: fitbitLatest['sleep_minutes_asleep'] == null
-                  ? '-'
-                  : '${(_toInt(fitbitLatest['sleep_minutes_asleep']) / 60).toStringAsFixed(1)} h',
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
