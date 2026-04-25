@@ -339,6 +339,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
             isVoiceNote: hasVoiceReply,
             hasNutritionNote: hasNutritionNote,
             isPinned: reply.isPinned,
+            isNew: reply.clientSeenAt == null,
             voiceNoteUrl: hasVoiceReply ? reply.voiceNoteUrl : null,
           ),
         );
@@ -371,6 +372,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
             isVoiceNote: hasVoiceNote,
             hasNutritionNote: hasNutritionNote,
             isPinned: review?.isPinned == true,
+            isNew: review?.clientSeenAt == null,
             voiceNoteUrl: hasVoiceNote ? review?.voiceNoteUrl : null,
           ),
         );
@@ -395,6 +397,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
           isVoiceNote: hasVoice,
           hasNutritionNote: true,
           isPinned: comment.isPinned,
+          isNew: comment.clientSeenAt == null,
           voiceNoteUrl: hasVoice ? comment.voiceNoteUrl : null,
         ),
       );
@@ -423,6 +426,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
             dateLabel: _formatFeedDate(entry.timestamp),
             isVoiceNote: entry.isVoiceNote,
             hasNutritionNote: entry.hasNutritionNote,
+            isNew: entry.isNew,
             voiceNoteUrl: entry.voiceNoteUrl,
           ),
         )
@@ -497,6 +501,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
                 isVoiceNote: entry.isVoiceNote,
                 hasNutritionNote: entry.hasNutritionNote,
                 isPinned: entry.isPinned,
+                isNew: entry.isNew,
                 isVoiceLoading: _isVoiceNoteLoading(entry.voiceNoteUrl),
                 isVoicePlaying: _isVoiceNotePlaying(entry.voiceNoteUrl),
                 onVoiceToggle: entry.isVoiceNote
@@ -763,6 +768,7 @@ class _PinnedCorrectionRow extends StatelessWidget {
         isVoiceNote: correction.isVoiceNote,
         hasNutritionNote: correction.hasNutritionNote,
         isPinned: true,
+        isNew: correction.isNew,
         isVoiceLoading: isVoiceLoading,
         isVoicePlaying: isVoicePlaying,
         onVoiceToggle: onVoiceToggle,
@@ -779,6 +785,7 @@ class _FeedbackEntryCard extends StatelessWidget {
     required this.isVoiceNote,
     required this.hasNutritionNote,
     required this.isPinned,
+    required this.isNew,
     required this.isVoiceLoading,
     required this.isVoicePlaying,
     this.onVoiceToggle,
@@ -790,6 +797,7 @@ class _FeedbackEntryCard extends StatelessWidget {
   final bool isVoiceNote;
   final bool hasNutritionNote;
   final bool isPinned;
+  final bool isNew;
   final bool isVoiceLoading;
   final bool isVoicePlaying;
   final VoidCallback? onVoiceToggle;
@@ -801,101 +809,128 @@ class _FeedbackEntryCard extends StatelessWidget {
     final statusColor = isPinned ? Colors.orangeAccent : Colors.white54;
     final statusLabel = isPinned ? 'Pinned reply' : 'Coach reply';
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  workoutLabel,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              Text(
-                dateLabel,
-                style: const TextStyle(color: Colors.white54, fontSize: 12),
-              ),
-            ],
+    return Stack(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.cardDark,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white10),
           ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 5,
-            runSpacing: 4,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _MetaChip(
-                label: isVoiceNote
-                    ? t.translate('coach_chip_voice_note')
-                    : t.translate('coach_chip_text_note'),
-              ),
-              if (hasNutritionNote)
-                _MetaChip(label: t.translate('coach_chip_nutrition_note')),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(message, style: const TextStyle(color: Colors.white70)),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              if (isVoiceNote && onVoiceToggle != null) ...[
-                TextButton.icon(
-                  onPressed: isVoiceLoading ? null : onVoiceToggle,
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(0, 26),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: const VisualDensity(
-                      horizontal: -2,
-                      vertical: -3,
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      workoutLabel,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                  icon: isVoiceLoading
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white70,
-                          ),
-                        )
-                      : (isVoicePlaying
-                            ? const _AudioWaveBars(
+                  Text(
+                    dateLabel,
+                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 5,
+                runSpacing: 4,
+                children: [
+                  _MetaChip(
+                    label: isVoiceNote
+                        ? t.translate('coach_chip_voice_note')
+                        : t.translate('coach_chip_text_note'),
+                  ),
+                  if (hasNutritionNote)
+                    _MetaChip(label: t.translate('coach_chip_nutrition_note')),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(message, style: const TextStyle(color: Colors.white70)),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (isVoiceNote && onVoiceToggle != null) ...[
+                    TextButton.icon(
+                      onPressed: isVoiceLoading ? null : onVoiceToggle,
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(0, 26),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: const VisualDensity(
+                          horizontal: -2,
+                          vertical: -3,
+                        ),
+                      ),
+                      icon: isVoiceLoading
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
                                 color: Colors.white70,
-                                barCount: 4,
-                                minHeight: 4,
-                                maxHeight: 12,
-                                barWidth: 2.5,
-                                gap: 1.5,
-                              )
-                            : const Icon(Icons.play_arrow, size: 16)),
-                  label: Text(isVoicePlaying ? 'Pause' : 'Play'),
-                ),
-                const SizedBox(width: 6),
-              ],
-              Icon(statusIcon, color: statusColor, size: 16),
-              const SizedBox(width: 4),
-              Text(
-                statusLabel,
-                style: TextStyle(color: statusColor, fontSize: 12),
+                              ),
+                            )
+                          : (isVoicePlaying
+                                ? const _AudioWaveBars(
+                                    color: Colors.white70,
+                                    barCount: 4,
+                                    minHeight: 4,
+                                    maxHeight: 12,
+                                    barWidth: 2.5,
+                                    gap: 1.5,
+                                  )
+                                : const Icon(Icons.play_arrow, size: 16)),
+                      label: Text(isVoicePlaying ? 'Pause' : 'Play'),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  Icon(statusIcon, color: statusColor, size: 16),
+                  const SizedBox(width: 4),
+                  Text(
+                    statusLabel,
+                    style: TextStyle(color: statusColor, fontSize: 12),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
+        ),
+        if (isNew)
+          Positioned(
+            top: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: const BoxDecoration(
+                color: Colors.orangeAccent,
+                borderRadius: BorderRadius.only(
+                  topRight: Radius.circular(12),
+                  bottomLeft: Radius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'NEW',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -1003,6 +1038,7 @@ class _PinnedCorrection {
     required this.dateLabel,
     required this.isVoiceNote,
     required this.hasNutritionNote,
+    required this.isNew,
     required this.voiceNoteUrl,
   });
 
@@ -1011,6 +1047,7 @@ class _PinnedCorrection {
   final String dateLabel;
   final bool isVoiceNote;
   final bool hasNutritionNote;
+  final bool isNew;
   final String? voiceNoteUrl;
 }
 
@@ -1022,6 +1059,7 @@ class _FeedbackReplyEntry {
     required this.isVoiceNote,
     required this.hasNutritionNote,
     required this.isPinned,
+    required this.isNew,
     required this.voiceNoteUrl,
   });
 
@@ -1031,5 +1069,6 @@ class _FeedbackReplyEntry {
   final bool isVoiceNote;
   final bool hasNutritionNote;
   final bool isPinned;
+  final bool isNew;
   final String? voiceNoteUrl;
 }
