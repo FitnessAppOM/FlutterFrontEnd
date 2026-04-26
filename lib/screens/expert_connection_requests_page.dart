@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../services/coach/coach_support_chat_service.dart';
 import '../services/coach/progression_review_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_toast.dart';
@@ -17,7 +18,9 @@ class _ExpertConnectionRequestsPageState
     extends State<ExpertConnectionRequestsPage> {
   bool _loading = true;
   bool _loadingCoachPin = false;
+  bool _sendingBulkMessageToRed = false;
   String? _coachPin;
+  int _redStatusClientCount = 0;
   final Set<String> _actingRequestKeys = <String>{};
   CoachConnectionRequestSummary _summary = const CoachConnectionRequestSummary(
     items: <CoachConnectionRequestItem>[],
@@ -33,11 +36,19 @@ class _ExpertConnectionRequestsPageState
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final summary =
-          await ProgressionReviewService.fetchPendingConnectionRequests();
+      final results = await Future.wait([
+        ProgressionReviewService.fetchPendingConnectionRequests(),
+        ProgressionReviewService.fetchClients(),
+      ]);
+      final summary = results[0] as CoachConnectionRequestSummary;
+      final clients = results[1] as List<ProgressionClient>;
+      final redCount = clients.where((client) {
+        return (client.activityStatus ?? '').trim().toLowerCase() == 'red';
+      }).length;
       if (!mounted) return;
       setState(() {
         _summary = summary;
+        _redStatusClientCount = redCount;
       });
     } catch (e) {
       if (!mounted) return;
@@ -149,6 +160,99 @@ class _ExpertConnectionRequestsPageState
     });
   }
 
+  Future<void> _sendBulkMessageToRedClients() async {
+    if (_sendingBulkMessageToRed) return;
+    if (_redStatusClientCount <= 0) {
+      AppToast.show(
+        context,
+        'No red-status clients right now.',
+        type: AppToastType.info,
+      );
+      return;
+    }
+
+    final controller = TextEditingController();
+    final text = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Bulk Message'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'This will send to $_redStatusClientCount red-status clients.',
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: controller,
+                minLines: 3,
+                maxLines: 6,
+                decoration: const InputDecoration(
+                  hintText: 'Write your message',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final value = controller.text.trim();
+                if (value.isEmpty) return;
+                Navigator.of(ctx).pop(value);
+              },
+              child: const Text('Confirm Send'),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+
+    final message = (text ?? '').trim();
+    if (message.isEmpty) return;
+
+    setState(() => _sendingBulkMessageToRed = true);
+    try {
+      final result =
+          await CoachSupportChatService.sendCoachBulkMessageToRedClients(
+            text: message,
+          );
+      if (!mounted) return;
+      final sentRaw = result['sent_count'] ?? result['sentCount'];
+      final sentCount = int.tryParse(sentRaw?.toString() ?? '') ?? 0;
+      if (sentCount <= 0) {
+        AppToast.show(
+          context,
+          'No red-status clients available at send time.',
+          type: AppToastType.info,
+        );
+      } else {
+        AppToast.show(
+          context,
+          sentCount == 1 ? 'Sent to 1 client.' : 'Sent to $sentCount clients.',
+          type: AppToastType.success,
+        );
+      }
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _sendingBulkMessageToRed = false);
+    }
+  }
+
   String _formatDate(String? raw) {
     final value = (raw ?? '').trim();
     if (value.isEmpty) return 'Unknown date';
@@ -170,6 +274,88 @@ class _ExpertConnectionRequestsPageState
       appBar: AppBar(
         backgroundColor: AppColors.black,
         title: const Text('Inbox'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Center(
+              child: Material(
+                color: AppColors.cardDark,
+                borderRadius: BorderRadius.circular(10),
+                child: InkWell(
+                  onTap: _sendingBulkMessageToRed
+                      ? null
+                      : _sendBulkMessageToRedClients,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: Colors.redAccent.withValues(alpha: 0.45),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_sendingBulkMessageToRed)
+                          const SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.redAccent,
+                            ),
+                          )
+                        else
+                          const Icon(
+                            Icons.campaign_outlined,
+                            size: 14,
+                            color: Colors.redAccent,
+                          ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Bulk Message',
+                          style: TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.1,
+                          ),
+                        ),
+                        if (_redStatusClientCount > 0) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent.withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              _redStatusClientCount > 99
+                                  ? '99+'
+                                  : '$_redStatusClientCount',
+                              style: const TextStyle(
+                                color: Colors.redAccent,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
