@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
@@ -27,6 +28,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
   final Map<int, GlobalKey> _messageKeys = <int, GlobalKey>{};
   final AudioRecorder _audioRecorder = AudioRecorder();
   final AudioPlayer _voicePlayer = AudioPlayer();
+  final ImagePicker _imagePicker = ImagePicker();
   bool _loading = true;
   bool _loadingThread = false;
   bool _sending = false;
@@ -262,21 +264,50 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
     );
     if (!mounted || choice == null) return;
     if (choice == 'media') {
-      await _pickAttachment(const [
-        'jpg',
-        'jpeg',
-        'png',
-        'webp',
-        'gif',
-        'mp4',
-        'mov',
-        'm4v',
-        'webm',
-      ]);
+      await _pickMediaFromGallery();
       return;
     }
     if (choice == 'document') {
       await _pickAttachment(const ['pdf', 'doc', 'docx', 'txt', 'rtf']);
+    }
+  }
+
+  Future<void> _pickMediaFromGallery() async {
+    if (_sending || _isRecordingVoice) return;
+    try {
+      final picked = await _imagePicker.pickMedia();
+      if (!mounted || picked == null) return;
+
+      final ext = picked.path.trim().isEmpty
+          ? ''
+          : '.${picked.path.split('.').last.toLowerCase()}';
+      final type = _inferAttachmentType(extension: ext);
+      if (type == null || (type != 'image' && type != 'video')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unsupported media type.')),
+        );
+        return;
+      }
+
+      final previousVoicePath = _pendingAttachmentType == 'voice'
+          ? _pendingAttachmentFile?.path
+          : null;
+      setState(() {
+        _pendingAttachmentFile = File(picked.path);
+        _pendingAttachmentType = type;
+        _pendingAttachmentName = picked.name.trim().isEmpty
+            ? 'attachment$ext'
+            : picked.name.trim();
+        _activeVoiceKey = null;
+      });
+      if (previousVoicePath != null && previousVoicePath.trim().isNotEmpty) {
+        await _deleteLocalFile(previousVoicePath);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not open gallery: $e')));
     }
   }
 
