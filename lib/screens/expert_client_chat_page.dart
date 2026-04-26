@@ -1,8 +1,18 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../config/base_url.dart';
+import '../services/coach/chat_attachment_file_service.dart';
 import '../services/coach/coach_support_chat_service.dart';
+import '../services/coach/voice_note_audio_service.dart';
 import '../theme/app_theme.dart';
 
 class ExpertClientChatPage extends StatefulWidget {
@@ -21,16 +31,35 @@ class ExpertClientChatPage extends StatefulWidget {
 
 class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
   final TextEditingController _messageController = TextEditingController();
+  final Map<int, GlobalKey> _messageKeys = <int, GlobalKey>{};
+  final AudioRecorder _audioRecorder = AudioRecorder();
+  final AudioPlayer _voicePlayer = AudioPlayer();
   bool _loading = true;
   bool _sending = false;
+  bool _isRecordingVoice = false;
+  bool _openingAttachment = false;
   String? _error;
+  String? _recordingVoicePath;
+  File? _pendingAttachmentFile;
+  String? _pendingAttachmentType;
+  String? _pendingAttachmentName;
+  String? _activeVoiceKey;
   CoachSupportChatState? _chatState;
+  int? _focusedMessageId;
   Timer? _ticker;
+  StreamSubscription<PlayerState>? _voicePlayerSub;
 
   @override
   void initState() {
     super.initState();
     _loadChat();
+    _voicePlayerSub = _voicePlayer.playerStateStream.listen((state) {
+      if (!mounted) return;
+      if (!state.playing &&
+          state.processingState == ProcessingState.completed) {
+        setState(() => _activeVoiceKey = null);
+      }
+    });
     _ticker = Timer.periodic(const Duration(minutes: 1), (_) {
       if (!mounted) return;
       setState(() {});
@@ -40,6 +69,18 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
   @override
   void dispose() {
     _ticker?.cancel();
+    _voicePlayerSub?.cancel();
+    if (_isRecordingVoice) {
+      unawaited(_audioRecorder.stop());
+    }
+    unawaited(_audioRecorder.dispose());
+    unawaited(_voicePlayer.dispose());
+    final pendingVoicePath = _pendingAttachmentType == 'voice'
+        ? _pendingAttachmentFile?.path
+        : null;
+    if (pendingVoicePath != null && pendingVoicePath.trim().isNotEmpty) {
+      unawaited(_deleteLocalFile(pendingVoicePath));
+    }
     _messageController.dispose();
     super.dispose();
   }
@@ -69,24 +110,38 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
   }
 
   Future<void> _sendMessage() async {
-    if (_sending) return;
+    if (_sending || _isRecordingVoice) return;
     final text = _messageController.text.trim();
-    if (text.isEmpty) return;
+    final attachment = _pendingAttachmentFile;
+    final attachmentType = (_pendingAttachmentType ?? '').trim().toLowerCase();
+    if (text.isEmpty && attachment == null) return;
     setState(() {
       _sending = true;
       _error = null;
     });
     try {
-      final state = await CoachSupportChatService.sendCoachTextMessage(
+      final state = await CoachSupportChatService.sendCoachMessage(
         clientUserId: widget.clientUserId,
-        text: text,
+        text: text.isEmpty ? null : text,
+        messageType: attachment == null ? null : attachmentType,
+        attachment: attachment,
       );
       if (!mounted) return;
+      final oldVoicePath = _pendingAttachmentType == 'voice'
+          ? _pendingAttachmentFile?.path
+          : null;
       setState(() {
         _chatState = state;
         _sending = false;
         _messageController.clear();
+        _pendingAttachmentFile = null;
+        _pendingAttachmentType = null;
+        _pendingAttachmentName = null;
+        _activeVoiceKey = null;
       });
+      if (oldVoicePath != null && oldVoicePath.trim().isNotEmpty) {
+        await _deleteLocalFile(oldVoicePath);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -118,6 +173,492 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
     return '${hours}h ${minutes}m';
   }
 
+  String _formatBytes(int? value) {
+    if (value == null || value <= 0) return '--';
+    if (value < 1024) return '$value B';
+    if (value < 1024 * 1024) {
+      return '${(value / 1024).toStringAsFixed(1)} KB';
+    }
+    return '${(value / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  String? _normalizeAvatarUrl(String? rawValue) {
+    final raw = (rawValue ?? '').trim();
+    if (raw.isEmpty) return null;
+    final lower = raw.toLowerCase();
+    if (lower == 'null' || lower == 'none') return null;
+    if (lower.startsWith('http://') || lower.startsWith('https://')) {
+      return raw;
+    }
+    final base = ApiConfig.baseUrl.trim();
+    if (base.isEmpty) return null;
+    try {
+      final baseUri = Uri.parse(base.endsWith('/') ? base : '$base/');
+      return baseUri.resolve(raw).toString();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _firstNameOnly(String raw) {
+    final normalized = raw.trim();
+    if (normalized.isEmpty) return 'Client';
+    final parts = normalized
+        .split(RegExp(r'\\s+'))
+        .where((part) => part.trim().isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return 'Client';
+    return parts.first;
+  }
+
+  GlobalKey _messageKeyFor(int messageId) {
+    return _messageKeys.putIfAbsent(messageId, () => GlobalKey());
+  }
+
+  Future<void> _reportMessage(CoachSupportChatMessage message) async {
+    try {
+      await CoachSupportChatService.reportMessage(messageId: message.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Message reported.')));
+    } catch (e) {
+      if (!mounted) return;
+      final text = e.toString().replaceFirst('Exception: ', '');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(text.isEmpty ? 'Failed to report message.' : text),
+        ),
+      );
+    }
+  }
+
+  Future<void> _deleteLocalFile(String path) async {
+    final normalized = path.trim();
+    if (normalized.isEmpty) return;
+    try {
+      final file = File(normalized);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (_) {}
+  }
+
+  String? _inferAttachmentType({String? extension, String? mimeType}) {
+    final ext = (extension ?? '').trim().toLowerCase();
+    final mime = (mimeType ?? '').trim().toLowerCase();
+    const imageExt = {'.jpg', '.jpeg', '.png', '.webp', '.gif'};
+    const videoExt = {'.mp4', '.mov', '.m4v', '.webm'};
+    const voiceExt = {'.aac', '.m4a', '.mp3', '.wav', '.ogg', '.webm'};
+    const docExt = {'.pdf', '.doc', '.docx', '.txt', '.rtf'};
+
+    if (imageExt.contains(ext) || mime.startsWith('image/')) return 'image';
+    if (videoExt.contains(ext) || mime.startsWith('video/')) return 'video';
+    if (voiceExt.contains(ext) || mime.startsWith('audio/')) return 'voice';
+    if (docExt.contains(ext)) return 'document';
+    if (mime == 'application/pdf' ||
+        mime == 'application/msword' ||
+        mime ==
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        mime == 'text/plain' ||
+        mime == 'application/rtf' ||
+        mime == 'text/rtf') {
+      return 'document';
+    }
+    return null;
+  }
+
+  Future<void> _pickAttachment() async {
+    if (_sending || _isRecordingVoice) return;
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: false,
+      withData: false,
+      type: FileType.custom,
+      allowedExtensions: const [
+        'jpg',
+        'jpeg',
+        'png',
+        'webp',
+        'gif',
+        'mp4',
+        'mov',
+        'm4v',
+        'webm',
+        'pdf',
+        'doc',
+        'docx',
+        'txt',
+        'rtf',
+        'aac',
+        'm4a',
+        'mp3',
+        'wav',
+        'ogg',
+      ],
+    );
+    if (!mounted) return;
+    final picked = result?.files.isNotEmpty == true
+        ? result!.files.first
+        : null;
+    if (picked == null || (picked.path ?? '').trim().isEmpty) return;
+
+    final ext = picked.extension == null || picked.extension!.trim().isEmpty
+        ? ''
+        : '.${picked.extension!.trim().toLowerCase()}';
+    final type = _inferAttachmentType(extension: ext);
+    if (type == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Unsupported file type.')));
+      return;
+    }
+
+    final previousVoicePath = _pendingAttachmentType == 'voice'
+        ? _pendingAttachmentFile?.path
+        : null;
+    setState(() {
+      _pendingAttachmentFile = File(picked.path!);
+      _pendingAttachmentType = type;
+      _pendingAttachmentName = picked.name.trim().isEmpty
+          ? 'attachment$ext'
+          : picked.name.trim();
+      _activeVoiceKey = null;
+    });
+    if (previousVoicePath != null && previousVoicePath.trim().isNotEmpty) {
+      await _deleteLocalFile(previousVoicePath);
+    }
+  }
+
+  Future<void> _startVoiceRecording() async {
+    if (_sending || _isRecordingVoice) return;
+    if (_pendingAttachmentFile != null && _pendingAttachmentType != 'voice') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Remove selected attachment first.')),
+      );
+      return;
+    }
+    try {
+      final hasPermission = await _audioRecorder.hasPermission();
+      if (!hasPermission) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Microphone permission is required.')),
+        );
+        return;
+      }
+      final tempDir = await getTemporaryDirectory();
+      final path =
+          '${tempDir.path}/support_chat_voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      await _audioRecorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 128000),
+        path: path,
+      );
+      if (!mounted) return;
+      setState(() {
+        _isRecordingVoice = true;
+        _recordingVoicePath = path;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not start recording: $e')));
+    }
+  }
+
+  Future<void> _finishVoiceRecording({bool discard = false}) async {
+    if (!_isRecordingVoice) return;
+    String? recordedPath;
+    try {
+      recordedPath = await _audioRecorder.stop();
+    } catch (_) {}
+    final fallbackPath = _recordingVoicePath;
+    if (!mounted) return;
+    setState(() {
+      _isRecordingVoice = false;
+      _recordingVoicePath = null;
+    });
+    final finalPath = (recordedPath ?? fallbackPath ?? '').trim();
+    if (finalPath.isEmpty) {
+      return;
+    }
+    if (discard) {
+      await _deleteLocalFile(finalPath);
+      return;
+    }
+    final previousVoicePath = _pendingAttachmentType == 'voice'
+        ? _pendingAttachmentFile?.path
+        : null;
+    setState(() {
+      _pendingAttachmentFile = File(finalPath);
+      _pendingAttachmentType = 'voice';
+      _pendingAttachmentName = 'voice_note.m4a';
+      _activeVoiceKey = null;
+    });
+    if (previousVoicePath != null &&
+        previousVoicePath.trim().isNotEmpty &&
+        previousVoicePath != finalPath) {
+      await _deleteLocalFile(previousVoicePath);
+    }
+  }
+
+  Future<void> _clearPendingAttachment() async {
+    final oldVoicePath = _pendingAttachmentType == 'voice'
+        ? _pendingAttachmentFile?.path
+        : null;
+    setState(() {
+      _pendingAttachmentFile = null;
+      _pendingAttachmentType = null;
+      _pendingAttachmentName = null;
+      _activeVoiceKey = null;
+    });
+    try {
+      await _voicePlayer.stop();
+    } catch (_) {}
+    if (oldVoicePath != null && oldVoicePath.trim().isNotEmpty) {
+      await _deleteLocalFile(oldVoicePath);
+    }
+  }
+
+  Future<void> _togglePendingVoicePlayback() async {
+    final file = _pendingAttachmentFile;
+    if (_pendingAttachmentType != 'voice' || file == null) return;
+    final key = 'pending:${file.path}';
+    try {
+      if (_activeVoiceKey == key && _voicePlayer.playing) {
+        await _voicePlayer.pause();
+        if (!mounted) return;
+        setState(() => _activeVoiceKey = null);
+        return;
+      }
+      if (_activeVoiceKey != key) {
+        await _voicePlayer.setFilePath(file.path);
+      }
+      await _voicePlayer.play();
+      if (!mounted) return;
+      setState(() => _activeVoiceKey = key);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not play voice note: $e')));
+    }
+  }
+
+  Future<void> _toggleMessageVoicePlayback(
+    CoachSupportChatMessage message,
+  ) async {
+    final voiceUrl = (message.attachmentUrl ?? '').trim();
+    if (voiceUrl.isEmpty) return;
+    final key = 'message:${message.id}';
+    try {
+      if (_activeVoiceKey == key && _voicePlayer.playing) {
+        await _voicePlayer.pause();
+        if (!mounted) return;
+        setState(() => _activeVoiceKey = null);
+        return;
+      }
+      if (_activeVoiceKey != key) {
+        final localPath = await VoiceNoteAudioService.prepareLocalVoiceNoteFile(
+          voiceUrl,
+        );
+        await _voicePlayer.setFilePath(localPath);
+      }
+      await _voicePlayer.play();
+      if (!mounted) return;
+      setState(() => _activeVoiceKey = key);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not play voice note: $e')));
+    }
+  }
+
+  Future<void> _openImageAttachment(CoachSupportChatMessage message) async {
+    final url = (message.attachmentUrl ?? '').trim();
+    if (url.isEmpty || _openingAttachment) return;
+    setState(() => _openingAttachment = true);
+    try {
+      final localPath =
+          await ChatAttachmentFileService.prepareLocalAttachmentFile(
+            url,
+            suggestedFileName: message.attachmentFilename,
+            fallbackExtension: '.jpg',
+          );
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierColor: Colors.black.withValues(alpha: 0.92),
+        builder: (dialogContext) {
+          return Dialog(
+            backgroundColor: Colors.black,
+            insetPadding: const EdgeInsets.all(12),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: InteractiveViewer(
+                    minScale: 0.8,
+                    maxScale: 4.0,
+                    child: Center(
+                      child: Image.file(File(localPath), fit: BoxFit.contain),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not open image: $e')));
+    } finally {
+      if (mounted) {
+        setState(() => _openingAttachment = false);
+      }
+    }
+  }
+
+  Future<void> _openDocumentAttachment(CoachSupportChatMessage message) async {
+    final url = (message.attachmentUrl ?? '').trim();
+    if (url.isEmpty || _openingAttachment) return;
+    setState(() => _openingAttachment = true);
+    try {
+      final localPath =
+          await ChatAttachmentFileService.prepareLocalAttachmentFile(
+            url,
+            suggestedFileName: message.attachmentFilename,
+            fallbackExtension: '.pdf',
+          );
+      final opened = await launchUrl(
+        Uri.file(localPath),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened) {
+        throw Exception('Could not open downloaded document.');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not open document: $e')));
+    } finally {
+      if (mounted) {
+        setState(() => _openingAttachment = false);
+      }
+    }
+  }
+
+  Future<void> _openVideoAttachment(CoachSupportChatMessage message) async {
+    final url = (message.attachmentUrl ?? '').trim();
+    if (url.isEmpty || _openingAttachment) return;
+    setState(() => _openingAttachment = true);
+    try {
+      final uri = Uri.parse(url);
+      final opened = await launchUrl(uri, mode: LaunchMode.inAppWebView);
+      if (!opened) {
+        throw Exception('Could not open video.');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not open video: $e')));
+    } finally {
+      if (mounted) {
+        setState(() => _openingAttachment = false);
+      }
+    }
+  }
+
+  Future<void> _onMessageLongPress(CoachSupportChatMessage message) async {
+    final key = _messageKeyFor(message.id);
+    final ctx = key.currentContext;
+    if (ctx != null) {
+      await Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        alignment: 0.32,
+      );
+    }
+    if (!mounted) return;
+    setState(() => _focusedMessageId = message.id);
+
+    final isOwn = message.isFromCoach;
+    final canReport =
+        !isOwn &&
+        message.senderUserId != null &&
+        (message.senderRole == 'client' || message.senderRole == 'coach');
+
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.cardDark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(
+                  Icons.copy_all_outlined,
+                  color: Colors.white70,
+                ),
+                title: const Text(
+                  'Copy',
+                  style: TextStyle(color: Colors.white),
+                ),
+                onTap: () => Navigator.of(sheetContext).pop('copy'),
+              ),
+              if (canReport)
+                ListTile(
+                  leading: const Icon(
+                    Icons.flag_outlined,
+                    color: Colors.orangeAccent,
+                  ),
+                  title: const Text(
+                    'Report',
+                    style: TextStyle(color: Colors.orangeAccent),
+                  ),
+                  onTap: () => Navigator.of(sheetContext).pop('report'),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (!mounted) return;
+    if (action == 'copy') {
+      await Clipboard.setData(ClipboardData(text: message.messageText));
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Message copied.')));
+    } else if (action == 'report' && canReport) {
+      await _reportMessage(message);
+    }
+
+    if (mounted) {
+      setState(() => _focusedMessageId = null);
+    }
+  }
+
   String _buildSlaLine(CoachSupportChatSla sla) {
     if (sla.status == 'waiting_for_coach') {
       final dueAt = sla.expectedResponseDueAt;
@@ -130,12 +671,15 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
       return 'Expected response window exceeded.';
     }
     if (sla.status == 'responded') {
-      return 'Coach responded.';
+      return 'Thread active.';
     }
     return 'Expected response within: ${sla.targetWindowHoursMin}-${sla.targetWindowHoursMax}h';
   }
 
   Widget _buildHeader(CoachSupportChatState state) {
+    final thread = state.thread;
+    final clientName = _firstNameOnly(thread?.clientName ?? widget.clientName);
+    final clientAvatarUrl = _normalizeAvatarUrl(thread?.clientAvatarUrl);
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 10),
       padding: const EdgeInsets.all(12),
@@ -147,13 +691,38 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Support thread with ${widget.clientName}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-            ),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 16,
+                backgroundColor: Colors.white10,
+                foregroundImage: clientAvatarUrl != null
+                    ? NetworkImage(clientAvatarUrl)
+                    : null,
+                child: clientAvatarUrl == null
+                    ? Text(
+                        clientName.isEmpty
+                            ? 'C'
+                            : clientName.substring(0, 1).toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Support thread with $clientName',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           Text(
@@ -163,11 +732,6 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Target response window: ${state.sla.targetWindowHoursMin}-${state.sla.targetWindowHoursMax} hours',
-            style: const TextStyle(color: Colors.white54, fontSize: 11),
           ),
         ],
       ),
@@ -182,45 +746,213 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
     final borderColor = isCoach
         ? AppColors.accent.withValues(alpha: 0.6)
         : Colors.white10;
+    final isFocused = _focusedMessageId == message.id;
+    final focusColor = Colors.orangeAccent.withValues(alpha: 0.75);
 
     return Align(
       alignment: isCoach ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 320),
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-        decoration: BoxDecoration(
-          color: bubbleColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: borderColor),
-        ),
-        child: Column(
-          crossAxisAlignment: isCoach
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.start,
-          children: [
-            if (!isCoach)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  message.senderName,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
+      child: InkWell(
+        key: _messageKeyFor(message.id),
+        borderRadius: BorderRadius.circular(12),
+        onLongPress: () => _onMessageLongPress(message),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 320),
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+          decoration: BoxDecoration(
+            color: bubbleColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: isFocused ? focusColor : borderColor),
+          ),
+          child: Column(
+            crossAxisAlignment: isCoach
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
+            children: [
+              if (!isCoach)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    message.senderName,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
+              if (message.messageText.isNotEmpty)
+                Text(
+                  message.messageText,
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                ),
+              if (message.hasAttachment && message.isImage) ...[
+                if (message.messageText.isNotEmpty) const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: () => _openImageAttachment(message),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(
+                      message.attachmentUrl!,
+                      width: 210,
+                      height: 150,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) {
+                        return Container(
+                          width: 210,
+                          height: 150,
+                          color: Colors.white10,
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.broken_image_outlined,
+                            color: Colors.white54,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ] else if (message.hasAttachment && message.isVideo) ...[
+                if (message.messageText.isNotEmpty) const SizedBox(height: 8),
+                InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () => _openVideoAttachment(message),
+                  child: Container(
+                    width: 220,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.play_circle_fill_rounded,
+                          color: Colors.white70,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            message.attachmentFilename?.trim().isNotEmpty ==
+                                    true
+                                ? message.attachmentFilename!
+                                : 'Video attachment',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ] else if (message.hasAttachment && message.isVoice) ...[
+                if (message.messageText.isNotEmpty) const SizedBox(height: 8),
+                InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () => _toggleMessageVoicePlayback(message),
+                  child: Container(
+                    width: 220,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _activeVoiceKey == 'message:${message.id}' &&
+                                  _voicePlayer.playing
+                              ? Icons.pause_circle_filled
+                              : Icons.play_circle_fill,
+                          color: Colors.white70,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            message.attachmentFilename?.trim().isNotEmpty ==
+                                    true
+                                ? message.attachmentFilename!
+                                : 'Voice note',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ] else if (message.hasAttachment && message.isDocument) ...[
+                if (message.messageText.isNotEmpty) const SizedBox(height: 8),
+                InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () => _openDocumentAttachment(message),
+                  child: Container(
+                    width: 220,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.description_outlined,
+                          color: Colors.white70,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                message.attachmentFilename?.trim().isNotEmpty ==
+                                        true
+                                    ? message.attachmentFilename!
+                                    : 'Document',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _formatBytes(message.attachmentSizeBytes),
+                                style: const TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 5),
+              Text(
+                _formatDateTime(message.createdAt),
+                style: const TextStyle(color: Colors.white54, fontSize: 10),
               ),
-            Text(
-              message.messageText,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _formatDateTime(message.createdAt),
-              style: const TextStyle(color: Colors.white54, fontSize: 10),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -290,68 +1022,221 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
 
   Widget _buildComposer() {
     final disabled = _loading || _sending || _chatState?.thread == null;
+    final sendDisabled =
+        disabled ||
+        _isRecordingVoice ||
+        (_messageController.text.trim().isEmpty &&
+            _pendingAttachmentFile == null);
+    final hasPending = _pendingAttachmentFile != null;
+    final pendingType = (_pendingAttachmentType ?? '').trim().toLowerCase();
 
     return SafeArea(
       top: false,
       child: Container(
         color: AppColors.black,
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              child: TextField(
-                controller: _messageController,
-                enabled: !disabled,
-                minLines: 1,
-                maxLines: 5,
-                textInputAction: TextInputAction.newline,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: disabled ? 'Chat unavailable' : 'Write a message',
-                  hintStyle: const TextStyle(color: Colors.white38),
-                  filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.04),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.14),
+            if (hasPending)
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      pendingType == 'image'
+                          ? Icons.image_outlined
+                          : pendingType == 'video'
+                          ? Icons.videocam_outlined
+                          : pendingType == 'voice'
+                          ? Icons.mic_none_rounded
+                          : Icons.description_outlined,
+                      color: Colors.white70,
+                      size: 18,
                     ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.14),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        (_pendingAttachmentName ?? 'Attachment').trim(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: AppColors.accent),
-                  ),
+                    if (pendingType == 'voice')
+                      IconButton(
+                        onPressed: _sending
+                            ? null
+                            : _togglePendingVoicePlayback,
+                        iconSize: 20,
+                        color: Colors.white70,
+                        splashRadius: 18,
+                        icon: Icon(
+                          _activeVoiceKey ==
+                                      'pending:${_pendingAttachmentFile?.path}' &&
+                                  _voicePlayer.playing
+                              ? Icons.pause_circle_filled
+                              : Icons.play_circle_fill,
+                        ),
+                      ),
+                    IconButton(
+                      onPressed: _sending ? null : _clearPendingAttachment,
+                      iconSize: 18,
+                      color: Colors.orangeAccent,
+                      splashRadius: 18,
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            ElevatedButton(
-              onPressed: disabled ? null : _sendMessage,
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(72, 44),
-                backgroundColor: AppColors.accent,
-                foregroundColor: Colors.white,
-              ),
-              child: _sending
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
+            if (_isRecordingVoice)
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: Colors.redAccent.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: const Row(
+                  children: [
+                    SizedBox(
+                      width: 12,
+                      height: 12,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: Colors.redAccent,
                       ),
-                    )
-                  : const Text('Send'),
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Recording voice... release to keep',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            Row(
+              children: [
+                IconButton(
+                  onPressed: disabled || _isRecordingVoice
+                      ? null
+                      : _pickAttachment,
+                  tooltip: 'Attach',
+                  icon: const Icon(Icons.attach_file_rounded),
+                  color: Colors.white70,
+                ),
+                GestureDetector(
+                  onLongPressStart: disabled
+                      ? null
+                      : (_) => _startVoiceRecording(),
+                  onLongPressEnd: disabled
+                      ? null
+                      : (_) => _finishVoiceRecording(),
+                  onLongPressCancel: disabled
+                      ? null
+                      : () => _finishVoiceRecording(discard: true),
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: _isRecordingVoice
+                          ? Colors.redAccent.withValues(alpha: 0.25)
+                          : Colors.white.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(19),
+                      border: Border.all(
+                        color: _isRecordingVoice
+                            ? Colors.redAccent.withValues(alpha: 0.7)
+                            : Colors.white10,
+                      ),
+                    ),
+                    child: Icon(
+                      _isRecordingVoice ? Icons.mic : Icons.mic_none_rounded,
+                      color: _isRecordingVoice
+                          ? Colors.redAccent
+                          : Colors.white70,
+                      size: 18,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _messageController,
+                    enabled: !disabled,
+                    minLines: 1,
+                    maxLines: 5,
+                    textInputAction: TextInputAction.newline,
+                    onChanged: (_) => setState(() {}),
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: disabled
+                          ? 'Chat unavailable'
+                          : 'Write a message',
+                      hintStyle: const TextStyle(color: Colors.white38),
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.04),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.14),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.14),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppColors.accent),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: sendDisabled ? null : _sendMessage,
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(56, 44),
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                  ),
+                  child: _sending
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('🚀', style: TextStyle(fontSize: 18)),
+                ),
+              ],
             ),
           ],
         ),

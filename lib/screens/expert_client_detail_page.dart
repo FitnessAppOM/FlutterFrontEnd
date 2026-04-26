@@ -2274,11 +2274,11 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       children: [
         _buildClientOverviewCard(),
         const SizedBox(height: 12),
+        _buildSupportChatCard(),
+        const SizedBox(height: 12),
         _buildAnalyticsCard(),
         const SizedBox(height: 12),
         _buildHabitsCard(),
-        const SizedBox(height: 12),
-        _buildSupportChatCard(),
         const SizedBox(height: 12),
         _buildDietReviewCard(),
         const SizedBox(height: 12),
