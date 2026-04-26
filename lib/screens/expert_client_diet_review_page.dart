@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
@@ -36,6 +37,7 @@ class _ExpertClientDietReviewPageState
   bool _loadingComments = true;
   bool _sendingComment = false;
   bool _sendingVoiceNote = false;
+  bool _uploadingDietDocument = false;
   final AudioRecorder _audioRecorder = AudioRecorder();
   final AudioPlayer _voicePlayer = AudioPlayer();
   StreamSubscription<PlayerState>? _voicePlayerSub;
@@ -116,6 +118,15 @@ class _ExpertClientDietReviewPageState
     final hh = local.hour.toString().padLeft(2, '0');
     final min = local.minute.toString().padLeft(2, '0');
     return '$mm/$dd ${local.year} $hh:$min';
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes <= 0) return '0 B';
+    if (bytes < 1024) return '$bytes B';
+    final kb = bytes / 1024.0;
+    if (kb < 1024) return '${kb.toStringAsFixed(1)} KB';
+    final mb = kb / 1024.0;
+    return '${mb.toStringAsFixed(1)} MB';
   }
 
   int _asInt(dynamic value) {
@@ -775,6 +786,55 @@ class _ExpertClientDietReviewPageState
       if (mounted) {
         setState(() => _deletingCommentIds.remove(comment.commentId));
       }
+    }
+  }
+
+  Future<void> _uploadDietDocument() async {
+    if (_uploadingDietDocument) return;
+    setState(() => _uploadingDietDocument = true);
+    try {
+      final picked = await FilePicker.platform.pickFiles(
+        allowMultiple: false,
+        type: FileType.custom,
+        allowedExtensions: const ['pdf', 'doc', 'docx', 'txt', 'rtf'],
+        withData: false,
+      );
+      final files = picked?.files ?? const <PlatformFile>[];
+      final file = files.isEmpty ? null : files.first;
+      final path = (file?.path ?? '').trim();
+      if (path.isEmpty) return;
+      final size = file?.size ?? 0;
+      if (size > 10 * 1024 * 1024) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Document must be 10 MB or smaller.')),
+        );
+        return;
+      }
+
+      final uploaded = await ProgressionReviewService.uploadClientDietDocument(
+        clientUserId: widget.clientUserId,
+        documentFilePath: path,
+        documentTitle: file?.name,
+      );
+      if (!mounted) return;
+      final title =
+          (uploaded.documentTitle ?? uploaded.originalFilename ?? 'Document')
+              .trim();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Uploaded "$title" (${_formatBytes(uploaded.fileSizeBytes)}).',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _uploadingDietDocument = false);
     }
   }
 
@@ -1547,6 +1607,26 @@ class _ExpertClientDietReviewPageState
       appBar: AppBar(
         backgroundColor: AppColors.black,
         title: Text('${widget.clientName} • Diet Review'),
+        actions: [
+          TextButton.icon(
+            onPressed: _uploadingDietDocument ? null : _uploadDietDocument,
+            icon: _uploadingDietDocument
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.upload_file),
+            label: Text(
+              _uploadingDietDocument ? 'Uploading...' : 'Upload a plan',
+            ),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white,
+              textStyle: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () => _loadAll(forceRefresh: true),

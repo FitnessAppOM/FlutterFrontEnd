@@ -623,17 +623,82 @@ class DietFeedbackComment {
   }
 }
 
+class DietFeedbackDocument {
+  final int documentId;
+  final int clientUserId;
+  final int coachUserId;
+  final String? documentTitle;
+  final String? originalFilename;
+  final String? documentUrl;
+  final String? mimeType;
+  final int fileSizeBytes;
+  final DateTime? clientSeenAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  const DietFeedbackDocument({
+    required this.documentId,
+    required this.clientUserId,
+    required this.coachUserId,
+    this.documentTitle,
+    this.originalFilename,
+    this.documentUrl,
+    this.mimeType,
+    required this.fileSizeBytes,
+    this.clientSeenAt,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  factory DietFeedbackDocument.fromJson(Map<String, dynamic> json) {
+    int parseInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    String parseString(dynamic value) => value?.toString().trim() ?? '';
+
+    DateTime? parseDate(dynamic value) {
+      final raw = parseString(value);
+      if (raw.isEmpty) return null;
+      return DateTime.tryParse(raw);
+    }
+
+    String? parseNullableString(dynamic value) {
+      final normalized = parseString(value);
+      return normalized.isEmpty ? null : normalized;
+    }
+
+    return DietFeedbackDocument(
+      documentId: parseInt(json['document_id']),
+      clientUserId: parseInt(json['client_user_id']),
+      coachUserId: parseInt(json['coach_user_id']),
+      documentTitle: parseNullableString(json['document_title']),
+      originalFilename: parseNullableString(json['original_filename']),
+      documentUrl: parseNullableString(json['document_url']),
+      mimeType: parseNullableString(json['mime_type']),
+      fileSizeBytes: parseInt(json['file_size_bytes']),
+      clientSeenAt: parseDate(json['client_seen_at']),
+      createdAt: parseDate(json['created_at']),
+      updatedAt: parseDate(json['updated_at']),
+    );
+  }
+}
+
 class FormCheckFeedbackFeed {
   final int? clientUserId;
   final List<FormCheckSubmission> items;
   final List<FormCheckSubmission> pinnedItems;
   final List<DietFeedbackComment> dietComments;
+  final List<DietFeedbackDocument> dietDocuments;
 
   const FormCheckFeedbackFeed({
     this.clientUserId,
     required this.items,
     required this.pinnedItems,
     required this.dietComments,
+    required this.dietDocuments,
   });
 
   factory FormCheckFeedbackFeed.fromJson(Map<String, dynamic> json) {
@@ -674,6 +739,18 @@ class FormCheckFeedbackFeed {
           .toList();
     }
 
+    List<DietFeedbackDocument> parseDietDocuments(dynamic raw) {
+      if (raw is! List) return const [];
+      return raw
+          .whereType<Map>()
+          .map(
+            (item) =>
+                DietFeedbackDocument.fromJson(Map<String, dynamic>.from(item)),
+          )
+          .where((item) => (item.documentUrl ?? '').trim().isNotEmpty)
+          .toList();
+    }
+
     final parsedItems = parseItems(
       pick(['items', 'feedback_items', 'feedbackItems', 'submissions']),
     );
@@ -709,6 +786,14 @@ class FormCheckFeedbackFeed {
           'dietComments',
           'diet_feedback',
           'dietFeedback',
+        ]),
+      ),
+      dietDocuments: parseDietDocuments(
+        pick([
+          'diet_documents',
+          'dietDocuments',
+          'nutrition_documents',
+          'nutritionDocuments',
         ]),
       ),
     );
@@ -846,6 +931,7 @@ class FormCheckService {
         items: items,
         pinnedItems: pinnedItems,
         dietComments: const [],
+        dietDocuments: const [],
       );
     }
     throw Exception('Invalid feedback feed response format.');
