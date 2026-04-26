@@ -14,6 +14,7 @@ class CoachSupportChatMessage {
     required this.senderName,
     required this.messageType,
     required this.messageText,
+    this.isHighlightedRed = false,
     this.attachmentUrl,
     this.attachmentFilename,
     this.attachmentMimeType,
@@ -29,6 +30,7 @@ class CoachSupportChatMessage {
   final String senderName;
   final String messageType;
   final String messageText;
+  final bool isHighlightedRed;
   final String? attachmentUrl;
   final String? attachmentFilename;
   final String? attachmentMimeType;
@@ -65,6 +67,12 @@ class CoachSupportChatMessage {
       return DateTime.tryParse(raw);
     }
 
+    bool parseBool(dynamic value) {
+      if (value is bool) return value;
+      final raw = value?.toString().trim().toLowerCase() ?? '';
+      return raw == 'true' || raw == '1' || raw == 'yes';
+    }
+
     String? parseString(dynamic value) {
       final raw = value?.toString().trim() ?? '';
       if (raw.isEmpty) return null;
@@ -90,6 +98,9 @@ class CoachSupportChatMessage {
       messageText: (json['message_text'] ?? json['messageText'] ?? '')
           .toString()
           .trim(),
+      isHighlightedRed: parseBool(
+        json['is_highlighted_red'] ?? json['isHighlightedRed'],
+      ),
       attachmentUrl: parseString(
         json['attachment_url'] ?? json['attachmentUrl'],
       ),
@@ -619,5 +630,30 @@ class CoachSupportChatService {
     if (res.statusCode != 200) {
       throw Exception(_extractError('Failed to report message', res.body));
     }
+  }
+
+  static Future<Map<String, dynamic>> sendCoachBulkMessageToRedClients({
+    required String text,
+  }) async {
+    final normalizedText = text.trim();
+    if (normalizedText.isEmpty) {
+      throw Exception('Message cannot be empty');
+    }
+    final res = await http.post(
+      _uri('/coach/chat/coach/messages/bulk-red'),
+      headers: await _authHeaders(jsonBody: true),
+      body: jsonEncode({'text': normalizedText}),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to send bulk message to red clients', res.body),
+      );
+    }
+    final decoded = jsonDecode(res.body);
+    if (decoded is! Map) {
+      throw Exception('Failed to send bulk message to red clients');
+    }
+    return Map<String, dynamic>.from(decoded);
   }
 }

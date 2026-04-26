@@ -15,6 +15,8 @@ import '../../services/coach/chat_attachment_file_service.dart';
 import '../../services/coach/coach_support_chat_service.dart';
 import '../../services/coach/voice_note_audio_service.dart';
 import '../../theme/app_theme.dart';
+import 'chat_video_player_page.dart';
+import 'chat_video_preview_tile.dart';
 
 class CoachChatPanel extends StatefulWidget {
   const CoachChatPanel({super.key});
@@ -547,11 +549,21 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
     if (url.isEmpty || _openingAttachment) return;
     setState(() => _openingAttachment = true);
     try {
-      final uri = Uri.parse(url);
-      final opened = await launchUrl(uri, mode: LaunchMode.inAppWebView);
-      if (!opened) {
-        throw Exception('Could not open video.');
-      }
+      final localPath =
+          await ChatAttachmentFileService.prepareLocalAttachmentFile(
+            url,
+            suggestedFileName: message.attachmentFilename,
+            fallbackExtension: '.mp4',
+          );
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ChatVideoPlayerPage(
+            videoPath: localPath,
+            title: message.attachmentFilename,
+          ),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -825,7 +837,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
   }
 
   Widget _buildCoachSelector() {
-    if (_coachThreads.isEmpty) return const SizedBox.shrink();
+    if (_coachThreads.length <= 1) return const SizedBox.shrink();
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Wrap(
@@ -861,35 +873,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
     final coachName = thread?.coachName.trim() ?? '';
     final coachFirstName = _firstNameOnly(coachName);
     final coachAvatarUrl = _normalizeAvatarUrl(thread?.coachAvatarUrl);
-    final supportsText = state?.supportsText ?? true;
-    final supportsImage = state?.supportsImage ?? false;
-    final supportsVideo = state?.supportsVideo ?? false;
-    final supportsVoice = state?.supportsVoice ?? false;
-    final supportsDocument = state?.supportsDocument ?? false;
     final sla = state?.sla;
-
-    final chips = <Widget>[
-      _SupportChip(
-        label: supportsText ? 'Text: On' : 'Text: Off',
-        color: supportsText ? Colors.greenAccent : Colors.white54,
-      ),
-      _SupportChip(
-        label: supportsImage ? 'Image: On' : 'Image: Off',
-        color: supportsImage ? Colors.greenAccent : Colors.white54,
-      ),
-      _SupportChip(
-        label: supportsVideo ? 'Video: On' : 'Video: Off',
-        color: supportsVideo ? Colors.greenAccent : Colors.white54,
-      ),
-      _SupportChip(
-        label: supportsVoice ? 'Voice: On' : 'Voice: Off',
-        color: supportsVoice ? Colors.greenAccent : Colors.white54,
-      ),
-      _SupportChip(
-        label: supportsDocument ? 'Docs: On' : 'Docs: Off',
-        color: supportsDocument ? Colors.greenAccent : Colors.white54,
-      ),
-    ];
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 10),
@@ -953,8 +937,6 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
               style: const TextStyle(color: Colors.white54, fontSize: 11),
             ),
           ],
-          const SizedBox(height: 10),
-          Wrap(spacing: 6, runSpacing: 6, children: chips),
         ],
       ),
     );
@@ -962,12 +944,15 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
 
   Widget _buildMessageBubble(CoachSupportChatMessage message) {
     final isClient = message.isFromClient;
-    final bubbleColor = isClient
-        ? AppColors.accent.withValues(alpha: 0.25)
-        : Colors.white.withValues(alpha: 0.06);
-    final borderColor = isClient
-        ? AppColors.accent.withValues(alpha: 0.6)
-        : Colors.white10;
+    final isRedHighlight = message.isHighlightedRed;
+    final bubbleColor = isRedHighlight
+        ? Colors.redAccent.withValues(alpha: 0.16)
+        : (isClient
+              ? AppColors.accent.withValues(alpha: 0.25)
+              : Colors.white.withValues(alpha: 0.06));
+    final borderColor = isRedHighlight
+        ? Colors.redAccent.withValues(alpha: 0.8)
+        : (isClient ? AppColors.accent.withValues(alpha: 0.6) : Colors.white10);
     final isFocused = _focusedMessageId == message.id;
     final focusColor = Colors.orangeAccent.withValues(alpha: 0.75);
 
@@ -1024,41 +1009,10 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                 ),
               ] else if (message.hasAttachment && message.isVideo) ...[
                 if (message.messageText.isNotEmpty) const SizedBox(height: 8),
-                InkWell(
-                  borderRadius: BorderRadius.circular(10),
+                ChatVideoPreviewTile(
+                  videoUrl: message.attachmentUrl!,
+                  title: message.attachmentFilename ?? 'Video',
                   onTap: () => _openVideoAttachment(message),
-                  child: Container(
-                    width: 220,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white10),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.play_circle_fill_rounded,
-                          color: Colors.white70,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            message.attachmentFilename?.trim().isNotEmpty ==
-                                    true
-                                ? message.attachmentFilename!
-                                : 'Video attachment',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
               ] else if (message.hasAttachment && message.isVoice) ...[
                 if (message.messageText.isNotEmpty) const SizedBox(height: 8),
@@ -1334,38 +1288,6 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                   ],
                 ),
               ),
-            if (false && _isRecordingVoice)
-              Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.redAccent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: Colors.redAccent.withValues(alpha: 0.5),
-                  ),
-                ),
-                child: const Row(
-                  children: [
-                    SizedBox(
-                      width: 12,
-                      height: 12,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.redAccent,
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      'Recording voice... release to keep',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
             Row(
               children: [
                 IconButton(
@@ -1448,42 +1370,44 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                           ),
                         )
                       : TextField(
-                    controller: _messageController,
-                    enabled: !disabled,
-                    minLines: 1,
-                    maxLines: 5,
-                    textInputAction: TextInputAction.newline,
-                    onChanged: (_) => setState(() {}),
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: disabled
-                          ? 'Chat unavailable'
-                          : 'Write a message to your coach',
-                      hintStyle: const TextStyle(color: Colors.white38),
-                      filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.04),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.14),
+                          controller: _messageController,
+                          enabled: !disabled,
+                          minLines: 1,
+                          maxLines: 5,
+                          textInputAction: TextInputAction.newline,
+                          onChanged: (_) => setState(() {}),
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: disabled
+                                ? 'Chat unavailable'
+                                : 'Write a message to your coach',
+                            hintStyle: const TextStyle(color: Colors.white38),
+                            filled: true,
+                            fillColor: Colors.white.withValues(alpha: 0.04),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: Colors.white.withValues(alpha: 0.14),
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: Colors.white.withValues(alpha: 0.14),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(
+                                color: AppColors.accent,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.14),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppColors.accent),
-                      ),
-                    ),
-                  ),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
@@ -1503,7 +1427,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text('🚀', style: TextStyle(fontSize: 18)),
+                      : const Icon(Icons.send_rounded, size: 18),
                 ),
               ],
             ),
@@ -1522,33 +1446,6 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
         ),
         _buildComposer(),
       ],
-    );
-  }
-}
-
-class _SupportChip extends StatelessWidget {
-  const _SupportChip({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
     );
   }
 }

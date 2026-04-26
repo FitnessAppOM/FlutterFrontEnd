@@ -15,6 +15,8 @@ import '../services/coach/chat_attachment_file_service.dart';
 import '../services/coach/coach_support_chat_service.dart';
 import '../services/coach/voice_note_audio_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/coach/chat_video_player_page.dart';
+import '../widgets/coach/chat_video_preview_tile.dart';
 
 class ExpertClientChatPage extends StatefulWidget {
   const ExpertClientChatPage({
@@ -645,11 +647,21 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
     if (url.isEmpty || _openingAttachment) return;
     setState(() => _openingAttachment = true);
     try {
-      final uri = Uri.parse(url);
-      final opened = await launchUrl(uri, mode: LaunchMode.inAppWebView);
-      if (!opened) {
-        throw Exception('Could not open video.');
-      }
+      final localPath =
+          await ChatAttachmentFileService.prepareLocalAttachmentFile(
+            url,
+            suggestedFileName: message.attachmentFilename,
+            fallbackExtension: '.mp4',
+          );
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ChatVideoPlayerPage(
+            videoPath: localPath,
+            title: message.attachmentFilename,
+          ),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -794,7 +806,7 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Support thread with $clientName',
+                  'Support chat',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -820,12 +832,15 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
 
   Widget _buildMessageBubble(CoachSupportChatMessage message) {
     final isCoach = message.isFromCoach;
-    final bubbleColor = isCoach
-        ? AppColors.accent.withValues(alpha: 0.25)
-        : Colors.white.withValues(alpha: 0.06);
-    final borderColor = isCoach
-        ? AppColors.accent.withValues(alpha: 0.6)
-        : Colors.white10;
+    final isRedHighlight = message.isHighlightedRed;
+    final bubbleColor = isRedHighlight
+        ? Colors.redAccent.withValues(alpha: 0.16)
+        : (isCoach
+              ? AppColors.accent.withValues(alpha: 0.25)
+              : Colors.white.withValues(alpha: 0.06));
+    final borderColor = isRedHighlight
+        ? Colors.redAccent.withValues(alpha: 0.8)
+        : (isCoach ? AppColors.accent.withValues(alpha: 0.6) : Colors.white10);
     final isFocused = _focusedMessageId == message.id;
     final focusColor = Colors.orangeAccent.withValues(alpha: 0.75);
 
@@ -849,18 +864,6 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
                 ? CrossAxisAlignment.end
                 : CrossAxisAlignment.start,
             children: [
-              if (!isCoach)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    message.senderName,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
               if (message.messageText.isNotEmpty)
                 Text(
                   message.messageText,
@@ -894,41 +897,10 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
                 ),
               ] else if (message.hasAttachment && message.isVideo) ...[
                 if (message.messageText.isNotEmpty) const SizedBox(height: 8),
-                InkWell(
-                  borderRadius: BorderRadius.circular(10),
+                ChatVideoPreviewTile(
+                  videoUrl: message.attachmentUrl!,
+                  title: message.attachmentFilename ?? 'Video',
                   onTap: () => _openVideoAttachment(message),
-                  child: Container(
-                    width: 220,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white10),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.play_circle_fill_rounded,
-                          color: Colors.white70,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            message.attachmentFilename?.trim().isNotEmpty ==
-                                    true
-                                ? message.attachmentFilename!
-                                : 'Video attachment',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
               ] else if (message.hasAttachment && message.isVoice) ...[
                 if (message.messageText.isNotEmpty) const SizedBox(height: 8),
@@ -1181,38 +1153,6 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
                   ],
                 ),
               ),
-            if (false && _isRecordingVoice)
-              Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.redAccent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: Colors.redAccent.withValues(alpha: 0.5),
-                  ),
-                ),
-                child: const Row(
-                  children: [
-                    SizedBox(
-                      width: 12,
-                      height: 12,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.redAccent,
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      'Recording voice... release to keep',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
             Row(
               children: [
                 IconButton(
@@ -1295,42 +1235,44 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
                           ),
                         )
                       : TextField(
-                    controller: _messageController,
-                    enabled: !disabled,
-                    minLines: 1,
-                    maxLines: 5,
-                    textInputAction: TextInputAction.newline,
-                    onChanged: (_) => setState(() {}),
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: disabled
-                          ? 'Chat unavailable'
-                          : 'Write a message',
-                      hintStyle: const TextStyle(color: Colors.white38),
-                      filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.04),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.14),
+                          controller: _messageController,
+                          enabled: !disabled,
+                          minLines: 1,
+                          maxLines: 5,
+                          textInputAction: TextInputAction.newline,
+                          onChanged: (_) => setState(() {}),
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: disabled
+                                ? 'Chat unavailable'
+                                : 'Write a message',
+                            hintStyle: const TextStyle(color: Colors.white38),
+                            filled: true,
+                            fillColor: Colors.white.withValues(alpha: 0.04),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: Colors.white.withValues(alpha: 0.14),
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: Colors.white.withValues(alpha: 0.14),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(
+                                color: AppColors.accent,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.14),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppColors.accent),
-                      ),
-                    ),
-                  ),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
@@ -1350,7 +1292,7 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text('🚀', style: TextStyle(fontSize: 18)),
+                      : const Icon(Icons.send_rounded, size: 18),
                 ),
               ],
             ),
