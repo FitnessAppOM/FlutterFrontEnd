@@ -170,33 +170,13 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
     return null;
   }
 
-  Future<void> _pickAttachment() async {
+  Future<void> _pickAttachment(List<String> allowedExtensions) async {
     if (_sending || _isRecordingVoice) return;
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: false,
       withData: false,
       type: FileType.custom,
-      allowedExtensions: const [
-        'jpg',
-        'jpeg',
-        'png',
-        'webp',
-        'gif',
-        'mp4',
-        'mov',
-        'm4v',
-        'webm',
-        'pdf',
-        'doc',
-        'docx',
-        'txt',
-        'rtf',
-        'aac',
-        'm4a',
-        'mp3',
-        'wav',
-        'ogg',
-      ],
+      allowedExtensions: allowedExtensions,
     );
     if (!mounted) return;
     final picked = result?.files.isNotEmpty == true
@@ -228,6 +208,75 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
     });
     if (previousVoicePath != null && previousVoicePath.trim().isNotEmpty) {
       await _deleteLocalFile(previousVoicePath);
+    }
+  }
+
+  Future<void> _showAttachmentOptions() async {
+    if (_sending || _isRecordingVoice) return;
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.cardDark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(
+                  Icons.perm_media_outlined,
+                  color: Colors.white70,
+                ),
+                title: const Text(
+                  'Photo or video',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: const Text(
+                  'Upload an image or video',
+                  style: TextStyle(color: Colors.white54),
+                ),
+                onTap: () => Navigator.of(sheetContext).pop('media'),
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.description_outlined,
+                  color: Colors.white70,
+                ),
+                title: const Text(
+                  'Document',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: const Text(
+                  'Upload a file like PDF or DOCX',
+                  style: TextStyle(color: Colors.white54),
+                ),
+                onTap: () => Navigator.of(sheetContext).pop('document'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (!mounted || choice == null) return;
+    if (choice == 'media') {
+      await _pickAttachment(const [
+        'jpg',
+        'jpeg',
+        'png',
+        'webp',
+        'gif',
+        'mp4',
+        'mov',
+        'm4v',
+        'webm',
+      ]);
+      return;
+    }
+    if (choice == 'document') {
+      await _pickAttachment(const ['pdf', 'doc', 'docx', 'txt', 'rtf']);
     }
   }
 
@@ -1254,7 +1303,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                   ],
                 ),
               ),
-            if (_isRecordingVoice)
+            if (false && _isRecordingVoice)
               Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.symmetric(
@@ -1291,9 +1340,9 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                 IconButton(
                   onPressed: disabled || _isRecordingVoice
                       ? null
-                      : _pickAttachment,
-                  tooltip: 'Attach',
-                  icon: const Icon(Icons.attach_file_rounded),
+                      : _showAttachmentOptions,
+                  tooltip: 'Add media',
+                  icon: const Icon(Icons.add_rounded),
                   color: Colors.white70,
                 ),
                 GestureDetector(
@@ -1331,7 +1380,43 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: TextField(
+                  child: _isRecordingVoice
+                      ? Container(
+                          height: 44,
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: Colors.redAccent.withValues(alpha: 0.5),
+                            ),
+                          ),
+                          child: const Row(
+                            children: [
+                              SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.redAccent,
+                                ),
+                              ),
+                              SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Recording voice... release to keep',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : TextField(
                     controller: _messageController,
                     enabled: !disabled,
                     minLines: 1,
