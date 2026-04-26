@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../localization/app_localizations.dart';
+import '../services/coach/diet_document_file_service.dart';
 import '../services/coach/progression_review_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_toast.dart';
@@ -30,6 +32,10 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
   bool _generating = false;
   List<ProgressionClient> _clients = const [];
   List<ProgressionReview> _reviews = const [];
+  List<CoachDietDocument> _nutritionDocuments = const [];
+  final Set<int> _pinningNutritionDocumentIds = <int>{};
+  final Set<int> _deletingNutritionDocumentIds = <int>{};
+  final Set<int> _openingNutritionDocumentIds = <int>{};
   int _newPendingConnectionRequestCount = 0;
   final Set<int> _dietBadgeSuppressedClientIds = <int>{};
   final Set<int> _newClientBadgeSuppressedClientIds = <int>{};
@@ -55,10 +61,12 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
         ProgressionReviewService.fetchClients(),
         ProgressionReviewService.fetchReviews(includeApplied: true),
         ProgressionReviewService.fetchPendingConnectionRequests(),
+        ProgressionReviewService.fetchAssignedDietDocuments(),
       ]);
       final fetchedClients = results[0] as List<ProgressionClient>;
       final fetchedReviews = results[1] as List<ProgressionReview>;
       final requestSummary = results[2] as CoachConnectionRequestSummary;
+      final fetchedNutritionDocuments = results[3] as List<CoachDietDocument>;
       final visibleNewClientCount = fetchedClients
           .where(
             (client) =>
@@ -70,6 +78,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       setState(() {
         _clients = fetchedClients;
         _reviews = fetchedReviews;
+        _nutritionDocuments = fetchedNutritionDocuments;
         _newPendingConnectionRequestCount = requestSummary.newPendingCount;
         _dietBadgeSuppressedClientIds.removeWhere((userId) {
           final matched = _clients.where((c) => c.userId == userId);
@@ -226,6 +235,144 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
     await _load();
   }
 
+  String _formatDateTime(DateTime? dateTime) {
+    if (dateTime == null) return '-';
+    final local = dateTime.toLocal();
+    final mm = local.month.toString().padLeft(2, '0');
+    final dd = local.day.toString().padLeft(2, '0');
+    final hh = local.hour.toString().padLeft(2, '0');
+    final min = local.minute.toString().padLeft(2, '0');
+    return '$mm/$dd ${local.year} $hh:$min';
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes <= 0) return '0 B';
+    if (bytes < 1024) return '$bytes B';
+    final kb = bytes / 1024.0;
+    if (kb < 1024) return '${kb.toStringAsFixed(1)} KB';
+    final mb = kb / 1024.0;
+    return '${mb.toStringAsFixed(1)} MB';
+  }
+
+  Future<void> _openNutritionDocument(CoachDietDocument document) async {
+    if (_openingNutritionDocumentIds.contains(document.documentId)) return;
+    setState(() => _openingNutritionDocumentIds.add(document.documentId));
+    try {
+      final url = (document.documentUrl ?? '').trim();
+      if (url.isEmpty) {
+        throw Exception('Document URL is missing.');
+      }
+      final localPath =
+          await DietDocumentFileService.prepareLocalDietDocumentFile(
+            url,
+            suggestedFileName:
+                document.originalFilename ?? document.documentTitle,
+          );
+      final opened = await launchUrl(
+        Uri.file(localPath),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened) {
+        throw Exception('Could not open downloaded document.');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) {
+        setState(
+          () => _openingNutritionDocumentIds.remove(document.documentId),
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleNutritionDocumentPin(CoachDietDocument document) async {
+    if (_pinningNutritionDocumentIds.contains(document.documentId)) return;
+    setState(() => _pinningNutritionDocumentIds.add(document.documentId));
+    try {
+      final updated =
+          await ProgressionReviewService.setClientDietDocumentPinned(
+            clientUserId: document.clientUserId,
+            documentId: document.documentId,
+            isPinned: !document.isPinned,
+          );
+      if (!mounted) return;
+      setState(() {
+        _nutritionDocuments = _nutritionDocuments
+            .map(
+              (item) => item.documentId == updated.documentId ? updated : item,
+            )
+            .toList(growable: false);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) {
+        setState(
+          () => _pinningNutritionDocumentIds.remove(document.documentId),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteNutritionDocument(CoachDietDocument document) async {
+    if (_deletingNutritionDocumentIds.contains(document.documentId)) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete plan document?'),
+        content: const Text('This will remove it for the client and coach.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _deletingNutritionDocumentIds.add(document.documentId));
+    try {
+      await ProgressionReviewService.deleteClientDietDocument(
+        clientUserId: document.clientUserId,
+        documentId: document.documentId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _nutritionDocuments = _nutritionDocuments
+            .where((item) => item.documentId != document.documentId)
+            .toList(growable: false);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) {
+        setState(
+          () => _deletingNutritionDocumentIds.remove(document.documentId),
+        );
+      }
+    }
+  }
+
   void _selectTab(int index) {
     if (index == _tabIndex) return;
     setState(() => _tabIndex = index);
@@ -363,17 +510,249 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
   }
 
   Widget _buildNutritionTab() {
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: const [
-        _SectionTitle(
-          title: 'Nutrition',
-          subtitle:
-              'Review client nutrition plans, notes, and schedule updates.',
-        ),
-        SizedBox(height: 12),
-        _EmptyCard(text: 'Nutrition workspace coming soon.'),
-      ],
+    final items = [..._nutritionDocuments]
+      ..sort((a, b) {
+        if (a.isPinned != b.isPinned) {
+          return a.isPinned ? -1 : 1;
+        }
+        final aTs =
+            a.createdAt ??
+            a.updatedAt ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+        final bTs =
+            b.createdAt ??
+            b.updatedAt ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+        return bTs.compareTo(aTs);
+      });
+    final pinnedCount = items.where((item) => item.isPinned).length;
+
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          const _SectionTitle(
+            title: 'Nutrition',
+            subtitle:
+                'All assigned plan documents you uploaded for your current clients.',
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _MetricCard(
+                  label: 'Documents',
+                  value: '${items.length}',
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _MetricCard(label: 'Pinned', value: '$pinnedCount'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (items.isEmpty)
+            const _EmptyCard(text: 'No uploaded plan documents yet.')
+          else
+            ...items.map((document) {
+              final title = (document.documentTitle ?? '').trim().isNotEmpty
+                  ? document.documentTitle!.trim()
+                  : ((document.originalFilename ?? '').trim().isNotEmpty
+                        ? document.originalFilename!.trim()
+                        : 'Plan document');
+              final clientLabel = (document.clientName ?? '').trim().isNotEmpty
+                  ? document.clientName!.trim()
+                  : 'Client #${document.clientUserId}';
+              final isPinLoading = _pinningNutritionDocumentIds.contains(
+                document.documentId,
+              );
+              final isDeleteLoading = _deletingNutritionDocumentIds.contains(
+                document.documentId,
+              );
+              final isOpenLoading = _openingNutritionDocumentIds.contains(
+                document.documentId,
+              );
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.cardDark,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                          if (document.isPinned)
+                            const Icon(
+                              Icons.push_pin,
+                              size: 16,
+                              color: Colors.orangeAccent,
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        clientLabel,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${_formatBytes(document.fileSizeBytes)} • ${_formatDateTime(document.createdAt ?? document.updatedAt)}',
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 12,
+                        ),
+                      ),
+                      if ((document.originalFilename ?? '')
+                          .trim()
+                          .isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          document.originalFilename!.trim(),
+                          style: const TextStyle(
+                            color: Colors.white60,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: isOpenLoading
+                                ? null
+                                : () => _openNutritionDocument(document),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white24),
+                              minimumSize: const Size(0, 30),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: const VisualDensity(
+                                horizontal: -2,
+                                vertical: -2,
+                              ),
+                            ),
+                            icon: isOpenLoading
+                                ? const SizedBox(
+                                    width: 12,
+                                    height: 12,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white70,
+                                    ),
+                                  )
+                                : const Icon(Icons.open_in_new, size: 13),
+                            label: const Text('Open'),
+                          ),
+                          const SizedBox(width: 8),
+                          OutlinedButton.icon(
+                            onPressed: (isPinLoading || isDeleteLoading)
+                                ? null
+                                : () => _toggleNutritionDocumentPin(document),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: document.isPinned
+                                  ? Colors.orangeAccent
+                                  : Colors.white70,
+                              side: BorderSide(
+                                color: document.isPinned
+                                    ? Colors.orangeAccent
+                                    : Colors.white24,
+                              ),
+                              minimumSize: const Size(0, 30),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: const VisualDensity(
+                                horizontal: -2,
+                                vertical: -2,
+                              ),
+                            ),
+                            icon: isPinLoading
+                                ? const SizedBox(
+                                    width: 12,
+                                    height: 12,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white70,
+                                    ),
+                                  )
+                                : Icon(
+                                    document.isPinned
+                                        ? Icons.push_pin
+                                        : Icons.push_pin_outlined,
+                                    size: 13,
+                                  ),
+                            label: Text(document.isPinned ? 'Unpin' : 'Pin'),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton.icon(
+                            onPressed: (isDeleteLoading || isPinLoading)
+                                ? null
+                                : () => _deleteNutritionDocument(document),
+                            style: TextButton.styleFrom(
+                              minimumSize: const Size(0, 30),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: const VisualDensity(
+                                horizontal: -2,
+                                vertical: -2,
+                              ),
+                            ),
+                            icon: isDeleteLoading
+                                ? const SizedBox(
+                                    width: 12,
+                                    height: 12,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white70,
+                                    ),
+                                  )
+                                : const Icon(Icons.delete_outline, size: 13),
+                            label: const Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+        ],
+      ),
     );
   }
 

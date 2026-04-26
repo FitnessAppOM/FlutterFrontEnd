@@ -3,10 +3,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/account_storage.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/coach/coach_habits_service.dart';
+import '../../services/coach/diet_document_file_service.dart';
 import '../../services/coach/form_check_service.dart';
 import '../../services/coach/voice_note_audio_service.dart';
 import '../../theme/app_theme.dart';
@@ -27,6 +29,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
   String? _feedbackError;
   List<FormCheckSubmission> _feedbackItems = const [];
   List<DietFeedbackComment> _dietFeedbackComments = const [];
+  List<DietFeedbackDocument> _dietFeedbackDocuments = const [];
   final AudioPlayer _voicePlayer = AudioPlayer();
   StreamSubscription<PlayerState>? _voicePlayerSub;
   String? _activeVoiceNoteUrl;
@@ -159,6 +162,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
       setState(() {
         _feedbackItems = feed.items;
         _dietFeedbackComments = feed.dietComments;
+        _dietFeedbackDocuments = feed.dietDocuments;
         _loadingFeedback = false;
         _feedbackError = null;
       });
@@ -167,9 +171,34 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
       setState(() {
         _feedbackItems = const [];
         _dietFeedbackComments = const [];
+        _dietFeedbackDocuments = const [];
         _loadingFeedback = false;
         _feedbackError = e.toString().replaceFirst('Exception: ', '');
       });
+    }
+  }
+
+  Future<void> _openDocument(String? url, {String? suggestedFileName}) async {
+    final normalized = (url ?? '').trim();
+    if (normalized.isEmpty) return;
+    try {
+      final localPath =
+          await DietDocumentFileService.prepareLocalDietDocumentFile(
+            normalized,
+            suggestedFileName: suggestedFileName,
+          );
+      final opened = await launchUrl(
+        Uri.file(localPath),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened) {
+        throw Exception('Could not open downloaded document.');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
     }
   }
 
@@ -337,11 +366,14 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
                 item.sharedAt ??
                 item.createdAt,
             isVoiceNote: hasVoiceReply,
+            isDocument: false,
             hasNutritionNote: hasNutritionNote,
             hasVideoNote: true,
             isPinned: reply.isPinned,
             isNew: reply.clientSeenAt == null,
             voiceNoteUrl: hasVoiceReply ? reply.voiceNoteUrl : null,
+            documentUrl: null,
+            documentFileName: null,
           ),
         );
       }
@@ -371,11 +403,14 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
                 item.sharedAt ??
                 item.createdAt,
             isVoiceNote: hasVoiceNote,
+            isDocument: false,
             hasNutritionNote: hasNutritionNote,
             hasVideoNote: true,
             isPinned: review?.isPinned == true,
             isNew: review?.clientSeenAt == null,
             voiceNoteUrl: hasVoiceNote ? review?.voiceNoteUrl : null,
+            documentUrl: null,
+            documentFileName: null,
           ),
         );
       }
@@ -403,11 +438,39 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
           message: text.isNotEmpty ? text : 'Voice note from coach.',
           timestamp: comment.createdAt ?? comment.updatedAt,
           isVoiceNote: hasVoice,
+          isDocument: false,
           hasNutritionNote: true,
           hasVideoNote: false,
           isPinned: comment.isPinned,
           isNew: comment.clientSeenAt == null,
           voiceNoteUrl: hasVoice ? comment.voiceNoteUrl : null,
+          documentUrl: null,
+          documentFileName: null,
+        ),
+      );
+    }
+    for (final document in _dietFeedbackDocuments) {
+      final title = (document.documentTitle ?? '').trim();
+      final originalName = (document.originalFilename ?? '').trim();
+      final label = title.isNotEmpty
+          ? title
+          : (originalName.isNotEmpty ? originalName : 'Diet document');
+      final url = (document.documentUrl ?? '').trim();
+      if (url.isEmpty) continue;
+      entries.add(
+        _FeedbackReplyEntry(
+          workoutLabel: 'Diet Document',
+          message: label,
+          timestamp: document.createdAt ?? document.updatedAt,
+          isVoiceNote: false,
+          isDocument: true,
+          hasNutritionNote: true,
+          hasVideoNote: false,
+          isPinned: false,
+          isNew: document.clientSeenAt == null,
+          voiceNoteUrl: null,
+          documentUrl: url,
+          documentFileName: originalName.isNotEmpty ? originalName : null,
         ),
       );
     }
@@ -509,6 +572,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
                 workoutLabel: entry.workoutLabel,
                 message: entry.message,
                 isVoiceNote: entry.isVoiceNote,
+                isDocument: entry.isDocument,
                 hasNutritionNote: entry.hasNutritionNote,
                 hasVideoNote: entry.hasVideoNote,
                 isPinned: entry.isPinned,
@@ -517,6 +581,12 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
                 isVoicePlaying: _isVoiceNotePlaying(entry.voiceNoteUrl),
                 onVoiceToggle: entry.isVoiceNote
                     ? () => _toggleVoiceNotePlayback(entry.voiceNoteUrl)
+                    : null,
+                onOpenDocument: entry.isDocument
+                    ? () => _openDocument(
+                        entry.documentUrl,
+                        suggestedFileName: entry.documentFileName,
+                      )
                     : null,
               ),
             ),
@@ -777,6 +847,7 @@ class _PinnedCorrectionRow extends StatelessWidget {
         workoutLabel: correction.exercise,
         message: correction.title,
         isVoiceNote: correction.isVoiceNote,
+        isDocument: false,
         hasNutritionNote: correction.hasNutritionNote,
         hasVideoNote: correction.hasVideoNote,
         isPinned: true,
@@ -784,6 +855,7 @@ class _PinnedCorrectionRow extends StatelessWidget {
         isVoiceLoading: isVoiceLoading,
         isVoicePlaying: isVoicePlaying,
         onVoiceToggle: onVoiceToggle,
+        onOpenDocument: null,
       ),
     );
   }
@@ -795,6 +867,7 @@ class _FeedbackEntryCard extends StatelessWidget {
     required this.workoutLabel,
     required this.message,
     required this.isVoiceNote,
+    required this.isDocument,
     required this.hasNutritionNote,
     required this.hasVideoNote,
     required this.isPinned,
@@ -802,12 +875,14 @@ class _FeedbackEntryCard extends StatelessWidget {
     required this.isVoiceLoading,
     required this.isVoicePlaying,
     this.onVoiceToggle,
+    this.onOpenDocument,
   });
 
   final String dateLabel;
   final String workoutLabel;
   final String message;
   final bool isVoiceNote;
+  final bool isDocument;
   final bool hasNutritionNote;
   final bool hasVideoNote;
   final bool isPinned;
@@ -815,6 +890,7 @@ class _FeedbackEntryCard extends StatelessWidget {
   final bool isVoiceLoading;
   final bool isVoicePlaying;
   final VoidCallback? onVoiceToggle;
+  final VoidCallback? onOpenDocument;
 
   @override
   Widget build(BuildContext context) {
@@ -861,7 +937,9 @@ class _FeedbackEntryCard extends StatelessWidget {
                   _MetaChip(
                     label: isVoiceNote
                         ? t.translate('coach_chip_voice_note')
-                        : t.translate('coach_chip_text_note'),
+                        : (isDocument
+                              ? 'Document'
+                              : t.translate('coach_chip_text_note')),
                   ),
                   if (hasNutritionNote)
                     _MetaChip(label: t.translate('coach_chip_nutrition_note')),
@@ -910,6 +988,26 @@ class _FeedbackEntryCard extends StatelessWidget {
                                   )
                                 : const Icon(Icons.play_arrow, size: 16)),
                       label: Text(isVoicePlaying ? 'Pause' : 'Play'),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  if (isDocument && onOpenDocument != null) ...[
+                    TextButton.icon(
+                      onPressed: onOpenDocument,
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(0, 26),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: const VisualDensity(
+                          horizontal: -2,
+                          vertical: -3,
+                        ),
+                      ),
+                      icon: const Icon(Icons.open_in_new, size: 15),
+                      label: const Text('Open'),
                     ),
                     const SizedBox(width: 6),
                   ],
@@ -1082,20 +1180,26 @@ class _FeedbackReplyEntry {
     required this.message,
     required this.timestamp,
     required this.isVoiceNote,
+    required this.isDocument,
     required this.hasNutritionNote,
     required this.hasVideoNote,
     required this.isPinned,
     required this.isNew,
     required this.voiceNoteUrl,
+    required this.documentUrl,
+    required this.documentFileName,
   });
 
   final String workoutLabel;
   final String message;
   final DateTime? timestamp;
   final bool isVoiceNote;
+  final bool isDocument;
   final bool hasNutritionNote;
   final bool hasVideoNote;
   final bool isPinned;
   final bool isNew;
   final String? voiceNoteUrl;
+  final String? documentUrl;
+  final String? documentFileName;
 }

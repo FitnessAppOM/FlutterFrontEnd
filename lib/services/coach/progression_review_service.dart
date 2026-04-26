@@ -604,6 +604,77 @@ class CoachDietComment {
   }
 }
 
+class CoachDietDocument {
+  final int documentId;
+  final int clientUserId;
+  final int coachUserId;
+  final String? clientName;
+  final String? documentTitle;
+  final String? originalFilename;
+  final String? documentUrl;
+  final String? mimeType;
+  final int fileSizeBytes;
+  final bool isPinned;
+  final DateTime? pinnedAt;
+  final DateTime? clientSeenAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  const CoachDietDocument({
+    required this.documentId,
+    required this.clientUserId,
+    required this.coachUserId,
+    this.clientName,
+    this.documentTitle,
+    this.originalFilename,
+    this.documentUrl,
+    this.mimeType,
+    required this.fileSizeBytes,
+    required this.isPinned,
+    this.pinnedAt,
+    this.clientSeenAt,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  factory CoachDietDocument.fromJson(Map<String, dynamic> json) {
+    int parseInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    DateTime? parseDate(dynamic value) {
+      final raw = value?.toString().trim() ?? '';
+      if (raw.isEmpty) return null;
+      return DateTime.tryParse(raw);
+    }
+
+    String? parseString(dynamic value) {
+      final raw = value?.toString().trim() ?? '';
+      if (raw.isEmpty) return null;
+      return raw;
+    }
+
+    return CoachDietDocument(
+      documentId: parseInt(json['document_id']),
+      clientUserId: parseInt(json['client_user_id']),
+      coachUserId: parseInt(json['coach_user_id']),
+      clientName: parseString(json['client_name']),
+      documentTitle: parseString(json['document_title']),
+      originalFilename: parseString(json['original_filename']),
+      documentUrl: parseString(json['document_url']),
+      mimeType: parseString(json['mime_type']),
+      fileSizeBytes: parseInt(json['file_size_bytes']),
+      isPinned: json['is_pinned'] == true,
+      pinnedAt: parseDate(json['pinned_at']),
+      clientSeenAt: parseDate(json['client_seen_at']),
+      createdAt: parseDate(json['created_at']),
+      updatedAt: parseDate(json['updated_at']),
+    );
+  }
+}
+
 class ProgressionReviewService {
   static final Map<int, String?> _avatarUrlCache = <int, String?>{};
 
@@ -1036,6 +1107,106 @@ class ProgressionReviewService {
       throw Exception('Invalid response while saving diet voice note comment');
     }
     return CoachDietComment.fromJson(Map<String, dynamic>.from(raw));
+  }
+
+  static Future<CoachDietDocument> uploadClientDietDocument({
+    required int clientUserId,
+    required String documentFilePath,
+    String? documentTitle,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      _uri('/coach/progression/clients/$clientUserId/diet-documents'),
+    );
+    request.headers.addAll(await _authHeaders());
+    final normalizedTitle = (documentTitle ?? '').trim();
+    if (normalizedTitle.isNotEmpty) {
+      request.fields['document_title'] = normalizedTitle;
+    }
+    request.files.add(
+      await http.MultipartFile.fromPath('document', documentFilePath),
+    );
+
+    final streamed = await request.send();
+    final res = await http.Response.fromStream(streamed);
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to upload diet document', res.body),
+      );
+    }
+    final decoded = jsonDecode(res.body);
+    final raw = decoded is Map ? decoded['item'] : null;
+    if (raw is! Map) {
+      throw Exception('Invalid response while uploading diet document');
+    }
+    return CoachDietDocument.fromJson(Map<String, dynamic>.from(raw));
+  }
+
+  static Future<List<CoachDietDocument>> fetchAssignedDietDocuments({
+    int limit = 300,
+  }) async {
+    final res = await http.get(
+      _uri('/coach/progression/nutrition/diet-documents', {'limit': '$limit'}),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to load nutrition documents', res.body),
+      );
+    }
+    final decoded = jsonDecode(res.body);
+    final raw = decoded is Map ? decoded['items'] : null;
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((e) => CoachDietDocument.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
+  static Future<CoachDietDocument> setClientDietDocumentPinned({
+    required int clientUserId,
+    required int documentId,
+    required bool isPinned,
+  }) async {
+    final res = await http.patch(
+      _uri(
+        '/coach/progression/clients/$clientUserId/diet-documents/$documentId/pin',
+      ),
+      headers: await _authHeaders(jsonBody: true),
+      body: jsonEncode({'is_pinned': isPinned}),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to update diet document pin', res.body),
+      );
+    }
+    final decoded = jsonDecode(res.body);
+    final raw = decoded is Map ? decoded['item'] : null;
+    if (raw is! Map) {
+      throw Exception('Invalid response while updating diet document pin');
+    }
+    return CoachDietDocument.fromJson(Map<String, dynamic>.from(raw));
+  }
+
+  static Future<void> deleteClientDietDocument({
+    required int clientUserId,
+    required int documentId,
+  }) async {
+    final res = await http.delete(
+      _uri(
+        '/coach/progression/clients/$clientUserId/diet-documents/$documentId',
+      ),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to delete diet document', res.body),
+      );
+    }
   }
 
   static Future<CoachDietComment> setClientDietCommentPinned({
