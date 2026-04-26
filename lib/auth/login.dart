@@ -533,18 +533,19 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
 
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => ForgotPasswordPage()),
-                  );
-                },
-                child: Text(t.translate("forgot_password")),
+            if (lastAuthProvider != "google" && lastAuthProvider != "apple")
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => ForgotPasswordPage()),
+                    );
+                  },
+                  child: Text(t.translate("forgot_password")),
+                ),
               ),
-            ),
 
             SizedBox(
               width: double.infinity,

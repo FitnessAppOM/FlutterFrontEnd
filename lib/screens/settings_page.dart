@@ -49,6 +49,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String? _expertProfileStatus;
   String? _scheduledPurgeAtDisplay;
   String? _email;
+  String? _authProvider;
   bool _expertQuestionnaireDone = false;
   bool _whoopLinked = false;
   bool _whoopLoading = false;
@@ -84,6 +85,7 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     _loadEmail();
+    _loadAuthProvider();
     _loadExpertFlag();
     _loadWhoopStatus();
     _loadFitbitStatus();
@@ -245,6 +247,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _appleWatchChecking = false;
     });
     _loadEmail();
+    _loadAuthProvider();
     _loadExpertFlag();
     _loadWhoopStatus();
     _loadFitbitStatus();
@@ -283,6 +286,15 @@ class _SettingsPageState extends State<SettingsPage> {
     if (mounted) {
       setState(() {
         _email = email;
+      });
+    }
+  }
+
+  Future<void> _loadAuthProvider() async {
+    final provider = await AccountStorage.getAuthProvider();
+    if (mounted) {
+      setState(() {
+        _authProvider = provider;
       });
     }
   }
@@ -1468,24 +1480,25 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           const SizedBox(height: 12),
-          _SettingsTile(
-            title: t.translate("settings_change_password"),
-            subtitle: t.translate("settings_change_password_sub"),
-            icon: Icons.lock_reset,
-            onTap: _isDeactivated
-                ? null
-                : () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ForgotPasswordPage(
-                          lockedEmail: _email,
-                          lockEmailField: _email != null,
+          if (_authProvider != "google" && _authProvider != "apple")
+            _SettingsTile(
+              title: t.translate("settings_change_password"),
+              subtitle: t.translate("settings_change_password_sub"),
+              icon: Icons.lock_reset,
+              onTap: _isDeactivated
+                  ? null
+                  : () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ForgotPasswordPage(
+                            lockedEmail: _email,
+                            lockEmailField: _email != null,
+                          ),
                         ),
-                      ),
-                    );
-                  },
-          ),
+                      );
+                    },
+            ),
           if (_isDeactivated)
             _SettingsTile(
               title: t.translate("account_reactivate_action"),
