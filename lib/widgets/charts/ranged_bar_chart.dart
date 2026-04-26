@@ -27,6 +27,7 @@ class RangedBarChart extends StatelessWidget {
     this.labelHeight = 16.0,
     this.labelGap = 4.0,
     this.gridLineColor,
+    this.yAxisTitle,
   });
 
   final List<RangedBarChartEntry> entries;
@@ -46,6 +47,7 @@ class RangedBarChart extends StatelessWidget {
   final double labelHeight;
   final double labelGap;
   final Color? gridLineColor;
+  final String? yAxisTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +62,7 @@ class RangedBarChart extends StatelessWidget {
     );
     final lineColor = gridLineColor ?? Colors.white.withValues(alpha: 0.06);
 
-    return LayoutBuilder(
+    final chart = LayoutBuilder(
       builder: (context, constraints) {
         final barMaxHeight = showAxisLabels
             ? (constraints.maxHeight - labelHeight - labelGap).clamp(
@@ -207,6 +209,26 @@ class RangedBarChart extends StatelessWidget {
           ],
         );
       },
+    );
+
+    if ((yAxisTitle ?? '').trim().isEmpty) {
+      return chart;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          yAxisTitle!,
+          style: const TextStyle(
+            color: Colors.white60,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Expanded(child: chart),
+      ],
     );
   }
 }

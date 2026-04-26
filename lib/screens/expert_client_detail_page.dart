@@ -26,10 +26,12 @@ class ExpertClientDetailPage extends StatefulWidget {
     super.key,
     required this.client,
     required this.reviews,
+    this.onDietLogSeen,
   });
 
   final ProgressionClient client;
   final List<ProgressionReview> reviews;
+  final VoidCallback? onDietLogSeen;
 
   @override
   State<ExpertClientDetailPage> createState() => _ExpertClientDetailPageState();
@@ -61,10 +63,15 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   String? _profileError;
   String? _habitsError;
   String? _formChecksError;
+  late bool _showFormReviewPendingNote;
+  late bool _showDietLogPendingNote;
+  bool _dietLogSeenNotified = false;
 
   @override
   void initState() {
     super.initState();
+    _showFormReviewPendingNote = widget.client.hasFormCheckToReview;
+    _showDietLogPendingNote = widget.client.hasDietLogToReview;
     _voicePlayerSub = _voicePlayer.playerStateStream.listen((_) {
       if (mounted) {
         setState(() {});
@@ -1063,7 +1070,8 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                     Row(
                       children: [
                         FilledButton.icon(
-                          onPressed: (isSaving ||
+                          onPressed:
+                              (isSaving ||
                                   isSendingVoice ||
                                   _isRecordingVoiceNote)
                               ? null
@@ -1620,6 +1628,20 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   }
 
   Future<void> _openDietReviewPage() async {
+    if (_showDietLogPendingNote && mounted) {
+      setState(() {
+        _showDietLogPendingNote = false;
+      });
+    }
+    if (!_dietLogSeenNotified) {
+      _dietLogSeenNotified = true;
+      widget.onDietLogSeen?.call();
+    }
+    unawaited(
+      ProgressionReviewService.markClientDietLogSeen(
+        clientUserId: widget.client.userId,
+      ).catchError((_) {}),
+    );
     final clientName = _displayName();
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -1943,8 +1965,8 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                children: const [
-                  Expanded(
+                children: [
+                  const Expanded(
                     child: Text(
                       'Diet Review',
                       style: TextStyle(
@@ -1954,7 +1976,38 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                       ),
                     ),
                   ),
-                  Icon(Icons.chevron_right, color: Colors.white54, size: 20),
+                  if (_showDietLogPendingNote)
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF5FD8FF).withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: const Color(
+                            0xFF5FD8FF,
+                          ).withValues(alpha: 0.45),
+                        ),
+                      ),
+                      child: Text(
+                        widget.client.sharedDietLogCount > 1
+                            ? 'New (${widget.client.sharedDietLogCount})'
+                            : 'New',
+                        style: const TextStyle(
+                          color: Color(0xFF5FD8FF),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  const Icon(
+                    Icons.chevron_right,
+                    color: Colors.white54,
+                    size: 20,
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -1962,6 +2015,29 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                 'View this client diet logs by date and leave coach comments.',
                 style: TextStyle(color: Colors.white70),
               ),
+              if (_showDietLogPendingNote) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: const [
+                    Icon(
+                      Icons.restaurant_menu_rounded,
+                      size: 14,
+                      color: Color(0xFF5FD8FF),
+                    ),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'New diet logs available.',
+                        style: TextStyle(
+                          color: Color(0xFF5FD8FF),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 10),
               Align(
                 alignment: Alignment.centerRight,
@@ -2016,6 +2092,31 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
             'Only videos explicitly shared by this client are shown.',
             style: TextStyle(color: Colors.white70),
           ),
+          if (_showFormReviewPendingNote) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(
+                  Icons.notification_important_outlined,
+                  size: 14,
+                  color: Colors.orangeAccent,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    widget.client.sharedFormCheckCount > 1
+                        ? 'Awaiting your reply (${widget.client.sharedFormCheckCount})'
+                        : 'Awaiting your reply',
+                    style: const TextStyle(
+                      color: Colors.orangeAccent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 10),
           if (_formChecksError != null)
             Text(

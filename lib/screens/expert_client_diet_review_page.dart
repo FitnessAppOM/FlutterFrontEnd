@@ -51,6 +51,8 @@ class _ExpertClientDietReviewPageState
   String? _logError;
   String? _commentsError;
   Map<String, dynamic>? _dietLog;
+  final Map<String, Map<String, dynamic>> _dietLogByDate =
+      <String, Map<String, dynamic>>{};
   List<CoachDietComment> _comments = const [];
   int? _selectedMealId;
 
@@ -359,7 +361,32 @@ class _ExpertClientDietReviewPageState
     }
   }
 
-  Future<void> _loadDietLog() async {
+  void _applyDietLogState(Map<String, dynamic> log) {
+    final loggedMeals = _loggedMealsFromLog(log);
+    final selected = _selectedMealId;
+    final hasSelected =
+        selected != null &&
+        loggedMeals.any((meal) => _asInt(meal['meal_id']) == selected);
+    _dietLog = log;
+    _loadingLog = false;
+    _logError = null;
+    _selectedMealId = hasSelected
+        ? selected
+        : (loggedMeals.isNotEmpty
+              ? _asInt(loggedMeals.first['meal_id'])
+              : null);
+  }
+
+  Future<void> _loadDietLog({bool forceRefresh = false}) async {
+    final dateKey = _dateToken(_selectedDate);
+    if (!forceRefresh) {
+      final cached = _dietLogByDate[dateKey];
+      if (cached != null) {
+        if (!mounted) return;
+        setState(() => _applyDietLogState(cached));
+        return;
+      }
+    }
     if (mounted) {
       setState(() {
         _loadingLog = true;
@@ -371,22 +398,9 @@ class _ExpertClientDietReviewPageState
         clientUserId: widget.clientUserId,
         mealDate: _selectedDate,
       );
-      final loggedMeals = _loggedMealsFromLog(log);
+      _dietLogByDate[dateKey] = log;
       if (!mounted) return;
-      setState(() {
-        _dietLog = log;
-        _loadingLog = false;
-        _logError = null;
-        final selected = _selectedMealId;
-        final hasSelected =
-            selected != null &&
-            loggedMeals.any((meal) => _asInt(meal['meal_id']) == selected);
-        _selectedMealId = hasSelected
-            ? selected
-            : (loggedMeals.isNotEmpty
-                  ? _asInt(loggedMeals.first['meal_id'])
-                  : null);
-      });
+      setState(() => _applyDietLogState(log));
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -425,8 +439,11 @@ class _ExpertClientDietReviewPageState
     }
   }
 
-  Future<void> _loadAll() async {
-    await Future.wait([_loadDietLog(), _loadComments()]);
+  Future<void> _loadAll({bool forceRefresh = false}) async {
+    await Future.wait([
+      _loadDietLog(forceRefresh: forceRefresh),
+      _loadComments(),
+    ]);
   }
 
   Future<void> _shiftDay(int delta) async {
@@ -767,8 +784,22 @@ class _ExpertClientDietReviewPageState
     final target = _asMap(summary['target']);
     final consumed = _asMap(summary['consumed']);
     final remaining = _asMap(summary['remaining']);
+    final dayType = (summary['day_type'] ?? '').toString().trim().toLowerCase();
+    final dayTypeLabel = dayType == 'training'
+        ? 'Training day'
+        : (dayType == 'rest' ? 'Rest day' : '-');
     final targetCalories = _asInt(target['calories']);
     final consumedCalories = _asInt(consumed['calories']);
+    final remainingCalories = _asInt(remaining['calories']);
+    final targetProtein = _asInt(target['protein_g']);
+    final consumedProtein = _asInt(consumed['protein_g']);
+    final remainingProtein = _asInt(remaining['protein_g']);
+    final targetCarbs = _asInt(target['carbs_g']);
+    final consumedCarbs = _asInt(consumed['carbs_g']);
+    final remainingCarbs = _asInt(remaining['carbs_g']);
+    final targetFat = _asInt(target['fat_g']);
+    final consumedFat = _asInt(consumed['fat_g']);
+    final remainingFat = _asInt(remaining['fat_g']);
     final scorePct = targetCalories > 0
         ? (consumedCalories / targetCalories * 100.0)
         : null;
@@ -802,14 +833,13 @@ class _ExpertClientDietReviewPageState
               style: TextStyle(color: Colors.white70),
             )
           else ...[
+            _InfoRow(label: 'Day type', value: dayTypeLabel),
+            const SizedBox(height: 6),
             _InfoRow(label: 'Target kcal', value: '$targetCalories'),
             const SizedBox(height: 6),
             _InfoRow(label: 'Consumed kcal', value: '$consumedCalories'),
             const SizedBox(height: 6),
-            _InfoRow(
-              label: 'Remaining kcal',
-              value: '${_asInt(remaining['calories'])}',
-            ),
+            _InfoRow(label: 'Remaining kcal', value: '$remainingCalories'),
             const SizedBox(height: 6),
             _InfoRow(
               label: 'Goal done',
@@ -834,6 +864,47 @@ class _ExpertClientDietReviewPageState
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            const Text(
+              'Target vs consumed',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _MacroProgressRow(
+              label: 'Calories',
+              consumed: consumedCalories,
+              target: targetCalories,
+              remaining: remainingCalories,
+              unit: 'kcal',
+            ),
+            const SizedBox(height: 6),
+            _MacroProgressRow(
+              label: 'Protein',
+              consumed: consumedProtein,
+              target: targetProtein,
+              remaining: remainingProtein,
+              unit: 'g',
+            ),
+            const SizedBox(height: 6),
+            _MacroProgressRow(
+              label: 'Carbs',
+              consumed: consumedCarbs,
+              target: targetCarbs,
+              remaining: remainingCarbs,
+              unit: 'g',
+            ),
+            const SizedBox(height: 6),
+            _MacroProgressRow(
+              label: 'Fat',
+              consumed: consumedFat,
+              target: targetFat,
+              remaining: remainingFat,
+              unit: 'g',
+            ),
           ],
         ],
       ),
@@ -841,6 +912,12 @@ class _ExpertClientDietReviewPageState
   }
 
   Widget _buildMealsCard() {
+    final daySummary = _asMap(_asMap(_dietLog?['diet_log'])['day_summary']);
+    final dayTarget = _asMap(daySummary['target']);
+    final dayTargetCalories = _asInt(dayTarget['calories']);
+    final dayTargetProtein = _asInt(dayTarget['protein_g']);
+    final dayTargetCarbs = _asInt(dayTarget['carbs_g']);
+    final dayTargetFat = _asInt(dayTarget['fat_g']);
     final meals = _loggedMealsFromLog(_dietLog);
 
     return Container(
@@ -866,6 +943,17 @@ class _ExpertClientDietReviewPageState
             'Coach comments are attached to the selected meal.',
             style: TextStyle(color: Colors.white54, fontSize: 12),
           ),
+          if (dayTarget.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Day target: $dayTargetCalories kcal • P $dayTargetProtein g • C $dayTargetCarbs g • F $dayTargetFat g',
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           if (meals.isEmpty)
             const Text(
@@ -877,6 +965,13 @@ class _ExpertClientDietReviewPageState
               final mealId = _asInt(meal['meal_id']);
               final mealLabel = _mealLabel(meal);
               final totals = _asMap(meal['totals']);
+              final mealCalories = _asInt(totals['calories']);
+              final mealProtein = _asInt(totals['protein_g']);
+              final mealCarbs = _asInt(totals['carbs_g']);
+              final mealFat = _asInt(totals['fat_g']);
+              final mealCaloriesScore = dayTargetCalories > 0
+                  ? (mealCalories / dayTargetCalories * 100.0)
+                  : null;
               final items = _asMapList(meal['items']);
               final isSelected = mealId > 0 && mealId == _selectedMealId;
               final previewItems = items
@@ -945,10 +1040,20 @@ class _ExpertClientDietReviewPageState
                               ),
                             ),
                           Text(
-                            '${_asInt(totals['calories'])} kcal',
+                            mealCaloriesScore == null
+                                ? '$mealCalories kcal'
+                                : '$mealCalories kcal (${mealCaloriesScore.toStringAsFixed(0)}%)',
                             style: const TextStyle(color: Colors.white70),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'P $mealProtein g • C $mealCarbs g • F $mealFat g',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -1146,7 +1251,9 @@ class _ExpertClientDietReviewPageState
                           ),
                         )
                       : Icon(
-                          isPendingVoicePlaying ? Icons.pause : Icons.play_arrow,
+                          isPendingVoicePlaying
+                              ? Icons.pause
+                              : Icons.play_arrow,
                           size: 16,
                         ),
                   label: Text(
@@ -1442,7 +1549,7 @@ class _ExpertClientDietReviewPageState
         title: Text('${widget.clientName} • Diet Review'),
       ),
       body: RefreshIndicator(
-        onRefresh: _loadAll,
+        onRefresh: () => _loadAll(forceRefresh: true),
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(20),
@@ -1515,6 +1622,52 @@ class _ExpertClientDietReviewPageState
           ],
         ),
       ),
+    );
+  }
+}
+
+class _MacroProgressRow extends StatelessWidget {
+  const _MacroProgressRow({
+    required this.label,
+    required this.consumed,
+    required this.target,
+    required this.remaining,
+    required this.unit,
+  });
+
+  final String label;
+  final int consumed;
+  final int target;
+  final int remaining;
+  final String unit;
+
+  @override
+  Widget build(BuildContext context) {
+    final score = target > 0 ? (consumed / target * 100.0) : null;
+    return Row(
+      children: [
+        SizedBox(
+          width: 68,
+          child: Text(
+            label,
+            style: const TextStyle(color: Colors.white60, fontSize: 12),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            '$consumed / $target $unit',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Text(
+          'Rem $remaining $unit${score == null ? '' : ' • ${score.toStringAsFixed(0)}%'}',
+          style: const TextStyle(color: Colors.white54, fontSize: 11),
+        ),
+      ],
     );
   }
 }

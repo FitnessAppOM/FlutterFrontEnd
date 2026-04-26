@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../localization/app_localizations.dart';
@@ -5,6 +7,7 @@ import '../services/coach/progression_review_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_toast.dart';
 import 'expert_client_detail_page.dart';
+import 'expert_connection_requests_page.dart';
 import 'expert_progression_review_page.dart';
 
 class ExpertDashboardPage extends StatefulWidget {
@@ -27,6 +30,9 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
   bool _generating = false;
   List<ProgressionClient> _clients = const [];
   List<ProgressionReview> _reviews = const [];
+  int _newPendingConnectionRequestCount = 0;
+  final Set<int> _dietBadgeSuppressedClientIds = <int>{};
+  final Set<int> _newClientBadgeSuppressedClientIds = <int>{};
 
   @override
   void initState() {
@@ -36,16 +42,72 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
+    final previousNewClientCount = _clients
+        .where(
+          (client) =>
+              client.hasNewAssignment &&
+              !_newClientBadgeSuppressedClientIds.contains(client.userId),
+        )
+        .length;
+    final previousNewRequestCount = _newPendingConnectionRequestCount;
     try {
       final results = await Future.wait([
         ProgressionReviewService.fetchClients(),
         ProgressionReviewService.fetchReviews(includeApplied: true),
+        ProgressionReviewService.fetchPendingConnectionRequests(),
       ]);
+      final fetchedClients = results[0] as List<ProgressionClient>;
+      final fetchedReviews = results[1] as List<ProgressionReview>;
+      final requestSummary = results[2] as CoachConnectionRequestSummary;
+      final visibleNewClientCount = fetchedClients
+          .where(
+            (client) =>
+                client.hasNewAssignment &&
+                !_newClientBadgeSuppressedClientIds.contains(client.userId),
+          )
+          .length;
       if (!mounted) return;
       setState(() {
-        _clients = results[0] as List<ProgressionClient>;
-        _reviews = results[1] as List<ProgressionReview>;
+        _clients = fetchedClients;
+        _reviews = fetchedReviews;
+        _newPendingConnectionRequestCount = requestSummary.newPendingCount;
+        _dietBadgeSuppressedClientIds.removeWhere((userId) {
+          final matched = _clients.where((c) => c.userId == userId);
+          if (matched.isEmpty) return true;
+          // Keep local suppression only while backend also says "no new diet logs".
+          // If backend reports new logs again, restore the outside badge.
+          return matched.any(
+            (c) => c.hasDietLogToReview || c.sharedDietLogCount > 0,
+          );
+        });
+        _newClientBadgeSuppressedClientIds.removeWhere((userId) {
+          final matched = _clients.where((c) => c.userId == userId);
+          if (matched.isEmpty) return true;
+          // Keep local suppression only while backend also says "assignment seen".
+          // If backend reports new assignment again, restore outside marker.
+          return matched.any(
+            (c) => c.hasNewAssignment || c.newAssignmentCount > 0,
+          );
+        });
       });
+      if (visibleNewClientCount > previousNewClientCount) {
+        AppToast.show(
+          context,
+          visibleNewClientCount == 1
+              ? 'You have 1 new assigned client.'
+              : 'You have $visibleNewClientCount new assigned clients.',
+          type: AppToastType.info,
+        );
+      }
+      if (_newPendingConnectionRequestCount > previousNewRequestCount) {
+        AppToast.show(
+          context,
+          _newPendingConnectionRequestCount == 1
+              ? 'You have 1 new connection request.'
+              : 'You have $_newPendingConnectionRequestCount new connection requests.',
+          type: AppToastType.info,
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       AppToast.show(context, e.toString(), type: AppToastType.error);
@@ -108,14 +170,57 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
     await _load();
   }
 
+  Future<void> _openConnectionRequests() async {
+    if (_newPendingConnectionRequestCount > 0) {
+      setState(() {
+        _newPendingConnectionRequestCount = 0;
+      });
+      unawaited(
+        ProgressionReviewService.markConnectionRequestsSeen().catchError((_) {
+          // Keep UX smooth even if marking seen fails; next refresh restores state.
+        }),
+      );
+    }
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ExpertConnectionRequestsPage()),
+    );
+    await _load();
+  }
+
   Future<void> _openClientDetail(ProgressionClient client) async {
+    final hasVisibleNewAssignment =
+        client.hasNewAssignment &&
+        !_newClientBadgeSuppressedClientIds.contains(client.userId);
+    if (hasVisibleNewAssignment) {
+      setState(() {
+        _newClientBadgeSuppressedClientIds.add(client.userId);
+      });
+      unawaited(
+        ProgressionReviewService.markClientAssignmentSeen(
+          clientUserId: client.userId,
+        ).catchError((_) {
+          if (!mounted) return;
+          setState(() {
+            _newClientBadgeSuppressedClientIds.remove(client.userId);
+          });
+        }),
+      );
+    }
     final clientReviews = _reviews
         .where((review) => review.userId == client.userId)
         .toList();
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) =>
-            ExpertClientDetailPage(client: client, reviews: clientReviews),
+        builder: (_) => ExpertClientDetailPage(
+          client: client,
+          reviews: clientReviews,
+          onDietLogSeen: () {
+            if (!mounted) return;
+            setState(() {
+              _dietBadgeSuppressedClientIds.add(client.userId);
+            });
+          },
+        ),
       ),
     );
     await _load();
@@ -150,13 +255,53 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final prioritizedClients = [..._clients]
+    final displayClients = _clients.map((client) {
+      var mapped = client;
+      if (_dietBadgeSuppressedClientIds.contains(client.userId)) {
+        mapped = mapped.copyWith(
+          hasDietLogToReview: false,
+          sharedDietLogCount: 0,
+        );
+      }
+      if (_newClientBadgeSuppressedClientIds.contains(client.userId)) {
+        mapped = mapped.copyWith(
+          hasNewAssignment: false,
+          newAssignmentCount: 0,
+        );
+      }
+      return mapped;
+    }).toList();
+
+    final prioritizedClients = [...displayClients]
       ..sort((a, b) {
+        final aHasPending =
+            a.hasNewAssignment ||
+            a.hasFormCheckToReview ||
+            a.hasDietLogToReview;
+        final bHasPending =
+            b.hasNewAssignment ||
+            b.hasFormCheckToReview ||
+            b.hasDietLogToReview;
+        if (aHasPending != bHasPending) {
+          return bHasPending ? 1 : -1;
+        }
+        if (a.hasNewAssignment != b.hasNewAssignment) {
+          return b.hasNewAssignment ? 1 : -1;
+        }
+        if (a.newAssignmentCount != b.newAssignmentCount) {
+          return b.newAssignmentCount.compareTo(a.newAssignmentCount);
+        }
         if (a.hasFormCheckToReview != b.hasFormCheckToReview) {
           return b.hasFormCheckToReview ? 1 : -1;
         }
         if (a.sharedFormCheckCount != b.sharedFormCheckCount) {
           return b.sharedFormCheckCount.compareTo(a.sharedFormCheckCount);
+        }
+        if (a.hasDietLogToReview != b.hasDietLogToReview) {
+          return b.hasDietLogToReview ? 1 : -1;
+        }
+        if (a.sharedDietLogCount != b.sharedDietLogCount) {
+          return b.sharedDietLogCount.compareTo(a.sharedDietLogCount);
         }
         return a.userId.compareTo(b.userId);
       });
@@ -356,12 +501,90 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final showRequestsButton = _tabIndex == _tabMyClients;
 
     return Scaffold(
       backgroundColor: AppColors.black,
       appBar: AppBar(
         backgroundColor: AppColors.black,
         title: Text(_appBarTitle(t)),
+        actions: [
+          if (showRequestsButton)
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Center(
+                child: Material(
+                  color: AppColors.cardDark,
+                  borderRadius: BorderRadius.circular(10),
+                  child: InkWell(
+                    onTap: _openConnectionRequests,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.18),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.how_to_reg_rounded,
+                            size: 14,
+                            color: _newPendingConnectionRequestCount > 0
+                                ? const Color(0xFF4ADE80)
+                                : Colors.white70,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Requests',
+                            style: TextStyle(
+                              color: _newPendingConnectionRequestCount > 0
+                                  ? const Color(0xFFA7F3D0)
+                                  : Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.1,
+                            ),
+                          ),
+                          if (_newPendingConnectionRequestCount > 0) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFF1F9D63,
+                                ).withValues(alpha: 0.22),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                _newPendingConnectionRequestCount > 99
+                                    ? '99+'
+                                    : '$_newPendingConnectionRequestCount',
+                                style: const TextStyle(
+                                  color: Color(0xFFA7F3D0),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       body: IndexedStack(
         index: _tabIndex,
@@ -642,6 +865,35 @@ class _ClientOverviewCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (client.hasNewAssignment) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(
+                            0xFF1F9D63,
+                          ).withValues(alpha: 0.22),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: const Color(
+                              0xFF4ADE80,
+                            ).withValues(alpha: 0.65),
+                          ),
+                        ),
+                        child: const Text(
+                          'NEW',
+                          style: TextStyle(
+                            color: Color(0xFFA7F3D0),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(width: 6),
                     _ActivityStatusDot(
                       status: client.activityStatus,
@@ -649,11 +901,33 @@ class _ClientOverviewCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'Progression reviews: $reviewCount',
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
-                ),
+                if (client.hasNewAssignment) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.person_add_alt_1_rounded,
+                        size: 14,
+                        color: Color(0xFF4ADE80),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          client.newAssignmentCount > 1
+                              ? 'New client assignments (${client.newAssignmentCount})'
+                              : 'New client assignment',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFFA7F3D0),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 if (client.hasFormCheckToReview) ...[
                   const SizedBox(height: 4),
                   Row(
@@ -673,6 +947,33 @@ class _ClientOverviewCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Colors.orangeAccent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                if (client.hasDietLogToReview) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.restaurant_menu_rounded,
+                        size: 14,
+                        color: Color(0xFF5FD8FF),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          client.sharedDietLogCount > 1
+                              ? 'New diet logs (${client.sharedDietLogCount})'
+                              : 'New diet log',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF5FD8FF),
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),

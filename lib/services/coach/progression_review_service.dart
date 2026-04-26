@@ -21,6 +21,11 @@ class ProgressionClient {
   final String? lastHabitDate;
   final int sharedFormCheckCount;
   final bool hasFormCheckToReview;
+  final int sharedDietLogCount;
+  final bool hasDietLogToReview;
+  final int newAssignmentCount;
+  final bool hasNewAssignment;
+  final double? currentWeightKg;
 
   const ProgressionClient({
     required this.userId,
@@ -37,6 +42,11 @@ class ProgressionClient {
     this.lastHabitDate,
     this.sharedFormCheckCount = 0,
     this.hasFormCheckToReview = false,
+    this.sharedDietLogCount = 0,
+    this.hasDietLogToReview = false,
+    this.newAssignmentCount = 0,
+    this.hasNewAssignment = false,
+    this.currentWeightKg,
   });
 
   ProgressionClient copyWith({
@@ -53,6 +63,11 @@ class ProgressionClient {
     String? lastHabitDate,
     int? sharedFormCheckCount,
     bool? hasFormCheckToReview,
+    int? sharedDietLogCount,
+    bool? hasDietLogToReview,
+    int? newAssignmentCount,
+    bool? hasNewAssignment,
+    double? currentWeightKg,
   }) {
     return ProgressionClient(
       userId: userId,
@@ -69,6 +84,11 @@ class ProgressionClient {
       lastHabitDate: lastHabitDate ?? this.lastHabitDate,
       sharedFormCheckCount: sharedFormCheckCount ?? this.sharedFormCheckCount,
       hasFormCheckToReview: hasFormCheckToReview ?? this.hasFormCheckToReview,
+      sharedDietLogCount: sharedDietLogCount ?? this.sharedDietLogCount,
+      hasDietLogToReview: hasDietLogToReview ?? this.hasDietLogToReview,
+      newAssignmentCount: newAssignmentCount ?? this.newAssignmentCount,
+      hasNewAssignment: hasNewAssignment ?? this.hasNewAssignment,
+      currentWeightKg: currentWeightKg ?? this.currentWeightKg,
     );
   }
 
@@ -77,6 +97,13 @@ class ProgressionClient {
       if (value is int) return value;
       if (value is num) return value.toInt();
       return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    double? parseDouble(dynamic value) {
+      if (value == null) return null;
+      if (value is double) return value;
+      if (value is num) return value.toDouble();
+      return double.tryParse(value.toString());
     }
 
     String? parseString(dynamic value) {
@@ -128,6 +155,133 @@ class ProgressionClient {
       lastHabitDate: parseString(json['last_habit_date']),
       sharedFormCheckCount: parseInt(json['shared_form_check_count']),
       hasFormCheckToReview: parseBool(json['has_form_check_to_review']),
+      sharedDietLogCount: parseInt(
+        json['shared_diet_log_count'] ?? json['shared_diet_logs_count'],
+      ),
+      hasDietLogToReview:
+          parseBool(
+            json['has_diet_log_to_review'] ??
+                json['has_diet_logs_to_review'] ??
+                json['has_diet_to_review'],
+          ) ||
+          parseInt(
+                json['shared_diet_log_count'] ?? json['shared_diet_logs_count'],
+              ) >
+              0,
+      newAssignmentCount: parseInt(
+        json['new_assignment_count'] ?? json['newAssignmentCount'],
+      ),
+      hasNewAssignment:
+          parseBool(
+            json['has_new_assignment'] ??
+                json['hasNewAssignment'] ??
+                json['is_new_assignment'],
+          ) ||
+          parseInt(json['new_assignment_count'] ?? json['newAssignmentCount']) >
+              0,
+      currentWeightKg: parseDouble(
+        json['current_weight_kg'] ?? json['currentWeightKg'],
+      ),
+    );
+  }
+}
+
+class CoachConnectionRequestItem {
+  final int clientUserId;
+  final String? clientName;
+  final String? clientEmail;
+  final String? requestedAt;
+  final String? updatedAt;
+  final bool isNew;
+
+  const CoachConnectionRequestItem({
+    required this.clientUserId,
+    this.clientName,
+    this.clientEmail,
+    this.requestedAt,
+    this.updatedAt,
+    this.isNew = false,
+  });
+
+  factory CoachConnectionRequestItem.fromJson(Map<String, dynamic> json) {
+    int parseInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    String? parseString(dynamic value) {
+      final raw = value?.toString().trim() ?? '';
+      if (raw.isEmpty) return null;
+      if (raw.toLowerCase() == 'null') return null;
+      return raw;
+    }
+
+    bool parseBool(dynamic value) {
+      if (value is bool) return value;
+      final raw = value?.toString().trim().toLowerCase() ?? '';
+      return raw == 'true' || raw == '1' || raw == 'yes';
+    }
+
+    return CoachConnectionRequestItem(
+      clientUserId: parseInt(json['client_user_id'] ?? json['clientUserId']),
+      clientName: parseString(json['client_name'] ?? json['clientName']),
+      clientEmail: parseString(json['client_email'] ?? json['clientEmail']),
+      requestedAt: parseString(json['requested_at'] ?? json['requestedAt']),
+      updatedAt: parseString(json['updated_at'] ?? json['updatedAt']),
+      isNew: parseBool(json['is_new'] ?? json['isNew']),
+    );
+  }
+}
+
+class CoachConnectionRequestSummary {
+  final List<CoachConnectionRequestItem> items;
+  final int pendingCount;
+  final int newPendingCount;
+  final bool hasNewRequests;
+
+  const CoachConnectionRequestSummary({
+    required this.items,
+    this.pendingCount = 0,
+    this.newPendingCount = 0,
+    this.hasNewRequests = false,
+  });
+
+  factory CoachConnectionRequestSummary.fromJson(Map<String, dynamic> json) {
+    int parseInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    bool parseBool(dynamic value) {
+      if (value is bool) return value;
+      final raw = value?.toString().trim().toLowerCase() ?? '';
+      return raw == 'true' || raw == '1' || raw == 'yes';
+    }
+
+    final rawItems = json['items'];
+    final items = rawItems is List
+        ? rawItems
+              .whereType<Map>()
+              .map(
+                (e) => CoachConnectionRequestItem.fromJson(
+                  Map<String, dynamic>.from(e),
+                ),
+              )
+              .toList()
+        : <CoachConnectionRequestItem>[];
+
+    final newPendingCount = parseInt(
+      json['new_pending_count'] ?? json['newPendingCount'],
+    );
+    return CoachConnectionRequestSummary(
+      items: items,
+      pendingCount: parseInt(json['pending_count'] ?? json['pendingCount']),
+      newPendingCount: newPendingCount,
+      hasNewRequests:
+          parseBool(json['has_new_requests'] ?? json['hasNewRequests']) ||
+          newPendingCount > 0,
     );
   }
 }
@@ -597,11 +751,28 @@ class ProgressionReviewService {
       List<ProgressionClient> input,
     ) {
       input.sort((a, b) {
+        final aHasPending = a.hasFormCheckToReview || a.hasDietLogToReview;
+        final bHasPending = b.hasFormCheckToReview || b.hasDietLogToReview;
+        if (a.hasNewAssignment != b.hasNewAssignment) {
+          return b.hasNewAssignment ? 1 : -1;
+        }
+        if (a.newAssignmentCount != b.newAssignmentCount) {
+          return b.newAssignmentCount.compareTo(a.newAssignmentCount);
+        }
+        if (aHasPending != bHasPending) {
+          return bHasPending ? 1 : -1;
+        }
         if (a.hasFormCheckToReview != b.hasFormCheckToReview) {
           return b.hasFormCheckToReview ? 1 : -1;
         }
         if (a.sharedFormCheckCount != b.sharedFormCheckCount) {
           return b.sharedFormCheckCount.compareTo(a.sharedFormCheckCount);
+        }
+        if (a.hasDietLogToReview != b.hasDietLogToReview) {
+          return b.hasDietLogToReview ? 1 : -1;
+        }
+        if (a.sharedDietLogCount != b.sharedDietLogCount) {
+          return b.sharedDietLogCount.compareTo(a.sharedDietLogCount);
         }
         final aName = (a.name ?? '').toLowerCase();
         final bName = (b.name ?? '').toLowerCase();
@@ -635,6 +806,76 @@ class ProgressionReviewService {
         return client.copyWith(avatarUrl: avatar);
       }).toList(),
     );
+  }
+
+  static Future<String?> fetchMyCoachCode() async {
+    final res = await http.get(
+      _uri('/coach/connections/my-code'),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode == 403 || res.statusCode == 404) {
+      return null;
+    }
+    if (res.statusCode != 200) {
+      throw Exception(_extractError('Failed to load coach code', res.body));
+    }
+    final decoded = jsonDecode(res.body);
+    if (decoded is! Map) return null;
+    final raw = (decoded['coach_code'] ?? '').toString().trim();
+    if (raw.isEmpty || raw.toLowerCase() == 'null') {
+      return null;
+    }
+    return raw;
+  }
+
+  static Future<CoachConnectionRequestSummary>
+  fetchPendingConnectionRequests() async {
+    final res = await http.get(
+      _uri('/coach/connections/requests'),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to load connection requests', res.body),
+      );
+    }
+    final decoded = jsonDecode(res.body);
+    final map = decoded is Map
+        ? Map<String, dynamic>.from(decoded)
+        : <String, dynamic>{};
+    return CoachConnectionRequestSummary.fromJson(map);
+  }
+
+  static Future<void> markConnectionRequestsSeen() async {
+    final res = await http.post(
+      _uri('/coach/connections/requests/seen'),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to mark connection requests as seen', res.body),
+      );
+    }
+  }
+
+  static Future<void> decideConnectionRequest({
+    required int clientUserId,
+    required bool accept,
+  }) async {
+    final res = await http.post(
+      _uri('/coach/connections/requests/$clientUserId/decision'),
+      headers: await _authHeaders(jsonBody: true),
+      body: jsonEncode({'decision': accept ? 'accept' : 'deny'}),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to process connection request', res.body),
+      );
+    }
   }
 
   static Future<List<FormCheckSubmission>> fetchClientSharedFormChecks(
@@ -834,6 +1075,34 @@ class ProgressionReviewService {
     await _handleAuth(res);
     if (res.statusCode != 200) {
       throw Exception(_extractError('Failed to delete diet comment', res.body));
+    }
+  }
+
+  static Future<void> markClientDietLogSeen({required int clientUserId}) async {
+    final res = await http.post(
+      _uri('/coach/progression/clients/$clientUserId/diet-log/seen'),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to mark diet logs as seen', res.body),
+      );
+    }
+  }
+
+  static Future<void> markClientAssignmentSeen({
+    required int clientUserId,
+  }) async {
+    final res = await http.post(
+      _uri('/coach/progression/clients/$clientUserId/assignment/seen'),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to mark client assignment as seen', res.body),
+      );
     }
   }
 
