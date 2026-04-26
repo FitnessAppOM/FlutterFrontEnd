@@ -18,6 +18,7 @@ import '../services/coach/progression_review_service.dart';
 import '../services/coach/voice_note_audio_service.dart';
 import '../theme/app_theme.dart';
 import 'expert_client_analytics_page.dart';
+import 'expert_client_chat_page.dart';
 import 'expert_client_diet_review_page.dart';
 import 'expert_client_habits_page.dart';
 
@@ -1653,6 +1654,17 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     );
   }
 
+  Future<void> _openSupportChatPage() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ExpertClientChatPage(
+          clientUserId: widget.client.userId,
+          clientName: _displayName(),
+        ),
+      ),
+    );
+  }
+
   Widget _buildClientOverviewCard() {
     final name = _displayName();
     final avatarUrl = (_resolvedAvatarUrl() ?? '').trim();
@@ -2068,6 +2080,72 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     );
   }
 
+  Widget _buildSupportChatCard() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: _openSupportChatPage,
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.cardDark,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white10),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: const [
+                  Expanded(
+                    child: Text(
+                      'Support Chat',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: Colors.white54, size: 20),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Open chat thread with this client and send text replies.',
+                style: TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton.icon(
+                  onPressed: _openSupportChatPage,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white24),
+                    minimumSize: const Size(0, 34),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: const VisualDensity(
+                      horizontal: -2,
+                      vertical: -2,
+                    ),
+                  ),
+                  icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                  label: const Text('Open Chat'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildFormReviewCard() {
     return Container(
       padding: const EdgeInsets.all(14),
@@ -2199,6 +2277,8 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
         _buildAnalyticsCard(),
         const SizedBox(height: 12),
         _buildHabitsCard(),
+        const SizedBox(height: 12),
+        _buildSupportChatCard(),
         const SizedBox(height: 12),
         _buildDietReviewCard(),
         const SizedBox(height: 12),

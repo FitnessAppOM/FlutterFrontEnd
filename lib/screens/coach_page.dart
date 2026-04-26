@@ -5,9 +5,9 @@ import '../localization/app_localizations.dart';
 import '../services/auth/profile_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_toast.dart';
+import '../widgets/coach/coach_chat_panel.dart';
 import '../widgets/coach/coach_feedback_panel.dart';
 import '../widgets/coach/coach_form_check_panel.dart';
-import '../widgets/coach/coach_info_panel.dart';
 import '../widgets/confirm_dialog.dart';
 
 class CoachPage extends StatefulWidget {
@@ -177,6 +177,17 @@ class _CoachPageState extends State<CoachPage> {
     return 'Expert $firstName';
   }
 
+  String _firstNameOnly(String raw) {
+    final normalized = raw.trim();
+    if (normalized.isEmpty) return 'Coach';
+    final tokens = normalized
+        .split(RegExp(r'\s+'))
+        .where((part) => part.trim().isNotEmpty)
+        .toList();
+    if (tokens.isEmpty) return 'Coach';
+    return tokens.first;
+  }
+
   Future<void> _detachCoach(_CoachAssignment coach) async {
     final coachId = coach.id;
     if (coachId == null || coachId <= 0) {
@@ -189,10 +200,11 @@ class _CoachPageState extends State<CoachPage> {
     }
     if (_detachingCoachIds.contains(coachId)) return;
 
+    final coachFirstName = _firstNameOnly(coach.name);
     final confirm = await showConfirmDialog(
       context: context,
       title: "Detach Coach",
-      message: "Detach from ${coach.name}?",
+      message: "Detach from $coachFirstName?",
       confirmText: "Detach",
     );
     if (confirm != true) return;
@@ -204,7 +216,7 @@ class _CoachPageState extends State<CoachPage> {
       if (!mounted) return;
       AppToast.show(
         context,
-        "Detached from ${coach.name}.",
+        "Detached from $coachFirstName.",
         type: AppToastType.success,
       );
     } catch (e) {
@@ -524,15 +536,7 @@ class _CoachPageState extends State<CoachPage> {
             CoachFeedbackPanel(
               key: ValueKey('coach_feedback_$_coachPanelsRevision'),
             ),
-            CoachInfoPanel(
-              title: t.translate('coach_tab_chat'),
-              icon: Icons.chat_bubble_outline,
-              bullets: [
-                t.translate('coach_chat_b1'),
-                t.translate('coach_chat_b2'),
-                t.translate('coach_chat_b3'),
-              ],
-            ),
+            const CoachChatPanel(),
             CoachFormCheckPanel(
               key: ValueKey('coach_form_check_$_coachPanelsRevision'),
             ),

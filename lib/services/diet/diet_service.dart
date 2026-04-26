@@ -5,6 +5,75 @@ import '../../core/account_storage.dart';
 import 'diet_meals_storage.dart';
 import 'diet_targets_storage.dart';
 
+class DietCoachPlanDocument {
+  final int documentId;
+  final int clientUserId;
+  final int coachUserId;
+  final String? coachName;
+  final String? documentTitle;
+  final String? originalFilename;
+  final String? documentUrl;
+  final String? mimeType;
+  final int fileSizeBytes;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  const DietCoachPlanDocument({
+    required this.documentId,
+    required this.clientUserId,
+    required this.coachUserId,
+    this.coachName,
+    this.documentTitle,
+    this.originalFilename,
+    this.documentUrl,
+    this.mimeType,
+    required this.fileSizeBytes,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  String get displayTitle {
+    final title = (documentTitle ?? '').trim();
+    if (title.isNotEmpty) return title;
+    final fileName = (originalFilename ?? '').trim();
+    if (fileName.isNotEmpty) return fileName;
+    return 'Plan document';
+  }
+
+  factory DietCoachPlanDocument.fromJson(Map<String, dynamic> json) {
+    int parseInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    String? parseNullableString(dynamic value) {
+      final normalized = value?.toString().trim() ?? '';
+      return normalized.isEmpty ? null : normalized;
+    }
+
+    DateTime? parseDate(dynamic value) {
+      final normalized = value?.toString().trim() ?? '';
+      if (normalized.isEmpty) return null;
+      return DateTime.tryParse(normalized);
+    }
+
+    return DietCoachPlanDocument(
+      documentId: parseInt(json['document_id']),
+      clientUserId: parseInt(json['client_user_id']),
+      coachUserId: parseInt(json['coach_user_id']),
+      coachName: parseNullableString(json['coach_name']),
+      documentTitle: parseNullableString(json['document_title']),
+      originalFilename: parseNullableString(json['original_filename']),
+      documentUrl: parseNullableString(json['document_url']),
+      mimeType: parseNullableString(json['mime_type']),
+      fileSizeBytes: parseInt(json['file_size_bytes']),
+      createdAt: parseDate(json['created_at']),
+      updatedAt: parseDate(json['updated_at']),
+    );
+  }
+}
+
 class DietService {
   static String baseUrl = ApiConfig.baseUrl;
 
@@ -121,7 +190,9 @@ class DietService {
             : 'Failed to update diet targets';
         throw Exception(msg);
       } catch (_) {
-        throw Exception('Failed to update diet targets (${response.statusCode})');
+        throw Exception(
+          'Failed to update diet targets (${response.statusCode})',
+        );
       }
     }
 
@@ -157,7 +228,9 @@ class DietService {
       'auto_open_meals': autoOpenMeals.toString(),
       if (trainingDayId != null) 'training_day_id': trainingDayId.toString(),
     };
-    final url = Uri.parse('$baseUrl/diet/bootstrap/$userId').replace(queryParameters: qp);
+    final url = Uri.parse(
+      '$baseUrl/diet/bootstrap/$userId',
+    ).replace(queryParameters: qp);
     final headers = await AccountStorage.getAuthHeaders();
     final response = await http.get(url, headers: headers);
 
@@ -214,7 +287,9 @@ class DietService {
     DateTime? date,
   }) async {
     final d = date ?? DateTime.now();
-    final url = Uri.parse('$baseUrl/diet/meals/open/$userId?meal_date=${_dateParam(d)}');
+    final url = Uri.parse(
+      '$baseUrl/diet/meals/open/$userId?meal_date=${_dateParam(d)}',
+    );
     final headers = await AccountStorage.getAuthHeaders();
     final response = await http.post(url, headers: headers);
 
@@ -247,7 +322,9 @@ class DietService {
       'auto_open': autoOpen.toString(),
       if (trainingDayId != null) 'training_day_id': trainingDayId.toString(),
     };
-    final url = Uri.parse('$baseUrl/diet/meals/$userId').replace(queryParameters: qp);
+    final url = Uri.parse(
+      '$baseUrl/diet/meals/$userId',
+    ).replace(queryParameters: qp);
     final headers = await AccountStorage.getAuthHeaders();
     final response = await http.get(url, headers: headers);
 
@@ -259,7 +336,11 @@ class DietService {
 
     final parsed = json.decode(response.body) as Map<String, dynamic>;
     try {
-      await DietMealsStorage.saveMealsForDate(d, parsed, trainingDayId: trainingDayId);
+      await DietMealsStorage.saveMealsForDate(
+        d,
+        parsed,
+        trainingDayId: trainingDayId,
+      );
     } catch (_) {
       // Ignore cache errors
     }
@@ -274,18 +355,25 @@ class DietService {
     DateTime? date,
   }) async {
     final d = date ?? DateTime.now();
-    final qp = <String, String>{
-      'meal_date': _dateParam(d),
-    };
-    final url = Uri.parse('$baseUrl/diet/meals/$userId/add').replace(queryParameters: qp);
+    final qp = <String, String>{'meal_date': _dateParam(d)};
+    final url = Uri.parse(
+      '$baseUrl/diet/meals/$userId/add',
+    ).replace(queryParameters: qp);
     final headers = await AccountStorage.getAuthHeaders();
     final response = await http.post(url, headers: headers);
 
     await AccountStorage.handle401(response.statusCode);
     if (response.statusCode == 400 || response.statusCode == 403) {
       final body = response.body.isNotEmpty ? json.decode(response.body) : {};
-      final detail = body is Map ? (body['detail'] ?? body['message'])?.toString() : null;
-      throw Exception(detail ?? (response.statusCode == 400 ? 'Maximum 10 meals per day.' : 'Not allowed'));
+      final detail = body is Map
+          ? (body['detail'] ?? body['message'])?.toString()
+          : null;
+      throw Exception(
+        detail ??
+            (response.statusCode == 400
+                ? 'Maximum 10 meals per day.'
+                : 'Not allowed'),
+      );
     }
     if (response.statusCode != 200) {
       final body = response.body.isNotEmpty ? json.decode(response.body) : {};
@@ -314,8 +402,13 @@ class DietService {
       'meal_date': _dateParam(date),
       if (trainingDayId != null) 'training_day_id': trainingDayId.toString(),
     };
-    final url = Uri.parse('$baseUrl/diet/meals/$userId').replace(queryParameters: qp);
-    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
+    final url = Uri.parse(
+      '$baseUrl/diet/meals/$userId',
+    ).replace(queryParameters: qp);
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
     final response = await http.post(
       url,
       headers: headers,
@@ -347,7 +440,9 @@ class DietService {
       'meal_id': mealId.toString(),
       if (trainingDayId != null) 'training_day_id': trainingDayId.toString(),
     };
-    final url = Uri.parse('$baseUrl/diet/meals/$userId').replace(queryParameters: qp);
+    final url = Uri.parse(
+      '$baseUrl/diet/meals/$userId',
+    ).replace(queryParameters: qp);
     final headers = await AccountStorage.getAuthHeaders();
     final response = await http.delete(url, headers: headers);
 
@@ -396,7 +491,10 @@ class DietService {
     DateTime date, {
     int? trainingDayId,
   }) async {
-    return await DietMealsStorage.loadMealsForDate(date, trainingDayId: trainingDayId);
+    return await DietMealsStorage.loadMealsForDate(
+      date,
+      trainingDayId: trainingDayId,
+    );
   }
 
   /// Add an item to a meal from nutrition_foods_master (grams required).
@@ -407,8 +505,13 @@ class DietService {
     required double grams,
     int? trainingDayId,
   }) async {
-    final url = Uri.parse('$baseUrl/diet/meals/$userId/items/search/foods-master');
-    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
+    final url = Uri.parse(
+      '$baseUrl/diet/meals/$userId/items/search/foods-master',
+    );
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
     final response = await http.post(
       url,
       headers: headers,
@@ -441,8 +544,13 @@ class DietService {
     required int quantity,
     int? trainingDayId,
   }) async {
-    final url = Uri.parse('$baseUrl/diet/meals/$userId/items/search/restaurants');
-    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
+    final url = Uri.parse(
+      '$baseUrl/diet/meals/$userId/items/search/restaurants',
+    );
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
     final response = await http.post(
       url,
       headers: headers,
@@ -477,7 +585,9 @@ class DietService {
       'meal_date': _dateParam(d),
       if (trainingDayId != null) 'training_day_id': trainingDayId.toString(),
     };
-    final url = Uri.parse('$baseUrl/diet/day-summary/$userId').replace(queryParameters: qp);
+    final url = Uri.parse(
+      '$baseUrl/diet/day-summary/$userId',
+    ).replace(queryParameters: qp);
     final headers = await AccountStorage.getAuthHeaders();
     final response = await http.get(url, headers: headers);
     await AccountStorage.handle401(response.statusCode);
@@ -498,8 +608,9 @@ class DietService {
       'meal_date': _dateParam(d),
       if (trainingDayId != null) 'training_day_id': trainingDayId.toString(),
     };
-    final url = Uri.parse('$baseUrl/diet/recommendations/$userId/remaining')
-        .replace(queryParameters: qp);
+    final url = Uri.parse(
+      '$baseUrl/diet/recommendations/$userId/remaining',
+    ).replace(queryParameters: qp);
     final headers = await AccountStorage.getAuthHeaders();
     final response = await http.get(url, headers: headers);
     await AccountStorage.handle401(response.statusCode);
@@ -520,7 +631,9 @@ class DietService {
       'meal_date': _dateParam(d),
       if (trainingDayId != null) 'training_day_id': trainingDayId.toString(),
     };
-    final url = Uri.parse('$baseUrl/diet/day-summary/$userId/capture').replace(queryParameters: qp);
+    final url = Uri.parse(
+      '$baseUrl/diet/day-summary/$userId/capture',
+    ).replace(queryParameters: qp);
     final headers = await AccountStorage.getAuthHeaders();
     final response = await http.post(url, headers: headers);
     await AccountStorage.handle401(response.statusCode);
@@ -547,11 +660,15 @@ class DietService {
     final url = Uri.parse('$baseUrl/diet/meals/$userId/items/manual');
     final body = <String, dynamic>{
       'meal_id': mealId,
-      if (mealName != null && mealName.trim().isNotEmpty) 'meal_name': mealName.trim(),
+      if (mealName != null && mealName.trim().isNotEmpty)
+        'meal_name': mealName.trim(),
       'ingredients': ingredients,
       if (trainingDayId != null) 'training_day_id': trainingDayId,
     };
-    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
     final response = await http.post(
       url,
       headers: headers,
@@ -560,7 +677,9 @@ class DietService {
 
     await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
-      final respBody = response.body.isNotEmpty ? json.decode(response.body) : {};
+      final respBody = response.body.isNotEmpty
+          ? json.decode(response.body)
+          : {};
       throw Exception(respBody['detail'] ?? 'Failed to save manual entry');
     }
 
@@ -589,7 +708,10 @@ class DietService {
       if (totalsOverride != null) 'totals_override': totalsOverride,
       if (trainingDayId != null) 'training_day_id': trainingDayId,
     };
-    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
     final response = await http.patch(
       url,
       headers: headers,
@@ -598,7 +720,9 @@ class DietService {
 
     await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
-      final respBody = response.body.isNotEmpty ? json.decode(response.body) : {};
+      final respBody = response.body.isNotEmpty
+          ? json.decode(response.body)
+          : {};
       throw Exception(respBody['detail'] ?? 'Failed to update meal');
     }
 
@@ -615,15 +739,17 @@ class DietService {
     required int foodId,
     required double grams,
   }) async {
-    final url = Uri.parse('$baseUrl/diet/meals/$userId/items/manual/preview/foods-master');
-    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
+    final url = Uri.parse(
+      '$baseUrl/diet/meals/$userId/items/manual/preview/foods-master',
+    );
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
     final response = await http.post(
       url,
       headers: headers,
-      body: json.encode({
-        'food_id': foodId,
-        'grams': grams,
-      }),
+      body: json.encode({'food_id': foodId, 'grams': grams}),
     );
 
     await AccountStorage.handle401(response.statusCode);
@@ -644,8 +770,13 @@ class DietService {
     required int mealItemId,
     required List<Map<String, dynamic>> ingredients,
   }) async {
-    final url = Uri.parse('$baseUrl/diet/meals/$userId/items/$mealItemId/ingredients');
-    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
+    final url = Uri.parse(
+      '$baseUrl/diet/meals/$userId/items/$mealItemId/ingredients',
+    );
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
     final response = await http.post(
       url,
       headers: headers,
@@ -673,7 +804,10 @@ class DietService {
     required List<Map<String, dynamic>> items,
   }) async {
     final url = Uri.parse('$baseUrl/diet/favorites/$userId');
-    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
     final response = await http.post(
       url,
       headers: headers,
@@ -696,7 +830,9 @@ class DietService {
   }
 
   /// Fetch favorite meals list.
-  static Future<List<Map<String, dynamic>>> fetchFavoriteMeals(int userId) async {
+  static Future<List<Map<String, dynamic>>> fetchFavoriteMeals(
+    int userId,
+  ) async {
     final url = Uri.parse('$baseUrl/diet/favorites/$userId');
     final response = await http.get(url);
 
@@ -714,14 +850,22 @@ class DietService {
     // }
     if (decoded is Map && decoded['favorite_meals'] is List) {
       final list = decoded['favorite_meals'] as List;
-      return list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+      return list
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList();
     }
 
     // Fallbacks for other shapes (defensive)
     if (decoded is List) {
-      return decoded.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+      return decoded
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList();
     }
-    if (decoded is Map && decoded['id'] != null && decoded['meal_name'] != null) {
+    if (decoded is Map &&
+        decoded['id'] != null &&
+        decoded['meal_name'] != null) {
       return [decoded.cast<String, dynamic>()];
     }
 
@@ -753,8 +897,13 @@ class DietService {
     required int mealId,
     int? trainingDayId,
   }) async {
-    final url = Uri.parse('$baseUrl/diet/favorites/$userId/$favoriteMealId/log');
-    final headers = {'Content-Type': 'application/json', ...await AccountStorage.getAuthHeaders()};
+    final url = Uri.parse(
+      '$baseUrl/diet/favorites/$userId/$favoriteMealId/log',
+    );
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
     final response = await http.post(
       url,
       headers: headers,
@@ -773,6 +922,43 @@ class DietService {
     return response.body.isNotEmpty
         ? (json.decode(response.body) as Map<String, dynamic>)
         : <String, dynamic>{};
+  }
+
+  /// Fetch uploaded coach plan documents visible to the current user.
+  static Future<List<DietCoachPlanDocument>> fetchCoachPlanDocuments({
+    required int userId,
+    bool markSeen = true,
+    int limit = 200,
+  }) async {
+    final url = Uri.parse('$baseUrl/diet/plans/$userId').replace(
+      queryParameters: <String, String>{
+        'mark_seen': markSeen.toString(),
+        'limit': '$limit',
+      },
+    );
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.get(url, headers: headers);
+
+    await AccountStorage.handleAuthStatus(
+      response.statusCode,
+      responseBody: response.body,
+    );
+    if (response.statusCode != 200) {
+      final body = response.body.isNotEmpty ? json.decode(response.body) : {};
+      throw Exception(body['detail'] ?? 'Failed to load uploaded plans');
+    }
+
+    final decoded = response.body.isNotEmpty ? json.decode(response.body) : {};
+    final raw = decoded is Map ? decoded['items'] : null;
+    if (raw is! List) return const <DietCoachPlanDocument>[];
+    return raw
+        .whereType<Map>()
+        .map(
+          (item) =>
+              DietCoachPlanDocument.fromJson(Map<String, dynamic>.from(item)),
+        )
+        .where((item) => (item.documentUrl ?? '').trim().isNotEmpty)
+        .toList(growable: false);
   }
 
   /// Add an item to a meal from a photo (Gemini estimation).
@@ -797,7 +983,8 @@ class DietService {
     req.fields['meal_id'] = mealId.toString();
     final desc = (textDescription ?? '').trim();
     if (desc.isNotEmpty) req.fields['text_description'] = desc;
-    if (trainingDayId != null) req.fields['training_day_id'] = trainingDayId.toString();
+    if (trainingDayId != null)
+      req.fields['training_day_id'] = trainingDayId.toString();
 
     // Do not set Content-Type header manually; MultipartRequest sets boundary.
     req.files.add(
@@ -810,10 +997,16 @@ class DietService {
     await AccountStorage.handle401(streamed.statusCode);
     if (streamed.statusCode != 200) {
       final decoded = body.isNotEmpty ? json.decode(body) : {};
-      throw Exception((decoded is Map && decoded['detail'] != null) ? decoded['detail'] : 'Failed to add photo item');
+      throw Exception(
+        (decoded is Map && decoded['detail'] != null)
+            ? decoded['detail']
+            : 'Failed to add photo item',
+      );
     }
 
-    final parsed = body.isNotEmpty ? (json.decode(body) as Map<String, dynamic>) : <String, dynamic>{};
+    final parsed = body.isNotEmpty
+        ? (json.decode(body) as Map<String, dynamic>)
+        : <String, dynamic>{};
     _notifyDietChanged();
     return parsed;
   }

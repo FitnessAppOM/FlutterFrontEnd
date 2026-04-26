@@ -568,7 +568,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                         : 'Plan document');
               final clientLabel = (document.clientName ?? '').trim().isNotEmpty
                   ? document.clientName!.trim()
-                  : 'Client #${document.clientUserId}';
+                  : 'Client';
               final isPinLoading = _pinningNutritionDocumentIds.contains(
                 document.documentId,
               );
@@ -921,7 +921,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            'Requests',
+                            'Inbox',
                             style: TextStyle(
                               color: _newPendingConnectionRequestCount > 0
                                   ? const Color(0xFFA7F3D0)

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../widgets/Main/section_header.dart';
 import '../../widgets/Main/card_container.dart';
 import '../../core/account_storage.dart';
@@ -8,6 +9,7 @@ import '../../localization/app_localizations.dart';
 import '../../services/diet/diet_service.dart';
 import '../../services/diet/diet_meals_storage.dart';
 import '../../services/diet/diet_day_summary_storage.dart';
+import '../../services/coach/diet_document_file_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/diet_item_search_sheet.dart';
 import '../../widgets/diet_logging_options_sheet.dart';
@@ -51,6 +53,7 @@ class DietPageState extends State<DietPage> {
   bool _dietRecommendationShown = false;
   bool _dietRecommendationCancelled = false;
   DialogRoute<bool>? _dietRecommendationDialogRoute;
+  bool _loadingUploadedPlans = false;
 
   int _modeIndex = 0; // 0 = Rest, 1 = Training
   bool _editingTargets = false;
@@ -2132,6 +2135,271 @@ class DietPageState extends State<DietPage> {
     return {"calories": cal, "protein_g": p, "carbs_g": c, "fat_g": f};
   }
 
+  String _formatUploadedPlanDate(DateTime? value) {
+    if (value == null) return '-';
+    final local = value.toLocal();
+    final mm = local.month.toString().padLeft(2, '0');
+    final dd = local.day.toString().padLeft(2, '0');
+    final yyyy = local.year.toString();
+    return '$mm/$dd/$yyyy';
+  }
+
+  String _coachFirstNameLabel(String? rawCoachName) {
+    final raw = (rawCoachName ?? '').trim();
+    if (raw.isEmpty) return 'Coach';
+
+    String first = raw;
+    if (raw.contains(RegExp(r'\s+'))) {
+      first = raw.split(RegExp(r'\s+')).first;
+    } else if (raw.contains(RegExp(r'[_\-.]+'))) {
+      first = raw.split(RegExp(r'[_\-.]+')).first;
+    }
+    if (first.isNotEmpty) {
+      return '${first[0].toUpperCase()}${first.substring(1)}';
+    }
+    return 'Coach';
+  }
+
+  Future<void> _openUploadedPlanDocument(
+    DietCoachPlanDocument document, {
+    required void Function(void Function()) setSheetState,
+    required Set<int> openingIds,
+  }) async {
+    final documentId = document.documentId;
+    if (openingIds.contains(documentId)) return;
+    setSheetState(() => openingIds.add(documentId));
+    try {
+      final url = (document.documentUrl ?? '').trim();
+      if (url.isEmpty) {
+        throw Exception('Document URL is missing.');
+      }
+      final localPath =
+          await DietDocumentFileService.prepareLocalDietDocumentFile(
+            url,
+            suggestedFileName:
+                document.originalFilename ?? document.documentTitle,
+          );
+      final opened = await launchUrl(
+        Uri.file(localPath),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened) {
+        throw Exception('Could not open downloaded plan.');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) {
+        setSheetState(() => openingIds.remove(documentId));
+      }
+    }
+  }
+
+  Future<void> _showUploadedPlansSheet() async {
+    if (_loadingUploadedPlans) return;
+    setState(() => _loadingUploadedPlans = true);
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null || userId <= 0) {
+        throw Exception('User not found.');
+      }
+      final plans = await DietService.fetchCoachPlanDocuments(
+        userId: userId,
+        markSeen: true,
+      );
+      if (!mounted) return;
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: AppColors.black,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+        ),
+        builder: (sheetContext) {
+          final openingIds = <int>{};
+          return StatefulBuilder(
+            builder: (ctx, setSheetState) {
+              return SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(ctx).size.height * 0.78,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                'Uploaded Plans',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () => Navigator.of(ctx).pop(),
+                              icon: const Icon(
+                                Icons.close,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        if (plans.isEmpty)
+                          const Expanded(
+                            child: Center(
+                              child: Text(
+                                'No uploaded plans yet.',
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            ),
+                          )
+                        else
+                          Expanded(
+                            child: ListView.separated(
+                              itemCount: plans.length,
+                              separatorBuilder: (_, _) =>
+                                  const SizedBox(height: 8),
+                              itemBuilder: (_, index) {
+                                final plan = plans[index];
+                                final coachLabel = _coachFirstNameLabel(
+                                  plan.coachName,
+                                );
+                                final isOpening = openingIds.contains(
+                                  plan.documentId,
+                                );
+                                return Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.cardDark,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.white10),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(
+                                        Icons.description_outlined,
+                                        color: Colors.white70,
+                                        size: 18,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              plan.displayTitle,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              coachLabel,
+                                              style: const TextStyle(
+                                                color: Colors.white70,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              _formatUploadedPlanDate(
+                                                plan.createdAt ??
+                                                    plan.updatedAt,
+                                              ),
+                                              style: const TextStyle(
+                                                color: Colors.white54,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      OutlinedButton.icon(
+                                        onPressed: isOpening
+                                            ? null
+                                            : () => _openUploadedPlanDocument(
+                                                plan,
+                                                setSheetState: setSheetState,
+                                                openingIds: openingIds,
+                                              ),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.white,
+                                          side: const BorderSide(
+                                            color: Colors.white24,
+                                          ),
+                                          minimumSize: const Size(0, 34),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 7,
+                                          ),
+                                          tapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
+                                          visualDensity: const VisualDensity(
+                                            horizontal: -2,
+                                            vertical: -2,
+                                          ),
+                                        ),
+                                        icon: isOpening
+                                            ? const SizedBox(
+                                                width: 12,
+                                                height: 12,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      color: Colors.white70,
+                                                    ),
+                                              )
+                                            : const Icon(
+                                                Icons.open_in_new,
+                                                size: 14,
+                                              ),
+                                        label: const Text('Open'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _loadingUploadedPlans = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
@@ -2191,7 +2459,42 @@ class DietPageState extends State<DietPage> {
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          SectionHeader(title: t.translate("diet_title")),
+          Row(
+            children: [
+              Expanded(child: SectionHeader(title: t.translate("diet_title"))),
+              const SizedBox(width: 10),
+              OutlinedButton.icon(
+                onPressed: _loadingUploadedPlans
+                    ? null
+                    : _showUploadedPlansSheet,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: Colors.white24),
+                  minimumSize: const Size(0, 34),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 7,
+                  ),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: const VisualDensity(
+                    horizontal: -2,
+                    vertical: -2,
+                  ),
+                ),
+                icon: _loadingUploadedPlans
+                    ? const SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white70,
+                        ),
+                      )
+                    : const Icon(Icons.description_outlined, size: 14),
+                label: const Text('Plans'),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
 
           // --- Top: Targets (MyFitnessPal-like summary card) ---

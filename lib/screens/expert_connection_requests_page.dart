@@ -18,7 +18,7 @@ class _ExpertConnectionRequestsPageState
   bool _loading = true;
   bool _loadingCoachPin = false;
   String? _coachPin;
-  final Set<int> _actingClientIds = <int>{};
+  final Set<String> _actingRequestKeys = <String>{};
   CoachConnectionRequestSummary _summary = const CoachConnectionRequestSummary(
     items: <CoachConnectionRequestItem>[],
   );
@@ -75,10 +75,11 @@ class _ExpertConnectionRequestsPageState
     CoachConnectionRequestItem request, {
     required bool accept,
   }) async {
+    final key = request.stableKey;
     final clientUserId = request.clientUserId;
-    if (_actingClientIds.contains(clientUserId)) return;
+    if (_actingRequestKeys.contains(key)) return;
     setState(() {
-      _actingClientIds.add(clientUserId);
+      _actingRequestKeys.add(key);
     });
     try {
       await ProgressionReviewService.decideConnectionRequest(
@@ -86,16 +87,7 @@ class _ExpertConnectionRequestsPageState
         accept: accept,
       );
       if (!mounted) return;
-      setState(() {
-        _summary = CoachConnectionRequestSummary(
-          items: _summary.items
-              .where((item) => item.clientUserId != clientUserId)
-              .toList(),
-          pendingCount: (_summary.pendingCount - 1).clamp(0, 999999),
-          newPendingCount: (_summary.newPendingCount - 1).clamp(0, 999999),
-          hasNewRequests: (_summary.newPendingCount - 1) > 0,
-        );
-      });
+      _removeRequestLocally(request);
       AppToast.show(
         context,
         accept ? 'Request accepted.' : 'Request denied.',
@@ -107,10 +99,54 @@ class _ExpertConnectionRequestsPageState
     } finally {
       if (mounted) {
         setState(() {
-          _actingClientIds.remove(clientUserId);
+          _actingRequestKeys.remove(key);
         });
       }
     }
+  }
+
+  Future<void> _ackDetach(CoachConnectionRequestItem request) async {
+    final key = request.stableKey;
+    if (_actingRequestKeys.contains(key)) return;
+    setState(() {
+      _actingRequestKeys.add(key);
+    });
+    try {
+      await ProgressionReviewService.acknowledgeDetachedClientEvent(
+        clientUserId: request.clientUserId,
+      );
+      if (!mounted) return;
+      _removeRequestLocally(request);
+      AppToast.show(
+        context,
+        'Detach notification acknowledged.',
+        type: AppToastType.success,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, e.toString(), type: AppToastType.error);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _actingRequestKeys.remove(key);
+        });
+      }
+    }
+  }
+
+  void _removeRequestLocally(CoachConnectionRequestItem request) {
+    setState(() {
+      final items = _summary.items
+          .where((item) => item.stableKey != request.stableKey)
+          .toList(growable: false);
+      final newCount = items.where((item) => item.isNew).length;
+      _summary = CoachConnectionRequestSummary(
+        items: items,
+        pendingCount: items.length,
+        newPendingCount: newCount,
+        hasNewRequests: newCount > 0,
+      );
+    });
   }
 
   String _formatDate(String? raw) {
@@ -133,7 +169,7 @@ class _ExpertConnectionRequestsPageState
       backgroundColor: AppColors.black,
       appBar: AppBar(
         backgroundColor: AppColors.black,
-        title: const Text('Pending Requests'),
+        title: const Text('Inbox'),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -214,9 +250,10 @@ class _ExpertConnectionRequestsPageState
                     )
                   else
                     ..._summary.items.map((request) {
-                      final acting = _actingClientIds.contains(
-                        request.clientUserId,
+                      final acting = _actingRequestKeys.contains(
+                        request.stableKey,
                       );
+                      final isDetachEvent = request.isDetachEvent;
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
                         padding: const EdgeInsets.all(12),
@@ -281,53 +318,83 @@ class _ExpertConnectionRequestsPageState
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Requested: ${_formatDate(request.requestedAt)}',
+                              isDetachEvent
+                                  ? 'Detached: ${_formatDate(request.detachedAt ?? request.updatedAt)}'
+                                  : 'Requested: ${_formatDate(request.requestedAt)}',
                               style: const TextStyle(
                                 color: Colors.white54,
                                 fontSize: 12,
                               ),
                             ),
                             const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton(
-                                    onPressed: acting
-                                        ? null
-                                        : () => _decide(request, accept: false),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.redAccent,
-                                      side: const BorderSide(
-                                        color: Colors.redAccent,
+                            if (isDetachEvent)
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: ElevatedButton(
+                                  onPressed: acting
+                                      ? null
+                                      : () => _ackDetach(request),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF2563EB),
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  child: acting
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Text('OK'),
+                                ),
+                              )
+                            else
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed: acting
+                                          ? null
+                                          : () =>
+                                                _decide(request, accept: false),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.redAccent,
+                                        side: const BorderSide(
+                                          color: Colors.redAccent,
+                                        ),
                                       ),
+                                      child: const Text('Deny'),
                                     ),
-                                    child: const Text('Deny'),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed: acting
-                                        ? null
-                                        : () => _decide(request, accept: true),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF16A34A),
-                                      foregroundColor: Colors.white,
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      onPressed: acting
+                                          ? null
+                                          : () =>
+                                                _decide(request, accept: true),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(
+                                          0xFF16A34A,
+                                        ),
+                                        foregroundColor: Colors.white,
+                                      ),
+                                      child: acting
+                                          ? const SizedBox(
+                                              width: 16,
+                                              height: 16,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Colors.white,
+                                              ),
+                                            )
+                                          : const Text('Accept'),
                                     ),
-                                    child: acting
-                                        ? const SizedBox(
-                                            width: 16,
-                                            height: 16,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: Colors.white,
-                                            ),
-                                          )
-                                        : const Text('Accept'),
                                   ),
-                                ),
-                              ],
-                            ),
+                                ],
+                              ),
                           ],
                         ),
                       );

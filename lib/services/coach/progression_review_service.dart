@@ -190,7 +190,9 @@ class CoachConnectionRequestItem {
   final int clientUserId;
   final String? clientName;
   final String? clientEmail;
+  final String requestType;
   final String? requestedAt;
+  final String? detachedAt;
   final String? updatedAt;
   final bool isNew;
 
@@ -198,10 +200,15 @@ class CoachConnectionRequestItem {
     required this.clientUserId,
     this.clientName,
     this.clientEmail,
+    this.requestType = 'connection',
     this.requestedAt,
+    this.detachedAt,
     this.updatedAt,
     this.isNew = false,
   });
+
+  bool get isDetachEvent => requestType == 'detached';
+  String get stableKey => '$requestType:$clientUserId';
 
   factory CoachConnectionRequestItem.fromJson(Map<String, dynamic> json) {
     int parseInt(dynamic value) {
@@ -227,7 +234,11 @@ class CoachConnectionRequestItem {
       clientUserId: parseInt(json['client_user_id'] ?? json['clientUserId']),
       clientName: parseString(json['client_name'] ?? json['clientName']),
       clientEmail: parseString(json['client_email'] ?? json['clientEmail']),
+      requestType:
+          parseString(json['request_type'] ?? json['requestType']) ??
+          'connection',
       requestedAt: parseString(json['requested_at'] ?? json['requestedAt']),
+      detachedAt: parseString(json['detached_at'] ?? json['detachedAt']),
       updatedAt: parseString(json['updated_at'] ?? json['updatedAt']),
       isNew: parseBool(json['is_new'] ?? json['isNew']),
     );
@@ -945,6 +956,21 @@ class ProgressionReviewService {
     if (res.statusCode != 200) {
       throw Exception(
         _extractError('Failed to process connection request', res.body),
+      );
+    }
+  }
+
+  static Future<void> acknowledgeDetachedClientEvent({
+    required int clientUserId,
+  }) async {
+    final res = await http.post(
+      _uri('/coach/connections/requests/$clientUserId/detach/ok'),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to acknowledge detach notification', res.body),
       );
     }
   }
