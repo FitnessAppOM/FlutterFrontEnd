@@ -513,6 +513,24 @@ class NotificationService {
     );
   }
 
+  static Future<void> showRemoteMessageNow({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    final normalizedTitle = title.trim();
+    final normalizedBody = body.trim();
+    if (normalizedTitle.isEmpty && normalizedBody.isEmpty) return;
+
+    await _plugin.show(
+      DateTime.now().millisecondsSinceEpoch % 2147483647,
+      normalizedTitle.isEmpty ? 'New notification' : normalizedTitle,
+      normalizedBody,
+      _defaultDetails,
+      payload: payload,
+    );
+  }
+
   static int _toInt(dynamic v) {
     if (v is int) return v;
     if (v is double) return v.round();

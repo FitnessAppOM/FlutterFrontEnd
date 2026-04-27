@@ -15,6 +15,7 @@ import 'theme/app_theme.dart';
 import 'core/locale_controller.dart';
 import 'consents/consent_manager.dart';
 import 'services/core/notification_service.dart';
+import 'services/core/remote_push_service.dart';
 import 'screens/daily_journal.dart';
 import 'services/core/navigation_service.dart';
 import 'services/core/daily_provider_push_service.dart';
@@ -121,6 +122,13 @@ void main() async {
     // ignore: avoid_print
     print('[Main] NotificationService.init() ERROR: $e\n$st');
   }
+  try {
+    await RemotePushService.init();
+    await RemotePushService.syncTokenForCurrentUser();
+  } catch (e) {
+    // ignore: avoid_print
+    print('[Main] RemotePushService init/sync skipped: $e');
+  }
   // // Fire test notifications immediately so you can verify delivery quickly.
   // print('[Main] Showing debug notifications');
   // await NotificationService.showDebugJournalAndDietNow();
@@ -214,6 +222,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _handleLifecycle() async {
+    RemotePushService.syncTokenForCurrentUser().catchError((_) {});
     _maybeRequestAndroidHealthPermission();
     try {
       await DailyProviderPushService().pushIfAfterOneAmLocal();
@@ -236,6 +245,7 @@ class _MyAppState extends State<MyApp> {
   void _handleAccountChange() {
     NotificationService.refreshDailyJournalRemindersForCurrentUser();
     DailyProviderPushService().pushIfAfterOneAmLocal().catchError((_) {});
+    RemotePushService.syncTokenForCurrentUser(force: true).catchError((_) {});
     _maybeRequestAndroidHealthPermission();
   }
 
