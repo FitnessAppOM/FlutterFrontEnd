@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../localization/app_localizations.dart';
+import '../services/coach/coach_habit_reminder_settings_service.dart';
 import '../services/coach/diet_document_file_service.dart';
 import '../services/coach/progression_review_service.dart';
 import '../theme/app_theme.dart';
@@ -39,6 +40,15 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
   int _newPendingConnectionRequestCount = 0;
   final Set<int> _dietBadgeSuppressedClientIds = <int>{};
   final Set<int> _newClientBadgeSuppressedClientIds = <int>{};
+  bool _loadingHabitReminderSettings = false;
+  bool _savingHabitReminderSettings = false;
+  bool _triggeringHabitReminderNow = false;
+  bool _habitReminderSettingsLoaded = false;
+  bool _autoHabitReminderEnabled = false;
+  String _habitReminderScheduleType = 'weekly';
+  int _habitReminderWeeklyDay = 0;
+  int _habitReminderHourOfDay = 9;
+  String _habitReminderTimeZone = 'UTC';
 
   @override
   void initState() {
@@ -376,6 +386,111 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
   void _selectTab(int index) {
     if (index == _tabIndex) return;
     setState(() => _tabIndex = index);
+    if (index == _tabSettings) {
+      unawaited(_loadHabitReminderSettings(force: false));
+    }
+  }
+
+  Future<void> _loadHabitReminderSettings({required bool force}) async {
+    if (_loadingHabitReminderSettings) return;
+    if (!force && _habitReminderSettingsLoaded) return;
+    setState(() => _loadingHabitReminderSettings = true);
+    try {
+      final settings = await CoachHabitReminderSettingsService.fetchSettings();
+      if (!mounted) return;
+      setState(() {
+        _autoHabitReminderEnabled = settings.autoEnabled;
+        final schedule = (settings.scheduleType ?? '').trim().toLowerCase();
+        _habitReminderScheduleType = schedule == 'daily' ? 'daily' : 'weekly';
+        _habitReminderWeeklyDay = settings.weeklyDay.clamp(0, 6);
+        _habitReminderHourOfDay = settings.hourOfDay.clamp(0, 23);
+        _habitReminderTimeZone = settings.timeZone.trim().isEmpty
+            ? 'UTC'
+            : settings.timeZone.trim();
+        _habitReminderSettingsLoaded = true;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _loadingHabitReminderSettings = false);
+      }
+    }
+  }
+
+  Future<void> _saveHabitReminderSettings() async {
+    if (_savingHabitReminderSettings) return;
+    setState(() => _savingHabitReminderSettings = true);
+    try {
+      final updated = await CoachHabitReminderSettingsService.updateSettings(
+        autoEnabled: _autoHabitReminderEnabled,
+        scheduleType: _habitReminderScheduleType,
+        weeklyDay: _habitReminderWeeklyDay,
+        hourOfDay: _habitReminderHourOfDay,
+      );
+      if (!mounted) return;
+      setState(() {
+        _autoHabitReminderEnabled = updated.autoEnabled;
+        final schedule = (updated.scheduleType ?? '').trim().toLowerCase();
+        _habitReminderScheduleType = schedule == 'daily' ? 'daily' : 'weekly';
+        _habitReminderWeeklyDay = updated.weeklyDay.clamp(0, 6);
+        _habitReminderHourOfDay = updated.hourOfDay.clamp(0, 23);
+        _habitReminderTimeZone = updated.timeZone.trim().isEmpty
+            ? 'UTC'
+            : updated.timeZone.trim();
+        _habitReminderSettingsLoaded = true;
+      });
+      AppToast.show(
+        context,
+        'Habit reminder settings saved.',
+        type: AppToastType.success,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _savingHabitReminderSettings = false);
+      }
+    }
+  }
+
+  Future<void> _triggerHabitRemindersNow() async {
+    if (_triggeringHabitReminderNow) return;
+    setState(() => _triggeringHabitReminderNow = true);
+    try {
+      final result = await CoachHabitReminderSettingsService.triggerNow();
+      if (!mounted) return;
+      final triggered = (result['triggered_clients'] as num?)?.toInt() ?? 0;
+      final targeted = (result['targeted_clients'] as num?)?.toInt() ?? 0;
+      AppToast.show(
+        context,
+        triggered > 0
+            ? 'Triggered reminders for $triggered of $targeted clients.'
+            : 'No reminder was triggered right now.',
+        type: triggered > 0 ? AppToastType.success : AppToastType.info,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _triggeringHabitReminderNow = false);
+      }
+    }
   }
 
   String _appBarTitle(AppLocalizations t) {
@@ -757,15 +872,231 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
   }
 
   Widget _buildSettingsTab(AppLocalizations t) {
+    const weekdayOptions = <MapEntry<int, String>>[
+      MapEntry<int, String>(0, 'Monday'),
+      MapEntry<int, String>(1, 'Tuesday'),
+      MapEntry<int, String>(2, 'Wednesday'),
+      MapEntry<int, String>(3, 'Thursday'),
+      MapEntry<int, String>(4, 'Friday'),
+      MapEntry<int, String>(5, 'Saturday'),
+      MapEntry<int, String>(6, 'Sunday'),
+    ];
+    final hourOptions = List<int>.generate(24, (index) => index);
+    final controlsDisabled =
+        _loadingHabitReminderSettings || _savingHabitReminderSettings;
+    final serverTimeLabel = _habitReminderTimeZone.trim().isEmpty
+        ? 'UTC'
+        : _habitReminderTimeZone.trim();
+    final scheduleSubtitle = _habitReminderScheduleType == 'weekly'
+        ? 'Choose one weekday and one hour.'
+        : 'Choose one hour for daily trigger.';
+
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
         _SectionTitle(
           title: t.translate('settings'),
-          subtitle: 'Coach-side preferences and tools.',
+          subtitle: 'Coach-side preferences and tools. Uses server time.',
         ),
         const SizedBox(height: 12),
-        const _EmptyCard(text: 'Coach settings workspace coming soon.'),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.cardDark,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white10),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Habit Reminder Automation',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Automatic reminder scheduling for all assigned clients. Server time: $serverTimeLabel',
+                style: const TextStyle(color: Colors.white60, fontSize: 12),
+              ),
+              const SizedBox(height: 10),
+              SwitchListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                value: _autoHabitReminderEnabled,
+                onChanged: controlsDisabled
+                    ? null
+                    : (value) => setState(() => _autoHabitReminderEnabled = value),
+                title: const Text(
+                  'Auto send habit reminders to all clients',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: const Text(
+                  'Enable weekly or daily automation.',
+                  style: TextStyle(color: Colors.white60),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  ChoiceChip(
+                    selected: _habitReminderScheduleType == 'weekly',
+                    label: const Text('Weekly'),
+                    onSelected:
+                        !_autoHabitReminderEnabled || controlsDisabled
+                        ? null
+                        : (_) => setState(
+                            () => _habitReminderScheduleType = 'weekly',
+                          ),
+                    selectedColor: AppColors.accent.withValues(alpha: 0.24),
+                    backgroundColor: Colors.white.withValues(alpha: 0.06),
+                    labelStyle: TextStyle(
+                      color: _habitReminderScheduleType == 'weekly'
+                          ? Colors.white
+                          : Colors.white70,
+                    ),
+                    side: BorderSide(
+                      color: _habitReminderScheduleType == 'weekly'
+                          ? AppColors.accent.withValues(alpha: 0.7)
+                          : Colors.white24,
+                    ),
+                  ),
+                  ChoiceChip(
+                    selected: _habitReminderScheduleType == 'daily',
+                    label: const Text('Daily'),
+                    onSelected:
+                        !_autoHabitReminderEnabled || controlsDisabled
+                        ? null
+                        : (_) => setState(
+                            () => _habitReminderScheduleType = 'daily',
+                          ),
+                    selectedColor: AppColors.accent.withValues(alpha: 0.24),
+                    backgroundColor: Colors.white.withValues(alpha: 0.06),
+                    labelStyle: TextStyle(
+                      color: _habitReminderScheduleType == 'daily'
+                          ? Colors.white
+                          : Colors.white70,
+                    ),
+                    side: BorderSide(
+                      color: _habitReminderScheduleType == 'daily'
+                          ? AppColors.accent.withValues(alpha: 0.7)
+                          : Colors.white24,
+                    ),
+                  ),
+                ],
+              ),
+              if (_autoHabitReminderEnabled) ...[
+                const SizedBox(height: 4),
+                Text(
+                  scheduleSubtitle,
+                  style: const TextStyle(color: Colors.white60, fontSize: 12),
+                ),
+                const SizedBox(height: 10),
+                if (_habitReminderScheduleType == 'weekly') ...[
+                  DropdownButtonFormField<int>(
+                    initialValue: _habitReminderWeeklyDay,
+                    decoration: const InputDecoration(
+                      labelText: 'Day of week',
+                    ),
+                    dropdownColor: AppColors.cardDark,
+                    items: weekdayOptions
+                        .map(
+                          (entry) => DropdownMenuItem<int>(
+                            value: entry.key,
+                            child: Text(entry.value),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: controlsDisabled
+                        ? null
+                        : (value) {
+                            if (value == null) return;
+                            setState(() => _habitReminderWeeklyDay = value);
+                          },
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                DropdownButtonFormField<int>(
+                  initialValue: _habitReminderHourOfDay,
+                  decoration: const InputDecoration(
+                    labelText: 'Hour (0-23)',
+                  ),
+                  dropdownColor: AppColors.cardDark,
+                  items: hourOptions
+                      .map(
+                        (hour) => DropdownMenuItem<int>(
+                          value: hour,
+                          child: Text(hour.toString().padLeft(2, '0')),
+                        ),
+                      )
+                      .toList(growable: false),
+                  onChanged: controlsDisabled
+                      ? null
+                      : (value) {
+                          if (value == null) return;
+                          setState(() => _habitReminderHourOfDay = value);
+                        },
+                ),
+              ],
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: controlsDisabled
+                          ? null
+                          : _saveHabitReminderSettings,
+                      child: Text(
+                        _savingHabitReminderSettings
+                            ? 'Saving...'
+                            : 'Save Auto Reminder Settings',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _triggeringHabitReminderNow
+                          ? null
+                          : _triggerHabitRemindersNow,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white24),
+                      ),
+                      icon: _triggeringHabitReminderNow
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white70,
+                              ),
+                            )
+                          : const Icon(Icons.flash_on_outlined, size: 16),
+                      label: Text(
+                        _triggeringHabitReminderNow
+                            ? 'Triggering...'
+                            : 'Send Habit Reminders Now',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (_loadingHabitReminderSettings)
+          const _EmptyCard(text: 'Loading reminder settings...'),
       ],
     );
   }

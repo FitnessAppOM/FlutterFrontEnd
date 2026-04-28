@@ -8,6 +8,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import 'navigation_service.dart';
 import 'notification_service.dart';
 
 class RemotePushService {
@@ -38,10 +39,22 @@ class RemotePushService {
         await NotificationService.showRemoteMessageNow(
           title: title,
           body: body,
-          payload: message.data['type']?.toString(),
+          payload: jsonEncode(message.data),
         );
       } catch (_) {}
     });
+
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      _handleNotificationTapData(message.data);
+    });
+
+    try {
+      final initialMessage = await FirebaseMessaging.instance
+          .getInitialMessage();
+      if (initialMessage != null) {
+        _handleNotificationTapData(initialMessage.data);
+      }
+    } catch (_) {}
 
     FirebaseMessaging.instance.onTokenRefresh.listen((String token) {
       if (kDebugMode) {
@@ -52,6 +65,33 @@ class RemotePushService {
         tokenOverride: token,
       ).catchError((_) {});
     });
+  }
+
+  static int? _parseIntOrNull(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString().trim());
+  }
+
+  static void _handleNotificationTapData(Map<String, dynamic> data) {
+    final type = (data['type'] ?? '').toString().trim();
+    if (type.isEmpty) return;
+
+    if (type == 'coach_chat') {
+      final senderUserId = _parseIntOrNull(data['sender_user_id']);
+      final senderRole = (data['sender_role'] ?? data['senderRole'])
+          ?.toString()
+          .trim();
+      NavigationService.navigateToChatFromNotification(
+        senderUserId: senderUserId,
+        senderRole: senderRole,
+      );
+      return;
+    }
+    if (type == 'habit_reminder') {
+      NavigationService.navigateToCoachFeedback();
+    }
   }
 
   static Future<void> _ensureFcmPermission() async {

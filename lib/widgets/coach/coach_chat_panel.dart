@@ -19,13 +19,16 @@ import 'chat_video_player_page.dart';
 import 'chat_video_preview_tile.dart';
 
 class CoachChatPanel extends StatefulWidget {
-  const CoachChatPanel({super.key});
+  const CoachChatPanel({super.key, this.initialCoachUserId});
+
+  final int? initialCoachUserId;
 
   @override
   State<CoachChatPanel> createState() => _CoachChatPanelState();
 }
 
 class _CoachChatPanelState extends State<CoachChatPanel> {
+  final ScrollController _chatScrollController = ScrollController();
   final TextEditingController _messageController = TextEditingController();
   final Map<int, GlobalKey> _messageKeys = <int, GlobalKey>{};
   final AudioRecorder _audioRecorder = AudioRecorder();
@@ -84,8 +87,34 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
     if (pendingVoicePath != null && pendingVoicePath.trim().isNotEmpty) {
       unawaited(_deleteLocalFile(pendingVoicePath));
     }
+    _chatScrollController.dispose();
     _messageController.dispose();
     super.dispose();
+  }
+
+  void _scrollToBottom({bool animated = false, int retries = 3}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!_chatScrollController.hasClients) {
+        if (retries > 0) {
+          Future<void>.delayed(
+            const Duration(milliseconds: 16),
+            () => _scrollToBottom(animated: animated, retries: retries - 1),
+          );
+        }
+        return;
+      }
+      final target = _chatScrollController.position.maxScrollExtent;
+      if (animated) {
+        _chatScrollController.animateTo(
+          target,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+        );
+      } else {
+        _chatScrollController.jumpTo(target);
+      }
+    });
   }
 
   String _firstNameOnly(String raw) {
@@ -665,6 +694,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       if (!mounted) return;
 
       int? selectedCoachUserId = _selectedCoachUserId;
+      final preferredCoachUserId = widget.initialCoachUserId;
       if (threads.isEmpty) {
         setState(() {
           _coachThreads = const <CoachSupportChatThreadSummary>[];
@@ -681,7 +711,13 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
           selectedCoachUserId != null &&
           threads.any((entry) => entry.coachUserId == selectedCoachUserId);
       if (!hasExistingSelection) {
-        selectedCoachUserId = threads.first.coachUserId;
+        final hasPreferred =
+            preferredCoachUserId != null &&
+            preferredCoachUserId > 0 &&
+            threads.any((entry) => entry.coachUserId == preferredCoachUserId);
+        selectedCoachUserId = hasPreferred
+            ? preferredCoachUserId
+            : threads.first.coachUserId;
       }
 
       final state = await CoachSupportChatService.fetchClientThreadWithCoach(
@@ -696,6 +732,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
         _loadingThread = false;
         _error = null;
       });
+      _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -723,6 +760,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
         _chatState = state;
         _loadingThread = false;
       });
+      _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -773,6 +811,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
         _pendingAttachmentName = null;
         _activeVoiceKey = null;
       });
+      _scrollToBottom(animated: true);
       if (oldVoicePath != null && oldVoicePath.trim().isNotEmpty) {
         await _deleteLocalFile(oldVoicePath);
       }
@@ -1137,6 +1176,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
     final noCoach = _coachThreads.isEmpty || _selectedCoachUserId == null;
 
     return ListView(
+      controller: _chatScrollController,
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
         _buildSupportHeader(state),

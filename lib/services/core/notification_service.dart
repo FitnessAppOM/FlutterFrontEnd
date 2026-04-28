@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -55,11 +56,7 @@ class NotificationService {
           '[Notif] onDidReceiveNotificationResponse payload=${response.payload}',
         );
         final payload = response.payload;
-        if (payload == dailyJournalPayload) {
-          NavigationService.navigateToJournal(fromNotification: true);
-        } else if (payload == dietPayload) {
-          NavigationService.navigateToDiet(fromNotification: true);
-        }
+        _handleNotificationTapPayload(payload);
       },
     );
 
@@ -529,6 +526,56 @@ class NotificationService {
       _defaultDetails,
       payload: payload,
     );
+  }
+
+  static int? _parseIntOrNull(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString().trim());
+  }
+
+  static void _handleNotificationTapPayload(String? payload) {
+    final raw = (payload ?? '').trim();
+    if (raw.isEmpty) return;
+
+    if (raw == dailyJournalPayload) {
+      NavigationService.navigateToJournal(fromNotification: true);
+      return;
+    }
+    if (raw == dietPayload) {
+      NavigationService.navigateToDiet(fromNotification: true);
+      return;
+    }
+
+    String? type;
+    int? senderUserId;
+    String? senderRole;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        final map = Map<String, dynamic>.from(decoded);
+        type = map['type']?.toString().trim();
+        senderUserId = _parseIntOrNull(map['sender_user_id']);
+        senderRole = (map['sender_role'] ?? map['senderRole'])
+            ?.toString()
+            .trim();
+      }
+    } catch (_) {
+      type = raw;
+    }
+
+    if (type == 'coach_chat') {
+      NavigationService.navigateToChatFromNotification(
+        senderUserId: senderUserId,
+        senderRole: senderRole,
+      );
+      return;
+    }
+    if (type == 'habit_reminder') {
+      NavigationService.navigateToCoachFeedback();
+      return;
+    }
   }
 
   static int _toInt(dynamic v) {

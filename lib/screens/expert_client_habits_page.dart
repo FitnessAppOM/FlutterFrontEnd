@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -23,24 +25,66 @@ class ExpertClientHabitsPage extends StatefulWidget {
 }
 
 class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
+  static const Duration _reminderCooldownDuration = Duration(minutes: 5);
+  static final Map<int, DateTime> _reminderCooldownUntilByClientId =
+      <int, DateTime>{};
+
   final TextEditingController _habitController = TextEditingController();
 
   bool _loading = true;
   bool _saving = false;
+  bool _sendingReminder = false;
   int? _expertId;
   List<CoachHabitItem> _habits = const [];
   String? _errorText;
+  Timer? _reminderCooldownTimer;
 
   @override
   void initState() {
     super.initState();
+    _syncReminderCooldownTimer();
     _load();
   }
 
   @override
   void dispose() {
+    _reminderCooldownTimer?.cancel();
     _habitController.dispose();
     super.dispose();
+  }
+
+  DateTime? _reminderCooldownUntil() {
+    final until = _reminderCooldownUntilByClientId[widget.clientId];
+    if (until == null) return null;
+    if (!until.isAfter(DateTime.now())) {
+      _reminderCooldownUntilByClientId.remove(widget.clientId);
+      return null;
+    }
+    return until;
+  }
+
+  bool _isReminderCooldownActive() {
+    return _reminderCooldownUntil() != null;
+  }
+
+  void _activateReminderCooldown() {
+    _reminderCooldownUntilByClientId[widget.clientId] = DateTime.now().add(
+      _reminderCooldownDuration,
+    );
+    _syncReminderCooldownTimer();
+  }
+
+  void _syncReminderCooldownTimer() {
+    _reminderCooldownTimer?.cancel();
+    final until = _reminderCooldownUntil();
+    if (until == null) return;
+    final wait = until.difference(DateTime.now());
+    final delay = wait.isNegative ? Duration.zero : wait;
+    _reminderCooldownTimer = Timer(delay, () {
+      if (!mounted) return;
+      setState(() {});
+      _syncReminderCooldownTimer();
+    });
   }
 
   Future<void> _load({bool showLoading = true}) async {
@@ -122,6 +166,81 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
     return _expertId != null && _errorText != 'Non available';
   }
 
+  int _uncheckedHabitsCount() {
+    return _habits.where((h) => !h.isCompleted).length;
+  }
+
+  Future<void> _sendReminder() async {
+    if (_sendingReminder || _saving || !_canManageHabits()) return;
+    if (_isReminderCooldownActive()) {
+      AppToast.show(
+        context,
+        'Reminder cooldown is active.',
+        type: AppToastType.info,
+      );
+      return;
+    }
+
+    final total = _habits.length;
+    final unchecked = _uncheckedHabitsCount();
+    if (total == 0) {
+      AppToast.show(
+        context,
+        'No habits assigned. Reminder not sent.',
+        type: AppToastType.info,
+      );
+      return;
+    }
+    if (unchecked == 0) {
+      AppToast.show(
+        context,
+        'All habits are checked. Reminder not sent.',
+        type: AppToastType.info,
+      );
+      return;
+    }
+
+    setState(() => _sendingReminder = true);
+    try {
+      final result = await CoachHabitsService.sendClientHabitsReminder(
+        clientId: widget.clientId,
+      );
+      if (!mounted) return;
+      final triggered = result['triggered'] == true;
+      final reason = (result['reason'] ?? '').toString();
+      if (triggered) {
+        _activateReminderCooldown();
+        setState(() {});
+        AppToast.show(context, 'Reminder sent.', type: AppToastType.success);
+      } else if (reason == 'no_habits_assigned') {
+        AppToast.show(
+          context,
+          'No habits assigned. Reminder not sent.',
+          type: AppToastType.info,
+        );
+      } else if (reason == 'no_unchecked_habits') {
+        AppToast.show(
+          context,
+          'All habits are checked. Reminder not sent.',
+          type: AppToastType.info,
+        );
+      } else if (reason == 'no_active_push_tokens') {
+        AppToast.show(
+          context,
+          'Client has no active push token.',
+          type: AppToastType.info,
+        );
+      } else {
+        AppToast.show(context, 'Reminder not sent.', type: AppToastType.info);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, _normalizeError(e), type: AppToastType.error);
+    } finally {
+      if (mounted) setState(() => _sendingReminder = false);
+    }
+  }
+
   Future<void> _addHabit() async {
     if (_saving || _expertId == null) return;
     final habit = _habitController.text.trim();
@@ -168,6 +287,13 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
     final imageUrl = (widget.avatarUrl ?? '').trim();
     final checkedCount = _habits.where((h) => h.isCompleted).length;
     final totalCount = _habits.length;
+    final canManage = _canManageHabits();
+    final isCooldownActive = _isReminderCooldownActive();
+    final canSendReminder =
+        canManage &&
+        totalCount > 0 &&
+        _uncheckedHabitsCount() > 0 &&
+        !isCooldownActive;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -176,46 +302,93 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white10),
       ),
-      child: Row(
+      child: Column(
         children: [
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: Colors.white10,
-            foregroundImage: imageUrl.isNotEmpty
-                ? NetworkImage(imageUrl)
-                : null,
-            onForegroundImageError: (_, _) {},
-            child: Text(
-              _initials(),
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.clientName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: Colors.white10,
+                foregroundImage: imageUrl.isNotEmpty
+                    ? NetworkImage(imageUrl)
+                    : null,
+                onForegroundImageError: (_, _) {},
+                child: Text(
+                  _initials(),
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 17,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'Checked this week: $checkedCount / $totalCount',
-                  style: const TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.clientName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Checked this week: $checkedCount / $totalCount',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                  ],
                 ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _sendingReminder || !canSendReminder
+                  ? null
+                  : _sendReminder,
+              icon: _sendingReminder
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(
+                      isCooldownActive
+                          ? Icons.hourglass_top_rounded
+                          : Icons.notifications_active_outlined,
+                    ),
+              label: Text(
+                _sendingReminder
+                    ? 'Sending...'
+                    : isCooldownActive
+                    ? 'Reminder Cooldown Active'
+                    : 'Remind Client to Check Habits',
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accent,
+                foregroundColor: Colors.black,
+                disabledBackgroundColor: Colors.white12,
+                disabledForegroundColor: Colors.white54,
+              ),
             ),
           ),
+          if (!canSendReminder && canManage)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                isCooldownActive
+                    ? 'Reminder cooldown is active for this client.'
+                    : 'Reminder is available only when at least one assigned habit is unchecked.',
+                style: const TextStyle(color: Colors.white60, fontSize: 12),
+              ),
+            ),
         ],
       ),
     );

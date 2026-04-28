@@ -11,7 +11,14 @@ import '../widgets/coach/coach_form_check_panel.dart';
 import '../widgets/confirm_dialog.dart';
 
 class CoachPage extends StatefulWidget {
-  const CoachPage({super.key});
+  const CoachPage({
+    super.key,
+    this.initialTabIndex = 0,
+    this.initialCoachUserId,
+  });
+
+  final int initialTabIndex;
+  final int? initialCoachUserId;
 
   @override
   State<CoachPage> createState() => _CoachPageState();
@@ -504,6 +511,9 @@ class _CoachPageState extends State<CoachPage> {
 
     return DefaultTabController(
       length: 3,
+      initialIndex: (widget.initialTabIndex >= 0 && widget.initialTabIndex < 3)
+          ? widget.initialTabIndex
+          : 0,
       child: Scaffold(
         backgroundColor: AppColors.black,
         appBar: AppBar(
@@ -536,7 +546,7 @@ class _CoachPageState extends State<CoachPage> {
             CoachFeedbackPanel(
               key: ValueKey('coach_feedback_$_coachPanelsRevision'),
             ),
-            const CoachChatPanel(),
+            CoachChatPanel(initialCoachUserId: widget.initialCoachUserId),
             CoachFormCheckPanel(
               key: ValueKey('coach_form_check_$_coachPanelsRevision'),
             ),

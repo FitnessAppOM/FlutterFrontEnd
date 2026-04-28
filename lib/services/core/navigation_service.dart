@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../main/main_layout.dart';
+import '../../core/account_storage.dart';
+import '../coach/coach_support_chat_service.dart';
+import '../../screens/coach_page.dart';
+import '../../screens/expert_client_chat_page.dart';
 
 class NavigationService {
   static final GlobalKey<NavigatorState> navigatorKey =
@@ -63,6 +67,100 @@ class NavigationService {
     );
   }
 
+  static Future<void> navigateToCoachPage({
+    int initialTabIndex = 0,
+    int? initialCoachUserId,
+  }) async {
+    final nav = navigatorKey.currentState;
+    if (nav == null) return;
+
+    nav.push(
+      MaterialPageRoute(
+        builder: (_) => CoachPage(
+          initialTabIndex: initialTabIndex,
+          initialCoachUserId: initialCoachUserId,
+        ),
+      ),
+    );
+  }
+
+  static Future<void> navigateToCoachChat({int? coachUserId}) async {
+    await navigateToCoachPage(
+      initialTabIndex: 1,
+      initialCoachUserId: coachUserId,
+    );
+  }
+
+  static Future<void> navigateToCoachFeedback() async {
+    await navigateToCoachPage(initialTabIndex: 0);
+  }
+
+  static Future<void> navigateToChatFromNotification({
+    int? senderUserId,
+    String? senderRole,
+  }) async {
+    final normalizedSenderRole = (senderRole ?? '').trim().toLowerCase();
+    final isExpert = await AccountStorage.isExpert();
+    final senderId = senderUserId ?? 0;
+    if (normalizedSenderRole == 'client' && senderId > 0) {
+      final nav = navigatorKey.currentState;
+      if (nav == null) return;
+      nav.push(
+        MaterialPageRoute(
+          builder: (_) => ExpertClientChatPage(
+            clientUserId: senderId,
+            clientName: 'Client',
+          ),
+        ),
+      );
+      return;
+    }
+    if (normalizedSenderRole == 'coach') {
+      await navigateToCoachChat(coachUserId: senderId > 0 ? senderId : null);
+      return;
+    }
+    if (isExpert && senderId > 0) {
+      final nav = navigatorKey.currentState;
+      if (nav == null) return;
+      nav.push(
+        MaterialPageRoute(
+          builder: (_) => ExpertClientChatPage(
+            clientUserId: senderId,
+            clientName: 'Client',
+          ),
+        ),
+      );
+      return;
+    }
+    if (!isExpert && senderId > 0) {
+      final canOpenAsExpert = await _canOpenExpertThreadForSender(senderId);
+      if (canOpenAsExpert) {
+        final nav = navigatorKey.currentState;
+        if (nav == null) return;
+        nav.push(
+          MaterialPageRoute(
+            builder: (_) => ExpertClientChatPage(
+              clientUserId: senderId,
+              clientName: 'Client',
+            ),
+          ),
+        );
+        return;
+      }
+    }
+    await navigateToCoachChat(coachUserId: senderUserId);
+  }
+
+  static Future<bool> _canOpenExpertThreadForSender(int senderId) async {
+    try {
+      await CoachSupportChatService.fetchCoachClientThread(
+        clientUserId: senderId,
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 
   static bool consumeDietNotification() {
     final pending = _dietNotificationPending;

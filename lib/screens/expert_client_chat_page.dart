@@ -33,6 +33,7 @@ class ExpertClientChatPage extends StatefulWidget {
 }
 
 class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
+  final ScrollController _chatScrollController = ScrollController();
   final TextEditingController _messageController = TextEditingController();
   final Map<int, GlobalKey> _messageKeys = <int, GlobalKey>{};
   final AudioRecorder _audioRecorder = AudioRecorder();
@@ -85,8 +86,34 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
     if (pendingVoicePath != null && pendingVoicePath.trim().isNotEmpty) {
       unawaited(_deleteLocalFile(pendingVoicePath));
     }
+    _chatScrollController.dispose();
     _messageController.dispose();
     super.dispose();
+  }
+
+  void _scrollToBottom({bool animated = false, int retries = 3}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!_chatScrollController.hasClients) {
+        if (retries > 0) {
+          Future<void>.delayed(
+            const Duration(milliseconds: 16),
+            () => _scrollToBottom(animated: animated, retries: retries - 1),
+          );
+        }
+        return;
+      }
+      final target = _chatScrollController.position.maxScrollExtent;
+      if (animated) {
+        _chatScrollController.animateTo(
+          target,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+        );
+      } else {
+        _chatScrollController.jumpTo(target);
+      }
+    });
   }
 
   Future<void> _loadChat() async {
@@ -103,6 +130,7 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
         _chatState = state;
         _loading = false;
       });
+      _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -143,6 +171,7 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
         _pendingAttachmentName = null;
         _activeVoiceKey = null;
       });
+      _scrollToBottom(animated: true);
       if (oldVoicePath != null && oldVoicePath.trim().isNotEmpty) {
         await _deleteLocalFile(oldVoicePath);
       }
@@ -1024,6 +1053,7 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
     final state = _chatState;
     if (state == null) {
       return ListView(
+        controller: _chatScrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           const SizedBox(height: 120),
@@ -1041,6 +1071,7 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
     final messages = state.messages;
 
     return ListView(
+      controller: _chatScrollController,
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
         _buildHeader(state),

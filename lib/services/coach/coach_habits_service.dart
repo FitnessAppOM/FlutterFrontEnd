@@ -198,4 +198,28 @@ class CoachHabitsService {
       throw Exception(_errorMessage(res.body, 'Failed to delete habit'));
     }
   }
+
+  static Future<Map<String, dynamic>> sendClientHabitsReminder({
+    required int clientId,
+  }) async {
+    final uri = Uri.parse(
+      '${ApiConfig.baseUrl}/coach/habits/$clientId/reminder',
+    );
+    final headers = await AccountStorage.getAuthHeaders();
+    final res = await http.post(uri, headers: headers);
+    await AccountStorage.handleAuthStatus(
+      res.statusCode,
+      responseBody: res.body,
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception(_errorMessage(res.body, 'Failed to send reminder'));
+    }
+
+    final data = jsonDecode(res.body);
+    if (data is! Map<String, dynamic>) {
+      throw Exception('Invalid response');
+    }
+    return data;
+  }
 }
