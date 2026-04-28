@@ -22,6 +22,8 @@ class RemotePushService {
     if (_initialized) return;
     _initialized = true;
 
+    await _ensureFcmPermission();
+
     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
       try {
         final title =
@@ -45,10 +47,32 @@ class RemotePushService {
       if (kDebugMode) {
         debugPrint('[Push] FCM TOKEN REFRESHED: $token');
       }
-      syncTokenForCurrentUser(force: true, tokenOverride: token).catchError((
-        _,
-      ) {});
+      syncTokenForCurrentUser(
+        force: true,
+        tokenOverride: token,
+      ).catchError((_) {});
     });
+  }
+
+  static Future<void> _ensureFcmPermission() async {
+    try {
+      final settings = await FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        announcement: false,
+        carPlay: false,
+        criticalAlert: false,
+        provisional: false,
+      );
+      if (kDebugMode) {
+        debugPrint('[Push] FCM permission: ${settings.authorizationStatus}');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[Push] FCM permission request failed: $e');
+      }
+    }
   }
 
   static String _platformName() {
