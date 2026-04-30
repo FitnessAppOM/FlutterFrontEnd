@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -809,6 +811,7 @@ class CommunityDiscoverPage extends StatefulWidget {
 class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
   final TextEditingController _searchController = TextEditingController();
   final List<CommunityGroupSummary> _groups = [];
+  Timer? _searchDebounce;
   bool _loading = true;
   bool _loadingMore = false;
   String? _error;
@@ -883,8 +886,17 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
     await _load();
   }
 
+  void _onSearchChanged(String _) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      _load();
+    });
+  }
+
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -914,6 +926,7 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
                   icon: const Icon(Icons.search),
                 ),
               ),
+              onChanged: _onSearchChanged,
               onSubmitted: (_) => _load(),
             ),
             const SizedBox(height: 12),
