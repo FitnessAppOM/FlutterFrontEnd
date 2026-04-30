@@ -295,7 +295,7 @@ class CommunityService {
     return CommunityGroupDetail.fromJson(_decodeMap(response.body));
   }
 
-  static Future<CommunityGroupSummary> createGroup({
+  static Future<CommunityGroupCreationResult> createGroup({
     required String name,
     required String visibility,
     String? description,
@@ -321,7 +321,7 @@ class CommunityService {
         _extractError('Failed to create group', response),
       );
     }
-    return CommunityGroupSummary.fromJson(_decodeMap(response.body)['group'] as Map<String, dynamic>);
+    return CommunityGroupCreationResult.fromJson(_decodeMap(response.body));
   }
 
   static Future<CommunityGroupSummary> joinGroupByCode(String code) async {
@@ -330,6 +330,17 @@ class CommunityService {
       '/community/groups/join-by-code',
       body: {'code': code},
     );
+    if (response.statusCode != 200) {
+      throw CommunityApiException(
+        response.statusCode,
+        _extractError('Failed to join group', response),
+      );
+    }
+    return CommunityGroupSummary.fromJson(_decodeMap(response.body)['group'] as Map<String, dynamic>);
+  }
+
+  static Future<CommunityGroupSummary> joinPublicGroup(int groupId) async {
+    final response = await _send('POST', '/community/groups/$groupId/join');
     if (response.statusCode != 200) {
       throw CommunityApiException(
         response.statusCode,
@@ -446,6 +457,17 @@ class CommunityService {
       throw CommunityApiException(
         response.statusCode,
         _extractError('Failed to reset join code', response),
+      );
+    }
+    return _decodeMap(response.body)['join_code']?.toString() ?? '';
+  }
+
+  static Future<String> fetchGroupJoinCode(int groupId) async {
+    final response = await _send('GET', '/community/groups/$groupId/join-code');
+    if (response.statusCode != 200) {
+      throw CommunityApiException(
+        response.statusCode,
+        _extractError('Failed to load join code', response),
       );
     }
     return _decodeMap(response.body)['join_code']?.toString() ?? '';

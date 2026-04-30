@@ -143,6 +143,24 @@ class CommunityGroupSummary {
   }
 }
 
+class CommunityGroupCreationResult {
+  const CommunityGroupCreationResult({
+    required this.group,
+    this.joinCode,
+  });
+
+  final CommunityGroupSummary group;
+  final String? joinCode;
+
+  factory CommunityGroupCreationResult.fromJson(Map<String, dynamic> json) {
+    final rawCode = _asString(json['join_code']);
+    return CommunityGroupCreationResult(
+      group: CommunityGroupSummary.fromJson(_asMap(json['group'])),
+      joinCode: rawCode == null || rawCode.trim().isEmpty ? null : rawCode.trim(),
+    );
+  }
+}
+
 class CommunityShareSettings {
   const CommunityShareSettings({
     required this.shareTrainingProgress,

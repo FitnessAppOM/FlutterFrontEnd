@@ -186,7 +186,7 @@ class _CommunityPageState extends State<CommunityPage> {
     final payload = await _showCreateGroupDialog(context);
     if (payload == null) return;
     try {
-      final group = await CommunityService.createGroup(
+      final result = await CommunityService.createGroup(
         name: payload.name,
         visibility: payload.visibility,
         description: payload.description,
@@ -195,12 +195,21 @@ class _CommunityPageState extends State<CommunityPage> {
       );
       if (!mounted) return;
       AppToast.show(context, 'Group created.', type: AppToastType.success);
+      if (payload.visibility == 'private' && result.joinCode != null) {
+        await _showGroupCodeDialog(
+          context,
+          title: 'Private group code',
+          code: result.joinCode!,
+          message: 'Share this 6-digit code with anyone you want to invite.',
+        );
+        if (!mounted) return;
+      }
       await _loadInitial();
       if (!mounted) return;
       await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => CommunityGroupDetailPage(groupId: group.id),
+          builder: (_) => CommunityGroupDetailPage(groupId: result.group.id),
         ),
       );
       await _refreshFeed();
@@ -1180,6 +1189,18 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
     }
   }
 
+  Future<void> _joinPublicGroup() async {
+    try {
+      final group = await CommunityService.joinPublicGroup(widget.groupId);
+      if (!mounted) return;
+      AppToast.show(context, 'Joined ${group.name}.', type: AppToastType.success);
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, e.toString(), type: AppToastType.error);
+    }
+  }
+
   Future<void> _editGroup() async {
     final detail = _detail;
     if (detail == null) return;
@@ -1235,6 +1256,22 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
             ),
           ],
         ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, e.toString(), type: AppToastType.error);
+    }
+  }
+
+  Future<void> _viewCode() async {
+    try {
+      final code = await CommunityService.fetchGroupJoinCode(widget.groupId);
+      if (!mounted) return;
+      await _showGroupCodeDialog(
+        context,
+        title: 'Current group code',
+        code: code,
+        message: 'Share this 6-digit code with anyone you want to invite.',
       );
     } catch (e) {
       if (!mounted) return;
@@ -1362,6 +1399,8 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
               onSelected: (value) async {
                 if (value == 'edit') {
                   await _editGroup();
+                } else if (value == 'view_code') {
+                  await _viewCode();
                 } else if (value == 'code') {
                   await _resetCode();
                 } else if (value == 'members') {
@@ -1378,6 +1417,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
               },
               itemBuilder: (_) => const [
                 PopupMenuItem(value: 'edit', child: Text('Edit group')),
+                PopupMenuItem(value: 'view_code', child: Text('View join code')),
                 PopupMenuItem(value: 'code', child: Text('Reset join code')),
                 PopupMenuItem(value: 'members', child: Text('Manage members')),
                 PopupMenuItem(value: 'reports', child: Text('Reports')),
@@ -1483,9 +1523,17 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
                           child: ElevatedButton.icon(
                             onPressed: detail.isJoined
                                 ? _leaveGroup
-                                : (detail.isPrivate ? _joinPrivateGroup : null),
-                            icon: Icon(detail.isJoined ? Icons.exit_to_app : Icons.lock_open_outlined),
-                            label: Text(detail.isJoined ? 'Leave group' : 'Join by code'),
+                                : (detail.isPrivate ? _joinPrivateGroup : _joinPublicGroup),
+                            icon: Icon(
+                              detail.isJoined
+                                  ? Icons.exit_to_app
+                                  : (detail.isPrivate ? Icons.lock_open_outlined : Icons.group_add_outlined),
+                            ),
+                            label: Text(
+                              detail.isJoined
+                                  ? 'Leave group'
+                                  : (detail.isPrivate ? 'Join by code' : 'Join group'),
+                            ),
                           ),
                         ),
                       ],
@@ -3607,6 +3655,49 @@ Future<String?> _showJoinCodeDialog(BuildContext context) async {
   controller.dispose();
   if (result == null || result.length != 6) return null;
   return result;
+}
+
+Future<void> _showGroupCodeDialog(
+  BuildContext context, {
+  required String title,
+  required String code,
+  String? message,
+}) async {
+  await showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      backgroundColor: AppColors.cardDark,
+      title: Text(title, style: const TextStyle(color: Colors.white)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (message != null && message.trim().isNotEmpty) ...[
+            Text(
+              message,
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.74)),
+            ),
+            const SizedBox(height: 16),
+          ],
+          Text(
+            code,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 32,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 6,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
 }
 
 Future<_CreateGroupPayload?> _showCreateGroupDialog(BuildContext context) async {
