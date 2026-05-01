@@ -576,6 +576,10 @@ class NotificationService {
       NavigationService.navigateToCoachFeedback();
       return;
     }
+    if (type == 'training_plan_change') {
+      NavigationService.navigateToTrain(fromNotification: true);
+      return;
+    }
   }
 
   static int _toInt(dynamic v) {

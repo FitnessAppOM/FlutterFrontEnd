@@ -360,12 +360,42 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
         return;
       }
       final tempDir = await getTemporaryDirectory();
-      final path =
+      String nextPath() =>
           '${tempDir.path}/support_chat_voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-      await _audioRecorder.start(
-        const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 128000),
-        path: path,
+
+      final config = const RecordConfig(
+        encoder: AudioEncoder.aacLc,
+        bitRate: 128000,
       );
+
+      Future<void> startOnce(String path) async {
+        try {
+          await _voicePlayer.stop();
+        } catch (_) {}
+        try {
+          await _audioRecorder.stop();
+        } catch (_) {}
+        if (Platform.isIOS || Platform.isAndroid) {
+          await Future<void>.delayed(const Duration(milliseconds: 140));
+        }
+        await _audioRecorder.start(config, path: path);
+      }
+
+      var path = nextPath();
+      try {
+        await startOnce(path);
+      } catch (firstError) {
+        final text = firstError.toString().toLowerCase();
+        final shouldRetry =
+            text.contains('setactive') ||
+            text.contains('session activation') ||
+            text.contains('failed to start recording') ||
+            text.contains('platformexception(record');
+        if (!shouldRetry) rethrow;
+        await Future<void>.delayed(const Duration(milliseconds: 260));
+        path = nextPath();
+        await startOnce(path);
+      }
       if (!mounted) return;
       setState(() {
         _isRecordingVoice = true;

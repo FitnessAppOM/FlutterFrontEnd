@@ -91,6 +91,10 @@ class RemotePushService {
     }
     if (type == 'habit_reminder') {
       NavigationService.navigateToCoachFeedback();
+      return;
+    }
+    if (type == 'training_plan_change') {
+      NavigationService.navigateToTrain(fromNotification: true);
     }
   }
 
