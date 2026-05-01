@@ -53,14 +53,34 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
   Timer? _ticker;
   StreamSubscription<PlayerState>? _voicePlayerSub;
 
+  String _voiceStartErrorMessage(Object error) {
+    final raw = error.toString();
+    final normalized = raw.toLowerCase();
+    final isBusySession =
+        normalized.contains('osstatus error 561017449') ||
+        normalized.contains('setcategory') ||
+        normalized.contains('session activation failed') ||
+        normalized.contains('failed to start recording');
+    if (isBusySession) {
+      return 'Microphone is busy (often during a phone/FaceTime/VoIP call). End the call or close other mic apps, then try again.';
+    }
+    return 'Could not start recording. Please try again.';
+  }
+
+  bool _isVoiceKeyActivelyPlaying(String key) {
+    if (_activeVoiceKey != key) return false;
+    if (!_voicePlayer.playing) return false;
+    return _voicePlayer.processingState != ProcessingState.completed;
+  }
+
   @override
   void initState() {
     super.initState();
     _loadChat();
     _voicePlayerSub = _voicePlayer.playerStateStream.listen((state) {
       if (!mounted) return;
-      if (!state.playing &&
-          state.processingState == ProcessingState.completed) {
+      if (state.processingState == ProcessingState.completed ||
+          (state.processingState == ProcessingState.idle && !state.playing)) {
         setState(() {
           _activeVoiceKey = null;
         });
@@ -366,6 +386,17 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       final config = const RecordConfig(
         encoder: AudioEncoder.aacLc,
         bitRate: 128000,
+        iosConfig: IosRecordConfig(
+          categoryOptions: <IosAudioCategoryOption>[
+            IosAudioCategoryOption.defaultToSpeaker,
+            IosAudioCategoryOption.allowBluetooth,
+          ],
+        ),
+        androidConfig: AndroidRecordConfig(
+          useLegacy: true,
+          manageBluetooth: false,
+          audioManagerMode: AudioManagerMode.modeInCommunication,
+        ),
       );
 
       Future<void> startOnce(String path) async {
@@ -405,7 +436,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Could not start recording: $e')));
+      ).showSnackBar(SnackBar(content: Text(_voiceStartErrorMessage(e))));
     }
   }
 
@@ -1102,8 +1133,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                     child: Row(
                       children: [
                         Icon(
-                          _activeVoiceKey == 'message:${message.id}' &&
-                                  _voicePlayer.playing
+                          _isVoiceKeyActivelyPlaying('message:${message.id}')
                               ? Icons.pause_circle_filled
                               : Icons.play_circle_fill,
                           color: Colors.white70,
@@ -1341,9 +1371,9 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                         color: Colors.white70,
                         splashRadius: 18,
                         icon: Icon(
-                          _activeVoiceKey ==
-                                      'pending:${_pendingAttachmentFile?.path}' &&
-                                  _voicePlayer.playing
+                          _isVoiceKeyActivelyPlaying(
+                                'pending:${_pendingAttachmentFile?.path}',
+                              )
                               ? Icons.pause_circle_filled
                               : Icons.play_circle_fill,
                         ),

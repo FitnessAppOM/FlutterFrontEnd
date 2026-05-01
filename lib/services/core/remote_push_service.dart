@@ -95,6 +95,10 @@ class RemotePushService {
     }
     if (type == 'training_plan_change') {
       NavigationService.navigateToTrain(fromNotification: true);
+      return;
+    }
+    if (type == 'coach_feedback_added' || type == 'coach_habit_added') {
+      NavigationService.navigateToFeed(fromNotification: true);
     }
   }
 

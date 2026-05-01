@@ -77,6 +77,16 @@ class NavigationService {
     );
   }
 
+  static Future<void> navigateToFeed({bool fromNotification = false}) async {
+    final nav = navigatorKey.currentState;
+    if (nav == null) return;
+
+    nav.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const MainLayout(initialIndex: 3)),
+      (_) => false,
+    );
+  }
+
   static Future<void> navigateToCoachPage({
     int initialTabIndex = 0,
     int? initialCoachUserId,

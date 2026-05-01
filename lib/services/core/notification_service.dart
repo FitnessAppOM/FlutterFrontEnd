@@ -580,6 +580,10 @@ class NotificationService {
       NavigationService.navigateToTrain(fromNotification: true);
       return;
     }
+    if (type == 'coach_feedback_added' || type == 'coach_habit_added') {
+      NavigationService.navigateToFeed(fromNotification: true);
+      return;
+    }
   }
 
   static int _toInt(dynamic v) {
