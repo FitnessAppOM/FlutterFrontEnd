@@ -62,6 +62,7 @@ class CommunityUserPreview {
     this.username,
     this.email,
     this.avatarUrl,
+    this.isPlatformAdmin = false,
   });
 
   final int userId;
@@ -69,6 +70,7 @@ class CommunityUserPreview {
   final String? username;
   final String? email;
   final String? avatarUrl;
+  final bool isPlatformAdmin;
 
   String get primaryLabel => displayName ?? username ?? email ?? 'User $userId';
 
@@ -81,6 +83,7 @@ class CommunityUserPreview {
       avatarUrl: normalizeCommunityUrl(
         _asString(json['avatar_url'] ?? json['avatar_path']),
       ),
+      isPlatformAdmin: _asBool(json['is_admin']),
     );
   }
 }
@@ -525,12 +528,14 @@ class CommunityChallenge {
     required this.progressPercent,
     required this.isCompleted,
     required this.mutedNotifications,
+    required this.scope,
     this.description,
     this.startAt,
     this.endAt,
     this.goalValue,
     this.progressUnit,
     this.completedAt,
+    this.groupId,
   });
 
   final int challengeId;
@@ -541,14 +546,18 @@ class CommunityChallenge {
   final double progressPercent;
   final bool isCompleted;
   final bool mutedNotifications;
+  final String scope;
   final String? description;
   final DateTime? startAt;
   final DateTime? endAt;
   final double? goalValue;
   final String? progressUnit;
   final DateTime? completedAt;
+  final int? groupId;
 
   bool get isUpcoming => startAt != null && startAt!.isAfter(DateTime.now());
+  bool get isGlobal => scope == 'global';
+  bool get isGroupScoped => scope == 'group';
 
   factory CommunityChallenge.fromJson(Map<String, dynamic> json) {
     return CommunityChallenge(
@@ -566,6 +575,8 @@ class CommunityChallenge {
       isCompleted: _asBool(json['is_completed']),
       completedAt: DateTime.tryParse(_asString(json['completed_at']) ?? ''),
       mutedNotifications: _asBool(json['muted_notifications']),
+      scope: _asString(json['scope']) ?? 'global',
+      groupId: json['group_id'] == null ? null : _asInt(json['group_id']),
     );
   }
 
@@ -587,6 +598,8 @@ class CommunityChallenge {
       isCompleted: isCompleted,
       completedAt: completedAt,
       mutedNotifications: mutedNotifications ?? this.mutedNotifications,
+      scope: scope,
+      groupId: groupId,
     );
   }
 }
@@ -732,6 +745,7 @@ class CommunityBootstrap {
   final List<String> leaderboardMetrics;
 
   bool get hasAdminAccess => joinedGroups.any((group) => group.isAdmin);
+  bool get hasPlatformAdminAccess => currentUser.isPlatformAdmin;
 
   factory CommunityBootstrap.fromJson(Map<String, dynamic> json) {
     final filters = _asMap(json['feed_filters_metadata']);

@@ -642,8 +642,11 @@ class CommunityService {
     }
   }
 
-  static Future<List<CommunityChallenge>> fetchChallenges() async {
-    final response = await _send('GET', '/community/challenges');
+  static Future<List<CommunityChallenge>> fetchChallenges({int? groupId}) async {
+    final response = await _send(
+      'GET',
+      groupId == null ? '/community/challenges' : '/community/groups/$groupId/challenges',
+    );
     if (response.statusCode != 200) {
       throw CommunityApiException(
         response.statusCode,
@@ -696,6 +699,39 @@ class CommunityService {
     final response = await _send(
       'POST',
       '/community/admin/challenges',
+      body: {
+        'name': name,
+        'description': description,
+        'challenge_type': challengeType,
+        'start_at': startAtIso,
+        'end_at': endAtIso,
+        'goal_value': goalValue,
+        'progress_unit': progressUnit,
+        'is_active': isActive,
+      },
+    );
+    if (response.statusCode != 200) {
+      throw CommunityApiException(
+        response.statusCode,
+        _extractError('Failed to create challenge', response),
+      );
+    }
+  }
+
+  static Future<void> createGroupChallenge(
+    int groupId, {
+    required String name,
+    required String challengeType,
+    required String startAtIso,
+    required String endAtIso,
+    String? description,
+    double? goalValue,
+    String? progressUnit,
+    bool isActive = true,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/community/groups/$groupId/challenges',
       body: {
         'name': name,
         'description': description,

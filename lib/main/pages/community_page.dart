@@ -252,11 +252,15 @@ class _CommunityPageState extends State<CommunityPage> {
   }
 
   Future<void> _openChallenges() async {
-    final canAdminManage = _bootstrap?.hasAdminAccess ?? false;
+    final canPlatformAdminManage = _bootstrap?.hasPlatformAdminAccess ?? false;
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => CommunityChallengesPage(canAdminManage: canAdminManage),
+        builder: (_) => CommunityChallengesPage(
+          title: 'Global Challenges',
+          emptyMessage: 'Global community challenges will appear here automatically when launched.',
+          canManageGlobalChallenges: canPlatformAdminManage,
+        ),
       ),
     );
     await _refreshFeed();
@@ -1308,6 +1312,24 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
     }
   }
 
+  Future<void> _openGroupChallenges() async {
+    final detail = _detail;
+    if (detail == null) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CommunityChallengesPage(
+          groupId: detail.id,
+          title: '${detail.name} Challenges',
+          emptyMessage: 'Group challenges will appear here when created by this group admin.',
+          canManageGroupChallenges: detail.isAdmin,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    await _load();
+  }
+
   Future<void> _createOrEditPin([CommunityPin? existing]) async {
     final result = await _showPinEditor(context, existing);
     if (result == null) return;
@@ -1420,6 +1442,8 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
                   await _openMembers();
                 } else if (value == 'metric') {
                   await _changeLeaderboardMetric();
+                } else if (value == 'challenges') {
+                  await _openGroupChallenges();
                 } else if (value == 'pin') {
                   await _createOrEditPin();
                 } else if (value == 'reports') {
@@ -1435,6 +1459,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
                 PopupMenuItem(value: 'members', child: Text('Manage members')),
                 PopupMenuItem(value: 'reports', child: Text('Reports')),
                 PopupMenuItem(value: 'metric', child: Text('Leaderboard metric')),
+                PopupMenuItem(value: 'challenges', child: Text('Group challenges')),
                 PopupMenuItem(value: 'pin', child: Text('Add pin')),
                 PopupMenuItem(value: 'archive', child: Text('Archive group')),
               ],
@@ -1725,6 +1750,38 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
               ),
               const SizedBox(height: 16),
               CardContainer(
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Challenges',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          SizedBox(height: 6),
+                          Text(
+                            'Track challenges scoped to this community only.',
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    OutlinedButton(
+                      onPressed: detail.isJoined ? _openGroupChallenges : null,
+                      child: const Text('Open'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              CardContainer(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1902,10 +1959,21 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
 class CommunityChallengesPage extends StatefulWidget {
   const CommunityChallengesPage({
     super.key,
-    required this.canAdminManage,
+    required this.title,
+    required this.emptyMessage,
+    this.groupId,
+    this.canManageGlobalChallenges = false,
+    this.canManageGroupChallenges = false,
   });
 
-  final bool canAdminManage;
+  final int? groupId;
+  final String title;
+  final String emptyMessage;
+  final bool canManageGlobalChallenges;
+  final bool canManageGroupChallenges;
+
+  bool get isGroupScoped => groupId != null;
+  bool get canCreate => isGroupScoped ? canManageGroupChallenges : canManageGlobalChallenges;
 
   @override
   State<CommunityChallengesPage> createState() => _CommunityChallengesPageState();
@@ -1928,7 +1996,7 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
       _error = null;
     });
     try {
-      final challenges = await CommunityService.fetchChallenges();
+      final challenges = await CommunityService.fetchChallenges(groupId: widget.groupId);
       if (!mounted) return;
       setState(() {
         _challenges = challenges;
@@ -1969,16 +2037,30 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
     final payload = await _showChallengeEditor(context, null);
     if (payload == null) return;
     try {
-      await CommunityService.createChallenge(
-        name: payload.name,
-        description: payload.description,
-        challengeType: payload.challengeType,
-        startAtIso: payload.startAtIso,
-        endAtIso: payload.endAtIso,
-        goalValue: payload.goalValue,
-        progressUnit: payload.progressUnit,
-        isActive: payload.isActive,
-      );
+      if (widget.groupId != null) {
+        await CommunityService.createGroupChallenge(
+          widget.groupId!,
+          name: payload.name,
+          description: payload.description,
+          challengeType: payload.challengeType,
+          startAtIso: payload.startAtIso,
+          endAtIso: payload.endAtIso,
+          goalValue: payload.goalValue,
+          progressUnit: payload.progressUnit,
+          isActive: payload.isActive,
+        );
+      } else {
+        await CommunityService.createChallenge(
+          name: payload.name,
+          description: payload.description,
+          challengeType: payload.challengeType,
+          startAtIso: payload.startAtIso,
+          endAtIso: payload.endAtIso,
+          goalValue: payload.goalValue,
+          progressUnit: payload.progressUnit,
+          isActive: payload.isActive,
+        );
+      }
       if (!mounted) return;
       AppToast.show(context, 'Challenge created.', type: AppToastType.success);
       await _load();
@@ -2018,9 +2100,9 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
       appBar: AppBar(
         backgroundColor: AppColors.black,
         elevation: 0,
-        title: const Text('Community Challenges'),
+        title: Text(widget.title),
         actions: [
-          if (widget.canAdminManage)
+          if (widget.canCreate)
             IconButton(
               onPressed: _createChallenge,
               icon: const Icon(Icons.add_circle_outline),
@@ -2043,9 +2125,9 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
                 onPressed: () => _load(),
               )
             else if (_challenges.isEmpty)
-              const _CommunityEmptyCard(
+              _CommunityEmptyCard(
                 title: 'No challenges right now',
-                message: 'Global community challenges will appear here automatically when launched.',
+                message: widget.emptyMessage,
               )
             else
               ..._challenges.map(
@@ -2058,8 +2140,10 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
                         Row(
                           children: [
                             _MiniChip(label: challenge.challengeType.replaceAll('_', ' ')),
+                            const SizedBox(width: 8),
+                            _MiniChip(label: challenge.isGroupScoped ? 'group' : 'global'),
                             const Spacer(),
-                            if (widget.canAdminManage)
+                            if (widget.canCreate)
                               IconButton(
                                 onPressed: () => _editChallenge(challenge),
                                 icon: const Icon(Icons.edit_outlined, color: Colors.white70),
