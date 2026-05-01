@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import '../health/steps_service.dart';
 import 'community_models.dart';
 
 class CommunityApiException implements Exception {
@@ -18,6 +19,7 @@ class CommunityApiException implements Exception {
 
 class CommunityService {
   static String baseUrl = ApiConfig.baseUrl;
+  static final Map<String, _LiveStepsPushSnapshot> _liveStepsPushCache = {};
 
   static Uri _uri(String path, [Map<String, dynamic>? query]) {
     final rawBase = baseUrl.trim();
@@ -643,7 +645,7 @@ class CommunityService {
   }
 
   static Future<List<CommunityChallenge>> fetchChallenges({int? groupId}) async {
-    final response = await _send(
+    var response = await _send(
       'GET',
       groupId == null ? '/community/challenges' : '/community/groups/$groupId/challenges',
     );
@@ -653,9 +655,28 @@ class CommunityService {
         _extractError('Failed to load challenges', response),
       );
     }
-    return _decodeList(response.body)
+    var challenges = _decodeList(response.body)
         .map((item) => CommunityChallenge.fromJson(Map<String, dynamic>.from(item as Map)))
         .toList(growable: false);
+    if (_hasActiveMovementChallengeToday(challenges)) {
+      final pushed = await _maybePushLiveStepsForChallenges(groupId: groupId);
+      if (pushed) {
+        response = await _send(
+          'GET',
+          groupId == null ? '/community/challenges' : '/community/groups/$groupId/challenges',
+        );
+        if (response.statusCode != 200) {
+          throw CommunityApiException(
+            response.statusCode,
+            _extractError('Failed to load challenges', response),
+          );
+        }
+        challenges = _decodeList(response.body)
+            .map((item) => CommunityChallenge.fromJson(Map<String, dynamic>.from(item as Map)))
+            .toList(growable: false);
+      }
+    }
+    return challenges;
   }
 
   static Future<CommunityChallenge> fetchChallenge(int challengeId) async {
@@ -913,4 +934,75 @@ class CommunityService {
       );
     }
   }
+
+  static bool _hasActiveMovementChallengeToday(List<CommunityChallenge> challenges) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    for (final challenge in challenges) {
+      if (challenge.challengeType != 'movement_total') continue;
+      final start = challenge.startAt;
+      final end = challenge.endAt;
+      if (start == null || end == null) continue;
+      final startDay = DateTime(start.year, start.month, start.day);
+      final endDay = DateTime(end.year, end.month, end.day);
+      if (!today.isBefore(startDay) && !today.isAfter(endDay)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  static Future<bool> _maybePushLiveStepsForChallenges({int? groupId}) async {
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null || userId <= 0) return false;
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final cacheKey =
+          '${userId}_${groupId ?? 0}_${today.year}-${today.month}-${today.day}';
+      final steps = await StepsService().fetchTodaySteps();
+      if (steps <= 0) return false;
+      final previous = _liveStepsPushCache[cacheKey];
+      if (previous != null) {
+        final recentlySynced =
+            now.difference(previous.syncedAt) < const Duration(minutes: 15);
+        if (previous.steps == steps && recentlySynced) {
+          return false;
+        }
+      }
+      final response = await _send(
+        'POST',
+        '/community/challenges/live-steps',
+        body: {
+          'entry_date':
+              '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}',
+          'live_steps': steps,
+          'source': 'phone_health',
+          if (groupId != null) 'group_id': groupId,
+        },
+      );
+      if (response.statusCode == 200) {
+        final payload = _decodeMap(response.body);
+        _liveStepsPushCache[cacheKey] = _LiveStepsPushSnapshot(
+          steps: steps,
+          syncedAt: now,
+        );
+        return payload['updated'] == true;
+      }
+      return false;
+    } catch (_) {
+      // Challenge lists should still load if live-step sync fails.
+      return false;
+    }
+  }
+}
+
+class _LiveStepsPushSnapshot {
+  const _LiveStepsPushSnapshot({
+    required this.steps,
+    required this.syncedAt,
+  });
+
+  final int steps;
+  final DateTime syncedAt;
 }
