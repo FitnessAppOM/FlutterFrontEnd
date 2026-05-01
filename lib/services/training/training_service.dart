@@ -34,6 +34,76 @@ class TrainingGenerationInProgressException implements Exception {
   String toString() => detail;
 }
 
+class TrainingPlanChangeEvent {
+  final int eventId;
+  final int? coachUserId;
+  final int? sourceProgramId;
+  final int? targetProgramId;
+  final String eventType;
+  final String? fromPlanSource;
+  final String? toPlanSource;
+  final String summary;
+  final List<Map<String, dynamic>> details;
+  final String? createdAt;
+  final String? clientSeenAt;
+  final bool isNew;
+
+  const TrainingPlanChangeEvent({
+    required this.eventId,
+    required this.coachUserId,
+    required this.sourceProgramId,
+    required this.targetProgramId,
+    required this.eventType,
+    required this.fromPlanSource,
+    required this.toPlanSource,
+    required this.summary,
+    required this.details,
+    required this.createdAt,
+    required this.clientSeenAt,
+    required this.isNew,
+  });
+
+  factory TrainingPlanChangeEvent.fromJson(Map<String, dynamic> json) {
+    final rawDetails = json['details'];
+    final parsedDetails = rawDetails is List
+        ? rawDetails
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList(growable: false)
+        : const <Map<String, dynamic>>[];
+    return TrainingPlanChangeEvent(
+      eventId: json['event_id'] is int
+          ? json['event_id'] as int
+          : int.tryParse('${json['event_id']}') ?? 0,
+      coachUserId: json['coach_user_id'] is int
+          ? json['coach_user_id'] as int
+          : int.tryParse('${json['coach_user_id']}'),
+      sourceProgramId: json['source_program_id'] is int
+          ? json['source_program_id'] as int
+          : int.tryParse('${json['source_program_id']}'),
+      targetProgramId: json['target_program_id'] is int
+          ? json['target_program_id'] as int
+          : int.tryParse('${json['target_program_id']}'),
+      eventType: (json['event_type'] ?? '').toString(),
+      fromPlanSource: (json['from_plan_source'] ?? '').toString().trim().isEmpty
+          ? null
+          : (json['from_plan_source'] ?? '').toString().trim(),
+      toPlanSource: (json['to_plan_source'] ?? '').toString().trim().isEmpty
+          ? null
+          : (json['to_plan_source'] ?? '').toString().trim(),
+      summary: (json['summary'] ?? '').toString(),
+      details: parsedDetails,
+      createdAt: (json['created_at'] ?? '').toString().trim().isEmpty
+          ? null
+          : (json['created_at'] ?? '').toString(),
+      clientSeenAt: (json['client_seen_at'] ?? '').toString().trim().isEmpty
+          ? null
+          : (json['client_seen_at'] ?? '').toString(),
+      isNew: json['is_new'] == true,
+    );
+  }
+}
+
 class TrainingService {
   static String baseUrl = ApiConfig.baseUrl;
   static final Map<String, ImageProvider> _gifProviders = {};
@@ -788,6 +858,54 @@ class TrainingService {
     return const [];
   }
 
+  static Future<Map<String, dynamic>> fetchTrainingPlanChanges({
+    required int userId,
+    bool markSeen = false,
+    int limit = 200,
+  }) async {
+    final url = Uri.parse('$baseUrl/training/plan-changes/$userId').replace(
+      queryParameters: <String, String>{
+        'mark_seen': markSeen.toString(),
+        'limit': '$limit',
+      },
+    );
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.get(url, headers: headers);
+    _recordServerClock(response);
+    await AccountStorage.handle401(response.statusCode);
+    if (response.statusCode != 200) {
+      final body = response.body.isNotEmpty ? json.decode(response.body) : {};
+      final detail = body is Map<String, dynamic>
+          ? (body['detail']?.toString() ??
+                'Failed to load training plan changes')
+          : 'Failed to load training plan changes';
+      throw Exception(detail);
+    }
+    final decoded = response.body.isNotEmpty ? json.decode(response.body) : {};
+    final payload = decoded is Map
+        ? Map<String, dynamic>.from(decoded.cast<String, dynamic>())
+        : <String, dynamic>{};
+    final rawItems = payload['items'];
+    final items = rawItems is List
+        ? rawItems
+              .whereType<Map>()
+              .map(
+                (item) => TrainingPlanChangeEvent.fromJson(
+                  Map<String, dynamic>.from(item),
+                ),
+              )
+              .toList(growable: false)
+        : const <TrainingPlanChangeEvent>[];
+    return {
+      'items': items,
+      'unseen_count': payload['unseen_count'] is int
+          ? payload['unseen_count'] as int
+          : int.tryParse('${payload['unseen_count']}') ?? 0,
+      'mark_seen': payload['mark_seen'] == true,
+      'ok': payload['ok'] == true,
+    };
+  }
+
   static Future<List<dynamic>> getFeedbackQuestions(String exerciseName) async {
     try {
       final safeName = Uri.encodeComponent(exerciseName);
@@ -850,8 +968,22 @@ class TrainingService {
     await AccountStorage.handle401(res.statusCode);
   }
 
-  static Future<List<dynamic>> fetchAllExercises() async {
-    final url = Uri.parse('$baseUrl/training/exercises');
+  static Future<List<dynamic>> fetchAllExercises({
+    int limit = 1000,
+    int offset = 0,
+    String? search,
+    String? muscle,
+  }) async {
+    final query = <String, String>{'limit': '$limit', 'offset': '$offset'};
+    if ((search ?? '').trim().isNotEmpty) {
+      query['search'] = search!.trim();
+    }
+    if ((muscle ?? '').trim().isNotEmpty) {
+      query['muscle'] = muscle!.trim();
+    }
+    final url = Uri.parse(
+      '$baseUrl/training/exercises',
+    ).replace(queryParameters: query);
     final response = await http.get(url);
     _recordServerClock(response);
     if (response.statusCode != 200) {

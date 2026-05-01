@@ -8,6 +8,7 @@ import '../services/coach/progression_review_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/charts/ranged_bar_chart.dart';
 import '../widgets/charts/simple_line_chart.dart';
+import 'expert_training_plan_review_page.dart';
 
 enum ExpertWeeklyMetricsDetailType { waterSteps, trainingCardio, wearables }
 
@@ -18,12 +19,18 @@ class ExpertWeeklyMetricsDetailPage extends StatefulWidget {
     required this.clientUserId,
     required this.clientName,
     required this.analyticsData,
+    this.activeProgram = const {},
+    this.trainingPlanError,
+    this.onTrainingPlanVerified,
   });
 
   final ExpertWeeklyMetricsDetailType type;
   final int clientUserId;
   final String clientName;
   final Map<String, dynamic> analyticsData;
+  final Map<String, dynamic> activeProgram;
+  final String? trainingPlanError;
+  final VoidCallback? onTrainingPlanVerified;
 
   @override
   State<ExpertWeeklyMetricsDetailPage> createState() =>
@@ -46,6 +53,8 @@ class _ExpertWeeklyMetricsDetailPageState
   List<Map<String, dynamic>> _exerciseHistoryEntries = const [];
   String _selectedWearableProvider = _wearableWhoop;
   late Map<String, dynamic> _analyticsData;
+  late Map<String, dynamic> _activeProgram;
+  String? _trainingPlanError;
   final Map<int, Map<String, dynamic>> _weeklyCache =
       <int, Map<String, dynamic>>{};
 
@@ -53,6 +62,8 @@ class _ExpertWeeklyMetricsDetailPageState
   void initState() {
     super.initState();
     _analyticsData = Map<String, dynamic>.from(widget.analyticsData);
+    _activeProgram = Map<String, dynamic>.from(widget.activeProgram);
+    _trainingPlanError = widget.trainingPlanError;
     _weeklyCache[0] = Map<String, dynamic>.from(widget.analyticsData);
     if (widget.type == ExpertWeeklyMetricsDetailType.trainingCardio) {
       unawaited(_loadExerciseHistory());
@@ -624,6 +635,176 @@ class _ExpertWeeklyMetricsDetailPageState
     );
   }
 
+  List<Map<String, dynamic>> _programDaysSorted() {
+    final days = _mapList(_activeProgram['days']);
+    days.sort((a, b) => _toInt(a['day_index']).compareTo(_toInt(b['day_index'])));
+    return days;
+  }
+
+  String _activePlanSource() {
+    final source = (_activeProgram['plan_source'] ?? '').toString().trim();
+    if (source == 'ai_generated' ||
+        source == 'expert_created' ||
+        source == 'ai_coach' ||
+        source == 'coach_edited') {
+      return source;
+    }
+    final createdBy = (_activeProgram['created_by'] ?? '').toString().trim();
+    return createdBy == 'expert' ? 'expert_created' : 'ai_generated';
+  }
+
+  bool _activePlanVerified() {
+    final raw = _activeProgram['expert_verified'];
+    if (raw is bool) return raw;
+    if (raw is num) return raw != 0;
+    final text = (raw ?? '').toString().trim().toLowerCase();
+    return text == 'true' || text == '1' || text == 'yes';
+  }
+
+  String _activePlanState() {
+    final raw = (_activeProgram['plan_state'] ?? '').toString().trim();
+    if (raw == 'ai_generated' ||
+        raw == 'verified' ||
+        raw == 'expert_created' ||
+        raw == 'ai_coach' ||
+        raw == 'coach_edited') {
+      return raw;
+    }
+    final source = _activePlanSource();
+    if (source == 'expert_created' ||
+        source == 'ai_coach' ||
+        source == 'coach_edited') {
+      return source;
+    }
+    return _activePlanVerified() ? 'verified' : 'ai_generated';
+  }
+
+  bool _needsExpertVerification() {
+    if (_activeProgram.isEmpty) return false;
+    return _activePlanSource() == 'ai_generated' && !_activePlanVerified();
+  }
+
+  String _planStateLabel() {
+    switch (_activePlanState()) {
+      case 'coach_edited':
+      case 'expert_created':
+        return 'Coach/editted';
+      case 'ai_coach':
+        return 'AI/Coach';
+      case 'verified':
+        return 'Verified by coach';
+      default:
+        return 'AI';
+    }
+  }
+
+  Color _planStateColor() {
+    switch (_activePlanState()) {
+      case 'coach_edited':
+      case 'expert_created':
+        return const Color(0xFF66E0A3);
+      case 'ai_coach':
+        return const Color(0xFF4BE4C7);
+      case 'verified':
+        return const Color(0xFF74B9FF);
+      default:
+        return const Color(0xFF5FD8FF);
+    }
+  }
+
+  Future<void> _openTrainingPlanPage() async {
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (_) => ExpertTrainingPlanReviewPage(
+          clientUserId: widget.clientUserId,
+          clientName: widget.clientName,
+          activeProgram: _activeProgram,
+          trainingPlanError: _trainingPlanError,
+        ),
+      ),
+    );
+    if (!mounted || result == null) return;
+    final updatedProgramRaw = result['activeProgram'];
+    final didCheck = result['didCheck'] == true;
+    if (updatedProgramRaw is Map) {
+      setState(() {
+        _activeProgram = Map<String, dynamic>.from(updatedProgramRaw);
+      });
+    }
+    if (didCheck) {
+      widget.onTrainingPlanVerified?.call();
+    }
+  }
+
+  Widget _buildTrainingPlanPreviewSection() {
+    final days = _programDaysSorted();
+    final needsVerification = _needsExpertVerification();
+    final stateColor = _planStateColor();
+    final previewText = days.isEmpty
+        ? (_trainingPlanError ?? 'No active training plan yet.')
+        : needsVerification
+        ? 'AI-generated plan pending verification. Tap to check.'
+        : 'Plan loaded for ${days.length} day(s). Tap to preview.';
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: _openTrainingPlanPage,
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.cardDark,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white10),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.checklist_rounded, color: Colors.white70, size: 18),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Check client's plan",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(previewText, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                  ],
+                ),
+              ),
+              if (days.isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.only(left: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: stateColor.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: stateColor.withValues(alpha: 0.5)),
+                  ),
+                  child: Text(
+                    _planStateLabel(),
+                    style: TextStyle(
+                      color: stateColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right, color: Colors.white54, size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildTrainingCardioContent() {
     final training = _map(_analyticsData['training']);
     final weekDates = _weekDates(
@@ -755,9 +936,12 @@ class _ExpertWeeklyMetricsDetailPageState
           (dayVolumeByKey[trainingDayKey] ?? 0) + dayVolume;
     }
 
-    final plannedTrainingDays = _toInt(training['plan_days_per_week']) > 0
-        ? _toInt(training['plan_days_per_week'])
-        : plannedDaysFromHistory;
+    final plannedDaysFromProgram = _toInt(_activeProgram['training_days_per_week']);
+    final plannedTrainingDays = plannedDaysFromProgram > 0
+        ? plannedDaysFromProgram
+        : (_toInt(training['plan_days_per_week']) > 0
+              ? _toInt(training['plan_days_per_week'])
+              : plannedDaysFromHistory);
     final completedTrainingDays = completedTrainingDayByKey.values
         .where((isDone) => isDone)
         .length;
@@ -882,6 +1066,8 @@ class _ExpertWeeklyMetricsDetailPageState
             ),
           ],
         ),
+        const SizedBox(height: 12),
+        _buildTrainingPlanPreviewSection(),
         const SizedBox(height: 12),
         _buildChartCard(
           title: 'Exercises Done',

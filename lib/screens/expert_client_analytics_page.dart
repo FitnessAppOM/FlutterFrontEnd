@@ -13,10 +13,12 @@ class ExpertClientAnalyticsPage extends StatefulWidget {
     super.key,
     required this.client,
     required this.reviews,
+    this.onTrainingPlanVerified,
   });
 
   final ProgressionClient client;
   final List<ProgressionReview> reviews;
+  final VoidCallback? onTrainingPlanVerified;
 
   @override
   State<ExpertClientAnalyticsPage> createState() =>
@@ -28,6 +30,8 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
   String? _error;
   Map<String, dynamic> _data = const {};
   List<Map<String, dynamic>> _trainingHistoryEntries = const [];
+  Map<String, dynamic> _activeProgram = const {};
+  String? _trainingPlanError;
 
   @override
   void initState() {
@@ -40,6 +44,8 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
       setState(() {
         _loading = true;
         _error = null;
+        _activeProgram = const {};
+        _trainingPlanError = null;
       });
     }
     try {
@@ -47,6 +53,8 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
         widget.client.userId,
       );
       List<Map<String, dynamic>> history = const [];
+      Map<String, dynamic> activeProgram = const {};
+      String? trainingPlanError;
       try {
         history = await ProgressionReviewService.fetchClientTrainingHistory(
           clientUserId: widget.client.userId,
@@ -55,10 +63,30 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
       } catch (_) {
         history = const [];
       }
+      try {
+        activeProgram =
+            await ProgressionReviewService.fetchClientActiveTrainingProgram(
+          widget.client.userId,
+        );
+      } catch (e) {
+        final normalized = _normalizeError(e);
+        if (normalized.toLowerCase().contains(
+              'failed to load client training program',
+            ) ||
+            normalized.toLowerCase().contains('no program found') ||
+            normalized.toLowerCase().contains('404')) {
+          trainingPlanError = 'No active training plan yet.';
+        } else {
+          trainingPlanError = normalized;
+        }
+        activeProgram = const {};
+      }
       if (!mounted) return;
       setState(() {
         _data = data;
         _trainingHistoryEntries = history;
+        _activeProgram = activeProgram;
+        _trainingPlanError = trainingPlanError;
         _loading = false;
       });
     } catch (e) {
@@ -134,6 +162,28 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
         .toList();
   }
 
+  String _activePlanSource() {
+    final source = (_activeProgram['plan_source'] ?? '').toString().trim();
+    if (source == 'ai_generated' || source == 'expert_created') return source;
+    final createdBy = (_activeProgram['created_by'] ?? '').toString().trim();
+    return createdBy == 'expert' ? 'expert_created' : 'ai_generated';
+  }
+
+  bool _activePlanVerified() {
+    final raw = _activeProgram['expert_verified'];
+    if (raw is bool) return raw;
+    if (raw is num) return raw != 0;
+    final text = (raw ?? '').toString().trim().toLowerCase();
+    return text == 'true' || text == '1' || text == 'yes';
+  }
+
+  bool _hasUncheckedTrainingPlan() {
+    if (_activeProgram.isNotEmpty) {
+      return _activePlanSource() == 'ai_generated' && !_activePlanVerified();
+    }
+    return widget.client.hasUncheckedTrainingPlan;
+  }
+
   String _formatWeight(double? weightKg) {
     if (weightKg == null || weightKg <= 0) return '-';
     final rounded = weightKg.roundToDouble();
@@ -162,9 +212,24 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
           clientUserId: widget.client.userId,
           clientName: _currentClientName(),
           analyticsData: _data,
+          activeProgram: _activeProgram,
+          trainingPlanError: _trainingPlanError,
+          onTrainingPlanVerified: widget.onTrainingPlanVerified,
         ),
       ),
     );
+    if (!mounted || type != ExpertWeeklyMetricsDetailType.trainingCardio) return;
+    try {
+      final latestProgram =
+          await ProgressionReviewService.fetchClientActiveTrainingProgram(
+            widget.client.userId,
+          );
+      if (!mounted) return;
+      setState(() {
+        _activeProgram = latestProgram;
+        _trainingPlanError = null;
+      });
+    } catch (_) {}
   }
 
   Widget _buildHeaderCard() {
@@ -439,6 +504,7 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
 
   Widget _buildTrainingCard() {
     final training = _map(_data['training']);
+    final hasUncheckedPlan = _hasUncheckedTrainingPlan();
     final selectedWeekStart =
         _dateOnly(training['week_start']?.toString()) ??
         _dateOnly(training['last_7_start']?.toString());
@@ -522,8 +588,8 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                children: const [
-                  Expanded(
+                children: [
+                  const Expanded(
                     child: Text(
                       'Training & Cardio (This Week)',
                       style: TextStyle(
@@ -533,9 +599,57 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
                       ),
                     ),
                   ),
-                  Icon(Icons.chevron_right, color: Colors.white54, size: 20),
+                  if (hasUncheckedPlan)
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF5FD8FF).withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: const Color(
+                            0xFF5FD8FF,
+                          ).withValues(alpha: 0.45),
+                        ),
+                      ),
+                      child: const Text(
+                        'New',
+                        style: TextStyle(
+                          color: Color(0xFF5FD8FF),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  const Icon(Icons.chevron_right, color: Colors.white54, size: 20),
                 ],
               ),
+              if (hasUncheckedPlan) ...[
+                const SizedBox(height: 6),
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.checklist_rounded,
+                      size: 14,
+                      color: Color(0xFF5FD8FF),
+                    ),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        "Client's plan not checked yet.",
+                        style: TextStyle(
+                          color: Color(0xFF5FD8FF),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 8),
               _InfoRow(
                 label: 'Days in progress',
@@ -667,7 +781,25 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final hasLoadedContent = _data.isNotEmpty || _error != null;
+    if (_loading && !hasLoadedContent) {
+      return Scaffold(
+        backgroundColor: AppColors.black,
+        appBar: AppBar(
+          backgroundColor: AppColors.black,
+          surfaceTintColor: Colors.transparent,
+          title: const Text('Client Analytics'),
+        ),
+        body: const ColoredBox(
+          color: AppColors.black,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
     final body = RefreshIndicator(
+      color: AppColors.accent,
+      backgroundColor: AppColors.cardDark,
       onRefresh: _load,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -707,6 +839,7 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
       backgroundColor: AppColors.black,
       appBar: AppBar(
         backgroundColor: AppColors.black,
+        surfaceTintColor: Colors.transparent,
         title: const Text('Client Analytics'),
         actions: [
           IconButton(
@@ -718,11 +851,14 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
       ),
       body: Stack(
         children: [
-          body,
+          ColoredBox(color: AppColors.black, child: body),
           if (_loading)
-            const Positioned.fill(
+            Positioned.fill(
               child: IgnorePointer(
-                child: Center(child: CircularProgressIndicator()),
+                child: ColoredBox(
+                  color: Color(0xB3000000),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
               ),
             ),
         ],

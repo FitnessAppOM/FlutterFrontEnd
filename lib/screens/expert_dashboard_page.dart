@@ -3,15 +3,35 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../config/base_url.dart';
 import '../localization/app_localizations.dart';
 import '../services/coach/coach_habit_reminder_settings_service.dart';
 import '../services/coach/diet_document_file_service.dart';
 import '../services/coach/progression_review_service.dart';
+import '../services/training/training_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_toast.dart';
 import 'expert_client_detail_page.dart';
 import 'expert_connection_requests_page.dart';
 import 'expert_progression_review_page.dart';
+
+String? _normalizeAvatarUrlForUi(String? value) {
+  final raw = (value ?? '').trim();
+  if (raw.isEmpty) return null;
+  final lower = raw.toLowerCase();
+  if (lower == 'null' || lower == 'none') return null;
+  if (lower.startsWith('http://') || lower.startsWith('https://')) {
+    return raw;
+  }
+  final base = ApiConfig.baseUrl.trim();
+  if (base.isEmpty) return null;
+  try {
+    final baseUri = Uri.parse(base.endsWith('/') ? base : '$base/');
+    return baseUri.resolve(raw).toString();
+  } catch (_) {
+    return null;
+  }
+}
 
 class ExpertDashboardPage extends StatefulWidget {
   const ExpertDashboardPage({super.key});
@@ -33,16 +53,19 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
   bool _generating = false;
   List<ProgressionClient> _clients = const [];
   List<ProgressionReview> _reviews = const [];
+  List<Map<String, dynamic>> _planTemplates = const [];
   List<CoachDietDocument> _nutritionDocuments = const [];
   final Set<int> _pinningNutritionDocumentIds = <int>{};
   final Set<int> _deletingNutritionDocumentIds = <int>{};
   final Set<int> _openingNutritionDocumentIds = <int>{};
+  final Set<int> _assigningPlanTemplateIds = <int>{};
   int _newPendingConnectionRequestCount = 0;
   final Set<int> _dietBadgeSuppressedClientIds = <int>{};
   final Set<int> _newClientBadgeSuppressedClientIds = <int>{};
   bool _loadingHabitReminderSettings = false;
   bool _savingHabitReminderSettings = false;
   bool _triggeringHabitReminderNow = false;
+  bool _openingPlanCreator = false;
   bool _habitReminderSettingsLoaded = false;
   bool _autoHabitReminderEnabled = false;
   String _habitReminderScheduleType = 'weekly';
@@ -54,6 +77,799 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  String _clientDisplayName(ProgressionClient client) {
+    final raw = (client.name ?? '').trim();
+    if (raw.isNotEmpty) return raw;
+    return 'Client #${client.userId}';
+  }
+
+  Future<void> _openPlanCreatorSheet() async {
+    if (_openingPlanCreator) return;
+    setState(() => _openingPlanCreator = true);
+    final libraryExercises = <_LibraryExerciseOption>[];
+    try {
+      final raw = await TrainingService.fetchAllExercises();
+      for (final item in raw) {
+        if (item is! Map) continue;
+        final exerciseId = int.tryParse((item['exercise_id'] ?? '').toString());
+        final name = (item['exercise_name'] ?? '').toString().trim();
+        if (exerciseId == null || exerciseId <= 0 || name.isEmpty) continue;
+        libraryExercises.add(
+          _LibraryExerciseOption(id: exerciseId, name: name),
+        );
+      }
+      libraryExercises.sort(
+        (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
+      );
+      setState(() => _openingPlanCreator = false);
+      return;
+    }
+    if (libraryExercises.isEmpty) {
+      if (mounted) {
+        AppToast.show(
+          context,
+          'Exercise library is empty or unavailable.',
+          type: AppToastType.error,
+        );
+        setState(() => _openingPlanCreator = false);
+      }
+      return;
+    }
+    if (!mounted) return;
+
+    var title = '';
+    var submitting = false;
+    var submittingMessage = '';
+    final planDays = <_PlanDraftDay>[
+      _PlanDraftDay(
+        dayLabel: 'Day 1',
+        exercises: [
+          _PlanDraftExercise(
+            exerciseId: libraryExercises.first.id,
+            sets: 3,
+            reps: 10,
+            rir: 2,
+          ),
+        ],
+      ),
+    ];
+
+    Future<void> submitPlan(StateSetter setModalState) async {
+      if (submitting) return;
+      final trimmedTitle = title.trim();
+      if (trimmedTitle.isEmpty) {
+        AppToast.show(
+          context,
+          'Add a template title.',
+          type: AppToastType.error,
+        );
+        return;
+      }
+      if (planDays.isEmpty) {
+        AppToast.show(
+          context,
+          'Add at least one day.',
+          type: AppToastType.error,
+        );
+        return;
+      }
+
+      final payloadDays = <Map<String, dynamic>>[];
+      for (var dayIndex = 0; dayIndex < planDays.length; dayIndex++) {
+        final day = planDays[dayIndex];
+        final exercises = <Map<String, dynamic>>[];
+        if (day.exercises.isEmpty) {
+          AppToast.show(
+            context,
+            'Day ${dayIndex + 1} must include at least one exercise.',
+            type: AppToastType.error,
+          );
+          return;
+        }
+        for (var exIndex = 0; exIndex < day.exercises.length; exIndex++) {
+          final ex = day.exercises[exIndex];
+          if (ex.exerciseId <= 0) {
+            AppToast.show(
+              context,
+              'Day ${dayIndex + 1}, exercise ${exIndex + 1}: invalid exercise.',
+              type: AppToastType.error,
+            );
+            return;
+          }
+          if (ex.sets < 1 || ex.reps < 1) {
+            AppToast.show(
+              context,
+              'Day ${dayIndex + 1}, exercise ${exIndex + 1}: sets/reps must be >= 1.',
+              type: AppToastType.error,
+            );
+            return;
+          }
+          exercises.add({
+            'exercise_id': ex.exerciseId,
+            'sets': ex.sets,
+            'reps': ex.reps,
+            'rir': ex.rir,
+          });
+        }
+        payloadDays.add({
+          'day_label': day.dayLabel.trim().isEmpty
+              ? 'Day ${dayIndex + 1}'
+              : day.dayLabel.trim(),
+          'exercises': exercises,
+        });
+      }
+
+      setModalState(() {
+        submitting = true;
+        submittingMessage = 'Saving template...';
+      });
+      try {
+        final result = await ProgressionReviewService.createPlanTemplate(
+          title: trimmedTitle,
+          days: payloadDays,
+        );
+        if (!mounted) return;
+        Navigator.of(context).pop();
+        final templateId = (result['template_id'] ?? '').toString();
+        AppToast.show(
+          context,
+          templateId.isNotEmpty
+              ? 'Template saved (#$templateId).'
+              : 'Template saved.',
+          type: AppToastType.success,
+        );
+        await _load();
+      } catch (e) {
+        if (!mounted) return;
+        setModalState(() {
+          submitting = false;
+          submittingMessage = '';
+        });
+        AppToast.show(
+          context,
+          e.toString().replaceFirst('Exception: ', ''),
+          type: AppToastType.error,
+        );
+      }
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.cardDark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (sheetContext) {
+        final viewInsets = MediaQuery.of(sheetContext).viewInsets;
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return SafeArea(
+              top: false,
+              child: AnimatedPadding(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                padding: EdgeInsets.only(bottom: viewInsets.bottom),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Create Plan Template',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 17,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        enabled: !submitting,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: const InputDecoration(
+                          labelText: 'Template title',
+                        ),
+                        onChanged: (value) => title = value,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Exercise library loaded: ${libraryExercises.length}',
+                        style: const TextStyle(
+                          color: Colors.white60,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ...List.generate(planDays.length, (dayIndex) {
+                        final day = planDays[dayIndex];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.black,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white10),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextFormField(
+                                        initialValue: day.dayLabel,
+                                        enabled: !submitting,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                        ),
+                                        decoration: InputDecoration(
+                                          labelText:
+                                              'Day ${dayIndex + 1} label',
+                                        ),
+                                        onChanged: (value) {
+                                          day.dayLabel = value;
+                                        },
+                                      ),
+                                    ),
+                                    if (planDays.length > 1) ...[
+                                      const SizedBox(width: 8),
+                                      IconButton(
+                                        onPressed: submitting
+                                            ? null
+                                            : () {
+                                                setModalState(() {
+                                                  planDays.removeAt(dayIndex);
+                                                });
+                                              },
+                                        icon: const Icon(
+                                          Icons.delete_outline,
+                                          color: Colors.redAccent,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                ...List.generate(day.exercises.length, (
+                                  exIndex,
+                                ) {
+                                  final ex = day.exercises[exIndex];
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.cardDark,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: Colors.white10,
+                                        ),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          DropdownButtonFormField<int>(
+                                            initialValue: ex.exerciseId,
+                                            decoration: const InputDecoration(
+                                              labelText: 'Exercise',
+                                            ),
+                                            dropdownColor: AppColors.cardDark,
+                                            items: libraryExercises
+                                                .map(
+                                                  (exercise) =>
+                                                      DropdownMenuItem<int>(
+                                                        value: exercise.id,
+                                                        child: Text(
+                                                          exercise.name,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                        ),
+                                                      ),
+                                                )
+                                                .toList(growable: false),
+                                            onChanged: submitting
+                                                ? null
+                                                : (value) {
+                                                    if (value == null) return;
+                                                    setModalState(
+                                                      () =>
+                                                          ex.exerciseId = value,
+                                                    );
+                                                  },
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: TextFormField(
+                                                  initialValue: '${ex.sets}',
+                                                  enabled: !submitting,
+                                                  keyboardType:
+                                                      TextInputType.number,
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                  ),
+                                                  decoration:
+                                                      const InputDecoration(
+                                                        labelText: 'Sets',
+                                                      ),
+                                                  onChanged: (value) {
+                                                    ex.sets =
+                                                        int.tryParse(
+                                                          value.trim(),
+                                                        ) ??
+                                                        0;
+                                                  },
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: TextFormField(
+                                                  initialValue: '${ex.reps}',
+                                                  enabled: !submitting,
+                                                  keyboardType:
+                                                      TextInputType.number,
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                  ),
+                                                  decoration:
+                                                      const InputDecoration(
+                                                        labelText: 'Reps',
+                                                      ),
+                                                  onChanged: (value) {
+                                                    ex.reps =
+                                                        int.tryParse(
+                                                          value.trim(),
+                                                        ) ??
+                                                        0;
+                                                  },
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: TextFormField(
+                                                  initialValue: ex.rir == null
+                                                      ? ''
+                                                      : '${ex.rir}',
+                                                  enabled: !submitting,
+                                                  keyboardType:
+                                                      TextInputType.number,
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                  ),
+                                                  decoration:
+                                                      const InputDecoration(
+                                                        labelText: 'RIR',
+                                                      ),
+                                                  onChanged: (value) {
+                                                    final raw = value.trim();
+                                                    ex.rir = raw.isEmpty
+                                                        ? null
+                                                        : int.tryParse(raw);
+                                                  },
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              IconButton(
+                                                onPressed:
+                                                    (submitting ||
+                                                        day.exercises.length ==
+                                                            1)
+                                                    ? null
+                                                    : () {
+                                                        setModalState(() {
+                                                          day.exercises
+                                                              .removeAt(
+                                                                exIndex,
+                                                              );
+                                                        });
+                                                      },
+                                                icon: const Icon(
+                                                  Icons.remove_circle_outline,
+                                                  color: Colors.redAccent,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: TextButton.icon(
+                                    onPressed: submitting
+                                        ? null
+                                        : () {
+                                            setModalState(() {
+                                              day.exercises.add(
+                                                _PlanDraftExercise(
+                                                  exerciseId:
+                                                      libraryExercises.first.id,
+                                                  sets: 3,
+                                                  reps: 10,
+                                                  rir: 2,
+                                                ),
+                                              );
+                                            });
+                                          },
+                                    icon: const Icon(Icons.add),
+                                    label: const Text('Add Exercise'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                      Row(
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: submitting
+                                ? null
+                                : () {
+                                    if (planDays.length >= 7) return;
+                                    setModalState(() {
+                                      final nextIndex = planDays.length + 1;
+                                      planDays.add(
+                                        _PlanDraftDay(
+                                          dayLabel: 'Day $nextIndex',
+                                          exercises: [
+                                            _PlanDraftExercise(
+                                              exerciseId:
+                                                  libraryExercises.first.id,
+                                              sets: 3,
+                                              reps: 10,
+                                              rir: 2,
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    });
+                                  },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white24),
+                            ),
+                            icon: const Icon(Icons.add),
+                            label: const Text('Add Day'),
+                          ),
+                        ],
+                      ),
+                      if (submittingMessage.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          submittingMessage,
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: submitting
+                              ? null
+                              : () => submitPlan(setModalState),
+                          child: Text(
+                            submitting ? 'Saving...' : 'Save Template',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+    if (mounted) {
+      setState(() => _openingPlanCreator = false);
+    }
+  }
+
+  Future<void> _openAssignTemplateSheet(Map<String, dynamic> template) async {
+    if (_clients.isEmpty) {
+      AppToast.show(
+        context,
+        'No assigned clients yet.',
+        type: AppToastType.info,
+      );
+      return;
+    }
+    final templateId = int.tryParse('${template['template_id'] ?? ''}') ?? 0;
+    if (templateId <= 0) return;
+    final templateTitle = (template['title'] ?? '').toString().trim();
+    final clients = [..._clients]
+      ..sort(
+        (a, b) => _clientDisplayName(
+          a,
+        ).toLowerCase().compareTo(_clientDisplayName(b).toLowerCase()),
+      );
+    var selectedClientId = clients.first.userId;
+    var archiveExisting = true;
+    var submitting = false;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.cardDark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (sheetContext) {
+        final viewInsets = MediaQuery.of(sheetContext).viewInsets;
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return SafeArea(
+              top: false,
+              child: AnimatedPadding(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                padding: EdgeInsets.only(bottom: viewInsets.bottom),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Assign "${templateTitle.isEmpty ? 'Template' : templateTitle}"',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 17,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      DropdownButtonFormField<int>(
+                        initialValue: selectedClientId,
+                        decoration: const InputDecoration(labelText: 'Client'),
+                        dropdownColor: AppColors.cardDark,
+                        items: clients
+                            .map(
+                              (client) => DropdownMenuItem<int>(
+                                value: client.userId,
+                                child: Text(_clientDisplayName(client)),
+                              ),
+                            )
+                            .toList(growable: false),
+                        onChanged: submitting
+                            ? null
+                            : (value) {
+                                if (value == null) return;
+                                setModalState(() => selectedClientId = value);
+                              },
+                      ),
+                      const SizedBox(height: 10),
+                      SwitchListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        value: archiveExisting,
+                        onChanged: submitting
+                            ? null
+                            : (value) {
+                                setModalState(() => archiveExisting = value);
+                              },
+                        title: const Text(
+                          'Archive existing active plan',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: submitting
+                              ? null
+                              : () async {
+                                  setModalState(() => submitting = true);
+                                  setState(
+                                    () => _assigningPlanTemplateIds.add(
+                                      templateId,
+                                    ),
+                                  );
+                                  try {
+                                    final result =
+                                        await ProgressionReviewService.assignPlanTemplateToClient(
+                                          templateId: templateId,
+                                          clientUserId: selectedClientId,
+                                          archiveExisting: archiveExisting,
+                                        );
+                                    if (!mounted || !context.mounted) return;
+                                    Navigator.of(context).pop();
+                                    final programId =
+                                        (result['program_id'] ?? '').toString();
+                                    AppToast.show(
+                                      context,
+                                      programId.isNotEmpty
+                                          ? 'Assigned successfully (Program #$programId).'
+                                          : 'Assigned successfully.',
+                                      type: AppToastType.success,
+                                    );
+                                    await _load();
+                                  } catch (e) {
+                                    if (!mounted || !context.mounted) return;
+                                    setModalState(() => submitting = false);
+                                    AppToast.show(
+                                      context,
+                                      e.toString().replaceFirst(
+                                        'Exception: ',
+                                        '',
+                                      ),
+                                      type: AppToastType.error,
+                                    );
+                                  } finally {
+                                    if (mounted) {
+                                      setState(
+                                        () => _assigningPlanTemplateIds.remove(
+                                          templateId,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                          child: Text(submitting ? 'Assigning...' : 'Assign'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _formatAssignedAt(String? raw) {
+    final value = (raw ?? '').trim();
+    if (value.isEmpty) return '-';
+    final parsed = DateTime.tryParse(value);
+    if (parsed == null) return value;
+    return _formatDateTime(parsed);
+  }
+
+  String? _avatarFromKnownClients(int userId) {
+    for (final client in _clients) {
+      if (client.userId == userId) {
+        final normalized = _normalizeAvatarUrlForUi(client.avatarUrl);
+        if ((normalized ?? '').isNotEmpty) return normalized;
+        break;
+      }
+    }
+    return null;
+  }
+
+  Map<String, dynamic> _enrichAssignedClientAvatar(Map<String, dynamic> item) {
+    final userId = int.tryParse('${item['user_id'] ?? ''}') ?? 0;
+    final cachedAvatar = userId > 0 ? _avatarFromKnownClients(userId) : null;
+    final rawAvatar = _normalizeAvatarUrlForUi(item['avatar_url']);
+    final resolvedAvatar = (cachedAvatar ?? '').isNotEmpty
+        ? cachedAvatar
+        : rawAvatar;
+    return {...item, 'avatar_url': resolvedAvatar};
+  }
+
+  List<Map<String, dynamic>> _enrichAssignedClientsAvatar(
+    List<Map<String, dynamic>> items,
+  ) {
+    return items.map(_enrichAssignedClientAvatar).toList(growable: false);
+  }
+
+  Future<void> _openAssignedClientsSheet(
+    String templateTitle,
+    List<Map<String, dynamic>> assignedClients,
+  ) async {
+    final resolvedAssignedClients = _enrichAssignedClientsAvatar(
+      assignedClients,
+    );
+    if (resolvedAssignedClients.isEmpty) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.cardDark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  (templateTitle).trim().isEmpty
+                      ? 'Assigned clients'
+                      : 'Assigned • $templateTitle',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 17,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: resolvedAssignedClients.length,
+                    separatorBuilder: (_, _) =>
+                        const Divider(height: 1, color: Colors.white12),
+                    itemBuilder: (context, index) {
+                      final item = resolvedAssignedClients[index];
+                      final name =
+                          (item['name'] ?? '').toString().trim().isEmpty
+                          ? 'Client #${item['user_id'] ?? ''}'
+                          : (item['name'] ?? '').toString().trim();
+                      final avatarUrl = (item['avatar_url'] ?? '')
+                          .toString()
+                          .trim();
+                      final assignedAt = _formatAssignedAt(
+                        (item['assigned_at'] ?? '').toString(),
+                      );
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          children: [
+                            _StackClientAvatar(
+                              name: name,
+                              avatarUrl: avatarUrl.isEmpty ? null : avatarUrl,
+                              radius: 16,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Assigned $assignedAt',
+                                    style: const TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _load() async {
@@ -71,12 +887,14 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
         ProgressionReviewService.fetchClients(),
         ProgressionReviewService.fetchReviews(includeApplied: true),
         ProgressionReviewService.fetchPendingConnectionRequests(),
+        ProgressionReviewService.fetchPlanTemplates(),
         ProgressionReviewService.fetchAssignedDietDocuments(),
       ]);
       final fetchedClients = results[0] as List<ProgressionClient>;
       final fetchedReviews = results[1] as List<ProgressionReview>;
       final requestSummary = results[2] as CoachConnectionRequestSummary;
-      final fetchedNutritionDocuments = results[3] as List<CoachDietDocument>;
+      final fetchedPlanTemplates = results[3] as List<Map<String, dynamic>>;
+      final fetchedNutritionDocuments = results[4] as List<CoachDietDocument>;
       final visibleNewClientCount = fetchedClients
           .where(
             (client) =>
@@ -88,6 +906,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       setState(() {
         _clients = fetchedClients;
         _reviews = fetchedReviews;
+        _planTemplates = fetchedPlanTemplates;
         _nutritionDocuments = fetchedNutritionDocuments;
         _newPendingConnectionRequestCount = requestSummary.newPendingCount;
         _dietBadgeSuppressedClientIds.removeWhere((userId) {
@@ -539,11 +1358,13 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
         final aHasPending =
             a.hasNewAssignment ||
             a.hasFormCheckToReview ||
-            a.hasDietLogToReview;
+            a.hasDietLogToReview ||
+            a.hasUncheckedTrainingPlan;
         final bHasPending =
             b.hasNewAssignment ||
             b.hasFormCheckToReview ||
-            b.hasDietLogToReview;
+            b.hasDietLogToReview ||
+            b.hasUncheckedTrainingPlan;
         if (aHasPending != bHasPending) {
           return bHasPending ? 1 : -1;
         }
@@ -564,6 +1385,14 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
         }
         if (a.sharedDietLogCount != b.sharedDietLogCount) {
           return b.sharedDietLogCount.compareTo(a.sharedDietLogCount);
+        }
+        if (a.hasUncheckedTrainingPlan != b.hasUncheckedTrainingPlan) {
+          return b.hasUncheckedTrainingPlan ? 1 : -1;
+        }
+        if (a.trainingPlanUncheckedCount != b.trainingPlanUncheckedCount) {
+          return b.trainingPlanUncheckedCount.compareTo(
+            a.trainingPlanUncheckedCount,
+          );
         }
         return a.userId.compareTo(b.userId);
       });
@@ -611,15 +1440,354 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
   }
 
   Widget _buildProgramsTab() {
+    final clientCount = _clients.length;
+    final templateCount = _planTemplates.length;
+    final assignedTemplateCount = _planTemplates.where((template) {
+      final count =
+          int.tryParse('${template['assigned_client_count'] ?? 0}') ?? 0;
+      return count > 0;
+    }).length;
+    final unassignedTemplateCount = templateCount - assignedTemplateCount;
+    final sortedTemplates = [..._planTemplates]
+      ..sort((a, b) {
+        final aTs = (a['created_at'] ?? '').toString();
+        final bTs = (b['created_at'] ?? '').toString();
+        return bTs.compareTo(aTs);
+      });
+
     return ListView(
       padding: const EdgeInsets.all(20),
-      children: const [
-        _SectionTitle(
-          title: 'Programs',
-          subtitle: 'Manage training programs, templates, and updates.',
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white12),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.cardDark,
+                AppColors.cardDark.withValues(alpha: 0.72),
+              ],
+            ),
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 470;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+                      SizedBox(width: 8),
+                      Text(
+                        'Programs',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 20,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Create polished training templates and assign them in one tap.',
+                    style: TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                  const SizedBox(height: 10),
+                  if (compact)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _openingPlanCreator
+                            ? null
+                            : _openPlanCreatorSheet,
+                        icon: _openingPlanCreator
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.add),
+                        label: Text(
+                          _openingPlanCreator
+                              ? 'Opening...'
+                              : 'Create New Template',
+                        ),
+                      ),
+                    )
+                  else
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _ProgramStatPill(
+                                icon: Icons.people_alt_outlined,
+                                label: '$clientCount clients',
+                              ),
+                              _ProgramStatPill(
+                                icon: Icons.dashboard_outlined,
+                                label: '$templateCount templates',
+                              ),
+                              _ProgramStatPill(
+                                icon: Icons.link_outlined,
+                                label: '$assignedTemplateCount assigned',
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        ElevatedButton.icon(
+                          onPressed: _openingPlanCreator
+                              ? null
+                              : _openPlanCreatorSheet,
+                          icon: _openingPlanCreator
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.add),
+                          label: Text(
+                            _openingPlanCreator
+                                ? 'Opening...'
+                                : 'Create Template',
+                          ),
+                        ),
+                      ],
+                    ),
+                  if (compact) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _ProgramStatPill(
+                          icon: Icons.people_alt_outlined,
+                          label: '$clientCount clients',
+                        ),
+                        _ProgramStatPill(
+                          icon: Icons.dashboard_outlined,
+                          label: '$templateCount templates',
+                        ),
+                        _ProgramStatPill(
+                          icon: Icons.link_outlined,
+                          label: '$assignedTemplateCount assigned',
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (_clients.isEmpty) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      'You can create templates now and assign when clients are connected.',
+                      style: TextStyle(color: Colors.white60, fontSize: 12),
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
         ),
-        SizedBox(height: 12),
-        _EmptyCard(text: 'Programs workspace coming soon.'),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            const Text(
+              'Template Library',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '$unassignedTemplateCount unassigned',
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (sortedTemplates.isEmpty)
+          const _EmptyCard(text: 'No templates saved yet.')
+        else
+          ...sortedTemplates.map((template) {
+            final templateId =
+                int.tryParse('${template['template_id'] ?? ''}') ?? 0;
+            final title = (template['title'] ?? '').toString().trim();
+            final dayCount = int.tryParse('${template['day_count'] ?? 0}') ?? 0;
+            final exerciseCount =
+                int.tryParse('${template['exercise_count'] ?? 0}') ?? 0;
+            final assignedClientsRaw = template['assigned_clients'];
+            final assignedClients = assignedClientsRaw is List
+                ? assignedClientsRaw
+                      .whereType<Map>()
+                      .map((item) => Map<String, dynamic>.from(item))
+                      .toList(growable: false)
+                : const <Map<String, dynamic>>[];
+            final assignedClientsResolved = _enrichAssignedClientsAvatar(
+              assignedClients,
+            );
+            final assignedClientRaw = template['assigned_client'];
+            final assignedClient = assignedClientRaw is Map
+                ? _enrichAssignedClientAvatar(
+                    Map<String, dynamic>.from(assignedClientRaw),
+                  )
+                : null;
+            final assignedClientCount =
+                int.tryParse('${template['assigned_client_count'] ?? 0}') ?? 0;
+            final previewClients = assignedClientsResolved.isNotEmpty
+                ? assignedClientsResolved.take(3).toList(growable: false)
+                : (assignedClient != null
+                      ? <Map<String, dynamic>>[assignedClient]
+                      : const <Map<String, dynamic>>[]);
+            final assigning = _assigningPlanTemplateIds.contains(templateId);
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.cardDark,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title.isEmpty ? 'Untitled template' : title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  _ProgramTag(
+                                    icon: Icons.calendar_today_outlined,
+                                    label: '$dayCount days',
+                                  ),
+                                  _ProgramTag(
+                                    icon: Icons.fitness_center_outlined,
+                                    label: '$exerciseCount exercises',
+                                  ),
+                                  if (assignedClientCount == 0)
+                                    const _ProgramTag(
+                                      icon: Icons.hourglass_empty_outlined,
+                                      label: 'Not assigned',
+                                    )
+                                  else
+                                    _ProgramTag(
+                                      icon: Icons.verified_outlined,
+                                      label: '$assignedClientCount assigned',
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        OutlinedButton.icon(
+                          onPressed: (templateId <= 0 || assigning)
+                              ? null
+                              : () => _openAssignTemplateSheet(template),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.white24),
+                            minimumSize: const Size(0, 38),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 0,
+                            ),
+                          ),
+                          icon: assigning
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.group_add_outlined, size: 18),
+                          label: Text(assigning ? 'Assigning...' : 'Assign'),
+                        ),
+                      ],
+                    ),
+                    if (assignedClientCount > 0 &&
+                        previewClients.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () => _openAssignedClientsSheet(
+                          title.isEmpty ? 'Untitled template' : title,
+                          assignedClientsResolved.isNotEmpty
+                              ? assignedClientsResolved
+                              : previewClients,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 4,
+                          ),
+                          child: Row(
+                            children: [
+                              _AssignedClientsStack(
+                                clients: previewClients,
+                                totalCount: assignedClientCount,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  assignedClientCount == 1
+                                      ? '1 assigned client'
+                                      : '$assignedClientCount assigned clients',
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const Icon(
+                                Icons.chevron_right,
+                                color: Colors.white54,
+                                size: 18,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          }),
       ],
     );
   }
@@ -929,7 +2097,8 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                 value: _autoHabitReminderEnabled,
                 onChanged: controlsDisabled
                     ? null
-                    : (value) => setState(() => _autoHabitReminderEnabled = value),
+                    : (value) =>
+                          setState(() => _autoHabitReminderEnabled = value),
                 title: const Text(
                   'Auto send habit reminders to all clients',
                   style: TextStyle(color: Colors.white),
@@ -947,8 +2116,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                   ChoiceChip(
                     selected: _habitReminderScheduleType == 'weekly',
                     label: const Text('Weekly'),
-                    onSelected:
-                        !_autoHabitReminderEnabled || controlsDisabled
+                    onSelected: !_autoHabitReminderEnabled || controlsDisabled
                         ? null
                         : (_) => setState(
                             () => _habitReminderScheduleType = 'weekly',
@@ -969,8 +2137,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                   ChoiceChip(
                     selected: _habitReminderScheduleType == 'daily',
                     label: const Text('Daily'),
-                    onSelected:
-                        !_autoHabitReminderEnabled || controlsDisabled
+                    onSelected: !_autoHabitReminderEnabled || controlsDisabled
                         ? null
                         : (_) => setState(
                             () => _habitReminderScheduleType = 'daily',
@@ -1000,9 +2167,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                 if (_habitReminderScheduleType == 'weekly') ...[
                   DropdownButtonFormField<int>(
                     initialValue: _habitReminderWeeklyDay,
-                    decoration: const InputDecoration(
-                      labelText: 'Day of week',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Day of week'),
                     dropdownColor: AppColors.cardDark,
                     items: weekdayOptions
                         .map(
@@ -1023,9 +2188,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                 ],
                 DropdownButtonFormField<int>(
                   initialValue: _habitReminderHourOfDay,
-                  decoration: const InputDecoration(
-                    labelText: 'Hour (0-23)',
-                  ),
+                  decoration: const InputDecoration(labelText: 'Hour (0-23)'),
                   dropdownColor: AppColors.cardDark,
                   items: hourOptions
                       .map(
@@ -1319,6 +2482,34 @@ class _CoachBottomTab {
   final IconData icon;
 }
 
+class _PlanDraftDay {
+  _PlanDraftDay({required this.dayLabel, required this.exercises});
+
+  String dayLabel;
+  final List<_PlanDraftExercise> exercises;
+}
+
+class _PlanDraftExercise {
+  _PlanDraftExercise({
+    required this.exerciseId,
+    required this.sets,
+    required this.reps,
+    required this.rir,
+  });
+
+  int exerciseId;
+  int sets;
+  int reps;
+  int? rir;
+}
+
+class _LibraryExerciseOption {
+  const _LibraryExerciseOption({required this.id, required this.name});
+
+  final int id;
+  final String name;
+}
+
 class _BottomTabButton extends StatelessWidget {
   const _BottomTabButton({
     required this.label,
@@ -1430,6 +2621,70 @@ class _MetricCard extends StatelessWidget {
               fontSize: 24,
               fontWeight: FontWeight.w700,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProgramStatPill extends StatelessWidget {
+  const _ProgramStatPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.white70),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProgramTag extends StatelessWidget {
+  const _ProgramTag({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: Colors.white70),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 11),
           ),
         ],
       ),
@@ -1575,35 +2830,6 @@ class _ClientOverviewCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (client.hasNewAssignment) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(
-                            0xFF1F9D63,
-                          ).withValues(alpha: 0.22),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
-                            color: const Color(
-                              0xFF4ADE80,
-                            ).withValues(alpha: 0.65),
-                          ),
-                        ),
-                        child: const Text(
-                          'NEW',
-                          style: TextStyle(
-                            color: Color(0xFFA7F3D0),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.2,
-                          ),
-                        ),
-                      ),
-                    ],
                     const SizedBox(width: 6),
                     _ActivityStatusDot(
                       status: client.activityStatus,
@@ -1680,6 +2906,33 @@ class _ClientOverviewCard extends StatelessWidget {
                           client.sharedDietLogCount > 1
                               ? 'New diet logs (${client.sharedDietLogCount})'
                               : 'New diet log',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF5FD8FF),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                if (client.hasUncheckedTrainingPlan) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.checklist_rounded,
+                        size: 14,
+                        color: Color(0xFF5FD8FF),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          client.trainingPlanUncheckedCount > 1
+                              ? 'Unchecked AI plans (${client.trainingPlanUncheckedCount})'
+                              : 'Unchecked AI plan',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -1769,6 +3022,111 @@ class _ActivityStatusDot extends StatelessWidget {
   }
 }
 
+class _AssignedClientsStack extends StatelessWidget {
+  const _AssignedClientsStack({
+    required this.clients,
+    required this.totalCount,
+  });
+
+  final List<Map<String, dynamic>> clients;
+  final int totalCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final preview = clients.take(3).toList(growable: false);
+    final overflow = totalCount - preview.length;
+    final baseWidth = preview.isEmpty ? 0 : (preview.length - 1) * 18 + 30;
+    final totalWidth = baseWidth + (overflow > 0 ? 30 : 0);
+    return SizedBox(
+      width: totalWidth.toDouble(),
+      height: 30,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          for (var i = 0; i < preview.length; i++)
+            Positioned(
+              left: i * 18,
+              child: _StackClientAvatar(
+                name: (preview[i]['name'] ?? '').toString().trim(),
+                avatarUrl: (preview[i]['avatar_url'] ?? '').toString().trim(),
+                radius: 15,
+              ),
+            ),
+          if (overflow > 0)
+            Positioned(
+              left: baseWidth.toDouble(),
+              child: Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: Colors.white12,
+                  border: Border.all(color: Colors.white30),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '+$overflow',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StackClientAvatar extends StatelessWidget {
+  const _StackClientAvatar({
+    required this.name,
+    this.avatarUrl,
+    this.radius = 15,
+  });
+
+  final String name;
+  final String? avatarUrl;
+  final double radius;
+
+  String _initials() {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return '?';
+    final parts = trimmed
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList(growable: false);
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return '${parts.first.substring(0, 1)}${parts.last.substring(0, 1)}'
+        .toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = _normalizeAvatarUrlForUi(avatarUrl) ?? '';
+    final hasImage = imageUrl.isNotEmpty;
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: Colors.white10,
+      foregroundImage: hasImage ? NetworkImage(imageUrl) : null,
+      onForegroundImageError: (_, _) {},
+      child: hasImage
+          ? null
+          : Text(
+              _initials(),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: radius * 0.5,
+              ),
+            ),
+    );
+  }
+}
+
 class _ClientAvatar extends StatelessWidget {
   const _ClientAvatar({required this.name, this.avatarUrl});
 
@@ -1790,7 +3148,7 @@ class _ClientAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = (avatarUrl ?? '').trim();
+    final imageUrl = _normalizeAvatarUrlForUi(avatarUrl) ?? '';
     return CircleAvatar(
       radius: 18,
       backgroundColor: Colors.white10,

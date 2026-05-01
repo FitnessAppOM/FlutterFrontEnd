@@ -66,6 +66,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   String? _formChecksError;
   late bool _showFormReviewPendingNote;
   late bool _showDietLogPendingNote;
+  late bool _showTrainingPlanPendingNote;
   bool _dietLogSeenNotified = false;
 
   @override
@@ -73,6 +74,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     super.initState();
     _showFormReviewPendingNote = widget.client.hasFormCheckToReview;
     _showDietLogPendingNote = widget.client.hasDietLogToReview;
+    _showTrainingPlanPendingNote = widget.client.hasUncheckedTrainingPlan;
     _voicePlayerSub = _voicePlayer.playerStateStream.listen((_) {
       if (mounted) {
         setState(() {});
@@ -120,11 +122,19 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     String? profileError;
     String? habitsError;
     String? formChecksError;
+    bool showTrainingPlanPendingNote = _showTrainingPlanPendingNote;
 
     try {
       expertId = await AccountStorage.getUserId();
     } catch (_) {
       expertId = null;
+    }
+    try {
+      final status = await ProgressionReviewService
+          .fetchClientTrainingPlanSeenStatus(clientUserId: widget.client.userId);
+      showTrainingPlanPendingNote = status['has_unchecked_training_plan'] == true;
+    } catch (_) {
+      // Keep previous value if status cannot be loaded.
     }
 
     try {
@@ -162,7 +172,15 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       _profileError = profileError;
       _habitsError = habitsError;
       _formChecksError = formChecksError;
+      _showTrainingPlanPendingNote = showTrainingPlanPendingNote;
       _loading = false;
+    });
+  }
+
+  void _handleTrainingPlanVerified() {
+    if (!_showTrainingPlanPendingNote || !mounted) return;
+    setState(() {
+      _showTrainingPlanPendingNote = false;
     });
   }
 
@@ -1619,11 +1637,18 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
 
   Future<void> _openAnalyticsPage() async {
     await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ExpertClientAnalyticsPage(
+      PageRouteBuilder<void>(
+        transitionDuration: const Duration(milliseconds: 180),
+        reverseTransitionDuration: const Duration(milliseconds: 140),
+        pageBuilder: (_, animation, secondaryAnimation) =>
+            ExpertClientAnalyticsPage(
           client: widget.client,
           reviews: widget.reviews,
+          onTrainingPlanVerified: _handleTrainingPlanVerified,
         ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
       ),
     );
   }
@@ -1717,6 +1742,31 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                       'User ID: ${widget.client.userId}',
                       style: const TextStyle(color: Colors.white60),
                     ),
+                    if (_showTrainingPlanPendingNote) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: const [
+                          Icon(
+                            Icons.checklist_rounded,
+                            size: 13,
+                            color: Color(0xFF5FD8FF),
+                          ),
+                          SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              "Client's plan not checked yet",
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Color(0xFF5FD8FF),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1825,8 +1875,8 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                children: const [
-                  Expanded(
+                children: [
+                  const Expanded(
                     child: Text(
                       'Analytics',
                       style: TextStyle(
@@ -1836,7 +1886,32 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                       ),
                     ),
                   ),
-                  Icon(Icons.chevron_right, color: Colors.white54, size: 20),
+                  if (_showTrainingPlanPendingNote)
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF5FD8FF).withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: const Color(
+                            0xFF5FD8FF,
+                          ).withValues(alpha: 0.45),
+                        ),
+                      ),
+                      child: const Text(
+                        'New',
+                        style: TextStyle(
+                          color: Color(0xFF5FD8FF),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  const Icon(Icons.chevron_right, color: Colors.white54, size: 20),
                 ],
               ),
               const SizedBox(height: 8),
@@ -1844,6 +1919,29 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                 'Open client analytics and activity status.',
                 style: TextStyle(color: Colors.white70),
               ),
+              if (_showTrainingPlanPendingNote) ...[
+                const SizedBox(height: 6),
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.checklist_rounded,
+                      size: 14,
+                      color: Color(0xFF5FD8FF),
+                    ),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        "Client's plan not checked yet.",
+                        style: TextStyle(
+                          color: Color(0xFF5FD8FF),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 10),
               Align(
                 alignment: Alignment.centerRight,

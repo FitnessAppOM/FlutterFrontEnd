@@ -25,6 +25,8 @@ class ProgressionClient {
   final bool hasDietLogToReview;
   final int newAssignmentCount;
   final bool hasNewAssignment;
+  final int trainingPlanUncheckedCount;
+  final bool hasUncheckedTrainingPlan;
   final double? currentWeightKg;
 
   const ProgressionClient({
@@ -46,6 +48,8 @@ class ProgressionClient {
     this.hasDietLogToReview = false,
     this.newAssignmentCount = 0,
     this.hasNewAssignment = false,
+    this.trainingPlanUncheckedCount = 0,
+    this.hasUncheckedTrainingPlan = false,
     this.currentWeightKg,
   });
 
@@ -67,6 +71,8 @@ class ProgressionClient {
     bool? hasDietLogToReview,
     int? newAssignmentCount,
     bool? hasNewAssignment,
+    int? trainingPlanUncheckedCount,
+    bool? hasUncheckedTrainingPlan,
     double? currentWeightKg,
   }) {
     return ProgressionClient(
@@ -88,6 +94,10 @@ class ProgressionClient {
       hasDietLogToReview: hasDietLogToReview ?? this.hasDietLogToReview,
       newAssignmentCount: newAssignmentCount ?? this.newAssignmentCount,
       hasNewAssignment: hasNewAssignment ?? this.hasNewAssignment,
+      trainingPlanUncheckedCount:
+          trainingPlanUncheckedCount ?? this.trainingPlanUncheckedCount,
+      hasUncheckedTrainingPlan:
+          hasUncheckedTrainingPlan ?? this.hasUncheckedTrainingPlan,
       currentWeightKg: currentWeightKg ?? this.currentWeightKg,
     );
   }
@@ -178,6 +188,20 @@ class ProgressionClient {
                 json['is_new_assignment'],
           ) ||
           parseInt(json['new_assignment_count'] ?? json['newAssignmentCount']) >
+              0,
+      trainingPlanUncheckedCount: parseInt(
+        json['training_plan_unchecked_count'] ??
+            json['trainingPlanUncheckedCount'],
+      ),
+      hasUncheckedTrainingPlan:
+          parseBool(
+            json['has_unchecked_training_plan'] ??
+                json['hasUncheckedTrainingPlan'],
+          ) ||
+          parseInt(
+                json['training_plan_unchecked_count'] ??
+                    json['trainingPlanUncheckedCount'],
+              ) >
               0,
       currentWeightKg: parseDouble(
         json['current_weight_kg'] ?? json['currentWeightKg'],
@@ -1303,6 +1327,40 @@ class ProgressionReviewService {
     }
   }
 
+  static Future<Map<String, dynamic>> fetchClientTrainingPlanSeenStatus({
+    required int clientUserId,
+  }) async {
+    final res = await http.get(
+      _uri('/coach/progression/clients/$clientUserId/training-plan/status'),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to load training plan seen status', res.body),
+      );
+    }
+    final decoded = jsonDecode(res.body);
+    if (decoded is Map<String, dynamic>) return decoded;
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    return <String, dynamic>{};
+  }
+
+  static Future<void> markClientTrainingPlanVerified({
+    required int clientUserId,
+  }) async {
+    final res = await http.post(
+      _uri('/coach/progression/clients/$clientUserId/training-plan/verify'),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to verify training plan', res.body),
+      );
+    }
+  }
+
   static Future<FormCheckSubmission> submitFormCheckReview({
     required int submissionId,
     required String reviewText,
@@ -1560,5 +1618,111 @@ class ProgressionReviewService {
         .whereType<Map>()
         .map((item) => Map<String, dynamic>.from(item))
         .toList();
+  }
+
+  static Future<Map<String, dynamic>> fetchClientActiveTrainingProgram(
+    int clientUserId,
+  ) async {
+    final res = await http.get(
+      _uri('/training/current/$clientUserId'),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to load client training program', res.body),
+      );
+    }
+    final decoded = jsonDecode(res.body);
+    if (decoded is Map<String, dynamic>) return decoded;
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    return <String, dynamic>{};
+  }
+
+  static Future<Map<String, dynamic>> createClientTrainingPlan({
+    required int clientUserId,
+    required List<Map<String, dynamic>> days,
+    bool archiveExisting = true,
+  }) async {
+    final res = await http.post(
+      _uri('/coach/progression/clients/$clientUserId/training-plans'),
+      headers: await _authHeaders(jsonBody: true),
+      body: jsonEncode({'days': days, 'archive_existing': archiveExisting}),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to create training plan', res.body),
+      );
+    }
+    final decoded = jsonDecode(res.body);
+    if (decoded is Map<String, dynamic>) return decoded;
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    return <String, dynamic>{};
+  }
+
+  static Future<List<Map<String, dynamic>>> fetchPlanTemplates() async {
+    final res = await http.get(
+      _uri('/coach/progression/plan-templates'),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(_extractError('Failed to load plan templates', res.body));
+    }
+    final decoded = jsonDecode(res.body);
+    final raw = decoded is Map ? decoded['templates'] : null;
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
+  }
+
+  static Future<Map<String, dynamic>> createPlanTemplate({
+    required String title,
+    required List<Map<String, dynamic>> days,
+    String? notes,
+  }) async {
+    final res = await http.post(
+      _uri('/coach/progression/plan-templates'),
+      headers: await _authHeaders(jsonBody: true),
+      body: jsonEncode({'title': title, 'notes': notes, 'days': days}),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to create plan template', res.body),
+      );
+    }
+    final decoded = jsonDecode(res.body);
+    if (decoded is Map<String, dynamic>) return decoded;
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    return <String, dynamic>{};
+  }
+
+  static Future<Map<String, dynamic>> assignPlanTemplateToClient({
+    required int templateId,
+    required int clientUserId,
+    bool archiveExisting = true,
+  }) async {
+    final res = await http.post(
+      _uri('/coach/progression/plan-templates/$templateId/assign'),
+      headers: await _authHeaders(jsonBody: true),
+      body: jsonEncode({
+        'client_user_id': clientUserId,
+        'archive_existing': archiveExisting,
+      }),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to assign plan template', res.body),
+      );
+    }
+    final decoded = jsonDecode(res.body);
+    if (decoded is Map<String, dynamic>) return decoded;
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    return <String, dynamic>{};
   }
 }
