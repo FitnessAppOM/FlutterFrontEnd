@@ -782,6 +782,16 @@ class CommunityService {
     }
   }
 
+  static Future<void> deleteChallenge(int challengeId) async {
+    final response = await _send('DELETE', '/community/challenges/$challengeId');
+    if (response.statusCode != 200) {
+      throw CommunityApiException(
+        response.statusCode,
+        _extractError('Failed to delete challenge', response),
+      );
+    }
+  }
+
   static Future<List<CommunityBadge>> fetchBadges() async {
     final response = await _send('GET', '/community/badges');
     if (response.statusCode != 200) {

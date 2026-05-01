@@ -907,7 +907,7 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final scaffold = Scaffold(
       backgroundColor: AppColors.black,
       appBar: AppBar(
         backgroundColor: AppColors.black,
@@ -1045,6 +1045,13 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
         ),
       ),
     );
+    if (!widget.isGroupScoped) {
+      return scaffold;
+    }
+    return DefaultTabController(
+      length: 2,
+      child: scaffold,
+    );
   }
 }
 
@@ -1064,6 +1071,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
   CommunityGroupDetail? _detail;
   List<CommunityFeedItem> _feed = const [];
   List<CommunityMembership> _members = const [];
+  List<CommunityChallenge> _groupChallenges = const [];
   bool _loading = true;
   String? _error;
   bool _groupNotificationsMuted = false;
@@ -1085,12 +1093,16 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       final members = detail.isJoined
           ? await CommunityService.fetchGroupMembers(widget.groupId)
           : const <CommunityMembership>[];
+      final groupChallenges = detail.isJoined
+          ? await CommunityService.fetchChallenges(groupId: widget.groupId)
+          : const <CommunityChallenge>[];
       final currentUserId = await AccountStorage.getUserId();
       if (!mounted) return;
       setState(() {
         _detail = detail;
         _feed = feed.items;
         _members = members;
+        _groupChallenges = groupChallenges;
         _loading = false;
         _groupNotificationsMuted = members.any(
           (member) =>
@@ -1789,6 +1801,54 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
                       children: [
                         const Expanded(
                           child: Text(
+                            'Challenge Preview',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        if (detail.isJoined)
+                          TextButton(
+                            onPressed: _openGroupChallenges,
+                            child: const Text('See all'),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    if (!detail.isJoined)
+                      const Text(
+                        'Join this group to view its group-specific challenges.',
+                        style: TextStyle(color: Colors.white70),
+                      )
+                    else if (_groupChallenges.isEmpty)
+                      const Text(
+                        'No group challenges yet.',
+                        style: TextStyle(color: Colors.white70),
+                      )
+                    else
+                      ..._groupChallenges.take(2).map(
+                        (challenge) => Padding(
+                          padding: const EdgeInsets.only(top: 10),
+                          child: _ChallengeCard(
+                            challenge: challenge,
+                            onTap: _openGroupChallenges,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              CardContainer(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
                             'Leaderboard',
                             style: TextStyle(
                               color: Colors.white,
@@ -1980,9 +2040,23 @@ class CommunityChallengesPage extends StatefulWidget {
 }
 
 class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
-  List<CommunityChallenge> _challenges = const [];
+  List<CommunityChallenge> _globalChallenges = const [];
+  List<CommunityChallenge> _groupChallenges = const [];
   bool _loading = true;
   String? _error;
+  int _selectedTabIndex = 0;
+
+  bool get _isGroupTab => widget.isGroupScoped && _selectedTabIndex == 1;
+  bool get _canCreateForCurrentTab =>
+      _isGroupTab ? widget.canManageGroupChallenges : widget.canManageGlobalChallenges;
+  List<CommunityChallenge> get _visibleChallenges =>
+      _isGroupTab ? _groupChallenges : _globalChallenges;
+  String get _currentEmptyMessage {
+    if (_isGroupTab) {
+      return 'Group challenges will appear here when created by this group admin.';
+    }
+    return widget.emptyMessage;
+  }
 
   @override
   void initState() {
@@ -1996,10 +2070,14 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
       _error = null;
     });
     try {
-      final challenges = await CommunityService.fetchChallenges(groupId: widget.groupId);
+      final globalChallenges = await CommunityService.fetchChallenges();
+      final groupChallenges = widget.groupId == null
+          ? const <CommunityChallenge>[]
+          : await CommunityService.fetchChallenges(groupId: widget.groupId);
       if (!mounted) return;
       setState(() {
-        _challenges = challenges;
+        _globalChallenges = globalChallenges;
+        _groupChallenges = groupChallenges;
         _loading = false;
       });
     } catch (e) {
@@ -2019,12 +2097,11 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
       );
       if (!mounted) return;
       setState(() {
-        _challenges = _challenges
-            .map(
-              (item) => item.challengeId == challenge.challengeId
-                  ? item.copyWith(mutedNotifications: muted)
-                  : item,
-            )
+        _globalChallenges = _globalChallenges
+            .map((item) => item.challengeId == challenge.challengeId ? item.copyWith(mutedNotifications: muted) : item)
+            .toList(growable: false);
+        _groupChallenges = _groupChallenges
+            .map((item) => item.challengeId == challenge.challengeId ? item.copyWith(mutedNotifications: muted) : item)
             .toList(growable: false);
       });
     } catch (e) {
@@ -2037,7 +2114,7 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
     final payload = await _showChallengeEditor(context, null);
     if (payload == null) return;
     try {
-      if (widget.groupId != null) {
+      if (_isGroupTab && widget.groupId != null) {
         await CommunityService.createGroupChallenge(
           widget.groupId!,
           name: payload.name,
@@ -2070,6 +2147,11 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
     }
   }
 
+  bool _canManageChallenge(CommunityChallenge challenge) {
+    if (challenge.isGroupScoped) return widget.canManageGroupChallenges;
+    return widget.canManageGlobalChallenges;
+  }
+
   Future<void> _editChallenge(CommunityChallenge challenge) async {
     final payload = await _showChallengeEditor(context, challenge);
     if (payload == null) return;
@@ -2093,6 +2175,26 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
     }
   }
 
+  Future<void> _deleteChallenge(CommunityChallenge challenge) async {
+    final confirm = await showConfirmDialog(
+      context: context,
+      title: 'Delete challenge',
+      message: 'This will permanently remove the challenge and its progress records.',
+      confirmText: 'Delete',
+      borderColor: Colors.redAccent,
+    );
+    if (confirm != true) return;
+    try {
+      await CommunityService.deleteChallenge(challenge.challengeId);
+      if (!mounted) return;
+      AppToast.show(context, 'Challenge deleted.', type: AppToastType.success);
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, e.toString(), type: AppToastType.error);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -2102,12 +2204,21 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
         elevation: 0,
         title: Text(widget.title),
         actions: [
-          if (widget.canCreate)
+          if (_canCreateForCurrentTab)
             IconButton(
               onPressed: _createChallenge,
               icon: const Icon(Icons.add_circle_outline),
             ),
         ],
+        bottom: widget.isGroupScoped
+            ? TabBar(
+                onTap: (index) => setState(() => _selectedTabIndex = index),
+                tabs: const [
+                  Tab(text: 'Global'),
+                  Tab(text: 'Group'),
+                ],
+              )
+            : null,
       ),
       body: RefreshIndicator(
         color: AppColors.accent,
@@ -2124,13 +2235,13 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
                 actionLabel: 'Retry',
                 onPressed: () => _load(),
               )
-            else if (_challenges.isEmpty)
+            else if (_visibleChallenges.isEmpty)
               _CommunityEmptyCard(
                 title: 'No challenges right now',
-                message: widget.emptyMessage,
+                message: _currentEmptyMessage,
               )
             else
-              ..._challenges.map(
+              ..._visibleChallenges.map(
                 (challenge) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: CardContainer(
@@ -2143,10 +2254,21 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
                             const SizedBox(width: 8),
                             _MiniChip(label: challenge.isGroupScoped ? 'group' : 'global'),
                             const Spacer(),
-                            if (widget.canCreate)
-                              IconButton(
-                                onPressed: () => _editChallenge(challenge),
-                                icon: const Icon(Icons.edit_outlined, color: Colors.white70),
+                            if (_canManageChallenge(challenge))
+                              PopupMenuButton<String>(
+                                icon: const Icon(Icons.more_horiz, color: Colors.white70),
+                                color: const Color(0xFF141414),
+                                onSelected: (value) async {
+                                  if (value == 'edit') {
+                                    await _editChallenge(challenge);
+                                  } else if (value == 'delete') {
+                                    await _deleteChallenge(challenge);
+                                  }
+                                },
+                                itemBuilder: (_) => const [
+                                  PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                  PopupMenuItem(value: 'delete', child: Text('Delete')),
+                                ],
                               ),
                           ],
                         ),
