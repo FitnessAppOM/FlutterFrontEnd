@@ -1045,6 +1045,7 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
         ),
       ),
     );
+    return scaffold;
   }
 }
 
@@ -1951,6 +1952,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
         ),
       ),
     );
+    return scaffold;
   }
 
   Future<void> _showGroupFeedReport(CommunityFeedItem item) async {
@@ -2190,7 +2192,7 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final scaffold = Scaffold(
       backgroundColor: AppColors.black,
       appBar: AppBar(
         backgroundColor: AppColors.black,
