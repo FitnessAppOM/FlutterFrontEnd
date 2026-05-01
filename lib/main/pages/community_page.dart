@@ -1045,13 +1045,6 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
         ),
       ),
     );
-    if (!widget.isGroupScoped) {
-      return scaffold;
-    }
-    return DefaultTabController(
-      length: 2,
-      child: scaffold,
-    );
   }
 }
 
@@ -1432,7 +1425,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
   @override
   Widget build(BuildContext context) {
     final detail = _detail;
-    return Scaffold(
+    final scaffold = Scaffold(
       backgroundColor: AppColors.black,
       appBar: AppBar(
         backgroundColor: AppColors.black,
@@ -2324,6 +2317,13 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
           ],
         ),
       ),
+    );
+    if (!widget.isGroupScoped) {
+      return scaffold;
+    }
+    return DefaultTabController(
+      length: 2,
+      child: scaffold,
     );
   }
 }
