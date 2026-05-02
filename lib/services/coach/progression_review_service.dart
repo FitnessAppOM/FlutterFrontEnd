@@ -826,7 +826,7 @@ class ProgressionReviewService {
     await _handleAuth(res);
     if (res.statusCode != 200) {
       throw Exception(
-        _extractError('Failed to load progression clients', res.body),
+        _extractError('Failed to load AI update clients', res.body),
       );
     }
     final decoded = jsonDecode(res.body);
@@ -1475,7 +1475,7 @@ class ProgressionReviewService {
     await _handleAuth(res);
     if (res.statusCode != 200) {
       throw Exception(
-        _extractError('Failed to load progression reviews', res.body),
+        _extractError('Failed to load AI update reviews', res.body),
       );
     }
     final decoded = jsonDecode(res.body);
@@ -1500,7 +1500,7 @@ class ProgressionReviewService {
     await _handleAuth(res);
     if (res.statusCode != 200) {
       throw Exception(
-        _extractError('Failed to generate progression review', res.body),
+        _extractError('Failed to generate AI update review', res.body),
       );
     }
     final decoded = jsonDecode(res.body);
@@ -1515,7 +1515,7 @@ class ProgressionReviewService {
     await _handleAuth(res);
     if (res.statusCode != 200) {
       throw Exception(
-        _extractError('Failed to load progression review', res.body),
+        _extractError('Failed to load AI update review', res.body),
       );
     }
     return ProgressionReviewDetail.fromJson(
@@ -1545,7 +1545,7 @@ class ProgressionReviewService {
     await _handleAuth(res);
     if (res.statusCode != 200) {
       throw Exception(
-        _extractError('Failed to update progression item', res.body),
+        _extractError('Failed to update AI review item', res.body),
       );
     }
     return ProgressionReviewDetail.fromJson(
@@ -1561,7 +1561,7 @@ class ProgressionReviewService {
     await _handleAuth(res);
     if (res.statusCode != 200) {
       throw Exception(
-        _extractError('Failed to apply progression review', res.body),
+        _extractError('Failed to apply AI update review', res.body),
       );
     }
     return ProgressionReviewDetail.fromJson(

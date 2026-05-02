@@ -967,7 +967,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       String message;
       switch (status) {
         case 'generated':
-          message = 'Progression review generated.';
+          message = 'AI update review generated.';
           break;
         case 'exists':
           message = 'A review already exists for this week.';
@@ -1325,7 +1325,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       case _tabSettings:
         return t.translate('settings');
       case _tabProgression:
-        return 'Progression Clients';
+        return 'AI Updates';
       default:
         return t.translate('expert_dashboard_title');
     }
@@ -2286,9 +2286,9 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
           ),
           const SizedBox(height: 20),
           const _SectionTitle(
-            title: 'Progression Clients',
+            title: 'AI Updates',
             subtitle:
-                'Generate weekly progression reviews for clients assigned to you.',
+                'Generate weekly AI update reviews for clients assigned to you.',
           ),
           const SizedBox(height: 10),
           if (_clients.isEmpty)
@@ -2309,13 +2309,13 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
             ),
           const SizedBox(height: 20),
           const _SectionTitle(
-            title: 'Progression Reviews',
+            title: 'AI Update Reviews',
             subtitle:
                 'Open a review to approve, edit, reject, and apply final changes.',
           ),
           const SizedBox(height: 10),
           if (_reviews.isEmpty)
-            const _EmptyCard(text: 'No progression reviews yet.')
+            const _EmptyCard(text: 'No AI update reviews yet.')
           else
             ..._reviews.map(
               (review) => Padding(
@@ -2338,7 +2338,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       _CoachBottomTab(label: 'Programs', icon: Icons.fitness_center_outlined),
       _CoachBottomTab(label: 'Nutrition', icon: Icons.restaurant_menu_outlined),
       _CoachBottomTab(label: 'Settings', icon: Icons.settings_outlined),
-      _CoachBottomTab(label: 'Progression', icon: Icons.trending_up_outlined),
+      _CoachBottomTab(label: 'AI Updates', icon: Icons.trending_up_outlined),
     ];
 
     return Container(

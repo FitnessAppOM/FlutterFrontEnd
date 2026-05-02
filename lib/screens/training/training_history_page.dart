@@ -953,6 +953,7 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
         final fields = change['fields'];
         if (pos is Map && fields is Map) {
           final day = (pos['day_label'] ?? 'Day').toString();
+          final exerciseName = (pos['exercise_name'] ?? '').toString().trim();
           final fieldLabels = <String>[];
           fields.forEach((key, value) {
             if (value is Map) {
@@ -963,7 +964,9 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
           });
           widgets.add(
             Text(
-              '~ $day: ${fieldLabels.join(' | ')}',
+              exerciseName.isEmpty
+                  ? '~ $day: ${fieldLabels.join(' | ')}'
+                  : '~ $day: $exerciseName (${fieldLabels.join(' | ')})',
               style: const TextStyle(color: Colors.white70, fontSize: 12),
             ),
           );

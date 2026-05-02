@@ -907,6 +907,13 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
             final isVoicePlaying = _isVoiceNotePlaying(voiceNoteUrl);
             final isVoiceLoading = _isVoiceNoteLoading(voiceNoteUrl);
             final isReviewPinned = current.coachReview?.isPinned == true;
+            final aiSummary = (current.result.feedbackSummary ?? '').trim();
+            final aiBullets = current.result.feedbackBullets;
+            final aiIssues = current.result.detectedIssues;
+            final hasAiAnalysis =
+                aiSummary.isNotEmpty ||
+                aiBullets.isNotEmpty ||
+                aiIssues.isNotEmpty;
 
             Future<void> handleSend() async {
               final updated = await _handlePrimarySend(current);
@@ -1058,6 +1065,84 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                           ),
                       ],
                     ),
+                    if (hasAiAnalysis) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Taqa Agent analysis',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            if (aiSummary.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                aiSummary,
+                                style: const TextStyle(color: Colors.white70),
+                              ),
+                            ],
+                            if (aiBullets.isNotEmpty) ...[
+                              const SizedBox(height: 10),
+                              ...aiBullets.map(
+                                (bullet) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 6),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Padding(
+                                        padding: EdgeInsets.only(top: 6),
+                                        child: Icon(
+                                          Icons.circle,
+                                          size: 6,
+                                          color: Colors.white54,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          bullet,
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                            if (aiIssues.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                'Detected focus areas: ${aiIssues.join(', ')}',
+                                style: const TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ] else if (current.isProcessing) ...[
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Taqa Agent analysis is still processing.',
+                        style: TextStyle(color: Colors.white54, fontSize: 12),
+                      ),
+                    ],
                     const SizedBox(height: 10),
                     TextField(
                       controller: controller,
@@ -2334,6 +2419,24 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 6),
+                        if (item.result.feedbackBullets.isNotEmpty ||
+                            (item.result.feedbackSummary ?? '').trim().isNotEmpty)
+                          const Text(
+                            'Taqa Agent analysis ready',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                          )
+                        else if (item.isProcessing)
+                          const Text(
+                            'Taqa Agent analysis processing',
+                            style: TextStyle(
+                              color: Colors.white54,
+                              fontSize: 12,
+                            ),
+                          ),
                         const SizedBox(height: 6),
                         const Row(
                           mainAxisAlignment: MainAxisAlignment.end,

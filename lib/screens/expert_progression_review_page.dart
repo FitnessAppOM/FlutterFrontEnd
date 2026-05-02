@@ -76,7 +76,7 @@ class _ExpertProgressionReviewPageState
       });
       AppToast.show(
         context,
-        'Progression changes applied to the active program.',
+        'AI updates applied to the active program.',
         type: AppToastType.success,
       );
     } catch (e) {
@@ -232,7 +232,7 @@ class _ExpertProgressionReviewPageState
         backgroundColor: AppColors.black,
         title: Text(
           review == null
-              ? 'Progression Review'
+              ? 'AI Update Review'
               : 'Review - ${review.weekStart ?? ''}',
         ),
         actions: [

@@ -38,7 +38,7 @@ class _DayOrderResult {
   final List<bool> completedByIndex;
 }
 
-class _TrainPageState extends State<TrainPage> {
+class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
   Map<String, dynamic>? program;
   int selectedDay = 0;
   bool loading = true;
@@ -63,6 +63,7 @@ class _TrainPageState extends State<TrainPage> {
   String? _historyWorkedWeekToken;
   bool _historyWorkedLoadedForWeek = false;
   int _unseenPlanChangeCount = 0;
+  bool _resumeRefreshInFlight = false;
 
   int? _userId;
   int? _pendingCompletionDayIndex;
@@ -82,6 +83,7 @@ class _TrainPageState extends State<TrainPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     AccountStorage.trainingChange.addListener(_onTrainingChanged);
     AccountStorage.accountChange.addListener(_onAccountChanged);
     _init();
@@ -91,9 +93,29 @@ class _TrainPageState extends State<TrainPage> {
   void dispose() {
     _workoutTimer?.cancel();
     _exRestTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     AccountStorage.trainingChange.removeListener(_onTrainingChanged);
     AccountStorage.accountChange.removeListener(_onAccountChanged);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state != AppLifecycleState.resumed) return;
+    if (_resumeRefreshInFlight) return;
+    _resumeRefreshInFlight = true;
+    unawaited(_refreshOnResume());
+  }
+
+  Future<void> _refreshOnResume() async {
+    try {
+      await TrainingResetCoordinator.ensureInitialized();
+      await _refreshTrainingPlanChangeState();
+      await _loadProgram();
+    } finally {
+      _resumeRefreshInFlight = false;
+    }
   }
 
   void _onTrainingChanged() {

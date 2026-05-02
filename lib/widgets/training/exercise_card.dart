@@ -53,6 +53,46 @@ class ExerciseCard extends StatelessWidget {
     return value.toString();
   }
 
+  double? _toDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value.trim());
+    return null;
+  }
+
+  double? _positiveWeight(dynamic value) {
+    final parsed = _toDouble(value);
+    if (parsed == null || parsed <= 0) return null;
+    return parsed;
+  }
+
+  double? _resolvedWeight(Map<String, dynamic> exercise) {
+    final rawRows = exercise['set_rows'];
+    if (rawRows is List) {
+      for (final raw in rawRows) {
+        if (raw is! Map) continue;
+        final weight = _positiveWeight(raw['weight_kg']);
+        if (weight != null) return weight;
+      }
+    }
+    final compliance =
+        _extractCompliance(exercise['program_compliance']) ??
+        _extractCompliance(exercise['compliance']);
+    return _positiveWeight(
+          compliance?['weight_used'] ?? exercise['weight_used'],
+        ) ??
+        _positiveWeight(exercise['weight_kg']);
+  }
+
+  String? _formatWeightLabel(double? value) {
+    if (value == null) return null;
+    final rounded = value.roundToDouble();
+    final text = (value - rounded).abs() < 0.001
+        ? rounded.toStringAsFixed(0)
+        : value.toStringAsFixed(1);
+    return '$text kg';
+  }
+
   @override
   Widget build(BuildContext context) {
     String _lower(dynamic v) => (v ?? '').toString().trim().toLowerCase();
@@ -212,6 +252,7 @@ class ExerciseCard extends StatelessWidget {
           )
         : null;
     final String rirLabel = overrideRir ?? exercise['rir'].toString();
+    final String? weightLabel = _formatWeightLabel(_resolvedWeight(exercise));
 
     // Accept multiple backend representations for completion/compliance flags.
     final completionFields = [
@@ -435,6 +476,11 @@ class ExerciseCard extends StatelessWidget {
                                       icon: Icons.bolt,
                                       label: "RIR $rirLabel",
                                     ),
+                                    if (weightLabel != null)
+                                      _StatChip(
+                                        icon: Icons.fitness_center,
+                                        label: weightLabel,
+                                      ),
                                   ],
                                 ),
                               if ((exercise['primary_muscles'] ?? '')

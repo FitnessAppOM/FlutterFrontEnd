@@ -416,7 +416,7 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
           body: _tr(
             context,
             'coach_form_check_consent_body',
-            'Your video will be analyzed by Google Gemini and stored on Taqa Fitness servers for up to 30 days unless you save it to your Library. You can delete it at any time.',
+            'Your video will be analyzed by Taqa Agent and stored on Taqa Fitness servers for up to 30 days unless you save it to your Library. You can delete it at any time.',
           ),
         ),
         const SizedBox(height: 14),

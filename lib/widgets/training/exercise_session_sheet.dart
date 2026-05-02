@@ -171,12 +171,26 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   }
 
   double? _plannedWeight() {
+    final rawRows = widget.exercise['set_rows'];
+    if (rawRows is List) {
+      for (final raw in rawRows) {
+        if (raw is! Map) continue;
+        final weight = _toDouble(raw['weight_kg']);
+        if (weight != null && weight > 0) {
+          return weight;
+        }
+      }
+    }
     final compliance =
         _extractCompliance(widget.exercise['program_compliance']) ??
         _extractCompliance(widget.exercise['compliance']);
-    return _toDouble(
+    final fallback = _toDouble(
       compliance?['weight_used'] ?? widget.exercise['weight_used'],
     );
+    if (fallback != null && fallback > 0) {
+      return fallback;
+    }
+    return null;
   }
 
   Future<void> _recordEstimatedTrainingCalories({
