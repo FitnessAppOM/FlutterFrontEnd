@@ -62,9 +62,7 @@ class _TrainPageState extends State<TrainPage> {
   Set<String> _historyWorkedDayTokensForWeek = <String>{};
   String? _historyWorkedWeekToken;
   bool _historyWorkedLoadedForWeek = false;
-  bool _loadingPlanChanges = false;
   int _unseenPlanChangeCount = 0;
-  bool _didAutoOpenPlanChangeSheet = false;
 
   int? _userId;
   int? _pendingCompletionDayIndex;
@@ -114,7 +112,7 @@ class _TrainPageState extends State<TrainPage> {
     await _refreshAccountStatus();
     await _loadExRestPreset();
     await _restoreExRestState();
-    await _refreshTrainingPlanChangeState(showPopupIfNeeded: true);
+    await _refreshTrainingPlanChangeState();
   }
 
   Future<void> _refreshAccountStatus() async {
@@ -1644,9 +1642,7 @@ class _TrainPageState extends State<TrainPage> {
     }
   }
 
-  Future<void> _refreshTrainingPlanChangeState({
-    bool showPopupIfNeeded = false,
-  }) async {
+  Future<void> _refreshTrainingPlanChangeState() async {
     final userId = _userId ?? await AccountStorage.getUserId();
     if (userId == null || userId <= 0) return;
     try {
@@ -1661,269 +1657,8 @@ class _TrainPageState extends State<TrainPage> {
       setState(() {
         _unseenPlanChangeCount = unseen;
       });
-      if (showPopupIfNeeded && unseen > 0 && !_didAutoOpenPlanChangeSheet) {
-        _didAutoOpenPlanChangeSheet = true;
-        await _showTrainingPlanChangeSheet(markSeenOnOpen: true);
-      }
     } catch (_) {
       // Keep page responsive if log fetch fails.
-    }
-  }
-
-  String _formatPlanChangeDate(String? iso) {
-    if (iso == null || iso.trim().isEmpty) return '';
-    final parsed = DateTime.tryParse(iso.trim());
-    if (parsed == null) return '';
-    final local = parsed.toLocal();
-    final y = local.year.toString().padLeft(4, '0');
-    final m = local.month.toString().padLeft(2, '0');
-    final d = local.day.toString().padLeft(2, '0');
-    final hh = local.hour.toString().padLeft(2, '0');
-    final mm = local.minute.toString().padLeft(2, '0');
-    return '$y-$m-$d  $hh:$mm';
-  }
-
-  String _labelForPlanSource(String? source) {
-    switch ((source ?? '').trim()) {
-      case 'ai_generated':
-        return 'AI';
-      case 'verified':
-        return 'Verified by coach';
-      case 'ai_coach':
-        return 'AI/Coach';
-      case 'coach_edited':
-        return 'Coach/edited';
-      case 'expert_created':
-        return 'Coach-created';
-      default:
-        return (source ?? '').trim();
-    }
-  }
-
-  List<Widget> _buildPlanChangeDetailWidgets(TrainingPlanChangeEvent event) {
-    if (event.details.isEmpty) {
-      return const <Widget>[];
-    }
-    final widgets = <Widget>[];
-    for (final change in event.details) {
-      final type = (change['type'] ?? '').toString().trim();
-      if (type == 'added') {
-        final to = change['to'];
-        if (to is Map) {
-          final ex = (to['exercise_name'] ?? '').toString();
-          final sets = to['sets']?.toString() ?? '-';
-          final reps = to['reps']?.toString() ?? '-';
-          final rir = to['rir']?.toString() ?? '-';
-          final day = (to['day_label'] ?? 'Day').toString();
-          widgets.add(
-            Text(
-              '+ $day: $ex ($sets x $reps, RIR $rir)',
-              style: const TextStyle(color: Color(0xFF7CFFB0), fontSize: 12),
-            ),
-          );
-        }
-      } else if (type == 'removed') {
-        final from = change['from'];
-        if (from is Map) {
-          final ex = (from['exercise_name'] ?? '').toString();
-          final day = (from['day_label'] ?? 'Day').toString();
-          widgets.add(
-            Text(
-              '- $day: $ex',
-              style: const TextStyle(color: Color(0xFFFF8C8C), fontSize: 12),
-            ),
-          );
-        }
-      } else if (type == 'updated') {
-        final pos = change['position'];
-        final fields = change['fields'];
-        if (pos is Map && fields is Map) {
-          final day = (pos['day_label'] ?? 'Day').toString();
-          final fieldLabels = <String>[];
-          fields.forEach((key, value) {
-            if (value is Map) {
-              final from = value['from']?.toString() ?? '-';
-              final to = value['to']?.toString() ?? '-';
-              fieldLabels.add('$key: $from → $to');
-            }
-          });
-          widgets.add(
-            Text(
-              '~ $day: ${fieldLabels.join(' | ')}',
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-          );
-        }
-      }
-    }
-    return widgets;
-  }
-
-  Future<void> _showTrainingPlanChangeSheet({
-    bool markSeenOnOpen = true,
-  }) async {
-    if (_loadingPlanChanges) return;
-    setState(() => _loadingPlanChanges = true);
-    try {
-      final userId = _userId ?? await AccountStorage.getUserId();
-      if (userId == null || userId <= 0) return;
-      final payload = await TrainingService.fetchTrainingPlanChanges(
-        userId: userId,
-        markSeen: markSeenOnOpen,
-      );
-      final items =
-          (payload['items'] as List<TrainingPlanChangeEvent>? ?? const [])
-              .toList(growable: false);
-      if (!mounted) return;
-      setState(() {
-        _unseenPlanChangeCount = markSeenOnOpen
-            ? 0
-            : (payload['unseen_count'] is int
-                  ? payload['unseen_count'] as int
-                  : 0);
-      });
-      await showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.black,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-        ),
-        builder: (sheetContext) {
-          return SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-              child: SizedBox(
-                height: MediaQuery.of(sheetContext).size.height * 0.82,
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Training Plan Log',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.of(sheetContext).pop(),
-                          icon: const Icon(Icons.close, color: Colors.white70),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    if (items.isEmpty)
-                      const Expanded(
-                        child: Center(
-                          child: Text(
-                            'No training plan updates yet.',
-                            style: TextStyle(color: Colors.white70),
-                          ),
-                        ),
-                      )
-                    else
-                      Expanded(
-                        child: ListView.separated(
-                          itemCount: items.length,
-                          separatorBuilder: (_, _) =>
-                              const SizedBox(height: 10),
-                          itemBuilder: (_, index) {
-                            final event = items[index];
-                            final detailWidgets = _buildPlanChangeDetailWidgets(
-                              event,
-                            );
-                            final createdAt = _formatPlanChangeDate(
-                              event.createdAt,
-                            );
-                            final sourceFrom = _labelForPlanSource(
-                              event.fromPlanSource,
-                            );
-                            final sourceTo = _labelForPlanSource(
-                              event.toPlanSource,
-                            );
-                            return Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.05),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.12),
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    event.summary,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  if (sourceFrom.isNotEmpty ||
-                                      sourceTo.isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 4),
-                                      child: Text(
-                                        sourceFrom.isNotEmpty &&
-                                                sourceTo.isNotEmpty
-                                            ? '$sourceFrom → $sourceTo'
-                                            : (sourceTo.isNotEmpty
-                                                  ? sourceTo
-                                                  : sourceFrom),
-                                        style: const TextStyle(
-                                          color: Colors.white60,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  if (createdAt.isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 2),
-                                      child: Text(
-                                        createdAt,
-                                        style: const TextStyle(
-                                          color: Colors.white38,
-                                          fontSize: 11,
-                                        ),
-                                      ),
-                                    ),
-                                  if (detailWidgets.isNotEmpty) ...[
-                                    const SizedBox(height: 8),
-                                    ...detailWidgets,
-                                  ],
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      );
-      if (!mounted) return;
-      await _refreshTrainingPlanChangeState(showPopupIfNeeded: false);
-    } catch (_) {
-      if (!mounted) return;
-      AppToast.show(
-        context,
-        'Failed to load plan updates.',
-        type: AppToastType.info,
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _loadingPlanChanges = false);
-      }
     }
   }
 
@@ -2343,83 +2078,6 @@ class _TrainPageState extends State<TrainPage> {
                       ),
                     ],
                   ),
-                  if (_tabIndex == 0) ...[
-                    const SizedBox(height: 10),
-                    InkWell(
-                      borderRadius: BorderRadius.circular(14),
-                      onTap: _loadingPlanChanges
-                          ? null
-                          : () => _showTrainingPlanChangeSheet(
-                              markSeenOnOpen: true,
-                            ),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 11,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: _unseenPlanChangeCount > 0
-                                ? const Color(0xFF2D7CFF).withOpacity(0.5)
-                                : Colors.white.withOpacity(0.15),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.assignment_outlined,
-                              color: _unseenPlanChangeCount > 0
-                                  ? const Color(0xFF7EB2FF)
-                                  : Colors.white70,
-                              size: 18,
-                            ),
-                            const SizedBox(width: 9),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    "Plan Log",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                  Text(
-                                    _unseenPlanChangeCount > 0
-                                        ? "$_unseenPlanChangeCount new update${_unseenPlanChangeCount == 1 ? '' : 's'}"
-                                        : "Check what changed in your training plan",
-                                    style: const TextStyle(
-                                      color: Colors.white60,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (_loadingPlanChanges)
-                              const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white70,
-                                ),
-                              )
-                            else
-                              const Icon(
-                                Icons.chevron_right,
-                                color: Colors.white54,
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
                   const SizedBox(height: 16),
                 ],
               ),
@@ -2487,24 +2145,36 @@ class _TrainPageState extends State<TrainPage> {
                               ),
                             ),
                             OutlinedButton.icon(
-                              onPressed: () {
+                              onPressed: () async {
                                 final currentProgram = program;
                                 if (currentProgram == null) return;
-                                Navigator.of(context).push(
+                                await Navigator.of(context).push(
                                   MaterialPageRoute(
                                     builder: (_) => TrainingHistoryPage(
                                       program: currentProgram,
+                                      initialTabIndex:
+                                          _unseenPlanChangeCount > 0 ? 1 : 0,
                                     ),
                                   ),
                                 );
+                                if (!mounted) return;
+                                await _refreshTrainingPlanChangeState();
                               },
                               icon: const Icon(Icons.history, size: 18),
-                              label: const Text("History"),
+                              label: Text(
+                                _unseenPlanChangeCount > 0
+                                    ? "History • $_unseenPlanChangeCount"
+                                    : "History",
+                              ),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.white,
                                 backgroundColor: Colors.white.withOpacity(0.08),
                                 side: BorderSide(
-                                  color: Colors.white.withOpacity(0.2),
+                                  color: _unseenPlanChangeCount > 0
+                                      ? const Color(
+                                          0xFF2D7CFF,
+                                        ).withOpacity(0.75)
+                                      : Colors.white.withOpacity(0.2),
                                 ),
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 12,

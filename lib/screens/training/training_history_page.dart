@@ -12,9 +12,14 @@ import '../../widgets/training/training_history_health_push_dialog.dart';
 import 'training_history_day_detail_page.dart';
 
 class TrainingHistoryPage extends StatefulWidget {
-  const TrainingHistoryPage({super.key, required this.program});
+  const TrainingHistoryPage({
+    super.key,
+    required this.program,
+    this.initialTabIndex = 0,
+  });
 
   final Map<String, dynamic> program;
+  final int initialTabIndex;
 
   @override
   State<TrainingHistoryPage> createState() => _TrainingHistoryPageState();
@@ -22,13 +27,23 @@ class TrainingHistoryPage extends StatefulWidget {
 
 class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
   bool _loading = true;
+  int _tabIndex = 0;
   bool _pushingHistoryToHealth = false;
   List<_TrainingHistoryEntry> _entries = const [];
+  bool _loadingPlanLogs = true;
+  List<TrainingPlanChangeEvent> _planLogItems = const [];
+  int _unseenPlanLogCount = 0;
+  bool _planLogsMarkedSeen = false;
 
   @override
   void initState() {
     super.initState();
+    _tabIndex = (widget.initialTabIndex >= 0 && widget.initialTabIndex <= 1)
+        ? widget.initialTabIndex
+        : 0;
     _loadHistory();
+    _loadPlanLogs(markSeen: _tabIndex == 1);
+    _planLogsMarkedSeen = _tabIndex == 1;
   }
 
   Future<void> _loadHistory() async {
@@ -61,6 +76,60 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
         _loading = false;
       });
     }
+  }
+
+  Future<void> _loadPlanLogs({required bool markSeen}) async {
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null || userId <= 0) {
+        if (!mounted) return;
+        setState(() {
+          _loadingPlanLogs = false;
+          _planLogItems = const [];
+          _unseenPlanLogCount = 0;
+        });
+        return;
+      }
+      final payload = await TrainingService.fetchTrainingPlanChanges(
+        userId: userId,
+        markSeen: markSeen,
+      );
+      final unseen = payload['unseen_count'] is int
+          ? payload['unseen_count'] as int
+          : 0;
+      final items =
+          (payload['items'] as List<TrainingPlanChangeEvent>? ?? const [])
+              .toList(growable: false);
+      if (!mounted) return;
+      setState(() {
+        _loadingPlanLogs = false;
+        _planLogItems = items;
+        _unseenPlanLogCount = markSeen ? 0 : unseen;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loadingPlanLogs = false;
+        _planLogItems = const [];
+      });
+    }
+  }
+
+  Future<void> _openPlanLogsTab() async {
+    if (_tabIndex == 1) return;
+    setState(() {
+      _tabIndex = 1;
+    });
+    if (_planLogsMarkedSeen) return;
+    _planLogsMarkedSeen = true;
+    await _loadPlanLogs(markSeen: true);
+  }
+
+  void _openProgressLogsTab() {
+    if (_tabIndex == 0) return;
+    setState(() {
+      _tabIndex = 0;
+    });
   }
 
   List<_TrainingHistoryEntry> _buildEntriesFromApi(
@@ -817,6 +886,279 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
     }
   }
 
+  String _formatPlanChangeDate(String? iso) {
+    if (iso == null || iso.trim().isEmpty) return '';
+    final parsed = DateTime.tryParse(iso.trim());
+    if (parsed == null) return '';
+    final local = parsed.toLocal();
+    final y = local.year.toString().padLeft(4, '0');
+    final m = local.month.toString().padLeft(2, '0');
+    final d = local.day.toString().padLeft(2, '0');
+    final hh = local.hour.toString().padLeft(2, '0');
+    final mm = local.minute.toString().padLeft(2, '0');
+    return '$y-$m-$d  $hh:$mm';
+  }
+
+  String _labelForPlanSource(String? source) {
+    switch ((source ?? '').trim()) {
+      case 'ai_generated':
+        return 'AI';
+      case 'verified':
+        return 'Verified by coach';
+      case 'ai_coach':
+        return 'AI/Coach';
+      case 'coach_edited':
+        return 'Coach/edited';
+      case 'expert_created':
+        return 'Coach-created';
+      default:
+        return (source ?? '').trim();
+    }
+  }
+
+  List<Widget> _buildPlanChangeDetailWidgets(TrainingPlanChangeEvent event) {
+    if (event.details.isEmpty) return const <Widget>[];
+    final widgets = <Widget>[];
+    for (final change in event.details) {
+      final type = (change['type'] ?? '').toString().trim();
+      if (type == 'added') {
+        final to = change['to'];
+        if (to is Map) {
+          final ex = (to['exercise_name'] ?? '').toString();
+          final sets = to['sets']?.toString() ?? '-';
+          final reps = to['reps']?.toString() ?? '-';
+          final rir = to['rir']?.toString() ?? '-';
+          final day = (to['day_label'] ?? 'Day').toString();
+          widgets.add(
+            Text(
+              '+ $day: $ex ($sets x $reps, RIR $rir)',
+              style: const TextStyle(color: Color(0xFF7CFFB0), fontSize: 12),
+            ),
+          );
+        }
+      } else if (type == 'removed') {
+        final from = change['from'];
+        if (from is Map) {
+          final ex = (from['exercise_name'] ?? '').toString();
+          final day = (from['day_label'] ?? 'Day').toString();
+          widgets.add(
+            Text(
+              '- $day: $ex',
+              style: const TextStyle(color: Color(0xFFFF8C8C), fontSize: 12),
+            ),
+          );
+        }
+      } else if (type == 'updated') {
+        final pos = change['position'];
+        final fields = change['fields'];
+        if (pos is Map && fields is Map) {
+          final day = (pos['day_label'] ?? 'Day').toString();
+          final fieldLabels = <String>[];
+          fields.forEach((key, value) {
+            if (value is Map) {
+              final from = value['from']?.toString() ?? '-';
+              final to = value['to']?.toString() ?? '-';
+              fieldLabels.add('$key: $from -> $to');
+            }
+          });
+          widgets.add(
+            Text(
+              '~ $day: ${fieldLabels.join(' | ')}',
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          );
+        }
+      }
+    }
+    return widgets;
+  }
+
+  Widget _historyTabButton({
+    required String label,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        decoration: BoxDecoration(
+          color: active
+              ? const Color(0xFF2D7CFF)
+              : Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: active
+                ? const Color(0xFF6EA8FF)
+                : Colors.white.withOpacity(0.14),
+          ),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Center(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: active ? Colors.white : Colors.white70,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressLogsContent(List<_TrainingHistoryPlanGroup> grouped) {
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(color: Colors.white70),
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+      children: [
+        Text(
+          "Completed training days",
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: Colors.white.withOpacity(0.6),
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (_entries.isEmpty)
+          Text(
+            "No training history yet.",
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Colors.white.withOpacity(0.7),
+            ),
+          )
+        else
+          ...grouped.map((group) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 2),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.03),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withOpacity(0.08)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    group.title,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: const Color(0xFFD4AF37),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  ...group.entries.map(
+                    (entry) => _buildHistoryEntryCard(context, entry),
+                  ),
+                ],
+              ),
+            );
+          }),
+      ],
+    );
+  }
+
+  Widget _buildPlanLogsContent() {
+    if (_loadingPlanLogs) {
+      return const Center(
+        child: CircularProgressIndicator(color: Colors.white70),
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+      children: [
+        Text(
+          _unseenPlanLogCount > 0
+              ? "$_unseenPlanLogCount new plan update${_unseenPlanLogCount == 1 ? '' : 's'}"
+              : "Your training plan update history",
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: Colors.white.withOpacity(0.6),
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (_planLogItems.isEmpty)
+          Text(
+            "No training plan updates yet.",
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Colors.white.withOpacity(0.7),
+            ),
+          )
+        else
+          ..._planLogItems.map((event) {
+            final detailWidgets = _buildPlanChangeDetailWidgets(event);
+            final createdAt = _formatPlanChangeDate(event.createdAt);
+            final sourceFrom = _labelForPlanSource(event.fromPlanSource);
+            final sourceTo = _labelForPlanSource(event.toPlanSource);
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withOpacity(0.12)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    event.summary,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                  if (sourceFrom.isNotEmpty || sourceTo.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        sourceFrom.isNotEmpty && sourceTo.isNotEmpty
+                            ? '$sourceFrom -> $sourceTo'
+                            : (sourceTo.isNotEmpty ? sourceTo : sourceFrom),
+                        style: const TextStyle(
+                          color: Colors.white60,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  if (createdAt.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        createdAt,
+                        style: const TextStyle(
+                          color: Colors.white38,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  if (detailWidgets.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    ...detailWidgets,
+                  ],
+                ],
+              ),
+            );
+          }),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final groupedEntries = _groupEntriesByPlan(_entries);
@@ -827,60 +1169,36 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
         elevation: 0,
         title: const Text("Training history"),
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: Colors.white70),
-            )
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
+            child: Row(
               children: [
-                Text(
-                  "Completed training days",
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withOpacity(0.6),
-                  ),
+                _historyTabButton(
+                  label: "Progress Logs",
+                  active: _tabIndex == 0,
+                  onTap: _openProgressLogsTab,
                 ),
-                const SizedBox(height: 16),
-                if (_entries.isEmpty)
-                  Text(
-                    "No training history yet.",
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white.withOpacity(0.7),
-                    ),
-                  )
-                else
-                  ...groupedEntries.map((group) {
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 14),
-                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 2),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.03),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.08),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            group.title,
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(
-                                  color: const Color(0xFFD4AF37),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                          ),
-                          const SizedBox(height: 10),
-                          ...group.entries.map(
-                            (entry) => _buildHistoryEntryCard(context, entry),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
+                const SizedBox(width: 10),
+                _historyTabButton(
+                  label: _unseenPlanLogCount > 0
+                      ? "Plan Logs ($_unseenPlanLogCount)"
+                      : "Plan Logs",
+                  active: _tabIndex == 1,
+                  onTap: _openPlanLogsTab,
+                ),
               ],
             ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: _tabIndex == 0
+                ? _buildProgressLogsContent(groupedEntries)
+                : _buildPlanLogsContent(),
+          ),
+        ],
+      ),
     );
   }
 }

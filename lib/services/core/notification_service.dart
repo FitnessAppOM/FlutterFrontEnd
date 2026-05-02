@@ -581,7 +581,11 @@ class NotificationService {
       return;
     }
     if (type == 'coach_feedback_added' || type == 'coach_habit_added') {
-      NavigationService.navigateToFeed(fromNotification: true);
+      NavigationService.navigateToCoachFeedback();
+      return;
+    }
+    if (type == 'coach_connection_request_decision') {
+      NavigationService.navigateToCoachFeedback();
       return;
     }
   }
