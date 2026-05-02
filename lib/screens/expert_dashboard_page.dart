@@ -2302,8 +2302,6 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                   generating: _generating,
                   onGenerate: () =>
                       _generateReview(client.userId, force: false),
-                  onForceGenerate: () =>
-                      _generateReview(client.userId, force: true),
                 ),
               ),
             ),
@@ -2725,13 +2723,11 @@ class _ClientCard extends StatelessWidget {
     required this.client,
     required this.generating,
     required this.onGenerate,
-    required this.onForceGenerate,
   });
 
   final ProgressionClient client;
   final bool generating;
   final VoidCallback onGenerate;
-  final VoidCallback onForceGenerate;
 
   @override
   Widget build(BuildContext context) {
@@ -2759,26 +2755,16 @@ class _ClientCard extends StatelessWidget {
             style: const TextStyle(color: Colors.white60),
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: generating ? null : onGenerate,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white24),
-                  ),
-                  child: const Text('Generate'),
-                ),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: generating ? null : onGenerate,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Colors.white24),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: generating ? null : onForceGenerate,
-                  child: Text(generating ? 'Working...' : 'Force'),
-                ),
-              ),
-            ],
+              child: Text(generating ? 'Working...' : 'Generate'),
+            ),
           ),
         ],
       ),
