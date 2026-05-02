@@ -4,12 +4,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../consents/consent_manager.dart';
 import '../../localization/app_localizations.dart';
+import '../../services/coach/chat_attachment_file_service.dart';
 import '../../services/coach/form_check_service.dart';
 import '../../theme/app_theme.dart';
+import 'chat_video_player_page.dart';
 
 String _tr(BuildContext context, String key, String fallback) {
   final value = AppLocalizations.of(context).translate(key);
@@ -371,11 +372,29 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
     }
   }
 
-  Future<void> _openUrl(String? url) async {
-    if (url == null || url.trim().isEmpty) return;
-    final uri = Uri.tryParse(url);
-    if (uri == null) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  Future<void> _openVideoInApp(String? url, {required String title}) async {
+    final normalized = (url ?? '').trim();
+    if (normalized.isEmpty) return;
+    try {
+      final localPath =
+          await ChatAttachmentFileService.prepareLocalAttachmentFile(
+            normalized,
+            suggestedFileName: '$title.mp4',
+            fallbackExtension: '.mp4',
+          );
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              ChatVideoPlayerPage(videoPath: localPath, title: title),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _showToast(
+        'Could not open video: ${e.toString().replaceFirst('Exception: ', '')}',
+      );
+    }
   }
 
   void _showToast(String message) {
@@ -499,10 +518,16 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
                     item: item,
                     createdAtLabel: _formatDate(item.createdAt),
                     deleteAfterLabel: _formatDate(item.deleteAfter),
-                    onOpenVideo: () => _openUrl(item.originalVideoUrl),
+                    onOpenVideo: () => _openVideoInApp(
+                      item.originalVideoUrl,
+                      title: item.exerciseName,
+                    ),
                     onOpenOverlay: item.result.overlayUrl == null
                         ? null
-                        : () => _openUrl(item.result.overlayUrl),
+                        : () => _openVideoInApp(
+                            item.result.overlayUrl,
+                            title: '${item.exerciseName} (Overlay)',
+                          ),
                     onToggleShare: () => _toggleShare(item),
                     onToggleSave: () => _toggleSave(item),
                     onDelete: () => _deleteSubmission(item),

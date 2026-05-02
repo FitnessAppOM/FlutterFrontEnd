@@ -147,6 +147,40 @@ class ProfileApi {
     throw Exception(msg);
   }
 
+  static Future<Map<String, dynamic>> reportCoach({
+    required int expertUserId,
+    required String reason,
+  }) async {
+    final url = Uri.parse(
+      "${ApiConfig.baseUrl}/coach/connections/$expertUserId/report",
+    );
+    final headers = {
+      "Content-Type": "application/json",
+      ...await AccountStorage.getAuthHeaders(),
+    };
+    final res = await http.post(
+      url,
+      headers: headers,
+      body: jsonEncode({"reason": reason.trim()}),
+    );
+
+    await AccountStorage.handleAuthStatus(
+      res.statusCode,
+      responseBody: res.body,
+    );
+
+    if (res.statusCode == 200) {
+      return _decodeMap(res.body);
+    }
+
+    String msg = "Failed to report coach";
+    try {
+      final data = _decodeMap(res.body);
+      msg = data["detail"]?.toString() ?? msg;
+    } catch (_) {}
+    throw Exception(msg);
+  }
+
   static Future<String> uploadAvatar(int userId, String filePath) async {
     final url = Uri.parse("${ApiConfig.baseUrl}/profile/$userId/avatar");
     final request = http.MultipartRequest("POST", url);

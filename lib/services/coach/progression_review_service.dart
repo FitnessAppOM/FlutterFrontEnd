@@ -999,6 +999,32 @@ class ProgressionReviewService {
     }
   }
 
+  static Future<void> detachClient({required int clientUserId}) async {
+    final res = await http.delete(
+      _uri('/coach/connections/clients/$clientUserId'),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(_extractError('Failed to detach client', res.body));
+    }
+  }
+
+  static Future<void> reportClient({
+    required int clientUserId,
+    required String reason,
+  }) async {
+    final res = await http.post(
+      _uri('/coach/connections/clients/$clientUserId/report'),
+      headers: await _authHeaders(jsonBody: true),
+      body: jsonEncode({'reason': reason.trim()}),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(_extractError('Failed to report client', res.body));
+    }
+  }
+
   static Future<List<FormCheckSubmission>> fetchClientSharedFormChecks(
     int clientUserId,
   ) async {
@@ -1718,6 +1744,25 @@ class ProgressionReviewService {
     if (res.statusCode != 200) {
       throw Exception(
         _extractError('Failed to assign plan template', res.body),
+      );
+    }
+    final decoded = jsonDecode(res.body);
+    if (decoded is Map<String, dynamic>) return decoded;
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    return <String, dynamic>{};
+  }
+
+  static Future<Map<String, dynamic>> deletePlanTemplate({
+    required int templateId,
+  }) async {
+    final res = await http.delete(
+      _uri('/coach/progression/plan-templates/$templateId'),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to delete plan template', res.body),
       );
     }
     final decoded = jsonDecode(res.body);

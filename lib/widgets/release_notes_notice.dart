@@ -40,14 +40,11 @@ class ReleaseNotesDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ReleaseNoteHighlight(text: 'v1.0.25'),
+          _ReleaseNoteHighlight(text: 'v1.0.26'),
           SizedBox(height: 10),
-          _ReleaseNoteItem(text: 'First release of Community and Coach pages'),
-          _ReleaseNoteItem(
-            text: 'Please explore the new experience and share your feedback',
-          ),
+          _ReleaseNoteItem(text: 'coach/client updates'),
           SizedBox(height: 8),
-          _ReleaseNoteCallout(text: 'Use code 000098 to join a coach'),
+          _ReleaseNoteCallout(text: "ps: now eevryone is an 'PT' for testing"),
         ],
       ),
       actions: [

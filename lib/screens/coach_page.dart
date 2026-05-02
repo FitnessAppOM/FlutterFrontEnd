@@ -30,6 +30,7 @@ class _CoachPageState extends State<CoachPage> {
   bool _profileLoaded = false;
   int _coachPanelsRevision = 0;
   final Set<int> _detachingCoachIds = <int>{};
+  final Set<int> _reportingCoachIds = <int>{};
 
   @override
   void didChangeDependencies() {
@@ -195,6 +196,64 @@ class _CoachPageState extends State<CoachPage> {
     return tokens.first;
   }
 
+  Future<String?> _promptReportReason({required String targetName}) async {
+    final controller = TextEditingController();
+    String? errorText;
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: AppColors.cardDark,
+          title: const Text(
+            'Report Coach',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Why are you reporting $targetName?',
+                style: const TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: controller,
+                maxLength: 1000,
+                minLines: 3,
+                maxLines: 6,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Write the reason...',
+                  errorText: errorText,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                final reason = controller.text.trim();
+                if (reason.isEmpty) {
+                  setDialogState(() => errorText = 'Reason is required.');
+                  return;
+                }
+                Navigator.of(ctx).pop(reason);
+              },
+              child: const Text('Report'),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    return result;
+  }
+
   Future<void> _detachCoach(_CoachAssignment coach) async {
     final coachId = coach.id;
     if (coachId == null || coachId <= 0) {
@@ -232,6 +291,41 @@ class _CoachPageState extends State<CoachPage> {
     } finally {
       if (mounted) {
         setState(() => _detachingCoachIds.remove(coachId));
+      }
+    }
+  }
+
+  Future<void> _reportCoach(_CoachAssignment coach) async {
+    final coachId = coach.id;
+    if (coachId == null || coachId <= 0) {
+      AppToast.show(
+        context,
+        "This coach cannot be reported right now.",
+        type: AppToastType.error,
+      );
+      return;
+    }
+    if (_reportingCoachIds.contains(coachId)) return;
+
+    final coachFirstName = _firstNameOnly(coach.name);
+    final reason = await _promptReportReason(targetName: coachFirstName);
+    if (reason == null) return;
+
+    setState(() => _reportingCoachIds.add(coachId));
+    try {
+      await ProfileApi.reportCoach(expertUserId: coachId, reason: reason);
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        "Report submitted. Our team will review it.",
+        type: AppToastType.success,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, "Report failed: $e", type: AppToastType.error);
+    } finally {
+      if (mounted) {
+        setState(() => _reportingCoachIds.remove(coachId));
       }
     }
   }
@@ -374,6 +468,10 @@ class _CoachPageState extends State<CoachPage> {
                           coachId != null &&
                           coachId > 0 &&
                           _detachingCoachIds.contains(coachId);
+                      final isReporting =
+                          coachId != null &&
+                          coachId > 0 &&
+                          _reportingCoachIds.contains(coachId);
                       return Container(
                         margin: const EdgeInsets.only(bottom: 10),
                         decoration: BoxDecoration(
@@ -404,27 +502,61 @@ class _CoachPageState extends State<CoachPage> {
                                     fontSize: 12,
                                   ),
                                 ),
-                          trailing: TextButton.icon(
-                            onPressed:
-                                (coachId == null || coachId <= 0 || isDetaching)
-                                ? null
-                                : () async {
-                                    Navigator.of(sheetContext).pop();
-                                    await _detachCoach(coach);
-                                  },
-                            icon: isDetaching
-                                ? const SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(Icons.link_off, size: 18),
-                            label: const Text('Detach'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.redAccent,
-                            ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              TextButton.icon(
+                                onPressed:
+                                    (coachId == null ||
+                                        coachId <= 0 ||
+                                        isDetaching ||
+                                        isReporting)
+                                    ? null
+                                    : () async {
+                                        Navigator.of(sheetContext).pop();
+                                        await _reportCoach(coach);
+                                      },
+                                icon: isReporting
+                                    ? const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.flag_outlined, size: 18),
+                                label: const Text('Report'),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.orangeAccent,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              TextButton.icon(
+                                onPressed:
+                                    (coachId == null ||
+                                        coachId <= 0 ||
+                                        isDetaching ||
+                                        isReporting)
+                                    ? null
+                                    : () async {
+                                        Navigator.of(sheetContext).pop();
+                                        await _detachCoach(coach);
+                                      },
+                                icon: isDetaching
+                                    ? const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.link_off, size: 18),
+                                label: const Text('Detach'),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.redAccent,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       );

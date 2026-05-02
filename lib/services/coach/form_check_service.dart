@@ -632,6 +632,8 @@ class DietFeedbackDocument {
   final String? documentUrl;
   final String? mimeType;
   final int fileSizeBytes;
+  final bool isPinned;
+  final DateTime? pinnedAt;
   final DateTime? clientSeenAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -645,6 +647,8 @@ class DietFeedbackDocument {
     this.documentUrl,
     this.mimeType,
     required this.fileSizeBytes,
+    required this.isPinned,
+    this.pinnedAt,
     this.clientSeenAt,
     this.createdAt,
     this.updatedAt,
@@ -679,6 +683,8 @@ class DietFeedbackDocument {
       documentUrl: parseNullableString(json['document_url']),
       mimeType: parseNullableString(json['mime_type']),
       fileSizeBytes: parseInt(json['file_size_bytes']),
+      isPinned: json['is_pinned'] == true,
+      pinnedAt: parseDate(json['pinned_at']),
       clientSeenAt: parseDate(json['client_seen_at']),
       createdAt: parseDate(json['created_at']),
       updatedAt: parseDate(json['updated_at']),

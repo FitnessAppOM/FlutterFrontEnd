@@ -42,11 +42,10 @@ class ExpertDashboardPage extends StatefulWidget {
 
 class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
   static const int _tabMyClients = 0;
-  static const int _tabAnalytics = 1;
-  static const int _tabPrograms = 2;
-  static const int _tabNutrition = 3;
-  static const int _tabSettings = 4;
-  static const int _tabProgression = 5;
+  static const int _tabPrograms = 1;
+  static const int _tabNutrition = 2;
+  static const int _tabSettings = 3;
+  static const int _tabProgression = 4;
 
   int _tabIndex = _tabMyClients;
   bool _loading = true;
@@ -59,6 +58,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
   final Set<int> _deletingNutritionDocumentIds = <int>{};
   final Set<int> _openingNutritionDocumentIds = <int>{};
   final Set<int> _assigningPlanTemplateIds = <int>{};
+  final Set<int> _deletingPlanTemplateIds = <int>{};
   int _newPendingConnectionRequestCount = 0;
   final Set<int> _dietBadgeSuppressedClientIds = <int>{};
   final Set<int> _newClientBadgeSuppressedClientIds = <int>{};
@@ -736,6 +736,63 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
     );
   }
 
+  Future<void> _deletePlanTemplate(Map<String, dynamic> template) async {
+    final templateId = int.tryParse('${template['template_id'] ?? ''}') ?? 0;
+    if (templateId <= 0 || _deletingPlanTemplateIds.contains(templateId)) {
+      return;
+    }
+    final title = (template['title'] ?? '').toString().trim();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete template?'),
+        content: Text(
+          title.isEmpty
+              ? 'Are you sure you want to delete this template?'
+              : 'Are you sure you want to delete "$title"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _deletingPlanTemplateIds.add(templateId));
+    try {
+      await ProgressionReviewService.deletePlanTemplate(templateId: templateId);
+      if (!mounted) return;
+      setState(() {
+        _planTemplates = _planTemplates
+            .where(
+              (item) =>
+                  (int.tryParse('${item['template_id'] ?? ''}') ?? 0) !=
+                  templateId,
+            )
+            .toList(growable: false);
+      });
+      AppToast.show(context, 'Template deleted.', type: AppToastType.success);
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _deletingPlanTemplateIds.remove(templateId));
+      }
+    }
+  }
+
   String _formatAssignedAt(String? raw) {
     final value = (raw ?? '').trim();
     if (value.isEmpty) return '-';
@@ -865,6 +922,142 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                   ),
                 ),
               ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openTemplatePreviewSheet(Map<String, dynamic> template) async {
+    final title = (template['title'] ?? '').toString().trim();
+    final daysRaw = template['days'];
+    final templateDays = daysRaw is List
+        ? daysRaw
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList(growable: false)
+        : const <Map<String, dynamic>>[];
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.cardDark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          top: false,
+          child: FractionallySizedBox(
+            heightFactor: 0.72,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title.isEmpty ? 'Template preview' : title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 17,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  if (templateDays.isEmpty)
+                    const Text(
+                      'No day details available for this template.',
+                      style: TextStyle(color: Colors.white60, fontSize: 12),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: templateDays.length,
+                        itemBuilder: (context, index) {
+                          final day = templateDays[index];
+                          final dayIndex =
+                              int.tryParse('${day['day_index'] ?? ''}') ?? 0;
+                          final dayLabel = (day['day_label'] ?? '')
+                              .toString()
+                              .trim();
+                          final exercisesRaw = day['exercises'];
+                          final exercises = exercisesRaw is List
+                              ? exercisesRaw
+                                    .whereType<Map>()
+                                    .map(
+                                      (item) => Map<String, dynamic>.from(item),
+                                    )
+                                    .toList(growable: false)
+                              : const <Map<String, dynamic>>[];
+                          return Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppColors.black,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.white12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  dayLabel.isEmpty
+                                      ? 'Day ${dayIndex > 0 ? dayIndex : '?'}'
+                                      : dayLabel,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                if (exercises.isEmpty)
+                                  const Text(
+                                    'No exercises',
+                                    style: TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 12,
+                                    ),
+                                  )
+                                else
+                                  ...exercises.map((exercise) {
+                                    final exerciseName =
+                                        (exercise['exercise_name'] ?? '')
+                                            .toString()
+                                            .trim();
+                                    final sets = int.tryParse(
+                                      '${exercise['sets'] ?? ''}',
+                                    );
+                                    final reps = int.tryParse(
+                                      '${exercise['reps'] ?? ''}',
+                                    );
+                                    final rir = int.tryParse(
+                                      '${exercise['rir'] ?? ''}',
+                                    );
+                                    final volumeText =
+                                        '${(sets ?? 0) > 0 ? sets : '-'} x ${(reps ?? 0) > 0 ? reps : '-'}';
+                                    final rirText = rir == null
+                                        ? ''
+                                        : ' • RIR $rir';
+                                    return Padding(
+                                      padding: const EdgeInsets.only(bottom: 2),
+                                      child: Text(
+                                        '${exerciseName.isEmpty ? 'Exercise' : exerciseName}  $volumeText$rirText',
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         );
@@ -1047,7 +1240,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
     final clientReviews = _reviews
         .where((review) => review.userId == client.userId)
         .toList();
-    await Navigator.of(context).push(
+    final detached = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => ExpertClientDetailPage(
           client: client,
@@ -1061,6 +1254,9 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
         ),
       ),
     );
+    if (detached == true && mounted) {
+      AppToast.show(context, 'Client detached.', type: AppToastType.success);
+    }
     await _load();
   }
 
@@ -1097,12 +1293,26 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
             suggestedFileName:
                 document.originalFilename ?? document.documentTitle,
           );
-      final opened = await launchUrl(
-        Uri.file(localPath),
-        mode: LaunchMode.externalApplication,
-      );
+      var opened = false;
+      try {
+        opened = await launchUrl(
+          Uri.file(localPath),
+          mode: LaunchMode.externalApplication,
+        );
+      } catch (_) {
+        opened = false;
+      }
       if (!opened) {
-        throw Exception('Could not open downloaded document.');
+        final remoteUri = DietDocumentFileService.resolveUri(url);
+        if (remoteUri != null) {
+          opened = await launchUrl(
+            remoteUri,
+            mode: LaunchMode.externalApplication,
+          );
+        }
+      }
+      if (!opened) {
+        throw Exception('Could not open downloaded document on this device.');
       }
     } catch (e) {
       if (!mounted) return;
@@ -1316,8 +1526,6 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
     switch (_tabIndex) {
       case _tabMyClients:
         return 'My Clients';
-      case _tabAnalytics:
-        return 'Analytics';
       case _tabPrograms:
         return 'Programs';
       case _tabNutrition:
@@ -1422,20 +1630,6 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
             }),
         ],
       ),
-    );
-  }
-
-  Widget _buildAnalyticsTab(AppLocalizations t) {
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        _SectionTitle(
-          title: t.translate('expert_dash_sec_analytics'),
-          subtitle: t.translate('expert_dash_sec_analytics_body'),
-        ),
-        const SizedBox(height: 12),
-        const _EmptyCard(text: 'Analytics workspace coming soon.'),
-      ],
     );
   }
 
@@ -1652,138 +1846,177 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                       ? <Map<String, dynamic>>[assignedClient]
                       : const <Map<String, dynamic>>[]);
             final assigning = _assigningPlanTemplateIds.contains(templateId);
+            final deleting = _deletingPlanTemplateIds.contains(templateId);
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.cardDark,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.white10),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                title.isEmpty ? 'Untitled template' : title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: [
-                                  _ProgramTag(
-                                    icon: Icons.calendar_today_outlined,
-                                    label: '$dayCount days',
-                                  ),
-                                  _ProgramTag(
-                                    icon: Icons.fitness_center_outlined,
-                                    label: '$exerciseCount exercises',
-                                  ),
-                                  if (assignedClientCount == 0)
-                                    const _ProgramTag(
-                                      icon: Icons.hourglass_empty_outlined,
-                                      label: 'Not assigned',
-                                    )
-                                  else
-                                    _ProgramTag(
-                                      icon: Icons.verified_outlined,
-                                      label: '$assignedClientCount assigned',
-                                    ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        OutlinedButton.icon(
-                          onPressed: (templateId <= 0 || assigning)
-                              ? null
-                              : () => _openAssignTemplateSheet(template),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.white24),
-                            minimumSize: const Size(0, 38),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 0,
-                            ),
-                          ),
-                          icon: assigning
-                              ? const SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.group_add_outlined, size: 18),
-                          label: Text(assigning ? 'Assigning...' : 'Assign'),
-                        ),
-                      ],
-                    ),
-                    if (assignedClientCount > 0 &&
-                        previewClients.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      InkWell(
-                        borderRadius: BorderRadius.circular(10),
-                        onTap: () => _openAssignedClientsSheet(
-                          title.isEmpty ? 'Untitled template' : title,
-                          assignedClientsResolved.isNotEmpty
-                              ? assignedClientsResolved
-                              : previewClients,
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 4,
-                          ),
-                          child: Row(
-                            children: [
-                              _AssignedClientsStack(
-                                clients: previewClients,
-                                totalCount: assignedClientCount,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  assignedClientCount == 1
-                                      ? '1 assigned client'
-                                      : '$assignedClientCount assigned clients',
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: templateId <= 0
+                    ? null
+                    : () => _openTemplatePreviewSheet(template),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.cardDark,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.white10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  title.isEmpty ? 'Untitled template' : title,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    _ProgramTag(
+                                      icon: Icons.calendar_today_outlined,
+                                      label: '$dayCount days',
+                                    ),
+                                    _ProgramTag(
+                                      icon: Icons.fitness_center_outlined,
+                                      label: '$exerciseCount exercises',
+                                    ),
+                                    if (assignedClientCount == 0)
+                                      const _ProgramTag(
+                                        icon: Icons.hourglass_empty_outlined,
+                                        label: 'Not assigned',
+                                      )
+                                    else
+                                      _ProgramTag(
+                                        icon: Icons.verified_outlined,
+                                        label: '$assignedClientCount assigned',
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed:
+                                    (templateId <= 0 || assigning || deleting)
+                                    ? null
+                                    : () => _openAssignTemplateSheet(template),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                  side: const BorderSide(color: Colors.white24),
+                                  minimumSize: const Size(0, 38),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 0,
+                                  ),
+                                ),
+                                icon: assigning
+                                    ? const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.group_add_outlined,
+                                        size: 18,
+                                      ),
+                                label: Text(
+                                  assigning ? 'Assigning...' : 'Assign',
                                 ),
                               ),
-                              const Icon(
-                                Icons.chevron_right,
-                                color: Colors.white54,
-                                size: 18,
+                              const SizedBox(width: 6),
+                              IconButton(
+                                tooltip: 'Delete template',
+                                onPressed:
+                                    (templateId <= 0 || assigning || deleting)
+                                    ? null
+                                    : () => _deletePlanTemplate(template),
+                                icon: deleting
+                                    ? const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.delete_outline,
+                                        color: Colors.redAccent,
+                                        size: 20,
+                                      ),
                               ),
                             ],
                           ),
-                        ),
+                        ],
                       ),
+                      if (assignedClientCount > 0 &&
+                          previewClients.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () => _openAssignedClientsSheet(
+                            title.isEmpty ? 'Untitled template' : title,
+                            assignedClientsResolved.isNotEmpty
+                                ? assignedClientsResolved
+                                : previewClients,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 4,
+                            ),
+                            child: Row(
+                              children: [
+                                _AssignedClientsStack(
+                                  clients: previewClients,
+                                  totalCount: assignedClientCount,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    assignedClientCount == 1
+                                        ? '1 assigned client'
+                                        : '$assignedClientCount assigned clients',
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.chevron_right,
+                                  color: Colors.white54,
+                                  size: 18,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             );
@@ -2331,12 +2564,21 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
 
   Widget _buildBottomNav() {
     const tabs = <_CoachBottomTab>[
-      _CoachBottomTab(label: 'My Clients', icon: Icons.people_alt_outlined),
-      _CoachBottomTab(label: 'Analytics', icon: Icons.analytics_outlined),
-      _CoachBottomTab(label: 'Programs', icon: Icons.fitness_center_outlined),
-      _CoachBottomTab(label: 'Nutrition', icon: Icons.restaurant_menu_outlined),
-      _CoachBottomTab(label: 'Settings', icon: Icons.settings_outlined),
-      _CoachBottomTab(label: 'AI Updates', icon: Icons.trending_up_outlined),
+      _CoachBottomTab(
+        tabIndex: _tabMyClients,
+        label: 'My Clients',
+        icon: Icons.people_alt_outlined,
+      ),
+      _CoachBottomTab(
+        tabIndex: _tabPrograms,
+        label: 'Programs',
+        icon: Icons.fitness_center_outlined,
+      ),
+      _CoachBottomTab(
+        tabIndex: _tabNutrition,
+        label: 'Nutrition',
+        icon: Icons.restaurant_menu_outlined,
+      ),
     ];
 
     return Container(
@@ -2348,21 +2590,27 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
         top: false,
         child: SizedBox(
           height: 74,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            itemCount: tabs.length,
-            separatorBuilder: (_, index) => const SizedBox(width: 8),
-            itemBuilder: (_, i) {
+          child: Row(
+            children: List.generate(tabs.length, (i) {
               final tab = tabs[i];
-              final selected = i == _tabIndex;
-              return _BottomTabButton(
-                label: tab.label,
-                icon: tab.icon,
-                selected: selected,
-                onTap: () => _selectTab(i),
+              final selected = tab.tabIndex == _tabIndex;
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: i == 0 ? 8 : 3,
+                    right: i == tabs.length - 1 ? 8 : 3,
+                    top: 8,
+                    bottom: 8,
+                  ),
+                  child: _BottomTabButton(
+                    label: tab.label,
+                    icon: tab.icon,
+                    selected: selected,
+                    onTap: () => _selectTab(tab.tabIndex),
+                  ),
+                ),
               );
-            },
+            }),
           ),
         ),
       ),
@@ -2455,13 +2703,36 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                 ),
               ),
             ),
+          IconButton(
+            tooltip: 'AI Updates',
+            onPressed: _tabIndex == _tabProgression
+                ? null
+                : () => _selectTab(_tabProgression),
+            icon: Icon(
+              Icons.trending_up_outlined,
+              color: _tabIndex == _tabProgression
+                  ? AppColors.accent
+                  : Colors.white70,
+            ),
+          ),
+          IconButton(
+            tooltip: 'Settings',
+            onPressed: _tabIndex == _tabSettings
+                ? null
+                : () => _selectTab(_tabSettings),
+            icon: Icon(
+              Icons.settings_outlined,
+              color: _tabIndex == _tabSettings
+                  ? AppColors.accent
+                  : Colors.white70,
+            ),
+          ),
         ],
       ),
       body: IndexedStack(
         index: _tabIndex,
         children: [
           _buildMyClientsTab(),
-          _buildAnalyticsTab(t),
           _buildProgramsTab(),
           _buildNutritionTab(),
           _buildSettingsTab(t),
@@ -2474,8 +2745,13 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
 }
 
 class _CoachBottomTab {
-  const _CoachBottomTab({required this.label, required this.icon});
+  const _CoachBottomTab({
+    required this.tabIndex,
+    required this.label,
+    required this.icon,
+  });
 
+  final int tabIndex;
   final String label;
   final IconData icon;
 }
@@ -2532,8 +2808,8 @@ class _BottomTabButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Container(
-          constraints: const BoxConstraints(minWidth: 102),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -2549,7 +2825,7 @@ class _BottomTabButton extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: selected ? AppColors.accent : Colors.white70,
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),

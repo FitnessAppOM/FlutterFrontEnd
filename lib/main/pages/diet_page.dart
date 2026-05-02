@@ -2179,12 +2179,26 @@ class DietPageState extends State<DietPage> {
             suggestedFileName:
                 document.originalFilename ?? document.documentTitle,
           );
-      final opened = await launchUrl(
-        Uri.file(localPath),
-        mode: LaunchMode.externalApplication,
-      );
+      var opened = false;
+      try {
+        opened = await launchUrl(
+          Uri.file(localPath),
+          mode: LaunchMode.externalApplication,
+        );
+      } catch (_) {
+        opened = false;
+      }
       if (!opened) {
-        throw Exception('Could not open downloaded plan.');
+        final remoteUri = DietDocumentFileService.resolveUri(url);
+        if (remoteUri != null) {
+          opened = await launchUrl(
+            remoteUri,
+            mode: LaunchMode.externalApplication,
+          );
+        }
+      }
+      if (!opened) {
+        throw Exception('Could not open downloaded plan on this device.');
       }
     } catch (e) {
       if (!mounted) return;
@@ -2299,14 +2313,30 @@ class DietPageState extends State<DietPage> {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            Text(
-                                              plan.displayTitle,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.w700,
-                                              ),
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    plan.displayTitle,
+                                                    maxLines: 2,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                ),
+                                                if (plan.isPinned) ...[
+                                                  const SizedBox(width: 6),
+                                                  const Icon(
+                                                    Icons.push_pin,
+                                                    size: 14,
+                                                    color: Colors.orangeAccent,
+                                                  ),
+                                                ],
+                                              ],
                                             ),
                                             const SizedBox(height: 4),
                                             Text(

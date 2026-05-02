@@ -187,12 +187,26 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
             normalized,
             suggestedFileName: suggestedFileName,
           );
-      final opened = await launchUrl(
-        Uri.file(localPath),
-        mode: LaunchMode.externalApplication,
-      );
+      var opened = false;
+      try {
+        opened = await launchUrl(
+          Uri.file(localPath),
+          mode: LaunchMode.externalApplication,
+        );
+      } catch (_) {
+        opened = false;
+      }
       if (!opened) {
-        throw Exception('Could not open downloaded document.');
+        final remoteUri = DietDocumentFileService.resolveUri(normalized);
+        if (remoteUri != null) {
+          opened = await launchUrl(
+            remoteUri,
+            mode: LaunchMode.externalApplication,
+          );
+        }
+      }
+      if (!opened) {
+        throw Exception('Could not open downloaded document on this device.');
       }
     } catch (e) {
       if (!mounted) return;
@@ -466,7 +480,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
           isDocument: true,
           hasNutritionNote: true,
           hasVideoNote: false,
-          isPinned: false,
+          isPinned: document.isPinned,
           isNew: document.clientSeenAt == null,
           voiceNoteUrl: null,
           documentUrl: url,
@@ -497,10 +511,13 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
             exercise: entry.workoutLabel,
             dateLabel: _formatFeedDate(entry.timestamp),
             isVoiceNote: entry.isVoiceNote,
+            isDocument: entry.isDocument,
             hasNutritionNote: entry.hasNutritionNote,
             hasVideoNote: entry.hasVideoNote,
             isNew: entry.isNew,
             voiceNoteUrl: entry.voiceNoteUrl,
+            documentUrl: entry.documentUrl,
+            documentFileName: entry.documentFileName,
           ),
         )
         .toList();
@@ -528,6 +545,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
           isVoiceLoading: _isVoiceNoteLoading,
           isVoicePlaying: _isVoiceNotePlaying,
           onVoiceToggle: _toggleVoiceNotePlayback,
+          onOpenDocument: _openDocument,
         ),
         const SizedBox(height: 16),
         Text(
@@ -614,6 +632,7 @@ class _CoachTasksCard extends StatelessWidget {
     required this.isVoiceLoading,
     required this.isVoicePlaying,
     required this.onVoiceToggle,
+    required this.onOpenDocument,
   });
 
   final String title;
@@ -632,6 +651,8 @@ class _CoachTasksCard extends StatelessWidget {
   final bool Function(String?) isVoiceLoading;
   final bool Function(String?) isVoicePlaying;
   final Future<void> Function(String?) onVoiceToggle;
+  final Future<void> Function(String?, {String? suggestedFileName})
+  onOpenDocument;
 
   @override
   Widget build(BuildContext context) {
@@ -708,6 +729,12 @@ class _CoachTasksCard extends StatelessWidget {
               isVoicePlaying: isVoicePlaying(correction.voiceNoteUrl),
               onVoiceToggle: correction.isVoiceNote
                   ? () => onVoiceToggle(correction.voiceNoteUrl)
+                  : null,
+              onOpenDocument: correction.isDocument
+                  ? () => onOpenDocument(
+                      correction.documentUrl,
+                      suggestedFileName: correction.documentFileName,
+                    )
                   : null,
             ),
           ),
@@ -831,12 +858,14 @@ class _PinnedCorrectionRow extends StatelessWidget {
     required this.isVoiceLoading,
     required this.isVoicePlaying,
     this.onVoiceToggle,
+    this.onOpenDocument,
   });
 
   final _PinnedCorrection correction;
   final bool isVoiceLoading;
   final bool isVoicePlaying;
   final VoidCallback? onVoiceToggle;
+  final VoidCallback? onOpenDocument;
 
   @override
   Widget build(BuildContext context) {
@@ -847,7 +876,7 @@ class _PinnedCorrectionRow extends StatelessWidget {
         workoutLabel: correction.exercise,
         message: correction.title,
         isVoiceNote: correction.isVoiceNote,
-        isDocument: false,
+        isDocument: correction.isDocument,
         hasNutritionNote: correction.hasNutritionNote,
         hasVideoNote: correction.hasVideoNote,
         isPinned: true,
@@ -855,7 +884,7 @@ class _PinnedCorrectionRow extends StatelessWidget {
         isVoiceLoading: isVoiceLoading,
         isVoicePlaying: isVoicePlaying,
         onVoiceToggle: onVoiceToggle,
-        onOpenDocument: null,
+        onOpenDocument: onOpenDocument,
       ),
     );
   }
@@ -1158,20 +1187,26 @@ class _PinnedCorrection {
     required this.exercise,
     required this.dateLabel,
     required this.isVoiceNote,
+    required this.isDocument,
     required this.hasNutritionNote,
     required this.hasVideoNote,
     required this.isNew,
     required this.voiceNoteUrl,
+    required this.documentUrl,
+    required this.documentFileName,
   });
 
   final String title;
   final String exercise;
   final String dateLabel;
   final bool isVoiceNote;
+  final bool isDocument;
   final bool hasNutritionNote;
   final bool hasVideoNote;
   final bool isNew;
   final String? voiceNoteUrl;
+  final String? documentUrl;
+  final String? documentFileName;
 }
 
 class _FeedbackReplyEntry {

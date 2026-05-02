@@ -615,12 +615,26 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
             suggestedFileName: message.attachmentFilename,
             fallbackExtension: '.pdf',
           );
-      final opened = await launchUrl(
-        Uri.file(localPath),
-        mode: LaunchMode.externalApplication,
-      );
+      var opened = false;
+      try {
+        opened = await launchUrl(
+          Uri.file(localPath),
+          mode: LaunchMode.externalApplication,
+        );
+      } catch (_) {
+        opened = false;
+      }
       if (!opened) {
-        throw Exception('Could not open downloaded document.');
+        final remoteUri = ChatAttachmentFileService.resolveUri(url);
+        if (remoteUri != null) {
+          opened = await launchUrl(
+            remoteUri,
+            mode: LaunchMode.externalApplication,
+          );
+        }
+      }
+      if (!opened) {
+        throw Exception('Could not open downloaded document on this device.');
       }
     } catch (e) {
       if (!mounted) return;

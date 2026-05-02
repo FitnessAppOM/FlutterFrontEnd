@@ -15,6 +15,8 @@ class DietCoachPlanDocument {
   final String? documentUrl;
   final String? mimeType;
   final int fileSizeBytes;
+  final bool isPinned;
+  final DateTime? pinnedAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -28,6 +30,8 @@ class DietCoachPlanDocument {
     this.documentUrl,
     this.mimeType,
     required this.fileSizeBytes,
+    required this.isPinned,
+    this.pinnedAt,
     this.createdAt,
     this.updatedAt,
   });
@@ -68,6 +72,8 @@ class DietCoachPlanDocument {
       documentUrl: parseNullableString(json['document_url']),
       mimeType: parseNullableString(json['mime_type']),
       fileSizeBytes: parseInt(json['file_size_bytes']),
+      isPinned: json['is_pinned'] == true,
+      pinnedAt: parseDate(json['pinned_at']),
       createdAt: parseDate(json['created_at']),
       updatedAt: parseDate(json['updated_at']),
     );

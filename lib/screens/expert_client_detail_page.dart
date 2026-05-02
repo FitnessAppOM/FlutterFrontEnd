@@ -7,11 +7,11 @@ import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../config/base_url.dart';
 import '../core/account_storage.dart';
 import '../services/auth/profile_service.dart';
+import '../services/coach/chat_attachment_file_service.dart';
 import '../services/coach/coach_habits_service.dart';
 import '../services/coach/form_check_service.dart';
 import '../services/coach/progression_review_service.dart';
@@ -21,6 +21,7 @@ import 'expert_client_analytics_page.dart';
 import 'expert_client_chat_page.dart';
 import 'expert_client_diet_review_page.dart';
 import 'expert_client_habits_page.dart';
+import '../widgets/coach/chat_video_player_page.dart';
 
 class ExpertClientDetailPage extends StatefulWidget {
   const ExpertClientDetailPage({
@@ -64,6 +65,8 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   String? _profileError;
   String? _habitsError;
   String? _formChecksError;
+  bool _detachingClient = false;
+  bool _reportingClient = false;
   late bool _showFormReviewPendingNote;
   late bool _showDietLogPendingNote;
   late bool _showTrainingPlanPendingNote;
@@ -130,9 +133,12 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       expertId = null;
     }
     try {
-      final status = await ProgressionReviewService
-          .fetchClientTrainingPlanSeenStatus(clientUserId: widget.client.userId);
-      showTrainingPlanPendingNote = status['has_unchecked_training_plan'] == true;
+      final status =
+          await ProgressionReviewService.fetchClientTrainingPlanSeenStatus(
+            clientUserId: widget.client.userId,
+          );
+      showTrainingPlanPendingNote =
+          status['has_unchecked_training_plan'] == true;
     } catch (_) {
       // Keep previous value if status cannot be loaded.
     }
@@ -278,11 +284,29 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     return 'Inactive 7+ days';
   }
 
-  Future<void> _openUrl(String? url) async {
-    if (url == null || url.trim().isEmpty) return;
-    final uri = Uri.tryParse(url);
-    if (uri == null) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  Future<void> _openVideoInApp(String? url, {required String title}) async {
+    final normalized = (url ?? '').trim();
+    if (normalized.isEmpty) return;
+    try {
+      final localPath =
+          await ChatAttachmentFileService.prepareLocalAttachmentFile(
+            normalized,
+            suggestedFileName: '$title.mp4',
+            fallbackExtension: '.mp4',
+          );
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              ChatVideoPlayerPage(videoPath: localPath, title: title),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack(
+        'Could not open video: ${e.toString().replaceFirst('Exception: ', '')}',
+      );
+    }
   }
 
   String _formatDateTime(DateTime? value) {
@@ -326,6 +350,114 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _detachClient() async {
+    if (_detachingClient) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Detach client?'),
+        content: const Text(
+          'Are you sure you want to detach this client from your coaching list?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Detach'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _detachingClient = true);
+    try {
+      await ProgressionReviewService.detachClient(
+        clientUserId: widget.client.userId,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) {
+        setState(() => _detachingClient = false);
+      }
+    }
+  }
+
+  Future<void> _reportClient() async {
+    if (_reportingClient) return;
+    final reasonController = TextEditingController();
+    String? errorText;
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Report client'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Please write the reason for this report.'),
+              const SizedBox(height: 10),
+              TextField(
+                controller: reasonController,
+                maxLength: 1000,
+                minLines: 3,
+                maxLines: 6,
+                decoration: InputDecoration(
+                  hintText: 'Write the reason...',
+                  errorText: errorText,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                final value = reasonController.text.trim();
+                if (value.isEmpty) {
+                  setDialogState(() => errorText = 'Reason is required.');
+                  return;
+                }
+                Navigator.of(ctx).pop(value);
+              },
+              child: const Text('Report'),
+            ),
+          ],
+        ),
+      ),
+    );
+    reasonController.dispose();
+    if (reason == null) return;
+
+    setState(() => _reportingClient = true);
+    try {
+      await ProgressionReviewService.reportClient(
+        clientUserId: widget.client.userId,
+        reason: reason,
+      );
+      if (!mounted) return;
+      _showSnack('Client report submitted. Our team will review it.');
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) {
+        setState(() => _reportingClient = false);
+      }
+    }
   }
 
   void _refreshOpenReviewSheet() {
@@ -1024,7 +1156,10 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                       runSpacing: 8,
                       children: [
                         OutlinedButton.icon(
-                          onPressed: () => _openUrl(current.originalVideoUrl),
+                          onPressed: () => _openVideoInApp(
+                            current.originalVideoUrl,
+                            title: current.exerciseName,
+                          ),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.white,
                             side: const BorderSide(color: Colors.white24),
@@ -1044,8 +1179,10 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                         ),
                         if ((current.result.overlayUrl ?? '').trim().isNotEmpty)
                           OutlinedButton.icon(
-                            onPressed: () =>
-                                _openUrl(current.result.overlayUrl),
+                            onPressed: () => _openVideoInApp(
+                              current.result.overlayUrl,
+                              title: '${current.exerciseName} (Overlay)',
+                            ),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.white,
                               side: const BorderSide(color: Colors.white24),
@@ -1727,10 +1864,10 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
         reverseTransitionDuration: const Duration(milliseconds: 140),
         pageBuilder: (_, animation, secondaryAnimation) =>
             ExpertClientAnalyticsPage(
-          client: widget.client,
-          reviews: widget.reviews,
-          onTrainingPlanVerified: _handleTrainingPlanVerified,
-        ),
+              client: widget.client,
+              reviews: widget.reviews,
+              onTrainingPlanVerified: _handleTrainingPlanVerified,
+            ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -1996,7 +2133,11 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                         ),
                       ),
                     ),
-                  const Icon(Icons.chevron_right, color: Colors.white54, size: 20),
+                  const Icon(
+                    Icons.chevron_right,
+                    color: Colors.white54,
+                    size: 20,
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -2421,7 +2562,9 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                         ),
                         const SizedBox(height: 6),
                         if (item.result.feedbackBullets.isNotEmpty ||
-                            (item.result.feedbackSummary ?? '').trim().isNotEmpty)
+                            (item.result.feedbackSummary ?? '')
+                                .trim()
+                                .isNotEmpty)
                           const Text(
                             'Taqa Agent analysis ready',
                             style: TextStyle(
@@ -2494,6 +2637,34 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
         backgroundColor: AppColors.black,
         title: const Text('Client View'),
         actions: [
+          IconButton(
+            onPressed: (_loading || _detachingClient || _reportingClient)
+                ? null
+                : _reportClient,
+            icon: _reportingClient
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.flag_outlined),
+            tooltip: 'Report client',
+            color: Colors.orangeAccent,
+          ),
+          IconButton(
+            onPressed: (_loading || _detachingClient || _reportingClient)
+                ? null
+                : _detachClient,
+            icon: _detachingClient
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.person_remove_alt_1_outlined),
+            tooltip: 'Detach client',
+            color: Colors.redAccent,
+          ),
           IconButton(
             onPressed: _loading ? null : _load,
             icon: const Icon(Icons.refresh),
