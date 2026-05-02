@@ -258,6 +258,7 @@ class ExerciseCard extends StatelessWidget {
     final completionFields = [
       exercise['is_completed'],
       exercise['completed'],
+      exercise['history_completed_this_week'],
       exercise['program_compliance_completed'],
       exercise['compliance_status'],
       exercise['performed_sets'],
