@@ -231,9 +231,11 @@ class _SignupPageState extends State<SignupPage> {
       final lang = AppLocalizations.of(context).locale.languageCode;
       final profile = await ProfileApi.fetchProfile(userId, lang: lang);
       final serverDone = profile["filled_user_questionnaire"] == true;
+      final expertQuestionnaireDone =
+          profile["filled_expert_questionnaire"] == true;
       final hasData = serverDone || _hasQuestionnaireData(profile);
       await AccountStorage.setQuestionnaireDone(serverDone);
-      await AccountStorage.setExpertQuestionnaireDone(serverDone);
+      await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
       if (!mounted) return;
       if (hasData) {
         Navigator.pushAndRemoveUntil(
@@ -344,9 +346,11 @@ class _SignupPageState extends State<SignupPage> {
       final lang = AppLocalizations.of(context).locale.languageCode;
       final profile = await ProfileApi.fetchProfile(userId, lang: lang);
       final serverDone = profile["filled_user_questionnaire"] == true;
+      final expertQuestionnaireDone =
+          profile["filled_expert_questionnaire"] == true;
       final hasData = serverDone || _hasQuestionnaireData(profile);
       await AccountStorage.setQuestionnaireDone(serverDone);
-      await AccountStorage.setExpertQuestionnaireDone(serverDone);
+      await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
       if (!mounted) return;
       if (hasData) {
         Navigator.pushAndRemoveUntil(

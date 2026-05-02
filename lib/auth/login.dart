@@ -92,15 +92,26 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _navigatePostAuth({
     required int userId,
-    required bool isExpert,
   }) async {
     try {
       final lang = AppLocalizations.of(context).locale.languageCode;
       final profile = await ProfileApi.fetchProfile(userId, lang: lang);
       final serverDone = profile["filled_user_questionnaire"] == true;
+      final expertQuestionnaireDone =
+          profile["filled_expert_questionnaire"] == true;
+      final expertProfileStatus = (profile["expert_profile_status"] ?? "")
+          .toString()
+          .trim()
+          .toLowerCase();
+      final isExpert =
+          profile["has_expert_profile"] == true ||
+          expertQuestionnaireDone ||
+          expertProfileStatus == "approved" ||
+          expertProfileStatus == "pending";
       final hasData = serverDone || _hasQuestionnaireData(profile);
       await AccountStorage.setQuestionnaireDone(serverDone);
-      await AccountStorage.setExpertQuestionnaireDone(serverDone);
+      await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
+      await AccountStorage.setIsExpert(isExpert);
       if (!mounted) return;
       if (NavigationService.isOnJournalPage) {
         return;
@@ -132,11 +143,12 @@ class _LoginPageState extends State<LoginPage> {
       if (msg.contains('deactivated') || msg.contains('reactivate')) {
         return;
       }
+      final fallbackIsExpert = await AccountStorage.isExpert();
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (_) => isExpert
+          builder: (_) => fallbackIsExpert
               ? const ExpertQuestionnairePage()
               : const QuestionnairePage(),
         ),
@@ -227,21 +239,15 @@ class _LoginPageState extends State<LoginPage> {
                 data?['full_name'] ??
                 emailFromApi.split('@').first)
             .toString();
-        final storedEmail = await AccountStorage.getEmail();
-        final storedExpert = (storedEmail != null && storedEmail == emailFromApi)
-            ? await AccountStorage.isExpert()
-            : false;
-
         await AccountStorage.saveUserSession(
           userId: userId,
           email: emailFromApi,
           name: name,
           verified: true,
           token: token,
-          isExpert: storedExpert,
-          questionnaireDone: await AccountStorage.isQuestionnaireDone(),
-          expertQuestionnaireDone:
-              await AccountStorage.isExpertQuestionnaireDone(),
+          isExpert: false,
+          questionnaireDone: false,
+          expertQuestionnaireDone: false,
           authProvider: "email",
         );
 
@@ -262,7 +268,6 @@ class _LoginPageState extends State<LoginPage> {
 
         await _navigatePostAuth(
           userId: userId,
-          isExpert: storedExpert,
         );
 
         // Fire-and-forget: do not block navigation if these fail.
@@ -371,9 +376,8 @@ class _LoginPageState extends State<LoginPage> {
       verified: true,
       token: accessToken,
       isExpert: false,
-      questionnaireDone: await AccountStorage.isQuestionnaireDone(),
-      expertQuestionnaireDone:
-          await AccountStorage.isExpertQuestionnaireDone(),
+      questionnaireDone: false,
+      expertQuestionnaireDone: false,
       authProvider: "google",
     );
 
@@ -399,7 +403,6 @@ class _LoginPageState extends State<LoginPage> {
 
     await _navigatePostAuth(
       userId: userId,
-      isExpert: false,
     );
 
     // Fire-and-forget: do not block navigation if these fail.
@@ -457,9 +460,8 @@ class _LoginPageState extends State<LoginPage> {
       verified: true,
       token: accessToken,
       isExpert: false,
-      questionnaireDone: await AccountStorage.isQuestionnaireDone(),
-      expertQuestionnaireDone:
-          await AccountStorage.isExpertQuestionnaireDone(),
+      questionnaireDone: false,
+      expertQuestionnaireDone: false,
       authProvider: "apple",
     );
 
@@ -485,7 +487,6 @@ class _LoginPageState extends State<LoginPage> {
 
     await _navigatePostAuth(
       userId: userId,
-      isExpert: false,
     );
 
     // Fire-and-forget: do not block navigation if these fail.

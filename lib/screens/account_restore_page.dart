@@ -237,6 +237,9 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
         name: name,
         verified: true,
         token: accessToken,
+        isExpert: false,
+        questionnaireDone: false,
+        expertQuestionnaireDone: false,
         authProvider: provider,
       );
 
@@ -269,9 +272,21 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
       final lang = AppLocalizations.of(context).locale.languageCode;
       final profile = await ProfileApi.fetchProfile(userId, lang: lang);
       final serverDone = profile["filled_user_questionnaire"] == true;
+      final expertQuestionnaireDone =
+          profile["filled_expert_questionnaire"] == true;
+      final expertProfileStatus = (profile["expert_profile_status"] ?? "")
+          .toString()
+          .trim()
+          .toLowerCase();
+      final isExpert =
+          profile["has_expert_profile"] == true ||
+          expertQuestionnaireDone ||
+          expertProfileStatus == "approved" ||
+          expertProfileStatus == "pending";
       final hasData = serverDone || _hasQuestionnaireData(profile);
       await AccountStorage.setQuestionnaireDone(serverDone);
-      await AccountStorage.setExpertQuestionnaireDone(serverDone);
+      await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
+      await AccountStorage.setIsExpert(isExpert);
       if (!mounted) return;
       if (hasData) {
         final target = NavigationService.journalNotificationPending
@@ -285,8 +300,6 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
           (_) => false,
         );
       } else {
-        final isExpert = await AccountStorage.isExpert();
-        if (!mounted) return;
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(

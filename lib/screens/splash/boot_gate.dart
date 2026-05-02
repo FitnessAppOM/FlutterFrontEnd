@@ -87,14 +87,25 @@ class _BootGateState extends State<BootGate> {
 
   Future<void> _navigatePostAuth({
     required int userId,
-    required bool isExpert,
   }) async {
     final lang = localeController.locale.languageCode;
     final profile = await ProfileApi.fetchProfile(userId, lang: lang);
     final serverDone = profile["filled_user_questionnaire"] == true;
+    final expertQuestionnaireDone =
+        profile["filled_expert_questionnaire"] == true;
+    final expertProfileStatus = (profile["expert_profile_status"] ?? "")
+        .toString()
+        .trim()
+        .toLowerCase();
+    final isExpert =
+        profile["has_expert_profile"] == true ||
+        expertQuestionnaireDone ||
+        expertProfileStatus == "approved" ||
+        expertProfileStatus == "pending";
     final hasData = serverDone || _hasQuestionnaireData(profile);
     await AccountStorage.setQuestionnaireDone(serverDone);
-    await AccountStorage.setExpertQuestionnaireDone(serverDone);
+    await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
+    await AccountStorage.setIsExpert(isExpert);
     if (!mounted) return;
     if (NavigationService.isOnJournalPage) {
       return;
@@ -147,7 +158,6 @@ class _BootGateState extends State<BootGate> {
   Future<void> _boot() async {
     final email = await AccountStorage.getEmail();
     final verified = await AccountStorage.isVerified();
-    final isExpert = await AccountStorage.isExpert();
     final qDone = await AccountStorage.isQuestionnaireDone();
     final qExpertDone = await AccountStorage.isExpertQuestionnaireDone();
     final storedUserId = await AccountStorage.getUserId();
@@ -170,7 +180,7 @@ class _BootGateState extends State<BootGate> {
       }
       if (result.userId != null) {
         try {
-          await _navigatePostAuth(userId: result.userId!, isExpert: isExpert);
+          await _navigatePostAuth(userId: result.userId!);
           return;
         } catch (e) {
           final msg = e.toString().toLowerCase();

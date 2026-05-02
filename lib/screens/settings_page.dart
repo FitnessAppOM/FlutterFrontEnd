@@ -343,9 +343,8 @@ class _SettingsPageState extends State<SettingsPage> {
             .trim()
             .toLowerCase();
         expertProfileStatus = rawStatus.isEmpty ? null : rawStatus;
-        done = done || filledExpertQuestionnaire;
+        done = filledExpertQuestionnaire;
         isExpert =
-            isExpert ||
             hasExpertProfile ||
             filledExpertQuestionnaire ||
             rawStatus == "approved" ||

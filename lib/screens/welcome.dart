@@ -164,7 +164,6 @@ class _WelcomePageState extends State<WelcomePage> {
       if (exists.id != null) {
         await _navigatePostAuth(
           userId: exists.id!,
-          isExpert: isExpert,
         );
         return;
       }
@@ -185,15 +184,26 @@ class _WelcomePageState extends State<WelcomePage> {
 
   Future<void> _navigatePostAuth({
     required int userId,
-    required bool isExpert,
   }) async {
     try {
       final lang = AppLocalizations.of(context).locale.languageCode;
       final profile = await ProfileApi.fetchProfile(userId, lang: lang);
       final serverDone = profile["filled_user_questionnaire"] == true;
+      final expertQuestionnaireDone =
+          profile["filled_expert_questionnaire"] == true;
+      final expertProfileStatus = (profile["expert_profile_status"] ?? "")
+          .toString()
+          .trim()
+          .toLowerCase();
+      final isExpert =
+          profile["has_expert_profile"] == true ||
+          expertQuestionnaireDone ||
+          expertProfileStatus == "approved" ||
+          expertProfileStatus == "pending";
       final hasData = serverDone || _hasQuestionnaireData(profile);
       await AccountStorage.setQuestionnaireDone(serverDone);
-      await AccountStorage.setExpertQuestionnaireDone(serverDone);
+      await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
+      await AccountStorage.setIsExpert(isExpert);
       if (!mounted) return;
       if (NavigationService.isOnJournalPage) {
         return;
@@ -225,11 +235,12 @@ class _WelcomePageState extends State<WelcomePage> {
       if (msg.contains('deactivated') || msg.contains('reactivate')) {
         return;
       }
+      final fallbackIsExpert = await AccountStorage.isExpert();
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (_) => isExpert
+          builder: (_) => fallbackIsExpert
               ? const ExpertQuestionnairePage()
               : const QuestionnairePage(),
         ),
@@ -304,10 +315,9 @@ class _WelcomePageState extends State<WelcomePage> {
         name: name,
         verified: true,
         token: accessToken,
-        isExpert: lastIsExpert,
-        questionnaireDone: await AccountStorage.isQuestionnaireDone(),
-        expertQuestionnaireDone:
-            await AccountStorage.isExpertQuestionnaireDone(),
+        isExpert: false,
+        questionnaireDone: false,
+        expertQuestionnaireDone: false,
         authProvider: "google",
       );
 
@@ -330,7 +340,6 @@ class _WelcomePageState extends State<WelcomePage> {
 
       await _navigatePostAuth(
         userId: userId,
-        isExpert: lastIsExpert,
       );
 
       NotificationService.refreshDailyJournalRemindersForCurrentUser();
@@ -386,10 +395,9 @@ class _WelcomePageState extends State<WelcomePage> {
         name: name,
         verified: true,
         token: accessToken,
-        isExpert: lastIsExpert,
-        questionnaireDone: await AccountStorage.isQuestionnaireDone(),
-        expertQuestionnaireDone:
-            await AccountStorage.isExpertQuestionnaireDone(),
+        isExpert: false,
+        questionnaireDone: false,
+        expertQuestionnaireDone: false,
         authProvider: "apple",
       );
 
@@ -412,7 +420,6 @@ class _WelcomePageState extends State<WelcomePage> {
 
       await _navigatePostAuth(
         userId: userId,
-        isExpert: lastIsExpert,
       );
 
       NotificationService.refreshDailyJournalRemindersForCurrentUser();

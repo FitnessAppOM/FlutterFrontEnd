@@ -78,9 +78,6 @@ class _MainLayoutState extends State<MainLayout> {
       final userId = await AccountStorage.getUserId();
       if (userId == null || userId <= 0) return;
       final profile = await ProfileApi.fetchProfile(userId, lang: lang);
-
-      final existingDone = await AccountStorage.isExpertQuestionnaireDone();
-      final existingExpert = await AccountStorage.isExpert();
       final hasExpertProfile = profile["has_expert_profile"] == true;
       final filledExpertQuestionnaire =
           profile["filled_expert_questionnaire"] == true;
@@ -89,9 +86,8 @@ class _MainLayoutState extends State<MainLayout> {
           .trim()
           .toLowerCase();
 
-      final done = existingDone || filledExpertQuestionnaire;
+      final done = filledExpertQuestionnaire;
       final isExpert =
-          existingExpert ||
           hasExpertProfile ||
           filledExpertQuestionnaire ||
           rawStatus == "approved" ||
