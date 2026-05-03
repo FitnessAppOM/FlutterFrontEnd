@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:io' show Platform;
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
@@ -12,6 +14,10 @@ import 'navigation_service.dart';
 import 'notification_service.dart';
 
 class RemotePushService {
+  static const _firebaseAppIdStorageKey = 'remote_push_firebase_app_id';
+  static const _pushTokenRefreshEpochKey = 'remote_push_token_refresh_epoch';
+  static const _currentPushTokenRefreshEpoch = 'ios_prod_apns_2026_05_04';
+
   static bool _initialized = false;
   static int? _lastSyncedUserId;
   static String? _lastSyncedToken;
@@ -137,6 +143,48 @@ class RemotePushService {
     return 'unknown';
   }
 
+  static Future<String> _currentFirebaseAppId() async {
+    try {
+      return Firebase.app().options.appId.trim();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  static Future<bool> _deleteCachedTokenIfNeeded() async {
+    if (kIsWeb || (!Platform.isIOS && !Platform.isMacOS)) return false;
+
+    final currentAppId = await _currentFirebaseAppId();
+    if (currentAppId.isEmpty) return false;
+
+    final prefs = await SharedPreferences.getInstance();
+    final previousAppId = prefs.getString(_firebaseAppIdStorageKey)?.trim();
+    final previousEpoch = prefs.getString(_pushTokenRefreshEpochKey)?.trim();
+    if (previousAppId == currentAppId &&
+        previousEpoch == _currentPushTokenRefreshEpoch) {
+      return false;
+    }
+
+    try {
+      await FirebaseMessaging.instance.deleteToken();
+      _lastSyncedToken = null;
+      _lastLoggedToken = null;
+      if (kDebugMode) {
+        debugPrint(
+          '[Push] Deleted cached FCM token: '
+          'app=${previousAppId ?? "(none)"}->$currentAppId '
+          'epoch=${previousEpoch ?? "(none)"}->$_currentPushTokenRefreshEpoch',
+        );
+      }
+      return true;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[Push] Failed to delete cached FCM token: $e');
+      }
+      return false;
+    }
+  }
+
   static Future<void> syncTokenForCurrentUser({
     bool force = false,
     String? tokenOverride,
@@ -148,6 +196,9 @@ class RemotePushService {
     if (!headers.containsKey('Authorization')) return;
 
     String token = (tokenOverride ?? '').trim();
+    final refreshedCachedToken = token.isEmpty
+        ? await _deleteCachedTokenIfNeeded()
+        : false;
     if (token.isEmpty) {
       try {
         token = (await FirebaseMessaging.instance.getToken() ?? '').trim();
@@ -157,7 +208,10 @@ class RemotePushService {
     }
     if (token.isEmpty) return;
 
-    if (!force && _lastSyncedUserId == userId && _lastSyncedToken == token) {
+    if (!force &&
+        !refreshedCachedToken &&
+        _lastSyncedUserId == userId &&
+        _lastSyncedToken == token) {
       return;
     }
 
@@ -201,6 +255,15 @@ class RemotePushService {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         _lastSyncedUserId = userId;
         _lastSyncedToken = token;
+        final currentAppId = await _currentFirebaseAppId();
+        if (currentAppId.isNotEmpty) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(_firebaseAppIdStorageKey, currentAppId);
+          await prefs.setString(
+            _pushTokenRefreshEpochKey,
+            _currentPushTokenRefreshEpoch,
+          );
+        }
         if (kDebugMode) {
           debugPrint(
             '[Push] Token sync OK (user=$userId, platform=${_platformName()})',

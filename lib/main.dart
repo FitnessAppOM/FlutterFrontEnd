@@ -24,7 +24,6 @@ import 'services/training/exercise_action_queue.dart';
 import 'services/training/cardio_session_queue.dart';
 import 'services/training/training_activity_service.dart';
 import 'core/account_storage.dart';
-import 'services/screenings/screening_prompt_service.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'dart:io' show Platform;
 
