@@ -14,6 +14,7 @@ import '../services/core/navigation_service.dart';
 import '../services/core/notification_service.dart';
 import '../services/core/daily_provider_push_service.dart';
 import '../screens/welcome.dart';
+import 'expert_dashboard_page.dart';
 
 class AccountRestorePage extends StatefulWidget {
   const AccountRestorePage({
@@ -289,11 +290,18 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
       await AccountStorage.setIsExpert(isExpert);
       if (!mounted) return;
       if (hasData) {
+        final expertAiPending =
+            isExpert && NavigationService.expertAiUpdatesNotificationPending;
+        if (expertAiPending) {
+          NavigationService.consumeExpertAiUpdatesNotification();
+        }
         final target = NavigationService.journalNotificationPending
             ? const DailyJournalPage()
             : (NavigationService.dietNotificationPending
                   ? const MainLayout(initialIndex: 2)
-                  : const MainLayout());
+                  : (expertAiPending
+                      ? const ExpertDashboardPage()
+                      : const MainLayout()));
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => target),

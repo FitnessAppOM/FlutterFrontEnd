@@ -141,11 +141,14 @@ void main() async {
     print("DailyMetricsSync daily push skipped: $e");
   }
   await NotificationService.refreshDailyJournalRemindersForCurrentUser();
+  await NotificationService.refreshExpertAiUpdatesReminderForCurrentUser();
   final launchPayload = await NotificationService.getLaunchPayload();
   if (launchPayload == NotificationService.dailyJournalPayload) {
     NavigationService.markJournalNotificationPending();
   } else if (launchPayload == NotificationService.dietPayload) {
     NavigationService.markDietNotificationPending();
+  } else if (launchPayload == NotificationService.expertAiUpdatesPayload) {
+    NavigationService.markExpertAiUpdatesNotificationPending();
   }
 
   // When backend returns 401, clear session and send user to welcome (login).
@@ -240,10 +243,12 @@ class _MyAppState extends State<MyApp> {
       print("ExerciseActionQueue sync skipped: $e");
     }
     await NotificationService.refreshDailyJournalRemindersForCurrentUser();
+    await NotificationService.refreshExpertAiUpdatesReminderForCurrentUser();
   }
 
   void _handleAccountChange() {
     NotificationService.refreshDailyJournalRemindersForCurrentUser();
+    NotificationService.refreshExpertAiUpdatesReminderForCurrentUser();
     DailyProviderPushService().pushIfAfterOneAmLocal().catchError((_) {});
     RemotePushService.syncTokenForCurrentUser(force: true).catchError((_) {});
     _maybeRequestAndroidHealthPermission();

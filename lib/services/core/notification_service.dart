@@ -11,10 +11,12 @@ import '../diet/diet_service.dart';
 
 class NotificationService {
   static const int _journalResetHour = 6;
+  static const int _expertAiUpdatesReminderId = 5;
   static final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   static const String dailyJournalPayload = 'daily_journal';
   static const String dietPayload = 'diet';
+  static const String expertAiUpdatesPayload = 'expert_ai_updates';
 
   static const String _scheduledChannelId = 'scheduled_channel';
   static const String _scheduledChannelName = 'Scheduled Notifications';
@@ -295,6 +297,45 @@ class NotificationService {
     await scheduleDailyJournalReminder();
   }
 
+  static Future<void> refreshExpertAiUpdatesReminderForCurrentUser() async {
+    // ignore: avoid_print
+    print('[Notif] refreshExpertAiUpdatesReminderForCurrentUser()');
+    final userId = await AccountStorage.getUserId();
+    final isExpert = await AccountStorage.isExpert();
+    if (userId == null || !isExpert) {
+      await _plugin.cancel(_expertAiUpdatesReminderId);
+      return;
+    }
+
+    final granted = await requestExactAlarmPermission();
+    final scheduleMode = granted
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
+
+    await _plugin.cancel(_expertAiUpdatesReminderId);
+    final nextSundayAtFivePm = _nextInstanceAtWeekdayAndTime(
+      DateTime.sunday,
+      17,
+      0,
+    );
+    // ignore: avoid_print
+    print(
+      '[Notif] next expert AI reminder=$nextSundayAtFivePm mode=$scheduleMode',
+    );
+    await _plugin.zonedSchedule(
+      _expertAiUpdatesReminderId,
+      'AI Updates Reminder',
+      'Check AI updates for your clients or generate new suggestions.',
+      nextSundayAtFivePm,
+      _defaultDetails,
+      payload: expertAiUpdatesPayload,
+      androidScheduleMode: scheduleMode,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+    );
+  }
+
   static Future<void> rescheduleDailyJournalRemindersForTomorrow() async {
     // ignore: avoid_print
     print('[Notif] rescheduleDailyJournalRemindersForTomorrow()');
@@ -406,6 +447,26 @@ class NotificationService {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
 
+    return scheduledDate;
+  }
+
+  static tz.TZDateTime _nextInstanceAtWeekdayAndTime(
+    int weekday,
+    int hour,
+    int minute,
+  ) {
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduledDate = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    );
+    while (scheduledDate.weekday != weekday || !scheduledDate.isAfter(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
     return scheduledDate;
   }
 
@@ -545,6 +606,10 @@ class NotificationService {
     }
     if (raw == dietPayload) {
       NavigationService.navigateToDiet(fromNotification: true);
+      return;
+    }
+    if (raw == expertAiUpdatesPayload) {
+      NavigationService.navigateToExpertDashboard(fromNotification: true);
       return;
     }
 

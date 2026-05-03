@@ -21,6 +21,7 @@ import 'expert_client_analytics_page.dart';
 import 'expert_client_chat_page.dart';
 import 'expert_client_diet_review_page.dart';
 import 'expert_client_habits_page.dart';
+import 'expert_progression_review_page.dart';
 import '../widgets/coach/chat_video_player_page.dart';
 
 class ExpertClientDetailPage extends StatefulWidget {
@@ -44,6 +45,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   int? _expertId;
   Map<String, dynamic>? _profile;
   List<CoachHabitItem> _habits = const [];
+  List<ProgressionReview> _clientReviews = const [];
   List<FormCheckSubmission> _sharedFormChecks = const [];
   final Map<int, TextEditingController> _reviewControllers =
       <int, TextEditingController>{};
@@ -51,6 +53,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   final Set<int> _sendingVoiceNoteIds = <int>{};
   final Set<int> _pinningReviewIds = <int>{};
   final Set<int> _pinningReplyIds = <int>{};
+  bool _generatingAiReview = false;
   final AudioRecorder _audioRecorder = AudioRecorder();
   final AudioPlayer _voicePlayer = AudioPlayer();
   StreamSubscription<PlayerState>? _voicePlayerSub;
@@ -75,6 +78,9 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   @override
   void initState() {
     super.initState();
+    _clientReviews = widget.reviews
+        .where((review) => review.userId == widget.client.userId)
+        .toList();
     _showFormReviewPendingNote = widget.client.hasFormCheckToReview;
     _showDietLogPendingNote = widget.client.hasDietLogToReview;
     _showTrainingPlanPendingNote = widget.client.hasUncheckedTrainingPlan;
@@ -188,6 +194,161 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     setState(() {
       _showTrainingPlanPendingNote = false;
     });
+  }
+
+  List<ProgressionReview> _clientAiReviews() {
+    final items = List<ProgressionReview>.from(_clientReviews);
+    items.sort((a, b) {
+      final aPriority = a.isPendingExpert
+          ? 0
+          : a.isReviewed
+          ? 1
+          : a.isApplied
+          ? 2
+          : 3;
+      final bPriority = b.isPendingExpert
+          ? 0
+          : b.isReviewed
+          ? 1
+          : b.isApplied
+          ? 2
+          : 3;
+      if (aPriority != bPriority) return aPriority.compareTo(bPriority);
+      final aDate = a.reviewedAt ?? a.appliedAt ?? a.weekStart ?? '';
+      final bDate = b.reviewedAt ?? b.appliedAt ?? b.weekStart ?? '';
+      return bDate.compareTo(aDate);
+    });
+    return items;
+  }
+
+  bool get _hasAiUpdatesPending =>
+      _showFormReviewPendingNote || _showTrainingPlanPendingNote;
+
+  int get _pendingAiUpdateCount {
+    var count = 0;
+    if (_showFormReviewPendingNote) {
+      count += math.max(widget.client.sharedFormCheckCount, 1);
+    }
+    if (_showTrainingPlanPendingNote) {
+      count += math.max(widget.client.trainingPlanUncheckedCount, 1);
+    }
+    return count;
+  }
+
+  IconData get _aiUpdatesStatusIcon {
+    if (_showFormReviewPendingNote) {
+      return Icons.notification_important_outlined;
+    }
+    return Icons.auto_awesome_rounded;
+  }
+
+  Color get _aiUpdatesStatusColor {
+    if (_showFormReviewPendingNote) {
+      return Colors.orangeAccent;
+    }
+    return const Color(0xFF5FD8FF);
+  }
+
+  String _aiUpdatesStatusText() {
+    final hasForm = _showFormReviewPendingNote;
+    final hasTraining = _showTrainingPlanPendingNote;
+    if (hasForm && hasTraining) {
+      final count = _pendingAiUpdateCount;
+      return count > 1 ? 'AI updates pending review ($count)' : 'AI update pending review';
+    }
+    if (hasForm) {
+      return widget.client.sharedFormCheckCount > 1
+          ? 'Form checks awaiting reply (${widget.client.sharedFormCheckCount})'
+          : 'Form check awaiting reply';
+    }
+    if (hasTraining) {
+      return widget.client.trainingPlanUncheckedCount > 1
+          ? 'Training suggestions pending review (${widget.client.trainingPlanUncheckedCount})'
+          : 'Training suggestions pending review';
+    }
+    final reviewCount = _clientAiReviews().length;
+    return reviewCount > 0 ? 'Latest AI updates ready' : 'No AI updates pending';
+  }
+
+  Future<void> _openAiReview(ProgressionReview review) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ExpertProgressionReviewPage(reviewId: review.reviewId),
+      ),
+    );
+    await _refreshClientReviews();
+    await _load();
+  }
+
+  Future<void> _refreshClientReviews() async {
+    try {
+      final refreshed = await ProgressionReviewService.fetchReviews(
+        includeApplied: true,
+      );
+      if (!mounted) return;
+      setState(() {
+        _clientReviews = refreshed
+            .where((item) => item.userId == widget.client.userId)
+            .toList();
+      });
+    } catch (_) {
+      // Keep the updated detail page usable even if the refresh fails.
+    }
+  }
+
+  Future<void> _generateAiReview({required bool force}) async {
+    if (_generatingAiReview) return;
+    setState(() => _generatingAiReview = true);
+    try {
+      final result = await ProgressionReviewService.generateReview(
+        widget.client.userId,
+        force: force,
+      );
+      if (!mounted) return;
+      final status = (result['status'] ?? '').toString();
+      String message;
+      switch (status) {
+        case 'generated':
+          message = 'AI update review generated.';
+          break;
+        case 'exists':
+          message = 'A review already exists for this week.';
+          break;
+        case 'noop':
+          message = (result['reason'] ?? 'No review generated.').toString();
+          break;
+        case 'failed':
+          message =
+              (result['detail'] ?? result['reason'] ?? 'Generation failed.')
+                  .toString();
+          break;
+        default:
+          message = (result['detail'] ?? 'AI update request completed.')
+              .toString();
+          break;
+      }
+      _showSnack(message);
+      await _refreshClientReviews();
+      await _load();
+    } catch (e) {
+      _showSnack(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) {
+        setState(() => _generatingAiReview = false);
+      }
+    }
+  }
+
+  Future<void> _openAiUpdatesPage() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ExpertClientAiUpdatesPage(
+          client: widget.client,
+          onOpenFormCheck: (item) => _openSubmissionReviewSheet(item),
+        ),
+      ),
+    );
+    await _load();
   }
 
   String _normalizeHabitsError(Object error) {
@@ -1964,23 +2125,23 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                       'User ID: ${widget.client.userId}',
                       style: const TextStyle(color: Colors.white60),
                     ),
-                    if (_showTrainingPlanPendingNote) ...[
+                    if (_hasAiUpdatesPending) ...[
                       const SizedBox(height: 6),
                       Row(
-                        children: const [
+                        children: [
                           Icon(
-                            Icons.checklist_rounded,
+                            _aiUpdatesStatusIcon,
                             size: 13,
-                            color: Color(0xFF5FD8FF),
+                            color: _aiUpdatesStatusColor,
                           ),
-                          SizedBox(width: 6),
+                          const SizedBox(width: 6),
                           Expanded(
                             child: Text(
-                              "Client's plan not checked yet",
+                              _aiUpdatesStatusText(),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: Color(0xFF5FD8FF),
+                                color: _aiUpdatesStatusColor,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -2610,6 +2771,117 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     );
   }
 
+  Widget _buildAiUpdatesCard() {
+    final statusColor = _aiUpdatesStatusColor;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: _openAiUpdatesPage,
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.cardDark,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white10),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'AI Updates',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  if (_hasAiUpdatesPending)
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: statusColor.withValues(alpha: 0.45),
+                        ),
+                      ),
+                      child: Text(
+                        _pendingAiUpdateCount > 1 ? 'New' : 'Pending',
+                        style: TextStyle(
+                          color: statusColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  const Icon(
+                    Icons.chevron_right,
+                    color: Colors.white54,
+                    size: 20,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Open AI-driven form feedback and training suggestions.',
+                style: TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(_aiUpdatesStatusIcon, size: 14, color: statusColor),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      _aiUpdatesStatusText(),
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton.icon(
+                  onPressed: _openAiUpdatesPage,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white24),
+                    minimumSize: const Size(0, 34),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: const VisualDensity(
+                      horizontal: -2,
+                      vertical: -2,
+                    ),
+                  ),
+                  icon: const Icon(Icons.auto_awesome_outlined, size: 16),
+                  label: const Text('Open AI Updates'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final list = ListView(
@@ -2626,7 +2898,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
         const SizedBox(height: 12),
         _buildDietReviewCard(),
         const SizedBox(height: 12),
-        _buildFormReviewCard(),
+        _buildAiUpdatesCard(),
         const SizedBox(height: 24),
       ],
     );
@@ -2682,6 +2954,616 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class ExpertClientAiUpdatesPage extends StatefulWidget {
+  const ExpertClientAiUpdatesPage({
+    super.key,
+    required this.client,
+    required this.onOpenFormCheck,
+  });
+
+  final ProgressionClient client;
+  final Future<void> Function(FormCheckSubmission item) onOpenFormCheck;
+
+  @override
+  State<ExpertClientAiUpdatesPage> createState() =>
+      _ExpertClientAiUpdatesPageState();
+}
+
+class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
+  bool _loading = true;
+  bool _generatingAiReview = false;
+  bool _showFormReviewPendingNote = false;
+  bool _showTrainingPlanPendingNote = false;
+  String? _formChecksError;
+  List<FormCheckSubmission> _sharedFormChecks = const [];
+  List<ProgressionReview> _clientReviews = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _showFormReviewPendingNote = widget.client.hasFormCheckToReview;
+    _showTrainingPlanPendingNote = widget.client.hasUncheckedTrainingPlan;
+    _load();
+  }
+
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _load() async {
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _formChecksError = null;
+      });
+    }
+
+    String? formChecksError;
+    List<FormCheckSubmission> sharedFormChecks = const [];
+    List<ProgressionReview> clientReviews = const [];
+    bool showTrainingPlanPendingNote = _showTrainingPlanPendingNote;
+
+    try {
+      final status = await ProgressionReviewService.fetchClientTrainingPlanSeenStatus(
+        clientUserId: widget.client.userId,
+      );
+      showTrainingPlanPendingNote = status['has_unchecked_training_plan'] == true;
+    } catch (_) {}
+
+    try {
+      sharedFormChecks = await ProgressionReviewService.fetchClientSharedFormChecks(
+        widget.client.userId,
+      );
+    } catch (e) {
+      formChecksError = _normalizeError(e);
+    }
+
+    try {
+      final reviews = await ProgressionReviewService.fetchReviews(
+        includeApplied: true,
+      );
+      clientReviews = reviews.where((r) => r.userId == widget.client.userId).toList();
+      clientReviews.sort((a, b) {
+        final aPriority = a.isPendingExpert
+            ? 0
+            : a.isReviewed
+                ? 1
+                : a.isApplied
+                    ? 2
+                    : 3;
+        final bPriority = b.isPendingExpert
+            ? 0
+            : b.isReviewed
+                ? 1
+                : b.isApplied
+                    ? 2
+                    : 3;
+        if (aPriority != bPriority) return aPriority.compareTo(bPriority);
+        final aDate = a.reviewedAt ?? a.appliedAt ?? a.weekStart ?? '';
+        final bDate = b.reviewedAt ?? b.appliedAt ?? b.weekStart ?? '';
+        return bDate.compareTo(aDate);
+      });
+    } catch (_) {}
+
+    if (!mounted) return;
+    setState(() {
+      _sharedFormChecks = sharedFormChecks;
+      _clientReviews = clientReviews;
+      _formChecksError = formChecksError;
+      _showFormReviewPendingNote = sharedFormChecks.any(
+        (item) => item.coachReview == null,
+      );
+      _showTrainingPlanPendingNote = showTrainingPlanPendingNote;
+      _loading = false;
+    });
+  }
+
+  String _normalizeError(Object error) {
+    final raw = error.toString().trim();
+    if (raw.startsWith('Exception: ')) {
+      return raw.substring('Exception: '.length).trim();
+    }
+    return raw.isEmpty ? 'Unavailable' : raw;
+  }
+
+  int get _pendingAiUpdateCount {
+    var count = 0;
+    if (_showFormReviewPendingNote) {
+      final pendingFormCount = _sharedFormChecks
+          .where((item) => item.coachReview == null)
+          .length;
+      count += math.max(pendingFormCount, 1);
+    }
+    if (_showTrainingPlanPendingNote) {
+      count += math.max(widget.client.trainingPlanUncheckedCount, 1);
+    }
+    return count;
+  }
+
+  IconData get _aiUpdatesStatusIcon {
+    if (_showFormReviewPendingNote) {
+      return Icons.notification_important_outlined;
+    }
+    return Icons.auto_awesome_rounded;
+  }
+
+  Color get _aiUpdatesStatusColor {
+    if (_showFormReviewPendingNote) {
+      return Colors.orangeAccent;
+    }
+    return const Color(0xFF5FD8FF);
+  }
+
+  String _aiUpdatesStatusText() {
+    final hasForm = _showFormReviewPendingNote;
+    final hasTraining = _showTrainingPlanPendingNote;
+    if (hasForm && hasTraining) {
+      final count = _pendingAiUpdateCount;
+      return count > 1 ? 'AI updates pending review ($count)' : 'AI update pending review';
+    }
+    if (hasForm) {
+      final pendingFormCount = _sharedFormChecks
+          .where((item) => item.coachReview == null)
+          .length;
+      return pendingFormCount > 1
+          ? 'Form checks awaiting reply ($pendingFormCount)'
+          : 'Form check awaiting reply';
+    }
+    if (hasTraining) {
+      return widget.client.trainingPlanUncheckedCount > 1
+          ? 'Training suggestions pending review (${widget.client.trainingPlanUncheckedCount})'
+          : 'Training suggestions pending review';
+    }
+    return _clientReviews.isNotEmpty
+        ? 'Latest AI updates ready'
+        : 'No AI updates pending';
+  }
+
+  Future<void> _generateAiReview({required bool force}) async {
+    if (_generatingAiReview) return;
+    setState(() => _generatingAiReview = true);
+    try {
+      final result = await ProgressionReviewService.generateReview(
+        widget.client.userId,
+        force: force,
+      );
+      if (!mounted) return;
+      final status = (result['status'] ?? '').toString();
+      String message;
+      switch (status) {
+        case 'generated':
+          message = 'AI update review generated.';
+          break;
+        case 'exists':
+          message = 'A review already exists for this week.';
+          break;
+        case 'noop':
+          message = (result['reason'] ?? 'No review generated.').toString();
+          break;
+        case 'failed':
+          message =
+              (result['detail'] ?? result['reason'] ?? 'Generation failed.')
+                  .toString();
+          break;
+        default:
+          message = (result['detail'] ?? 'AI update request completed.')
+              .toString();
+          break;
+      }
+      _showSnack(message);
+      await _load();
+    } catch (e) {
+      _showSnack(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) {
+        setState(() => _generatingAiReview = false);
+      }
+    }
+  }
+
+  Future<void> _openAiReview(ProgressionReview review) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ExpertProgressionReviewPage(reviewId: review.reviewId),
+      ),
+    );
+    await _load();
+  }
+
+  Future<void> _openFormCheck(FormCheckSubmission item) async {
+    await widget.onOpenFormCheck(item);
+    await _load();
+  }
+
+  Widget _buildFormCheckTab() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const Text(
+          'Only videos explicitly shared by this client are shown.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        if (_showFormReviewPendingNote) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(
+                Icons.notification_important_outlined,
+                size: 14,
+                color: Colors.orangeAccent,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  _sharedFormChecks.where((item) => item.coachReview == null).length > 1
+                      ? 'Awaiting your reply (${_sharedFormChecks.where((item) => item.coachReview == null).length})'
+                      : 'Awaiting your reply',
+                  style: const TextStyle(
+                    color: Colors.orangeAccent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 10),
+        if (_formChecksError != null)
+          Text(
+            _formChecksError!,
+            style: const TextStyle(color: Colors.white70),
+          )
+        else if (_sharedFormChecks.isEmpty)
+          const Text(
+            'No videos available for review.',
+            style: TextStyle(color: Colors.white70),
+          )
+        else
+          ..._sharedFormChecks.map((item) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => _openFormCheck(item),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.03),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              item.exerciseName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _AiUpdateStatusPill(
+                            label: item.coachReview == null
+                                ? 'Pending reply'
+                                : 'Reviewed',
+                            color: item.coachReview == null
+                                ? Colors.orangeAccent
+                                : const Color(0xFF4ADE80),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        ((item.result.feedbackSummary ?? '').trim().isNotEmpty)
+                            ? item.result.feedbackSummary!.trim()
+                            : 'Open to review this form check.',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+      ],
+    );
+  }
+
+  Widget _buildTrainingSuggestionsTab() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'AI-generated progression reviews for this client.',
+                style: TextStyle(color: Colors.white70),
+              ),
+            ),
+            const SizedBox(width: 10),
+            OutlinedButton(
+              onPressed: _generatingAiReview
+                  ? null
+                  : () => _generateAiReview(force: false),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Colors.white24),
+                minimumSize: const Size(0, 34),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: const VisualDensity(
+                  horizontal: -2,
+                  vertical: -2,
+                ),
+              ),
+              child: Text(_generatingAiReview ? 'Working...' : 'Generate'),
+            ),
+          ],
+        ),
+        if (_showTrainingPlanPendingNote) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(
+                Icons.auto_awesome_rounded,
+                size: 14,
+                color: Color(0xFF5FD8FF),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  widget.client.trainingPlanUncheckedCount > 1
+                      ? 'Training suggestions pending review (${widget.client.trainingPlanUncheckedCount})'
+                      : 'Training suggestions pending review',
+                  style: const TextStyle(
+                    color: Color(0xFF5FD8FF),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 10),
+        if (_clientReviews.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.03),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white12),
+            ),
+            child: const Text(
+              'No AI training suggestions yet. Generate one for this client from here.',
+              style: TextStyle(color: Colors.white70),
+            ),
+          )
+        else
+          ..._clientReviews.map(
+            (review) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _ClientAiReviewCard(
+                review: review,
+                onTap: () => _openAiReview(review),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: AppColors.black,
+        appBar: AppBar(
+          backgroundColor: AppColors.black,
+          title: const Text('AI Updates'),
+          bottom: const TabBar(
+            dividerColor: Colors.transparent,
+            tabs: [
+              Tab(text: 'Form Check'),
+              Tab(text: 'Training Suggestions'),
+            ],
+          ),
+        ),
+        body: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.cardDark,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _aiUpdatesStatusIcon,
+                          size: 16,
+                          color: _aiUpdatesStatusColor,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _aiUpdatesStatusText(),
+                            style: TextStyle(
+                              color: _aiUpdatesStatusColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        _buildFormCheckTab(),
+                        _buildTrainingSuggestionsTab(),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+class _AiUpdateStatusPill extends StatelessWidget {
+  const _AiUpdateStatusPill({
+    required this.label,
+    required this.color,
+  });
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w700,
+          fontSize: 11,
+        ),
+      ),
+    );
+  }
+}
+
+class _ClientAiReviewCard extends StatelessWidget {
+  const _ClientAiReviewCard({
+    required this.review,
+    required this.onTap,
+  });
+
+  final ProgressionReview review;
+  final VoidCallback onTap;
+
+  Color _statusColor() {
+    switch (review.status) {
+      case 'applied':
+        return AppColors.successGreen;
+      case 'failed':
+        return AppColors.errorRed;
+      case 'pending_expert':
+        return const Color(0xFF5FD8FF);
+      case 'reviewed':
+        return Colors.orangeAccent;
+      default:
+        return Colors.white54;
+    }
+  }
+
+  String _statusLabel() {
+    switch (review.status) {
+      case 'pending_expert':
+        return 'Pending review';
+      case 'reviewed':
+        return 'Awaiting approval';
+      case 'applied':
+        return 'Applied';
+      case 'failed':
+        return 'Needs retry';
+      default:
+        return review.status;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = _statusColor();
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.white12),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Week ${review.weekStart ?? '-'}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${review.itemCount} suggestions',
+                    style: const TextStyle(color: Colors.white60),
+                  ),
+                  if ((review.aiSummary ?? '').trim().isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      review.aiSummary!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                _AiUpdateStatusPill(
+                  label: _statusLabel(),
+                  color: statusColor,
+                ),
+                const SizedBox(height: 8),
+                const Icon(Icons.chevron_right, color: Colors.white38),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

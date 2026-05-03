@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../main/main_layout.dart';
 import '../../core/account_storage.dart';
+import '../../screens/expert_dashboard_page.dart';
 import '../coach/coach_support_chat_service.dart';
 import '../../screens/coach_page.dart';
 import '../../screens/expert_client_chat_page.dart';
@@ -12,9 +13,12 @@ class NavigationService {
   static bool isOnJournalPage = false;
   static bool _journalNotificationPending = false;
   static bool _dietNotificationPending = false;
+  static bool _expertAiUpdatesNotificationPending = false;
 
   static bool get journalNotificationPending => _journalNotificationPending;
   static bool get dietNotificationPending => _dietNotificationPending;
+  static bool get expertAiUpdatesNotificationPending =>
+      _expertAiUpdatesNotificationPending;
 
   static void markJournalNotificationPending() {
     _journalNotificationPending = true;
@@ -25,9 +29,21 @@ class NavigationService {
     _dietNotificationPending = true;
   }
 
+  static void markExpertAiUpdatesNotificationPending() {
+    _expertAiUpdatesNotificationPending = true;
+    launchedFromNotificationPayload = true;
+  }
+
   static bool consumeJournalNotification() {
     final pending = _journalNotificationPending;
     _journalNotificationPending = false;
+    launchedFromNotificationPayload = false;
+    return pending;
+  }
+
+  static bool consumeExpertAiUpdatesNotification() {
+    final pending = _expertAiUpdatesNotificationPending;
+    _expertAiUpdatesNotificationPending = false;
     launchedFromNotificationPayload = false;
     return pending;
   }
@@ -84,6 +100,22 @@ class NavigationService {
     nav.pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const MainLayout(initialIndex: 3)),
       (_) => false,
+    );
+  }
+
+  static Future<void> navigateToExpertDashboard({
+    bool fromNotification = false,
+  }) async {
+    if (fromNotification) {
+      _expertAiUpdatesNotificationPending = false;
+      launchedFromNotificationPayload = false;
+    }
+
+    final nav = navigatorKey.currentState;
+    if (nav == null) return;
+
+    nav.push(
+      MaterialPageRoute(builder: (_) => const ExpertDashboardPage()),
     );
   }
 

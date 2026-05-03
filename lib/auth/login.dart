@@ -18,6 +18,7 @@ import '../screens/ForgetPassword/forgot_password_page.dart';
 import '../main/main_layout.dart';           // <-- MAIN PAGE
 import '../screens/daily_journal.dart';
 import '../screens/account_restore_page.dart';
+import '../screens/expert_dashboard_page.dart';
 import 'email_verification_page.dart';
 import '../services/auth/profile_service.dart';
 import 'questionnaire.dart';
@@ -117,11 +118,18 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
       if (hasData) {
+        final expertAiPending =
+            isExpert && NavigationService.expertAiUpdatesNotificationPending;
+        if (expertAiPending) {
+          NavigationService.consumeExpertAiUpdatesNotification();
+        }
         final target = NavigationService.journalNotificationPending
             ? const DailyJournalPage()
             : (NavigationService.dietNotificationPending
                 ? const MainLayout(initialIndex: 2)
-                : const MainLayout());
+                : (expertAiPending
+                    ? const ExpertDashboardPage()
+                    : const MainLayout()));
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => target),

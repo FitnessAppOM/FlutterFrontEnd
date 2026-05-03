@@ -45,7 +45,6 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
   static const int _tabPrograms = 1;
   static const int _tabNutrition = 2;
   static const int _tabSettings = 3;
-  static const int _tabProgression = 4;
 
   int _tabIndex = _tabMyClients;
   bool _loading = true;
@@ -1532,8 +1531,6 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
         return 'Nutrition';
       case _tabSettings:
         return t.translate('settings');
-      case _tabProgression:
-        return 'AI Updates';
       default:
         return t.translate('expert_dashboard_title');
     }
@@ -2497,71 +2494,6 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
     );
   }
 
-  Widget _buildProgressionTab() {
-    final pendingCount = _reviews
-        .where((r) => r.status == 'pending_expert' || r.status == 'reviewed')
-        .length;
-    final appliedCount = _reviews.where((r) => r.status == 'applied').length;
-
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          _TopMetricRow(
-            pendingCount: pendingCount,
-            appliedCount: appliedCount,
-            clientCount: _clients.length,
-          ),
-          const SizedBox(height: 20),
-          const _SectionTitle(
-            title: 'AI Updates',
-            subtitle:
-                'Generate weekly AI update reviews for clients assigned to you.',
-          ),
-          const SizedBox(height: 10),
-          if (_clients.isEmpty)
-            const _EmptyCard(text: 'No assigned clients yet.')
-          else
-            ..._clients.map(
-              (client) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _ClientCard(
-                  client: client,
-                  generating: _generating,
-                  onGenerate: () =>
-                      _generateReview(client.userId, force: false),
-                ),
-              ),
-            ),
-          const SizedBox(height: 20),
-          const _SectionTitle(
-            title: 'AI Update Reviews',
-            subtitle:
-                'Open a review to approve, edit, reject, and apply final changes.',
-          ),
-          const SizedBox(height: 10),
-          if (_reviews.isEmpty)
-            const _EmptyCard(text: 'No AI update reviews yet.')
-          else
-            ..._reviews.map(
-              (review) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _ReviewListCard(
-                  review: review,
-                  onTap: () => _openReview(review),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildBottomNav() {
     const tabs = <_CoachBottomTab>[
       _CoachBottomTab(
@@ -2704,18 +2636,6 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
               ),
             ),
           IconButton(
-            tooltip: 'AI Updates',
-            onPressed: _tabIndex == _tabProgression
-                ? null
-                : () => _selectTab(_tabProgression),
-            icon: Icon(
-              Icons.trending_up_outlined,
-              color: _tabIndex == _tabProgression
-                  ? AppColors.accent
-                  : Colors.white70,
-            ),
-          ),
-          IconButton(
             tooltip: 'Settings',
             onPressed: _tabIndex == _tabSettings
                 ? null
@@ -2736,7 +2656,6 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
           _buildProgramsTab(),
           _buildNutritionTab(),
           _buildSettingsTab(t),
-          _buildProgressionTab(),
         ],
       ),
       bottomNavigationBar: _buildBottomNav(),
@@ -3059,6 +2978,36 @@ class _ClientOverviewCard extends StatelessWidget {
   final int reviewCount;
   final VoidCallback onView;
 
+  bool get _hasAiUpdatesNote =>
+      client.hasFormCheckToReview || client.hasUncheckedTrainingPlan;
+
+  IconData get _aiUpdatesIcon => client.hasFormCheckToReview
+      ? Icons.notification_important_outlined
+      : Icons.auto_awesome_rounded;
+
+  Color get _aiUpdatesColor => client.hasFormCheckToReview
+      ? Colors.orangeAccent
+      : const Color(0xFF5FD8FF);
+
+  String get _aiUpdatesLabel {
+    final hasForm = client.hasFormCheckToReview;
+    final hasTraining = client.hasUncheckedTrainingPlan;
+    if (hasForm && hasTraining) {
+      final total = client.sharedFormCheckCount + client.trainingPlanUncheckedCount;
+      return total > 1
+          ? 'AI updates pending review ($total)'
+          : 'AI update pending review';
+    }
+    if (hasForm) {
+      return client.sharedFormCheckCount > 1
+          ? 'AI updates: form checks awaiting reply (${client.sharedFormCheckCount})'
+          : 'AI updates: form check awaiting reply';
+    }
+    return client.trainingPlanUncheckedCount > 1
+        ? 'AI updates: training suggestions pending review (${client.trainingPlanUncheckedCount})'
+        : 'AI updates: training suggestions pending review';
+  }
+
   @override
   Widget build(BuildContext context) {
     final clientName = client.name ?? 'Client #${client.userId}';
@@ -3126,33 +3075,6 @@ class _ClientOverviewCard extends StatelessWidget {
                     ],
                   ),
                 ],
-                if (client.hasFormCheckToReview) ...[
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.notification_important_outlined,
-                        size: 14,
-                        color: Colors.orangeAccent,
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          client.sharedFormCheckCount > 1
-                              ? 'Awaiting your reply (${client.sharedFormCheckCount})'
-                              : 'Awaiting your reply',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.orangeAccent,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
                 if (client.hasDietLogToReview) ...[
                   const SizedBox(height: 4),
                   Row(
@@ -3180,25 +3102,23 @@ class _ClientOverviewCard extends StatelessWidget {
                     ],
                   ),
                 ],
-                if (client.hasUncheckedTrainingPlan) ...[
+                if (_hasAiUpdatesNote) ...[
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(
-                        Icons.checklist_rounded,
+                      Icon(
+                        _aiUpdatesIcon,
                         size: 14,
-                        color: Color(0xFF5FD8FF),
+                        color: _aiUpdatesColor,
                       ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          client.trainingPlanUncheckedCount > 1
-                              ? 'Unchecked AI plans (${client.trainingPlanUncheckedCount})'
-                              : 'Unchecked AI plan',
+                          _aiUpdatesLabel,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFF5FD8FF),
+                          style: TextStyle(
+                            color: _aiUpdatesColor,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
