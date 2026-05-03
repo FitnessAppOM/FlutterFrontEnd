@@ -24,6 +24,22 @@ import 'expert_client_habits_page.dart';
 import 'expert_progression_review_page.dart';
 import '../widgets/coach/chat_video_player_page.dart';
 
+String _aiUpdateGenerationMessage(Map<String, dynamic> result) {
+  final reason = (result['reason'] ?? '').toString().trim();
+  final detail = (result['detail'] ?? '').toString().trim();
+  if (detail.isNotEmpty) return detail;
+  switch (reason) {
+    case 'insufficient_weekly_activity':
+      return 'Need at least 2 logged exercises this week before generating AI updates.';
+    case 'no_active_program':
+      return 'This client has no active training program.';
+    case 'no_assigned_expert':
+      return 'No assigned expert found for this client.';
+    default:
+      return reason.isNotEmpty ? reason : 'No review generated.';
+  }
+}
+
 class ExpertClientDetailPage extends StatefulWidget {
   const ExpertClientDetailPage({
     super.key,
@@ -315,7 +331,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
           message = 'A review already exists for this week.';
           break;
         case 'noop':
-          message = (result['reason'] ?? 'No review generated.').toString();
+          message = _aiUpdateGenerationMessage(result);
           break;
         case 'failed':
           message =
@@ -3146,7 +3162,7 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
           message = 'A review already exists for this week.';
           break;
         case 'noop':
-          message = (result['reason'] ?? 'No review generated.').toString();
+          message = _aiUpdateGenerationMessage(result);
           break;
         case 'failed':
           message =

@@ -1165,7 +1165,8 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
           message = 'A review already exists for this week.';
           break;
         case 'noop':
-          message = (result['reason'] ?? 'No review generated.').toString();
+          message = (result['detail'] ?? result['reason'] ?? 'No review generated.')
+              .toString();
           break;
         case 'failed':
           message =
