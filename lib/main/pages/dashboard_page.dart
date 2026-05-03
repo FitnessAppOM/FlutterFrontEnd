@@ -42,6 +42,7 @@ import '../../widgets/dashboard/fitbit_extras_card.dart';
 import '../../widgets/dashboard/health_recovery_load_card.dart';
 import '../../widgets/dashboard/health_recovery_load_sheet.dart';
 import '../../widgets/dashboard/diet_progress_card.dart';
+import '../../widgets/dashboard/daily_outlook_card.dart';
 import '../../widgets/dashboard/taqa_score_widget.dart';
 import '../../widgets/dashboard/edit_mode_bubble.dart';
 import '../../widgets/dashboard/widget_library_sheet.dart';
@@ -57,6 +58,7 @@ import '../../services/auth/profile_service.dart';
 import '../../services/auth/profile_storage.dart';
 import '../../services/metrics/daily_metrics_api.dart';
 import '../../services/core/daily_provider_push_service.dart';
+import '../../services/daily_outlook/daily_outlook_service.dart';
 import '../../services/scores/taqa_score_api.dart';
 import '../../config/base_url.dart';
 import '../../services/health/steps_service.dart';
@@ -452,6 +454,10 @@ class DashboardPageState extends State<DashboardPage>
   TaqaDailyScore? _taqaScore;
   bool _taqaScoreLoading = false;
   int _taqaScoreReqId = 0;
+  DailyOutlookStatus? _dailyOutlook;
+  bool _dailyOutlookLoading = false;
+  bool _dailyOutlookGenerating = false;
+  int _dailyOutlookReqId = 0;
 
   static const _stepsGoalKey = "dashboard_steps_goal";
   static const _sleepGoalKey = "dashboard_sleep_goal";
@@ -565,6 +571,7 @@ class DashboardPageState extends State<DashboardPage>
     _loadFitbitSummary(force: true);
     _loadHealthRecoveryLoad(force: true);
     _loadTaqaScore();
+    _loadDailyOutlookStatus();
   }
 
   void _openDateSheet() {
@@ -718,10 +725,14 @@ class DashboardPageState extends State<DashboardPage>
       _exerciseProgressCache.clear();
       _taqaScore = null;
       _taqaScoreLoading = false;
+      _dailyOutlook = null;
+      _dailyOutlookLoading = false;
+      _dailyOutlookGenerating = false;
       _wearableBubbleVisible = false;
       _wearableBubbleType = null;
     });
     TaqaScoreApi.clearCache();
+    DailyOutlookApi.clearCache();
     _refreshAll();
     _loadExerciseProgress(force: true);
     unawaited(_syncWearableDetectionBubble());
@@ -758,7 +769,9 @@ class DashboardPageState extends State<DashboardPage>
   void _onJournalChanged() {
     _loadStreak();
     TaqaScoreApi.clearCache();
+    DailyOutlookApi.clearCache();
     unawaited(_loadTaqaScore());
+    unawaited(_loadDailyOutlookStatus(force: true));
   }
 
   Future<void> _onAppleWatchChanged() async {
@@ -1736,6 +1749,92 @@ class DashboardPageState extends State<DashboardPage>
     });
   }
 
+  Future<void> _loadDailyOutlookStatus({bool force = false}) async {
+    final userId = await AccountStorage.getUserId();
+    if (!mounted) return;
+    if (userId == null || userId <= 0) {
+      setState(() {
+        _dailyOutlook = null;
+        _dailyOutlookLoading = false;
+      });
+      return;
+    }
+
+    final targetDate = _dayKey(_selectedDate);
+    if (targetDate != _dashboardToday()) {
+      setState(() {
+        _dailyOutlook = null;
+        _dailyOutlookLoading = false;
+        _dailyOutlookGenerating = false;
+      });
+      return;
+    }
+
+    final reqId = ++_dailyOutlookReqId;
+    if (mounted) {
+      setState(() => _dailyOutlookLoading = true);
+    }
+
+    final result = await DailyOutlookApi.fetchDaily(
+      userId: userId,
+      date: targetDate,
+      forceRefresh: force,
+    );
+    if (!mounted) return;
+    if (reqId != _dailyOutlookReqId) return;
+    if (_dayKey(_selectedDate) != targetDate) return;
+    final currentUserId = await AccountStorage.getUserId();
+    if (currentUserId != userId) return;
+
+    setState(() {
+      _dailyOutlook = result;
+      _dailyOutlookLoading = false;
+    });
+  }
+
+  Future<void> _generateDailyOutlook() async {
+    if (_dailyOutlookGenerating) return;
+    final userId = await AccountStorage.getUserId();
+    if (userId == null || userId <= 0 || !mounted) return;
+    final targetDate = _dayKey(_selectedDate);
+    if (targetDate != _dashboardToday()) return;
+
+    setState(() => _dailyOutlookGenerating = true);
+    final t = AppLocalizations.of(context).translate;
+
+    try {
+      final result = await DailyOutlookApi.generateDaily(
+        userId: userId,
+        date: targetDate,
+      );
+      if (!mounted) return;
+      if (_dayKey(_selectedDate) != targetDate) return;
+      if (result != null) {
+        setState(() {
+          _dailyOutlook = result;
+        });
+        if (result.generatedNow) {
+          AppToast.show(
+            context,
+            t("dash_daily_outlook_ready"),
+            type: AppToastType.success,
+          );
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        t("dash_daily_outlook_failed").replaceAll("{error}", "$e"),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _dailyOutlookGenerating = false);
+      }
+    }
+  }
+
   DateTime _taqaTodayByResetClock() {
     return _dashboardToday();
   }
@@ -1778,6 +1877,7 @@ class DashboardPageState extends State<DashboardPage>
       _loadHealthRecoveryLoad(force: true),
       _loadStravaStatus(syncRemote: true),
       _loadTaqaScore(),
+      _loadDailyOutlookStatus(),
     ]);
     if (!mounted) return;
     _loadFitbitSummary(force: true);
@@ -1810,6 +1910,7 @@ class DashboardPageState extends State<DashboardPage>
     });
     DailyMetricsApi.clearCache();
     TaqaScoreApi.clearCache();
+    DailyOutlookApi.clearCache();
     _healthRecoveryLoadCache.clear();
     _dietSummaryCache.clear();
     _exerciseProgressCache.clear();
@@ -1832,6 +1933,7 @@ class DashboardPageState extends State<DashboardPage>
     if (refreshTaqaScore) {
       futures.add(_loadTaqaScore());
     }
+    futures.add(_loadDailyOutlookStatus(force: true));
     await Future.wait(futures);
     _loadFitbitSummary();
   }
@@ -5396,6 +5498,20 @@ class DashboardPageState extends State<DashboardPage>
               );
             },
           ),
+          if (isCurrentDay) ...[
+            const SizedBox(height: 12),
+            DailyOutlookCard(
+              loading: _dailyOutlookLoading,
+              generating: _dailyOutlookGenerating,
+              status: _dailyOutlook,
+              onGenerate: _generateDailyOutlook,
+              title: t("dash_daily_outlook_title"),
+              subtitle: t("dash_daily_outlook_subtitle"),
+              generateLabel: t("dash_daily_outlook_generate"),
+              generatedLabel: t("dash_daily_outlook_generated_today"),
+              onceDailyLabel: t("dash_daily_outlook_once_daily"),
+            ),
+          ],
           const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, constraints) {
