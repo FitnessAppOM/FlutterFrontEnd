@@ -801,6 +801,7 @@ class AppLocalizations {
       "dash_daily_outlook_subtitle":
           "Generate one short readiness summary for today using your latest recovery, activity, nutrition, and journal data.",
       "dash_daily_outlook_generate": "Generate today's outlook",
+      "dash_daily_outlook_view": "View today's outlook",
       "dash_daily_outlook_generated_today": "Today's outlook is ready.",
       "dash_daily_outlook_once_daily": "Available once per day",
       "dash_daily_outlook_ready": "Daily Outlook generated.",
@@ -1775,6 +1776,7 @@ class AppLocalizations {
       "dash_daily_outlook_subtitle":
           "أنشئ ملخصاً قصيراً لليوم اعتماداً على أحدث بيانات التعافي والنشاط والتغذية والمفكرة اليومية.",
       "dash_daily_outlook_generate": "أنشئ ملخص اليوم",
+      "dash_daily_outlook_view": "عرض ملخص اليوم",
       "dash_daily_outlook_generated_today": "ملخص اليوم جاهز.",
       "dash_daily_outlook_once_daily": "متاح مرة واحدة يومياً",
       "dash_daily_outlook_ready": "تم إنشاء النظرة اليومية.",
