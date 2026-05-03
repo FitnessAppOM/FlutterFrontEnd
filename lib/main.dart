@@ -6,6 +6,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'firebase_options.dart';
 
 import 'localization/app_localizations.dart';
 import 'screens/welcome.dart';
@@ -61,7 +62,9 @@ void main() async {
   );
 
   // Firebase (REQUIRED for Google Sign-In)
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   try {
     final opts = Firebase.app().options;
     final pkg = await PackageInfo.fromPlatform();

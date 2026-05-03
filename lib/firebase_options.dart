@@ -60,11 +60,11 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyAc3LAz2ccltb93zJb-UYWBXdyNJRi4xww',
-    appId: '1:280853704980:ios:5d1a8639d4d289ec985201',
+    appId: '1:280853704980:ios:82e749698bba67b6985201',
     messagingSenderId: '280853704980',
     projectId: 'fitnessproj-30252',
     storageBucket: 'fitnessproj-30252.firebasestorage.app',
-    iosBundleId: 'com.example.taqaproject',
+    iosBundleId: 'com.taqafitness.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
