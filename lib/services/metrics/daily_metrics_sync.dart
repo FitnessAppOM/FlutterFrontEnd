@@ -236,6 +236,7 @@ class DailyMetricsSync {
     required int? restingHr,
     required double? hrvMs,
     required int? activeMinutes,
+    required int? workoutMinutes,
     required int? heartZoneOutOfRangeMinutes,
     required int? heartZoneFatBurnMinutes,
     required int? heartZoneCardioMinutes,
@@ -254,6 +255,7 @@ class DailyMetricsSync {
         _isPositiveNum(steps) ||
         _isPositiveNum(calories) ||
         _isPositiveNum(activeMinutes) ||
+        _isPositiveNum(workoutMinutes) ||
         _isPositiveNum(heartZoneOutOfRangeMinutes) ||
         _isPositiveNum(heartZoneFatBurnMinutes) ||
         _isPositiveNum(heartZoneCardioMinutes) ||
@@ -277,6 +279,7 @@ class DailyMetricsSync {
       restingHr: row.restingHr,
       hrvMs: row.hrvMs,
       activeMinutes: row.activeMinutes,
+      workoutMinutes: row.workoutMinutes,
       heartZoneOutOfRangeMinutes: row.heartZoneOutOfRangeMinutes,
       heartZoneFatBurnMinutes: row.heartZoneFatBurnMinutes,
       heartZoneCardioMinutes: row.heartZoneCardioMinutes,
