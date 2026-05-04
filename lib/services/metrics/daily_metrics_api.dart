@@ -17,6 +17,10 @@ class DailyMetricsEntry {
   final int? restingHr;
   final double? hrvMs;
   final int? activeMinutes;
+
+  /// HKWorkout daily total (Apple Watch). Required by the TFLU training-load
+  /// model for Apple Watch users; nullable on platforms that don't supply it.
+  final int? workoutMinutes;
   final int? heartZoneOutOfRangeMinutes;
   final int? heartZoneFatBurnMinutes;
   final int? heartZoneCardioMinutes;
@@ -37,6 +41,7 @@ class DailyMetricsEntry {
     this.restingHr,
     this.hrvMs,
     this.activeMinutes,
+    this.workoutMinutes,
     this.heartZoneOutOfRangeMinutes,
     this.heartZoneFatBurnMinutes,
     this.heartZoneCardioMinutes,
@@ -67,6 +72,7 @@ class DailyMetricsEntry {
       restingHr: parseInt(json['resting_hr']),
       hrvMs: parseDouble(json['hrv_ms']),
       activeMinutes: parseInt(json['active_minutes']),
+      workoutMinutes: parseInt(json['workout_minutes']),
       heartZoneOutOfRangeMinutes: parseInt(
         json['heart_zone_out_of_range_minutes'],
       ),
@@ -131,6 +137,7 @@ class DailyMetricsApi {
     int? restingHr,
     double? hrvMs,
     int? activeMinutes,
+    int? workoutMinutes,
     int? heartZoneOutOfRangeMinutes,
     int? heartZoneFatBurnMinutes,
     int? heartZoneCardioMinutes,
@@ -162,6 +169,7 @@ class DailyMetricsApi {
     final safeRestingHr = _sanitizeInt(restingHr, max: _int32Max);
     final safeHrvMs = _sanitizeDouble(hrvMs, max: 99999.99);
     final safeActiveMinutes = _sanitizeInt(activeMinutes, max: _int32Max);
+    final safeWorkoutMinutes = _sanitizeInt(workoutMinutes, max: _int32Max);
     final safeOutOfRange = _sanitizeInt(
       heartZoneOutOfRangeMinutes,
       max: _int32Max,
@@ -191,6 +199,7 @@ class DailyMetricsApi {
       if (safeRestingHr != null) "resting_hr": safeRestingHr,
       if (safeHrvMs != null) "hrv_ms": safeHrvMs,
       if (safeActiveMinutes != null) "active_minutes": safeActiveMinutes,
+      if (safeWorkoutMinutes != null) "workout_minutes": safeWorkoutMinutes,
       if (safeOutOfRange != null)
         "heart_zone_out_of_range_minutes": safeOutOfRange,
       if (safeFatBurn != null) "heart_zone_fat_burn_minutes": safeFatBurn,

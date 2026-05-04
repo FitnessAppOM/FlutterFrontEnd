@@ -24,18 +24,25 @@ class HealthRecoveryLoadSummary {
     this.restingHeartRate,
     this.hrvMs,
     this.activeMinutes,
+    this.workoutMinutes,
     this.zones,
   });
 
   final int? restingHeartRate;
   final double? hrvMs;
   final int? activeMinutes;
+
+  /// Sum of HKWorkout durations for the day (Apple Watch / iOS Health).
+  /// Distinct from [activeMinutes] (which falls back to Apple "Exercise Time").
+  /// Required by the new TFLU model for Apple Watch users.
+  final int? workoutMinutes;
   final HealthHeartZones? zones;
 
   bool get hasAnyData =>
       (restingHeartRate ?? 0) > 0 ||
       (hrvMs ?? 0) > 0 ||
       (activeMinutes ?? 0) > 0 ||
+      (workoutMinutes ?? 0) > 0 ||
       (zones?.totalMinutes ?? 0) > 0;
 }
 
@@ -255,6 +262,15 @@ class HealthRecoveryLoadService {
       }
       final resolvedActiveMinutes = activeMinutes > 0 ? activeMinutes : null;
 
+      // HKWorkout daily total — explicit, independent of activeMinutes fallback.
+      // The new TFLU model requires this for Apple Watch users.
+      final workoutSampleMinutes = _sumWorkoutMinutes(
+        samples.where((s) => s.type == HealthDataType.WORKOUT),
+      );
+      final resolvedWorkoutMinutes = workoutSampleMinutes > 0
+          ? workoutSampleMinutes
+          : null;
+
       final zones = _buildZones(
         samples.where((s) => s.type == HealthDataType.HEART_RATE),
       );
@@ -263,6 +279,7 @@ class HealthRecoveryLoadService {
         restingHeartRate: restingHr,
         hrvMs: hrvMs,
         activeMinutes: resolvedActiveMinutes,
+        workoutMinutes: resolvedWorkoutMinutes,
         zones: zones,
       );
       final result = summary.hasAnyData ? summary : null;

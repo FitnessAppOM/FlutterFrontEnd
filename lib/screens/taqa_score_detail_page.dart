@@ -370,11 +370,24 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
         path: s.trainingLoad.path,
         details: s.trainingLoad.details,
         detailLabels: {
-          'today_load': t("taqa_detail_today_load"),
-          'chronic_load': t("taqa_detail_chronic"),
-          'acute_load': t("taqa_detail_acute"),
-          'acwr': t("taqa_detail_ratio"),
-          'risk_zone': 'Risk zone',
+          'phase_label': 'Phase',
+          'badge_label': 'Badge',
+          'tflu_today': 'TFLU Today',
+          'tflu_7d_avg': '7-Day Avg TFLU',
+          'tflu_28d_avg': '28-Day Avg TFLU',
+          'normalization_peak': 'Normalization Peak',
+          'training_minutes': 'Training Minutes',
+          'rest_minutes': 'Rest Minutes',
+          'daily_volume_score': 'Daily Volume Score',
+          'raw_load': 'Raw Load',
+          'vbp_score': 'VBP Efficiency',
+          'consistency_score': 'Session Consistency',
+          'wow_score': 'WoW Progression',
+          'efficiency_ratio': 'Efficiency Ratio',
+          'active_days_7d': 'Active Days (7d)',
+          'wow_change_pct': 'WoW Change',
+          'risk_zone': 'Risk Zone',
+          'status_label': 'Status',
         },
       ),
     );
@@ -789,25 +802,29 @@ class _PillarCardState extends State<_PillarCard> {
 
   String? _statusMessage() {
     if (widget.metricKey == 'training_load') {
+      final note = widget.details['note']?.toString();
+      if (note != null && note.isNotEmpty) return note;
+
+      if (widget.path == 'coming_soon') {
+        return 'Training Load support for this provider is coming soon.';
+      }
+
       if (widget.score == null) {
-        if (widget.path == 'no_workout') {
-          return t("taqa_training_no_workout");
-        }
-        if (widget.path == 'baseline_pending') {
-          return "Building training baseline until enough history is available";
+        final phaseLabel = widget.details['phase_label']?.toString();
+        if (phaseLabel == 'Calibrating') {
+          final remaining = widget.details['progress_remaining'];
+          final unit = widget.details['progress_unit']?.toString() ?? 'days';
+          if (remaining is num) {
+            return '$remaining more $unit needed to unlock Training Load.';
+          }
+          return 'Training Load is calibrating.';
         }
         return t("taqa_training_no_data");
       }
-      if (widget.score == 0 && widget.path == 'no_workout') {
-        return t("taqa_training_no_workout");
-      }
-      final note = widget.details['note']?.toString();
-      if (note == 'bootstrap_assumed_acwr_1_0') {
-        return "Using starter ACWR baseline until enough history is available";
-      }
-      final riskZone = widget.details['risk_zone']?.toString();
-      if (riskZone != null && riskZone.isNotEmpty) {
-        return "Load status: ${_prettyRiskZone(riskZone)}";
+
+      final status = widget.details['status_label']?.toString();
+      if (status != null && status.isNotEmpty) {
+        return 'Load status: $status';
       }
     }
     if (widget.metricKey == 'nutrition' && widget.score == null) {
@@ -817,30 +834,22 @@ class _PillarCardState extends State<_PillarCard> {
   }
 
   String _formatDetailValue(String key, dynamic rawVal) {
-    if (key == 'risk_zone') {
-      return _prettyRiskZone(rawVal.toString());
+    if (rawVal is bool) {
+      return rawVal ? 'Yes' : 'No';
     }
     if (rawVal is num) {
+      if (key == 'active_days_7d' || key == 'phase') {
+        return rawVal.toInt().toString();
+      }
+      if (key == 'wow_change_pct') {
+        return '${rawVal.toStringAsFixed(1)}%';
+      }
+      if (key == 'efficiency_ratio') {
+        return rawVal.toStringAsFixed(3);
+      }
       return rawVal.toStringAsFixed(1);
     }
     return rawVal.toString();
-  }
-
-  String _prettyRiskZone(String raw) {
-    switch (raw) {
-      case 'optimal_zone':
-        return 'Optimal';
-      case 'low_load_warning':
-        return 'Low load warning';
-      case 'undertraining_flag':
-        return 'Undertraining flag';
-      case 'moderate_risk':
-        return 'Moderate risk';
-      case 'injury_risk_flag':
-        return 'Injury risk flag';
-      default:
-        return raw.replaceAll('_', ' ');
-    }
   }
 }
 
@@ -854,6 +863,10 @@ class _PathChip extends StatelessWidget {
         ? 'Wearable'
         : path == 'journal'
         ? 'Journal'
+        : path == 'tflu_v1'
+        ? 'TFLU'
+        : path == 'coming_soon'
+        ? 'Coming Soon'
         : path == 'diet_data'
         ? 'Diet'
         : path == 'journal_nutrition'
@@ -873,6 +886,10 @@ class _PathChip extends StatelessWidget {
         ? Icons.watch_rounded
         : path == 'journal'
         ? Icons.edit_note_rounded
+        : path == 'tflu_v1'
+        ? Icons.insights_rounded
+        : path == 'coming_soon'
+        ? Icons.schedule_rounded
         : path == 'diet_data'
         ? Icons.restaurant_rounded
         : path == 'journal_nutrition'
