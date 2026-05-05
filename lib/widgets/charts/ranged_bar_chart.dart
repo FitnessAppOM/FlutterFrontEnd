@@ -83,7 +83,9 @@ class RangedBarChart extends StatelessWidget {
           final index = pair.key;
           final entry = pair.value;
           final isSelected = selectedIndex == index;
-          final heightFactor = (entry.value / maxValue).clamp(0.0, 1.0);
+          final safeValue = entry.value.isFinite ? entry.value : 0.0;
+          final safeMaxValue = maxValue.isFinite && maxValue > 0 ? maxValue : 1.0;
+          final heightFactor = (safeValue / safeMaxValue).clamp(0.0, 1.0);
           final label = entry.axisLabel;
           final showLabel = showAxisLabels && label.isNotEmpty;
           final bar = Container(
@@ -150,7 +152,9 @@ class RangedBarChart extends StatelessWidget {
         }).toList();
 
         double yForValue(num v) {
-          final ratio = (v / maxValue).clamp(0.0, 1.0);
+          final safeMaxValue = maxValue.isFinite && maxValue > 0 ? maxValue : 1.0;
+          final safeInput = v.isFinite ? v : 0;
+          final ratio = (safeInput / safeMaxValue).clamp(0.0, 1.0);
           return (1.0 - ratio) * barMaxHeight;
         }
 
@@ -161,12 +165,18 @@ class RangedBarChart extends StatelessWidget {
               Positioned(
                 right: 0,
                 top: 0,
-                child: Text(formatValue(maxValue), style: axisTextStyle),
+                child: Text(
+                  formatValue(maxValue.isFinite ? maxValue : 0),
+                  style: axisTextStyle,
+                ),
               ),
               Positioned(
                 right: 0,
                 top: (yForValue(midValue) - 6).clamp(0.0, barMaxHeight - 12),
-                child: Text(formatValue(midValue), style: axisTextStyle),
+                child: Text(
+                  formatValue(midValue.isFinite ? midValue : 0),
+                  style: axisTextStyle,
+                ),
               ),
               Positioned(
                 right: 0,

@@ -91,9 +91,12 @@ class _ExpertWeeklyMetricsDetailPageState
   }
 
   double _toDouble(dynamic value, {double fallback = 0}) {
-    if (value is double) return value;
-    if (value is num) return value.toDouble();
-    return double.tryParse(value?.toString() ?? '') ?? fallback;
+    final parsed = switch (value) {
+      double v => v,
+      num v => v.toDouble(),
+      _ => double.tryParse(value?.toString() ?? '') ?? fallback,
+    };
+    return parsed.isFinite ? parsed : fallback;
   }
 
   DateTime? _dateOnly(String? raw) {
@@ -438,7 +441,8 @@ class _ExpertWeeklyMetricsDetailPageState
       compliance['weight_used'] ?? exercise['weight_used'],
     );
     if (sets <= 0 || reps <= 0 || weight <= 0) return 0;
-    return sets * reps * weight;
+    final volume = sets * reps * weight;
+    return volume.isFinite ? volume : 0;
   }
 
   Widget _buildLineChart({

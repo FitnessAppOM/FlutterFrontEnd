@@ -136,12 +136,6 @@ void main() async {
   // await NotificationService.showDebugJournalAndDietNow();
   // Submit today's burn BEFORE scheduling notifications so the 9pm diet
   // check-in body reflects the surplus-adjusted target, not the base target.
-  try {
-    await DailyProviderPushService().pushIfAfterOneAmLocal();
-  } catch (e) {
-    // ignore: avoid_print
-    print("DailyMetricsSync daily push skipped: $e");
-  }
   await NotificationService.refreshDailyJournalRemindersForCurrentUser();
   await NotificationService.refreshExpertAiUpdatesReminderForCurrentUser();
   final launchPayload = await NotificationService.getLaunchPayload();
@@ -180,13 +174,21 @@ void main() async {
 
   runApp(WithForegroundTask(child: MyApp(initialPayload: launchPayload)));
 
-  //  Delay consent request to avoid iOS freeze
-  if (Platform.isIOS) {
-    Future.delayed(
-      const Duration(milliseconds: 300),
-      () async => await ConsentManager.requestStartupConsents(),
-    );
-  }
+  // Run non-critical consent/sync work after the first frame so startup is not
+  // blocked by permission prompts or health reads.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    Future<void>(() async {
+      if (Platform.isIOS) {
+        await ConsentManager.requestStartupConsents();
+      }
+      try {
+        await DailyProviderPushService().pushIfAfterOneAmLocal();
+      } catch (e) {
+        // ignore: avoid_print
+        print("DailyMetricsSync daily push skipped: $e");
+      }
+    });
+  });
 }
 
 class MyApp extends StatefulWidget {
@@ -257,7 +259,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _maybeRequestAndroidHealthPermission() async {
-    if (!(Platform.isAndroid || Platform.isIOS) ||
+    if (!Platform.isAndroid ||
         _androidHealthPermissionGranted ||
         _androidHealthPermissionInFlight) {
       return;

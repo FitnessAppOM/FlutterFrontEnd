@@ -156,7 +156,7 @@ class _LineChartPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (values.isEmpty) return;
-    final clean = values.whereType<double>().toList();
+    final clean = values.whereType<double>().where((v) => v.isFinite).toList();
     if (clean.isEmpty) return;
 
     var minVal = clean.reduce(min);
@@ -245,16 +245,17 @@ class _LineChartPainter extends CustomPainter {
   List<List<Offset>> _segments(Rect chart, double minVal, double range) {
     final segs = <List<Offset>>[];
     List<Offset> current = [];
+    final denominator = values.length > 1 ? values.length - 1 : 1;
     for (int i = 0; i < values.length; i++) {
       final v = values[i];
-      if (v == null) {
+      if (v == null || !v.isFinite) {
         if (current.isNotEmpty) {
           segs.add(current);
           current = [];
         }
         continue;
       }
-      final x = chart.left + (i / (values.length - 1)) * chart.width;
+      final x = chart.left + (i / denominator) * chart.width;
       final y = chart.bottom - ((v - minVal) / range) * chart.height;
       current.add(Offset(x, y));
     }
@@ -263,10 +264,11 @@ class _LineChartPainter extends CustomPainter {
   }
 
   Offset? _lastPoint(Rect chart, double minVal, double range) {
+    final denominator = values.length > 1 ? values.length - 1 : 1;
     for (int i = values.length - 1; i >= 0; i--) {
       final v = values[i];
-      if (v == null) continue;
-      final x = chart.left + (i / (values.length - 1)) * chart.width;
+      if (v == null || !v.isFinite) continue;
+      final x = chart.left + (i / denominator) * chart.width;
       final y = chart.bottom - ((v - minVal) / range) * chart.height;
       return Offset(x, y);
     }
@@ -275,10 +277,11 @@ class _LineChartPainter extends CustomPainter {
 
   List<Offset> _allPoints(Rect chart, double minVal, double range) {
     final points = <Offset>[];
+    final denominator = values.length > 1 ? values.length - 1 : 1;
     for (int i = 0; i < values.length; i++) {
       final v = values[i];
-      if (v == null) continue;
-      final x = chart.left + (i / (values.length - 1)) * chart.width;
+      if (v == null || !v.isFinite) continue;
+      final x = chart.left + (i / denominator) * chart.width;
       final y = chart.bottom - ((v - minVal) / range) * chart.height;
       points.add(Offset(x, y));
     }
