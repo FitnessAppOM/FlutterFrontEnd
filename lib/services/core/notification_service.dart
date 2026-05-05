@@ -12,6 +12,8 @@ import '../diet/diet_service.dart';
 class NotificationService {
   static const int _journalResetHour = 6;
   static const int _expertAiUpdatesReminderId = 5;
+  static const int _expertAiUpdatesReminderBaseId = 500;
+  static const int _expertAiUpdatesReminderWeeksAhead = 12;
   static final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   static const String dailyJournalPayload = 'daily_journal';
@@ -303,7 +305,7 @@ class NotificationService {
     final userId = await AccountStorage.getUserId();
     final isExpert = await AccountStorage.isExpert();
     if (userId == null || !isExpert) {
-      await _plugin.cancel(_expertAiUpdatesReminderId);
+      await _cancelExpertAiUpdateReminders();
       return;
     }
 
@@ -312,28 +314,33 @@ class NotificationService {
         ? AndroidScheduleMode.exactAllowWhileIdle
         : AndroidScheduleMode.inexactAllowWhileIdle;
 
-    await _plugin.cancel(_expertAiUpdatesReminderId);
-    final nextSundayAtFivePm = _nextInstanceAtWeekdayAndTime(
+    await _cancelExpertAiUpdateReminders();
+    final upcomingReminders = _nextWeeklyInstancesAtWeekdayAndTime(
       DateTime.sunday,
       17,
       0,
+      count: _expertAiUpdatesReminderWeeksAhead,
     );
-    // ignore: avoid_print
-    print(
-      '[Notif] next expert AI reminder=$nextSundayAtFivePm mode=$scheduleMode',
-    );
-    await _plugin.zonedSchedule(
-      _expertAiUpdatesReminderId,
-      'AI Updates Reminder',
-      'Check AI updates for your clients or generate new suggestions.',
-      nextSundayAtFivePm,
-      _defaultDetails,
-      payload: expertAiUpdatesPayload,
-      androidScheduleMode: scheduleMode,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
-    );
+    for (var i = 0; i < upcomingReminders.length; i++) {
+      final scheduledAt = upcomingReminders[i];
+      final notificationId = _expertAiUpdatesReminderBaseId + i;
+      // ignore: avoid_print
+      print(
+        '[Notif] expert AI reminder #${i + 1} id=$notificationId at=$scheduledAt mode=$scheduleMode',
+      );
+      await _plugin.zonedSchedule(
+        notificationId,
+        'AI Updates Reminder',
+        'Check AI updates for your clients or generate new suggestions.',
+        scheduledAt,
+        _defaultDetails,
+        payload: expertAiUpdatesPayload,
+        androidScheduleMode: scheduleMode,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    }
+    await _logPendingNotifications();
   }
 
   static Future<void> rescheduleDailyJournalRemindersForTomorrow() async {
@@ -468,6 +475,27 @@ class NotificationService {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
     return scheduledDate;
+  }
+
+  static List<tz.TZDateTime> _nextWeeklyInstancesAtWeekdayAndTime(
+    int weekday,
+    int hour,
+    int minute, {
+    required int count,
+  }) {
+    final first = _nextInstanceAtWeekdayAndTime(weekday, hour, minute);
+    return List<tz.TZDateTime>.generate(
+      count,
+      (index) => first.add(Duration(days: 7 * index)),
+      growable: false,
+    );
+  }
+
+  static Future<void> _cancelExpertAiUpdateReminders() async {
+    await _plugin.cancel(_expertAiUpdatesReminderId);
+    for (var i = 0; i < _expertAiUpdatesReminderWeeksAhead; i++) {
+      await _plugin.cancel(_expertAiUpdatesReminderBaseId + i);
+    }
   }
 
   static Future<bool> requestExactAlarmPermission() async {

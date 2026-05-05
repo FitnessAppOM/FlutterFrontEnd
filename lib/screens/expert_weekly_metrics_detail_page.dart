@@ -407,8 +407,9 @@ class _ExpertWeeklyMetricsDetailPageState
     );
     final maxValue = max <= 0 ? 1.0 : max;
     final midValue = maxValue / 2.0;
+    final chartHeight = (yAxisTitle ?? '').trim().isEmpty ? 210.0 : 242.0;
     return SizedBox(
-      height: 210,
+      height: chartHeight,
       child: RangedBarChart(
         entries: entries,
         maxValue: maxValue,
@@ -640,7 +641,11 @@ class _ExpertWeeklyMetricsDetailPageState
   }
 
   List<Map<String, dynamic>> _programDaysSorted() {
-    final days = _mapList(_activeProgram['days']);
+    final days = List<Map<String, dynamic>>.from(
+      _mapList(_activeProgram['days']),
+      growable: true,
+    );
+    if (days.isEmpty) return const [];
     days.sort((a, b) => _toInt(a['day_index']).compareTo(_toInt(b['day_index'])));
     return days;
   }

@@ -227,6 +227,7 @@ class RangedBarChart extends StatelessWidget {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           yAxisTitle!,
@@ -237,7 +238,7 @@ class RangedBarChart extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Expanded(child: chart),
+        SizedBox(height: 210, child: chart),
       ],
     );
   }
