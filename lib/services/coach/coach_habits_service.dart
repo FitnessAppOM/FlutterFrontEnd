@@ -56,7 +56,13 @@ class CoachHabitItem {
       if (v == null) return null;
       final raw = v.toString().trim();
       if (raw.isEmpty) return null;
-      return DateTime.tryParse(raw);
+      // Defensive: treat tz-less strings as UTC. The backend now serializes
+      // habit timestamps with an explicit 'Z'; this fallback keeps old
+      // responses and cached payloads rendering in the correct timezone via
+      // .toLocal() instead of being silently parsed as device-local.
+      final hasTz = raw.endsWith('Z') ||
+          RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(raw);
+      return DateTime.tryParse(hasTz ? raw : '${raw}Z');
     }
 
     return CoachHabitItem(

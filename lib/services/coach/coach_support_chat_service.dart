@@ -64,7 +64,13 @@ class CoachSupportChatMessage {
     DateTime? parseDate(dynamic value) {
       final raw = value?.toString().trim() ?? '';
       if (raw.isEmpty) return null;
-      return DateTime.tryParse(raw);
+      // Defensive: treat tz-less strings as UTC. The backend now serializes
+      // chat timestamps with an explicit 'Z'; this fallback keeps old
+      // responses and cached payloads rendering in the correct timezone via
+      // .toLocal() instead of being silently parsed as device-local.
+      final hasTz = raw.endsWith('Z') ||
+          RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(raw);
+      return DateTime.tryParse(hasTz ? raw : '${raw}Z');
     }
 
     bool parseBool(dynamic value) {
@@ -159,7 +165,13 @@ class CoachSupportChatThread {
     DateTime? parseDate(dynamic value) {
       final raw = value?.toString().trim() ?? '';
       if (raw.isEmpty) return null;
-      return DateTime.tryParse(raw);
+      // Defensive: treat tz-less strings as UTC. The backend now serializes
+      // chat timestamps with an explicit 'Z'; this fallback keeps old
+      // responses and cached payloads rendering in the correct timezone via
+      // .toLocal() instead of being silently parsed as device-local.
+      final hasTz = raw.endsWith('Z') ||
+          RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(raw);
+      return DateTime.tryParse(hasTz ? raw : '${raw}Z');
     }
 
     String? parseString(dynamic value) {
@@ -248,7 +260,13 @@ class CoachSupportChatSla {
     DateTime? parseDate(dynamic value) {
       final raw = value?.toString().trim() ?? '';
       if (raw.isEmpty) return null;
-      return DateTime.tryParse(raw);
+      // Defensive: treat tz-less strings as UTC. The backend now serializes
+      // chat timestamps with an explicit 'Z'; this fallback keeps old
+      // responses and cached payloads rendering in the correct timezone via
+      // .toLocal() instead of being silently parsed as device-local.
+      final hasTz = raw.endsWith('Z') ||
+          RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(raw);
+      return DateTime.tryParse(hasTz ? raw : '${raw}Z');
     }
 
     return CoachSupportChatSla(
@@ -403,7 +421,13 @@ class CoachSupportChatThreadSummary {
     DateTime? parseDate(dynamic value) {
       final raw = value?.toString().trim() ?? '';
       if (raw.isEmpty) return null;
-      return DateTime.tryParse(raw);
+      // Defensive: treat tz-less strings as UTC. The backend now serializes
+      // chat timestamps with an explicit 'Z'; this fallback keeps old
+      // responses and cached payloads rendering in the correct timezone via
+      // .toLocal() instead of being silently parsed as device-local.
+      final hasTz = raw.endsWith('Z') ||
+          RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(raw);
+      return DateTime.tryParse(hasTz ? raw : '${raw}Z');
     }
 
     String? parseString(dynamic value) {
