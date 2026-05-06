@@ -292,6 +292,18 @@ class _MyAppState extends State<MyApp> {
       title: 'Taqa Fitness',
       debugShowCheckedModeBanner: false,
       locale: localeController.locale,
+      builder: (context, child) {
+        final mediaQuery = MediaQuery.of(context);
+        final clampedTextScaler = mediaQuery.textScaler.clamp(
+          minScaleFactor: 1.0,
+          maxScaleFactor: 1.15,
+        );
+
+        return MediaQuery(
+          data: mediaQuery.copyWith(textScaler: clampedTextScaler),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       localizationsDelegates: const [
         AppLocalizationsDelegate(),
         GlobalMaterialLocalizations.delegate,
