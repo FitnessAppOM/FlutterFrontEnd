@@ -68,8 +68,8 @@ class CoachSupportChatMessage {
       // chat timestamps with an explicit 'Z'; this fallback keeps old
       // responses and cached payloads rendering in the correct timezone via
       // .toLocal() instead of being silently parsed as device-local.
-      final hasTz = raw.endsWith('Z') ||
-          RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(raw);
+      final hasTz =
+          raw.endsWith('Z') || RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(raw);
       return DateTime.tryParse(hasTz ? raw : '${raw}Z');
     }
 
@@ -141,6 +141,10 @@ class CoachSupportChatThread {
     this.updatedAt,
     this.lastClientMessageAt,
     this.lastCoachMessageAt,
+    this.lastClientReadAt,
+    this.lastCoachReadAt,
+    this.hasUnreadForClient = false,
+    this.hasUnreadForCoach = false,
   });
 
   final int id;
@@ -154,6 +158,10 @@ class CoachSupportChatThread {
   final DateTime? updatedAt;
   final DateTime? lastClientMessageAt;
   final DateTime? lastCoachMessageAt;
+  final DateTime? lastClientReadAt;
+  final DateTime? lastCoachReadAt;
+  final bool hasUnreadForClient;
+  final bool hasUnreadForCoach;
 
   factory CoachSupportChatThread.fromJson(Map<String, dynamic> json) {
     int parseInt(dynamic value) {
@@ -169,8 +177,8 @@ class CoachSupportChatThread {
       // chat timestamps with an explicit 'Z'; this fallback keeps old
       // responses and cached payloads rendering in the correct timezone via
       // .toLocal() instead of being silently parsed as device-local.
-      final hasTz = raw.endsWith('Z') ||
-          RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(raw);
+      final hasTz =
+          raw.endsWith('Z') || RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(raw);
       return DateTime.tryParse(hasTz ? raw : '${raw}Z');
     }
 
@@ -180,6 +188,12 @@ class CoachSupportChatThread {
       final lower = raw.toLowerCase();
       if (lower == 'null' || lower == 'none') return null;
       return raw;
+    }
+
+    bool parseBool(dynamic value) {
+      if (value is bool) return value;
+      final raw = value?.toString().trim().toLowerCase() ?? '';
+      return raw == 'true' || raw == '1' || raw == 'yes';
     }
 
     return CoachSupportChatThread(
@@ -205,6 +219,18 @@ class CoachSupportChatThread {
       ),
       lastCoachMessageAt: parseDate(
         json['last_coach_message_at'] ?? json['lastCoachMessageAt'],
+      ),
+      lastClientReadAt: parseDate(
+        json['last_client_read_at'] ?? json['lastClientReadAt'],
+      ),
+      lastCoachReadAt: parseDate(
+        json['last_coach_read_at'] ?? json['lastCoachReadAt'],
+      ),
+      hasUnreadForClient: parseBool(
+        json['has_unread_for_client'] ?? json['hasUnreadForClient'],
+      ),
+      hasUnreadForCoach: parseBool(
+        json['has_unread_for_coach'] ?? json['hasUnreadForCoach'],
       ),
     );
   }
@@ -264,8 +290,8 @@ class CoachSupportChatSla {
       // chat timestamps with an explicit 'Z'; this fallback keeps old
       // responses and cached payloads rendering in the correct timezone via
       // .toLocal() instead of being silently parsed as device-local.
-      final hasTz = raw.endsWith('Z') ||
-          RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(raw);
+      final hasTz =
+          raw.endsWith('Z') || RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(raw);
       return DateTime.tryParse(hasTz ? raw : '${raw}Z');
     }
 
@@ -393,6 +419,9 @@ class CoachSupportChatThreadSummary {
     this.updatedAt,
     this.lastClientMessageAt,
     this.lastCoachMessageAt,
+    this.lastClientReadAt,
+    this.lastCoachReadAt,
+    this.hasUnreadForClient = false,
   });
 
   final int coachUserId;
@@ -403,6 +432,9 @@ class CoachSupportChatThreadSummary {
   final DateTime? updatedAt;
   final DateTime? lastClientMessageAt;
   final DateTime? lastCoachMessageAt;
+  final DateTime? lastClientReadAt;
+  final DateTime? lastCoachReadAt;
+  final bool hasUnreadForClient;
 
   factory CoachSupportChatThreadSummary.fromJson(Map<String, dynamic> json) {
     int parseInt(dynamic value) {
@@ -425,14 +457,20 @@ class CoachSupportChatThreadSummary {
       // chat timestamps with an explicit 'Z'; this fallback keeps old
       // responses and cached payloads rendering in the correct timezone via
       // .toLocal() instead of being silently parsed as device-local.
-      final hasTz = raw.endsWith('Z') ||
-          RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(raw);
+      final hasTz =
+          raw.endsWith('Z') || RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(raw);
       return DateTime.tryParse(hasTz ? raw : '${raw}Z');
     }
 
     String? parseString(dynamic value) {
       final raw = value?.toString().trim() ?? '';
       return raw.isEmpty ? null : raw;
+    }
+
+    bool parseBool(dynamic value) {
+      if (value is bool) return value;
+      final raw = value?.toString().trim().toLowerCase() ?? '';
+      return raw == 'true' || raw == '1' || raw == 'yes';
     }
 
     return CoachSupportChatThreadSummary(
@@ -448,6 +486,15 @@ class CoachSupportChatThreadSummary {
       ),
       lastCoachMessageAt: parseDate(
         json['last_coach_message_at'] ?? json['lastCoachMessageAt'],
+      ),
+      lastClientReadAt: parseDate(
+        json['last_client_read_at'] ?? json['lastClientReadAt'],
+      ),
+      lastCoachReadAt: parseDate(
+        json['last_coach_read_at'] ?? json['lastCoachReadAt'],
+      ),
+      hasUnreadForClient: parseBool(
+        json['has_unread_for_client'] ?? json['hasUnreadForClient'],
       ),
     );
   }
@@ -582,6 +629,27 @@ class CoachSupportChatService {
       throw Exception('Failed to load support chat');
     }
     return CoachSupportChatState.fromJson(Map<String, dynamic>.from(decoded));
+  }
+
+  static Future<bool> fetchCoachClientThreadHasUnread({
+    required int clientUserId,
+  }) async {
+    final res = await http.get(
+      _uri('/coach/chat/coach/clients/$clientUserId/status'),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to load support chat status', res.body),
+      );
+    }
+    final decoded = jsonDecode(res.body);
+    if (decoded is! Map) return false;
+    final raw = decoded['has_unread_for_coach'] ?? decoded['hasUnreadForCoach'];
+    if (raw is bool) return raw;
+    final text = raw?.toString().trim().toLowerCase() ?? '';
+    return text == 'true' || text == '1' || text == 'yes';
   }
 
   static Future<CoachSupportChatState> sendCoachTextMessage({

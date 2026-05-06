@@ -13,6 +13,7 @@ import '../core/account_storage.dart';
 import '../services/auth/profile_service.dart';
 import '../services/coach/chat_attachment_file_service.dart';
 import '../services/coach/coach_habits_service.dart';
+import '../services/coach/coach_support_chat_service.dart';
 import '../services/coach/form_check_service.dart';
 import '../services/coach/progression_review_service.dart';
 import '../services/coach/voice_note_audio_service.dart';
@@ -90,6 +91,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   late bool _showDietLogPendingNote;
   late bool _showTrainingPlanPendingNote;
   bool _dietLogSeenNotified = false;
+  bool _supportChatHasUnread = false;
 
   @override
   void initState() {
@@ -148,6 +150,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     String? habitsError;
     String? formChecksError;
     bool showTrainingPlanPendingNote = _showTrainingPlanPendingNote;
+    bool supportChatHasUnread = _supportChatHasUnread;
 
     try {
       expertId = await AccountStorage.getUserId();
@@ -190,6 +193,15 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       formChecksError = _normalizeHabitsError(e);
     }
 
+    try {
+      supportChatHasUnread =
+          await CoachSupportChatService.fetchCoachClientThreadHasUnread(
+            clientUserId: widget.client.userId,
+          );
+    } catch (_) {
+      // Keep previous value if support-chat status cannot be loaded.
+    }
+
     if (!mounted) return;
     _syncReviewControllers(sharedFormChecks);
     setState(() {
@@ -201,8 +213,22 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       _habitsError = habitsError;
       _formChecksError = formChecksError;
       _showTrainingPlanPendingNote = showTrainingPlanPendingNote;
+      _supportChatHasUnread = supportChatHasUnread;
       _loading = false;
     });
+  }
+
+  Future<void> _refreshSupportChatUnreadStatus() async {
+    try {
+      final hasUnread =
+          await CoachSupportChatService.fetchCoachClientThreadHasUnread(
+            clientUserId: widget.client.userId,
+          );
+      if (!mounted) return;
+      setState(() {
+        _supportChatHasUnread = hasUnread;
+      });
+    } catch (_) {}
   }
 
   void _handleTrainingPlanVerified() {
@@ -270,7 +296,9 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     final hasTraining = _showTrainingPlanPendingNote;
     if (hasForm && hasTraining) {
       final count = _pendingAiUpdateCount;
-      return count > 1 ? 'AI updates pending review ($count)' : 'AI update pending review';
+      return count > 1
+          ? 'AI updates pending review ($count)'
+          : 'AI update pending review';
     }
     if (hasForm) {
       return widget.client.sharedFormCheckCount > 1
@@ -283,7 +311,9 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
           : 'Training suggestions pending review';
     }
     final reviewCount = _clientAiReviews().length;
-    return reviewCount > 0 ? 'Latest AI updates ready' : 'No AI updates pending';
+    return reviewCount > 0
+        ? 'Latest AI updates ready'
+        : 'No AI updates pending';
   }
 
   Future<void> _openAiReview(ProgressionReview review) async {
@@ -2087,6 +2117,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
         ),
       ),
     );
+    await _refreshSupportChatUnreadStatus();
   }
 
   Widget _buildClientOverviewCard() {
@@ -2598,8 +2629,8 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                children: const [
-                  Expanded(
+                children: [
+                  const Expanded(
                     child: Text(
                       'Support Chat',
                       style: TextStyle(
@@ -2609,13 +2640,49 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                       ),
                     ),
                   ),
-                  Icon(Icons.chevron_right, color: Colors.white54, size: 20),
+                  if (_supportChatHasUnread) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF5FD8FF).withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: const Color(
+                            0xFF5FD8FF,
+                          ).withValues(alpha: 0.45),
+                        ),
+                      ),
+                      child: const Text(
+                        'New',
+                        style: TextStyle(
+                          color: Color(0xFF5FD8FF),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  const Icon(
+                    Icons.chevron_right,
+                    color: Colors.white54,
+                    size: 20,
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Open chat thread with this client and send text replies.',
-                style: TextStyle(color: Colors.white70),
+              Text(
+                _supportChatHasUnread
+                    ? 'Client sent a new message. Open support chat to read it.'
+                    : 'Open chat thread with this client and send text replies.',
+                style: TextStyle(
+                  color: _supportChatHasUnread
+                      ? const Color(0xFF5FD8FF)
+                      : Colors.white70,
+                ),
               ),
               const SizedBox(height: 10),
               Align(
@@ -3028,16 +3095,19 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
     bool showTrainingPlanPendingNote = _showTrainingPlanPendingNote;
 
     try {
-      final status = await ProgressionReviewService.fetchClientTrainingPlanSeenStatus(
-        clientUserId: widget.client.userId,
-      );
-      showTrainingPlanPendingNote = status['has_unchecked_training_plan'] == true;
+      final status =
+          await ProgressionReviewService.fetchClientTrainingPlanSeenStatus(
+            clientUserId: widget.client.userId,
+          );
+      showTrainingPlanPendingNote =
+          status['has_unchecked_training_plan'] == true;
     } catch (_) {}
 
     try {
-      sharedFormChecks = await ProgressionReviewService.fetchClientSharedFormChecks(
-        widget.client.userId,
-      );
+      sharedFormChecks =
+          await ProgressionReviewService.fetchClientSharedFormChecks(
+            widget.client.userId,
+          );
     } catch (e) {
       formChecksError = _normalizeError(e);
     }
@@ -3046,22 +3116,24 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
       final reviews = await ProgressionReviewService.fetchReviews(
         includeApplied: true,
       );
-      clientReviews = reviews.where((r) => r.userId == widget.client.userId).toList();
+      clientReviews = reviews
+          .where((r) => r.userId == widget.client.userId)
+          .toList();
       clientReviews.sort((a, b) {
         final aPriority = a.isPendingExpert
             ? 0
             : a.isReviewed
-                ? 1
-                : a.isApplied
-                    ? 2
-                    : 3;
+            ? 1
+            : a.isApplied
+            ? 2
+            : 3;
         final bPriority = b.isPendingExpert
             ? 0
             : b.isReviewed
-                ? 1
-                : b.isApplied
-                    ? 2
-                    : 3;
+            ? 1
+            : b.isApplied
+            ? 2
+            : 3;
         if (aPriority != bPriority) return aPriority.compareTo(bPriority);
         final aDate = a.reviewedAt ?? a.appliedAt ?? a.weekStart ?? '';
         final bDate = b.reviewedAt ?? b.appliedAt ?? b.weekStart ?? '';
@@ -3123,7 +3195,9 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
     final hasTraining = _showTrainingPlanPendingNote;
     if (hasForm && hasTraining) {
       final count = _pendingAiUpdateCount;
-      return count > 1 ? 'AI updates pending review ($count)' : 'AI update pending review';
+      return count > 1
+          ? 'AI updates pending review ($count)'
+          : 'AI update pending review';
     }
     if (hasForm) {
       final pendingFormCount = _sharedFormChecks
@@ -3219,7 +3293,10 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  _sharedFormChecks.where((item) => item.coachReview == null).length > 1
+                  _sharedFormChecks
+                              .where((item) => item.coachReview == null)
+                              .length >
+                          1
                       ? 'Awaiting your reply (${_sharedFormChecks.where((item) => item.coachReview == null).length})'
                       : 'Awaiting your reply',
                   style: const TextStyle(
@@ -3234,10 +3311,7 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
         ],
         const SizedBox(height: 10),
         if (_formChecksError != null)
-          Text(
-            _formChecksError!,
-            style: const TextStyle(color: Colors.white70),
-          )
+          Text(_formChecksError!, style: const TextStyle(color: Colors.white70))
         else if (_sharedFormChecks.isEmpty)
           const Text(
             'No videos available for review.',
@@ -3455,10 +3529,7 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
 }
 
 class _AiUpdateStatusPill extends StatelessWidget {
-  const _AiUpdateStatusPill({
-    required this.label,
-    required this.color,
-  });
+  const _AiUpdateStatusPill({required this.label, required this.color});
 
   final String label;
   final Color color;
@@ -3485,10 +3556,7 @@ class _AiUpdateStatusPill extends StatelessWidget {
 }
 
 class _ClientAiReviewCard extends StatelessWidget {
-  const _ClientAiReviewCard({
-    required this.review,
-    required this.onTap,
-  });
+  const _ClientAiReviewCard({required this.review, required this.onTap});
 
   final ProgressionReview review;
   final VoidCallback onTap;
@@ -3570,10 +3638,7 @@ class _ClientAiReviewCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                _AiUpdateStatusPill(
-                  label: _statusLabel(),
-                  color: statusColor,
-                ),
+                _AiUpdateStatusPill(label: _statusLabel(), color: statusColor),
                 const SizedBox(height: 8),
                 const Icon(Icons.chevron_right, color: Colors.white38),
               ],

@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../config/base_url.dart';
 import '../localization/app_localizations.dart';
 import '../services/coach/coach_habit_reminder_settings_service.dart';
+import '../services/coach/coach_support_chat_service.dart';
 import '../services/coach/diet_document_file_service.dart';
 import '../services/coach/progression_review_service.dart';
 import '../services/training/training_service.dart';
@@ -61,6 +62,8 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
   int _newPendingConnectionRequestCount = 0;
   final Set<int> _dietBadgeSuppressedClientIds = <int>{};
   final Set<int> _newClientBadgeSuppressedClientIds = <int>{};
+  final Set<int> _supportChatUnreadClientIds = <int>{};
+  int _supportChatUnreadRefreshSequence = 0;
   bool _loadingHabitReminderSettings = false;
   bool _savingHabitReminderSettings = false;
   bool _triggeringHabitReminderNow = false;
@@ -1119,7 +1122,11 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
             (c) => c.hasNewAssignment || c.newAssignmentCount > 0,
           );
         });
+        _supportChatUnreadClientIds.removeWhere(
+          (userId) => !_clients.any((client) => client.userId == userId),
+        );
       });
+      unawaited(_refreshSupportChatUnreadFlags(fetchedClients));
       if (visibleNewClientCount > previousNewClientCount) {
         AppToast.show(
           context,
@@ -1146,6 +1153,42 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
     }
   }
 
+  Future<void> _refreshSupportChatUnreadFlags(
+    List<ProgressionClient> clients,
+  ) async {
+    final refreshSequence = ++_supportChatUnreadRefreshSequence;
+    if (clients.isEmpty) {
+      if (!mounted) return;
+      setState(() => _supportChatUnreadClientIds.clear());
+      return;
+    }
+    final unreadEntries = await Future.wait(
+      clients.map((client) async {
+        try {
+          final hasUnread =
+              await CoachSupportChatService.fetchCoachClientThreadHasUnread(
+                clientUserId: client.userId,
+              );
+          return MapEntry(client.userId, hasUnread);
+        } catch (_) {
+          return MapEntry(client.userId, false);
+        }
+      }),
+    );
+    if (!mounted || refreshSequence != _supportChatUnreadRefreshSequence) {
+      return;
+    }
+    final unreadClientIds = unreadEntries
+        .where((entry) => entry.value)
+        .map((entry) => entry.key)
+        .toSet();
+    setState(() {
+      _supportChatUnreadClientIds
+        ..clear()
+        ..addAll(unreadClientIds);
+    });
+  }
+
   Future<void> _generateReview(int clientUserId, {required bool force}) async {
     if (_generating) return;
     setState(() => _generating = true);
@@ -1165,8 +1208,9 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
           message = 'A review already exists for this week.';
           break;
         case 'noop':
-          message = (result['detail'] ?? result['reason'] ?? 'No review generated.')
-              .toString();
+          message =
+              (result['detail'] ?? result['reason'] ?? 'No review generated.')
+                  .toString();
           break;
         case 'failed':
           message =
@@ -1563,11 +1607,13 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       ..sort((a, b) {
         final aHasPending =
             a.hasNewAssignment ||
+            _supportChatUnreadClientIds.contains(a.userId) ||
             a.hasFormCheckToReview ||
             a.hasDietLogToReview ||
             a.hasUncheckedTrainingPlan;
         final bHasPending =
             b.hasNewAssignment ||
+            _supportChatUnreadClientIds.contains(b.userId) ||
             b.hasFormCheckToReview ||
             b.hasDietLogToReview ||
             b.hasUncheckedTrainingPlan;
@@ -1576,6 +1622,15 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
         }
         if (a.hasNewAssignment != b.hasNewAssignment) {
           return b.hasNewAssignment ? 1 : -1;
+        }
+        final aHasSupportUnread = _supportChatUnreadClientIds.contains(
+          a.userId,
+        );
+        final bHasSupportUnread = _supportChatUnreadClientIds.contains(
+          b.userId,
+        );
+        if (aHasSupportUnread != bHasSupportUnread) {
+          return bHasSupportUnread ? 1 : -1;
         }
         if (a.newAssignmentCount != b.newAssignmentCount) {
           return b.newAssignmentCount.compareTo(a.newAssignmentCount);
@@ -1621,6 +1676,9 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: _ClientOverviewCard(
                   client: client,
+                  hasSupportChatUnread: _supportChatUnreadClientIds.contains(
+                    client.userId,
+                  ),
                   reviewCount: totalReviews,
                   onView: () => _openClientDetail(client),
                 ),
@@ -2971,11 +3029,13 @@ class _ClientCard extends StatelessWidget {
 class _ClientOverviewCard extends StatelessWidget {
   const _ClientOverviewCard({
     required this.client,
+    required this.hasSupportChatUnread,
     required this.reviewCount,
     required this.onView,
   });
 
   final ProgressionClient client;
+  final bool hasSupportChatUnread;
   final int reviewCount;
   final VoidCallback onView;
 
@@ -2994,7 +3054,8 @@ class _ClientOverviewCard extends StatelessWidget {
     final hasForm = client.hasFormCheckToReview;
     final hasTraining = client.hasUncheckedTrainingPlan;
     if (hasForm && hasTraining) {
-      final total = client.sharedFormCheckCount + client.trainingPlanUncheckedCount;
+      final total =
+          client.sharedFormCheckCount + client.trainingPlanUncheckedCount;
       return total > 1
           ? 'AI updates pending review ($total)'
           : 'AI update pending review';
@@ -3103,15 +3164,36 @@ class _ClientOverviewCard extends StatelessWidget {
                     ],
                   ),
                 ],
+                if (hasSupportChatUnread) ...[
+                  const SizedBox(height: 4),
+                  const Row(
+                    children: [
+                      Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        size: 14,
+                        color: Color(0xFF5FD8FF),
+                      ),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'New support chat message',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Color(0xFF5FD8FF),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 if (_hasAiUpdatesNote) ...[
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(
-                        _aiUpdatesIcon,
-                        size: 14,
-                        color: _aiUpdatesColor,
-                      ),
+                      Icon(_aiUpdatesIcon, size: 14, color: _aiUpdatesColor),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(

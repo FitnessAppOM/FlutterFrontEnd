@@ -5,9 +5,6 @@ import 'package:flutter/foundation.dart';
 // ATT (iOS)
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 
-// UMP (GDPR ads/consent — keep only if you’ll do personalized tracking/ads)
-import 'package:google_mobile_ads/google_mobile_ads.dart';
-
 // Notifications
 import 'package:firebase_messaging/firebase_messaging.dart';
 
@@ -29,7 +26,6 @@ class ConsentManager {
   // ---------------------------------------------------------------------------
   static Future<void> requestStartupConsents() async {
     await _requestATTIfAvailable(); // iOS tracking (IDFA)
-    await _requestGDPRIfRequired(); // UMP (if you’ll personalize/ads)
     await _requestNotifications(); // Push permission
     await ensureHealthConnectInstalled(); // Prompt Health Connect on Android if missing
     if (Platform.isAndroid) {
@@ -51,50 +47,6 @@ class ConsentManager {
     } catch (_) {
       /* swallow in release */
     }
-  }
-
-  // ---------------------------------------------------------------------------
-  // GDPR — UMP (show only if you have personalized tracking/ads)
-  // ---------------------------------------------------------------------------
-  static Future<void> _requestGDPRIfRequired() async {
-    try {
-      final params = ConsentRequestParameters();
-      final consentInfo = ConsentInformation.instance;
-
-      consentInfo.requestConsentInfoUpdate(
-        params,
-        () async {
-          if (await consentInfo.isConsentFormAvailable()) {
-            _loadAndHandleUMPForm(consentInfo);
-          }
-        },
-        (FormError error) {
-          if (kDebugMode) print("Consent info update failed: ${error.message}");
-        },
-      );
-    } catch (e) {
-      if (kDebugMode) print('UMP consent error: $e');
-    }
-  }
-
-  static Future<void> _loadAndHandleUMPForm(
-    ConsentInformation consentInfo,
-  ) async {
-    ConsentForm.loadConsentForm(
-      (ConsentForm form) async {
-        final status = await consentInfo.getConsentStatus();
-        if (status == ConsentStatus.required) {
-          form.show((FormError? error) {
-            if (error != null && kDebugMode) {
-              print("Error showing UMP form: ${error.message}");
-            }
-          });
-        }
-      },
-      (FormError error) {
-        if (kDebugMode) print("Failed to load UMP form: ${error.message}");
-      },
-    );
   }
 
   // ---------------------------------------------------------------------------

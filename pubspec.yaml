@@ -2,7 +2,7 @@ name: taqaproject
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.0.26
+version: 1.0.27
 
 environment:
   sdk: ^3.10.0
@@ -19,7 +19,6 @@ dependencies:
   app_tracking_transparency: ^2.0.4
 
   # UMP (GDPR consent)
-  google_mobile_ads: ^5.0.0
 
   # Notifications (iOS + Android 13+)
   firebase_messaging: ^15.0.0

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import '../../core/account_storage.dart';
@@ -24,6 +25,10 @@ class NotificationService {
   static const String _scheduledChannelName = 'Scheduled Notifications';
   static const String _scheduledChannelDescription =
       'Reminders and scheduled notifications.';
+  static const String _dailyReminderRefreshStampPrefix =
+      'notif_daily_refresh_stamp_u';
+  static const String _expertReminderRefreshStampPrefix =
+      'notif_expert_refresh_stamp_u';
   static const NotificationDetails _defaultDetails = NotificationDetails(
     android: AndroidNotificationDetails(
       _scheduledChannelId,
@@ -187,6 +192,7 @@ class NotificationService {
       );
       if (entry != null) {
         await rescheduleDailyJournalRemindersForTomorrow();
+        await _markRefreshedToday(_dailyReminderRefreshStampPrefix, userId);
         return;
       }
     } catch (_) {
@@ -282,6 +288,15 @@ class NotificationService {
       await _plugin.cancel(3);
       return;
     }
+    final alreadyRefreshedToday = await _hasRefreshedToday(
+      _dailyReminderRefreshStampPrefix,
+      userId,
+    );
+    if (alreadyRefreshedToday) {
+      // ignore: avoid_print
+      print('[Notif] daily reminders already refreshed today; skipping');
+      return;
+    }
 
     try {
       final entry = await DailyJournalApi.fetchForDate(
@@ -297,6 +312,7 @@ class NotificationService {
     }
 
     await scheduleDailyJournalReminder();
+    await _markRefreshedToday(_dailyReminderRefreshStampPrefix, userId);
   }
 
   static Future<void> refreshExpertAiUpdatesReminderForCurrentUser() async {
@@ -306,6 +322,15 @@ class NotificationService {
     final isExpert = await AccountStorage.isExpert();
     if (userId == null || !isExpert) {
       await _cancelExpertAiUpdateReminders();
+      return;
+    }
+    final alreadyRefreshedToday = await _hasRefreshedToday(
+      _expertReminderRefreshStampPrefix,
+      userId,
+    );
+    if (alreadyRefreshedToday) {
+      // ignore: avoid_print
+      print('[Notif] expert AI reminders already refreshed today; skipping');
       return;
     }
 
@@ -341,6 +366,7 @@ class NotificationService {
       );
     }
     await _logPendingNotifications();
+    await _markRefreshedToday(_expertReminderRefreshStampPrefix, userId);
   }
 
   static Future<void> rescheduleDailyJournalRemindersForTomorrow() async {
@@ -432,31 +458,6 @@ class NotificationService {
     return scheduledDate;
   }
 
-  static tz.TZDateTime _nextInstanceAtTime(
-    int hour,
-    int minute, {
-    bool startTomorrow = false,
-  }) {
-    final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
-    final tz.TZDateTime baseDay = startTomorrow
-        ? now.add(const Duration(days: 1))
-        : now;
-    tz.TZDateTime scheduledDate = tz.TZDateTime(
-      tz.local,
-      baseDay.year,
-      baseDay.month,
-      baseDay.day,
-      hour,
-      minute,
-    );
-
-    if (!startTomorrow && scheduledDate.isBefore(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
-    }
-
-    return scheduledDate;
-  }
-
   static tz.TZDateTime _nextInstanceAtWeekdayAndTime(
     int weekday,
     int hour,
@@ -499,8 +500,9 @@ class NotificationService {
   }
 
   static Future<bool> requestExactAlarmPermission() async {
-    if (!Platform.isAndroid)
+    if (!Platform.isAndroid) {
       return true; // iOS/macOS: no exact alarm permission
+    }
 
     final androidPlugin = _plugin
         .resolvePlatformSpecificImplementation<
@@ -736,5 +738,25 @@ class NotificationService {
   static DateTime _journalDay(DateTime date) {
     final shifted = date.subtract(const Duration(hours: _journalResetHour));
     return DateTime(shifted.year, shifted.month, shifted.day);
+  }
+
+  static String _todayStampLocal() {
+    final now = DateTime.now();
+    final yyyy = now.year.toString().padLeft(4, '0');
+    final mm = now.month.toString().padLeft(2, '0');
+    final dd = now.day.toString().padLeft(2, '0');
+    return '$yyyy-$mm-$dd';
+  }
+
+  static Future<bool> _hasRefreshedToday(String prefix, int userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = '${prefix}_$userId';
+    return (prefs.getString(key) ?? '').trim() == _todayStampLocal();
+  }
+
+  static Future<void> _markRefreshedToday(String prefix, int userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = '${prefix}_$userId';
+    await prefs.setString(key, _todayStampLocal());
   }
 }
