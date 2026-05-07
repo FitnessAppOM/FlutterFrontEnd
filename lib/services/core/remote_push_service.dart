@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io' show Platform;
+import 'dart:math';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -16,12 +17,13 @@ import 'notification_service.dart';
 class RemotePushService {
   static const _firebaseAppIdStorageKey = 'remote_push_firebase_app_id';
   static const _pushTokenRefreshEpochKey = 'remote_push_token_refresh_epoch';
+  static const _deviceIdStorageKey = 'remote_push_device_id';
   static const _currentPushTokenRefreshEpoch = 'ios_prod_apns_2026_05_04';
 
   static bool _initialized = false;
   static int? _lastSyncedUserId;
   static String? _lastSyncedToken;
-  static String? _lastLoggedToken;
+  static String? _cachedDeviceId;
 
   static Uri _uri(String path) => Uri.parse('${ApiConfig.baseUrl}$path');
 
@@ -63,9 +65,6 @@ class RemotePushService {
     } catch (_) {}
 
     FirebaseMessaging.instance.onTokenRefresh.listen((String token) {
-      if (kDebugMode) {
-        debugPrint('[Push] FCM TOKEN REFRESHED: $token');
-      }
       syncTokenForCurrentUser(
         force: true,
         tokenOverride: token,
@@ -151,6 +150,29 @@ class RemotePushService {
     }
   }
 
+  static Future<String> _resolveDeviceId() async {
+    final cached = (_cachedDeviceId ?? '').trim();
+    if (cached.isNotEmpty) return cached;
+
+    final prefs = await SharedPreferences.getInstance();
+    final fromStorage = (prefs.getString(_deviceIdStorageKey) ?? '').trim();
+    if (fromStorage.isNotEmpty) {
+      _cachedDeviceId = fromStorage;
+      return fromStorage;
+    }
+
+    final rnd = Random.secure();
+    final ts = DateTime.now().microsecondsSinceEpoch.toRadixString(16);
+    final entropy = List.generate(
+      16,
+      (_) => rnd.nextInt(256),
+    ).map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    final generated = 'rp-$ts-$entropy';
+    await prefs.setString(_deviceIdStorageKey, generated);
+    _cachedDeviceId = generated;
+    return generated;
+  }
+
   static Future<bool> _deleteCachedTokenIfNeeded() async {
     if (kIsWeb || (!Platform.isIOS && !Platform.isMacOS)) return false;
 
@@ -168,7 +190,6 @@ class RemotePushService {
     try {
       await FirebaseMessaging.instance.deleteToken();
       _lastSyncedToken = null;
-      _lastLoggedToken = null;
       if (kDebugMode) {
         debugPrint(
           '[Push] Deleted cached FCM token: '
@@ -215,23 +236,14 @@ class RemotePushService {
       return;
     }
 
-    if (kDebugMode && _lastLoggedToken != token) {
-      debugPrint('[Push] FCM TOKEN: $token');
-      _lastLoggedToken = token;
-      if (!kIsWeb && (Platform.isIOS || Platform.isMacOS)) {
-        try {
-          final apnsToken = await FirebaseMessaging.instance.getAPNSToken();
-          debugPrint('[Push] APNS TOKEN: ${apnsToken ?? "(null)"}');
-        } catch (e) {
-          debugPrint('[Push] APNS TOKEN ERROR: $e');
-        }
-      }
-    }
-
     String appVersion = '';
     try {
       final pkg = await PackageInfo.fromPlatform();
       appVersion = '${pkg.version}+${pkg.buildNumber}';
+    } catch (_) {}
+    String deviceId = '';
+    try {
+      deviceId = await _resolveDeviceId();
     } catch (_) {}
 
     final reqHeaders = <String, String>{
@@ -245,6 +257,7 @@ class RemotePushService {
         body: jsonEncode({
           'token': token,
           'platform': _platformName(),
+          'device_id': deviceId,
           'app_version': appVersion,
         }),
       );

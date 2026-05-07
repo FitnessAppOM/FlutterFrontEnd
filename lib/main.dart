@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -28,6 +27,7 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'dart:io' show Platform;
 
 void main() async {
+  final bootWatch = Stopwatch()..start();
   print('[Main] Entry');
   WidgetsFlutterBinding.ensureInitialized();
   // Keep larger GIFs in memory to avoid reloads when opening sheets.
@@ -37,6 +37,24 @@ void main() async {
   imageCache.maximumSizeBytes = (Platform.isAndroid ? 120 : 300) << 20;
 
   print('[Main] Starting app bootstrap');
+  Future<T> timed<T>(String stepName, Future<T> Function() task) async {
+    final stepWatch = Stopwatch()..start();
+    print('[BOOT] $stepName START');
+    try {
+      final result = await task();
+      stepWatch.stop();
+      print('[BOOT] $stepName DONE ${stepWatch.elapsedMilliseconds}ms');
+      return result;
+    } catch (e, st) {
+      stepWatch.stop();
+      print('[BOOT] $stepName ERROR ${stepWatch.elapsedMilliseconds}ms: $e');
+      if (kDebugMode) {
+        print(st);
+      }
+      rethrow;
+    }
+  }
+
   FlutterForegroundTask.init(
     androidNotificationOptions: AndroidNotificationOptions(
       channelId: 'training_session',
@@ -61,8 +79,10 @@ void main() async {
   );
 
   // Firebase (REQUIRED for Google Sign-In)
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
+  await timed(
+    'Firebase.initializeApp',
+    () =>
+        Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
   );
   try {
     final opts = Firebase.app().options;
@@ -83,62 +103,27 @@ void main() async {
 
   // Cancel any stale training/cardio session on cold start.
   try {
-    await TrainingActivityService.stopSession();
+    await timed(
+      'TrainingActivityService.stopSession',
+      () => TrainingActivityService.stopSession(),
+    );
   } catch (_) {
     // ignore
   }
 
-  // Load env (Mapbox token, etc.)
-  try {
-    await dotenv.load(fileName: ".env");
-  } catch (e) {
-    if (kDebugMode) {
-      print('[Main] dotenv load failed: $e');
-    }
-  }
-
-  // Configure Mapbox access token if present.
-  try {
-    if (dotenv.isInitialized) {
-      final token = dotenv.maybeGet('MAPBOX_PUBLIC_KEY');
-      if (token != null && token.trim().isNotEmpty) {
-        MapboxOptions.setAccessToken(token.trim());
-      }
-    }
-  } catch (e) {
-    if (kDebugMode) {
-      print('[Main] Mapbox token init failed: $e');
-    }
-  }
-
-  // Ads (safe to init early)
-  await MobileAds.instance.initialize();
-  print('[Main] MobileAds initialized');
-
   // Local notifications (permissions + timezone-safe scheduling)
   print('[Main] NotificationService.init() starting');
   try {
-    await NotificationService.init();
+    await timed('NotificationService.init', () => NotificationService.init());
     print('[Main] NotificationService.init() done');
   } catch (e, st) {
     // ignore: avoid_print
     print('[Main] NotificationService.init() ERROR: $e\n$st');
   }
-  try {
-    await RemotePushService.init();
-    await RemotePushService.syncTokenForCurrentUser();
-  } catch (e) {
-    // ignore: avoid_print
-    print('[Main] RemotePushService init/sync skipped: $e');
-  }
-  // // Fire test notifications immediately so you can verify delivery quickly.
-  // print('[Main] Showing debug notifications');
-  // await NotificationService.showDebugJournalAndDietNow();
-  // Submit today's burn BEFORE scheduling notifications so the 9pm diet
-  // check-in body reflects the surplus-adjusted target, not the base target.
-  await NotificationService.refreshDailyJournalRemindersForCurrentUser();
-  await NotificationService.refreshExpertAiUpdatesReminderForCurrentUser();
-  final launchPayload = await NotificationService.getLaunchPayload();
+  final launchPayload = await timed(
+    'NotificationService.getLaunchPayload',
+    () => NotificationService.getLaunchPayload(),
+  );
   if (launchPayload == NotificationService.dailyJournalPayload) {
     NavigationService.markJournalNotificationPending();
   } else if (launchPayload == NotificationService.dietPayload) {
@@ -172,12 +157,66 @@ void main() async {
     });
   };
 
+  print('[BOOT] Pre-runApp total ${bootWatch.elapsedMilliseconds}ms');
   runApp(WithForegroundTask(child: MyApp(initialPayload: launchPayload)));
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    print('[BOOT] First frame ${bootWatch.elapsedMilliseconds}ms');
+  });
 
   // Run non-critical consent/sync work after the first frame so startup is not
   // blocked by permission prompts or health reads.
   WidgetsBinding.instance.addPostFrameCallback((_) {
     Future<void>(() async {
+      // Load env/map token lazily; map screens are not needed at boot.
+      try {
+        await timed(
+          'Deferred dotenv.load',
+          () => dotenv.load(fileName: ".env"),
+        );
+      } catch (e) {
+        if (kDebugMode) {
+          print('[Main] deferred dotenv load failed: $e');
+        }
+      }
+      try {
+        if (dotenv.isInitialized) {
+          final token = dotenv.maybeGet('MAPBOX_PUBLIC_KEY');
+          if (token != null && token.trim().isNotEmpty) {
+            MapboxOptions.setAccessToken(token.trim());
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('[Main] deferred Mapbox token init failed: $e');
+        }
+      }
+
+      // Keep push listeners initialized, but don't sync token at startup.
+      try {
+        await timed(
+          'Deferred RemotePushService.init',
+          () => RemotePushService.init(),
+        );
+      } catch (e) {
+        print('[Main] RemotePushService deferred init skipped: $e');
+      }
+
+      // Scheduling reminders can be deferred to avoid blocking cold start.
+      try {
+        await timed(
+          'Deferred NotificationService.refreshDailyJournalRemindersForCurrentUser',
+          () =>
+              NotificationService.refreshDailyJournalRemindersForCurrentUser(),
+        );
+        await timed(
+          'Deferred NotificationService.refreshExpertAiUpdatesReminderForCurrentUser',
+          () =>
+              NotificationService.refreshExpertAiUpdatesReminderForCurrentUser(),
+        );
+      } catch (e) {
+        print('[Main] Notification deferred refresh skipped: $e');
+      }
+
       if (Platform.isIOS) {
         await ConsentManager.requestStartupConsents();
       }
@@ -229,7 +268,6 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _handleLifecycle() async {
-    RemotePushService.syncTokenForCurrentUser().catchError((_) {});
     _maybeRequestAndroidHealthPermission();
     try {
       await DailyProviderPushService().pushIfAfterOneAmLocal();
@@ -254,7 +292,9 @@ class _MyAppState extends State<MyApp> {
     NotificationService.refreshDailyJournalRemindersForCurrentUser();
     NotificationService.refreshExpertAiUpdatesReminderForCurrentUser();
     DailyProviderPushService().pushIfAfterOneAmLocal().catchError((_) {});
-    RemotePushService.syncTokenForCurrentUser(force: true).catchError((_) {});
+    RemotePushService.init()
+        .then((_) => RemotePushService.syncTokenForCurrentUser(force: true))
+        .catchError((_) {});
     _maybeRequestAndroidHealthPermission();
   }
 

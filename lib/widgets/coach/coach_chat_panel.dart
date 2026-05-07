@@ -53,6 +53,29 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
   Timer? _ticker;
   StreamSubscription<PlayerState>? _voicePlayerSub;
 
+  List<CoachSupportChatThreadSummary> _applyThreadReadStateFromThreadPayload(
+    List<CoachSupportChatThreadSummary> threads,
+    CoachSupportChatThread? thread,
+  ) {
+    if (thread == null || threads.isEmpty) return threads;
+    return threads.map((entry) {
+      if (entry.coachUserId != thread.coachUserId) return entry;
+      return CoachSupportChatThreadSummary(
+        coachUserId: entry.coachUserId,
+        coachName: entry.coachName,
+        specialty: entry.specialty,
+        threadId: entry.threadId,
+        createdAt: entry.createdAt,
+        updatedAt: entry.updatedAt,
+        lastClientMessageAt: entry.lastClientMessageAt,
+        lastCoachMessageAt: entry.lastCoachMessageAt,
+        lastClientReadAt: thread.lastClientReadAt ?? entry.lastClientReadAt,
+        lastCoachReadAt: thread.lastCoachReadAt ?? entry.lastCoachReadAt,
+        hasUnreadForClient: thread.hasUnreadForClient,
+      );
+    }).toList();
+  }
+
   String _voiceStartErrorMessage(Object error) {
     final raw = error.toString();
     final normalized = raw.toLowerCase();
@@ -798,9 +821,13 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       final state = await CoachSupportChatService.fetchClientThreadWithCoach(
         coachUserId: selectedCoachUserId,
       );
+      final normalizedThreads = _applyThreadReadStateFromThreadPayload(
+        threads,
+        state.thread,
+      );
       if (!mounted) return;
       setState(() {
-        _coachThreads = threads;
+        _coachThreads = normalizedThreads;
         _selectedCoachUserId = selectedCoachUserId;
         _chatState = state;
         _loading = false;
@@ -831,7 +858,12 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
         coachUserId: coachUserId,
       );
       if (!mounted) return;
+      final normalizedThreads = _applyThreadReadStateFromThreadPayload(
+        _coachThreads,
+        state.thread,
+      );
       setState(() {
+        _coachThreads = normalizedThreads;
         _chatState = state;
         _loadingThread = false;
       });
@@ -963,7 +995,23 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
           return ChoiceChip(
             selected: selected,
             onSelected: (_) => _selectCoachThread(thread.coachUserId),
-            label: Text(label),
+            label: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(label),
+                if (thread.hasUnreadForClient) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.orangeAccent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ],
+              ],
+            ),
             selectedColor: AppColors.accent.withValues(alpha: 0.28),
             backgroundColor: Colors.white.withValues(alpha: 0.05),
             labelStyle: TextStyle(
@@ -1049,6 +1097,27 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
             Text(
               'Target response window: ${sla.targetWindowHoursMin}-${sla.targetWindowHoursMax} hours',
               style: const TextStyle(color: Colors.white54, fontSize: 11),
+            ),
+          ],
+          if (thread?.hasUnreadForClient == true) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.orangeAccent.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: Colors.orangeAccent.withValues(alpha: 0.45),
+                ),
+              ),
+              child: const Text(
+                'New support-chat message',
+                style: TextStyle(
+                  color: Colors.orangeAccent,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         ],
