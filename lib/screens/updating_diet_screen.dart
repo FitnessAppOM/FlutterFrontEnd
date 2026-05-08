@@ -265,7 +265,7 @@ class _UpdatingDietScreenState extends State<UpdatingDietScreen> {
                         if (_cooldownBlocked && _cooldownUntil != null) ...[
                           const SizedBox(height: 6),
                           Text(
-                            "To reduce generation cost, profile updates are limited to once every 30 days.",
+                            "Profile updates are limited to once each 30 day",
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: cs.onSurface.withValues(alpha: 0.7),
                             ),
