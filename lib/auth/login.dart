@@ -54,6 +54,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
+    NavigationService.setNotificationNavigationReady(false);
     if (widget.prefilledEmail != null && widget.prefilledEmail!.isNotEmpty) {
       email.text = widget.prefilledEmail!;
     }
@@ -100,15 +101,7 @@ class _LoginPageState extends State<LoginPage> {
       final serverDone = profile["filled_user_questionnaire"] == true;
       final expertQuestionnaireDone =
           profile["filled_expert_questionnaire"] == true;
-      final expertProfileStatus = (profile["expert_profile_status"] ?? "")
-          .toString()
-          .trim()
-          .toLowerCase();
-      final isExpert =
-          profile["has_expert_profile"] == true ||
-          expertQuestionnaireDone ||
-          expertProfileStatus == "approved" ||
-          expertProfileStatus == "pending";
+      final isExpert = profile["is_expert"] == true;
       final hasData = serverDone || _hasQuestionnaireData(profile);
       await AccountStorage.setQuestionnaireDone(serverDone);
       await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
@@ -123,18 +116,25 @@ class _LoginPageState extends State<LoginPage> {
         if (expertAiPending) {
           NavigationService.consumeExpertAiUpdatesNotification();
         }
-        final target = NavigationService.journalNotificationPending
+        final directNotificationTarget =
+            await NavigationService.consumeDirectNotificationTarget();
+        final target = directNotificationTarget ??
+            (NavigationService.journalNotificationPending
             ? const DailyJournalPage()
             : (NavigationService.dietNotificationPending
                 ? const MainLayout(initialIndex: 2)
                 : (expertAiPending
                     ? const ExpertDashboardPage()
-                    : const MainLayout()));
+                    : const MainLayout())));
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => target),
           (route) => false,
         );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          NavigationService.setNotificationNavigationReady(true);
+          NavigationService.flushPendingNotificationNavigation();
+        });
       } else {
         Navigator.pushAndRemoveUntil(
           context,

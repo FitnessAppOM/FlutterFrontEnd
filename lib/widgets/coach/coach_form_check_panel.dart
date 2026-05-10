@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../../consents/consent_manager.dart';
+import '../../core/user_friendly_error.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/coach/chat_attachment_file_service.dart';
 import '../../services/coach/form_check_service.dart';
@@ -75,7 +76,10 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = e.toString().replaceFirst('Exception: ', '');
+        _error = userFriendlyErrorMessage(
+          e,
+          fallback: 'Could not load Form Check. Please try again.',
+        );
       });
       _syncPolling();
     }
@@ -237,7 +241,12 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
       setState(() {
         _submitting = false;
       });
-      _showToast(e.toString().replaceFirst('Exception: ', ''));
+      _showToast(
+        userFriendlyErrorMessage(
+          e,
+          fallback: 'Could not upload Form Check. Please try again.',
+        ),
+      );
     }
   }
 
@@ -272,7 +281,12 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
               ),
       );
     } catch (e) {
-      _showToast(e.toString().replaceFirst('Exception: ', ''));
+      _showToast(
+        userFriendlyErrorMessage(
+          e,
+          fallback: 'Could not update this item. Please try again.',
+        ),
+      );
     }
   }
 
@@ -307,7 +321,12 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
               ),
       );
     } catch (e) {
-      _showToast(e.toString().replaceFirst('Exception: ', ''));
+      _showToast(
+        userFriendlyErrorMessage(
+          e,
+          fallback: 'Could not update this item. Please try again.',
+        ),
+      );
     }
   }
 
@@ -368,7 +387,12 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
         _tr(context, 'coach_form_check_delete_success', 'Form Check deleted'),
       );
     } catch (e) {
-      _showToast(e.toString().replaceFirst('Exception: ', ''));
+      _showToast(
+        userFriendlyErrorMessage(
+          e,
+          fallback: 'Could not delete this item. Please try again.',
+        ),
+      );
     }
   }
 
@@ -392,7 +416,7 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
     } catch (e) {
       if (!mounted) return;
       _showToast(
-        'Could not open video: ${e.toString().replaceFirst('Exception: ', '')}',
+        'Could not open video: ${userFriendlyErrorMessage(e, fallback: 'Please try again.')}',
       );
     }
   }

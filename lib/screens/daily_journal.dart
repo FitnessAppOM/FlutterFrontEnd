@@ -59,6 +59,10 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
   void initState() {
     super.initState();
     NavigationService.isOnJournalPage = true;
+    NavigationService.setNotificationNavigationReady(true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NavigationService.flushPendingNotificationNavigation();
+    });
     _fromNotification = NavigationService.consumeJournalNotification();
     _refresh();
     _loadScreeningStatus();

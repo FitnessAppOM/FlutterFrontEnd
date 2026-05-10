@@ -86,6 +86,7 @@ import '../../screens/daily_journal.dart';
 import '../../screens/taqa_score_detail_page.dart';
 import '../../localization/app_localizations.dart';
 import '../../widgets/app_toast.dart';
+import '../../core/user_friendly_error.dart';
 import '../../widgets/common/date_header.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../services/training/training_service.dart';
@@ -1823,9 +1824,13 @@ class DashboardPageState extends State<DashboardPage>
       }
     } catch (e) {
       if (!mounted) return;
+      final friendly = userFriendlyErrorMessage(
+        e,
+        fallback: 'Could not generate daily outlook. Please try again.',
+      );
       AppToast.show(
         context,
-        t("dash_daily_outlook_failed").replaceAll("{error}", "$e"),
+        t("dash_daily_outlook_failed").replaceAll("{error}", friendly),
         type: AppToastType.error,
       );
     } finally {

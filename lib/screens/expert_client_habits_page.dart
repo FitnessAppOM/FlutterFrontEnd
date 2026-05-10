@@ -34,6 +34,7 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
   bool _loading = true;
   bool _saving = false;
   bool _sendingReminder = false;
+  String _newHabitType = CoachHabitItem.weeklyType;
   int? _expertId;
   List<CoachHabitItem> _habits = const [];
   String? _errorText;
@@ -157,9 +158,16 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
         .toUpperCase();
   }
 
-  String _formatDateTime(DateTime? dt) {
-    if (dt == null) return 'Not checked this week';
+  String _formatDateTime(CoachHabitItem habit) {
+    final dt = habit.completedAt;
+    if (dt == null) {
+      return habit.isDaily ? 'Not checked today' : 'Not checked this week';
+    }
     return 'Checked ${DateFormat('dd MMM, HH:mm').format(dt.toLocal())}';
+  }
+
+  String _habitTypeLabel(String type) {
+    return type == CoachHabitItem.dailyType ? 'Daily' : 'Weekly';
   }
 
   bool _canManageHabits() {
@@ -254,6 +262,7 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
       await CoachHabitsService.addClientHabit(
         clientId: widget.clientId,
         habit: habit,
+        habitType: _newHabitType,
       );
       _habitController.clear();
       await _load(showLoading: false);
@@ -338,7 +347,7 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Checked this week: $checkedCount / $totalCount',
+                      'Checked in current cycle: $checkedCount / $totalCount',
                       style: const TextStyle(color: Colors.white70),
                     ),
                   ],
@@ -447,6 +456,30 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
             ),
           ),
           const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            children: [
+              ChoiceChip(
+                label: const Text('Weekly'),
+                selected: _newHabitType == CoachHabitItem.weeklyType,
+                onSelected: !canManage
+                    ? null
+                    : (_) {
+                        setState(() => _newHabitType = CoachHabitItem.weeklyType);
+                      },
+              ),
+              ChoiceChip(
+                label: const Text('Daily'),
+                selected: _newHabitType == CoachHabitItem.dailyType,
+                onSelected: !canManage
+                    ? null
+                    : (_) {
+                        setState(() => _newHabitType = CoachHabitItem.dailyType);
+                      },
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -536,7 +569,15 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              _formatDateTime(habit.completedAt),
+                              'Type: ${_habitTypeLabel(habit.habitType)}',
+                              style: const TextStyle(
+                                color: Colors.white60,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _formatDateTime(habit),
                               style: const TextStyle(
                                 color: Colors.white60,
                                 fontSize: 12,

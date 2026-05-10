@@ -6,10 +6,14 @@ import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
 
 class CoachHabitItem {
+  static const String weeklyType = 'weekly';
+  static const String dailyType = 'daily';
+
   final int id;
   final int expertId;
   final int clientId;
   final String habit;
+  final String habitType;
   final bool isCompleted;
   final DateTime? addedAt;
   final DateTime? completedAt;
@@ -19,6 +23,7 @@ class CoachHabitItem {
     required this.expertId,
     required this.clientId,
     required this.habit,
+    required this.habitType,
     required this.isCompleted,
     this.addedAt,
     this.completedAt,
@@ -29,6 +34,7 @@ class CoachHabitItem {
     int? expertId,
     int? clientId,
     String? habit,
+    String? habitType,
     bool? isCompleted,
     DateTime? addedAt,
     DateTime? completedAt,
@@ -39,11 +45,15 @@ class CoachHabitItem {
       expertId: expertId ?? this.expertId,
       clientId: clientId ?? this.clientId,
       habit: habit ?? this.habit,
+      habitType: habitType ?? this.habitType,
       isCompleted: isCompleted ?? this.isCompleted,
       addedAt: addedAt ?? this.addedAt,
       completedAt: clearCompletedAt ? null : (completedAt ?? this.completedAt),
     );
   }
+
+  bool get isDaily => habitType == dailyType;
+  bool get isWeekly => !isDaily;
 
   factory CoachHabitItem.fromJson(Map<String, dynamic> json) {
     int parseInt(dynamic v) {
@@ -70,6 +80,9 @@ class CoachHabitItem {
       expertId: parseInt(json['expert_id']),
       clientId: parseInt(json['client_id']),
       habit: (json['habit'] ?? '').toString(),
+      habitType: ((json['habit_type'] ?? weeklyType).toString().trim().toLowerCase() == dailyType)
+          ? dailyType
+          : weeklyType,
       isCompleted: json['is_completed'] == true,
       addedAt: parseDate(json['added_at']),
       completedAt: parseDate(json['completed_at']),
@@ -160,6 +173,7 @@ class CoachHabitsService {
   static Future<CoachHabitItem> addClientHabit({
     required int clientId,
     required String habit,
+    String habitType = CoachHabitItem.weeklyType,
   }) async {
     final uri = Uri.parse('${ApiConfig.baseUrl}/coach/habits');
     final headers = {
@@ -169,7 +183,11 @@ class CoachHabitsService {
     final res = await http.post(
       uri,
       headers: headers,
-      body: jsonEncode({'client_id': clientId, 'habit': habit}),
+      body: jsonEncode({
+        'client_id': clientId,
+        'habit': habit,
+        'habit_type': habitType,
+      }),
     );
     await AccountStorage.handleAuthStatus(
       res.statusCode,

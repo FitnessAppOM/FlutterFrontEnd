@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../services/coach/coach_support_chat_service.dart';
 import '../services/coach/progression_review_service.dart';
@@ -17,9 +16,7 @@ class ExpertConnectionRequestsPage extends StatefulWidget {
 class _ExpertConnectionRequestsPageState
     extends State<ExpertConnectionRequestsPage> {
   bool _loading = true;
-  bool _loadingCoachPin = false;
   bool _sendingBulkMessageToRed = false;
-  String? _coachPin;
   int _redStatusClientCount = 0;
   final Set<String> _actingRequestKeys = <String>{};
   CoachConnectionRequestSummary _summary = const CoachConnectionRequestSummary(
@@ -30,7 +27,6 @@ class _ExpertConnectionRequestsPageState
   void initState() {
     super.initState();
     _load();
-    _loadCoachPin();
   }
 
   Future<void> _load() async {
@@ -56,30 +52,6 @@ class _ExpertConnectionRequestsPageState
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  Future<void> _loadCoachPin() async {
-    if (_loadingCoachPin) return;
-    _loadingCoachPin = true;
-    try {
-      final coachPin = await ProgressionReviewService.fetchMyCoachCode();
-      if (!mounted) return;
-      setState(() {
-        _coachPin = coachPin;
-      });
-    } catch (_) {
-      // Keep page usable if coach code endpoint is unavailable.
-    } finally {
-      _loadingCoachPin = false;
-    }
-  }
-
-  Future<void> _copyCoachPin() async {
-    final pin = (_coachPin ?? '').trim();
-    if (pin.isEmpty) return;
-    await Clipboard.setData(ClipboardData(text: pin));
-    if (!mounted) return;
-    AppToast.show(context, 'Coach PIN copied', type: AppToastType.success);
   }
 
   Future<void> _decide(
@@ -364,63 +336,6 @@ class _ExpertConnectionRequestsPageState
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  if (_loadingCoachPin)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AppColors.cardDark,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white10),
-                      ),
-                      child: const Text(
-                        'Loading coach PIN...',
-                        style: TextStyle(color: Colors.white60, fontSize: 12),
-                      ),
-                    ),
-                  if (!_loadingCoachPin && (_coachPin ?? '').trim().isNotEmpty)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.cardDark,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white10),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.pin_outlined,
-                            color: Colors.white70,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Coach PIN: ${_coachPin!.trim()}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                            ),
-                          ),
-                          const Spacer(),
-                          OutlinedButton.icon(
-                            onPressed: _copyCoachPin,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              side: const BorderSide(color: Colors.white24),
-                              minimumSize: const Size(0, 32),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
-                              ),
-                            ),
-                            icon: const Icon(Icons.copy_rounded, size: 14),
-                            label: const Text('Copy'),
-                          ),
-                        ],
-                      ),
-                    ),
                   if (_summary.items.isEmpty)
                     Container(
                       padding: const EdgeInsets.all(16),

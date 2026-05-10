@@ -710,12 +710,23 @@ class _ExpertClientDietReviewPageState
     final text = _commentController.text.trim();
     if (text.isEmpty) {
       if (!mounted) return;
+      FocusScope.of(context).unfocus();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Write your comment before sending.')),
       );
       return;
     }
     await _sendComment();
+  }
+
+  Future<void> _handleCommentSubmitted(String rawValue) async {
+    if (!mounted) return;
+    final text = rawValue.trim();
+    if (text.isEmpty) {
+      FocusScope.of(context).unfocus();
+      return;
+    }
+    await _handlePrimarySend();
   }
 
   Future<void> _toggleCommentPin(CoachDietComment comment) async {
@@ -1200,7 +1211,9 @@ class _ExpertClientDietReviewPageState
             controller: _commentController,
             minLines: 2,
             maxLines: 6,
+            textInputAction: TextInputAction.send,
             style: const TextStyle(color: Colors.white),
+            onSubmitted: _handleCommentSubmitted,
             decoration: InputDecoration(
               hintText: selectedMealId == null
                   ? 'Select a logged meal first...'

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/coach/progression_review_service.dart';
 import '../services/training/training_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/training/exercise_picker_sheet.dart';
 
 class ExpertTrainingPlanReviewPage extends StatefulWidget {
   const ExpertTrainingPlanReviewPage({
@@ -33,8 +34,9 @@ class _ExpertTrainingPlanReviewPageState
   late List<_PlanDayDraft> _originalDays;
   late List<_PlanDayDraft> _draftDays;
   late int _plannedDaysPerWeek;
-  List<_ExerciseOption> _exerciseLibrary = const [];
+  List<ExercisePickerItem> _exerciseLibrary = const [];
   final Map<String, int> _exerciseIdByName = <String, int>{};
+  bool _didCheckPlan = false;
 
   @override
   void initState() {
@@ -131,6 +133,18 @@ class _ExpertTrainingPlanReviewPageState
     return _daysSignature(_draftDays) != _daysSignature(_originalDays);
   }
 
+  Map<String, dynamic>? _navigationResult() {
+    if (!_didCheckPlan) return null;
+    return {
+      'activeProgram': _activeProgram,
+      'didCheck': true,
+    };
+  }
+
+  Future<void> _closePage() async {
+    Navigator.of(context).pop(_navigationResult());
+  }
+
   String _activePlanSource() {
     final source = (_activeProgram['plan_source'] ?? '').toString().trim();
     if (source == 'ai_generated' ||
@@ -209,13 +223,13 @@ class _ExpertTrainingPlanReviewPageState
     });
     try {
       final raw = await TrainingService.fetchAllExercises(limit: 1500, offset: 0);
-      final options = <_ExerciseOption>[];
+      final options = <ExercisePickerItem>[];
       for (final item in raw) {
         if (item is! Map) continue;
         final id = _toInt(item['exercise_id']);
         final name = (item['exercise_name'] ?? '').toString().trim();
         if (id <= 0 || name.isEmpty) continue;
-        options.add(_ExerciseOption(id: id, name: name));
+        options.add(ExercisePickerItem(id: id, name: name));
       }
       options.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
       _exerciseIdByName
@@ -287,6 +301,7 @@ class _ExpertTrainingPlanReviewPageState
       if (!mounted) return;
       setState(() {
         _verifying = false;
+        _didCheckPlan = true;
         _activeProgram = <String, dynamic>{
           ..._activeProgram,
           'expert_verified': true,
@@ -294,10 +309,9 @@ class _ExpertTrainingPlanReviewPageState
           'plan_state': 'verified',
         };
       });
-      Navigator.of(context).pop({
-        'activeProgram': _activeProgram,
-        'didCheck': true,
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Plan verified.')),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _verifying = false);
@@ -345,7 +359,7 @@ class _ExpertTrainingPlanReviewPageState
             final name = _exerciseLibrary
                 .firstWhere(
                   (item) => item.id == exercise.exerciseId,
-                  orElse: () => _ExerciseOption(
+                  orElse: () => ExercisePickerItem(
                     id: exercise.exerciseId,
                     name: exercise.exerciseName,
                   ),
@@ -376,10 +390,16 @@ class _ExpertTrainingPlanReviewPageState
         'training_days_per_week': _draftDays.length,
         'days': syncedDays,
       };
-      Navigator.of(context).pop({
-        'activeProgram': updatedProgram,
-        'didCheck': true,
+      setState(() {
+        _saving = false;
+        _didCheckPlan = true;
+        _activeProgram = updatedProgram;
+        _plannedDaysPerWeek = _draftDays.length;
+        _originalDays = _cloneDays(_draftDays);
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Changes saved.')),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
@@ -411,6 +431,59 @@ class _ExpertTrainingPlanReviewPageState
         ),
       );
     });
+  }
+
+  String _exerciseNameForId(int exerciseId) {
+    for (final option in _exerciseLibrary) {
+      if (option.id == exerciseId) return option.name;
+    }
+    return '';
+  }
+
+  Widget _buildExercisePickerField({
+    required _PlanExerciseDraft exercise,
+    required bool enabled,
+  }) {
+    final selectedName = _exerciseNameForId(exercise.exerciseId);
+    final displayName = selectedName.isNotEmpty
+        ? selectedName
+        : (exercise.exerciseName.trim().isNotEmpty
+              ? exercise.exerciseName.trim()
+              : 'Select exercise');
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: enabled
+          ? () async {
+              final picked = await showExercisePickerSheet(
+                context: context,
+                options: _exerciseLibrary,
+                selectedId: exercise.exerciseId > 0 ? exercise.exerciseId : null,
+              );
+              if (picked == null || !mounted) return;
+              setState(() {
+                exercise.exerciseId = picked.id;
+                exercise.exerciseName = picked.name;
+              });
+            }
+          : null,
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: 'Exercise',
+          isDense: true,
+          suffixIcon: const Icon(Icons.search_rounded),
+        ),
+        child: Text(
+          displayName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: displayName == 'Select exercise'
+                ? Colors.white54
+                : Colors.white,
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildStateBadge() {
@@ -478,10 +551,6 @@ class _ExpertTrainingPlanReviewPageState
           const SizedBox(height: 8),
           ...List.generate(day.exercises.length, (exIndex) {
             final ex = day.exercises[exIndex];
-            final selectedId = ex.exerciseId > 0 &&
-                    _exerciseLibrary.any((item) => item.id == ex.exerciseId)
-                ? ex.exerciseId
-                : null;
             return Container(
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(10),
@@ -492,36 +561,10 @@ class _ExpertTrainingPlanReviewPageState
               ),
               child: Column(
                 children: [
-                  DropdownButtonFormField<int>(
-                    initialValue: selectedId,
-                    decoration: const InputDecoration(
-                      labelText: 'Exercise',
-                      isDense: true,
-                    ),
-                    dropdownColor: AppColors.cardDark,
-                    items: _exerciseLibrary
-                        .map(
-                          (item) => DropdownMenuItem<int>(
-                            value: item.id,
-                            child: Text(
-                              item.name,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        )
-                        .toList(growable: false),
-                    onChanged: (_saving || _verifying)
-                        ? null
-                        : (value) {
-                            if (value == null) return;
-                            final option = _exerciseLibrary.firstWhere(
-                              (item) => item.id == value,
-                            );
-                            setState(() {
-                              ex.exerciseId = option.id;
-                              ex.exerciseName = option.name;
-                            });
-                          },
+                  _buildExercisePickerField(
+                    exercise: ex,
+                    enabled:
+                        !(_saving || _verifying) && _exerciseLibrary.isNotEmpty,
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -613,20 +656,30 @@ class _ExpertTrainingPlanReviewPageState
     final canVerifyOnly = needsVerification && !dirty && !_saving && !_verifying;
     final canConfirm = dirty && validDraft && !_saving && !_verifying;
 
-    return Scaffold(
-      backgroundColor: AppColors.black,
-      appBar: AppBar(
+    return PopScope<Map<String, dynamic>?>(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        Navigator.of(context).pop(_navigationResult());
+      },
+      child: Scaffold(
         backgroundColor: AppColors.black,
-        surfaceTintColor: Colors.transparent,
-        title: const Text('Client Training Plan'),
-      ),
-      body: _loadingExercises
-          ? const Center(child: CircularProgressIndicator())
-          : GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: () => FocusScope.of(context).unfocus(),
-              child: SafeArea(
-                child: Column(
+        appBar: AppBar(
+          backgroundColor: AppColors.black,
+          surfaceTintColor: Colors.transparent,
+          title: const Text('Client Training Plan'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: _closePage,
+          ),
+        ),
+        body: _loadingExercises
+            ? const Center(child: CircularProgressIndicator())
+            : GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: () => FocusScope.of(context).unfocus(),
+                child: SafeArea(
+                  child: Column(
                 children: [
                   Expanded(
                     child: SingleChildScrollView(
@@ -794,10 +847,11 @@ class _ExpertTrainingPlanReviewPageState
                       ],
                     ),
                   ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
+      ),
     );
   }
 }
@@ -823,13 +877,6 @@ class _PlanExerciseDraft {
   int sets;
   int reps;
   int? rir;
-}
-
-class _ExerciseOption {
-  const _ExerciseOption({required this.id, required this.name});
-
-  final int id;
-  final String name;
 }
 
 class _NumberField extends StatefulWidget {

@@ -13,6 +13,7 @@ import '../services/auth/profile_service.dart';
 import '../core/account_storage.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/confirm_dialog.dart';
+import '../core/user_friendly_error.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import '../config/base_url.dart';
@@ -314,17 +315,13 @@ class _SettingsPageState extends State<SettingsPage> {
           .trim()
           .toLowerCase();
       expertProfileStatus = rawCached.isEmpty ? null : rawCached;
-      final cachedHasExpertProfile =
-          cachedProfile?["has_expert_profile"] == true;
       final cachedFilledExpert =
           cachedProfile?["filled_expert_questionnaire"] == true;
+      final cachedIsExpert = cachedProfile?["is_expert"] == true;
       done = done || cachedFilledExpert;
       isExpert =
           isExpert ||
-          cachedHasExpertProfile ||
-          cachedFilledExpert ||
-          rawCached == "approved" ||
-          rawCached == "pending";
+          cachedIsExpert;
     } catch (_) {
       // Ignore cache parse failures.
     }
@@ -335,7 +332,6 @@ class _SettingsPageState extends State<SettingsPage> {
         if (!mounted) return;
         final lang = AppLocalizations.of(context).locale.languageCode;
         final profile = await ProfileApi.fetchProfile(userId, lang: lang);
-        final hasExpertProfile = profile["has_expert_profile"] == true;
         final filledExpertQuestionnaire =
             profile["filled_expert_questionnaire"] == true;
         final rawStatus = (profile["expert_profile_status"] ?? "")
@@ -344,11 +340,7 @@ class _SettingsPageState extends State<SettingsPage> {
             .toLowerCase();
         expertProfileStatus = rawStatus.isEmpty ? null : rawStatus;
         done = filledExpertQuestionnaire;
-        isExpert =
-            hasExpertProfile ||
-            filledExpertQuestionnaire ||
-            rawStatus == "approved" ||
-            rawStatus == "pending";
+        isExpert = profile["is_expert"] == true;
         await AccountStorage.setExpertQuestionnaireDone(done);
         await AccountStorage.setIsExpert(isExpert);
       } catch (_) {
@@ -1009,7 +1001,14 @@ class _SettingsPageState extends State<SettingsPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(
+          e,
+          fallback: 'Could not update avatar. Please try again.',
+        ),
+        type: AppToastType.error,
+      );
     } finally {
       if (mounted) setState(() => _updatingAvatar = false);
     }
@@ -1231,7 +1230,14 @@ class _SettingsPageState extends State<SettingsPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(
+          e,
+          fallback: 'Could not delete account. Please try again.',
+        ),
+        type: AppToastType.error,
+      );
     } finally {
       if (mounted) setState(() => _deletingAccount = false);
     }
@@ -1307,7 +1313,14 @@ class _SettingsPageState extends State<SettingsPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(
+          e,
+          fallback: 'Could not deactivate account. Please try again.',
+        ),
+        type: AppToastType.error,
+      );
     } finally {
       if (mounted) setState(() => _deactivatingAccount = false);
     }

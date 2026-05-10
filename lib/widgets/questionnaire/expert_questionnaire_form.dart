@@ -12,6 +12,7 @@ import 'package:file_picker/file_picker.dart';
 import '../../consents/consent_manager.dart';
 import '../../services/core/expert_questionnaire_service.dart';
 import '../app_toast.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class ExpertQuestionnaireForm extends StatefulWidget {
   const ExpertQuestionnaireForm({
@@ -956,7 +957,11 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
     final cameraOk = await ConsentManager.requestCameraJIT();
     final photosOk = await ConsentManager.requestPhotosJIT();
     if (!cameraOk || !photosOk) {
-      _toast("Camera/Photos permission required.", type: AppToastType.error);
+      _toast(
+        "Camera and Photos permissions are required to capture a selfie.",
+        type: AppToastType.error,
+      );
+      await _maybePromptOpenSettingsForSelfie();
       return;
     }
 
@@ -968,7 +973,10 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
       maxWidth: 1920,
       maxHeight: 1920,
     );
-    if (picked == null) return;
+    if (picked == null) {
+      await _maybePromptOpenSettingsForSelfie();
+      return;
+    }
 
     final file = File(picked.path);
     final size = await file.length();
@@ -987,6 +995,41 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
     } catch (e) {
       _toast("$e", type: AppToastType.error);
     }
+  }
+
+  bool _isPermanentlyBlocked(PermissionStatus status) =>
+      status.isPermanentlyDenied || status.isRestricted;
+
+  Future<void> _maybePromptOpenSettingsForSelfie() async {
+    if (!mounted) return;
+    final cam = await Permission.camera.status;
+    final photos = await Permission.photos.status;
+    if (!mounted) return;
+    final blocked = _isPermanentlyBlocked(cam) || _isPermanentlyBlocked(photos);
+    if (!blocked) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Permission required"),
+        content: const Text(
+          "Camera or Photos access is blocked. Enable both permissions in system settings to upload your selfie.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              await openAppSettings();
+            },
+            child: const Text("Open Settings"),
+          ),
+        ],
+      ),
+    );
   }
 }
 

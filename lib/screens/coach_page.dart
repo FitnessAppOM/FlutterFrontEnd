@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/account_storage.dart';
+import '../core/user_friendly_error.dart';
 import '../localization/app_localizations.dart';
 import '../services/auth/profile_service.dart';
 import '../theme/app_theme.dart';
@@ -287,7 +288,14 @@ class _CoachPageState extends State<CoachPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, "Detach failed: $e", type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(
+          e,
+          fallback: 'Could not detach coach. Please try again.',
+        ),
+        type: AppToastType.error,
+      );
     } finally {
       if (mounted) {
         setState(() => _detachingCoachIds.remove(coachId));
@@ -322,7 +330,14 @@ class _CoachPageState extends State<CoachPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, "Report failed: $e", type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(
+          e,
+          fallback: 'Could not submit report. Please try again.',
+        ),
+        type: AppToastType.error,
+      );
     } finally {
       if (mounted) {
         setState(() => _reportingCoachIds.remove(coachId));
@@ -369,7 +384,14 @@ class _CoachPageState extends State<CoachPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, "Connect failed: $e", type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(
+          e,
+          fallback: 'Could not connect to coach. Please try again.',
+        ),
+        type: AppToastType.error,
+      );
     }
   }
 

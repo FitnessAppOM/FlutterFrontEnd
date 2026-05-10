@@ -626,6 +626,14 @@ class NotificationService {
     return int.tryParse(value.toString().trim());
   }
 
+  static int? _firstIntFromMap(Map<String, dynamic> data, List<String> keys) {
+    for (final key in keys) {
+      final parsed = _parseIntOrNull(data[key]);
+      if (parsed != null) return parsed;
+    }
+    return null;
+  }
+
   static void _handleNotificationTapPayload(String? payload) {
     final raw = (payload ?? '').trim();
     if (raw.isEmpty) return;
@@ -645,44 +653,58 @@ class NotificationService {
 
     String? type;
     int? senderUserId;
+    int? clientUserId;
+    int? coachUserId;
     String? senderRole;
     try {
       final decoded = jsonDecode(raw);
       if (decoded is Map) {
         final map = Map<String, dynamic>.from(decoded);
         type = map['type']?.toString().trim();
-        senderUserId = _parseIntOrNull(map['sender_user_id']);
-        senderRole = (map['sender_role'] ?? map['senderRole'])
+        senderUserId = _firstIntFromMap(map, const [
+          'sender_user_id',
+          'senderUserId',
+          'sender_id',
+          'senderId',
+          'user_id',
+          'userId',
+        ]);
+        clientUserId = _firstIntFromMap(map, const [
+          'client_user_id',
+          'clientUserId',
+          'client_id',
+          'clientId',
+          'sender_user_id',
+          'senderUserId',
+          'sender_id',
+          'senderId',
+        ]);
+        coachUserId = _firstIntFromMap(map, const [
+          'coach_user_id',
+          'coachUserId',
+          'coach_id',
+          'coachId',
+        ]);
+        senderRole =
+            (map['sender_role'] ??
+                    map['senderRole'] ??
+                    map['from_role'] ??
+                    map['fromRole'] ??
+                    map['role'])
             ?.toString()
             .trim();
       }
     } catch (_) {
       type = raw;
     }
-
-    if (type == 'coach_chat') {
-      NavigationService.navigateToChatFromNotification(
-        senderUserId: senderUserId,
-        senderRole: senderRole,
-      );
-      return;
-    }
-    if (type == 'habit_reminder') {
-      NavigationService.navigateToCoachFeedback();
-      return;
-    }
-    if (type == 'training_plan_change') {
-      NavigationService.navigateToTrain(fromNotification: true);
-      return;
-    }
-    if (type == 'coach_feedback_added' || type == 'coach_habit_added') {
-      NavigationService.navigateToCoachFeedback();
-      return;
-    }
-    if (type == 'coach_connection_request_decision') {
-      NavigationService.navigateToCoachFeedback();
-      return;
-    }
+    if ((type ?? '').isEmpty) return;
+    NavigationService.handleNotificationTap(
+      type: type!,
+      senderUserId: senderUserId,
+      senderRole: senderRole,
+      clientUserId: clientUserId,
+      coachUserId: coachUserId,
+    );
   }
 
   static int _toInt(dynamic v) {

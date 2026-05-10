@@ -667,7 +667,7 @@ class AppLocalizations {
       "coach_tasks_title": "Coach Tasks",
       "coach_tasks_subtitle":
           "Your coach-assigned actions and pinned corrections.",
-      "coach_tasks_daily_habits": "Weekly Habits",
+      "coach_tasks_daily_habits": "Habits",
       "coach_tasks_pinned_corrections": "Active Pinned Corrections",
       "coach_habits_empty": "No active habits assigned yet.",
       "coach_habits_load_failed": "Could not load habits",
@@ -1647,7 +1647,7 @@ class AppLocalizations {
       "coach_tasks_title": "مهام المدرب",
       "coach_tasks_subtitle":
           "المهام المعينة من المدرب وتصحيحات الأداء المثبتة.",
-      "coach_tasks_daily_habits": "العادات الأسبوعية",
+      "coach_tasks_daily_habits": "العادات",
       "coach_tasks_pinned_corrections": "تصحيحات الأداء المثبتة",
       "coach_habits_empty": "لا توجد عادات مخصصة حالياً.",
       "coach_habits_load_failed": "تعذر تحميل العادات",

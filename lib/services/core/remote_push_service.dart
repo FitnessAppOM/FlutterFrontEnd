@@ -37,11 +37,14 @@ class RemotePushService {
       try {
         final title =
             message.notification?.title ??
+            message.data['notification_title']?.toString().trim() ??
             message.data['title']?.toString().trim() ??
             '';
         final body =
             message.notification?.body ??
+            message.data['notification_body']?.toString().trim() ??
             message.data['body']?.toString().trim() ??
+            message.data['message']?.toString().trim() ??
             '';
         if (title.isEmpty && body.isEmpty) return;
         await NotificationService.showRemoteMessageNow(
@@ -70,6 +73,10 @@ class RemotePushService {
         tokenOverride: token,
       ).catchError((_) {});
     });
+
+    // Ensure current token is registered even when no account-change event
+    // occurs in this app run (e.g. returning user opening app fresh).
+    syncTokenForCurrentUser().catchError((_) {});
   }
 
   static int? _parseIntOrNull(dynamic value) {
@@ -79,36 +86,60 @@ class RemotePushService {
     return int.tryParse(value.toString().trim());
   }
 
+  static int? _firstIntFromKeys(
+    Map<String, dynamic> data,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final parsed = _parseIntOrNull(data[key]);
+      if (parsed != null) return parsed;
+    }
+    return null;
+  }
+
   static void _handleNotificationTapData(Map<String, dynamic> data) {
     final type = (data['type'] ?? '').toString().trim();
     if (type.isEmpty) return;
+    final senderUserId = _firstIntFromKeys(data, const [
+      'sender_user_id',
+      'senderUserId',
+      'sender_id',
+      'senderId',
+      'user_id',
+      'userId',
+    ]);
+    final clientUserId = _firstIntFromKeys(data, const [
+      'client_user_id',
+      'clientUserId',
+      'client_id',
+      'clientId',
+      'sender_user_id',
+      'senderUserId',
+      'sender_id',
+      'senderId',
+    ]);
+    final coachUserId = _firstIntFromKeys(data, const [
+      'coach_user_id',
+      'coachUserId',
+      'coach_id',
+      'coachId',
+    ]);
+    final senderRole =
+        (data['sender_role'] ??
+                data['senderRole'] ??
+                data['from_role'] ??
+                data['fromRole'] ??
+                data['role'])
+        ?.toString()
+        .trim();
 
-    if (type == 'coach_chat') {
-      final senderUserId = _parseIntOrNull(data['sender_user_id']);
-      final senderRole = (data['sender_role'] ?? data['senderRole'])
-          ?.toString()
-          .trim();
-      NavigationService.navigateToChatFromNotification(
-        senderUserId: senderUserId,
-        senderRole: senderRole,
-      );
-      return;
-    }
-    if (type == 'habit_reminder') {
-      NavigationService.navigateToCoachFeedback();
-      return;
-    }
-    if (type == 'training_plan_change') {
-      NavigationService.navigateToTrain(fromNotification: true);
-      return;
-    }
-    if (type == 'coach_feedback_added' || type == 'coach_habit_added') {
-      NavigationService.navigateToCoachFeedback();
-      return;
-    }
-    if (type == 'coach_connection_request_decision') {
-      NavigationService.navigateToCoachFeedback();
-    }
+    NavigationService.handleNotificationTap(
+      type: type,
+      senderUserId: senderUserId,
+      senderRole: senderRole,
+      clientUserId: clientUserId,
+      coachUserId: coachUserId,
+    );
   }
 
   static Future<void> _ensureFcmPermission() async {

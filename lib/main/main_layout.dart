@@ -7,6 +7,7 @@ import 'pages/community_page.dart';
 import 'pages/profile_page.dart';
 import '../core/account_storage.dart';
 import '../services/auth/profile_service.dart';
+import '../services/core/navigation_service.dart';
 import '../services/screenings/screening_prompt_service.dart';
 
 class MainLayout extends StatefulWidget {
@@ -34,6 +35,8 @@ class _MainLayoutState extends State<MainLayout> {
     _index = (idx >= 0 && idx < 5) ? idx : 0;
     _pages[_index] = _buildPage(_index);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      NavigationService.setNotificationNavigationReady(true);
+      NavigationService.flushPendingNotificationNavigation();
       ScreeningPromptService.checkAndPromptIfDue();
     });
   }
@@ -78,20 +81,11 @@ class _MainLayoutState extends State<MainLayout> {
       final userId = await AccountStorage.getUserId();
       if (userId == null || userId <= 0) return;
       final profile = await ProfileApi.fetchProfile(userId, lang: lang);
-      final hasExpertProfile = profile["has_expert_profile"] == true;
       final filledExpertQuestionnaire =
           profile["filled_expert_questionnaire"] == true;
-      final rawStatus = (profile["expert_profile_status"] ?? "")
-          .toString()
-          .trim()
-          .toLowerCase();
 
       final done = filledExpertQuestionnaire;
-      final isExpert =
-          hasExpertProfile ||
-          filledExpertQuestionnaire ||
-          rawStatus == "approved" ||
-          rawStatus == "pending";
+      final isExpert = profile["is_expert"] == true;
 
       await AccountStorage.setExpertQuestionnaireDone(done);
       await AccountStorage.setIsExpert(isExpert);

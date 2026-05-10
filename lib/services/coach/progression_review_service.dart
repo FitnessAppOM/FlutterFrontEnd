@@ -1650,7 +1650,7 @@ class ProgressionReviewService {
     int clientUserId,
   ) async {
     final res = await http.get(
-      _uri('/training/current/$clientUserId'),
+      _uri('/coach/progression/clients/$clientUserId/training-plan/current'),
       headers: await _authHeaders(),
     );
     await _handleAuth(res);

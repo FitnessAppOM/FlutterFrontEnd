@@ -6,6 +6,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/account_storage.dart';
+import '../../core/user_friendly_error.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/coach/coach_habits_service.dart';
 import '../../services/coach/diet_document_file_service.dart';
@@ -95,7 +96,10 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
       setState(() {
         _loadingHabits = false;
         _habits = const [];
-        _habitsError = e.toString();
+        _habitsError = userFriendlyErrorMessage(
+          e,
+          fallback: 'Could not load habits. Please try again.',
+        );
         _updatingHabitIds.clear();
       });
     }
@@ -173,7 +177,10 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
         _dietFeedbackComments = const [];
         _dietFeedbackDocuments = const [];
         _loadingFeedback = false;
-        _feedbackError = e.toString().replaceFirst('Exception: ', '');
+        _feedbackError = userFriendlyErrorMessage(
+          e,
+          fallback: 'Could not load feedback. Please try again.',
+        );
       });
     }
   }
@@ -211,7 +218,14 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+        SnackBar(
+          content: Text(
+            userFriendlyErrorMessage(
+              e,
+              fallback: 'Could not open document right now.',
+            ),
+          ),
+        ),
       );
     }
   }
@@ -326,7 +340,14 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+          SnackBar(
+            content: Text(
+              userFriendlyErrorMessage(
+                e,
+                fallback: 'Could not play voice note right now.',
+              ),
+            ),
+          ),
         );
       }
     } finally {
@@ -775,6 +796,7 @@ class _HabitRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final typeLabel = habit.isDaily ? 'Daily' : 'Weekly';
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
@@ -803,15 +825,43 @@ class _HabitRow extends StatelessWidget {
                 ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  habit.habit,
-                  style: TextStyle(
-                    color: habit.isCompleted ? Colors.white54 : Colors.white70,
-                    decoration: habit.isCompleted
-                        ? TextDecoration.lineThrough
-                        : TextDecoration.none,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      habit.habit,
+                      style: TextStyle(
+                        color: habit.isCompleted ? Colors.white54 : Colors.white70,
+                        decoration: habit.isCompleted
+                            ? TextDecoration.lineThrough
+                            : TextDecoration.none,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Type: $typeLabel',
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                typeLabel,
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 2),
+              Icon(
+                habit.isDaily ? Icons.today_outlined : Icons.date_range_outlined,
+                color: Colors.white38,
+                size: 14,
               ),
             ],
           ),

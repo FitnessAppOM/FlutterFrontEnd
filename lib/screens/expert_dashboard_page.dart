@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../config/base_url.dart';
@@ -9,9 +10,11 @@ import '../services/coach/coach_habit_reminder_settings_service.dart';
 import '../services/coach/coach_support_chat_service.dart';
 import '../services/coach/diet_document_file_service.dart';
 import '../services/coach/progression_review_service.dart';
+import '../services/core/navigation_service.dart';
 import '../services/training/training_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_toast.dart';
+import '../widgets/training/exercise_picker_sheet.dart';
 import 'expert_client_detail_page.dart';
 import 'expert_connection_requests_page.dart';
 import 'expert_progression_review_page.dart';
@@ -69,6 +72,9 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
   bool _triggeringHabitReminderNow = false;
   bool _openingPlanCreator = false;
   bool _habitReminderSettingsLoaded = false;
+  bool _loadingCoachPinInSettings = false;
+  bool _coachPinLoadedInSettings = false;
+  String? _coachPin;
   bool _autoHabitReminderEnabled = false;
   String _habitReminderScheduleType = 'weekly';
   int _habitReminderWeeklyDay = 0;
@@ -78,6 +84,10 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NavigationService.setNotificationNavigationReady(true);
+      NavigationService.flushPendingNotificationNavigation();
+    });
     _load();
   }
 
@@ -90,7 +100,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
   Future<void> _openPlanCreatorSheet() async {
     if (_openingPlanCreator) return;
     setState(() => _openingPlanCreator = true);
-    final libraryExercises = <_LibraryExerciseOption>[];
+    final libraryExercises = <ExercisePickerItem>[];
     try {
       final raw = await TrainingService.fetchAllExercises();
       for (final item in raw) {
@@ -99,7 +109,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
         final name = (item['exercise_name'] ?? '').toString().trim();
         if (exerciseId == null || exerciseId <= 0 || name.isEmpty) continue;
         libraryExercises.add(
-          _LibraryExerciseOption(id: exerciseId, name: name),
+          ExercisePickerItem(id: exerciseId, name: name),
         );
       }
       libraryExercises.sort(
@@ -144,6 +154,13 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
         ],
       ),
     ];
+
+    String exerciseNameById(int exerciseId) {
+      for (final exercise in libraryExercises) {
+        if (exercise.id == exerciseId) return exercise.name;
+      }
+      return '';
+    }
 
     Future<void> submitPlan(StateSetter setModalState) async {
       if (submitting) return;
@@ -348,6 +365,8 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                                   exIndex,
                                 ) {
                                   final ex = day.exercises[exIndex];
+                                  final selectedExerciseName =
+                                      exerciseNameById(ex.exerciseId);
                                   return Padding(
                                     padding: const EdgeInsets.only(bottom: 8),
                                     child: Container(
@@ -361,34 +380,51 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                                       ),
                                       child: Column(
                                         children: [
-                                          DropdownButtonFormField<int>(
-                                            initialValue: ex.exerciseId,
-                                            decoration: const InputDecoration(
-                                              labelText: 'Exercise',
+                                          InkWell(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
                                             ),
-                                            dropdownColor: AppColors.cardDark,
-                                            items: libraryExercises
-                                                .map(
-                                                  (exercise) =>
-                                                      DropdownMenuItem<int>(
-                                                        value: exercise.id,
-                                                        child: Text(
-                                                          exercise.name,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
-                                                      ),
-                                                )
-                                                .toList(growable: false),
-                                            onChanged: submitting
+                                            onTap: submitting
                                                 ? null
-                                                : (value) {
-                                                    if (value == null) return;
+                                                : () async {
+                                                    final picked =
+                                                        await showExercisePickerSheet(
+                                                          context: context,
+                                                          options:
+                                                              libraryExercises,
+                                                          selectedId:
+                                                              ex.exerciseId > 0
+                                                              ? ex.exerciseId
+                                                              : null,
+                                                        );
+                                                    if (picked == null) return;
                                                     setModalState(
                                                       () =>
-                                                          ex.exerciseId = value,
+                                                          ex.exerciseId =
+                                                              picked.id,
                                                     );
                                                   },
+                                            child: InputDecorator(
+                                              decoration: const InputDecoration(
+                                                labelText: 'Exercise',
+                                                suffixIcon: Icon(
+                                                  Icons.search_rounded,
+                                                ),
+                                              ),
+                                              child: Text(
+                                                selectedExerciseName.isEmpty
+                                                    ? 'Select exercise'
+                                                    : selectedExerciseName,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  color: selectedExerciseName
+                                                          .isEmpty
+                                                      ? Colors.white54
+                                                      : Colors.white,
+                                                ),
+                                              ),
+                                            ),
                                           ),
                                           const SizedBox(height: 8),
                                           Row(
@@ -1461,7 +1497,40 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
     setState(() => _tabIndex = index);
     if (index == _tabSettings) {
       unawaited(_loadHabitReminderSettings(force: false));
+      unawaited(_loadCoachPinForSettings(force: false));
     }
+  }
+
+  Future<void> _loadCoachPinForSettings({required bool force}) async {
+    if (_loadingCoachPinInSettings) return;
+    if (!force && _coachPinLoadedInSettings) return;
+    setState(() => _loadingCoachPinInSettings = true);
+    try {
+      final coachPin = await ProgressionReviewService.fetchMyCoachCode();
+      if (!mounted) return;
+      setState(() {
+        _coachPin = coachPin;
+        _coachPinLoadedInSettings = true;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _coachPin = null;
+        _coachPinLoadedInSettings = true;
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _loadingCoachPinInSettings = false);
+      }
+    }
+  }
+
+  Future<void> _copyCoachPinFromSettings() async {
+    final pin = (_coachPin ?? '').trim();
+    if (pin.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: pin));
+    if (!mounted) return;
+    AppToast.show(context, 'Coach PIN copied', type: AppToastType.success);
   }
 
   Future<void> _loadHabitReminderSettings({required bool force}) async {
@@ -2367,6 +2436,74 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
+                'Coach PIN',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 6),
+              if (_loadingCoachPinInSettings)
+                const Text(
+                  'Loading coach PIN...',
+                  style: TextStyle(color: Colors.white60, fontSize: 12),
+                )
+              else if ((_coachPin ?? '').trim().isNotEmpty)
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.pin_outlined,
+                      color: Colors.white70,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        (_coachPin ?? '').trim(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _copyCoachPinFromSettings,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white24),
+                        minimumSize: const Size(0, 32),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                      ),
+                      icon: const Icon(Icons.copy_rounded, size: 14),
+                      label: const Text('Copy'),
+                    ),
+                  ],
+                )
+              else
+                const Text(
+                  'Coach PIN unavailable.',
+                  style: TextStyle(color: Colors.white60, fontSize: 12),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.cardDark,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white10),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
                 'Habit Reminder Automation',
                 style: TextStyle(
                   color: Colors.white,
@@ -2753,13 +2890,6 @@ class _PlanDraftExercise {
   int sets;
   int reps;
   int? rir;
-}
-
-class _LibraryExerciseOption {
-  const _LibraryExerciseOption({required this.id, required this.name});
-
-  final int id;
-  final String name;
 }
 
 class _BottomTabButton extends StatelessWidget {

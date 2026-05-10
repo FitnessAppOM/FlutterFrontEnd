@@ -23,6 +23,7 @@ import 'expert_client_chat_page.dart';
 import 'expert_client_diet_review_page.dart';
 import 'expert_client_habits_page.dart';
 import 'expert_progression_review_page.dart';
+import 'expert_training_plan_review_page.dart';
 import '../widgets/coach/chat_video_player_page.dart';
 
 String _aiUpdateGenerationMessage(Map<String, dynamic> result) {
@@ -60,6 +61,8 @@ class ExpertClientDetailPage extends StatefulWidget {
 class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   bool _loading = true;
   int? _expertId;
+  String? _activityStatus;
+  int? _inactiveDays;
   Map<String, dynamic>? _profile;
   List<CoachHabitItem> _habits = const [];
   List<ProgressionReview> _clientReviews = const [];
@@ -92,6 +95,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   late bool _showTrainingPlanPendingNote;
   bool _dietLogSeenNotified = false;
   bool _supportChatHasUnread = false;
+  bool _openingTrainingPlan = false;
 
   @override
   void initState() {
@@ -102,6 +106,8 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     _showFormReviewPendingNote = widget.client.hasFormCheckToReview;
     _showDietLogPendingNote = widget.client.hasDietLogToReview;
     _showTrainingPlanPendingNote = widget.client.hasUncheckedTrainingPlan;
+    _activityStatus = widget.client.activityStatus;
+    _inactiveDays = widget.client.inactiveDays;
     _voicePlayerSub = _voicePlayer.playerStateStream.listen((_) {
       if (mounted) {
         setState(() {});
@@ -151,6 +157,8 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     String? formChecksError;
     bool showTrainingPlanPendingNote = _showTrainingPlanPendingNote;
     bool supportChatHasUnread = _supportChatHasUnread;
+    String? activityStatus = _activityStatus ?? widget.client.activityStatus;
+    int? inactiveDays = _inactiveDays ?? widget.client.inactiveDays;
 
     try {
       expertId = await AccountStorage.getUserId();
@@ -202,6 +210,23 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       // Keep previous value if support-chat status cannot be loaded.
     }
 
+    try {
+      final analytics = await ProgressionReviewService.fetchClientAnalytics(
+        widget.client.userId,
+      );
+      final rawActivity = analytics['activity'];
+      if (rawActivity is Map) {
+        final activityMap = Map<String, dynamic>.from(rawActivity);
+        final statusRaw = (activityMap['activity_status'] ?? '').toString().trim();
+        if (statusRaw.isNotEmpty) {
+          activityStatus = statusRaw;
+        }
+        inactiveDays = _parseNullableInt(activityMap['inactive_days']) ?? inactiveDays;
+      }
+    } catch (_) {
+      // Keep previous status if analytics cannot be loaded.
+    }
+
     if (!mounted) return;
     _syncReviewControllers(sharedFormChecks);
     setState(() {
@@ -214,6 +239,8 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       _formChecksError = formChecksError;
       _showTrainingPlanPendingNote = showTrainingPlanPendingNote;
       _supportChatHasUnread = supportChatHasUnread;
+      _activityStatus = activityStatus;
+      _inactiveDays = inactiveDays;
       _loading = false;
     });
   }
@@ -464,7 +491,9 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   }
 
   Color _activityColor() {
-    switch ((widget.client.activityStatus ?? '').trim().toLowerCase()) {
+    switch ((_activityStatus ?? widget.client.activityStatus ?? '')
+        .trim()
+        .toLowerCase()) {
       case 'green':
         return Colors.greenAccent.shade400;
       case 'yellow':
@@ -477,18 +506,29 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   }
 
   String _activityLabel() {
-    final status = (widget.client.activityStatus ?? '').trim().toLowerCase();
+    final status =
+        (_activityStatus ?? widget.client.activityStatus ?? '')
+            .trim()
+            .toLowerCase();
+    final inactiveDays = _inactiveDays ?? widget.client.inactiveDays;
     if (status == 'green') return 'Active';
     if (status == 'yellow') {
-      if (widget.client.inactiveDays != null) {
-        return 'Inactive ${widget.client.inactiveDays} days';
+      if (inactiveDays != null) {
+        return 'Inactive $inactiveDays days';
       }
       return 'Inactive 3+ days';
     }
-    if (widget.client.inactiveDays != null) {
-      return 'Inactive ${widget.client.inactiveDays} days';
+    if (inactiveDays != null) {
+      return 'Inactive $inactiveDays days';
     }
     return 'Inactive 7+ days';
+  }
+
+  int? _parseNullableInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
   }
 
   Future<void> _openVideoInApp(String? url, {required String title}) async {
@@ -2082,6 +2122,52 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     );
   }
 
+  Future<void> _openTrainingPlanPage() async {
+    if (_openingTrainingPlan) return;
+    setState(() => _openingTrainingPlan = true);
+
+    Map<String, dynamic> activeProgram = const {};
+    String? trainingPlanError;
+    try {
+      activeProgram =
+          await ProgressionReviewService.fetchClientActiveTrainingProgram(
+            widget.client.userId,
+          );
+    } catch (e) {
+      final normalized = _normalizeHabitsError(e);
+      if (normalized.toLowerCase().contains(
+            'failed to load client training program',
+          ) ||
+          normalized.toLowerCase().contains('no program found') ||
+          normalized.toLowerCase().contains('404')) {
+        trainingPlanError = 'No active training plan yet.';
+      } else {
+        trainingPlanError = normalized;
+      }
+      activeProgram = const {};
+    }
+
+    if (!mounted) return;
+    setState(() => _openingTrainingPlan = false);
+
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (_) => ExpertTrainingPlanReviewPage(
+          clientUserId: widget.client.userId,
+          clientName: _displayName(),
+          activeProgram: activeProgram,
+          trainingPlanError: trainingPlanError,
+        ),
+      ),
+    );
+
+    if (!mounted || result == null) return;
+    if (result['didCheck'] == true) {
+      _handleTrainingPlanVerified();
+    }
+    await _load();
+  }
+
   Future<void> _openDietReviewPage() async {
     if (_showDietLogPendingNote && mounted) {
       setState(() {
@@ -2483,6 +2569,131 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                   ),
                   icon: const Icon(Icons.visibility_outlined, size: 16),
                   label: const Text('View Habits'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTrainingPlanCard() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: _openingTrainingPlan ? null : _openTrainingPlanPage,
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.cardDark,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white10),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Client Plan',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  if (_showTrainingPlanPendingNote)
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF5FD8FF).withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: const Color(
+                            0xFF5FD8FF,
+                          ).withValues(alpha: 0.45),
+                        ),
+                      ),
+                      child: const Text(
+                        'New',
+                        style: TextStyle(
+                          color: Color(0xFF5FD8FF),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  if (_openingTrainingPlan)
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  else
+                    const Icon(
+                      Icons.chevron_right,
+                      color: Colors.white54,
+                      size: 20,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Open and review the client training plan directly.',
+                style: TextStyle(color: Colors.white70),
+              ),
+              if (_showTrainingPlanPendingNote) ...[
+                const SizedBox(height: 6),
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.checklist_rounded,
+                      size: 14,
+                      color: Color(0xFF5FD8FF),
+                    ),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        "Client's plan not checked yet.",
+                        style: TextStyle(
+                          color: Color(0xFF5FD8FF),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton.icon(
+                  onPressed: _openingTrainingPlan ? null : _openTrainingPlanPage,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white24),
+                    minimumSize: const Size(0, 34),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: const VisualDensity(
+                      horizontal: -2,
+                      vertical: -2,
+                    ),
+                  ),
+                  icon: const Icon(Icons.checklist_rounded, size: 16),
+                  label: Text(_openingTrainingPlan ? 'Opening...' : 'Open Plan'),
                 ),
               ),
             ],
@@ -2976,6 +3187,8 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
         _buildSupportChatCard(),
         const SizedBox(height: 12),
         _buildAnalyticsCard(),
+        const SizedBox(height: 12),
+        _buildTrainingPlanCard(),
         const SizedBox(height: 12),
         _buildHabitsCard(),
         const SizedBox(height: 12),

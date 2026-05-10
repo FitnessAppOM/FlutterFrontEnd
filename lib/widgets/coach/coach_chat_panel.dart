@@ -11,6 +11,7 @@ import 'package:record/record.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/base_url.dart';
+import '../../core/user_friendly_error.dart';
 import '../../services/coach/chat_attachment_file_service.dart';
 import '../../services/coach/coach_support_chat_service.dart';
 import '../../services/coach/voice_note_audio_service.dart';
@@ -202,7 +203,10 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       ).showSnackBar(const SnackBar(content: Text('Message reported.')));
     } catch (e) {
       if (!mounted) return;
-      final text = e.toString().replaceFirst('Exception: ', '');
+      final text = userFriendlyErrorMessage(
+        e,
+        fallback: 'Failed to report message. Please try again.',
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(text.isEmpty ? 'Failed to report message.' : text),
@@ -841,7 +845,10 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
         _loading = false;
         _loadingThread = false;
         _chatState = null;
-        _error = e.toString().replaceFirst('Exception: ', '');
+        _error = userFriendlyErrorMessage(
+          e,
+          fallback: 'Could not load chat. Please try again.',
+        );
       });
     }
   }
@@ -872,7 +879,10 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       if (!mounted) return;
       setState(() {
         _loadingThread = false;
-        _error = e.toString().replaceFirst('Exception: ', '');
+        _error = userFriendlyErrorMessage(
+          e,
+          fallback: 'Could not open chat. Please try again.',
+        );
       });
       ScaffoldMessenger.of(
         context,
@@ -926,7 +936,10 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       if (!mounted) return;
       setState(() {
         _sending = false;
-        _error = e.toString().replaceFirst('Exception: ', '');
+        _error = userFriendlyErrorMessage(
+          e,
+          fallback: 'Could not send message. Please try again.',
+        );
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_error ?? 'Failed to send message')),
@@ -1558,6 +1571,8 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                           minLines: 1,
                           maxLines: 5,
                           textInputAction: TextInputAction.newline,
+                          onTapOutside: (_) =>
+                              FocusScope.of(context).unfocus(),
                           onChanged: (_) => setState(() {}),
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
@@ -1622,13 +1637,17 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: RefreshIndicator(onRefresh: _loadChat, child: _buildBody()),
-        ),
-        _buildComposer(),
-      ],
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Column(
+        children: [
+          Expanded(
+            child: RefreshIndicator(onRefresh: _loadChat, child: _buildBody()),
+          ),
+          _buildComposer(),
+        ],
+      ),
     );
   }
 }

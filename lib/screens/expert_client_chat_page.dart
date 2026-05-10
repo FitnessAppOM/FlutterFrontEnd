@@ -1345,6 +1345,8 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
                           minLines: 1,
                           maxLines: 5,
                           textInputAction: TextInputAction.newline,
+                          onTapOutside: (_) =>
+                              FocusScope.of(context).unfocus(),
                           onChanged: (_) => setState(() {}),
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
@@ -1422,13 +1424,17 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: RefreshIndicator(onRefresh: _loadChat, child: _buildBody()),
-          ),
-          _buildComposer(),
-        ],
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Column(
+          children: [
+            Expanded(
+              child: RefreshIndicator(onRefresh: _loadChat, child: _buildBody()),
+            ),
+            _buildComposer(),
+          ],
+        ),
       ),
     );
   }

@@ -395,14 +395,10 @@ class ConsentManager {
   // CAMERA — JIT (you’ll still need proper Info.plist/Manifest entries)
   // ---------------------------------------------------------------------------
   static Future<bool> requestCameraJIT() async {
-    if (Platform.isAndroid) {
-      final status = await Permission.camera.status;
-      if (status.isGranted) return true;
-      final res = await Permission.camera.request();
-      return res.isGranted;
-    }
-    // iOS prompts automatically on first camera use if Info.plist key exists.
-    return true;
+    final status = await Permission.camera.status;
+    if (status.isGranted) return true;
+    final res = await Permission.camera.request();
+    return res.isGranted;
   }
 
   // ---------------------------------------------------------------------------
@@ -418,8 +414,10 @@ class ConsentManager {
       final res = await Permission.photos.request();
       return res.isGranted;
     }
-    // iOS prompts on first access if the proper Info.plist keys exist.
-    return true;
+    final photos = await Permission.photos.status;
+    if (_isGrantedOrLimited(photos)) return true;
+    final res = await Permission.photos.request();
+    return _isGrantedOrLimited(res);
   }
 
   // Files/documents (PDF/images) for uploads
