@@ -40,10 +40,11 @@ class ReleaseNotesDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ReleaseNoteHighlight(text: 'v1.0.27'),
+          _ReleaseNoteHighlight(text: 'v1.0.28'),
           SizedBox(height: 10),
-          _ReleaseNoteItem(text: 'App load speed improved'),
-          _ReleaseNoteItem(text: 'Coach notification fix'),
+          _ReleaseNoteItem(text: 'Diet edit function improvements'),
+          _ReleaseNoteItem(text: 'Habits now support daily type'),
+          _ReleaseNoteItem(text: 'General bugs and fixes'),
         ],
       ),
       actions: [

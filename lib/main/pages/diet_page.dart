@@ -2363,6 +2363,15 @@ class DietPageState extends State<DietPage> {
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Note: Today\'s visible calories can include added burn surplus.',
+                                    style: TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
                                   const SizedBox(height: 8),
                                   for (final event in targetChanges) ...[
                                     Container(

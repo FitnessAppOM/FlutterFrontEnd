@@ -172,7 +172,7 @@ class NavigationService {
       return true;
     }
     if (type == 'diet_target_change') {
-      await navigateToDiet(fromNotification: true);
+      await navigateToDiet(fromNotification: false);
       return true;
     }
     if (type == 'coach_connection_request_decision') {
