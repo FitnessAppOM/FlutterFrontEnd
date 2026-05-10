@@ -104,7 +104,10 @@ class NavigationService {
     final userId = await AccountStorage.getUserId();
     final token = await AccountStorage.getAccessToken();
     final hasSession =
-        userId != null && userId > 0 && token != null && token.trim().isNotEmpty;
+        userId != null &&
+        userId > 0 &&
+        token != null &&
+        token.trim().isNotEmpty;
     if (!hasSession) return false;
 
     final nav = navigatorKey.currentState;
@@ -168,6 +171,10 @@ class NavigationService {
       await navigateToTrain(fromNotification: true);
       return true;
     }
+    if (type == 'diet_target_change') {
+      await navigateToDiet(fromNotification: true);
+      return true;
+    }
     if (type == 'coach_connection_request_decision') {
       await navigateToCoachFeedback();
       return true;
@@ -201,6 +208,9 @@ class NavigationService {
 
     if (type == 'training_plan_change') {
       return const MainLayout(initialIndex: 1);
+    }
+    if (type == 'diet_target_change') {
+      return const MainLayout(initialIndex: 2);
     }
     if (type == 'coach_connection_request_decision') {
       return const CoachPage(initialTabIndex: 0);
@@ -321,9 +331,7 @@ class NavigationService {
     final nav = navigatorKey.currentState;
     if (nav == null) return;
 
-    nav.push(
-      MaterialPageRoute(builder: (_) => const ExpertDashboardPage()),
-    );
+    nav.push(MaterialPageRoute(builder: (_) => const ExpertDashboardPage()));
   }
 
   static Future<void> navigateToCoachPage({

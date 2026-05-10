@@ -54,6 +54,7 @@ class DietPageState extends State<DietPage> {
   bool _dietRecommendationCancelled = false;
   DialogRoute<bool>? _dietRecommendationDialogRoute;
   bool _loadingUploadedPlans = false;
+  int _unseenDietTargetChangeCount = 0;
 
   int _modeIndex = 0; // 0 = Rest, 1 = Training
   bool _editingTargets = false;
@@ -674,6 +675,7 @@ class DietPageState extends State<DietPage> {
     await _hydrateFromCache();
     await _loadBootstrap(silent: _targets != null || _meals != null);
     await _updateTrainingLockFromCompletion();
+    await _refreshDietTargetChangeState(markSeen: false);
   }
 
   Future<void> _hydrateFromCache() async {
@@ -2144,6 +2146,45 @@ class DietPageState extends State<DietPage> {
     return '$mm/$dd/$yyyy';
   }
 
+  String _formatDietTargetChangeDate(DateTime? value) {
+    if (value == null) return '-';
+    final local = value.toLocal();
+    final mm = local.month.toString().padLeft(2, '0');
+    final dd = local.day.toString().padLeft(2, '0');
+    final yyyy = local.year.toString();
+    final hh = local.hour.toString().padLeft(2, '0');
+    final min = local.minute.toString().padLeft(2, '0');
+    return '$mm/$dd/$yyyy $hh:$min';
+  }
+
+  String _targetMetricLabel(String metric) {
+    switch (metric.trim().toLowerCase()) {
+      case 'calories':
+        return 'Kcal';
+      case 'protein_g':
+        return 'Protein';
+      case 'carbs_g':
+        return 'Carbs';
+      case 'fat_g':
+        return 'Fat';
+      default:
+        return metric;
+    }
+  }
+
+  String _targetChangeDetailText(Map<String, dynamic> detail) {
+    final scope = (detail['scope'] ?? '').toString().trim().toLowerCase();
+    final metric = _targetMetricLabel((detail['field'] ?? '').toString());
+    final fromVal = detail['from']?.toString() ?? '-';
+    final toVal = detail['to']?.toString() ?? '-';
+    if (scope == 'training_day') {
+      final dayLabel = (detail['day_label'] ?? '').toString().trim();
+      final day = dayLabel.isEmpty ? 'Day' : dayLabel;
+      return '$day • $metric: $fromVal -> $toVal';
+    }
+    return 'Rest • $metric: $fromVal -> $toVal';
+  }
+
   String _coachFirstNameLabel(String? rawCoachName) {
     final raw = (rawCoachName ?? '').trim();
     if (raw.isEmpty) return 'Coach';
@@ -2212,6 +2253,26 @@ class DietPageState extends State<DietPage> {
     }
   }
 
+  Future<void> _refreshDietTargetChangeState({required bool markSeen}) async {
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null || userId <= 0) return;
+      final payload = await DietService.fetchDietTargetChanges(
+        userId: userId,
+        markSeen: markSeen,
+      );
+      final unseen = payload['unseen_count'] is int
+          ? payload['unseen_count'] as int
+          : 0;
+      if (!mounted) return;
+      setState(() {
+        _unseenDietTargetChangeCount = markSeen ? 0 : unseen;
+      });
+    } catch (_) {
+      // Keep page responsive if update-log fetch fails.
+    }
+  }
+
   Future<void> _showUploadedPlansSheet() async {
     if (_loadingUploadedPlans) return;
     setState(() => _loadingUploadedPlans = true);
@@ -2224,6 +2285,18 @@ class DietPageState extends State<DietPage> {
         userId: userId,
         markSeen: true,
       );
+      final targetPayload = await DietService.fetchDietTargetChanges(
+        userId: userId,
+        markSeen: true,
+      );
+      final targetChanges =
+          (targetPayload['items'] as List<DietTargetChangeEvent>? ?? const [])
+              .toList(growable: false);
+      if (mounted) {
+        setState(() {
+          _unseenDietTargetChangeCount = 0;
+        });
+      }
       if (!mounted) return;
       await showModalBottomSheet<void>(
         context: context,
@@ -2268,90 +2341,60 @@ class DietPageState extends State<DietPage> {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        if (plans.isEmpty)
+                        if (targetChanges.isEmpty && plans.isEmpty)
                           const Expanded(
                             child: Center(
                               child: Text(
-                                'No uploaded plans yet.',
+                                'No plan updates yet.',
                                 style: TextStyle(color: Colors.white70),
                               ),
                             ),
                           )
                         else
                           Expanded(
-                            child: ListView.separated(
-                              itemCount: plans.length,
-                              separatorBuilder: (_, _) =>
-                                  const SizedBox(height: 8),
-                              itemBuilder: (_, index) {
-                                final plan = plans[index];
-                                final coachLabel = _coachFirstNameLabel(
-                                  plan.coachName,
-                                );
-                                final isOpening = openingIds.contains(
-                                  plan.documentId,
-                                );
-                                return Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.cardDark,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.white10),
+                            child: ListView(
+                              children: [
+                                if (targetChanges.isNotEmpty) ...[
+                                  const Text(
+                                    'Target Updates',
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Icon(
-                                        Icons.description_outlined,
-                                        color: Colors.white70,
-                                        size: 18,
+                                  const SizedBox(height: 8),
+                                  for (final event in targetChanges) ...[
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      margin: const EdgeInsets.only(bottom: 8),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.cardDark,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: event.isNew
+                                              ? const Color(
+                                                  0xFF2D7CFF,
+                                                ).withValues(alpha: 0.6)
+                                              : Colors.white10,
+                                        ),
                                       ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: Text(
-                                                    plan.displayTitle,
-                                                    maxLines: 2,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                    ),
-                                                  ),
-                                                ),
-                                                if (plan.isPinned) ...[
-                                                  const SizedBox(width: 6),
-                                                  const Icon(
-                                                    Icons.push_pin,
-                                                    size: 14,
-                                                    color: Colors.orangeAccent,
-                                                  ),
-                                                ],
-                                              ],
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            event.summary,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w700,
                                             ),
+                                          ),
+                                          if (event.createdAt != null) ...[
                                             const SizedBox(height: 4),
                                             Text(
-                                              coachLabel,
-                                              style: const TextStyle(
-                                                color: Colors.white70,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              _formatUploadedPlanDate(
-                                                plan.createdAt ??
-                                                    plan.updatedAt,
+                                              _formatDietTargetChangeDate(
+                                                event.createdAt,
                                               ),
                                               style: const TextStyle(
                                                 color: Colors.white54,
@@ -2359,54 +2402,198 @@ class DietPageState extends State<DietPage> {
                                               ),
                                             ),
                                           ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      OutlinedButton.icon(
-                                        onPressed: isOpening
-                                            ? null
-                                            : () => _openUploadedPlanDocument(
-                                                plan,
-                                                setSheetState: setSheetState,
-                                                openingIds: openingIds,
+                                          if (event.details.isNotEmpty) ...[
+                                            const SizedBox(height: 8),
+                                            for (final detail
+                                                in event.details.take(4)) ...[
+                                              Text(
+                                                _targetChangeDetailText(detail),
+                                                style: const TextStyle(
+                                                  color: Colors.white70,
+                                                  fontSize: 12,
+                                                ),
                                               ),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: Colors.white,
-                                          side: const BorderSide(
-                                            color: Colors.white24,
-                                          ),
-                                          minimumSize: const Size(0, 34),
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 7,
-                                          ),
-                                          tapTargetSize:
-                                              MaterialTapTargetSize.shrinkWrap,
-                                          visualDensity: const VisualDensity(
-                                            horizontal: -2,
-                                            vertical: -2,
-                                          ),
-                                        ),
-                                        icon: isOpening
-                                            ? const SizedBox(
-                                                width: 12,
-                                                height: 12,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      color: Colors.white70,
-                                                    ),
-                                              )
-                                            : const Icon(
-                                                Icons.open_in_new,
-                                                size: 14,
+                                            ],
+                                            if (event.details.length > 4)
+                                              Text(
+                                                '+${event.details.length - 4} more changes',
+                                                style: const TextStyle(
+                                                  color: Colors.white54,
+                                                  fontSize: 11,
+                                                ),
                                               ),
-                                        label: const Text('Open'),
+                                          ],
+                                        ],
                                       ),
-                                    ],
+                                    ),
+                                  ],
+                                ],
+                                if (plans.isNotEmpty) ...[
+                                  if (targetChanges.isNotEmpty)
+                                    const SizedBox(height: 8),
+                                  const Text(
+                                    'Uploaded Plans',
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
-                                );
-                              },
+                                  const SizedBox(height: 8),
+                                  for (final plan in plans) ...[
+                                    Builder(
+                                      builder: (_) {
+                                        final coachLabel = _coachFirstNameLabel(
+                                          plan.coachName,
+                                        );
+                                        final isOpening = openingIds.contains(
+                                          plan.documentId,
+                                        );
+                                        return Container(
+                                          padding: const EdgeInsets.all(12),
+                                          margin: const EdgeInsets.only(
+                                            bottom: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.cardDark,
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.white10,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              const Icon(
+                                                Icons.description_outlined,
+                                                color: Colors.white70,
+                                                size: 18,
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      children: [
+                                                        Expanded(
+                                                          child: Text(
+                                                            plan.displayTitle,
+                                                            maxLines: 2,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                            style:
+                                                                const TextStyle(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w700,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                        if (plan.isPinned) ...[
+                                                          const SizedBox(
+                                                            width: 6,
+                                                          ),
+                                                          const Icon(
+                                                            Icons.push_pin,
+                                                            size: 14,
+                                                            color: Colors
+                                                                .orangeAccent,
+                                                          ),
+                                                        ],
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      coachLabel,
+                                                      style: const TextStyle(
+                                                        color: Colors.white70,
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      _formatUploadedPlanDate(
+                                                        plan.createdAt ??
+                                                            plan.updatedAt,
+                                                      ),
+                                                      style: const TextStyle(
+                                                        color: Colors.white54,
+                                                        fontSize: 12,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              OutlinedButton.icon(
+                                                onPressed: isOpening
+                                                    ? null
+                                                    : () =>
+                                                          _openUploadedPlanDocument(
+                                                            plan,
+                                                            setSheetState:
+                                                                setSheetState,
+                                                            openingIds:
+                                                                openingIds,
+                                                          ),
+                                                style: OutlinedButton.styleFrom(
+                                                  foregroundColor: Colors.white,
+                                                  side: const BorderSide(
+                                                    color: Colors.white24,
+                                                  ),
+                                                  minimumSize: const Size(
+                                                    0,
+                                                    34,
+                                                  ),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 7,
+                                                      ),
+                                                  tapTargetSize:
+                                                      MaterialTapTargetSize
+                                                          .shrinkWrap,
+                                                  visualDensity:
+                                                      const VisualDensity(
+                                                        horizontal: -2,
+                                                        vertical: -2,
+                                                      ),
+                                                ),
+                                                icon: isOpening
+                                                    ? const SizedBox(
+                                                        width: 12,
+                                                        height: 12,
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                              strokeWidth: 2,
+                                                              color: Colors
+                                                                  .white70,
+                                                            ),
+                                                      )
+                                                    : const Icon(
+                                                        Icons.open_in_new,
+                                                        size: 14,
+                                                      ),
+                                                label: const Text('Open'),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ],
+                              ],
                             ),
                           ),
                       ],
@@ -2521,7 +2708,11 @@ class DietPageState extends State<DietPage> {
                         ),
                       )
                     : const Icon(Icons.description_outlined, size: 14),
-                label: const Text('Plans'),
+                label: Text(
+                  _unseenDietTargetChangeCount > 0
+                      ? 'Plans • $_unseenDietTargetChangeCount'
+                      : 'Plans',
+                ),
               ),
             ],
           ),

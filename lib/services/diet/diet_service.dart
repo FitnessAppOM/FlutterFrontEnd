@@ -80,6 +80,68 @@ class DietCoachPlanDocument {
   }
 }
 
+class DietTargetChangeEvent {
+  final int eventId;
+  final int? coachUserId;
+  final String eventType;
+  final String summary;
+  final List<Map<String, dynamic>> details;
+  final DateTime? createdAt;
+  final DateTime? clientSeenAt;
+  final bool isNew;
+
+  const DietTargetChangeEvent({
+    required this.eventId,
+    required this.coachUserId,
+    required this.eventType,
+    required this.summary,
+    required this.details,
+    required this.createdAt,
+    required this.clientSeenAt,
+    required this.isNew,
+  });
+
+  factory DietTargetChangeEvent.fromJson(Map<String, dynamic> json) {
+    int parseInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    int? parseNullableInt(dynamic value) {
+      if (value == null) return null;
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value.toString());
+    }
+
+    DateTime? parseDate(dynamic value) {
+      final normalized = value?.toString().trim() ?? '';
+      if (normalized.isEmpty) return null;
+      return DateTime.tryParse(normalized);
+    }
+
+    final rawDetails = json['details'];
+    final parsedDetails = rawDetails is List
+        ? rawDetails
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList(growable: false)
+        : const <Map<String, dynamic>>[];
+
+    return DietTargetChangeEvent(
+      eventId: parseInt(json['event_id']),
+      coachUserId: parseNullableInt(json['coach_user_id']),
+      eventType: (json['event_type'] ?? '').toString().trim(),
+      summary: (json['summary'] ?? '').toString().trim(),
+      details: parsedDetails,
+      createdAt: parseDate(json['created_at']),
+      clientSeenAt: parseDate(json['client_seen_at']),
+      isNew: json['is_new'] == true,
+    );
+  }
+}
+
 class DietService {
   static String baseUrl = ApiConfig.baseUrl;
 
@@ -965,6 +1027,53 @@ class DietService {
         )
         .where((item) => (item.documentUrl ?? '').trim().isNotEmpty)
         .toList(growable: false);
+  }
+
+  static Future<Map<String, dynamic>> fetchDietTargetChanges({
+    required int userId,
+    bool markSeen = false,
+    int limit = 200,
+  }) async {
+    final url = Uri.parse('$baseUrl/diet/target-changes/$userId').replace(
+      queryParameters: <String, String>{
+        'mark_seen': markSeen.toString(),
+        'limit': '$limit',
+      },
+    );
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.get(url, headers: headers);
+
+    await AccountStorage.handleAuthStatus(
+      response.statusCode,
+      responseBody: response.body,
+    );
+    if (response.statusCode != 200) {
+      final body = response.body.isNotEmpty ? json.decode(response.body) : {};
+      throw Exception(body['detail'] ?? 'Failed to load diet target updates');
+    }
+
+    final decoded = response.body.isNotEmpty ? json.decode(response.body) : {};
+    final rawItems = decoded is Map ? decoded['items'] : null;
+    final items = rawItems is List
+        ? rawItems
+              .whereType<Map>()
+              .map(
+                (item) => DietTargetChangeEvent.fromJson(
+                  Map<String, dynamic>.from(item),
+                ),
+              )
+              .toList(growable: false)
+        : const <DietTargetChangeEvent>[];
+    final unseenCount = decoded is Map
+        ? (decoded['unseen_count'] is int
+              ? decoded['unseen_count'] as int
+              : int.tryParse('${decoded['unseen_count']}') ?? 0)
+        : 0;
+    return {
+      'items': items,
+      'unseen_count': unseenCount,
+      'mark_seen': decoded is Map ? decoded['mark_seen'] == true : false,
+    };
   }
 
   /// Add an item to a meal from a photo (Gemini estimation).

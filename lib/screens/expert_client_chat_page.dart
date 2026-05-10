@@ -11,6 +11,9 @@ import 'package:record/record.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../config/base_url.dart';
+import '../core/account_storage.dart';
+import '../main/main_layout.dart';
+import '../screens/expert_dashboard_page.dart';
 import '../services/coach/chat_attachment_file_service.dart';
 import '../services/coach/coach_support_chat_service.dart';
 import '../services/coach/voice_note_audio_service.dart';
@@ -1409,12 +1412,36 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
     );
   }
 
+  Future<void> _handleBackPressed() async {
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+      return;
+    }
+
+    final isExpert = await AccountStorage.isExpert();
+    if (!mounted) return;
+    navigator.pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) =>
+            isExpert ? const ExpertDashboardPage() : const MainLayout(),
+      ),
+      (_) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final canPop = Navigator.of(context).canPop();
     return Scaffold(
       backgroundColor: AppColors.black,
       appBar: AppBar(
         backgroundColor: AppColors.black,
+        leading: IconButton(
+          onPressed: _handleBackPressed,
+          icon: Icon(canPop ? Icons.arrow_back : Icons.close),
+          tooltip: canPop ? 'Back' : 'Close',
+        ),
         title: const Text('Support Chat'),
         actions: [
           IconButton(

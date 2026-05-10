@@ -12,6 +12,7 @@ import 'package:record/record.dart';
 import '../services/coach/progression_review_service.dart';
 import '../services/coach/voice_note_audio_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_toast.dart';
 
 class ExpertClientDietReviewPage extends StatefulWidget {
   const ExpertClientDietReviewPage({
@@ -34,10 +35,12 @@ class _ExpertClientDietReviewPageState
 
   DateTime _selectedDate = DateTime.now();
   bool _loadingLog = true;
+  bool _loadingTargets = true;
   bool _loadingComments = true;
   bool _sendingComment = false;
   bool _sendingVoiceNote = false;
   bool _uploadingDietDocument = false;
+  bool _savingTargets = false;
   final AudioRecorder _audioRecorder = AudioRecorder();
   final AudioPlayer _voicePlayer = AudioPlayer();
   StreamSubscription<PlayerState>? _voicePlayerSub;
@@ -52,7 +55,9 @@ class _ExpertClientDietReviewPageState
   String? _loadingVoiceNoteUrl;
   String? _logError;
   String? _commentsError;
+  String? _targetsError;
   Map<String, dynamic>? _dietLog;
+  Map<String, dynamic>? _dietTargets;
   final Map<String, Map<String, dynamic>> _dietLogByDate =
       <String, Map<String, dynamic>>{};
   List<CoachDietComment> _comments = const [];
@@ -423,6 +428,396 @@ class _ExpertClientDietReviewPageState
     }
   }
 
+  List<Map<String, dynamic>> _trainingDayTargets() {
+    final raw = _dietTargets?['training_day_targets'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
+  }
+
+  int? _parsePositiveIntOrNull(String rawValue) {
+    final value = int.tryParse(rawValue.trim());
+    if (value == null) return null;
+    if (value < 0) return null;
+    return value;
+  }
+
+  Future<void> _loadDietTargets() async {
+    if (mounted) {
+      setState(() {
+        _loadingTargets = true;
+        _targetsError = null;
+      });
+    }
+    try {
+      final targets = await ProgressionReviewService.fetchClientDietTargets(
+        clientUserId: widget.clientUserId,
+        autoGenerate: true,
+      );
+      if (!mounted) return;
+      setState(() {
+        _dietTargets = targets;
+        _loadingTargets = false;
+        _targetsError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _dietTargets = null;
+        _loadingTargets = false;
+        _targetsError = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  Future<void> _openEditTargetsSheet() async {
+    if (_dietTargets == null || _loadingTargets || _savingTargets) return;
+
+    final restCalCtrl = TextEditingController(
+      text: '${_asInt(_dietTargets?['rest_calories'])}',
+    );
+    final restPCtrl = TextEditingController(
+      text: '${_asInt(_dietTargets?['rest_protein_g'])}',
+    );
+    final restCCtrl = TextEditingController(
+      text: '${_asInt(_dietTargets?['rest_carbs_g'])}',
+    );
+    final restFCtrl = TextEditingController(
+      text: '${_asInt(_dietTargets?['rest_fat_g'])}',
+    );
+
+    final dayControllers = <int, Map<String, TextEditingController>>{};
+    for (final day in _trainingDayTargets()) {
+      final dayId = _asInt(day['day_id']);
+      if (dayId <= 0) continue;
+      dayControllers[dayId] = {
+        'cal': TextEditingController(text: '${_asInt(day['train_calories'])}'),
+        'p': TextEditingController(text: '${_asInt(day['train_protein_g'])}'),
+        'c': TextEditingController(text: '${_asInt(day['train_carbs_g'])}'),
+        'f': TextEditingController(text: '${_asInt(day['train_fat_g'])}'),
+      };
+    }
+    void disposeControllers() {
+      restCalCtrl.dispose();
+      restPCtrl.dispose();
+      restCCtrl.dispose();
+      restFCtrl.dispose();
+      for (final ctrls in dayControllers.values) {
+        for (final ctrl in ctrls.values) {
+          ctrl.dispose();
+        }
+      }
+    }
+
+    final shouldSubmit = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.cardDark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        final viewInsets = MediaQuery.of(ctx).viewInsets;
+        return Padding(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + viewInsets.bottom),
+          child: SafeArea(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Edit Client Targets',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(ctx).pop(false),
+                        icon: const Icon(Icons.close, color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2D7CFF).withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: const Color(0xFF2D7CFF).withValues(alpha: 0.5),
+                      ),
+                    ),
+                    child: const Text(
+                      'Note: Client-visible calorie targets may appear higher than entered values for today because burned calories are added automatically.',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Rest day',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: restCalCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'Kcal'),
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: restPCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'P (g)'),
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: restCCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'C (g)'),
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: restFCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'F (g)'),
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  if (_trainingDayTargets().isNotEmpty) ...[
+                    const Text(
+                      'Training days',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    for (final day in _trainingDayTargets()) ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.03),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.white12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              (day['day_label'] ?? '').toString().trim().isEmpty
+                                  ? 'Day ${_asInt(day['day_id'])}'
+                                  : (day['day_label'] ?? '').toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller:
+                                        dayControllers[_asInt(
+                                          day['day_id'],
+                                        )]?['cal'],
+                                    keyboardType: TextInputType.number,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Kcal',
+                                    ),
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextField(
+                                    controller:
+                                        dayControllers[_asInt(
+                                          day['day_id'],
+                                        )]?['p'],
+                                    keyboardType: TextInputType.number,
+                                    decoration: const InputDecoration(
+                                      labelText: 'P (g)',
+                                    ),
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller:
+                                        dayControllers[_asInt(
+                                          day['day_id'],
+                                        )]?['c'],
+                                    keyboardType: TextInputType.number,
+                                    decoration: const InputDecoration(
+                                      labelText: 'C (g)',
+                                    ),
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextField(
+                                    controller:
+                                        dayControllers[_asInt(
+                                          day['day_id'],
+                                        )]?['f'],
+                                    keyboardType: TextInputType.number,
+                                    decoration: const InputDecoration(
+                                      labelText: 'F (g)',
+                                    ),
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                      icon: const Icon(Icons.save_outlined),
+                      label: const Text('Save Targets'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (shouldSubmit != true || !mounted) {
+      disposeControllers();
+      return;
+    }
+
+    final restPayload = <String, dynamic>{
+      'calories': _parsePositiveIntOrNull(restCalCtrl.text),
+      'protein_g': _parsePositiveIntOrNull(restPCtrl.text),
+      'carbs_g': _parsePositiveIntOrNull(restCCtrl.text),
+      'fat_g': _parsePositiveIntOrNull(restFCtrl.text),
+    };
+    if (restPayload.values.any((value) => value == null)) {
+      AppToast.show(
+        context,
+        'Please enter valid non-negative numbers.',
+        type: AppToastType.info,
+      );
+      disposeControllers();
+      return;
+    }
+
+    final trainingPayload = <Map<String, dynamic>>[];
+    for (final day in _trainingDayTargets()) {
+      final dayId = _asInt(day['day_id']);
+      if (dayId <= 0) continue;
+      final ctrls = dayControllers[dayId];
+      final cal = _parsePositiveIntOrNull(ctrls?['cal']?.text ?? '');
+      final p = _parsePositiveIntOrNull(ctrls?['p']?.text ?? '');
+      final c = _parsePositiveIntOrNull(ctrls?['c']?.text ?? '');
+      final f = _parsePositiveIntOrNull(ctrls?['f']?.text ?? '');
+      if (cal == null || p == null || c == null || f == null) {
+        AppToast.show(
+          context,
+          'Please enter valid numbers for all training days.',
+          type: AppToastType.info,
+        );
+        disposeControllers();
+        return;
+      }
+      trainingPayload.add({
+        'day_id': dayId,
+        'calories': cal,
+        'protein_g': p,
+        'carbs_g': c,
+        'fat_g': f,
+      });
+    }
+
+    setState(() => _savingTargets = true);
+    try {
+      final updated = await ProgressionReviewService.patchClientDietTargets(
+        clientUserId: widget.clientUserId,
+        rest: restPayload,
+        trainingDays: trainingPayload,
+      );
+      if (!mounted) return;
+      setState(() {
+        _dietTargets = updated;
+        _targetsError = null;
+      });
+      await _loadDietLog(forceRefresh: true);
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        'Diet targets updated for client.',
+        type: AppToastType.success,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
+      );
+    } finally {
+      disposeControllers();
+      if (mounted) setState(() => _savingTargets = false);
+    }
+  }
+
   Future<void> _loadComments() async {
     if (mounted) {
       setState(() {
@@ -453,6 +848,7 @@ class _ExpertClientDietReviewPageState
   Future<void> _loadAll({bool forceRefresh = false}) async {
     await Future.wait([
       _loadDietLog(forceRefresh: forceRefresh),
+      _loadDietTargets(),
       _loadComments(),
     ]);
   }
@@ -878,6 +1274,8 @@ class _ExpertClientDietReviewPageState
         ? 0.0
         : ((scorePct / 100.0).clamp(0.0, 1.0)).toDouble();
     final hasSummary = summary.isNotEmpty;
+    final createdBy = (_dietTargets?['created_by'] ?? '').toString().trim();
+    final updatedAt = (_dietTargets?['updated_at'] ?? '').toString().trim();
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -889,14 +1287,50 @@ class _ExpertClientDietReviewPageState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Daily Summary',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-            ),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Daily Summary',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: (_loadingTargets || _savingTargets)
+                    ? null
+                    : _openEditTargetsSheet,
+                tooltip: 'Edit client diet targets',
+                icon: _savingTargets
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.tune, color: Colors.white70, size: 18),
+              ),
+            ],
           ),
+          if (_targetsError != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              _targetsError!,
+              style: const TextStyle(color: Colors.orangeAccent, fontSize: 12),
+            ),
+          ],
+          if (createdBy.isNotEmpty || updatedAt.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              [
+                if (createdBy.isNotEmpty) 'Source: ${createdBy.toUpperCase()}',
+                if (updatedAt.isNotEmpty) 'Updated: $updatedAt',
+              ].join(' • '),
+              style: const TextStyle(color: Colors.white54, fontSize: 11),
+            ),
+          ],
           const SizedBox(height: 8),
           if (!hasSummary)
             const Text(

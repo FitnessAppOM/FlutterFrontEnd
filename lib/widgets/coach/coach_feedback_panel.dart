@@ -837,14 +837,6 @@ class _HabitRow extends StatelessWidget {
                             : TextDecoration.none,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Type: $typeLabel',
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 11,
-                      ),
-                    ),
                   ],
                 ),
               ),

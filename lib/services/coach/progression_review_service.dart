@@ -1092,6 +1092,63 @@ class ProgressionReviewService {
     };
   }
 
+  static Future<Map<String, dynamic>> fetchClientDietTargets({
+    required int clientUserId,
+    bool autoGenerate = true,
+  }) async {
+    final res = await http.get(
+      _uri('/coach/progression/clients/$clientUserId/diet-targets', {
+        'auto_generate': autoGenerate.toString(),
+      }),
+      headers: await _authHeaders(),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to load client diet targets', res.body),
+      );
+    }
+    final decoded = jsonDecode(res.body);
+    final raw = decoded is Map ? decoded['targets'] : null;
+    if (raw is! Map) return <String, dynamic>{};
+    return Map<String, dynamic>.from(raw);
+  }
+
+  static Future<Map<String, dynamic>> patchClientDietTargets({
+    required int clientUserId,
+    Map<String, dynamic>? rest,
+    List<Map<String, dynamic>>? trainingDays,
+    String? reasonCode,
+    String? reasonText,
+  }) async {
+    final body = <String, dynamic>{};
+    if (rest != null) body['rest'] = rest;
+    if (trainingDays != null) body['training_days'] = trainingDays;
+    if (reasonCode != null && reasonCode.trim().isNotEmpty) {
+      body['reason_code'] = reasonCode.trim();
+    }
+    if (reasonText != null && reasonText.trim().isNotEmpty) {
+      body['reason_text'] = reasonText.trim();
+    }
+    final res = await http.patch(
+      _uri('/coach/progression/clients/$clientUserId/diet-targets'),
+      headers: await _authHeaders(jsonBody: true),
+      body: jsonEncode(body),
+    );
+    await _handleAuth(res);
+    if (res.statusCode != 200) {
+      throw Exception(
+        _extractError('Failed to update client diet targets', res.body),
+      );
+    }
+    final decoded = jsonDecode(res.body);
+    final raw = decoded is Map ? decoded['targets'] : null;
+    if (raw is! Map) {
+      throw Exception('Invalid response while updating client diet targets');
+    }
+    return Map<String, dynamic>.from(raw);
+  }
+
   static Future<List<CoachDietComment>> fetchClientDietComments({
     required int clientUserId,
     int limit = 80,

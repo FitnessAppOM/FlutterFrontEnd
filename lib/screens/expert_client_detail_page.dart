@@ -3234,7 +3234,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
             color: Colors.redAccent,
           ),
           IconButton(
-            onPressed: _loading ? null : _load,
+            onPressed: _loading ? null : () => _load(),
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
           ),
@@ -3242,12 +3242,13 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       ),
       body: Stack(
         children: [
-          RefreshIndicator(onRefresh: _load, child: list),
+          RefreshIndicator(onRefresh: () => _load(), child: list),
           if (_loading)
-            const Positioned.fill(
-              child: IgnorePointer(
-                child: Center(child: CircularProgressIndicator()),
-              ),
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: LinearProgressIndicator(minHeight: 2),
             ),
         ],
       ),
