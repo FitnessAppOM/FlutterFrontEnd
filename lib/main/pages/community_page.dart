@@ -22,6 +22,7 @@ class CommunityPage extends StatefulWidget {
 class _CommunityPageState extends State<CommunityPage> {
   CommunityBootstrap? _bootstrap;
   List<CommunityFeedItem> _feed = const [];
+  List<CommunityBadge> _myEarnedBadges = const [];
   bool _loading = true;
   bool _loadingMore = false;
   String? _error;
@@ -42,18 +43,24 @@ class _CommunityPageState extends State<CommunityPage> {
     try {
       final bootstrap = await CommunityService.fetchBootstrap();
       final feedPage = await CommunityService.fetchFeed(groupId: _selectedGroupId);
+      var earned = const <CommunityBadge>[];
+      try {
+        earned = await CommunityService.fetchEarnedBadges();
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
         _bootstrap = bootstrap;
         _feed = feedPage.items;
         _nextCursor = feedPage.nextCursor;
         _loading = false;
+        _myEarnedBadges = earned;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
         _loading = false;
+        _myEarnedBadges = const [];
       });
     }
   }
@@ -62,12 +69,17 @@ class _CommunityPageState extends State<CommunityPage> {
     try {
       final bootstrap = await CommunityService.fetchBootstrap();
       final feedPage = await CommunityService.fetchFeed(groupId: _selectedGroupId);
+      var earned = _myEarnedBadges;
+      try {
+        earned = await CommunityService.fetchEarnedBadges();
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
         _bootstrap = bootstrap;
         _feed = feedPage.items;
         _nextCursor = feedPage.nextCursor;
         _error = null;
+        _myEarnedBadges = earned;
       });
     } catch (e) {
       if (!mounted) return;
@@ -405,6 +417,56 @@ class _CommunityPageState extends State<CommunityPage> {
               ),
             ],
           ),
+          if (bootstrap != null && _myEarnedBadges.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Text(
+              'Your badges',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.72),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.2,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 44,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _myEarnedBadges.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  final badge = _myEarnedBadges[index];
+                  return Tooltip(
+                    message: badge.name,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _openBadges,
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD4AF37).withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: const Color(0xFFD4AF37).withValues(alpha: 0.42),
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.workspace_premium,
+                            color: Color(0xFFD4AF37),
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           Wrap(
             spacing: 10,
@@ -1634,7 +1696,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
                         ),
                       ),
                       _ShareToggleTile(
-                        title: 'TAQA score',
+                        title: 'TAQA Fitness Score',
                         value: detail.shareSettings!.shareTaqaScore,
                         onChanged: (value) => _toggleShareSetting(
                           nextSettings: (settings) => settings.copyWith(shareTaqaScore: value),

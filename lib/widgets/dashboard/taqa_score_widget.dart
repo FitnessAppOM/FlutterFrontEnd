@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../localization/app_localizations.dart';
 import '../../services/scores/taqa_score_api.dart';
 
 class TaqaScoreWidget extends StatefulWidget {
@@ -51,6 +52,7 @@ class _TaqaScoreWidgetState extends State<TaqaScoreWidget>
 
   @override
   Widget build(BuildContext context) {
+    final taqaTitle = AppLocalizations.of(context).translate('taqa_label_taqa_value');
     final taqaValue = widget.score?.taqaValueScore;
     final displayProvider =
         widget.score?.scoringPath == 'wearable'
@@ -173,9 +175,9 @@ class _TaqaScoreWidgetState extends State<TaqaScoreWidget>
                                 size: 18,
                               ),
                               const SizedBox(width: 4),
-                              const Text(
-                                "TAQA Score",
-                                style: TextStyle(
+                              Text(
+                                taqaTitle,
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,

@@ -547,13 +547,13 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
             showPoints: true,
             xLabels: xLabels,
             yLabels: const ['100', '75', '50', '25', '0'],
-            yAxisTitle: 'TAQA score',
+            yAxisTitle: t("taqa_label_taqa_value"),
             xAxisTitle: 'Date',
           ),
         ),
         const SizedBox(height: 8),
         Text(
-          '7-day TAQA Value trend on a 0-100 scale',
+          t("taqa_7day_value_trend_caption"),
           style: const TextStyle(
             color: Colors.white54,
             fontSize: 12,
