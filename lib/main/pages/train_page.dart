@@ -23,6 +23,7 @@ import '../../services/training/training_progress_storage.dart';
 import '../../services/training/training_activity_service.dart';
 import '../../services/health/workout_health_sync_service.dart';
 import '../../services/training/training_reset_coordinator.dart';
+import '../../services/training/training_network_resilience.dart';
 
 class TrainPage extends StatefulWidget {
   const TrainPage({super.key});
@@ -492,9 +493,29 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     }
   }
 
+  /// Rebuild day order after [_loadHistoryWorkedDaysForCurrentWeek] finished
+  /// (e.g. in parallel with program fetch). Does not change [selectedDay].
+  Future<void> _rebuildTrainPageAfterHistoryLoaded() async {
+    if (!mounted || program == null) return;
+    final days = program!['days'];
+    if (days is! List) return;
+    try {
+      await _reconcileFinishedDaysWithProgram(days);
+    } catch (_) {}
+    if (!mounted) return;
+    final orderResult = _buildDayOrder(days);
+    if (!mounted) return;
+    setState(() {
+      _dayOrder = orderResult.order;
+      _dayCompletedByIndex = orderResult.completedByIndex;
+      _rebuildExerciseLists();
+    });
+  }
+
   Future<void> _loadProgram() async {
     bool showedCache = false;
     var localCompleted = _sessionCompletedExerciseNames;
+    Future<void>? historyFuture;
     try {
       await TrainingResetCoordinator.ensureInitialized();
       final userId = _userId ?? await AccountStorage.getUserId();
@@ -509,7 +530,9 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
           .where((e) => e.isNotEmpty)
           .toSet();
       await _loadFinishedDaysForCurrentWeek();
-      await _loadHistoryWorkedDaysForCurrentWeek(force: true);
+      // Run in parallel with cache + network refresh so we never block the
+      // cached-program paint on this request.
+      historyFuture = _loadHistoryWorkedDaysForCurrentWeek(force: true);
 
       // Show cached program immediately if available (no blank UI), except
       // right after a regeneration where cache may still be the old plan.
@@ -546,16 +569,25 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
 
       // Try to sync queued actions first (if online)
       try {
-        await ExerciseActionQueue.syncQueue();
+        await TrainingNetworkResilience.withTimeout(
+          ExerciseActionQueue.syncQueue(),
+          TrainingNetworkResilience.actionQueueSync,
+        );
       } catch (_) {
         // Ignore sync errors, continue loading program
       }
 
       // Try to fetch from server first
-      final data = await TrainingService.fetchActiveProgram(userId);
+      final data = await TrainingNetworkResilience.withTimeout(
+        TrainingService.fetchActiveProgram(userId),
+        TrainingNetworkResilience.programFetch,
+      );
       Set<String> completed = {};
       try {
-        final names = await TrainingService.fetchCompletedExerciseNames(userId);
+        final names = await TrainingNetworkResilience.withTimeout(
+          TrainingService.fetchCompletedExerciseNames(userId),
+          TrainingNetworkResilience.completedNamesFetch,
+        );
         completed = names
             .map((e) => e.trim().toLowerCase())
             .where((e) => e.isNotEmpty)
@@ -563,6 +595,12 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       } catch (_) {
         // Ignore completed names fetch errors
       }
+      if (!mounted) return;
+      try {
+        if (historyFuture != null) {
+          await historyFuture;
+        }
+      } catch (_) {}
       if (!mounted) return;
       final serverDays = data['days'];
       final serverDayCount = serverDays is List ? serverDays.length : 0;
@@ -590,6 +628,11 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       unawaited(_refreshTrainingPlanChangeState());
       return;
     } catch (_) {
+      if (historyFuture != null) {
+        unawaited(
+          historyFuture!.then((_) => _rebuildTrainPageAfterHistoryLoaded()),
+        );
+      }
       if (!mounted) return;
       if (program != null || showedCache) {
         setState(() {

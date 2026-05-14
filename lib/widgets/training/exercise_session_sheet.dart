@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/training/training_service.dart';
+import '../../services/training/training_network_resilience.dart';
 import '../../services/training/cardio_session_queue.dart';
 import 'exercise_feedback_sheet.dart';
 import 'exercise_instruction_dialog.dart';
@@ -315,7 +316,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     final programExerciseId = _programExerciseId();
     if (programExerciseId == null) return;
     try {
-      final rows = await TrainingService.fetchExerciseSets(programExerciseId);
+      final rows = await TrainingNetworkResilience.withTimeout(
+        TrainingService.fetchExerciseSets(programExerciseId),
+        TrainingNetworkResilience.sheetRead,
+      );
       if (!mounted) return;
       if (rows.isEmpty && _setRows.isNotEmpty) return;
       final preserveState = _timerStateRestored;
@@ -1191,7 +1195,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       final entryDateToken =
           "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
       try {
-        await TrainingService.startExercise(programExerciseId, entryDate: now);
+        await TrainingNetworkResilience.withTimeout(
+          TrainingService.startExercise(programExerciseId, entryDate: now),
+          TrainingNetworkResilience.sheetMutation,
+        );
         startRecorded = true;
       } catch (e) {
         await ExerciseActionQueue.queueAction(
@@ -1346,9 +1353,12 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     final programExerciseId = _programExerciseId();
     if (programExerciseId == null) return;
     try {
-      await TrainingService.addExerciseSet(
-        programExerciseId: programExerciseId,
-        cloneLast: true,
+      await TrainingNetworkResilience.withTimeout(
+        TrainingService.addExerciseSet(
+          programExerciseId: programExerciseId,
+          cloneLast: true,
+        ),
+        TrainingNetworkResilience.sheetMutation,
       );
     } catch (_) {
       await ExerciseActionQueue.queueAction(
@@ -1388,9 +1398,12 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     final programExerciseId = _programExerciseId();
     if (programExerciseId == null) return;
     try {
-      await TrainingService.deleteExerciseSet(
-        programExerciseId: programExerciseId,
-        setIndex: setIndex,
+      await TrainingNetworkResilience.withTimeout(
+        TrainingService.deleteExerciseSet(
+          programExerciseId: programExerciseId,
+          setIndex: setIndex,
+        ),
+        TrainingNetworkResilience.sheetMutation,
       );
     } catch (_) {
       await ExerciseActionQueue.queueAction(
@@ -1449,15 +1462,18 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       if (restAfterSeconds != null) "rest_after_seconds": restAfterSeconds,
     };
     try {
-      await TrainingService.upsertExerciseSet(
-        programExerciseId: programExerciseId,
-        setIndex: setIndex,
-        reps: reps,
-        rir: rirValue,
-        weightKg: weightKg,
-        completed: completed,
-        performedTimeSeconds: performedTimeSeconds,
-        restAfterSeconds: restAfterSeconds,
+      await TrainingNetworkResilience.withTimeout(
+        TrainingService.upsertExerciseSet(
+          programExerciseId: programExerciseId,
+          setIndex: setIndex,
+          reps: reps,
+          rir: rirValue,
+          weightKg: weightKg,
+          completed: completed,
+          performedTimeSeconds: performedTimeSeconds,
+          restAfterSeconds: restAfterSeconds,
+        ),
+        TrainingNetworkResilience.sheetMutation,
       );
     } catch (_) {
       await ExerciseActionQueue.queueAction(
@@ -2324,9 +2340,12 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           // Start exercise if not already started
           if (!startRecorded) {
             try {
-              await TrainingService.startExercise(
-                programExerciseId,
-                entryDate: now,
+              await TrainingNetworkResilience.withTimeout(
+                TrainingService.startExercise(
+                  programExerciseId,
+                  entryDate: now,
+                ),
+                TrainingNetworkResilience.sheetMutation,
               );
               startRecorded = true;
             } catch (e) {
@@ -2346,7 +2365,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           // Save weight if provided
           if (weight != null && weight > 0) {
             try {
-              await TrainingService.saveWeight(programExerciseId, weight);
+              await TrainingNetworkResilience.withTimeout(
+                TrainingService.saveWeight(programExerciseId, weight),
+                TrainingNetworkResilience.sheetMutation,
+              );
             } catch (e) {
               // Queue weight action
               await ExerciseActionQueue.queueAction(
@@ -2360,13 +2382,16 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
 
           // Finish exercise
           try {
-            await TrainingService.finishExercise(
-              programExerciseId: programExerciseId,
-              sets: finalSets > 0 ? finalSets : null,
-              reps: finalReps > 0 ? finalReps : null,
-              rir: finalRir >= 0 ? finalRir : null,
-              durationSeconds: seconds,
-              entryDate: now,
+            await TrainingNetworkResilience.withTimeout(
+              TrainingService.finishExercise(
+                programExerciseId: programExerciseId,
+                sets: finalSets > 0 ? finalSets : null,
+                reps: finalReps > 0 ? finalReps : null,
+                rir: finalRir >= 0 ? finalRir : null,
+                durationSeconds: seconds,
+                entryDate: now,
+              ),
+              TrainingNetworkResilience.sheetMutation,
             );
           } catch (e) {
             // Queue finish action
@@ -2444,23 +2469,26 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                 "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
           };
           try {
-            await TrainingService.saveCardioSession(
-              programExerciseId: programExerciseId,
-              exerciseId: exerciseId,
-              distanceKm: distanceKmValue,
-              avgPaceMinKm: _paceMinPerKmFromDistance(distanceKmValue, seconds),
-              durationSeconds: seconds,
-              steps: _cardioSteps ?? 0,
-              routePoints: _cardioRoute
-                  .map(
-                    (p) => {
-                      "lat": p.lat,
-                      "lng": p.lng,
-                      if (p.paused) "paused": true,
-                    },
-                  )
-                  .toList(),
-              entryDate: now,
+            await TrainingNetworkResilience.withTimeout(
+              TrainingService.saveCardioSession(
+                programExerciseId: programExerciseId,
+                exerciseId: exerciseId,
+                distanceKm: distanceKmValue,
+                avgPaceMinKm: _paceMinPerKmFromDistance(distanceKmValue, seconds),
+                durationSeconds: seconds,
+                steps: _cardioSteps ?? 0,
+                routePoints: _cardioRoute
+                    .map(
+                      (p) => {
+                        "lat": p.lat,
+                        "lng": p.lng,
+                        if (p.paused) "paused": true,
+                      },
+                    )
+                    .toList(),
+                entryDate: now,
+              ),
+              TrainingNetworkResilience.sheetMutation,
             );
           } catch (_) {
             await CardioSessionQueue.queueSession(payload);
