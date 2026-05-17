@@ -33,7 +33,7 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
   title: Text(t.translate("questionnaire_title")),
   centerTitle: true,
 ),
-      backgroundColor: cs.surface,
+      backgroundColor: Colors.black,
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
         child: _started ? _buildFormUI(context) : _buildIntro(context),
