@@ -44,7 +44,7 @@ class _MainLayoutState extends State<MainLayout> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.black,
+      backgroundColor: AppColors.appBackground,
       body: IndexedStack(
         index: _index,
         children: List.generate(5, (i) => _pages[i] ?? const SizedBox.shrink()),
@@ -98,8 +98,8 @@ class _MainLayoutState extends State<MainLayout> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.black,
-        border: Border(top: BorderSide(color: Colors.grey.shade800)),
+        color: AppColors.appBackground,
+        border: const Border(top: BorderSide(color: Color(0xFF404040))),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -131,7 +131,7 @@ class _MainLayoutState extends State<MainLayout> {
         child: Icon(
           icon,
           size: selected ? 30 : 26,
-          color: selected ? AppColors.accent : Colors.white,
+          color: selected ? AppColors.accent : AppColors.black,
         ),
       ),
     );

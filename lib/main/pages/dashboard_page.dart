@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../../widgets/Main/section_header.dart';
 import '../../widgets/Main/card_container.dart';
-import '../../widgets/news_carousel.dart';
+import '../../TaqaUI/components/taqa_news_carousel.dart';
 import '../../screens/announcements_page.dart';
 import '../../services/news/news_service.dart';
 import '../../services/news/news_tag_actions.dart';
@@ -41,9 +41,10 @@ import '../../widgets/dashboard/fitbit_body_sheet.dart';
 import '../../widgets/dashboard/fitbit_extras_card.dart';
 import '../../widgets/dashboard/health_recovery_load_card.dart';
 import '../../widgets/dashboard/health_recovery_load_sheet.dart';
-import '../../widgets/dashboard/diet_progress_card.dart';
-import '../../widgets/dashboard/daily_outlook_card.dart';
-import '../../widgets/dashboard/taqa_score_widget.dart';
+import '../../TaqaUI/components/taqa_daily_outlook_card.dart';
+import '../../TaqaUI/components/taqa_score_widget.dart';
+import '../../TaqaUI/components/taqa_diet_progress_widget.dart';
+import '../../TaqaUI/components/taqa_training_progress_widget.dart';
 import '../../widgets/dashboard/edit_mode_bubble.dart';
 import '../../widgets/dashboard/widget_library_sheet.dart';
 import '../../screens/whoop_insights_page.dart';
@@ -99,6 +100,8 @@ import '../../screens/whoop_test_page.dart';
 import '../../widgets/release_notes_notice.dart';
 import '../../services/metrics/daily_journal_service.dart';
 import '../../services/core/navigation_service.dart';
+import '../../TaqaUI/components/taqa_dashboard_intro_card.dart';
+import '../../TaqaUI/components/taqa_dashboard_date_switcher_bubble.dart';
 import 'dart:math' as math;
 
 class _NextTrainingDayResult {
@@ -175,6 +178,8 @@ class DashboardPageState extends State<DashboardPage>
   static final Map<String, List<double>> _trendCaloriesWeekCache = {};
   final Map<DateTime, Map<String, dynamic>> _dietSummaryCache = {};
   final Map<DateTime, _ExerciseProgressSnapshot> _exerciseProgressCache = {};
+  final Map<DateTime, DailyOutlookStatus?> _dailyOutlookCache = {};
+  final Map<DateTime, TaqaDailyScore?> _taqaScoreCache = {};
   AnimationController? _wiggleController;
   Animation<double>? _wiggleAnim;
   bool _wiggling = false;
@@ -272,6 +277,22 @@ class DashboardPageState extends State<DashboardPage>
     return _exerciseProgressCache[_dayKey(date)];
   }
 
+  bool _hasDailyOutlookCache(DateTime date) {
+    return _dailyOutlookCache.containsKey(_dayKey(date));
+  }
+
+  DailyOutlookStatus? _readDailyOutlookCache(DateTime date) {
+    return _dailyOutlookCache[_dayKey(date)];
+  }
+
+  bool _hasTaqaScoreCache(DateTime scoreDate) {
+    return _taqaScoreCache.containsKey(_dayKey(scoreDate));
+  }
+
+  TaqaDailyScore? _readTaqaScoreCache(DateTime scoreDate) {
+    return _taqaScoreCache[_dayKey(scoreDate)];
+  }
+
   void _writeTrendSleepWeekCache(String key, List<double> values) {
     _trendSleepWeekCache[key] = List<double>.from(values);
     if (_trendSleepWeekCache.length > 84) {
@@ -311,6 +332,26 @@ class DashboardPageState extends State<DashboardPage>
       final keys = _exerciseProgressCache.keys.toList()..sort();
       while (_exerciseProgressCache.length > 120 && keys.isNotEmpty) {
         _exerciseProgressCache.remove(keys.removeAt(0));
+      }
+    }
+  }
+
+  void _writeDailyOutlookCache(DateTime date, DailyOutlookStatus? status) {
+    _dailyOutlookCache[_dayKey(date)] = status;
+    if (_dailyOutlookCache.length > 120) {
+      final keys = _dailyOutlookCache.keys.toList()..sort();
+      while (_dailyOutlookCache.length > 120 && keys.isNotEmpty) {
+        _dailyOutlookCache.remove(keys.removeAt(0));
+      }
+    }
+  }
+
+  void _writeTaqaScoreCache(DateTime scoreDate, TaqaDailyScore? score) {
+    _taqaScoreCache[_dayKey(scoreDate)] = score;
+    if (_taqaScoreCache.length > 120) {
+      final keys = _taqaScoreCache.keys.toList()..sort();
+      while (_taqaScoreCache.length > 120 && keys.isNotEmpty) {
+        _taqaScoreCache.remove(keys.removeAt(0));
       }
     }
   }
@@ -506,6 +547,11 @@ class DashboardPageState extends State<DashboardPage>
     final cachedExercise = _readExerciseProgressCache(next);
     final hasCachedExercise =
         cachedExercise != null || (nextIsToday && hasCachedToday);
+    final hasCachedOutlook = _hasDailyOutlookCache(next);
+    final cachedOutlook = _readDailyOutlookCache(next);
+    final nextScoreDate = _taqaScoreDateForDate(next);
+    final hasCachedTaqa = _hasTaqaScoreCache(nextScoreDate);
+    final cachedTaqa = _readTaqaScoreCache(nextScoreDate);
     final hasCachedDietToday =
         _cachedTodayDietLoaded &&
         (_cachedTodayDietConsumedCalories != null ||
@@ -549,6 +595,11 @@ class DashboardPageState extends State<DashboardPage>
         _dietDayType = null;
         _dietProgressLoading = true;
       }
+      _dailyOutlook = cachedOutlook;
+      _dailyOutlookLoading = !hasCachedOutlook;
+      _dailyOutlookGenerating = false;
+      _taqaScore = cachedTaqa;
+      _taqaScoreLoading = !hasCachedTaqa;
       // Keep existing Fitbit values while new date loads to avoid zero/empty flicker.
     });
     _loadSteps();
@@ -724,6 +775,8 @@ class DashboardPageState extends State<DashboardPage>
       _healthRecoveryLoadCache.clear();
       _dietSummaryCache.clear();
       _exerciseProgressCache.clear();
+      _dailyOutlookCache.clear();
+      _taqaScoreCache.clear();
       _taqaScore = null;
       _taqaScoreLoading = false;
       _dailyOutlook = null;
@@ -743,6 +796,7 @@ class DashboardPageState extends State<DashboardPage>
   void _onTrainingChanged() {
     _exerciseProgressCache.clear();
     TaqaScoreApi.clearCache();
+    _taqaScoreCache.clear();
     _loadExerciseProgress(force: true);
     _loadCalories();
     _loadTrendCalories(force: true);
@@ -752,26 +806,29 @@ class DashboardPageState extends State<DashboardPage>
       unawaited(_loadHealthRecoveryLoad(force: true));
     }
     _loadStreak();
-    unawaited(_loadTaqaScore());
+    unawaited(_loadTaqaScore(forceLiveRefresh: true));
   }
 
   void _onDietChanged() {
     _dietSummaryCache.clear();
     TaqaScoreApi.clearCache();
+    _taqaScoreCache.clear();
     _cachedTodayDietConsumedCalories = null;
     _cachedTodayDietTargetCalories = null;
     _cachedTodayDietDayType = null;
     _cachedTodayDietLoaded = false;
     _loadDietProgress(forceRefresh: true);
     _loadStreak();
-    unawaited(_loadTaqaScore());
+    unawaited(_loadTaqaScore(forceLiveRefresh: true));
   }
 
   void _onJournalChanged() {
     _loadStreak();
     TaqaScoreApi.clearCache();
     DailyOutlookApi.clearCache();
-    unawaited(_loadTaqaScore());
+    _taqaScoreCache.clear();
+    _dailyOutlookCache.clear();
+    unawaited(_loadTaqaScore(forceLiveRefresh: true));
     unawaited(_loadDailyOutlookStatus(force: true));
   }
 
@@ -1715,21 +1772,35 @@ class DashboardPageState extends State<DashboardPage>
     return _wiggleWrap(decorated);
   }
 
-  Future<void> _loadTaqaScore() async {
+  Future<void> _loadTaqaScore({bool forceLiveRefresh = false}) async {
     await TrainingResetCoordinator.ensureInitialized();
     final userId = await AccountStorage.getUserId();
     if (!mounted || userId == null || userId <= 0) return;
     final scoreDate = _taqaScoreDateForSelection();
     final liveDate = _taqaTodayByResetClock().subtract(const Duration(days: 1));
     final isLiveDate = scoreDate == liveDate;
+    final hasCached = _hasTaqaScoreCache(scoreDate);
+    final cached = _readTaqaScoreCache(scoreDate);
+    if (hasCached && !forceLiveRefresh) {
+      setState(() {
+        _taqaScore = cached;
+        _taqaScoreLoading = false;
+      });
+      return;
+    }
     final reqId = ++_taqaScoreReqId;
     if (mounted) {
-      setState(() => _taqaScoreLoading = true);
+      setState(() {
+        if (hasCached) {
+          _taqaScore = cached;
+        }
+        _taqaScoreLoading = forceLiveRefresh || !hasCached;
+      });
     }
     TaqaDailyScore? result = await TaqaScoreApi.fetchDaily(
       userId: userId,
       date: scoreDate,
-      forceRefresh: isLiveDate,
+      forceRefresh: isLiveDate && forceLiveRefresh,
     );
     if (!isLiveDate && result?.taqaValueScore == null) {
       result = await TaqaScoreApi.fetchDaily(
@@ -1744,6 +1815,7 @@ class DashboardPageState extends State<DashboardPage>
     final currentUserId = await AccountStorage.getUserId();
     if (currentUserId != userId) return;
     if (result != null && result.userId != userId) return;
+    _writeTaqaScoreCache(scoreDate, result);
     setState(() {
       _taqaScore = result;
       _taqaScoreLoading = false;
@@ -1762,18 +1834,17 @@ class DashboardPageState extends State<DashboardPage>
     }
 
     final targetDate = _dayKey(_selectedDate);
-    if (targetDate != _dashboardToday()) {
-      setState(() {
-        _dailyOutlook = null;
-        _dailyOutlookLoading = false;
-        _dailyOutlookGenerating = false;
-      });
-      return;
-    }
+    final hasCached = _hasDailyOutlookCache(targetDate);
+    final cached = _readDailyOutlookCache(targetDate);
 
     final reqId = ++_dailyOutlookReqId;
     if (mounted) {
-      setState(() => _dailyOutlookLoading = true);
+      setState(() {
+        if (hasCached) {
+          _dailyOutlook = cached;
+        }
+        _dailyOutlookLoading = force || !hasCached;
+      });
     }
 
     final result = await DailyOutlookApi.fetchDaily(
@@ -1787,8 +1858,10 @@ class DashboardPageState extends State<DashboardPage>
     final currentUserId = await AccountStorage.getUserId();
     if (currentUserId != userId) return;
 
+    final nextStatus = result ?? (hasCached ? cached : null);
+    _writeDailyOutlookCache(targetDate, nextStatus);
     setState(() {
-      _dailyOutlook = result;
+      _dailyOutlook = nextStatus;
       _dailyOutlookLoading = false;
     });
   }
@@ -1814,6 +1887,7 @@ class DashboardPageState extends State<DashboardPage>
         setState(() {
           _dailyOutlook = result;
         });
+        _writeDailyOutlookCache(targetDate, result);
         if (result.generatedNow) {
           AppToast.show(
             context,
@@ -1991,14 +2065,18 @@ class DashboardPageState extends State<DashboardPage>
     return _dashboardToday();
   }
 
-  DateTime _taqaScoreDateForSelection() {
-    final selected = _dayKey(_selectedDate);
+  DateTime _taqaScoreDateForDate(DateTime selectedDate) {
+    final selected = _dayKey(selectedDate);
     final shifted = selected.subtract(const Duration(days: 1));
     final maxScoreDay = _taqaTodayByResetClock().subtract(
       const Duration(days: 1),
     );
     if (shifted.isAfter(maxScoreDay)) return maxScoreDay;
     return shifted;
+  }
+
+  DateTime _taqaScoreDateForSelection() {
+    return _taqaScoreDateForDate(_selectedDate);
   }
 
   bool _isWhoopLoadingForSelectedDate() {
@@ -2028,7 +2106,7 @@ class DashboardPageState extends State<DashboardPage>
       _loadWhoopRecovery(force: true),
       _loadHealthRecoveryLoad(force: true),
       _loadStravaStatus(syncRemote: true),
-      _loadTaqaScore(),
+      _loadTaqaScore(forceLiveRefresh: true),
       _loadDailyOutlookStatus(),
     ]);
     if (!mounted) return;
@@ -2066,6 +2144,8 @@ class DashboardPageState extends State<DashboardPage>
     _healthRecoveryLoadCache.clear();
     _dietSummaryCache.clear();
     _exerciseProgressCache.clear();
+    _dailyOutlookCache.clear();
+    _taqaScoreCache.clear();
     final futures = <Future<void>>[
       _loadUserInfo(),
       _loadNews(),
@@ -2083,7 +2163,7 @@ class DashboardPageState extends State<DashboardPage>
       futures.add(_loadStravaStatus());
     }
     if (refreshTaqaScore) {
-      futures.add(_loadTaqaScore());
+      futures.add(_loadTaqaScore(forceLiveRefresh: true));
     }
     futures.add(_loadDailyOutlookStatus(force: true));
     await Future.wait(futures);
@@ -5316,12 +5396,17 @@ class DashboardPageState extends State<DashboardPage>
     final t = AppLocalizations.of(context).translate;
     final locale = AppLocalizations.of(context).locale.languageCode;
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    String announcementDateLabel(DateTime? value) {
+      if (value == null) return '';
+      return DateFormat('EEE, MMMM d', locale).format(value.toLocal());
+    }
+
     final slides = _news.isEmpty
         ? [
             NewsSlide(
               title: t("dash_stay_tuned"),
               subtitle: t("dash_announce_here"),
-              tag: t("dash_news_tag"),
+              dateLabel: '',
               color: const Color(0xFF6A5AE0),
               onTap: _openAnnouncements,
             ),
@@ -5331,7 +5416,7 @@ class DashboardPageState extends State<DashboardPage>
                 (n) => NewsSlide(
                   title: n.title,
                   subtitle: n.subtitle,
-                  tag: n.tag,
+                  dateLabel: announcementDateLabel(n.createdAt),
                   color: _colorForTag(n.tag),
                   onTap: _openAnnouncements,
                 ),
@@ -5363,78 +5448,22 @@ class DashboardPageState extends State<DashboardPage>
         _sleepHours == null &&
         _todayCalories == null &&
         _waterIntake == null;
-    final todayOnly = _dashboardToday();
-    final selectedDayOnly = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-    );
-    final isYesterday =
-        selectedDayOnly == todayOnly.subtract(const Duration(days: 1));
-    final relativeDateLabel = _isToday()
-        ? t("date_today")
-        : isYesterday
-        ? t("date_yesterday")
-        : DateFormat('MMM d, y', locale).format(_selectedDate);
     final bool isCurrentDay = _isToday();
-    final bool showTrainingSub = isCurrentDay && !_exerciseLoading;
+    final String introName =
+        (_displayName == null || _displayName!.trim().isEmpty)
+        ? "Athlete"
+        : _displayName!.trim();
+    final int currentWeekday = _dayKey(_selectedDate).weekday;
 
     final listView = ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    t("dash_welcome_back"),
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _displayName == null || _displayName!.isEmpty
-                        ? t("dash_dashboard")
-                        : t("dash_hi_name").replaceAll("{name}", _displayName!),
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (_streakCount != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      _streakLoading
-                          ? "Streak: …"
-                          : "Streak: ${(_streakCount ?? 0)}${(_streakCount ?? 0) > 0 ? " 🔥" : ""}",
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: Colors.white70),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Container(
-              height: 44,
-              width: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white10,
-                border: Border.all(
-                  color: const Color(0xFFD4AF37).withValues(alpha: 0.35),
-                  width: 1,
-                ),
-              ),
-              child: ClipOval(child: _buildAvatar()),
-            ),
-          ],
+        TaqaDashboardIntroCard(
+          userName: introName,
+          profilePicture: _buildAvatar(),
+          currentWeekday: currentWeekday,
+          onTrainingTap: _wiggling ? null : _openTrainingPage,
+          onDietTap: _wiggling ? null : _openDietPage,
         ),
         const SizedBox(height: 16),
         if (_loading)
@@ -5495,141 +5524,21 @@ class DashboardPageState extends State<DashboardPage>
               child: NewsCarousel(slides: slides),
             ),
         ],
-        const SizedBox(height: 16),
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: _wiggling ? null : _openTrainingPage,
-          child: CardContainer(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Row(
-                children: [
-                  SizedBox(
-                    height: 72,
-                    width: 72,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        CircularProgressIndicator(
-                          value: 1,
-                          strokeWidth: 8,
-                          valueColor: AlwaysStoppedAnimation(
-                            Colors.white.withOpacity(0.08),
-                          ),
-                        ),
-                        CircularProgressIndicator(
-                          value: (_exerciseTotal != null && _exerciseTotal != 0)
-                              ? ((_exerciseCompleted ?? 0) /
-                                        (_exerciseTotal!.toDouble()))
-                                    .clamp(0.0, 1.0)
-                              : 0.0,
-                          strokeWidth: 8,
-                          valueColor: const AlwaysStoppedAnimation(
-                            AppColors.accent,
-                          ),
-                          backgroundColor: Colors.transparent,
-                        ),
-                        Center(
-                          child: _exerciseLoading
-                              ? const SizedBox(
-                                  height: 18,
-                                  width: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AppColors.accent,
-                                  ),
-                                )
-                              : Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      (_exerciseCompleted ?? 0).toString(),
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium
-                                          ?.copyWith(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                    ),
-                                    Text(
-                                      _exerciseTotal == null
-                                          ? "—"
-                                          : "/ ${_exerciseTotal.toString()}",
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Training progress",
-                          style: Theme.of(context).textTheme.titleSmall
-                              ?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                        ),
-                        const SizedBox(height: 6),
-                        if (showTrainingSub)
-                          Text(
-                            ((_exerciseTotal ?? 0) > 0 &&
-                                    (_exerciseCompleted ?? 0) >=
-                                        (_exerciseTotal ?? 0))
-                                ? "Done for the week"
-                                : (_exerciseTotal == null &&
-                                      _nextTrainingDayLabel == null &&
-                                      !_nextTrainingDayAllDone)
-                                ? t("dash_exercise_unavailable")
-                                : _nextTrainingDayAllDone
-                                ? "Done for the week"
-                                : "Next up: ${(_nextTrainingDayLabel ?? "…")}",
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 13,
-                            ),
-                          ),
-                        if (_exerciseProgramMode == "old")
-                          const Padding(
-                            padding: EdgeInsets.only(top: 4),
-                            child: Text(
-                              "Old program",
-                              style: TextStyle(
-                                color: Colors.white54,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        const SizedBox(height: 12),
+        DailyOutlookCard(
+          loading: _dailyOutlookLoading,
+          generating: _dailyOutlookGenerating,
+          status: _dailyOutlook,
+          onGenerate: isCurrentDay ? _generateDailyOutlook : null,
+          onOpen: _openDailyOutlookSheet,
+          title: t("dash_daily_outlook_title"),
+          subtitle: t("dash_daily_outlook_subtitle"),
+          generateLabel: t("dash_daily_outlook_generate"),
+          generatedLabel: t("dash_daily_outlook_generated_today"),
+          onceDailyLabel: t("dash_daily_outlook_once_daily"),
+          viewLabel: t("dash_daily_outlook_view"),
         ),
-        const SizedBox(height: 16),
-        if (!noEntriesForSelectedDate) ...[
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: _wiggling ? null : _openDietPage,
-            child: DietProgressCard(
-              loading: _dietProgressLoading,
-              consumedCalories: _dietConsumedCalories,
-              targetCalories: _dietTargetCalories,
-              dayType: _dietDayType,
-            ),
-          ),
+        if (isCurrentDay || !noEntriesForSelectedDate) ...[
           const SizedBox(height: 12),
           TaqaScoreWidget(
             score: _taqaScore,
@@ -5650,22 +5559,34 @@ class DashboardPageState extends State<DashboardPage>
               );
             },
           ),
-          if (isCurrentDay) ...[
-            const SizedBox(height: 12),
-            DailyOutlookCard(
-              loading: _dailyOutlookLoading,
-              generating: _dailyOutlookGenerating,
-              status: _dailyOutlook,
-              onGenerate: _generateDailyOutlook,
-              onOpen: _openDailyOutlookSheet,
-              title: t("dash_daily_outlook_title"),
-              subtitle: t("dash_daily_outlook_subtitle"),
-              generateLabel: t("dash_daily_outlook_generate"),
-              generatedLabel: t("dash_daily_outlook_generated_today"),
-              onceDailyLabel: t("dash_daily_outlook_once_daily"),
-              viewLabel: t("dash_daily_outlook_view"),
+        ],
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: TaqaDietProgressWidget(
+                loading: _dietProgressLoading,
+                consumedCalories: _dietConsumedCalories,
+                targetCalories: _dietTargetCalories,
+                onTap: _wiggling ? null : _openDietPage,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TaqaTrainingProgressWidget(
+                loading: _exerciseLoading,
+                completed: _exerciseCompleted,
+                total: _exerciseTotal,
+                nextUpLabel: _nextTrainingDayLabel,
+                nextUpAllDone: _nextTrainingDayAllDone,
+                onTap: _wiggling ? null : _openTrainingPage,
+                emptyStateLabel: t("dash_exercise_unavailable"),
+              ),
             ),
           ],
+        ),
+        const SizedBox(height: 16),
+        if (!noEntriesForSelectedDate) ...[
           const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, constraints) {
@@ -6361,72 +6282,15 @@ class DashboardPageState extends State<DashboardPage>
                     child: AnimatedScale(
                       scale: _wiggling ? 0.96 : 1.0,
                       duration: const Duration(milliseconds: 160),
-                      child: GestureDetector(
+                      child: TaqaDashboardDateSwitcherBubble(
                         onTap: _openDateSheet,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.accent.withValues(alpha: 0.16),
-                            borderRadius: BorderRadius.circular(28),
-                            border: Border.all(
-                              color: AppColors.accent.withValues(alpha: 0.35),
-                            ),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black54,
-                                blurRadius: 12,
-                                offset: Offset(0, 6),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.calendar_today,
-                                size: 16,
-                                color: Colors.white,
-                              ),
-                              const SizedBox(width: 8),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    isCurrentDay
-                                        ? t("date_today")
-                                        : DateFormat(
-                                            'EEE',
-                                            locale,
-                                          ).format(_selectedDate),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelLarge
-                                        ?.copyWith(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                  ),
-                                  Text(
-                                    DateFormat(
-                                      'MMM d, y',
-                                      locale,
-                                    ).format(_selectedDate),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelSmall
-                                        ?.copyWith(
-                                          color: Colors.white70,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
+                        primaryLabel: isCurrentDay
+                            ? t("date_today")
+                            : DateFormat('EEE', locale).format(_selectedDate),
+                        secondaryLabel: DateFormat(
+                          'MMM d, y',
+                          locale,
+                        ).format(_selectedDate),
                       ),
                     ),
                   ),

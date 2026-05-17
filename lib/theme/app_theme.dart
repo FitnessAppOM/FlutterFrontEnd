@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 class AppColors {
   static const black = Color(0xFF000000);
   static const white = Color(0xFFFFFFFF);
+  static const appBackground = Color(0xFFE3E3E3);
 
   static const accent = Colors.blue;
 
@@ -26,8 +27,6 @@ class AppColors {
   static const chipGrey = Color(0xFFE9E9E9);
 }
 
-
-
 class AppRadii {
   static const pill = 14.0;
   static const tile = 12.0;
@@ -47,27 +46,21 @@ class AppTextStyles {
     fontWeight: FontWeight.w500,
   );
 
-  static const body = TextStyle(
-    color: AppColors.white,
-    fontSize: 15,
-  );
+  static const body = TextStyle(color: AppColors.white, fontSize: 15);
 
-  static const small = TextStyle(
-    color: AppColors.textDim,
-    fontSize: 13,
-  );
+  static const small = TextStyle(color: AppColors.textDim, fontSize: 13);
 }
 
 ThemeData buildDarkTheme() {
   final base = ThemeData.dark();
 
   return base.copyWith(
-    scaffoldBackgroundColor: AppColors.black,
+    scaffoldBackgroundColor: AppColors.appBackground,
 
     colorScheme: base.colorScheme.copyWith(
       primary: AppColors.accent,
       secondary: AppColors.accent,
-      surface: AppColors.black,
+      surface: AppColors.appBackground,
     ),
 
     inputDecorationTheme: const InputDecorationTheme(
@@ -119,7 +112,7 @@ ThemeData buildLightTheme() {
   final base = ThemeData.light();
 
   return base.copyWith(
-    scaffoldBackgroundColor: AppColors.white,
+    scaffoldBackgroundColor: AppColors.appBackground,
     colorScheme: base.colorScheme.copyWith(
       primary: AppColors.accent,
       secondary: AppColors.accent,

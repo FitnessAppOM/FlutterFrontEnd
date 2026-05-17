@@ -79,6 +79,23 @@ flutter:
     - assets/images/
     - .env
 
+  fonts:
+    - family: InterTight
+      fonts:
+        - asset: lib/TaqaUI/Typography/InterTight-Light.ttf
+          weight: 300
+        - asset: lib/TaqaUI/Typography/InterTight-LightItalic.ttf
+          weight: 300
+          style: italic
+        - asset: lib/TaqaUI/Typography/InterTight-Bold.ttf
+          weight: 700
+        - asset: lib/TaqaUI/Typography/InterTight-BoldItalic.ttf
+          weight: 700
+          style: italic
+    - family: IAWriterMonoS
+      fonts:
+        - asset: lib/TaqaUI/Typography/iAWriterMonoS-Regular.ttf
+
 flutter_gen:
   l10n:
     arb-dir: lib/l10n
