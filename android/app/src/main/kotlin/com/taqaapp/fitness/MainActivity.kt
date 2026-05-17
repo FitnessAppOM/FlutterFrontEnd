@@ -1,4 +1,4 @@
-package com.example.taqaproject
+﻿package com.taqaapp.fitness
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 

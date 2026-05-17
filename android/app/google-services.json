@@ -12,7 +12,20 @@
           "package_name": "com.example.taqaproject"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "280853704980-2msg1ce2ikr9i0gnrc2nn206uuguqbcg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.taqaproject",
+            "certificate_hash": "e5d6997340ae050dfab434467d6c7e4844326e22"
+          }
+        },
+        {
+          "client_id": "280853704980-dhqdo2d9ceup2hdle1skp5a93uv67fie.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAL8LYUpmtj3BhsNPqE0kU18EjnnJ5MUi8"
@@ -20,7 +33,63 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "280853704980-dhqdo2d9ceup2hdle1skp5a93uv67fie.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "280853704980-ccloh5irudr9duhaqs3rbb7hv2ofl6gf.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.omar.taqaapp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:280853704980:android:9d0534779391912f985201",
+        "android_client_info": {
+          "package_name": "com.taqaapp.fitness"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "280853704980-l0q1r7sbs7nj7iib4t83mbvajtrpnmv4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.taqaapp.fitness",
+            "certificate_hash": "7e10518d4ef3937262493564babdf0b2adb7b742"
+          }
+        },
+        {
+          "client_id": "280853704980-dhqdo2d9ceup2hdle1skp5a93uv67fie.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAL8LYUpmtj3BhsNPqE0kU18EjnnJ5MUi8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "280853704980-dhqdo2d9ceup2hdle1skp5a93uv67fie.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "280853704980-ccloh5irudr9duhaqs3rbb7hv2ofl6gf.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.omar.taqaapp"
+              }
+            }
+          ]
         }
       }
     }

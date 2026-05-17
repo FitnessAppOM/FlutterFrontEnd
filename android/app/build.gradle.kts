@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -33,8 +36,14 @@ val dotEnv = loadDotEnv(rootProject.projectDir)
 val mapboxToken =
     (dotEnv["MAPBOX_PUBLIC_KEY"] ?: System.getenv("MAPBOX_PUBLIC_KEY") ?: "").trim()
 
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
 android {
-    namespace = "com.example.taqaproject"
+    namespace = "com.taqaapp.fitness"
 
     // REQUIRED by modern plugins
     compileSdk = 36
@@ -51,15 +60,15 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.taqaproject"
+        applicationId = "com.taqaapp.fitness"
 
         // REQUIRED by health, identity, permissions, geolocator
         minSdk = 26
 
-        // Google Play 2024 requirement
-        targetSdk = 34
+        // Google Play 2025 requirement
+        targetSdk = 35
 
-        versionCode = 1
+        versionCode = 3
         versionName = flutter.versionName
 
         // Mapbox access token from .env
@@ -67,9 +76,18 @@ android {
         resValue("string", "mapbox_access_token", mapboxToken)
     }
 
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties["keyAlias"].toString()
+            keyPassword = keystoreProperties["keyPassword"].toString()
+            storeFile = file(keystoreProperties["storeFile"].toString())
+            storePassword = keystoreProperties["storePassword"].toString()
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             isShrinkResources = false
         }
