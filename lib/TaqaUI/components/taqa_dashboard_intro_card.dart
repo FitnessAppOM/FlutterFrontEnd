@@ -12,7 +12,9 @@ class TaqaDashboardIntroCard extends StatelessWidget {
     super.key,
     required this.userName,
     required this.profilePicture,
-    required this.currentWeekday,
+    required this.selectedDate,
+    required this.todayReference,
+    this.onDateTap,
     this.onTrainingTap,
     this.onDietTap,
     this.message =
@@ -21,7 +23,9 @@ class TaqaDashboardIntroCard extends StatelessWidget {
 
   final String userName;
   final Widget profilePicture;
-  final int currentWeekday;
+  final DateTime selectedDate;
+  final DateTime todayReference;
+  final ValueChanged<DateTime>? onDateTap;
   final VoidCallback? onTrainingTap;
   final VoidCallback? onDietTap;
   final String message;
@@ -29,7 +33,6 @@ class TaqaDashboardIntroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cleanName = userName.trim().isEmpty ? 'Athlete' : userName.trim();
-    final safeWeekday = currentWeekday.clamp(1, 7);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -69,7 +72,11 @@ class TaqaDashboardIntroCard extends StatelessWidget {
                     style: TaqaUiStyles.subtitle,
                   ),
                   const SizedBox(height: 9),
-                  TaqaWeekdaysRow(currentWeekday: safeWeekday),
+                  TaqaWeekdaysRow(
+                    selectedDate: selectedDate,
+                    todayReference: todayReference,
+                    onDateTap: onDateTap,
+                  ),
                   const Spacer(),
                   TaqaIntroActionsRow(
                     onTrainingTap: onTrainingTap,

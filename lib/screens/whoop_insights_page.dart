@@ -111,8 +111,7 @@ class _WhoopInsightsPageState extends State<WhoopInsightsPage> {
                 linkedKnown: widget.linkedKnown,
                 hours: _sleepHours ?? widget.sleepHours,
                 score: _sleepScore ?? widget.sleepScore,
-                goal: widget.sleepGoal,
-                delta: widget.sleepDelta,
+                normalSleepGoalHours: (widget.sleepGoal ?? 8.0),
                 showEfficiency: false,
                 onTap: () async {
                   await Navigator.of(context).push(

@@ -11,11 +11,13 @@ class TaqaWeekdayDot extends StatelessWidget {
     required this.label,
     required this.status,
     this.size = 64,
+    this.onTap,
   });
 
   final String label;
   final TaqaWeekdayStatus status;
   final double size;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -25,20 +27,24 @@ class TaqaWeekdayDot extends StatelessWidget {
       TaqaWeekdayStatus.future => TaqaUiColors.weekdayFuture,
     };
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            color: dotColor,
-            borderRadius: TaqaUiStyles.circleRadius,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: TaqaUiStyles.circleRadius,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: dotColor,
+              borderRadius: TaqaUiStyles.circleRadius,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(label, style: TaqaUiStyles.weekdayLabel),
-      ],
+          const SizedBox(height: 8),
+          Text(label, style: TaqaUiStyles.weekdayLabel),
+        ],
+      ),
     );
   }
 }

@@ -19,6 +19,9 @@ class TaqaUiColors {
   static const Color textPrimary = white;
 
   // Weekday status colors
-  static const Color weekdayPast = graphite;
-  static const Color weekdayFuture = Color(0xFFC9C9CB);
+  static const Color weekdayPast = Color(0xFF908D8B);
+  static const Color weekdayFuture = Color(0xFFE3E3E3);
+
+  // Dashboard states
+  static const Color dashboardTopCardPastDay = Color(0xFFC9C9CB);
 }

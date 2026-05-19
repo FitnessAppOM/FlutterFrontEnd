@@ -12,6 +12,7 @@ class TaqaProgressWidgetCard extends StatelessWidget {
     required this.valueText,
     required this.goalText,
     required this.progress,
+    this.showArc = true,
     this.loading = false,
     this.onTap,
   });
@@ -20,6 +21,7 @@ class TaqaProgressWidgetCard extends StatelessWidget {
   final String valueText;
   final String goalText;
   final double progress;
+  final bool showArc;
   final bool loading;
   final VoidCallback? onTap;
 
@@ -66,44 +68,66 @@ class TaqaProgressWidgetCard extends StatelessWidget {
                 ),
                 Expanded(
                   child: Center(
-                    child: Transform.translate(
-                      offset: const Offset(0, arcYOffset),
-                      child: SizedBox(
-                        width: 122,
-                        height: 122,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            CustomPaint(
-                              size: const Size.square(122),
-                              painter: _OpenArcPainter(
-                                progress: clampedProgress,
+                    child: showArc
+                        ? Transform.translate(
+                            offset: const Offset(0, arcYOffset),
+                            child: SizedBox(
+                              width: 122,
+                              height: 122,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  CustomPaint(
+                                    size: const Size.square(122),
+                                    painter: _OpenArcPainter(
+                                      progress: clampedProgress,
+                                    ),
+                                  ),
+                                  if (loading)
+                                    const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: TaqaUiColors.white,
+                                      ),
+                                    )
+                                  else
+                                    Text(
+                                      valueText,
+                                      style: const TextStyle(
+                                        fontFamily:
+                                            TaqaUiFontFamilies.interTight,
+                                        fontSize: 25,
+                                        fontWeight: FontWeight.w700,
+                                        color: TaqaUiColors.white,
+                                        height: 1,
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
-                            if (loading)
-                              const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: TaqaUiColors.white,
-                                ),
-                              )
-                            else
-                              Text(
-                                valueText,
-                                style: const TextStyle(
-                                  fontFamily: TaqaUiFontFamilies.interTight,
-                                  fontSize: 25,
-                                  fontWeight: FontWeight.w700,
-                                  color: TaqaUiColors.white,
-                                  height: 1,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
+                          )
+                        : (loading
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: TaqaUiColors.white,
+                                  ),
+                                )
+                              : Text(
+                                  valueText,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontFamily: TaqaUiFontFamilies.interTight,
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.w700,
+                                    color: TaqaUiColors.white,
+                                    height: 1,
+                                  ),
+                                )),
                   ),
                 ),
                 Center(

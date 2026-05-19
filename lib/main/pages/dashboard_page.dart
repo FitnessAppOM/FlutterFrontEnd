@@ -24,7 +24,6 @@ import '../../widgets/dashboard/whoop_cycle_card.dart';
 import '../../widgets/dashboard/whoop_body_card.dart';
 import '../../widgets/dashboard/body_measurements_card.dart';
 import '../../widgets/dashboard/body_measurements_sheet.dart';
-import '../../widgets/dashboard/water_intake_card.dart';
 import '../../widgets/dashboard/water_intake_sheet.dart';
 import '../../widgets/dashboard/fitbit_daily_activity_card.dart';
 import '../../widgets/dashboard/fitbit_daily_activity_sheet.dart';
@@ -44,6 +43,7 @@ import '../../widgets/dashboard/health_recovery_load_sheet.dart';
 import '../../TaqaUI/components/taqa_daily_outlook_card.dart';
 import '../../TaqaUI/components/taqa_score_widget.dart';
 import '../../TaqaUI/components/taqa_diet_progress_widget.dart';
+import '../../TaqaUI/components/taqa_progress_widget_card.dart';
 import '../../TaqaUI/components/taqa_training_progress_widget.dart';
 import '../../widgets/dashboard/edit_mode_bubble.dart';
 import '../../widgets/dashboard/widget_library_sheet.dart';
@@ -88,7 +88,6 @@ import '../../screens/taqa_score_detail_page.dart';
 import '../../localization/app_localizations.dart';
 import '../../widgets/app_toast.dart';
 import '../../core/user_friendly_error.dart';
-import '../../widgets/common/date_header.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../services/training/training_service.dart';
 import '../../services/training/training_calories_service.dart';
@@ -101,7 +100,6 @@ import '../../widgets/release_notes_notice.dart';
 import '../../services/metrics/daily_journal_service.dart';
 import '../../services/core/navigation_service.dart';
 import '../../TaqaUI/components/taqa_dashboard_intro_card.dart';
-import '../../TaqaUI/components/taqa_dashboard_date_switcher_bubble.dart';
 import 'dart:math' as math;
 
 class _NextTrainingDayResult {
@@ -220,10 +218,6 @@ class DashboardPageState extends State<DashboardPage>
   double? _waterGoal;
   double? _waterIntake;
   bool _waterLoading = false;
-  int? _stepsDelta;
-  int? _sleepDelta;
-  int? _caloriesDelta;
-  int? _waterDelta;
   int? _weeklySteps;
   bool _weeklyStepsLoading = false;
   bool _wearableBubbleVisible = false;
@@ -638,52 +632,14 @@ class DashboardPageState extends State<DashboardPage>
     _loadDailyOutlookStatus();
   }
 
-  void _openDateSheet() {
-    final locale = AppLocalizations.of(context).locale.languageCode;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setModalState) {
-            void change(int delta) {
-              _changeDay(delta);
-              setModalState(() {});
-            }
-
-            return Container(
-              decoration: const BoxDecoration(
-                color: AppColors.surfaceDark,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  DateHeader(
-                    selectedDate: _selectedDate,
-                    todayReference: _dashboardToday(),
-                    onPrev: () => change(-1),
-                    onNext: () => change(1),
-                    canGoNext: !_isToday(),
-                    label: DateFormat('dd/MM', locale).format(_selectedDate),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
+  void _changeToDate(DateTime date) {
+    final selectedDay = _dayKey(_selectedDate);
+    final target = _dayKey(date);
+    final todayOnly = _dashboardToday();
+    if (target.isAfter(todayOnly)) return;
+    final deltaDays = target.difference(selectedDay).inDays;
+    if (deltaDays == 0) return;
+    _changeDay(deltaDays);
   }
 
   bool _isToday() {
@@ -3267,23 +3223,8 @@ class DashboardPageState extends State<DashboardPage>
         }
       }
       if (!mounted) return;
-      int? delta;
-      if (steps != null) {
-        final userId = await AccountStorage.getUserId();
-        if (userId != null) {
-          try {
-            final yesterday = _selectedDate.subtract(const Duration(days: 1));
-            final entry = await DailyMetricsApi.fetchForDate(userId, yesterday);
-            final ySteps = entry?.steps;
-            if (ySteps != null) {
-              delta = steps - ySteps;
-            }
-          } catch (_) {}
-        }
-      }
       setState(() {
         _todaySteps = steps;
-        _stepsDelta = delta;
       });
     } catch (_) {
       if (!mounted) return;
@@ -3317,23 +3258,8 @@ class DashboardPageState extends State<DashboardPage>
         }
       }
       if (!mounted) return;
-      int? delta;
-      if (hours != null) {
-        final userId = await AccountStorage.getUserId();
-        if (userId != null) {
-          try {
-            final yesterday = _selectedDate.subtract(const Duration(days: 1));
-            final entry = await DailyMetricsApi.fetchForDate(userId, yesterday);
-            final ySleep = entry?.sleepHours;
-            if (ySleep != null) {
-              delta = _percentDelta(hours, ySleep);
-            }
-          } catch (_) {}
-        }
-      }
       setState(() {
         _sleepHours = hours;
-        _sleepDelta = delta;
       });
       if (hours != null && _shouldUpdateTrendForDate(_selectedDate)) {
         _tryUpdateTrendSleepForDate(_selectedDate, hours);
@@ -3394,21 +3320,9 @@ class DashboardPageState extends State<DashboardPage>
         displayKcal = manualDisplayForSelected;
       }
       if (!mounted) return;
-      int? delta;
       final userId = await AccountStorage.getUserId();
-      if (userId != null) {
-        try {
-          final yesterday = _selectedDate.subtract(const Duration(days: 1));
-          final entry = await DailyMetricsApi.fetchForDate(userId, yesterday);
-          final yCal = entry?.calories;
-          if (yCal != null) {
-            delta = displayKcal - yCal;
-          }
-        } catch (_) {}
-      }
       setState(() {
         _todayCalories = displayKcal;
-        _caloriesDelta = delta;
       });
       if (_shouldUpdateTrendForDate(_selectedDate)) {
         _tryUpdateTrendCaloriesForDate(_selectedDate, displayKcal.toDouble());
@@ -3464,24 +3378,9 @@ class DashboardPageState extends State<DashboardPage>
         }
       }
       if (!mounted) return;
-      int? delta;
-      if (intake != null) {
-        final userId = await AccountStorage.getUserId();
-        if (userId != null) {
-          try {
-            final yesterday = _selectedDate.subtract(const Duration(days: 1));
-            final entry = await DailyMetricsApi.fetchForDate(userId, yesterday);
-            final yWater = entry?.waterLiters;
-            if (yWater != null) {
-              delta = _percentDelta(intake, yWater);
-            }
-          } catch (_) {}
-        }
-      }
       setState(() {
         _waterGoal = goal;
         _waterIntake = intake;
-        _waterDelta = delta;
       });
     } catch (_) {
       if (!mounted) return;
@@ -3661,11 +3560,6 @@ class DashboardPageState extends State<DashboardPage>
       }
     }
     return null;
-  }
-
-  int? _percentDelta(num current, num previous) {
-    if (previous == 0) return null;
-    return (((current - previous) / previous) * 100).round();
   }
 
   int? _parseWhoopSleepScore(Map<String, dynamic> data) {
@@ -5470,15 +5364,15 @@ class DashboardPageState extends State<DashboardPage>
         (_displayName == null || _displayName!.trim().isEmpty)
         ? "Athlete"
         : _displayName!.trim();
-    final int currentWeekday = _dayKey(_selectedDate).weekday;
-
     final listView = ListView(
       padding: const EdgeInsets.all(20),
       children: [
         TaqaDashboardIntroCard(
           userName: introName,
           profilePicture: _buildAvatar(),
-          currentWeekday: currentWeekday,
+          selectedDate: _selectedDate,
+          todayReference: _dashboardToday(),
+          onDateTap: _changeToDate,
           onTrainingTap: _wiggling ? null : _openTrainingPage,
           onDietTap: _wiggling ? null : _openDietPage,
         ),
@@ -5610,49 +5504,20 @@ class DashboardPageState extends State<DashboardPage>
               Widget buildTileForKey(String key) {
                 switch (key) {
                   case 'steps':
-                    return StatCard(
+                    final stepsGoal = (_stepsGoal ?? 10000).toDouble();
+                    final stepsValue = todaysStepsDisplay.toDouble();
+                    final stepsProgress = stepsGoal > 0
+                        ? (stepsValue / stepsGoal).clamp(0.0, 1.0)
+                        : 0.0;
+                    return TaqaProgressWidgetCard(
                       title: t("dash_today_steps"),
-                      value: (_stepsLoading && _todaySteps == null)
-                          ? "…"
-                          : "${todaysStepsDisplay.toString()}",
-                      subtitle:
-                          "${t("dash_goal")} ${(_stepsGoal ?? 10000).toString()}",
-                      icon: Icons.directions_walk,
-                      accentColor: const Color(0xFF35B6FF),
-                      footerRight: _stepsDelta == null
-                          ? null
-                          : Row(
-                              children: [
-                                Icon(
-                                  _stepsDelta! >= 0
-                                      ? Icons.arrow_upward
-                                      : Icons.arrow_downward,
-                                  size: 12,
-                                  color: _stepsDelta! >= 0
-                                      ? const Color(0xFF4CD964)
-                                      : const Color(0xFFFF8A00),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _stepsDelta!.abs().toString(),
-                                  style: TextStyle(
-                                    color: _stepsDelta! >= 0
-                                        ? const Color(0xFF4CD964)
-                                        : const Color(0xFFFF8A00),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Icon(
-                                  Icons.directions_walk,
-                                  size: 12,
-                                  color: _stepsDelta! >= 0
-                                      ? const Color(0xFF4CD964)
-                                      : const Color(0xFFFF8A00),
-                                ),
-                              ],
-                            ),
+                      valueText: NumberFormat.decimalPattern(
+                        locale,
+                      ).format(todaysStepsDisplay),
+                      goalText:
+                          '${t("dash_goal")} ${NumberFormat.decimalPattern(locale).format(_stepsGoal ?? 10000)}',
+                      progress: stepsProgress,
+                      loading: _stepsLoading && _todaySteps == null,
                       onTap: () async {
                         await Navigator.of(context).push(
                           MaterialPageRoute(
@@ -5665,16 +5530,18 @@ class DashboardPageState extends State<DashboardPage>
                       },
                     );
                   case 'sleep':
-                    return StatCard(
+                    final sleepGoal = (_sleepGoal ?? 8.0);
+                    final sleepProgress = sleepGoal > 0
+                        ? (averageSleep / sleepGoal).clamp(0.0, 1.0)
+                        : 0.0;
+                    return TaqaProgressWidgetCard(
                       title: t("dash_today_sleep"),
-                      value: (_sleepLoading && _sleepHours == null)
-                          ? "…"
-                          : "${averageSleep.toStringAsFixed(1)} ${t("dash_unit_hrs")}",
-                      subtitle:
-                          "${t("dash_goal")} ${(_sleepGoal ?? 8.0).toStringAsFixed(1)} ${t("dash_unit_hrs")}",
-                      icon: Icons.nights_stay,
-                      accentColor: const Color(0xFF9B8CFF),
-                      deltaPercent: _sleepDelta,
+                      valueText:
+                          '${averageSleep.toStringAsFixed(1)} ${t("dash_unit_hrs")}',
+                      goalText:
+                          '${t("dash_goal")} ${sleepGoal.toStringAsFixed(1)} ${t("dash_unit_hrs")}',
+                      progress: sleepProgress,
+                      loading: _sleepLoading && _sleepHours == null,
                       onTap: () async {
                         await Navigator.of(context).push(
                           MaterialPageRoute(
@@ -5694,8 +5561,7 @@ class DashboardPageState extends State<DashboardPage>
                           _whoopLinkedKnown || _whoopLinkedHint != null,
                       hours: _whoopSleepHours,
                       score: _whoopSleepScore,
-                      goal: _sleepGoal,
-                      delta: _whoopSleepDelta,
+                      normalSleepGoalHours: (_sleepGoal ?? 8.0),
                       onTap: () async {
                         await Navigator.of(context).push(
                           MaterialPageRoute(
@@ -5806,11 +5672,17 @@ class DashboardPageState extends State<DashboardPage>
                       ],
                     );
                   case 'water':
-                    return WaterIntakeCard(
+                    final waterProgress = waterGoal > 0
+                        ? (waterIntake / waterGoal).clamp(0.0, 1.0)
+                        : 0.0;
+                    return TaqaProgressWidgetCard(
+                      title: t("dash_water_intake"),
+                      valueText:
+                          '${waterIntake.toStringAsFixed(1)} ${t("dash_unit_l")}',
+                      goalText:
+                          '${t("dash_goal")} ${waterGoal.toStringAsFixed(1)} ${t("dash_unit_l")}',
+                      progress: waterProgress,
                       loading: _waterLoading && _waterIntake == null,
-                      intakeLiters: waterIntake,
-                      goalLiters: waterGoal,
-                      deltaPercent: _waterDelta,
                       onTap: _openWaterSheet,
                     );
                   case 'body':
@@ -5994,41 +5866,18 @@ class DashboardPageState extends State<DashboardPage>
                     );
                   case 'calories':
                   default:
-                    return StatCard(
+                    final caloriesGoal = (_caloriesGoal ?? 500).toDouble();
+                    final caloriesValue = todaysCaloriesDisplay.toDouble();
+                    final caloriesProgress = caloriesGoal > 0
+                        ? (caloriesValue / caloriesGoal).clamp(0.0, 1.0)
+                        : 0.0;
+                    return TaqaProgressWidgetCard(
                       title: t("dash_calories_burned"),
-                      value: (_caloriesLoading && _todayCalories == null)
-                          ? "…"
-                          : "${todaysCaloriesDisplay.toString()} ${t("dash_unit_kcal")}",
-                      subtitle:
-                          "${t("dash_goal")} ${(_caloriesGoal ?? 500).toString()}",
-                      icon: Icons.local_fire_department,
-                      accentColor: const Color(0xFFFF8A00),
-                      footerRight: _caloriesDelta == null
-                          ? null
-                          : Row(
-                              children: [
-                                Icon(
-                                  _caloriesDelta! >= 0
-                                      ? Icons.arrow_upward
-                                      : Icons.arrow_downward,
-                                  size: 12,
-                                  color: _caloriesDelta! >= 0
-                                      ? const Color(0xFF4CD964)
-                                      : const Color(0xFFFF8A00),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  "${_caloriesDelta!.abs()} ${t("dash_unit_kcal")}",
-                                  style: TextStyle(
-                                    color: _caloriesDelta! >= 0
-                                        ? const Color(0xFF4CD964)
-                                        : const Color(0xFFFF8A00),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
+                      valueText:
+                          '${todaysCaloriesDisplay.toString()} ${t("dash_unit_kcal")}',
+                      goalText: '${t("dash_goal")} ${_caloriesGoal ?? 500}',
+                      progress: caloriesProgress,
+                      loading: _caloriesLoading && _todayCalories == null,
                       onTap: () async {
                         await Navigator.of(context).push(
                           MaterialPageRoute(
@@ -6283,31 +6132,6 @@ class DashboardPageState extends State<DashboardPage>
                             ],
                           ],
                         ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                right: 20,
-                bottom: 20 + bottomInset,
-                child: IgnorePointer(
-                  ignoring: _wiggling,
-                  child: AnimatedOpacity(
-                    opacity: _wiggling ? 0.0 : 1.0,
-                    duration: const Duration(milliseconds: 160),
-                    child: AnimatedScale(
-                      scale: _wiggling ? 0.96 : 1.0,
-                      duration: const Duration(milliseconds: 160),
-                      child: TaqaDashboardDateSwitcherBubble(
-                        onTap: _openDateSheet,
-                        primaryLabel: isCurrentDay
-                            ? t("date_today")
-                            : DateFormat('EEE', locale).format(_selectedDate),
-                        secondaryLabel: DateFormat(
-                          'MMM d, y',
-                          locale,
-                        ).format(_selectedDate),
                       ),
                     ),
                   ),
