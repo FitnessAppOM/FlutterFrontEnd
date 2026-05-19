@@ -617,7 +617,7 @@ class _ProviderBadge extends StatelessWidget {
       case 'samsung':
         return 'Samsung Health';
       case 'healthkit':
-        return 'Apple / Samsung Watch';
+        return 'Apple / Google';
       default:
         return provider;
     }
