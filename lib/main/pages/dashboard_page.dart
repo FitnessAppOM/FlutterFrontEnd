@@ -180,6 +180,8 @@ class DashboardPageState extends State<DashboardPage>
   final Map<DateTime, _ExerciseProgressSnapshot> _exerciseProgressCache = {};
   final Map<DateTime, DailyOutlookStatus?> _dailyOutlookCache = {};
   final Map<DateTime, TaqaDailyScore?> _taqaScoreCache = {};
+  final Map<DateTime, DateTime> _taqaScoreCacheAt = {};
+  static const Duration _taqaScoreLiveDayTtl = Duration(seconds: 60);
   AnimationController? _wiggleController;
   Animation<double>? _wiggleAnim;
   bool _wiggling = false;
@@ -286,7 +288,13 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   bool _hasTaqaScoreCache(DateTime scoreDate) {
-    return _taqaScoreCache.containsKey(_dayKey(scoreDate));
+    final key = _dayKey(scoreDate);
+    if (!_taqaScoreCache.containsKey(key)) return false;
+    final liveDate = _taqaTodayByResetClock().subtract(const Duration(days: 1));
+    if (scoreDate != liveDate) return true;
+    final cachedAt = _taqaScoreCacheAt[key];
+    if (cachedAt == null) return false;
+    return DateTime.now().difference(cachedAt) <= _taqaScoreLiveDayTtl;
   }
 
   TaqaDailyScore? _readTaqaScoreCache(DateTime scoreDate) {
@@ -347,11 +355,15 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   void _writeTaqaScoreCache(DateTime scoreDate, TaqaDailyScore? score) {
-    _taqaScoreCache[_dayKey(scoreDate)] = score;
+    final key = _dayKey(scoreDate);
+    _taqaScoreCache[key] = score;
+    _taqaScoreCacheAt[key] = DateTime.now();
     if (_taqaScoreCache.length > 120) {
       final keys = _taqaScoreCache.keys.toList()..sort();
       while (_taqaScoreCache.length > 120 && keys.isNotEmpty) {
-        _taqaScoreCache.remove(keys.removeAt(0));
+        final removed = keys.removeAt(0);
+        _taqaScoreCache.remove(removed);
+        _taqaScoreCacheAt.remove(removed);
       }
     }
   }
@@ -777,6 +789,7 @@ class DashboardPageState extends State<DashboardPage>
       _exerciseProgressCache.clear();
       _dailyOutlookCache.clear();
       _taqaScoreCache.clear();
+      _taqaScoreCacheAt.clear();
       _taqaScore = null;
       _taqaScoreLoading = false;
       _dailyOutlook = null;
@@ -797,6 +810,7 @@ class DashboardPageState extends State<DashboardPage>
     _exerciseProgressCache.clear();
     TaqaScoreApi.clearCache();
     _taqaScoreCache.clear();
+    _taqaScoreCacheAt.clear();
     _loadExerciseProgress(force: true);
     _loadCalories();
     _loadTrendCalories(force: true);
@@ -813,6 +827,7 @@ class DashboardPageState extends State<DashboardPage>
     _dietSummaryCache.clear();
     TaqaScoreApi.clearCache();
     _taqaScoreCache.clear();
+    _taqaScoreCacheAt.clear();
     _cachedTodayDietConsumedCalories = null;
     _cachedTodayDietTargetCalories = null;
     _cachedTodayDietDayType = null;
@@ -827,6 +842,7 @@ class DashboardPageState extends State<DashboardPage>
     TaqaScoreApi.clearCache();
     DailyOutlookApi.clearCache();
     _taqaScoreCache.clear();
+    _taqaScoreCacheAt.clear();
     _dailyOutlookCache.clear();
     unawaited(_loadTaqaScore(forceLiveRefresh: true));
     unawaited(_loadDailyOutlookStatus(force: true));
@@ -2146,6 +2162,7 @@ class DashboardPageState extends State<DashboardPage>
     _exerciseProgressCache.clear();
     _dailyOutlookCache.clear();
     _taqaScoreCache.clear();
+    _taqaScoreCacheAt.clear();
     final futures = <Future<void>>[
       _loadUserInfo(),
       _loadNews(),

@@ -68,7 +68,7 @@ android {
         // Google Play 2025 requirement
         targetSdk = 35
 
-        versionCode = 7
+        versionCode = flutter.versionCode
         versionName = flutter.versionName
 
         // Mapbox access token from .env

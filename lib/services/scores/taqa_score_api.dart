@@ -132,10 +132,13 @@ double? _toDouble(dynamic v) {
 
 class TaqaScoreApi {
   static final Map<String, TaqaDailyScore?> _cache = {};
+  static final Map<String, DateTime> _cacheAt = {};
   static final Map<String, Future<TaqaDailyScore?>> _inFlight = {};
+  static const Duration _liveDayTtl = Duration(seconds: 60);
 
   static void clearCache() {
     _cache.clear();
+    _cacheAt.clear();
     _inFlight.clear();
   }
 
@@ -145,13 +148,32 @@ class TaqaScoreApi {
   static String _fmtDate(DateTime d) =>
       "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
 
+  static bool _isLiveDate(DateTime date) {
+    final now = DateTime.now();
+    final liveDay = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(const Duration(days: 1));
+    final target = DateTime(date.year, date.month, date.day);
+    return target == liveDay;
+  }
+
+  static bool _isCacheFresh(String key, DateTime date) {
+    if (!_cache.containsKey(key)) return false;
+    if (!_isLiveDate(date)) return true;
+    final cachedAt = _cacheAt[key];
+    if (cachedAt == null) return false;
+    return DateTime.now().difference(cachedAt) <= _liveDayTtl;
+  }
+
   static Future<TaqaDailyScore?> fetchDaily({
     required int userId,
     required DateTime date,
     bool forceRefresh = false,
   }) async {
     final key = _dayKey(userId, date);
-    if (!forceRefresh && _cache.containsKey(key)) return _cache[key];
+    if (!forceRefresh && _isCacheFresh(key, date)) return _cache[key];
     if (_inFlight.containsKey(key)) return _inFlight[key];
 
     final future = _doFetchDaily(userId, date, key, forceRefresh);
@@ -189,6 +211,7 @@ class TaqaScoreApi {
       }
       if (resp.statusCode == 404) {
         _cache[cacheKey] = null;
+        _cacheAt[cacheKey] = DateTime.now();
         return null;
       }
       if (resp.statusCode != 200) return null;
@@ -197,6 +220,7 @@ class TaqaScoreApi {
       if (json is! Map<String, dynamic>) return null;
       final score = TaqaDailyScore.fromJson(json);
       _cache[cacheKey] = score;
+      _cacheAt[cacheKey] = DateTime.now();
       return score;
     } catch (_) {
       return null;
