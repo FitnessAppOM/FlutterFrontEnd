@@ -129,6 +129,11 @@ class SleepService {
 
   Future<bool> _ensureSleepMetricPermission() async {
     try {
+      // Don't re-prompt on Android — unified prompt already covered this.
+      if (Platform.isAndroid &&
+          await ConsentManager.isAndroidHealthPromptCached()) {
+        return true;
+      }
       final types = _sleepMetricTypesForPlatform();
       final permissions = List<HealthDataAccess>.filled(
         types.length,
@@ -151,6 +156,10 @@ class SleepService {
 
   Future<bool> _ensureSleepStagePermission() async {
     try {
+      if (Platform.isAndroid &&
+          await ConsentManager.isAndroidHealthPromptCached()) {
+        return true;
+      }
       final permissions = List<HealthDataAccess>.filled(
         _sleepStageTypes.length,
         HealthDataAccess.READ,

@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:health/health.dart';
 
+import '../../consents/consent_manager.dart';
+
 class HealthHeartZones {
   const HealthHeartZones({
     required this.outOfRangeMinutes,
@@ -73,6 +75,10 @@ class HealthRecoveryLoadService {
 
   Future<bool> _ensurePermission() async {
     try {
+      if (Platform.isAndroid &&
+          await ConsentManager.isAndroidHealthPromptCached()) {
+        return true;
+      }
       final types = _typesForPlatform();
       final permissions = List<HealthDataAccess>.filled(
         types.length,

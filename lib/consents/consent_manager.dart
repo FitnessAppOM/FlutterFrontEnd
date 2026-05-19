@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ATT (iOS)
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
@@ -18,9 +19,35 @@ import 'package:health/health.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class ConsentManager {
-  static bool? _healthAvailable; // cache Health Connect / platform availability
+  static bool? _healthAvailable;
   static bool _healthPermissionRequestInFlight = false;
   static Completer<void>? _healthPermissionGate;
+  static bool? _unifiedHealthGrantedCache;
+  static const String _unifiedHealthGrantedKey =
+      'taqa_unified_health_permission_granted_v1';
+
+  static Future<bool> _isAndroidHealthPromptCached() =>
+      isAndroidHealthPromptCached();
+
+  /// True once the user has been shown the unified Health Connect dialog at
+  /// least once on Android. Callers that perform their own
+  /// `requestAuthorization` checks should short-circuit when this is true to
+  /// avoid re-prompting (Health Connect never reports grant state back).
+  static Future<bool> isAndroidHealthPromptCached() async {
+    if (_unifiedHealthGrantedCache == true) return true;
+    final sp = await SharedPreferences.getInstance();
+    if (sp.getBool(_unifiedHealthGrantedKey) == true) {
+      _unifiedHealthGrantedCache = true;
+      return true;
+    }
+    return false;
+  }
+
+  static Future<void> _markAndroidHealthPromptShown() async {
+    _unifiedHealthGrantedCache = true;
+    final sp = await SharedPreferences.getInstance();
+    await sp.setBool(_unifiedHealthGrantedKey, true);
+  }
   // ---------------------------------------------------------------------------
   // STARTUP (call once)
   // ---------------------------------------------------------------------------
@@ -154,6 +181,13 @@ class ConsentManager {
     bool sleep = true,
     bool calories = false,
   }) async {
+    // On Android, once the user has seen the unified Health Connect dialog
+    // we never re-prompt — Health Connect doesn't report grant state back to
+    // the app, so every helper would otherwise keep showing the sheet.
+    if (Platform.isAndroid && await _isAndroidHealthPromptCached()) {
+      return true;
+    }
+
     final types = <HealthDataType>[];
     if (steps) types.add(HealthDataType.STEPS);
     if (calories) types.add(HealthDataType.ACTIVE_ENERGY_BURNED);
@@ -201,12 +235,20 @@ class ConsentManager {
     try {
       final has =
           await health.hasPermissions(types, permissions: permissions) ?? false;
-      if (has) return true;
+      if (has) {
+        if (Platform.isAndroid) {
+          await _markAndroidHealthPromptShown();
+        }
+        return true;
+      }
 
       final granted = await health.requestAuthorization(
         types,
         permissions: permissions,
       );
+      if (Platform.isAndroid) {
+        await _markAndroidHealthPromptShown();
+      }
       return granted;
     } catch (e) {
       if (kDebugMode) {
@@ -234,19 +276,28 @@ class ConsentManager {
   /// Unified health prompt: steps + workout read/write in one call.
   /// Use this when you want to avoid separate permission sheets across pages.
   static Future<bool> requestUnifiedHealthPermissionsJIT() async {
+    // On Android, Health Connect's hasPermissions() always returns false even
+    // when granted (intentional Google privacy design). We cache the granted
+    // state ourselves so we never re-prompt after the user already said yes.
+    if (Platform.isAndroid && await _isAndroidHealthPromptCached()) {
+      return true;
+    }
+
     final types = <HealthDataType>[
       HealthDataType.STEPS,
       HealthDataType.ACTIVE_ENERGY_BURNED,
       HealthDataType.WORKOUT,
-      HealthDataType.TOTAL_CALORIES_BURNED,
     ];
     final permissions = <HealthDataAccess>[
       HealthDataAccess.READ_WRITE, // STEPS
       HealthDataAccess.READ, // ACTIVE_ENERGY_BURNED
       HealthDataAccess.READ_WRITE, // WORKOUT
-      HealthDataAccess.WRITE, // TOTAL_CALORIES_BURNED
     ];
     if (Platform.isIOS) {
+      // TOTAL_CALORIES_BURNED is writable on HealthKit but read-only on Health
+      // Connect — requesting WRITE for it on Android crashes the permission Activity.
+      types.add(HealthDataType.TOTAL_CALORIES_BURNED);
+      permissions.add(HealthDataAccess.WRITE);
       types.addAll([HealthDataType.SLEEP_ASLEEP, HealthDataType.SLEEP_IN_BED]);
       permissions.addAll([HealthDataAccess.READ, HealthDataAccess.READ]);
     }
@@ -280,8 +331,23 @@ class ConsentManager {
     try {
       final has =
           await health.hasPermissions(types, permissions: permissions) ?? false;
-      if (has) return true;
-      return await health.requestAuthorization(types, permissions: permissions);
+      if (has) {
+        if (Platform.isAndroid) {
+          await _markAndroidHealthPromptShown();
+        }
+        return true;
+      }
+      final granted = await health.requestAuthorization(
+        types,
+        permissions: permissions,
+      );
+      if (Platform.isAndroid) {
+        // Health Connect never confirms the grant result back to the app, so
+        // we cache after the first prompt regardless — the user saw the dialog
+        // and made their choice; we must not ask again on next app open.
+        await _markAndroidHealthPromptShown();
+      }
+      return granted;
     } catch (e) {
       if (kDebugMode) {
         print("Unified health permission request failed: $e");
@@ -296,12 +362,16 @@ class ConsentManager {
 
   /// Request permission to write workout sessions.
   static Future<bool> requestWorkoutWritePermissionJIT() async {
+    // Already-prompted? Short-circuit on Android — same reason as above.
+    if (Platform.isAndroid && await _isAndroidHealthPromptCached()) {
+      return true;
+    }
+
     final types = <HealthDataType>[HealthDataType.WORKOUT];
     if (Platform.isAndroid) {
-      types.addAll([
-        HealthDataType.TOTAL_CALORIES_BURNED,
-        HealthDataType.STEPS,
-      ]);
+      // TOTAL_CALORIES_BURNED is read-only on Health Connect — requesting
+      // WRITE crashes the permission Activity.
+      types.add(HealthDataType.STEPS);
     } else if (Platform.isIOS) {
       types.addAll([
         HealthDataType.TOTAL_CALORIES_BURNED,
@@ -338,11 +408,19 @@ class ConsentManager {
     try {
       final has =
           await health.hasPermissions(types, permissions: permissions) ?? false;
-      if (has) return true;
+      if (has) {
+        if (Platform.isAndroid) {
+          await _markAndroidHealthPromptShown();
+        }
+        return true;
+      }
       final granted = await health.requestAuthorization(
         types,
         permissions: permissions,
       );
+      if (Platform.isAndroid) {
+        await _markAndroidHealthPromptShown();
+      }
       if (granted) return true;
 
       // Fallback: workout-only scope (still allows pushing workouts when
@@ -356,10 +434,14 @@ class ConsentManager {
           ) ??
           false;
       if (hasFallback) return true;
-      return await health.requestAuthorization(
+      final fallbackGranted = await health.requestAuthorization(
         fallbackTypes,
         permissions: fallbackPermissions,
       );
+      if (Platform.isAndroid) {
+        await _markAndroidHealthPromptShown();
+      }
+      return fallbackGranted;
     } catch (e) {
       if (kDebugMode) {
         print("Workout health permission request failed: $e");

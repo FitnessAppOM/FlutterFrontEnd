@@ -244,7 +244,10 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     _inProgressExerciseIds.clear();
     if (hasCompletedExerciseInSession) {
       try {
-        await TrainingService.finishSession(entryDate: now);
+        await TrainingNetworkResilience.withTimeout(
+          TrainingService.finishSession(entryDate: now),
+          TrainingNetworkResilience.sheetMutation,
+        );
       } catch (_) {
         final hasActiveSession = await TrainingService.hasActiveSession();
         if (hasActiveSession) {
@@ -308,12 +311,15 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
           verifyHealthIfCachedDedupeSignature: true,
           syncIdentifier: trainingDayDedupeSignature,
           syncVersion: now.millisecondsSinceEpoch,
-        );
+        ).timeout(const Duration(seconds: 10));
       } catch (_) {
         // Ignore health write failures and continue local finish flow.
       }
     }
-    await _refreshProgramForCompletionCheck();
+    await _refreshProgramForCompletionCheck().timeout(
+      const Duration(seconds: 12),
+      onTimeout: () {},
+    );
     final shouldShowDayCompletePopup = hasCompletedExerciseInSession
         ? _isDayFullyCompletedForCurrentWeek(finishedDayIndex)
         : false;
