@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../widgets/dashboard/stat_card.dart';
+import '../../TaqaUI/components/taqa_progress_widget_card.dart';
 
 class BodyMeasurementsCard extends StatelessWidget {
   final double? heightCm;
@@ -20,12 +20,12 @@ class BodyMeasurementsCard extends StatelessWidget {
     final weightLabel =
         weightKg == null ? "—" : "${weightKg!.toStringAsFixed(0)} kg";
 
-    return StatCard(
+    return TaqaProgressWidgetCard(
       title: "Body",
-      value: heightLabel,
-      subtitle: "Weight $weightLabel",
-      icon: Icons.person,
-      accentColor: const Color(0xFF6A5AE0),
+      valueText: heightLabel,
+      goalText: "Weight $weightLabel",
+      progress: 0.0,
+      showArc: false,
       onTap: onTap,
     );
   }

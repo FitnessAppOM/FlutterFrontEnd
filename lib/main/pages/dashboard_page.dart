@@ -14,7 +14,6 @@ import '../../screens/announcements_page.dart';
 import '../../services/news/news_service.dart';
 import '../../services/news/news_tag_actions.dart';
 import '../../models/news_item.dart';
-import '../../widgets/dashboard/stat_card.dart';
 import '../../widgets/dashboard/progress_meter.dart';
 import '../../widgets/dashboard/bar_trend.dart';
 import '../../widgets/dashboard/whoop_recovery_card.dart';
@@ -43,10 +42,11 @@ import '../../widgets/dashboard/health_recovery_load_sheet.dart';
 import '../../TaqaUI/components/taqa_daily_outlook_card.dart';
 import '../../TaqaUI/components/taqa_score_widget.dart';
 import '../../TaqaUI/components/taqa_diet_progress_widget.dart';
+import '../../TaqaUI/components/taqa_dashboard_metric_card.dart';
 import '../../TaqaUI/components/taqa_progress_widget_card.dart';
 import '../../TaqaUI/components/taqa_training_progress_widget.dart';
-import '../../widgets/dashboard/edit_mode_bubble.dart';
-import '../../widgets/dashboard/widget_library_sheet.dart';
+import '../../TaqaUI/components/taqa_edit_mode_bubble.dart';
+import '../../TaqaUI/components/taqa_widget_library_sheet.dart';
 import '../../screens/whoop_insights_page.dart';
 import '../../screens/fitbit_insights_page.dart';
 import '../../screens/strava_detail_page.dart';
@@ -445,6 +445,8 @@ class DashboardPageState extends State<DashboardPage>
   int? _stravaActivitiesCount;
   int _stravaActivitiesReqId = 0;
   bool _fitbitSummaryLoading = false;
+  bool _showWeeklyMovementGoal = false;
+  final bool _showSevenDayTrendGraphs = false;
   bool _fitbitActivityLoading = false;
   FitbitActivitySummary? _fitbitActivity;
   FitbitActivitySummary? _fitbitActivityLast;
@@ -3334,6 +3336,7 @@ class DashboardPageState extends State<DashboardPage>
           await DailyMetricsApi.submitBurn(
             userId: userId,
             caloriesBurned: cardioKcalForSurplus,
+            caloriesDisplayTotal: displayKcal,
             entryDate: _selectedDate,
           );
           if (_isToday()) {
@@ -5269,7 +5272,7 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   void _openDietPage() {
-    widget.onNavigateToTab?.call(2);
+    widget.onNavigateToTab?.call(0);
   }
 
   Widget _buildAvatar() {
@@ -5471,7 +5474,7 @@ class DashboardPageState extends State<DashboardPage>
             },
           ),
         ],
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
@@ -5496,9 +5499,8 @@ class DashboardPageState extends State<DashboardPage>
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         if (!noEntriesForSelectedDate) ...[
-          const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, constraints) {
               Widget buildTileForKey(String key) {
@@ -5578,7 +5580,7 @@ class DashboardPageState extends State<DashboardPage>
                       loading: _isWhoopLoadingForSelectedDate(),
                       linked: _whoopLinked,
                       score: _whoopRecovery,
-                      delta: _whoopRecoveryDelta,
+                      delta: null,
                       onTap: () async {
                         await Navigator.of(context).push(
                           MaterialPageRoute(
@@ -5621,55 +5623,23 @@ class DashboardPageState extends State<DashboardPage>
                     final stravaActivitiesValue = _stravaActivitiesLoading
                         ? '...'
                         : '${_stravaActivitiesCount ?? 0}';
-                    const stravaOrange = Color(0xFFFF6A2A);
-                    return Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        StatCard(
-                          title: "Strava Activities",
-                          value: stravaActivitiesValue,
-                          subtitle: "sessions done",
-                          icon: Icons.directions_run,
-                          accentColor: stravaOrange,
-                          borderColor: stravaOrange,
-                          borderWidth: 2.2,
-                          onTap: () async {
-                            await Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const StravaDetailPage(
-                                  kind: StravaDetailKind.activities,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        Positioned(
-                          top: -10,
-                          right: 10,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: stravaOrange,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.2),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: Image.asset(
-                              'assets/images/strava_logo_icon_170697.png',
-                              height: 14,
-                              fit: BoxFit.contain,
+                    return TaqaDashboardMetricCard(
+                      source: TaqaDashboardMetricSource.strava,
+                      title: "Strava Activities",
+                      valueText: stravaActivitiesValue,
+                      goalText: "sessions done",
+                      progress: 0.0,
+                      showArc: false,
+                      loading: _stravaActivitiesLoading,
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const StravaDetailPage(
+                              kind: StravaDetailKind.activities,
                             ),
                           ),
-                        ),
-                      ],
+                        );
+                      },
                     );
                   case 'water':
                     final waterProgress = waterGoal > 0
@@ -6000,59 +5970,63 @@ class DashboardPageState extends State<DashboardPage>
               const SizedBox(height: 16),
             ],
           ],
-          ProgressMeter(
-            title: t("dash_weekly_goal"),
-            progress: weeklyProgress,
-            targetLabel:
-                "${t("dash_target")}: $weeklyStepGoalTotal ${t("dash_steps_week")}",
-            trailingLabel: _weeklyStepsLoading
-                ? t("dash_loading")
-                : "$weeklySteps ${t("dash_steps_label")}",
-            accentColor: const Color(0xFF35B6FF),
-            onTap: _wiggling ? null : _loadWeeklySteps,
-          ),
-          const SizedBox(height: 16),
-          CardContainer(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  t("dash_7day_trends"),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _TrendTile(
-                        title: t("dash_sleep_hrs"),
-                        data: _trendSleepForDisplay(),
-                        loading: _trendSleepLoading,
-                        accentColor: const Color(0xFF9B8CFF),
-                        emptyLabel: t("dash_no_sleep_data"),
-                        onTap: _handleTrendSleepTap,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _TrendTile(
-                        title: t("dash_calories_scaled"),
-                        data: _trendCalories.map((e) => e / 100).toList(),
-                        loading: _trendCaloriesLoading,
-                        accentColor: const Color(0xFFFF8A00),
-                        emptyLabel: t("dash_no_calories_data"),
-                        onTap: _handleTrendCaloriesTap,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+          if (_showWeeklyMovementGoal) ...[
+            ProgressMeter(
+              title: t("dash_weekly_goal"),
+              progress: weeklyProgress,
+              targetLabel:
+                  "${t("dash_target")}: $weeklyStepGoalTotal ${t("dash_steps_week")}",
+              trailingLabel: _weeklyStepsLoading
+                  ? t("dash_loading")
+                  : "$weeklySteps ${t("dash_steps_label")}",
+              accentColor: const Color(0xFF35B6FF),
+              onTap: _wiggling ? null : _loadWeeklySteps,
             ),
-          ),
-          const SizedBox(height: 76),
+            const SizedBox(height: 16),
+          ],
+          if (_showSevenDayTrendGraphs) ...[
+            CardContainer(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    t("dash_7day_trends"),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _TrendTile(
+                          title: t("dash_sleep_hrs"),
+                          data: _trendSleepForDisplay(),
+                          loading: _trendSleepLoading,
+                          accentColor: const Color(0xFF9B8CFF),
+                          emptyLabel: t("dash_no_sleep_data"),
+                          onTap: _handleTrendSleepTap,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _TrendTile(
+                          title: t("dash_calories_scaled"),
+                          data: _trendCalories.map((e) => e / 100).toList(),
+                          loading: _trendCaloriesLoading,
+                          accentColor: const Color(0xFFFF8A00),
+                          emptyLabel: t("dash_no_calories_data"),
+                          onTap: _handleTrendCaloriesTap,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 76),
+          ],
         ],
       ],
     );
@@ -6074,7 +6048,7 @@ class DashboardPageState extends State<DashboardPage>
               Positioned(
                 left: 20,
                 bottom: 20 + bottomInset,
-                child: EditModeBubble(
+                child: TaqaEditModeBubble(
                   visible: _wiggling && isCurrentDay,
                   onTap: _openWidgetLibrary,
                 ),

@@ -48,6 +48,7 @@ class TaqaTrainingProgressWidget extends StatelessWidget {
       goalText: goalText,
       progress: progress,
       loading: loading,
+      lightSurface: false,
       onTap: onTap,
     );
   }

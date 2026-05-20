@@ -15,6 +15,8 @@ class TaqaProgressWidgetCard extends StatelessWidget {
     this.showArc = true,
     this.loading = false,
     this.onTap,
+    this.topRight,
+    this.lightSurface = true,
   });
 
   final String title;
@@ -24,10 +26,16 @@ class TaqaProgressWidgetCard extends StatelessWidget {
   final bool showArc;
   final bool loading;
   final VoidCallback? onTap;
+  final Widget? topRight;
+  final bool lightSurface;
 
   @override
   Widget build(BuildContext context) {
     final clampedProgress = progress.clamp(0.0, 1.0);
+    final surfaceColor = lightSurface ? TaqaUiColors.white : TaqaUiColors.charcoal;
+    final textColor = lightSurface ? TaqaUiColors.charcoal : TaqaUiColors.white;
+    final baseArcColor = lightSurface ? TaqaUiColors.lightGray : TaqaUiColors.graphite;
+    final valueArcColor = lightSurface ? TaqaUiColors.charcoal : TaqaUiColors.lightGray;
     const cardRadius = 16.0;
     const arcYOffset = 4.0;
 
@@ -40,7 +48,7 @@ class TaqaProgressWidgetCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(cardRadius),
           child: Ink(
             decoration: BoxDecoration(
-              color: TaqaUiColors.charcoal,
+              color: surfaceColor,
               borderRadius: BorderRadius.circular(cardRadius),
             ),
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
@@ -54,16 +62,16 @@ class TaqaProgressWidgetCard extends StatelessWidget {
                         title.toUpperCase(),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                           fontSize: 8,
                           fontWeight: FontWeight.w400,
-                          color: TaqaUiColors.white,
+                          color: textColor,
                           letterSpacing: 0.2,
                         ),
                       ),
                     ),
-                    const _TinyRightArrow(),
+                    topRight ?? _TinyRightArrow(color: textColor),
                   ],
                 ),
                 Expanded(
@@ -81,26 +89,28 @@ class TaqaProgressWidgetCard extends StatelessWidget {
                                     size: const Size.square(122),
                                     painter: _OpenArcPainter(
                                       progress: clampedProgress,
+                                      baseColor: baseArcColor,
+                                      valueColor: valueArcColor,
                                     ),
                                   ),
                                   if (loading)
-                                    const SizedBox(
+                                    SizedBox(
                                       width: 16,
                                       height: 16,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        color: TaqaUiColors.white,
+                                        color: textColor,
                                       ),
                                     )
                                   else
                                     Text(
                                       valueText,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontFamily:
                                             TaqaUiFontFamilies.interTight,
                                         fontSize: 25,
                                         fontWeight: FontWeight.w700,
-                                        color: TaqaUiColors.white,
+                                        color: textColor,
                                         height: 1,
                                       ),
                                     ),
@@ -109,22 +119,22 @@ class TaqaProgressWidgetCard extends StatelessWidget {
                             ),
                           )
                         : (loading
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 16,
                                   height: 16,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: TaqaUiColors.white,
+                                    color: textColor,
                                   ),
                                 )
                               : Text(
                                   valueText,
                                   textAlign: TextAlign.center,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontFamily: TaqaUiFontFamilies.interTight,
                                     fontSize: 32,
                                     fontWeight: FontWeight.w700,
-                                    color: TaqaUiColors.white,
+                                    color: textColor,
                                     height: 1,
                                   ),
                                 )),
@@ -135,11 +145,11 @@ class TaqaProgressWidgetCard extends StatelessWidget {
                     goalText,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: 8,
                       fontWeight: FontWeight.w300,
-                      color: TaqaUiColors.white,
+                      color: textColor,
                       height: 1.1,
                     ),
                   ),
@@ -154,9 +164,15 @@ class TaqaProgressWidgetCard extends StatelessWidget {
 }
 
 class _OpenArcPainter extends CustomPainter {
-  const _OpenArcPainter({required this.progress});
+  const _OpenArcPainter({
+    required this.progress,
+    required this.baseColor,
+    required this.valueColor,
+  });
 
   final double progress;
+  final Color baseColor;
+  final Color valueColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -172,13 +188,13 @@ class _OpenArcPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round
-      ..color = TaqaUiColors.graphite;
+      ..color = baseColor;
 
     final value = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round
-      ..color = TaqaUiColors.lightGray;
+      ..color = valueColor;
 
     const start = 3 * math.pi / 4;
     const sweep = 3 * math.pi / 2;
@@ -191,25 +207,31 @@ class _OpenArcPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _OpenArcPainter oldDelegate) {
-    return oldDelegate.progress != progress;
+    return oldDelegate.progress != progress ||
+        oldDelegate.baseColor != baseColor ||
+        oldDelegate.valueColor != valueColor;
   }
 }
 
 class _TinyRightArrow extends StatelessWidget {
-  const _TinyRightArrow();
+  const _TinyRightArrow({required this.color});
+
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
+    return SizedBox(
       width: 2,
       height: 4,
-      child: CustomPaint(painter: _TinyRightArrowPainter()),
+      child: CustomPaint(painter: _TinyRightArrowPainter(color: color)),
     );
   }
 }
 
 class _TinyRightArrowPainter extends CustomPainter {
-  const _TinyRightArrowPainter();
+  const _TinyRightArrowPainter({required this.color});
+
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -218,7 +240,7 @@ class _TinyRightArrowPainter extends CustomPainter {
       ..strokeWidth = 0.8
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
-      ..color = TaqaUiColors.white;
+      ..color = color;
 
     final path = Path()
       ..moveTo(0, 0)

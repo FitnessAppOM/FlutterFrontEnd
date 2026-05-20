@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../widgets/dashboard/stat_card.dart';
+import '../../TaqaUI/components/taqa_dashboard_metric_card.dart';
 
 class FitbitStepsCard extends StatelessWidget {
   final bool loading;
@@ -19,47 +19,20 @@ class FitbitStepsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const fitbitTeal = Color(0xFF0C6A73);
     final value = steps != null ? "$steps" : (loading ? "…" : "0");
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        StatCard(
-          title: "Steps",
-          value: value,
-          subtitle: subtitle,
-          icon: Icons.directions_walk,
-          accentColor: const Color(0xFF35B6FF),
-          borderColor: fitbitTeal,
-          borderWidth: 2.5,
-          onTap: onTap,
-          onLongPress: onLongPress,
-        ),
-        Positioned(
-          top: -10,
-          right: 10,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: fitbitTeal,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 6,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Image.asset(
-              'assets/images/fitbit.png',
-              height: 14,
-              fit: BoxFit.contain,
-            ),
-          ),
-        ),
-      ],
+    return GestureDetector(
+      onLongPress: onLongPress,
+      child: TaqaDashboardMetricCard(
+        source: TaqaDashboardMetricSource.fitbit,
+        title: "Fitbit steps",
+        valueText: value,
+        goalText: subtitle,
+        progress: 0.0,
+        showArc: false,
+        loading: loading && steps == null,
+        onTap: onTap,
+      ),
     );
   }
 }

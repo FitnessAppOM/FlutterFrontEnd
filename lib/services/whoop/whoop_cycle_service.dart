@@ -7,6 +7,7 @@ class WhoopCycleService {
   Future<Map<DateTime, Map<String, dynamic>>> fetchDailyCycles({
     required DateTime start,
     required DateTime end,
+    bool live = false,
   }) async {
     final userId = await AccountStorage.getUserId();
     if (userId == null || userId == 0) return {};
@@ -14,10 +15,13 @@ class WhoopCycleService {
     final url = Uri.parse(
       "${ApiConfig.baseUrl}/whoop/cycle-daily?user_id=$userId"
       "&start=${Uri.encodeComponent(start.toIso8601String())}"
-      "&end=${Uri.encodeComponent(end.toIso8601String())}",
+      "&end=${Uri.encodeComponent(end.toIso8601String())}"
+      "&live=${live ? 1 : 0}",
     );
     final headers = await AccountStorage.getAuthHeaders();
-    final res = await http.get(url, headers: headers).timeout(const Duration(seconds: 20));
+    final res = await http
+        .get(url, headers: headers)
+        .timeout(const Duration(seconds: 20));
     if (res.statusCode != 200) {
       throw Exception("Status ${res.statusCode}");
     }

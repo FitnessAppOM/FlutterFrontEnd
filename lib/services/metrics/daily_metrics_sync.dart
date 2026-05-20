@@ -112,6 +112,7 @@ class DailyMetricsSync {
       await DailyMetricsApi.submitBurn(
         userId: userId,
         caloriesBurned: cardioCalories,
+        caloriesDisplayTotal: displayCalories,
         entryDate: target,
       );
       await DietService.fetchCurrentTargets(userId);

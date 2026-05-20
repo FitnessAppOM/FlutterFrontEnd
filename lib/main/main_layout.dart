@@ -9,9 +9,16 @@ import '../core/account_storage.dart';
 import '../services/auth/profile_service.dart';
 import '../services/core/navigation_service.dart';
 import '../services/screenings/screening_prompt_service.dart';
+import '../TaqaUI/components/taqa_bottom_nav_bar.dart';
 
 class MainLayout extends StatefulWidget {
-  const MainLayout({super.key, this.initialIndex = 0});
+  const MainLayout({super.key, this.initialIndex = _dashboardTab});
+
+  static const int _dietTab = 0;
+  static const int _trainTab = 1;
+  static const int _dashboardTab = 2;
+  static const int _communityTab = 3;
+  static const int _profileTab = 4;
 
   final int initialIndex;
 
@@ -59,7 +66,7 @@ class _MainLayoutState extends State<MainLayout> {
       _index = idx;
       _pages[idx] ??= _buildPage(idx);
     });
-    if (idx == 2) {
+    if (idx == MainLayout._dietTab) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         final selectedDate = _dashboardKey.currentState?.selectedDate;
         if (selectedDate != null) {
@@ -70,7 +77,7 @@ class _MainLayoutState extends State<MainLayout> {
         await _dietKey.currentState?.refreshTargetsAndMeals();
       });
     }
-    if (idx == 4) {
+    if (idx == MainLayout._profileTab) {
       _preloadExpertFlagsForProfileTab();
     }
   }
@@ -95,59 +102,45 @@ class _MainLayoutState extends State<MainLayout> {
   }
 
   Widget _buildBottomNav() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: BoxDecoration(
-        color: AppColors.appBackground,
-        border: const Border(top: BorderSide(color: Color(0xFF404040))),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _item(Icons.dashboard, 0),
-          _item(Icons.fitness_center, 1),
-          _item(Icons.restaurant_menu, 2),
-          _item(Icons.people_alt, 3),
-          _item(Icons.person, 4),
-        ],
-      ),
-    );
-  }
-
-  Widget _item(IconData icon, int idx) {
-    final selected = idx == _index;
-
-    return GestureDetector(
-      onTap: () => _selectTab(idx),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppColors.accent.withValues(alpha: 0.2)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
+    return TaqaBottomNavBar(
+      currentIndex: _index,
+      onTap: _selectTab,
+      items: const [
+        TaqaBottomNavItem(
+          icon: Icons.restaurant_menu,
+          index: MainLayout._dietTab,
         ),
-        child: Icon(
-          icon,
-          size: selected ? 30 : 26,
-          color: selected ? AppColors.accent : AppColors.black,
+        TaqaBottomNavItem(
+          icon: Icons.fitness_center,
+          index: MainLayout._trainTab,
         ),
-      ),
+        TaqaBottomNavItem(
+          icon: Icons.dashboard,
+          index: MainLayout._dashboardTab,
+        ),
+        TaqaBottomNavItem(
+          icon: Icons.people_alt,
+          index: MainLayout._communityTab,
+        ),
+        TaqaBottomNavItem(
+          icon: Icons.person,
+          index: MainLayout._profileTab,
+        ),
+      ],
     );
   }
 
   Widget _buildPage(int index) {
     switch (index) {
-      case 0:
-        return DashboardPage(key: _dashboardKey, onNavigateToTab: _selectTab);
-      case 1:
-        return const TrainPage();
-      case 2:
+      case MainLayout._dietTab:
         return DietPage(key: _dietKey);
-      case 3:
+      case MainLayout._trainTab:
+        return const TrainPage();
+      case MainLayout._dashboardTab:
+        return DashboardPage(key: _dashboardKey, onNavigateToTab: _selectTab);
+      case MainLayout._communityTab:
         return const CommunityPage();
-      case 4:
+      case MainLayout._profileTab:
       default:
         return const ProfilePage();
     }

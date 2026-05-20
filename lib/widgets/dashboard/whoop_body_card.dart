@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../TaqaUI/components/taqa_progress_widget_card.dart';
+import '../../TaqaUI/components/taqa_dashboard_metric_card.dart';
 
 class WhoopBodyCard extends StatelessWidget {
   const WhoopBodyCard({
@@ -19,11 +19,12 @@ class WhoopBodyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final value = linked
         ? (weightKg != null
-            ? "${weightKg!.toStringAsFixed(1)} kg"
-            : (loading ? "…" : "—"))
+              ? "${weightKg!.toStringAsFixed(1)} kg"
+              : (loading ? "…" : "—"))
         : "Not connected";
     final subtitle = linked ? "Current weight" : "Connect Whoop";
-    return TaqaProgressWidgetCard(
+    return TaqaDashboardMetricCard(
+      source: TaqaDashboardMetricSource.whoop,
       title: "Whoop Body",
       valueText: value,
       goalText: subtitle,

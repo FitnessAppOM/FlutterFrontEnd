@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../widgets/dashboard/stat_card.dart';
+import '../../TaqaUI/components/taqa_progress_widget_card.dart';
 
 class WaterIntakeCard extends StatelessWidget {
   final bool loading;
@@ -20,15 +20,17 @@ class WaterIntakeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final value = loading ? "…" : "${intakeLiters.toStringAsFixed(1)} L";
-    final subtitle = loading ? "" : "Goal ${goalLiters.toStringAsFixed(1)} L";
+    final subtitle = loading ? "Loading" : "Goal ${goalLiters.toStringAsFixed(1)} L";
+    final progress = goalLiters > 0
+        ? (intakeLiters / goalLiters).clamp(0.0, 1.0)
+        : 0.0;
 
-    return StatCard(
+    return TaqaProgressWidgetCard(
       title: "Water intake",
-      value: value,
-      subtitle: subtitle,
-      icon: Icons.water_drop,
-      accentColor: const Color(0xFF00BFA6),
-      deltaPercent: deltaPercent,
+      valueText: value,
+      goalText: subtitle,
+      progress: progress,
+      loading: loading,
       onTap: onTap,
     );
   }

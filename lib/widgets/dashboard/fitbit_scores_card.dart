@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../widgets/dashboard/stat_card.dart';
+import '../../TaqaUI/components/taqa_dashboard_metric_card.dart';
 
 class FitbitScoresCard extends StatelessWidget {
   final bool loading;
@@ -18,56 +18,28 @@ class FitbitScoresCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const fitbitDark = Color(0xFF0C6A73);
     final value = _buildValue();
     final subtitle = _buildSubtitle();
+    final progress = (readinessScore ?? stressManagementScore) != null
+        ? (((readinessScore ?? stressManagementScore)! / 100.0).clamp(0.0, 1.0))
+        : 0.0;
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        StatCard(
-          title: "Fitbit scores",
-          value: value,
-          subtitle: subtitle,
-          icon: Icons.emoji_events_outlined,
-          accentColor: fitbitDark,
-          borderColor: fitbitDark,
-          borderWidth: 2.2,
-          onTap: onTap,
-        ),
-        Positioned(
-          top: -10,
-          right: 10,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: fitbitDark,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 6,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Image.asset(
-              'assets/images/fitbit.png',
-              height: 14,
-              fit: BoxFit.contain,
-            ),
-          ),
-        ),
-      ],
+    return TaqaDashboardMetricCard(
+      source: TaqaDashboardMetricSource.fitbit,
+      title: "Fitbit scores",
+      valueText: value,
+      goalText: subtitle ?? "No score data",
+      progress: progress,
+      loading:
+          loading && readinessScore == null && stressManagementScore == null,
+      onTap: onTap,
     );
   }
 
   String _buildValue() {
     if (loading) return "…";
-    if (readinessScore != null) return "Readiness ${_pct(readinessScore!)}";
-    if (stressManagementScore != null) {
-      return "Stress ${_pct(stressManagementScore!)}";
-    }
+    if (readinessScore != null) return _pct(readinessScore!);
+    if (stressManagementScore != null) return _pct(stressManagementScore!);
     return "—";
   }
 

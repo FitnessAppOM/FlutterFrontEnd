@@ -231,10 +231,12 @@ class DailyMetricsApi {
   /// Call whenever you have new or updated "calories burned" (e.g. Health sync or user edit).
   /// No limit on how many times per day. Surplus = exactly the value sent (no thresholds/caps).
   /// [caloriesBurned] accepts int or double (e.g. from Apple Health / Health Connect); negative → 0.
+  /// [caloriesDisplayTotal] optional total shown in UI (e.g. cardio + training) stored separately in backend.
   /// [entryDate] optional; use the user's local date for the burn. Omit for backend to use today.
   static Future<void> submitBurn({
     required int userId,
     required num caloriesBurned,
+    num? caloriesDisplayTotal,
     DateTime? entryDate,
   }) async {
     // Backend accepts int or float; coerce negative/NaN to 0
@@ -245,6 +247,15 @@ class DailyMetricsApi {
       "calories_burned": normalized == normalized.roundToDouble()
           ? normalized.toInt()
           : normalized,
+      if (caloriesDisplayTotal != null)
+        "calories_display_total":
+            (() {
+              final total = caloriesDisplayTotal.toDouble();
+              final safeTotal = (total.isNaN || total.isNegative) ? 0.0 : total;
+              return safeTotal == safeTotal.roundToDouble()
+                  ? safeTotal.toInt()
+                  : safeTotal;
+            })(),
       if (entryDate != null)
         "entry_date": entryDate.toIso8601String().split("T").first,
     };

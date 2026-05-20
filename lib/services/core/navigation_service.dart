@@ -210,7 +210,7 @@ class NavigationService {
       return const MainLayout(initialIndex: 1);
     }
     if (type == 'diet_target_change') {
-      return const MainLayout(initialIndex: 2);
+      return const MainLayout(initialIndex: 0);
     }
     if (type == 'coach_connection_request_decision') {
       return const CoachPage(initialTabIndex: 0);
@@ -295,7 +295,7 @@ class NavigationService {
 
     // Reset to main layout and select the Diet tab.
     nav.pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const MainLayout(initialIndex: 2)),
+      MaterialPageRoute(builder: (_) => const MainLayout(initialIndex: 0)),
       (_) => false,
     );
   }

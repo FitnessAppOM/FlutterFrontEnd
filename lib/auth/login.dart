@@ -122,7 +122,7 @@ class _LoginPageState extends State<LoginPage> {
             (NavigationService.journalNotificationPending
             ? const DailyJournalPage()
             : (NavigationService.dietNotificationPending
-                ? const MainLayout(initialIndex: 2)
+                ? const MainLayout(initialIndex: 0)
                 : (expertAiPending
                     ? const ExpertDashboardPage()
                     : const MainLayout())));

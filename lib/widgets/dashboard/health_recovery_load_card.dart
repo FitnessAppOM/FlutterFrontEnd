@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../TaqaUI/components/taqa_progress_widget_card.dart';
 import '../../services/health/health_recovery_load_service.dart';
-import 'stat_card.dart';
 
 class HealthRecoveryLoadCard extends StatelessWidget {
   const HealthRecoveryLoadCard({
@@ -23,10 +23,11 @@ class HealthRecoveryLoadCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const accent = Color(0xFF2EC4B6);
     final value = activeMinutes != null
-        ? "$activeMinutes min"
-        : (loading ? "…" : "—");
+        ? "${activeMinutes}m"
+        : (loading
+              ? "…"
+              : (restingHr != null ? "$restingHr bpm" : "—"));
     final rhrText = restingHr != null ? "RHR $restingHr bpm" : null;
     final hrvText = hrvMs != null
         ? "HRV ${hrvMs!.toStringAsFixed(0)} ms"
@@ -40,15 +41,20 @@ class HealthRecoveryLoadCard extends StatelessWidget {
       zonesText,
     ].whereType<String>().toList();
     final subtitle = subtitleParts.isEmpty
-        ? (loading ? null : "No health data")
-        : subtitleParts.join(" • ");
+        ? (loading ? "Loading" : "No health data")
+        : subtitleParts.join(" | ");
 
-    return StatCard(
+    return TaqaProgressWidgetCard(
       title: "Recovery & load",
-      value: value,
-      subtitle: subtitle,
-      icon: Icons.monitor_heart,
-      accentColor: accent,
+      valueText: value,
+      goalText: subtitle,
+      progress: 0.0,
+      showArc: false,
+      loading: loading &&
+          activeMinutes == null &&
+          restingHr == null &&
+          hrvMs == null &&
+          zones == null,
       onTap: onTap,
     );
   }

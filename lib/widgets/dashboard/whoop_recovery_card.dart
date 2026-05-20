@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../TaqaUI/components/taqa_progress_widget_card.dart';
+import '../../TaqaUI/components/taqa_dashboard_metric_card.dart';
 
 class WhoopRecoveryCard extends StatelessWidget {
   const WhoopRecoveryCard({
@@ -32,7 +32,8 @@ class WhoopRecoveryCard extends StatelessWidget {
         ? "Goal $safeMaxScore%${_deltaLabel(delta)}"
         : "Connect Whoop";
 
-    return TaqaProgressWidgetCard(
+    return TaqaDashboardMetricCard(
+      source: TaqaDashboardMetricSource.whoop,
       title: "Whoop Recovery",
       valueText: value,
       goalText: subtitle,

@@ -30,6 +30,7 @@ class TaqaDietProgressWidget extends StatelessWidget {
       goalText: loading ? 'Loading' : targetText,
       progress: progress,
       loading: loading,
+      lightSurface: false,
       onTap: onTap,
     );
   }

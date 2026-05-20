@@ -2712,7 +2712,13 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.black,
-        border: Border(top: BorderSide(color: Colors.grey.shade800)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.16),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
       ),
       child: SafeArea(
         top: false,

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../TaqaUI/components/taqa_progress_widget_card.dart';
+import '../../TaqaUI/components/taqa_dashboard_metric_card.dart';
 
 class WhoopCycleCard extends StatelessWidget {
   const WhoopCycleCard({
@@ -23,8 +23,9 @@ class WhoopCycleCard extends StatelessWidget {
     final subtitle = linked
         ? (strain != null ? "" : "No cycle data yet")
         : "Connect Whoop";
-    return TaqaProgressWidgetCard(
-      title: "Whoop Daily Cycle",
+    return TaqaDashboardMetricCard(
+      source: TaqaDashboardMetricSource.whoop,
+      title: "Whoop Daily Strain",
       valueText: value,
       goalText: subtitle,
       progress: 0.0,

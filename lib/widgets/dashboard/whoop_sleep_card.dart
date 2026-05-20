@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../TaqaUI/components/taqa_progress_widget_card.dart';
+import '../../TaqaUI/components/taqa_dashboard_metric_card.dart';
 
 class WhoopSleepCard extends StatelessWidget {
   const WhoopSleepCard({
@@ -28,8 +28,8 @@ class WhoopSleepCard extends StatelessWidget {
     final value = !linkedKnown
         ? "…"
         : linked
-            ? (hours != null ? _formatHours(hours!) : (loading ? "…" : "—"))
-            : "Not connected";
+        ? (hours != null ? _formatHours(hours!) : (loading ? "…" : "—"))
+        : "Not connected";
     final goalHours = normalSleepGoalHours > 0 ? normalSleepGoalHours : 8.0;
     final progress = linked && hours != null && goalHours > 0
         ? (hours! / goalHours).clamp(0.0, 1.0)
@@ -41,9 +41,11 @@ class WhoopSleepCard extends StatelessWidget {
         : "Connect Whoop";
     final efficiency = score;
     final loadingState =
-        !linkedKnown || (loading && linked && hours == null && efficiency == null);
+        !linkedKnown ||
+        (loading && linked && hours == null && efficiency == null);
 
-    return TaqaProgressWidgetCard(
+    return TaqaDashboardMetricCard(
+      source: TaqaDashboardMetricSource.whoop,
       title: "Whoop Sleep",
       valueText: value,
       goalText: subtitle,

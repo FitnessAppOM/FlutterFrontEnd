@@ -14,6 +14,7 @@ class StatCard extends StatefulWidget {
     this.deltaPercent,
     this.footerLeft,
     this.footerRight,
+    this.topRight,
     this.onTap,
     this.onLongPress,
   });
@@ -28,6 +29,7 @@ class StatCard extends StatefulWidget {
   final int? deltaPercent;
   final Widget? footerLeft;
   final Widget? footerRight;
+  final Widget? topRight;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
 
@@ -89,7 +91,10 @@ class _StatCardState extends State<StatCard> {
                         color: widget.accentColor.withValues(alpha: 0.16),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(widget.icon ?? Icons.insights, color: widget.accentColor),
+                      child: Icon(
+                        widget.icon ?? Icons.insights,
+                        color: widget.accentColor,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -98,8 +103,9 @@ class _StatCardState extends State<StatCard> {
                         children: [
                           Text(
                             widget.title,
-                            style: theme.textTheme.labelMedium
-                                ?.copyWith(color: Colors.white70),
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: Colors.white70,
+                            ),
                           ),
                           const SizedBox(height: 4),
                           Text(
@@ -128,11 +134,7 @@ class _StatCardState extends State<StatCard> {
                   ],
                 ),
                 if (widget.footerRight != null)
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    child: widget.footerRight!,
-                  )
+                  Positioned(right: 0, bottom: 0, child: widget.footerRight!)
                 else if (widget.deltaPercent != null)
                   Positioned(
                     right: 0,
@@ -163,11 +165,9 @@ class _StatCardState extends State<StatCard> {
                     ),
                   ),
                 if (widget.footerLeft != null)
-                  Positioned(
-                    left: 0,
-                    bottom: 0,
-                    child: widget.footerLeft!,
-                  ),
+                  Positioned(left: 0, bottom: 0, child: widget.footerLeft!),
+                if (widget.topRight != null)
+                  Positioned(top: 0, right: 0, child: widget.topRight!),
               ],
             ),
           ),

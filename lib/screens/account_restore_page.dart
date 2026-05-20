@@ -293,7 +293,7 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
             (NavigationService.journalNotificationPending
             ? const DailyJournalPage()
             : (NavigationService.dietNotificationPending
-                  ? const MainLayout(initialIndex: 2)
+                  ? const MainLayout(initialIndex: 0)
                   : (expertAiPending
                       ? const ExpertDashboardPage()
                       : const MainLayout())));

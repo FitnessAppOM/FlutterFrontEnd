@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../widgets/dashboard/stat_card.dart';
+import '../../TaqaUI/components/taqa_dashboard_metric_card.dart';
 
 class FitbitVitalsCard extends StatelessWidget {
   final bool loading;
@@ -23,47 +23,23 @@ class FitbitVitalsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const fitbitDark = Color(0xFF0C6A73);
     final value = _buildValue();
     final subtitle = _buildSubtitle();
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        StatCard(
-          title: "Fitbit health",
-          value: value,
-          subtitle: subtitle,
-          icon: Icons.health_and_safety,
-          accentColor: fitbitDark,
-          borderColor: fitbitDark,
-          borderWidth: 2.2,
-          onTap: onTap,
-        ),
-        Positioned(
-          top: -10,
-          right: 10,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: fitbitDark,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 6,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Image.asset(
-              'assets/images/fitbit.png',
-              height: 14,
-              fit: BoxFit.contain,
-            ),
-          ),
-        ),
-      ],
+    return TaqaDashboardMetricCard(
+      source: TaqaDashboardMetricSource.fitbit,
+      title: "Fitbit health",
+      valueText: value,
+      goalText: subtitle ?? "No vitals data",
+      progress: 0.0,
+      showArc: false,
+      loading:
+          loading &&
+          spo2Percent == null &&
+          skinTempC == null &&
+          breathingRate == null &&
+          ecgSummary == null,
+      onTap: onTap,
     );
   }
 
@@ -80,9 +56,11 @@ class FitbitVitalsCard extends StatelessWidget {
     if (loading) return null;
     final parts = <String>[];
     if (skinTempC != null) parts.add("Temp ${_fmtTemp(skinTempC!)}");
-    if (breathingRate != null) parts.add("BR ${breathingRate!.toStringAsFixed(1)}");
+    if (breathingRate != null) {
+      parts.add("BR ${breathingRate!.toStringAsFixed(1)}");
+    }
     if (ecgSummary != null) {
-      final hr = ecgAvgHr != null ? " ${ecgAvgHr} bpm" : "";
+      final hr = ecgAvgHr != null ? " $ecgAvgHr bpm" : "";
       parts.add("ECG $ecgSummary$hr");
     }
     return parts.isEmpty ? null : parts.join(" • ");
