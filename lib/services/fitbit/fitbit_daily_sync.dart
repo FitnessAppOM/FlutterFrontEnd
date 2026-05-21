@@ -39,7 +39,7 @@ class FitbitDailySync {
       if (!linked) return;
 
       final start = effectiveToday.subtract(const Duration(days: 7));
-      final end = effectiveToday.subtract(const Duration(days: 1));
+      final end = effectiveToday;
       if (end.isBefore(start)) return;
 
       final startStr = _dateKey(start);
@@ -119,7 +119,7 @@ class FitbitDailySync {
       if (!linked) return;
 
       final start = effectiveToday.subtract(Duration(days: days));
-      final end = effectiveToday.subtract(const Duration(days: 1));
+      final end = effectiveToday;
       if (end.isBefore(start)) return;
 
       final startStr = _dateKey(start);

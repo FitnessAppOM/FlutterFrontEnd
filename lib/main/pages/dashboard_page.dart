@@ -2064,6 +2064,12 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   Future<void> _loadInitialData() async {
+    // Phase 1: load everything in parallel EXCEPT the TAQA score. The TAQA
+    // score is a derived value computed from wearable data on the backend; if
+    // we fetch it in parallel with the wearable loads, the backend may compute
+    // it before today's wearable rows are in the DB and cache a stale value
+    // for the live day. We therefore await the wearable-related loads first
+    // and only then fetch the TAQA score, so the backend has complete data.
     await Future.wait([
       _loadUserInfo(),
       _loadNews(),
@@ -2080,9 +2086,12 @@ class DashboardPageState extends State<DashboardPage>
       _loadWhoopRecovery(force: true),
       _loadHealthRecoveryLoad(force: true),
       _loadStravaStatus(syncRemote: true),
-      _loadTaqaScore(forceLiveRefresh: true),
       _loadDailyOutlookStatus(),
     ]);
+    if (!mounted) return;
+    // Phase 2: now that wearable data is loaded (and persisted server-side),
+    // fetch the TAQA score so it reflects the latest wearable rows.
+    await _loadTaqaScore(forceLiveRefresh: true);
     if (!mounted) return;
     _loadFitbitSummary(force: true);
   }
