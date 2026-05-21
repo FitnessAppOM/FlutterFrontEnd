@@ -168,31 +168,37 @@ class _SlideCard extends StatelessWidget {
                   letterSpacing: 0.2,
                 ),
               ),
-              const SizedBox(height: 10),
-              Text(
-                slide.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontFamily: TaqaUiFontFamilies.interTight,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: TaqaUiColors.white,
-                ),
-              ),
               const SizedBox(height: 6),
               Expanded(
-                child: Text(
-                  slide.subtitle,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontFamily: TaqaUiFontFamilies.interTight,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w300,
-                    color: TaqaUiColors.white,
-                    height: 1.25,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      slide.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: TaqaUiColors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      slide.subtitle,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w300,
+                        color: TaqaUiColors.white,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 8),

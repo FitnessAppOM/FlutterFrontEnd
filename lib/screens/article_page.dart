@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
+import '../TaqaUI/styles/taqa_ui_styles.dart';
+import '../localization/app_localizations.dart';
 import '../models/news_item.dart';
-import '../theme/app_theme.dart';
 
 class ArticlePage extends StatelessWidget {
   final NewsItem item;
@@ -10,8 +14,7 @@ class ArticlePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
+    final locale = AppLocalizations.of(context).locale.languageCode;
     final useContent = item.content.isNotEmpty;
     final bodyText = (useContent ? item.content : item.subtitle).trim();
     final paragraphs = bodyText.isEmpty
@@ -21,12 +24,22 @@ class ArticlePage extends StatelessWidget {
             .map((p) => p.trim())
             .where((p) => p.isNotEmpty)
             .toList();
+    final dateLabel = item.createdAt == null
+        ? ''
+        : DateFormat('EEE, MMMM d', locale).format(item.createdAt!.toLocal());
 
     return Scaffold(
-      backgroundColor: AppColors.black,
+      backgroundColor: TaqaUiColors.unnamedColor1c1d17,
       appBar: AppBar(
-        backgroundColor: AppColors.black,
-        title: const Text("Article"),
+        backgroundColor: TaqaUiColors.unnamedColor1c1d17,
+        surfaceTintColor: Colors.transparent,
+        centerTitle: true,
+        title: Text(
+          "News",
+          style: TaqaUiStyles.pageTitle.copyWith(
+            color: TaqaUiColors.white,
+          ),
+        ),
       ),
       body: SafeArea(
         child: LayoutBuilder(
@@ -40,38 +53,41 @@ class ArticlePage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: cs.primary.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(30),
-                          border: Border.all(color: cs.primary.withValues(alpha: 0.35)),
-                        ),
-                        child: Text(
-                          item.tag,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.4,
+                      if (dateLabel.isNotEmpty)
+                        Text(
+                          dateLabel.toUpperCase(),
+                          textAlign: TextAlign.left,
+                          style: const TextStyle(
+                            fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+                            fontSize: 8,
+                            fontWeight: FontWeight.w400,
+                            color: TaqaUiColors.white,
+                            letterSpacing: 0.2,
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
+                      if (dateLabel.isNotEmpty) const SizedBox(height: 20),
                       Text(
                         item.title,
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
+                        textAlign: TextAlign.left,
+                        style: const TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          fontSize: 25,
+                          fontWeight: FontWeight.w700,
+                          color: TaqaUiColors.white,
                           height: 1.2,
                         ),
                       ),
-                      if (useContent && item.subtitle.isNotEmpty) ...[
-                        const SizedBox(height: 4),
+                      if (item.subtitle.isNotEmpty) ...[
+                        const SizedBox(height: 8),
                         Text(
                           item.subtitle,
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            color: Colors.white70,
-                            height: 1.4,
+                          textAlign: TextAlign.left,
+                          style: const TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w400,
+                            color: TaqaUiColors.white,
+                            height: 1.35,
                           ),
                         ),
                       ],
@@ -81,10 +97,14 @@ class ArticlePage extends StatelessWidget {
                       ],
                       const SizedBox(height: 18),
                       if (paragraphs.isEmpty)
-                        Text(
+                        const Text(
                           "No article content yet.",
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: Colors.white54,
+                          textAlign: TextAlign.left,
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w400,
+                            color: TaqaUiColors.lightGray,
                           ),
                         )
                       else
@@ -93,8 +113,12 @@ class ArticlePage extends StatelessWidget {
                             padding: const EdgeInsets.only(bottom: 14),
                             child: Text(
                               p,
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.9),
+                              textAlign: TextAlign.left,
+                              style: const TextStyle(
+                                fontFamily: TaqaUiFontFamilies.interTight,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w400,
+                                color: TaqaUiColors.white,
                                 height: 1.6,
                               ),
                             ),
@@ -133,7 +157,7 @@ class _PdfButton extends StatelessWidget {
         icon: const Icon(Icons.picture_as_pdf),
         label: const Text("Open PDF"),
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.accent,
+          backgroundColor: TaqaUiColors.lime,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(

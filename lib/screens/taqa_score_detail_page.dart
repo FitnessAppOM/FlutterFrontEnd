@@ -1,6 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
+import '../TaqaUI/styles/taqa_ui_styles.dart';
 import '../core/account_storage.dart';
 import '../localization/app_localizations.dart';
 import '../services/core/daily_provider_push_service.dart';
@@ -8,7 +13,6 @@ import '../services/scores/taqa_score_api.dart';
 import '../services/training/training_reset_coordinator.dart';
 import '../theme/app_theme.dart';
 import '../widgets/charts/simple_line_chart.dart';
-import '../widgets/common/date_switcher.dart';
 
 class TaqaScoreDetailPage extends StatefulWidget {
   const TaqaScoreDetailPage({super.key, this.initialDate});
@@ -20,6 +24,8 @@ class TaqaScoreDetailPage extends StatefulWidget {
 }
 
 class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
+  static const int _previewYearsBack = 5;
+
   DateTime _selectedDate = DateTime.now();
   TaqaDailyScore? _score;
   bool _loading = true;
@@ -28,10 +34,17 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
   int? _userId;
   int _scoreReqId = 0;
   int _trendReqId = 0;
+  late final PageController _scorePreviewController;
+  final Map<String, TaqaDailyScore?> _scorePreviewCache = {};
+  final Set<String> _previewLoadingKeys = <String>{};
 
   @override
   void initState() {
     super.initState();
+    _scorePreviewController = PageController(
+      initialPage: _previewIndexForDate(_selectedDate),
+      viewportFraction: 0.72,
+    );
     AccountStorage.accountChange.addListener(_onAccountChanged);
     _init();
   }
@@ -49,6 +62,9 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     final uid = await AccountStorage.getUserId();
     if (!mounted) return;
     setState(() => _userId = uid);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncPreviewToSelectedDate();
+    });
     if (uid == null) return;
     await Future.wait([_loadScore(uid), _loadTrend(uid)]);
   }
@@ -79,12 +95,47 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
   DateTime _dateOnly(DateTime date) =>
       DateTime(date.year, date.month, date.day);
 
+  String _dayKey(DateTime date) {
+    final d = _dateOnly(date);
+    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  }
+
+  bool _sameDay(DateTime a, DateTime b) => _dateOnly(a) == _dateOnly(b);
+
   DateTime _todayByResetClock() {
     return DailyProviderPushService.effectiveLocalDay();
   }
 
   DateTime _maxSelectableDate() {
     return _todayByResetClock().subtract(const Duration(days: 1));
+  }
+
+  DateTime _previewStartDate() {
+    return _maxSelectableDate().subtract(
+      const Duration(days: 365 * _previewYearsBack),
+    );
+  }
+
+  int _previewItemCount() {
+    return _maxSelectableDate().difference(_previewStartDate()).inDays + 1;
+  }
+
+  DateTime _previewDateForIndex(int index) {
+    final safeIndex = index.clamp(0, _previewItemCount() - 1);
+    return _previewStartDate().add(Duration(days: safeIndex));
+  }
+
+  int _previewIndexForDate(DateTime date) {
+    final days = _dateOnly(date).difference(_previewStartDate()).inDays;
+    return days.clamp(0, _previewItemCount() - 1);
+  }
+
+  void _syncPreviewToSelectedDate() {
+    if (!_scorePreviewController.hasClients) return;
+    final target = _previewIndexForDate(_selectedDate);
+    final current = _scorePreviewController.page?.round();
+    if (current == target) return;
+    _scorePreviewController.jumpToPage(target);
   }
 
   Future<void> _loadScore(int userId) async {
@@ -113,7 +164,9 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     setState(() {
       _score = result;
       _loading = false;
+      _scorePreviewCache[_dayKey(selectedDate)] = result;
     });
+    _prefetchAdjacentScores(userId);
   }
 
   Future<void> _loadTrend(int userId) async {
@@ -136,34 +189,60 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     });
   }
 
-  void _goToPrevDay() {
-    _selectedDate = _selectedDate.subtract(const Duration(days: 1));
-    final uid = _userId;
-    if (uid != null) _loadScore(uid);
-  }
-
-  void _goToNextDay() {
-    final yesterday = _maxSelectableDate();
+  Future<void> _prefetchAdjacentScores(int userId) async {
+    final prev = _selectedDate.subtract(const Duration(days: 1));
+    await _prefetchScoreForDate(userId, prev);
     final next = _selectedDate.add(const Duration(days: 1));
-    if (next.isAfter(yesterday)) return;
-    _selectedDate = next;
-    final uid = _userId;
-    if (uid != null) _loadScore(uid);
+    if (!next.isAfter(_maxSelectableDate())) {
+      await _prefetchScoreForDate(userId, next);
+    }
   }
 
-  bool get _canGoNext {
-    final yesterday = _maxSelectableDate();
-    final sel = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-    );
-    return sel.isBefore(yesterday);
+  Future<void> _prefetchScoreForDate(int userId, DateTime date) async {
+    final day = _dateOnly(date);
+    if (day.isAfter(_maxSelectableDate())) return;
+    final key = _dayKey(day);
+    if (_previewLoadingKeys.contains(key) || _scorePreviewCache.containsKey(key)) {
+      return;
+    }
+    _previewLoadingKeys.add(key);
+    try {
+      final isLiveDate = day == _maxSelectableDate();
+      var result = await TaqaScoreApi.fetchDaily(
+        userId: userId,
+        date: day,
+        forceRefresh: isLiveDate,
+      );
+      if (!isLiveDate && result?.taqaValueScore == null) {
+        result = await TaqaScoreApi.fetchDaily(
+          userId: userId,
+          date: day,
+          forceRefresh: true,
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _scorePreviewCache[key] = result;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _scorePreviewCache[key] = null;
+      });
+    } finally {
+      _previewLoadingKeys.remove(key);
+    }
+  }
+
+  TaqaDailyScore? _scoreForPreviewDay(DateTime date) {
+    if (_sameDay(date, _selectedDate)) return _score;
+    return _scorePreviewCache[_dayKey(date)];
   }
 
   @override
   void dispose() {
     AccountStorage.accountChange.removeListener(_onAccountChanged);
+    _scorePreviewController.dispose();
     super.dispose();
   }
 
@@ -174,20 +253,17 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final dateLabel = DateFormat('EEE, MMM d', _locale).format(_selectedDate);
-
     return Scaffold(
-      backgroundColor: AppColors.black,
+      backgroundColor: AppColors.appBackground,
       appBar: AppBar(
-        backgroundColor: AppColors.black,
+        backgroundColor: AppColors.appBackground,
         title: Text(
           t("taqa_detail_title"),
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
+          style: TaqaUiStyles.pageTitle.copyWith(
+            color: TaqaUiColors.charcoal,
           ),
         ),
-        leading: const BackButton(color: Colors.white),
+        leading: const BackButton(color: TaqaUiColors.charcoal),
         elevation: 0,
       ),
       body: SafeArea(
@@ -205,18 +281,11 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
                 },
                 child: ListView(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
+                    horizontal: 16,
                     vertical: 8,
                   ),
                   children: [
-                    DateSwitcher(
-                      label: dateLabel,
-                      onPrev: _goToPrevDay,
-                      onNext: _goToNextDay,
-                      canGoNext: _canGoNext,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildMasterScore(),
+                    _buildScorePreviewCarousel(),
                     const SizedBox(height: 20),
                     if (_score != null) ..._buildPillarCards(),
                     if (_score == null) _buildNoData(),
@@ -230,73 +299,66 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     );
   }
 
-  Widget _buildMasterScore() {
-    final score = _score;
-    if (score == null || score.taqaValueScore == null) {
-      return _buildScoreRing(null, t("taqa_label_taqa_value"), null);
-    }
-    return _buildScoreRing(
-      score.taqaValueScore,
-      t("taqa_label_taqa_value"),
-      score.provider,
-    );
-  }
+  Widget _buildScorePreviewCarousel() {
+    final currentIndex = _previewIndexForDate(_selectedDate);
 
-  Widget _buildScoreRing(double? value, String label, String? provider) {
-    final display = value == null ? "--" : value.round().toString();
-    final progress = value == null ? 0.0 : (value / 100).clamp(0.0, 1.0);
-    final ringColor = value == null
-        ? Colors.white24
-        : _scoreColor(value, inverted: false);
-
-    return Center(
-      child: Column(
-        children: [
-          SizedBox(
-            width: 160,
-            height: 160,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox(
-                  width: 150,
-                  height: 150,
-                  child: CircularProgressIndicator(
-                    value: progress,
-                    strokeWidth: 10,
-                    backgroundColor: Colors.white.withValues(alpha: 0.08),
-                    valueColor: AlwaysStoppedAnimation(ringColor),
-                    strokeCap: StrokeCap.round,
-                  ),
-                ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      display,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 44,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Text(
-                      label,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+    return SizedBox(
+      height: 275,
+      child: PageView.builder(
+        controller: _scorePreviewController,
+        onPageChanged: (index) async {
+          final day = _previewDateForIndex(index);
+          if (_sameDay(day, _selectedDate)) return;
+          setState(() {
+            _selectedDate = day;
+          });
+          final uid = _userId;
+          if (uid != null) {
+            await _loadScore(uid);
+          }
+        },
+        itemCount: _previewItemCount(),
+        itemBuilder: (context, index) {
+          final day = _previewDateForIndex(index);
+          final isCenter = index == currentIndex;
+          final dayScore = _scoreForPreviewDay(day);
+          final label = DateFormat('EEE, MMM d', _locale).format(day).toUpperCase();
+          return AnimatedPadding(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            padding: EdgeInsets.fromLTRB(
+              6,
+              isCenter ? 0 : 12,
+              6,
+              isCenter ? 0 : 12,
             ),
-          ),
-          if (provider != null) ...[
-            const SizedBox(height: 8),
-            _ProviderBadge(provider: provider),
-          ],
-        ],
+            child: Opacity(
+              opacity: isCenter ? 1 : 0.72,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: TaqaUiColors.charcoal,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: _ScorePreviewCard(
+                      score: dayScore?.taqaValueScore,
+                      provider: dayScore?.provider,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -372,9 +434,9 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
         detailLabels: {
           'phase_label': 'Phase',
           'badge_label': 'Badge',
-          'tflu_today': 'TFLU Today',
-          'tflu_7d_avg': '7-Day Avg TFLU',
-          'tflu_28d_avg': '28-Day Avg TFLU',
+          'tflu_today': 'Today Load',
+          'tflu_7d_avg': '7-Day Avg Load',
+          'tflu_28d_avg': '28-Day Avg Load',
           'normalization_peak': 'Normalization Peak',
           'training_minutes': 'Training Minutes',
           'rest_minutes': 'Rest Minutes',
@@ -519,48 +581,62 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     final hasData = values.any((v) => v != null);
     if (!hasData) return const SizedBox.shrink();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          t("taqa_7day_trend"),
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-          ),
+    return SizedBox(
+      height: 209,
+      width: double.infinity,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(28, 18, 18, 14),
+        decoration: BoxDecoration(
+          color: TaqaUiColors.white,
+          borderRadius: BorderRadius.circular(15),
         ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '7 DAY TREND TAQA Fitness Scores',
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+                color: TaqaUiColors.charcoal,
+                fontSize: 8,
+                fontWeight: FontWeight.w400,
+                letterSpacing: 0,
+                height: 1,
+              ),
             ),
-          ),
-          child: SimpleLineChart(
-            values: values,
-            color: const Color(0xFF6A5AE0),
-            height: 150,
-            showPoints: true,
-            xLabels: xLabels,
-            yLabels: const ['100', '75', '50', '25', '0'],
-            yAxisTitle: t("taqa_label_taqa_value"),
-            xAxisTitle: 'Date',
-          ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: SimpleLineChart(
+                  values: values,
+                  color: const Color(0xFF6A5AE0),
+                  height: 150,
+                  showPoints: true,
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: xLabels
+                  .map(
+                    (label) => Text(
+                      label,
+                      style: const TextStyle(
+                        fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+                        color: TaqaUiColors.charcoal,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w400,
+                        height: 1,
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
-        Text(
-          t("taqa_7day_value_trend_caption"),
-          style: const TextStyle(
-            color: Colors.white54,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -574,53 +650,126 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
   }
 }
 
-Color _scoreColor(double score, {bool inverted = false}) {
-  final effective = inverted ? (100 - score) : score;
-  if (effective >= 75) return const Color(0xFF4CD964);
-  if (effective >= 50) return const Color(0xFFFFD700);
-  if (effective >= 25) return const Color(0xFFFF8A00);
-  return const Color(0xFFFF6B6B);
-}
+class _ScorePreviewCard extends StatelessWidget {
+  const _ScorePreviewCard({this.score, this.provider});
 
-class _ProviderBadge extends StatelessWidget {
-  final String provider;
-  const _ProviderBadge({required this.provider});
+  final double? score;
+  final String? provider;
 
   @override
   Widget build(BuildContext context) {
-    final label = _providerLabel(provider);
+    final value = score?.round() ?? 0;
+    final progress = score == null ? 0.0 : (score! / 100).clamp(0.0, 1.0);
+    final providerText = _providerLabel(provider);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
+        color: TaqaUiColors.unnamedColorE4e93b,
+        borderRadius: BorderRadius.circular(24),
       ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white60,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
+      child: Stack(
+        children: [
+          Center(
+            child: SizedBox(
+              width: 168,
+              height: 168,
+              child: CustomPaint(
+                painter: _PreviewArcPainter(progress: progress),
+              ),
+            ),
+          ),
+          Center(
+            child: Text(
+              '$value',
+              style: const TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: 44,
+                fontWeight: FontWeight.w800,
+                color: TaqaUiColors.charcoal,
+                height: 1,
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 24,
+            child: Text(
+              providerText,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+                color: TaqaUiColors.charcoal,
+                height: 1.1,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
+}
 
-  String _providerLabel(String provider) {
-    switch (provider) {
-      case 'fitbit':
-        return 'Fitbit';
-      case 'whoop':
-        return 'WHOOP';
-      case 'google_fit':
-        return 'Google Fit';
-      case 'samsung':
-        return 'Samsung Health';
-      case 'healthkit':
-        return 'Apple / Google';
-      default:
-        return provider;
+class _PreviewArcPainter extends CustomPainter {
+  const _PreviewArcPainter({required this.progress});
+
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const strokeWidth = 16.0;
+    final rect = Rect.fromLTWH(
+      strokeWidth / 2,
+      strokeWidth / 2,
+      size.width - strokeWidth,
+      size.height - strokeWidth,
+    );
+
+    final base = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..color = TaqaUiColors.charcoal.withValues(alpha: 0.14);
+
+    final value = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..color = TaqaUiColors.charcoal.withValues(alpha: 0.3);
+
+    const start = 3 * math.pi / 4;
+    const sweep = 3 * math.pi / 2;
+    canvas.drawArc(rect, start, sweep, false, base);
+    if (progress > 0) {
+      canvas.drawArc(rect, start, sweep * progress, false, value);
     }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PreviewArcPainter oldDelegate) {
+    return oldDelegate.progress != progress;
+  }
+}
+
+String _providerLabel(String? provider) {
+  switch (provider) {
+    case 'fitbit':
+      return 'Fitbit';
+    case 'whoop':
+      return 'WHOOP';
+    case 'google_fit':
+      return 'Google Fit';
+    case 'samsung':
+      return 'Samsung Health';
+    case 'healthkit':
+      return 'Smart Watch';
+    case null:
+      return 'Smart Watch';
+    default:
+      return provider;
   }
 }
 
@@ -631,7 +780,6 @@ class _PillarCard extends StatefulWidget {
   final IconData icon;
   final Color color;
   final String? path;
-  final bool inverted;
   final Map<String, dynamic> details;
   final Map<String, String> detailLabels;
 
@@ -642,7 +790,6 @@ class _PillarCard extends StatefulWidget {
     required this.icon,
     required this.color,
     this.path,
-    this.inverted = false,
     required this.details,
     required this.detailLabels,
   });
@@ -658,7 +805,11 @@ class _PillarCardState extends State<_PillarCard> {
 
   @override
   Widget build(BuildContext context) {
-    final statusMessage = _statusMessage();
+    final isDarkCard =
+        widget.metricKey == 'training_load' ||
+        widget.metricKey == 'nutrition' ||
+        widget.metricKey == 'readiness' ||
+        widget.metricKey == 'lifestyle_balance';
     final hasDetails =
         widget.detailLabels.isNotEmpty && widget.details.isNotEmpty;
     final scoreDisplay = widget.score == null
@@ -667,103 +818,117 @@ class _PillarCardState extends State<_PillarCard> {
     final barValue = widget.score == null
         ? 0.0
         : (widget.score! / 100).clamp(0.0, 1.0);
-    final barColor = widget.score == null
-        ? Colors.white24
-        : _scoreColor(widget.score!, inverted: widget.inverted);
+    final cardBg = isDarkCard ? TaqaUiColors.charcoal : TaqaUiColors.white;
+    final textColor = isDarkCard ? TaqaUiColors.white : TaqaUiColors.charcoal;
+    final chipBorder = isDarkCard
+        ? TaqaUiColors.lightGray.withValues(alpha: 0.6)
+        : TaqaUiColors.graphite.withValues(alpha: 0.6);
+    final barTrack = isDarkCard
+        ? TaqaUiColors.graphite.withValues(alpha: 0.95)
+        : TaqaUiColors.lightGray.withValues(alpha: 0.9);
+    final barFill = isDarkCard
+        ? TaqaUiColors.lightGray.withValues(alpha: 0.85)
+        : TaqaUiColors.graphite.withValues(alpha: 0.55);
 
     return GestureDetector(
       onTap: hasDetails ? () => setState(() => _expanded = !_expanded) : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-          ),
+          color: cardBg,
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: widget.color.withValues(alpha: 0.16),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(widget.icon, color: widget.color, size: 20),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            widget.label,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          if (widget.path != null) ...[
-                            const SizedBox(width: 6),
-                            _PathChip(path: widget.path!),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: barValue,
-                          backgroundColor: Colors.white.withValues(alpha: 0.08),
-                          valueColor: AlwaysStoppedAnimation(barColor),
-                          minHeight: 6,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    widget.label,
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      height: 1.15,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                if (widget.path != null)
+                  _PathChip(
+                    path: widget.path!,
+                    isDark: isDarkCard,
+                    borderColor: chipBorder,
+                    textColor: textColor,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 26),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: barValue,
+                      backgroundColor: barTrack,
+                      valueColor: AlwaysStoppedAnimation(barFill),
+                      minHeight: 20,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
                 Text(
                   scoreDisplay,
                   style: TextStyle(
-                    color: barColor,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
+                    color: textColor,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w700,
+                    height: 1,
                   ),
                 ),
                 if (hasDetails) ...[
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 2),
                   Icon(
                     _expanded
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
-                    color: Colors.white38,
-                    size: 20,
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    color: isDarkCard
+                        ? TaqaUiColors.white.withValues(alpha: 0.85)
+                        : TaqaUiColors.charcoal.withValues(alpha: 0.85),
+                    size: 18,
                   ),
                 ],
               ],
             ),
-            if (statusMessage != null) ...[
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  statusMessage,
-                  style: const TextStyle(color: Colors.white60, fontSize: 12),
-                ),
-              ),
-            ],
             if (_expanded && hasDetails) ...[
+              if (_statusMessage() != null) ...[
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    _statusMessage()!,
+                    textAlign: TextAlign.left,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w400,
+                      color: textColor.withValues(alpha: 0.78),
+                      letterSpacing: 0,
+                      height: 25 / 15,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
-              const Divider(color: Colors.white12, height: 1),
+              Divider(
+                color: isDarkCard
+                    ? TaqaUiColors.lightGray.withValues(alpha: 0.25)
+                    : TaqaUiColors.graphite.withValues(alpha: 0.2),
+                height: 1,
+              ),
               const SizedBox(height: 12),
               ...widget.detailLabels.entries.map((entry) {
                 final rawVal = widget.details[entry.key];
@@ -776,15 +941,15 @@ class _PillarCardState extends State<_PillarCard> {
                     children: [
                       Text(
                         entry.value,
-                        style: const TextStyle(
-                          color: Colors.white60,
+                        style: TextStyle(
+                          color: textColor.withValues(alpha: 0.72),
                           fontSize: 13,
                         ),
                       ),
                       Text(
                         val,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: textColor,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
@@ -855,68 +1020,57 @@ class _PillarCardState extends State<_PillarCard> {
 
 class _PathChip extends StatelessWidget {
   final String path;
-  const _PathChip({required this.path});
+  final bool isDark;
+  final Color borderColor;
+  final Color textColor;
+  const _PathChip({
+    required this.path,
+    required this.isDark,
+    required this.borderColor,
+    required this.textColor,
+  });
 
   @override
   Widget build(BuildContext context) {
     final label = path == 'wearable'
-        ? 'Wearable'
+        ? 'WEARABLE'
         : path == 'journal'
-        ? 'Journal'
+        ? 'JOURNAL'
         : path == 'tflu_v1'
-        ? 'TFLU'
+        ? 'COMPOSITE'
         : path == 'coming_soon'
-        ? 'Coming Soon'
+        ? 'COMING SOON'
         : path == 'diet_data'
-        ? 'Diet'
+        ? 'DIET'
         : path == 'journal_nutrition'
-        ? 'Journal'
+        ? 'JOURNAL'
         : path == 'whoop_direct'
-        ? 'WHOOP direct'
+        ? 'WHOOP DIRECT'
         : path == 'fitbit_direct'
-        ? 'Fitbit direct'
+        ? 'FITBIT DIRECT'
         : path == 'samsung_direct'
-        ? 'Samsung direct'
+        ? 'SAMSUNG DIRECT'
         : path == 'samsung_direct_inverted'
-        ? 'Samsung direct'
+        ? 'SAMSUNG DIRECT'
         : path == 'prom_aware_composite'
-        ? 'Composite'
-        : path;
-    final icon = path == 'wearable'
-        ? Icons.watch_rounded
-        : path == 'journal'
-        ? Icons.edit_note_rounded
-        : path == 'tflu_v1'
-        ? Icons.insights_rounded
-        : path == 'coming_soon'
-        ? Icons.schedule_rounded
-        : path == 'diet_data'
-        ? Icons.restaurant_rounded
-        : path == 'journal_nutrition'
-        ? Icons.edit_note_rounded
-        : path == 'whoop_direct'
-        ? Icons.bolt_rounded
-        : path == 'fitbit_direct'
-        ? Icons.bolt_rounded
-        : path == 'samsung_direct' || path == 'samsung_direct_inverted'
-        ? Icons.bolt_rounded
-        : Icons.data_usage_rounded;
+        ? 'COMPOSITE'
+        : path.toUpperCase();
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
+        color: isDark ? TaqaUiColors.charcoal : Colors.transparent,
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: borderColor, width: 1),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 10, color: Colors.white38),
-          const SizedBox(width: 3),
-          Text(
-            label,
-            style: const TextStyle(color: Colors.white38, fontSize: 10),
-          ),
-        ],
+      child: Text(
+        label,
+        style: TextStyle(
+          fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+          color: textColor.withValues(alpha: isDark ? 0.95 : 0.85),
+          fontSize: 8,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0.2,
+        ),
       ),
     );
   }

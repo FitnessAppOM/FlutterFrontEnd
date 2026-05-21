@@ -1,14 +1,13 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../Typography/taqa_ui_typography.dart';
 import '../taqa_ui_colors.dart';
+import '../styles/taqa_ui_layout.dart';
+import '../styles/taqa_ui_styles.dart';
 import '../../../localization/app_localizations.dart';
 import '../../../models/news_item.dart';
 import '../../../services/news/news_tag_actions.dart';
-import '../../../theme/app_theme.dart';
 
 class TaqaNewsPage extends StatelessWidget {
   const TaqaNewsPage({super.key, required this.items});
@@ -16,12 +15,9 @@ class TaqaNewsPage extends StatelessWidget {
   final List<NewsItem> items;
 
   static const double _cardsTop = 94;
-  static const double _cardLeft = 16;
-  static const double _cardHeight = 119;
-  static const double _cardWidth = 357;
-  static const double _cardRadius = 15;
+  static const double _cardHeight = 143;
+  static const double _cardRadius = 28;
   static const double _cardGap = 12;
-  static const double _titleTop = 24;
 
   @override
   Widget build(BuildContext context) {
@@ -29,91 +25,60 @@ class TaqaNewsPage extends StatelessWidget {
     final t = AppLocalizations.of(context).translate;
     final list = items;
 
-    final titleStyle = const TextStyle(
-      fontFamily: TaqaUiFontFamilies.interTight,
-      fontSize: 20,
-      fontWeight: FontWeight.w700,
-      color: TaqaUiColors.white,
+    final titleStyle = TaqaUiStyles.pageTitle.copyWith(
+      color: TaqaUiColors.charcoal,
     );
 
     return Scaffold(
-      backgroundColor: AppColors.cardDark,
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            if (list.isEmpty) {
-              return Stack(
-                children: [
-                  Positioned(
-                    top: _titleTop,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: Text(t("dash_news_tag"), style: titleStyle),
-                    ),
-                  ),
-                  const Positioned(
-                    top: _titleTop - 4,
-                    left: 8,
-                    child: _BackButton(),
-                  ),
-                  Center(
-                    child: Text(
-                      t("no_announcements"),
-                      style: const TextStyle(
-                        fontFamily: TaqaUiFontFamilies.interTight,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: TaqaUiColors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            }
-
-            final cardWidth = math.min(
-              _cardWidth,
-              math.max(0.0, constraints.maxWidth - (_cardLeft * 2)),
-            );
-            final contentHeight =
-                _cardsTop +
-                (list.length * _cardHeight) +
-                ((list.length - 1) * _cardGap) +
-                24;
-
-            return SingleChildScrollView(
-              child: SizedBox(
-                height: contentHeight,
-                width: constraints.maxWidth,
-                child: Stack(
-                  children: [
-                    Positioned(
-                      top: _titleTop,
-                      left: 0,
-                      right: 0,
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: _cardsTop),
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                itemCount: list.isEmpty ? 1 : list.length,
+                separatorBuilder: (_, _) => const SizedBox(height: _cardGap),
+                itemBuilder: (context, index) {
+                  if (list.isEmpty) {
+                    return SizedBox(
+                      height: _cardHeight,
                       child: Center(
-                        child: Text(t("dash_news_tag"), style: titleStyle),
+                        child: Text(
+                          t("no_announcements"),
+                          style: const TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: TaqaUiColors.charcoal,
+                          ),
+                        ),
                       ),
-                    ),
-                    const Positioned(
-                      top: _titleTop - 4,
-                      left: 8,
-                      child: _BackButton(),
-                    ),
-                    for (int i = 0; i < list.length; i++)
-                      Positioned(
-                        top: _cardsTop + (i * (_cardHeight + _cardGap)),
-                        left: _cardLeft,
-                        width: cardWidth.toDouble(),
-                        height: _cardHeight,
-                        child: _NewsCard(item: list[i], locale: locale),
-                      ),
-                  ],
-                ),
+                    );
+                  }
+                  return SizedBox(
+                    height: _cardHeight,
+                    width: double.infinity,
+                    child: _NewsCard(item: list[index], locale: locale),
+                  );
+                },
               ),
-            );
-          },
+            ),
+            Positioned(
+              top: 24,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Text(t("dash_news_tag"), style: titleStyle),
+              ),
+            ),
+            const Positioned(
+              top: 20,
+              left: 8,
+              child: _BackButton(),
+            ),
+          ],
         ),
       ),
     );
@@ -128,7 +93,11 @@ class _BackButton extends StatelessWidget {
     return IconButton(
       onPressed: () => Navigator.of(context).maybePop(),
       splashRadius: 20,
-      icon: const Icon(Icons.arrow_back_ios_new, color: TaqaUiColors.white, size: 18),
+      icon: const Icon(
+        Icons.arrow_back_ios_new,
+        color: TaqaUiColors.charcoal,
+        size: 18,
+      ),
     );
   }
 }
@@ -153,10 +122,10 @@ class _NewsCard extends StatelessWidget {
         onTap: () => NewsTagActions.handleTagTap(context, item.tag, item: item),
         child: Ink(
           decoration: BoxDecoration(
-            color: const Color(0xFF1C1D17),
+            color: TaqaUiColors.unnamedColor1c1d17,
             borderRadius: BorderRadius.circular(TaqaNewsPage._cardRadius),
           ),
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+          padding: TaqaUiLayout.carouselContentPadding,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -172,31 +141,37 @@ class _NewsCard extends StatelessWidget {
                   letterSpacing: 0.2,
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                item.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontFamily: TaqaUiFontFamilies.interTight,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: TaqaUiColors.white,
-                ),
-              ),
               const SizedBox(height: 6),
               Expanded(
-                child: Text(
-                  item.subtitle,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontFamily: TaqaUiFontFamilies.interTight,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w300,
-                    color: TaqaUiColors.white,
-                    height: 1.25,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      item.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: TaqaUiColors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      item.subtitle,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w300,
+                        color: TaqaUiColors.white,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

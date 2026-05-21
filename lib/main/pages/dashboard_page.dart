@@ -100,6 +100,9 @@ import '../../widgets/release_notes_notice.dart';
 import '../../services/metrics/daily_journal_service.dart';
 import '../../services/core/navigation_service.dart';
 import '../../TaqaUI/components/taqa_dashboard_intro_card.dart';
+import '../../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
+import '../../TaqaUI/styles/taqa_ui_styles.dart';
 import 'dart:math' as math;
 
 class _NextTrainingDayResult {
@@ -1891,147 +1894,10 @@ class DashboardPageState extends State<DashboardPage>
   Future<void> _openDailyOutlookSheet() async {
     final outlook = _dailyOutlook?.outlook;
     if (outlook == null || !mounted) return;
-    final t = AppLocalizations.of(context).translate;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.72,
-          minChildSize: 0.5,
-          maxChildSize: 0.92,
-          expand: false,
-          builder: (context, controller) {
-            return Container(
-              decoration: const BoxDecoration(
-                color: AppColors.black,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
-              child: ListView(
-                controller: controller,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 38,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.white24,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    t("dash_daily_outlook_title"),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  if (outlook.readinessState.trim().isNotEmpty) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: Colors.white24),
-                      ),
-                      child: Text(
-                        outlook.readinessState,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                  ],
-                  Text(
-                    outlook.headline,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    outlook.summary,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                      height: 1.45,
-                    ),
-                  ),
-                  if (outlook.actionItems.isNotEmpty) ...[
-                    const SizedBox(height: 14),
-                    ...outlook.actionItems.map(
-                      (item) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Padding(
-                              padding: EdgeInsets.only(top: 2),
-                              child: Icon(
-                                Icons.arrow_forward_ios,
-                                color: Color(0xFFFFC857),
-                                size: 12,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                item,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                  if (outlook.cautionNote.trim().isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.08),
-                        ),
-                      ),
-                      child: Text(
-                        outlook.cautionNote,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                          height: 1.35,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            );
-          },
-        );
-      },
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _DailyOutlookDetailPage(outlook: outlook),
+      ),
     );
   }
 
@@ -6130,6 +5996,135 @@ class DashboardPageState extends State<DashboardPage>
 
 // Backward-compatible alias for older references during hot reloads.
 typedef _DashboardPageState = DashboardPageState;
+
+class _DailyOutlookDetailPage extends StatelessWidget {
+  const _DailyOutlookDetailPage({required this.outlook});
+
+  final DailyOutlookData outlook;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
+    final generatedTag = outlook.readinessState.trim().isNotEmpty
+        ? outlook.readinessState.trim()
+        : t("dash_daily_outlook_title");
+    const unifiedDataStyle = TextStyle(
+      fontFamily: TaqaUiFontFamilies.interTight,
+      fontSize: 10,
+      fontWeight: FontWeight.w400,
+      color: TaqaUiColors.charcoal,
+      letterSpacing: 0,
+      height: 1.2,
+    );
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        title: Text(
+          t("dash_daily_outlook_title"),
+          style: TaqaUiStyles.pageTitle.copyWith(
+            color: TaqaUiColors.charcoal,
+          ),
+        ),
+        iconTheme: const IconThemeData(color: TaqaUiColors.charcoal),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                children: [
+                  Text(
+                    generatedTag,
+                    textAlign: TextAlign.left,
+                    style: const TextStyle(
+                      fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w400,
+                      color: TaqaUiColors.charcoal,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    outlook.headline,
+                    textAlign: TextAlign.left,
+                    style: const TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: 25,
+                      fontWeight: FontWeight.w700,
+                      color: TaqaUiColors.charcoal,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    outlook.summary,
+                    textAlign: TextAlign.left,
+                    style: unifiedDataStyle,
+                  ),
+                  if (outlook.actionItems.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    ...outlook.actionItems.map(
+                      (item) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          "- $item",
+                          textAlign: TextAlign.left,
+                          style: unifiedDataStyle,
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (outlook.cautionNote.trim().isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      outlook.cautionNote,
+                      textAlign: TextAlign.left,
+                      style: unifiedDataStyle,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: SizedBox(
+                width: double.infinity,
+                height: 45,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    elevation: 0,
+                    backgroundColor: TaqaUiColors.lime,
+                    foregroundColor: TaqaUiColors.charcoal,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                  ),
+                  child: Text(
+                    t("okay"),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _TrendTile extends StatelessWidget {
   final String title;

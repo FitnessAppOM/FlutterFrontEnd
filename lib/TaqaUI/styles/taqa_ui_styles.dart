@@ -49,4 +49,12 @@ class TaqaUiStyles {
     fontWeight: FontWeight.w400,
     letterSpacing: 0.2,
   );
+
+  static const TextStyle pageTitle = TextStyle(
+    fontFamily: TaqaUiFontFamilies.interTight,
+    fontSize: 15,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 0,
+    height: 25 / 15,
+  );
 }

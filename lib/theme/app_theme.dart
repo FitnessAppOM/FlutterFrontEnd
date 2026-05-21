@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../TaqaUI/styles/taqa_ui_styles.dart';
 
 class AppColors {
   static const black = Color(0xFF000000);
@@ -53,6 +54,9 @@ class AppTextStyles {
 
 ThemeData buildDarkTheme() {
   final base = ThemeData.dark();
+  final pageTitleStyle = TaqaUiStyles.pageTitle.copyWith(
+    color: base.colorScheme.onSurface,
+  );
 
   return base.copyWith(
     scaffoldBackgroundColor: AppColors.appBackground,
@@ -75,6 +79,11 @@ ThemeData buildDarkTheme() {
     ),
 
     dividerColor: AppColors.dividerDark,
+    appBarTheme: AppBarTheme(
+      centerTitle: true,
+      titleTextStyle: pageTitleStyle,
+      toolbarTextStyle: pageTitleStyle,
+    ),
 
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ButtonStyle(
@@ -110,12 +119,20 @@ ThemeData buildDarkTheme() {
 
 ThemeData buildLightTheme() {
   final base = ThemeData.light();
+  final pageTitleStyle = TaqaUiStyles.pageTitle.copyWith(
+    color: base.colorScheme.onSurface,
+  );
 
   return base.copyWith(
     scaffoldBackgroundColor: AppColors.appBackground,
     colorScheme: base.colorScheme.copyWith(
       primary: AppColors.accent,
       secondary: AppColors.accent,
+    ),
+    appBarTheme: AppBarTheme(
+      centerTitle: true,
+      titleTextStyle: pageTitleStyle,
+      toolbarTextStyle: pageTitleStyle,
     ),
   );
 }
