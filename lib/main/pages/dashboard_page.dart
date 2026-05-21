@@ -10,7 +10,7 @@ import 'package:intl/intl.dart';
 import '../../widgets/Main/section_header.dart';
 import '../../widgets/Main/card_container.dart';
 import '../../TaqaUI/components/taqa_news_carousel.dart';
-import '../../screens/announcements_page.dart';
+import '../../TaqaUI/screens/taqa_news_page.dart';
 import '../../services/news/news_service.dart';
 import '../../services/news/news_tag_actions.dart';
 import '../../models/news_item.dart';
@@ -5273,7 +5273,7 @@ class DashboardPageState extends State<DashboardPage>
   void _openAnnouncements() {
     Navigator.of(
       context,
-    ).push(MaterialPageRoute(builder: (_) => AnnouncementsPage(items: _news)));
+    ).push(MaterialPageRoute(builder: (_) => TaqaNewsPage(items: _news)));
   }
 
   void _openTrainingPage() {
