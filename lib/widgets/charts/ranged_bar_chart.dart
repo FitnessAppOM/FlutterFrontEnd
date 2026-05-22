@@ -28,6 +28,8 @@ class RangedBarChart extends StatelessWidget {
     this.labelGap = 4.0,
     this.gridLineColor,
     this.yAxisTitle,
+    this.axisTextColor = Colors.white54,
+    this.labelTextColor = Colors.white54,
   });
 
   final List<RangedBarChartEntry> entries;
@@ -48,17 +50,19 @@ class RangedBarChart extends StatelessWidget {
   final double labelGap;
   final Color? gridLineColor;
   final String? yAxisTitle;
+  final Color axisTextColor;
+  final Color labelTextColor;
 
   @override
   Widget build(BuildContext context) {
     if (entries.isEmpty) return const SizedBox.shrink();
     final theme = Theme.of(context);
     final axisTextStyle = theme.textTheme.bodySmall?.copyWith(
-      color: Colors.white54,
+      color: axisTextColor,
       fontSize: 11,
     );
     final labelTextStyle = theme.textTheme.bodySmall?.copyWith(
-      color: Colors.white54,
+      color: labelTextColor,
     );
     final lineColor = gridLineColor ?? Colors.white.withValues(alpha: 0.06);
 

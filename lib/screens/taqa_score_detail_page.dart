@@ -12,7 +12,6 @@ import '../services/core/daily_provider_push_service.dart';
 import '../services/scores/taqa_score_api.dart';
 import '../services/training/training_reset_coordinator.dart';
 import '../theme/app_theme.dart';
-import '../widgets/charts/simple_line_chart.dart';
 
 class TaqaScoreDetailPage extends StatefulWidget {
   const TaqaScoreDetailPage({super.key, this.initialDate});
@@ -29,12 +28,10 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
   DateTime _selectedDate = DateTime.now();
   TaqaDailyScore? _score;
   bool _loading = true;
-  bool _trendLoading = false;
-  List<TaqaDailyScore> _trendScores = const [];
   int? _userId;
   int _scoreReqId = 0;
-  int _trendReqId = 0;
   late final PageController _scorePreviewController;
+  DateTime? _maxSelectableDateAnchor;
   final Map<String, TaqaDailyScore?> _scorePreviewCache = {};
   final Set<String> _previewLoadingKeys = <String>{};
 
@@ -43,7 +40,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     super.initState();
     _scorePreviewController = PageController(
       initialPage: _previewIndexForDate(_selectedDate),
-      viewportFraction: 0.72,
+      viewportFraction: 0.58,
     );
     AccountStorage.accountChange.addListener(_onAccountChanged);
     _init();
@@ -51,6 +48,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
 
   Future<void> _init() async {
     await TrainingResetCoordinator.ensureInitialized();
+    _maxSelectableDateAnchor = _dateOnly(_computeMaxSelectableDate());
     final maxDate = _maxSelectableDate();
     if (widget.initialDate != null) {
       final initial = _dateOnly(widget.initialDate!);
@@ -66,7 +64,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
       _syncPreviewToSelectedDate();
     });
     if (uid == null) return;
-    await Future.wait([_loadScore(uid), _loadTrend(uid)]);
+    await _loadScore(uid);
   }
 
   void _onAccountChanged() {
@@ -78,18 +76,15 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     final uid = await AccountStorage.getUserId();
     if (!mounted) return;
     _scoreReqId++;
-    _trendReqId++;
     setState(() {
       _userId = uid;
       _score = null;
-      _trendScores = const [];
       _loading = uid != null && uid > 0;
-      _trendLoading = uid != null && uid > 0;
     });
     if (uid == null || uid <= 0) {
       return;
     }
-    await Future.wait([_loadScore(uid), _loadTrend(uid)]);
+    await _loadScore(uid);
   }
 
   DateTime _dateOnly(DateTime date) =>
@@ -101,13 +96,16 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
   }
 
   bool _sameDay(DateTime a, DateTime b) => _dateOnly(a) == _dateOnly(b);
-
   DateTime _todayByResetClock() {
     return DailyProviderPushService.effectiveLocalDay();
   }
 
-  DateTime _maxSelectableDate() {
+  DateTime _computeMaxSelectableDate() {
     return _todayByResetClock().subtract(const Duration(days: 1));
+  }
+
+  DateTime _maxSelectableDate() {
+    return _maxSelectableDateAnchor ?? _computeMaxSelectableDate();
   }
 
   DateTime _previewStartDate() {
@@ -141,7 +139,13 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
   Future<void> _loadScore(int userId) async {
     final reqId = ++_scoreReqId;
     final selectedDate = _dateOnly(_selectedDate);
-    setState(() => _loading = true);
+    final selectedKey = _dayKey(selectedDate);
+    setState(() {
+      _loading = true;
+      if (_scorePreviewCache.containsKey(selectedKey)) {
+        _score = _scorePreviewCache[selectedKey];
+      }
+    });
     final isLiveDate = selectedDate == _maxSelectableDate();
     var result = await TaqaScoreApi.fetchDaily(
       userId: userId,
@@ -167,26 +171,6 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
       _scorePreviewCache[_dayKey(selectedDate)] = result;
     });
     _prefetchAdjacentScores(userId);
-  }
-
-  Future<void> _loadTrend(int userId) async {
-    final reqId = ++_trendReqId;
-    setState(() => _trendLoading = true);
-    final end = _maxSelectableDate();
-    final start = end.subtract(const Duration(days: 6));
-    final result = await TaqaScoreApi.fetchRange(
-      userId: userId,
-      start: start,
-      end: end,
-    );
-    if (!mounted) return;
-    if (reqId != _trendReqId) return;
-    final currentUserId = await AccountStorage.getUserId();
-    if (currentUserId != userId) return;
-    setState(() {
-      _trendScores = result.where((score) => score.userId == userId).toList();
-      _trendLoading = false;
-    });
   }
 
   Future<void> _prefetchAdjacentScores(int userId) async {
@@ -267,7 +251,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
         elevation: 0,
       ),
       body: SafeArea(
-        child: _loading
+        child: _loading && _score == null && _scorePreviewCache.isEmpty
             ? const Center(
                 child: CircularProgressIndicator(color: AppColors.accent),
               )
@@ -277,7 +261,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
                 onRefresh: () async {
                   final uid = _userId;
                   if (uid == null) return;
-                  await Future.wait([_loadScore(uid), _loadTrend(uid)]);
+                  await _loadScore(uid);
                 },
                 child: ListView(
                   padding: const EdgeInsets.symmetric(
@@ -289,8 +273,6 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
                     const SizedBox(height: 20),
                     if (_score != null) ..._buildPillarCards(),
                     if (_score == null) _buildNoData(),
-                    const SizedBox(height: 24),
-                    _buildTrendSection(),
                     const SizedBox(height: 40),
                   ],
                 ),
@@ -303,14 +285,18 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     final currentIndex = _previewIndexForDate(_selectedDate);
 
     return SizedBox(
-      height: 275,
+      height: 220,
       child: PageView.builder(
         controller: _scorePreviewController,
         onPageChanged: (index) async {
           final day = _previewDateForIndex(index);
           if (_sameDay(day, _selectedDate)) return;
+          final key = _dayKey(day);
           setState(() {
             _selectedDate = day;
+            if (_scorePreviewCache.containsKey(key)) {
+              _score = _scorePreviewCache[key];
+            }
           });
           final uid = _userId;
           if (uid != null) {
@@ -327,10 +313,10 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOut,
             padding: EdgeInsets.fromLTRB(
-              6,
-              isCenter ? 0 : 12,
-              6,
-              isCenter ? 0 : 12,
+              8,
+              isCenter ? 2 : 14,
+              8,
+              isCenter ? 2 : 14,
             ),
             child: Opacity(
               opacity: isCenter ? 1 : 0.72,
@@ -545,101 +531,6 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     );
   }
 
-  Widget _buildTrendSection() {
-    if (_trendLoading) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(
-          child: SizedBox(
-            width: 28,
-            height: 28,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
-      );
-    }
-    if (_trendScores.isEmpty) return const SizedBox.shrink();
-
-    final values = <double?>[];
-    final xLabels = <String>[];
-    final end = _maxSelectableDate();
-    for (int i = 6; i >= 0; i--) {
-      final day = end.subtract(Duration(days: i));
-      final dayKey = DateTime(day.year, day.month, day.day);
-      xLabels.add(DateFormat('d/M', _locale).format(day));
-      final match = _trendScores.where((s) {
-        final sd = DateTime(
-          s.entryDate.year,
-          s.entryDate.month,
-          s.entryDate.day,
-        );
-        return sd == dayKey;
-      });
-      values.add(match.isNotEmpty ? match.first.taqaValueScore : null);
-    }
-
-    final hasData = values.any((v) => v != null);
-    if (!hasData) return const SizedBox.shrink();
-
-    return SizedBox(
-      height: 209,
-      width: double.infinity,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(28, 18, 18, 14),
-        decoration: BoxDecoration(
-          color: TaqaUiColors.white,
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '7 DAY TREND TAQA Fitness Scores',
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-                color: TaqaUiColors.charcoal,
-                fontSize: 8,
-                fontWeight: FontWeight.w400,
-                letterSpacing: 0,
-                height: 1,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: SimpleLineChart(
-                  values: values,
-                  color: const Color(0xFF6A5AE0),
-                  height: 150,
-                  showPoints: true,
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: xLabels
-                  .map(
-                    (label) => Text(
-                      label,
-                      style: const TextStyle(
-                        fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-                        color: TaqaUiColors.charcoal,
-                        fontSize: 8,
-                        fontWeight: FontWeight.w400,
-                        height: 1,
-                      ),
-                    ),
-                  )
-                  .toList(growable: false),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   bool get _isSelectedYesterday {
     final day = DateTime(
       _selectedDate.year,
@@ -672,8 +563,8 @@ class _ScorePreviewCard extends StatelessWidget {
         children: [
           Center(
             child: SizedBox(
-              width: 168,
-              height: 168,
+              width: 134,
+              height: 134,
               child: CustomPaint(
                 painter: _PreviewArcPainter(progress: progress),
               ),
@@ -684,7 +575,7 @@ class _ScorePreviewCard extends StatelessWidget {
               '$value',
               style: const TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: 44,
+                fontSize: 35,
                 fontWeight: FontWeight.w800,
                 color: TaqaUiColors.charcoal,
                 height: 1,
@@ -694,13 +585,13 @@ class _ScorePreviewCard extends StatelessWidget {
           Positioned(
             left: 0,
             right: 0,
-            bottom: 24,
+            bottom: 19,
             child: Text(
               providerText,
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: 13,
+                fontSize: 11,
                 fontWeight: FontWeight.w400,
                 color: TaqaUiColors.charcoal,
                 height: 1.1,
@@ -860,7 +751,6 @@ class _PillarCardState extends State<_PillarCard> {
                     path: widget.path!,
                     isDark: isDarkCard,
                     borderColor: chipBorder,
-                    textColor: textColor,
                   ),
               ],
             ),
@@ -1022,22 +912,22 @@ class _PathChip extends StatelessWidget {
   final String path;
   final bool isDark;
   final Color borderColor;
-  final Color textColor;
   const _PathChip({
     required this.path,
     required this.isDark,
     required this.borderColor,
-    required this.textColor,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isWhoop = path == 'whoop_direct';
+    final isFitbit = path == 'fitbit_direct';
     final label = path == 'wearable'
         ? 'WEARABLE'
         : path == 'journal'
         ? 'JOURNAL'
         : path == 'tflu_v1'
-        ? 'COMPOSITE'
+        ? 'TFLU'
         : path == 'coming_soon'
         ? 'COMING SOON'
         : path == 'diet_data'
@@ -1055,6 +945,9 @@ class _PathChip extends StatelessWidget {
         : path == 'prom_aware_composite'
         ? 'COMPOSITE'
         : path.toUpperCase();
+    final chipTextColor = isDark
+        ? TaqaUiColors.white
+        : TaqaUiColors.unnamedColor1c1d17;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -1062,15 +955,28 @@ class _PathChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(7),
         border: Border.all(color: borderColor, width: 1),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-          color: textColor.withValues(alpha: isDark ? 0.95 : 0.85),
-          fontSize: 8,
-          fontWeight: FontWeight.w400,
-          letterSpacing: 0.2,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isWhoop || isFitbit) ...[
+            Image.asset(
+              isWhoop ? 'assets/images/whoop.png' : 'assets/images/fitbit.png',
+              width: 10,
+              height: 10,
+            ),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+              color: chipTextColor,
+              fontSize: 8,
+              fontWeight: FontWeight.w400,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
       ),
     );
   }

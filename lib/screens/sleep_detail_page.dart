@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../TaqaUI/components/taqa_steps_ui.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../core/account_storage.dart';
 import '../services/metrics/daily_metrics_api.dart';
 import '../services/health/sleep_service.dart';
@@ -13,7 +16,6 @@ import '../widgets/charts/ranged_bar_chart.dart';
 import '../widgets/sleep/sleep_metric_tile.dart';
 import '../widgets/sleep/sleep_progress_bar.dart';
 import '../widgets/sleep/sleep_stage_ring.dart';
-import '../widgets/sleep/monthly_details_button.dart';
 import '../widgets/common/date_switcher.dart';
 
 class SleepDetailPage extends StatefulWidget {
@@ -52,6 +54,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
   int? _selectedBarIndex;
   Timer? _barValueTimer;
   late final DateTime _anchorDate;
+  int _topTabIndex = 0;
 
   static const _sleepGoalKey = "dashboard_sleep_goal";
   static final Map<String, Map<DateTime, double>> _rangeDataCache = {};
@@ -127,43 +130,13 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
   }
 
   Future<void> _editGoal() async {
-    final controller = TextEditingController(
-      text: (_goal ?? 8.0).toStringAsFixed(1),
-    );
-    final res = await showDialog<double>(
+    final text = await showTaqaTextValueDialog(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: AppColors.cardDark,
-          title: const Text(
-            "Sleep goal",
-            style: TextStyle(color: Colors.white),
-          ),
-          content: TextField(
-            controller: controller,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(
-              labelText: "Hours per night",
-              labelStyle: TextStyle(color: Colors.white70),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text("Cancel"),
-            ),
-            TextButton(
-              onPressed: () {
-                final parsed = double.tryParse(controller.text.trim());
-                Navigator.of(ctx).pop(parsed);
-              },
-              child: const Text("Save"),
-            ),
-          ],
-        );
-      },
+      title: "Edit goal",
+      initialValue: (_goal ?? 8.0).toStringAsFixed(1),
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
     );
+    final res = text == null ? null : double.tryParse(text);
     if (res != null) {
       final sp = await SharedPreferences.getInstance();
       await sp.setDouble(_sleepGoalKey, res);
@@ -574,42 +547,62 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(t("sleep_title")),
-        backgroundColor: AppColors.black,
-      ),
-      backgroundColor: AppColors.black,
-      body: DefaultTabController(
-        length: 2,
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TabBar(
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.white54,
-                indicatorColor: AppColors.accent,
-                labelStyle: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-                tabs: const [
-                  Tab(text: "Sleep trends"),
-                  Tab(text: "Sleep metrics"),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    _buildTrendsTab(t, theme, bars),
-                    widget.useWhoop
-                        ? _buildMetricsTab(theme)
-                        : _buildNativeMetricsTab(theme),
-                  ],
-                ),
-              ),
-            ],
+        centerTitle: true,
+        title: Text(
+          t("sleep_title"),
+          style: const TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            height: 2.5,
+            letterSpacing: 0,
+            color: TaqaUiColors.unnamedColor1c1d17,
           ),
+        ),
+        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
+        elevation: 0,
+      ),
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: TaqaRangeTab(
+                    label: "Sleep trend",
+                    selected: _topTabIndex == 0,
+                    onTap: () {
+                      if (_topTabIndex == 0) return;
+                      setState(() => _topTabIndex = 0);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TaqaRangeTab(
+                    label: "Sleep metrics",
+                    selected: _topTabIndex == 1,
+                    onTap: () {
+                      if (_topTabIndex == 1) return;
+                      setState(() => _topTabIndex = 1);
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Expanded(
+              child: _topTabIndex == 0
+                  ? _buildTrendsTab(t, theme, bars)
+                  : (widget.useWhoop
+                        ? _buildMetricsTab(theme)
+                        : _buildNativeMetricsTab(theme)),
+            ),
+          ],
         ),
       ),
     );
@@ -623,83 +616,68 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
+        Row(
           children: [
-            _chip('weekly', t("range_weekly")),
-            _chip('monthly', t("range_monthly")),
-            _chip('yearly', t("range_yearly")),
+            Expanded(
+              child: TaqaRangeTab(
+                label: t("range_weekly"),
+                selected: _range == 'weekly',
+                onTap: () => _onRangeTabTap('weekly'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TaqaRangeTab(
+                label: t("range_monthly"),
+                selected: _range == 'monthly',
+                onTap: () => _onRangeTabTap('monthly'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TaqaRangeTab(
+                label: t("range_yearly"),
+                selected: _range == 'yearly',
+                onTap: () => _onRangeTabTap('yearly'),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 12),
         Row(
           children: [
-            if (!widget.useWhoop)
-              ElevatedButton(
-                onPressed: _promptManualEntry,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(t("sleep_edit_today")),
-              ),
-            if (!widget.useWhoop) const SizedBox(width: 10),
-            ElevatedButton(
-              onPressed: _editGoal,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.cardDark,
-                foregroundColor: Colors.white,
-                side: BorderSide(
-                  color: AppColors.accent.withValues(alpha: 0.7),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
+            Expanded(
               child: Text(
-                t(
-                  "sleep_goal_btn",
-                ).replaceAll("{value}", (_goal ?? 8.0).toStringAsFixed(1)),
-                style: const TextStyle(color: Colors.white),
+                "Goal: ${(_goal ?? 8.0).toStringAsFixed(1)} h",
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: 25,
+                  fontWeight: FontWeight.w700,
+                  height: 2.5,
+                  letterSpacing: 0,
+                  color: TaqaUiColors.unnamedColor1c1d17,
+                ),
               ),
             ),
-            if (widget.useWhoop) ...[
-              const Spacer(),
-              MonthlyDetailsButton(onPressed: _showRangeDetailsDialog),
+            TaqaTagButton(
+              icon: Icons.edit_outlined,
+              label: "EDIT GOAL",
+              onTap: _editGoal,
+            ),
+            if (!widget.useWhoop) ...[
+              const SizedBox(width: 8),
+              TaqaTagButton(
+                icon: Icons.add,
+                label: "ADD",
+                onTap: _promptManualEntry,
+              ),
             ],
           ],
         ),
         const SizedBox(height: 16),
-        Text(
-          _rangeLabel(t),
-          style: theme.textTheme.titleMedium?.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        if (_rangeAxisLabel() != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            _rangeAxisLabel()!,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.white60,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-        const SizedBox(height: 6),
         Expanded(
           child: _loading
               ? const Center(
@@ -1427,26 +1405,14 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     );
   }
 
-  Widget _chip(String value, String label) {
-    final selected = _range == value;
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) {
-        _barValueTimer?.cancel();
-        setState(() {
-          _range = value;
-          _selectedBarIndex = null;
-        });
-        _loadRange();
-      },
-      selectedColor: AppColors.accent.withValues(alpha: 0.25),
-      backgroundColor: AppColors.cardDark,
-      labelStyle: TextStyle(
-        color: selected ? Colors.white : Colors.white70,
-        fontWeight: FontWeight.w600,
-      ),
-    );
+  void _onRangeTabTap(String value) {
+    if (_range == value) return;
+    _barValueTimer?.cancel();
+    setState(() {
+      _range = value;
+      _selectedBarIndex = null;
+    });
+    _loadRange();
   }
 
   Widget _buildBars(ThemeData theme) {
@@ -1474,6 +1440,8 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     final chartEntries = entries
         .map((e) => RangedBarChartEntry(axisLabel: e.axisLabel, value: e.value))
         .toList();
+    final total = _daily.values.fold<double>(0.0, (a, b) => a + b);
+    final avg = _daily.isEmpty ? 0.0 : total / _daily.length;
 
     return Center(
       child: ConstrainedBox(
@@ -1481,15 +1449,32 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: AppColors.cardDark,
+            color: TaqaUiColors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Text(
+                _range == 'weekly' ? 'Last 7 days' : _rangeLabel((k) => k),
+                style: const TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: TaqaUiColors.unnamedColor1c1d17,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Avg: ${avg.toStringAsFixed(1)} h | Total: ${total.toStringAsFixed(1)} h',
+                style: const TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  color: TaqaUiColors.unnamedColor1c1d17,
+                ),
+              ),
+              const SizedBox(height: 10),
               SizedBox(
                 height: 34,
                 child: Center(
@@ -1536,10 +1521,10 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                   maxValue: actualMax,
                   midValue: midVal,
                   formatValue: _formatHoursLabel,
-                  gradient: const [Color(0xFF35B6FF), Color(0xFF9B8CFF)],
+                  gradient: const [Color(0xFF404040), Color(0xFF1C1D17)],
                   selectedGradient: const [
-                    Color(0xFF6BE1FF),
-                    Color(0xFFB7A9FF),
+                    Color(0xFFE4E93B),
+                    Color(0xFFC9CF36),
                   ],
                   selectedIndex: _selectedBarIndex,
                   onBarTap: _onBarTap,
@@ -1551,6 +1536,8 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                   yAxisGap: yAxisGap,
                   labelHeight: labelHeight,
                   labelGap: labelGap,
+                  axisTextColor: TaqaUiColors.unnamedColor1c1d17,
+                  labelTextColor: TaqaUiColors.unnamedColor1c1d17,
                 ),
               ),
             ],
@@ -1745,31 +1732,24 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       padding: const EdgeInsets.all(16),
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: TaqaUiColors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-        ),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
             AppLocalizations.of(context).translate("no_sleep_range"),
-            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: TaqaUiColors.unnamedColor1c1d17,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: _promptManualEntry,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accent,
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text("Add sleep manually"),
+          TaqaTagButton(
+            icon: Icons.add,
+            label: "ADD",
+            onTap: _promptManualEntry,
           ),
         ],
       ),
@@ -1777,63 +1757,14 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
   }
 
   Future<void> _promptManualEntry() async {
-    final controller = TextEditingController(
-      text: _todaySleepHours() > 0 ? _todaySleepHours().toStringAsFixed(1) : '',
-    );
-    final result = await showDialog<Object>(
+    final text = await showTaqaTextValueDialog(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: AppColors.cardDark,
-          title: const Text(
-            "Add sleep hours",
-            style: TextStyle(color: Colors.white),
-          ),
-          content: TextField(
-            controller: controller,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(
-              hintText: "e.g. 7.5",
-              hintStyle: TextStyle(color: Colors.white54),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text("Cancel"),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, 'reset'),
-              child: const Text("Reset"),
-            ),
-            TextButton(
-              onPressed: () {
-                final val = double.tryParse(controller.text.trim());
-                if (val != null && val > 0) {
-                  Navigator.pop(ctx, val);
-                } else {
-                  Navigator.pop(ctx);
-                }
-              },
-              child: const Text("Save"),
-            ),
-          ],
-        );
-      },
+      title: "Add sleep hours",
+      initialValue: _todaySleepHours() > 0 ? _todaySleepHours().toStringAsFixed(1) : '',
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
     );
-
-    if (result == 'reset') {
-      final today = DateTime.now();
-      final day = DateTime(today.year, today.month, today.day);
-      await SleepService().clearManualEntry(day);
-      if (mounted) {
-        _loadRange(force: true);
-      }
-      return;
-    }
-
-    if (result is double) {
+    final result = text == null ? null : double.tryParse(text);
+    if (result != null && result > 0) {
       final today = DateTime.now();
       final day = DateTime(today.year, today.month, today.day);
       await SleepService().saveManualEntry(day, result);
