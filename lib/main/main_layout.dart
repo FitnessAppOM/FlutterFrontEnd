@@ -50,8 +50,12 @@ class _MainLayoutState extends State<MainLayout> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkPage =
+        _index == MainLayout._dietTab || _index == MainLayout._communityTab;
     return Scaffold(
-      backgroundColor: AppColors.appBackground,
+      backgroundColor: isDarkPage
+          ? const Color(0xFF121212)
+          : AppColors.appBackground,
       body: IndexedStack(
         index: _index,
         children: List.generate(5, (i) => _pages[i] ?? const SizedBox.shrink()),
