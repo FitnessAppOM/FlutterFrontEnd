@@ -49,6 +49,9 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
     return requested.isAfter(today) ? today : requested;
   }
 
+  bool get _isCurrentDayView => _dateOnly(_anchorDate) == _dateOnly(DateTime.now());
+  bool get _canManualEdit => _isCurrentDayView && _range == 'weekly';
+
   @override
   void dispose() {
     _barValueTimer?.cancel();
@@ -63,6 +66,7 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
   }
 
   Future<void> _editGoal() async {
+    if (!_canManualEdit) return;
     final controller = TextEditingController(text: (_goal ?? 500).toString());
     final res = await showDialog<int>(
       context: context,
@@ -253,45 +257,47 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
             const SizedBox(height: 12),
             Row(
               children: [
-                ElevatedButton(
-                  onPressed: _promptManualEntry,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
+                if (_canManualEdit) ...[
+                  ElevatedButton(
+                    onPressed: _promptManualEntry,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    child: Text(t("calories_edit_today")),
+                  ),
+                  const SizedBox(width: 10),
+                  ElevatedButton(
+                    onPressed: _editGoal,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.cardDark,
+                      foregroundColor: Colors.white,
+                      side: BorderSide(
+                        color: AppColors.accent.withValues(alpha: 0.7),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      t(
+                        "calories_goal_btn",
+                      ).replaceAll("{value}", (_goal ?? 500).toString()),
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ),
-                  child: Text(t("calories_edit_today")),
-                ),
-                const SizedBox(width: 10),
-                ElevatedButton(
-                  onPressed: _editGoal,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.cardDark,
-                    foregroundColor: Colors.white,
-                    side: BorderSide(
-                      color: AppColors.accent.withValues(alpha: 0.7),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text(
-                    t(
-                      "calories_goal_btn",
-                    ).replaceAll("{value}", (_goal ?? 500).toString()),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ),
+                ],
               ],
             ),
             const SizedBox(height: 16),
@@ -639,6 +645,7 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
   }
 
   Future<void> _promptManualEntry() async {
+    if (!_canManualEdit) return;
     final controller = TextEditingController(
       text: _todayCalories() > 0 ? _todayCalories().toString() : '',
     );

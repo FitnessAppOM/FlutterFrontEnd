@@ -188,7 +188,7 @@ Future<int?> showTaqaValueDialog({
                         child: Container(
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: TaqaUiColors.unnamedColor1c1d17,
+                            color: TaqaUiColors.white,
                             borderRadius: BorderRadius.circular(5),
                           ),
                           child: const Text(
@@ -200,7 +200,7 @@ Future<int?> showTaqaValueDialog({
                               fontWeight: FontWeight.w600,
                               height: 1.2,
                               letterSpacing: 0,
-                              color: TaqaUiColors.white,
+                              color: TaqaUiColors.unnamedColor1c1d17,
                             ),
                           ),
                         ),
@@ -339,7 +339,7 @@ Future<String?> showTaqaTextValueDialog({
                         child: Container(
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: TaqaUiColors.unnamedColor1c1d17,
+                            color: TaqaUiColors.white,
                             borderRadius: BorderRadius.circular(5),
                           ),
                           child: const Text(
@@ -351,7 +351,7 @@ Future<String?> showTaqaTextValueDialog({
                               fontWeight: FontWeight.w600,
                               height: 1.2,
                               letterSpacing: 0,
-                              color: TaqaUiColors.white,
+                              color: TaqaUiColors.unnamedColor1c1d17,
                             ),
                           ),
                         ),

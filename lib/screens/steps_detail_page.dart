@@ -52,6 +52,9 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
     return requested.isAfter(today) ? today : requested;
   }
 
+  bool get _isCurrentDayView => _dateOnly(_anchorDate) == _dateOnly(DateTime.now());
+  bool get _canManualEdit => _isCurrentDayView && _range == 'weekly';
+
   @override
   void dispose() {
     _barValueTimer?.cancel();
@@ -66,6 +69,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
   }
 
   Future<void> _editGoal() async {
+    if (!_canManualEdit) return;
     final res = await showTaqaValueDialog(
       context: context,
       title: "Edit goal",
@@ -260,12 +264,14 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                     ),
                   ),
                 ),
-                TaqaTagButton(
-                  icon: Icons.edit_outlined,
-                  label: "EDIT GOAL",
-                  onTap: _editGoal,
-                ),
-                if (!widget.useFitbit) ...[
+                if (_canManualEdit) ...[
+                  TaqaTagButton(
+                    icon: Icons.edit_outlined,
+                    label: "EDIT GOAL",
+                    onTap: _editGoal,
+                  ),
+                ],
+                if (_canManualEdit && !widget.useFitbit) ...[
                   const SizedBox(width: 8),
                   TaqaTagButton(
                     icon: Icons.add,
@@ -620,6 +626,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
   }
 
   Future<void> _promptManualEntry() async {
+    if (!_canManualEdit) return;
     final result = await showTaqaValueDialog(
       context: context,
       title: "Add steps",

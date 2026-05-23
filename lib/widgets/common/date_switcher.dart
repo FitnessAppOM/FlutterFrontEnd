@@ -7,28 +7,42 @@ class DateSwitcher extends StatelessWidget {
     required this.onPrev,
     required this.onNext,
     required this.canGoNext,
+    this.labelStyle,
+    this.iconColor = Colors.white70,
+    this.labelWidth,
   });
 
   final String label;
   final VoidCallback onPrev;
   final VoidCallback? onNext;
   final bool canGoNext;
+  final TextStyle? labelStyle;
+  final Color iconColor;
+  final double? labelWidth;
 
   @override
   Widget build(BuildContext context) {
+    final text = Text(
+      label,
+      textAlign: TextAlign.center,
+      style:
+          labelStyle ??
+          const TextStyle(color: Colors.white70, fontWeight: FontWeight.w700),
+    );
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         IconButton(
-          icon: const Icon(Icons.chevron_left, color: Colors.white70),
+          icon: Icon(Icons.chevron_left, color: iconColor),
           onPressed: onPrev,
         ),
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w700),
-        ),
+        if (labelWidth != null)
+          SizedBox(width: labelWidth, child: text)
+        else
+          text,
         IconButton(
-          icon: const Icon(Icons.chevron_right, color: Colors.white70),
+          icon: Icon(Icons.chevron_right, color: iconColor),
           onPressed: canGoNext ? onNext : null,
         ),
       ],
