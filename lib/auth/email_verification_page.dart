@@ -226,6 +226,13 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
               ),
             ),
 
+            Gaps.h10,
+
+            Text(
+              t.translate("verification_spam_hint"),
+              style: const TextStyle(fontSize: 13, color: Colors.white54),
+            ),
+
             Gaps.h20,
 
             TextField(

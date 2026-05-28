@@ -21,6 +21,8 @@ class AppLocalizations {
 
       'verification_title': 'Verify Email',
       'verification_sent': 'A verification code has been sent to:',
+      'verification_spam_hint':
+          "Didn't get the code? Check your spam or junk folder.",
       'enter_code': 'Enter verification code',
       'hint_code': '6-digit code',
       'verify_btn': 'Verify',
@@ -1014,6 +1016,8 @@ class AppLocalizations {
 
       'verification_title': 'تأكيد البريد الإلكتروني',
       'verification_sent': 'تم إرسال رمز التحقق إلى:',
+      'verification_spam_hint':
+          'لم يصلك الرمز؟ تحقّق من مجلد البريد العشوائي (Spam).',
       'enter_code': 'أدخل رمز التحقق',
       'hint_code': 'رمز مكوّن من 6 أرقام',
       'verify_btn': 'تأكيد',
