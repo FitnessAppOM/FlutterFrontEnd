@@ -375,7 +375,15 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     };
 
     const multiChoiceOptions = {
-      "past_injuries": ["shoulder", "back", "knee", "elbow", "none"],
+      "past_injuries": [
+        "shoulder",
+        "back",
+        "knee",
+        "elbow",
+        "foot_ankle",
+        "arm_wrist",
+        "none",
+      ],
       "allergies": ["dairy", "gluten", "nuts", "shellfish", "none", "other"],
       "supplements": ["protein", "creatine", "multivitamin", "none", "other"],
       "diet_type": [
@@ -493,61 +501,79 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    return SingleChildScrollView(
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _sectionTitle,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _sectionSubtitle,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: cs.onSurface.withValues(alpha: 0.7),
-              ),
-            ),
-            const SizedBox(height: 16),
-            ..._buildCurrentSectionFields(),
-            const SizedBox(height: 24),
-            Center(
-              child: Text(
-                "${_t("step")} ${_currentSection + 1} ${_t("of")} $_totalSections",
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: cs.onSurface.withValues(alpha: 0.6),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                if (_currentSection > 0)
-                  Expanded(
-                    child: TextButton(
-                      onPressed: _back,
-                      child: Text(_t("back")),
+    // Layout: the question fields scroll inside Expanded, while the Back/Next
+    // bar is pinned at the bottom (outside the scroll view). This guarantees the
+    // navigation buttons stay reachable on every screen size, font/display scale,
+    // and when the keyboard is open — on both iOS and Android. Previously the
+    // buttons lived at the end of the scroll content and could fall off-screen.
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _sectionTitle,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                if (_currentSection > 0) const SizedBox(width: 8),
-                Expanded(
-                  child: PrimaryWhiteButton(
-                    onPressed: _next,
+                  const SizedBox(height: 4),
+                  Text(
+                    _sectionSubtitle,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: cs.onSurface.withValues(alpha: 0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ..._buildCurrentSectionFields(),
+                  const SizedBox(height: 16),
+                  Center(
                     child: Text(
-                      _currentSection == _totalSections - 1
-                          ? _t("finish")
-                          : _t("next"),
+                      "${_t("step")} ${_currentSection + 1} ${_t("of")} $_totalSections",
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurface.withValues(alpha: 0.6),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+          // Pinned navigation bar — always visible at the bottom.
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                children: [
+                  if (_currentSection > 0)
+                    Expanded(
+                      child: TextButton(
+                        onPressed: _back,
+                        child: Text(_t("back")),
+                      ),
+                    ),
+                  if (_currentSection > 0) const SizedBox(width: 8),
+                  Expanded(
+                    child: PrimaryWhiteButton(
+                      onPressed: _next,
+                      child: Text(
+                        _currentSection == _totalSections - 1
+                            ? _t("finish")
+                            : _t("next"),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -722,6 +748,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
           _t("back"),
           _t("knee"),
           _t("elbow"),
+          _t("foot_ankle"),
+          _t("arm_wrist"),
           _t("none"),
         ],
       ),

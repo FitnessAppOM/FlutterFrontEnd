@@ -462,6 +462,8 @@ class AppLocalizations {
       "shoulder": "Shoulder",
       "knee": "Knee",
       "elbow": "Elbow",
+      "foot_ankle": "Foot/Ankle",
+      "arm_wrist": "Arm/Wrist",
       "none": "None",
 
       "train_mode": "Train mode",
@@ -1452,6 +1454,8 @@ class AppLocalizations {
       "shoulder": "الكتف",
       "knee": "الركبة",
       "elbow": "الكوع",
+      "foot_ankle": "القدم/الكاحل",
+      "arm_wrist": "الذراع/المعصم",
       "none": "لا يوجد",
 
       "train_mode": "طريقة التدريب",
