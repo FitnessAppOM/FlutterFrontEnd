@@ -2,10 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import '../../widgets/Main/section_header.dart';
-import '../../widgets/training/day_selector.dart';
+import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_steps_ui.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_set_row_edit_dialog.dart';
+import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 import '../../widgets/training/exercise_card.dart';
 import '../../widgets/training/exercise_session_sheet.dart';
+import '../../widgets/cardio/cardio_resume_banner.dart';
 import '../../core/account_storage.dart';
 import '../../core/training_regeneration_flag.dart';
 import '../../localization/app_localizations.dart';
@@ -14,13 +17,14 @@ import '../../services/training/training_service.dart';
 import '../../widgets/training/replace_exercise_sheet.dart';
 import '../../widgets/app_toast.dart';
 import '../../services/training/exercise_action_queue.dart';
-import '../../screens/cardio/cardio_tab.dart';
 import '../../consents/consent_manager.dart';
 import '../../screens/training/training_history_page.dart';
+import '../../screens/cardio/cardio_history_page.dart';
 import '../../widgets/training/training_day_complete_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/training/training_progress_storage.dart';
 import '../../services/training/training_activity_service.dart';
+import '../../services/training/cardio_exercises_storage.dart';
 import '../../services/health/workout_health_sync_service.dart';
 import '../../services/training/training_reset_coordinator.dart';
 import '../../services/training/training_network_resilience.dart';
@@ -30,6 +34,1826 @@ class TrainPage extends StatefulWidget {
 
   @override
   State<TrainPage> createState() => _TrainPageState();
+}
+
+class _TrainingDayLiveState {
+  const _TrainingDayLiveState({
+    required this.inProgressExerciseIds,
+    required this.activeSessionExerciseName,
+    required this.sessionCompletedExerciseNames,
+    required this.showWorkoutTimer,
+    required this.workoutTimeText,
+    required this.finishingWorkout,
+    required this.showRestPanel,
+    required this.restActive,
+    required this.restTimeText,
+    required this.activeRestPreset,
+  });
+
+  final Set<int> inProgressExerciseIds;
+  final String? activeSessionExerciseName;
+  final Set<String> sessionCompletedExerciseNames;
+  final bool showWorkoutTimer;
+  final String workoutTimeText;
+  final bool finishingWorkout;
+  final bool showRestPanel;
+  final bool restActive;
+  final String restTimeText;
+  final int activeRestPreset;
+}
+
+class _TrainingDayExercisesPage extends StatefulWidget {
+  const _TrainingDayExercisesPage({
+    required this.dayLabel,
+    required this.exercises,
+    required this.readDisabledState,
+    required this.readDayNoteState,
+    required this.readLiveState,
+    required this.historyCompletedExerciseNames,
+    required this.programExerciseIdOf,
+    required this.normalizeExerciseName,
+    required this.onStartExercise,
+    required this.onExerciseFinished,
+    required this.onReplaceExercise,
+    required this.onFinishWorkout,
+    required this.onSkipRest,
+    required this.onStartRest,
+    required this.onSetCustomRest,
+    required this.restPresets,
+    required this.onSelectRestPreset,
+  });
+
+  final String dayLabel;
+  final List<Map<String, dynamic>> exercises;
+  final bool Function() readDisabledState;
+  final String? Function() readDayNoteState;
+  final _TrainingDayLiveState Function() readLiveState;
+  final Set<String> historyCompletedExerciseNames;
+  final int? Function(Map<String, dynamic>) programExerciseIdOf;
+  final String Function(dynamic) normalizeExerciseName;
+  final Future<void> Function(
+    Map<String, dynamic> exercise, {
+    required int sets,
+    required int reps,
+  })
+  onStartExercise;
+  final Future<void> Function(Map<String, dynamic> exercise) onExerciseFinished;
+  final Future<void> Function(Map<String, dynamic>) onReplaceExercise;
+  final Future<void> Function() onFinishWorkout;
+  final VoidCallback onSkipRest;
+  final VoidCallback onStartRest;
+  final VoidCallback onSetCustomRest;
+  final List<int> restPresets;
+  final void Function(int seconds) onSelectRestPreset;
+
+  @override
+  State<_TrainingDayExercisesPage> createState() =>
+      _TrainingDayExercisesPageState();
+}
+
+class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
+  Timer? _refreshTimer;
+
+  Route<T> _buildLauncherRoute<T>(Widget page) {
+    return PageRouteBuilder<T>(
+      pageBuilder: (_, __, ___) => page,
+      transitionDuration: const Duration(milliseconds: 260),
+      reverseTransitionDuration: const Duration(milliseconds: 220),
+      transitionsBuilder: (_, animation, __, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        final offsetTween = Tween<Offset>(
+          begin: const Offset(0, 1),
+          end: Offset.zero,
+        );
+        return SlideTransition(
+          position: offsetTween.animate(curved),
+          child: child,
+        );
+      },
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final live = widget.readLiveState();
+    final isDisabled = widget.readDisabledState();
+    final dayNote = widget.readDayNoteState();
+    final blockLeave = live.showWorkoutTimer || live.finishingWorkout;
+    return PopScope(
+      canPop: !blockLeave,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop || !blockLeave) return;
+        AppToast.show(
+          context,
+          "Finish workout before leaving this day.",
+          type: AppToastType.info,
+        );
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          centerTitle: true,
+          title: Text(
+            widget.dayLabel,
+            style: const TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              height: 2.5,
+              letterSpacing: 0,
+              color: TaqaUiColors.unnamedColor1c1d17,
+            ),
+          ),
+          backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+          foregroundColor: TaqaUiColors.unnamedColor1c1d17,
+          elevation: 0,
+        ),
+        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        body: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          children: [
+            if (live.showWorkoutTimer) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(
+                    color: const Color(0xFF1C1D17).withValues(alpha: 0.14),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.timer, color: Color(0xFF1C1D17), size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Workout",
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: TaqaUiColors.unnamedColor1c1d17,
+                            ),
+                          ),
+                          Text(
+                            live.workoutTimeText,
+                            style: const TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: TaqaUiColors.unnamedColor1c1d17,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: live.finishingWorkout
+                          ? null
+                          : () => widget.onFinishWorkout(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: TaqaUiColors.white,
+                        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: live.finishingWorkout
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text(
+                              "Finish",
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            if (live.showRestPanel) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(
+                    color: const Color(0xFF1C1D17).withValues(alpha: 0.14),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      live.restActive
+                          ? Icons.hourglass_bottom
+                          : Icons.timer_outlined,
+                      color: TaqaUiColors.unnamedColor1c1d17,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Between exercises",
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: TaqaUiColors.unnamedColor1c1d17,
+                            ),
+                          ),
+                          Text(
+                            live.restTimeText,
+                            style: const TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: TaqaUiColors.unnamedColor1c1d17,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (live.restActive)
+                      OutlinedButton(
+                        onPressed: widget.onSkipRest,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: TaqaUiColors.unnamedColor1c1d17,
+                          side: const BorderSide(color: Color(0x4D1C1D17)),
+                        ),
+                        child: const Text("Skip"),
+                      )
+                    else ...[
+                      IconButton(
+                        onPressed: widget.onSetCustomRest,
+                        tooltip: "Custom rest",
+                        icon: const Icon(Icons.tune, color: Color(0xFF1C1D17)),
+                      ),
+                      ElevatedButton(
+                        onPressed: widget.onStartRest,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: TaqaUiColors.white,
+                          foregroundColor: TaqaUiColors.unnamedColor1c1d17,
+                        ),
+                        child: const Text("Start"),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (!live.restActive) ...[
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: widget.restPresets.map((s) {
+                    final active = live.activeRestPreset == s;
+                    return InkWell(
+                      onTap: () => widget.onSelectRestPreset(s),
+                      borderRadius: BorderRadius.circular(999),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: active
+                              ? const Color(0xFFE4E93B)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: const Color(0x4D1C1D17)),
+                        ),
+                        child: Text(
+                          "${s}s",
+                          style: const TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: TaqaUiColors.unnamedColor1c1d17,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ],
+            if (dayNote != null && dayNote.trim().isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  dayNote,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: TaqaUiColors.unnamedColor1c1d17.withOpacity(0.6),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            if (widget.exercises.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 20),
+                child: Text(
+                  AppLocalizations.of(context).translate("rest_day"),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: TaqaUiColors.unnamedColor1c1d17,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              )
+            else
+              ...(() {
+                final items = widget.exercises.asMap().entries.map((entry) {
+                  final ex = entry.value;
+                  final rawId =
+                      ex['program_exercise_id'] ??
+                      ex['exercise_id'] ??
+                      ex['exercise_name'] ??
+                      entry.key;
+                  final programExerciseId = widget.programExerciseIdOf(ex);
+                  final normalizedName = widget.normalizeExerciseName(
+                    ex['exercise_name'],
+                  );
+                  final inProgressById =
+                      programExerciseId != null &&
+                      live.inProgressExerciseIds.contains(programExerciseId);
+                  final inProgressByName =
+                      live.activeSessionExerciseName != null &&
+                      normalizedName.isNotEmpty &&
+                      normalizedName == live.activeSessionExerciseName;
+                  final locallyCompleted =
+                      normalizedName.isNotEmpty &&
+                      live.sessionCompletedExerciseNames.contains(
+                        normalizedName,
+                      );
+                  final doneFromHistory =
+                      normalizedName.isNotEmpty &&
+                      widget.historyCompletedExerciseNames.contains(
+                        normalizedName,
+                      );
+                  final done = locallyCompleted || doneFromHistory;
+                  return <String, dynamic>{
+                    'index': entry.key,
+                    'exercise': ex,
+                    'rawId': rawId,
+                    'inProgress': inProgressById || inProgressByName,
+                    'done': done,
+                  };
+                }).toList();
+
+                items.sort((a, b) {
+                  final aDone = a['done'] == true;
+                  final bDone = b['done'] == true;
+                  if (aDone == bDone) {
+                    return (a['index'] as int).compareTo(b['index'] as int);
+                  }
+                  return aDone ? 1 : -1;
+                });
+
+                return items.map((item) {
+                  final ex = item['exercise'] as Map<String, dynamic>;
+                  final rawId = item['rawId'];
+                  final done = item['done'] == true;
+                  final inProgress = item['inProgress'] == true;
+                  final exKey = ValueKey("day_ex_$rawId");
+                  return Padding(
+                    key: exKey,
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: ExerciseCard(
+                      exercise: ex,
+                      onReplace: () => unawaited(widget.onReplaceExercise(ex)),
+                      disabled: isDisabled,
+                      completedOverride: done,
+                      forceCompleted: done,
+                      inProgress: inProgress,
+                    ),
+                  );
+                });
+              })(),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: isDisabled || widget.exercises.isEmpty
+                    ? null
+                    : () async {
+                        await Navigator.of(context).push(
+                          _buildLauncherRoute(
+                            _WorkoutLauncherPage(
+                              dayLabel: widget.dayLabel,
+                              exercises: widget.exercises,
+                              restSeconds: live.activeRestPreset,
+                              inProgressExerciseIds: live.inProgressExerciseIds,
+                              activeSessionExerciseName:
+                                  live.activeSessionExerciseName,
+                              onStartExercise: widget.onStartExercise,
+                              onExerciseFinished: widget.onExerciseFinished,
+                            ),
+                          ),
+                        );
+                        if (!mounted) return;
+                        setState(() {});
+                      },
+                style: ElevatedButton.styleFrom(
+                  elevation: 0,
+                  backgroundColor: const Color(0xFFE4E93B),
+                  foregroundColor: const Color(0xFF1C1D17),
+                  disabledBackgroundColor: const Color(0x80E4E93B),
+                  disabledForegroundColor: const Color(0x801C1D17),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 14,
+                    horizontal: 5,
+                  ),
+                ),
+                child: const Text(
+                  "START WORKOUT",
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkoutLauncherPage extends StatefulWidget {
+  const _WorkoutLauncherPage({
+    required this.dayLabel,
+    required this.exercises,
+    required this.restSeconds,
+    required this.inProgressExerciseIds,
+    required this.activeSessionExerciseName,
+    required this.onStartExercise,
+    required this.onExerciseFinished,
+  });
+
+  final String dayLabel;
+  final List<Map<String, dynamic>> exercises;
+  final int restSeconds;
+  final Set<int> inProgressExerciseIds;
+  final String? activeSessionExerciseName;
+  final Future<void> Function(
+    Map<String, dynamic> exercise, {
+    required int sets,
+    required int reps,
+  })
+  onStartExercise;
+  final Future<void> Function(Map<String, dynamic> exercise) onExerciseFinished;
+
+  @override
+  State<_WorkoutLauncherPage> createState() => _WorkoutLauncherPageState();
+}
+
+class _WorkoutLauncherPageState extends State<_WorkoutLauncherPage> {
+  int? _activeExerciseIndex;
+  final Set<String> _locallyCompletedExerciseNames = <String>{};
+
+  @override
+  void initState() {
+    super.initState();
+    _activeExerciseIndex = _resolveActiveExerciseIndex();
+  }
+
+  int? _programExerciseId(Map<String, dynamic> ex) {
+    final raw = ex['program_exercise_id'];
+    if (raw is int) return raw;
+    if (raw is num) return raw.toInt();
+    return int.tryParse(raw?.toString() ?? '');
+  }
+
+  int? _resolveActiveExerciseIndex() {
+    for (var i = 0; i < widget.exercises.length; i++) {
+      final id = _programExerciseId(widget.exercises[i]);
+      if (id != null && widget.inProgressExerciseIds.contains(id)) {
+        return i;
+      }
+    }
+    final activeName = (widget.activeSessionExerciseName ?? '')
+        .trim()
+        .toLowerCase();
+    if (activeName.isNotEmpty) {
+      for (var i = 0; i < widget.exercises.length; i++) {
+        final name = (widget.exercises[i]['exercise_name'] ?? '')
+            .toString()
+            .trim()
+            .toLowerCase();
+        if (name.isNotEmpty && name == activeName) {
+          return i;
+        }
+      }
+    }
+    return null;
+  }
+
+  Future<void> _finishExerciseFromLauncher(int index) async {
+    final ex = widget.exercises[index];
+    final name = (ex['exercise_name'] ?? '').toString().trim().toLowerCase();
+    if (name.isNotEmpty) {
+      _locallyCompletedExerciseNames.add(name);
+    }
+    await widget.onExerciseFinished(ex);
+    if (!mounted) return;
+    setState(() {
+      if (_activeExerciseIndex == index) {
+        _activeExerciseIndex = null;
+      }
+    });
+  }
+
+  bool _truthy(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    final s = (value ?? '').toString().trim().toLowerCase();
+    if (s.isEmpty) return false;
+    if (s == 'true' || s == 'yes' || s == 'y' || s == 't' || s == '1') {
+      return true;
+    }
+    final numeric = num.tryParse(s);
+    if (numeric != null) return numeric != 0;
+    return !(s == 'false' || s == 'f' || s == 'no' || s == 'n' || s == '0');
+  }
+
+  bool _isExerciseDone(Map<String, dynamic> ex) {
+    final name = (ex['exercise_name'] ?? '').toString().trim().toLowerCase();
+    if (name.isNotEmpty && _locallyCompletedExerciseNames.contains(name)) {
+      return true;
+    }
+    if (_truthy(ex['history_completed_this_week']) ||
+        _truthy(ex['completed_this_week'])) {
+      return true;
+    }
+
+    final setRows = ex['set_rows'];
+    if (setRows is List && setRows.isNotEmpty) {
+      var hasRow = false;
+      for (final row in setRows) {
+        if (row is! Map) continue;
+        hasRow = true;
+        if (!_truthy(row['completed'])) return false;
+      }
+      if (hasRow) return true;
+    }
+    return false;
+  }
+
+  int _asInt(dynamic value, {required int fallback}) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) {
+      final parsed = int.tryParse(value.trim());
+      if (parsed != null) return parsed;
+    }
+    return fallback;
+  }
+
+  String _exerciseName(Map<String, dynamic> ex, int index) {
+    final raw = ex['exercise_name']?.toString().trim() ?? '';
+    if (raw.isEmpty) return 'Exercise ${index + 1}';
+    return raw;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sortedEntries = widget.exercises.asMap().entries.toList()
+      ..sort((a, b) {
+        final aDone = _isExerciseDone(a.value);
+        final bDone = _isExerciseDone(b.value);
+        if (aDone == bDone) return a.key.compareTo(b.key);
+        return aDone ? 1 : -1;
+      });
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF11130F),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        backgroundColor: const Color(0xFF11130F),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        title: Text(
+          widget.dayLabel,
+          style: const TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0,
+          ),
+        ),
+        actions: [
+          IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.close, color: Colors.white),
+          ),
+        ],
+      ),
+      body: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 20),
+        itemCount: sortedEntries.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final entry = sortedEntries[index];
+          final sourceIndex = entry.key;
+          final ex = entry.value;
+          final isDone = _isExerciseDone(ex);
+          final sets = _asInt(ex['sets'], fallback: 2).clamp(1, 12);
+          final reps = _asInt(ex['reps'], fallback: 8).clamp(1, 200);
+          final rir = _asInt(ex['rir'], fallback: 2).clamp(0, 10);
+          final name = _exerciseName(ex, sourceIndex);
+          final isActive = _activeExerciseIndex == sourceIndex;
+          final dimmed = _activeExerciseIndex != null && !isActive;
+          return IgnorePointer(
+            ignoring: dimmed,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Stack(
+                children: [
+                  _WorkoutLauncherExerciseCard(
+                    exercise: ex,
+                    name: name,
+                    sets: sets,
+                    reps: reps,
+                    rir: rir,
+                    restSeconds: widget.restSeconds,
+                    isDone: isDone,
+                    isActive: isActive,
+                    onStarted: () {
+                      if (!mounted) return;
+                      setState(() => _activeExerciseIndex = sourceIndex);
+                    },
+                    onFinished: () {
+                      unawaited(_finishExerciseFromLauncher(sourceIndex));
+                    },
+                    onStart: ({required int sets, required int reps}) =>
+                        widget.onStartExercise(ex, sets: sets, reps: reps),
+                  ),
+                  if (dimmed)
+                    Positioned.fill(
+                      child: Container(
+                        color: Colors.black.withValues(alpha: 0.24),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _WorkoutLauncherExerciseCard extends StatefulWidget {
+  const _WorkoutLauncherExerciseCard({
+    required this.exercise,
+    required this.name,
+    required this.sets,
+    required this.reps,
+    required this.rir,
+    required this.restSeconds,
+    required this.isDone,
+    required this.isActive,
+    required this.onStarted,
+    required this.onFinished,
+    required this.onStart,
+  });
+
+  final Map<String, dynamic> exercise;
+  final String name;
+  final int sets;
+  final int reps;
+  final int rir;
+  final int restSeconds;
+  final bool isDone;
+  final bool isActive;
+  final VoidCallback onStarted;
+  final VoidCallback onFinished;
+  final Future<void> Function({required int sets, required int reps}) onStart;
+
+  @override
+  State<_WorkoutLauncherExerciseCard> createState() =>
+      _WorkoutLauncherExerciseCardState();
+}
+
+class _WorkoutLauncherExerciseCardState
+    extends State<_WorkoutLauncherExerciseCard> {
+  late List<_LauncherSetRow> _rows;
+  bool _starting = false;
+  bool _finishingExercise = false;
+  Timer? _activeTicker;
+  int? _exerciseStartedAtMs;
+  int? _setStartedAtMs;
+  late int _restSeconds;
+  bool _restCountdownActive = false;
+  int _restRemainingSeconds = 0;
+  int _flowSetIndex = 0;
+  bool _setInProgress = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _rows = _seedRows();
+    _restSeconds = widget.restSeconds;
+    _flowSetIndex = _initialFlowSetIndex();
+    if (widget.isActive) {
+      _setInProgress = true;
+      _ensureActiveTimers();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _WorkoutLauncherExerciseCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !oldWidget.isActive) {
+      _setInProgress = true;
+      _flowSetIndex = _flowSetIndex.clamp(0, (_rows.length - 1).clamp(0, 999));
+      _ensureActiveTimers();
+    } else if (!widget.isActive && oldWidget.isActive) {
+      _activeTicker?.cancel();
+      _activeTicker = null;
+      _setInProgress = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _activeTicker?.cancel();
+    super.dispose();
+  }
+
+  void _ensureActiveTimers() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    _exerciseStartedAtMs ??= now;
+    _setStartedAtMs ??= now;
+    _activeTicker ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || !widget.isActive) return;
+      setState(() {
+        if (_restCountdownActive && _restRemainingSeconds > 0) {
+          _restRemainingSeconds -= 1;
+          if (_restRemainingSeconds <= 0) {
+            _restRemainingSeconds = 0;
+            _restCountdownActive = false;
+            _setInProgress = true;
+            _setStartedAtMs = DateTime.now().millisecondsSinceEpoch;
+          }
+        }
+      });
+    });
+  }
+
+  int _initialFlowSetIndex() {
+    if (_rows.isEmpty) return 0;
+    return 0;
+  }
+
+  int _activeFlowSetIndex() {
+    if (_rows.isEmpty) return 0;
+    final maxIndex = _rows.length - 1;
+    if (_flowSetIndex < 0) return 0;
+    if (_flowSetIndex > maxIndex) return maxIndex;
+    return _flowSetIndex;
+  }
+
+  String _setActionLabel() {
+    if (_restCountdownActive && !_setInProgress) {
+      return "REST ${_formatMmSs(_restRemainingSeconds)}";
+    }
+    final setNo = _activeFlowSetIndex() + 1;
+    return _setInProgress ? "FINISH SET $setNo" : "START SET $setNo";
+  }
+
+  Future<void> _onSetActionPressed() async {
+    if (_rows.isEmpty) return;
+    final idx = _activeFlowSetIndex();
+    if (_setInProgress) {
+      final current = _rows[idx];
+      if (!current.done) {
+        final doneRow = current.copyWith(done: true);
+        final nextRows = List<_LauncherSetRow>.from(_rows);
+        nextRows[idx] = doneRow;
+        if (mounted) {
+          setState(() => _rows = nextRows);
+        }
+        await _persistUpsert(doneRow);
+      }
+
+      if (idx >= _rows.length - 1) {
+        await _finishExercise();
+        return;
+      }
+
+      final rest = _restSeconds < 0 ? 0 : _restSeconds;
+      if (mounted) {
+        setState(() {
+          _flowSetIndex = idx + 1;
+          _setInProgress = false;
+          _setStartedAtMs = null;
+          _restCountdownActive = rest > 0;
+          _restRemainingSeconds = rest;
+        });
+      }
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _setInProgress = true;
+        _restCountdownActive = false;
+        _restRemainingSeconds = 0;
+        _setStartedAtMs = DateTime.now().millisecondsSinceEpoch;
+      });
+    }
+    _ensureActiveTimers();
+  }
+
+  Future<void> _finishExercise() async {
+    if (_finishingExercise) return;
+    setState(() => _finishingExercise = true);
+    final now = DateTime.now();
+    try {
+      final completedRows = _rows
+          .where((row) => row.done)
+          .toList(growable: false);
+      final sourceRows = completedRows.isNotEmpty ? completedRows : _rows;
+      final fallbackRow = _rows.isNotEmpty ? _rows.last : null;
+      final lastRow = sourceRows.isNotEmpty ? sourceRows.last : fallbackRow;
+      final performedSets = sourceRows.isNotEmpty ? sourceRows.length : 1;
+      final performedReps = lastRow?.reps ?? widget.reps;
+      final performedRir = lastRow?.rir ?? widget.rir;
+      final durationSeconds = _elapsedSecondsSince(_exerciseStartedAtMs);
+      final programExerciseId = _programExerciseId();
+
+      if (programExerciseId != null) {
+        try {
+          await TrainingNetworkResilience.withTimeout(
+            TrainingService.finishExercise(
+              programExerciseId: programExerciseId,
+              sets: performedSets > 0 ? performedSets : null,
+              reps: performedReps > 0 ? performedReps : null,
+              rir: performedRir >= 0 ? performedRir : null,
+              durationSeconds: durationSeconds,
+              entryDate: now,
+            ),
+            TrainingNetworkResilience.sheetMutation,
+          );
+        } catch (_) {
+          await ExerciseActionQueue.queueAction(
+            action: ExerciseActionQueue.actionFinish,
+            programExerciseId: programExerciseId,
+            data: {
+              "sets": performedSets,
+              "reps": performedReps,
+              "rir": performedRir,
+              "duration_seconds": durationSeconds,
+              "entry_date":
+                  "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
+            },
+          );
+        }
+      }
+
+      final finishedAtMs = DateTime.now().millisecondsSinceEpoch;
+      await TrainingProgressStorage.saveLastExerciseFinishedMs(finishedAtMs);
+      final exerciseName = (widget.exercise['exercise_name'] ?? widget.name)
+          .toString()
+          .trim();
+      if (exerciseName.isNotEmpty) {
+        await TrainingProgressStorage.saveSessionCompletedExerciseName(
+          exerciseName,
+          finishedAtMs: finishedAtMs,
+        );
+      }
+
+      _activeTicker?.cancel();
+      _activeTicker = null;
+      _setInProgress = false;
+      _restCountdownActive = false;
+      _restRemainingSeconds = 0;
+
+      await TrainingActivityService.stopSession();
+      AccountStorage.notifyTrainingChanged();
+      widget.onFinished();
+    } finally {
+      if (mounted) setState(() => _finishingExercise = false);
+    }
+  }
+
+  void _skipRestCountdown() {
+    if (!_restCountdownActive) return;
+    setState(() {
+      _restCountdownActive = false;
+      _restRemainingSeconds = 0;
+    });
+  }
+
+  Future<void> _changeRestSeconds() async {
+    if (_restCountdownActive) return;
+    final options = <int>[10, 15, 30, 45, 60, 90];
+    final selected = await showModalBottomSheet<int>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Set rest timer",
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: options.map((s) {
+                    final active = s == _restSeconds;
+                    return InkWell(
+                      onTap: () => Navigator.of(sheetContext).pop(s),
+                      borderRadius: BorderRadius.circular(999),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: active
+                              ? const Color(0xFFE4E93B)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: const Color(0x4D1C1D17)),
+                        ),
+                        child: Text(
+                          "${s}s",
+                          style: const TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: TaqaUiColors.unnamedColor1c1d17,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 10),
+                TextButton.icon(
+                  onPressed: () async {
+                    final txt = await showTaqaTextValueDialog(
+                      context: context,
+                      title: "Custom rest (seconds)",
+                      initialValue: _restSeconds.toString(),
+                      keyboardType: TextInputType.number,
+                    );
+                    final parsed = int.tryParse((txt ?? '').trim());
+                    if (!sheetContext.mounted) return;
+                    Navigator.of(sheetContext).pop(parsed);
+                  },
+                  icon: const Icon(Icons.tune),
+                  label: const Text("Custom"),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (selected == null || selected <= 0) return;
+    if (!mounted) return;
+    setState(() {
+      _restSeconds = selected;
+      if (_restCountdownActive && _restRemainingSeconds > selected) {
+        _restRemainingSeconds = selected;
+      }
+    });
+  }
+
+  int _elapsedSecondsSince(int? startedAtMs) {
+    if (startedAtMs == null) return 0;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final diffMs = now - startedAtMs;
+    if (diffMs <= 0) return 0;
+    return (diffMs / 1000).floor();
+  }
+
+  String _formatMmSs(int totalSeconds) {
+    final safe = totalSeconds < 0 ? 0 : totalSeconds;
+    final mm = (safe ~/ 60).toString().padLeft(2, '0');
+    final ss = (safe % 60).toString().padLeft(2, '0');
+    return "$mm:$ss";
+  }
+
+  int? _programExerciseId() {
+    final raw = widget.exercise['program_exercise_id'];
+    if (raw is int) return raw;
+    if (raw is num) return raw.toInt();
+    return int.tryParse(raw?.toString() ?? '');
+  }
+
+  int _toInt(dynamic value, {required int fallback}) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value.trim()) ?? fallback;
+    return fallback;
+  }
+
+  double _toDouble(dynamic value, {required double fallback}) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value.trim()) ?? fallback;
+    return fallback;
+  }
+
+  bool _toBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    final s = (value ?? '').toString().trim().toLowerCase();
+    return s == 'true' || s == '1' || s == 'yes' || s == 'y' || s == 't';
+  }
+
+  List<_LauncherSetRow> _seedRows() {
+    final rawRows = widget.exercise['set_rows'];
+    final out = <_LauncherSetRow>[];
+    if (rawRows is List && rawRows.isNotEmpty) {
+      for (final raw in rawRows) {
+        if (raw is! Map) continue;
+        final idx = _toInt(raw['set_index'], fallback: out.length + 1);
+        out.add(
+          _LauncherSetRow(
+            setIndex: idx > 0 ? idx : out.length + 1,
+            reps: _toInt(raw['reps'], fallback: widget.reps),
+            rir: _toInt(raw['rir'], fallback: widget.rir),
+            weightKg: _toDouble(raw['weight_kg'], fallback: 0),
+            done: _toBool(raw['completed']),
+          ),
+        );
+      }
+      out.sort((a, b) => a.setIndex.compareTo(b.setIndex));
+      for (var i = 0; i < out.length; i++) {
+        out[i] = out[i].copyWith(setIndex: i + 1);
+      }
+    }
+    if (out.isNotEmpty) return out;
+    return List.generate(
+      widget.sets,
+      (i) => _LauncherSetRow(
+        setIndex: i + 1,
+        reps: widget.reps,
+        rir: widget.rir,
+        weightKg: 0,
+        done: false,
+      ),
+    );
+  }
+
+  Future<void> _persistUpsert(_LauncherSetRow row) async {
+    final programExerciseId = _programExerciseId();
+    if (programExerciseId == null) return;
+    try {
+      await TrainingNetworkResilience.withTimeout(
+        TrainingService.upsertExerciseSet(
+          programExerciseId: programExerciseId,
+          setIndex: row.setIndex,
+          reps: row.reps,
+          rir: row.rir,
+          weightKg: row.weightKg,
+          completed: row.done,
+        ),
+        TrainingNetworkResilience.sheetMutation,
+      );
+    } catch (_) {
+      await ExerciseActionQueue.queueAction(
+        action: ExerciseActionQueue.actionSetUpsert,
+        programExerciseId: programExerciseId,
+        data: {
+          "set_index": row.setIndex,
+          "reps": row.reps,
+          "rir": row.rir,
+          "weight_kg": row.weightKg,
+          "completed": row.done,
+        },
+      );
+    }
+  }
+
+  Future<void> _addSet() async {
+    final last = _rows.isEmpty ? null : _rows.last;
+    final next = _LauncherSetRow(
+      setIndex: _rows.length + 1,
+      reps: last?.reps ?? widget.reps,
+      rir: last?.rir ?? widget.rir,
+      weightKg: last?.weightKg ?? 0,
+      done: false,
+    );
+    if (mounted) {
+      setState(() => _rows = [..._rows, next]);
+    }
+    final programExerciseId = _programExerciseId();
+    if (programExerciseId == null) return;
+    try {
+      await TrainingNetworkResilience.withTimeout(
+        TrainingService.addExerciseSet(
+          programExerciseId: programExerciseId,
+          cloneLast: true,
+        ),
+        TrainingNetworkResilience.sheetMutation,
+      );
+    } catch (_) {
+      await ExerciseActionQueue.queueAction(
+        action: ExerciseActionQueue.actionSetAdd,
+        programExerciseId: programExerciseId,
+        data: {"clone_last": true},
+      );
+    }
+  }
+
+  Future<void> _toggleDone(int index) async {
+    if (index < 0 || index >= _rows.length) return;
+    final row = _rows[index].copyWith(done: !_rows[index].done);
+    final next = List<_LauncherSetRow>.from(_rows);
+    next[index] = row;
+    if (mounted) {
+      setState(() => _rows = next);
+    }
+    await _persistUpsert(row);
+  }
+
+  Future<void> _editSetRow(int index) async {
+    if (index < 0 || index >= _rows.length) return;
+    final current = _rows[index];
+    final result = await showTaqaSetRowEditDialog(
+      context: context,
+      setIndex: current.setIndex,
+      reps: current.reps,
+      rir: current.rir,
+      weightKg: current.weightKg,
+      completed: current.done,
+    );
+    if (result == null) return;
+
+    final next = List<_LauncherSetRow>.from(_rows);
+    final updated = current.copyWith(
+      reps: result.reps,
+      rir: result.rir,
+      weightKg: result.weightKg,
+      done: result.completed,
+    );
+    next[index] = updated;
+    if (mounted) {
+      setState(() => _rows = next);
+    }
+    await _persistUpsert(updated);
+  }
+
+  Future<void> _deleteSetRow(int index) async {
+    if (index < 0 || index >= _rows.length) return;
+    if (_rows.length <= 1) return;
+
+    final deleted = _rows[index];
+    final remaining = List<_LauncherSetRow>.from(_rows)..removeAt(index);
+    final reindexed = <_LauncherSetRow>[];
+    for (var i = 0; i < remaining.length; i++) {
+      reindexed.add(remaining[i].copyWith(setIndex: i + 1));
+    }
+
+    var nextFlowSetIndex = _flowSetIndex;
+    var nextSetInProgress = _setInProgress;
+    int? nextSetStartedAtMs = _setStartedAtMs;
+    if (index < _flowSetIndex) {
+      nextFlowSetIndex = _flowSetIndex - 1;
+    } else if (index == _flowSetIndex) {
+      nextSetInProgress = false;
+      nextSetStartedAtMs = null;
+      if (index >= reindexed.length) {
+        nextFlowSetIndex = reindexed.length - 1;
+      } else {
+        nextFlowSetIndex = index;
+      }
+    }
+    if (nextFlowSetIndex < 0) nextFlowSetIndex = 0;
+    if (reindexed.isNotEmpty && nextFlowSetIndex >= reindexed.length) {
+      nextFlowSetIndex = reindexed.length - 1;
+    }
+
+    if (mounted) {
+      setState(() {
+        _rows = reindexed;
+        _flowSetIndex = nextFlowSetIndex;
+        _setInProgress = nextSetInProgress;
+        _setStartedAtMs = nextSetStartedAtMs;
+      });
+    }
+
+    final programExerciseId = _programExerciseId();
+    if (programExerciseId == null) return;
+    try {
+      await TrainingNetworkResilience.withTimeout(
+        TrainingService.deleteExerciseSet(
+          programExerciseId: programExerciseId,
+          setIndex: deleted.setIndex,
+        ),
+        TrainingNetworkResilience.sheetMutation,
+      );
+    } catch (_) {
+      await ExerciseActionQueue.queueAction(
+        action: ExerciseActionQueue.actionSetDelete,
+        programExerciseId: programExerciseId,
+        data: {"set_index": deleted.setIndex},
+      );
+    }
+  }
+
+  Future<void> _startExercise() async {
+    if (_starting) return;
+    final startSets = _rows.isEmpty ? widget.sets : _rows.length;
+    final startReps = _rows.isEmpty
+        ? widget.reps
+        : _rows.firstWhere((r) => r.reps > 0, orElse: () => _rows.first).reps;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    _exerciseStartedAtMs = now;
+    _setStartedAtMs = now;
+    _restCountdownActive = false;
+    _restRemainingSeconds = 0;
+    _flowSetIndex = _initialFlowSetIndex();
+    _setInProgress = true;
+    _ensureActiveTimers();
+    setState(() => _starting = true);
+    widget.onStarted();
+    try {
+      await widget.onStart(
+        sets: startSets <= 0 ? 1 : startSets,
+        reps: startReps <= 0 ? 1 : startReps,
+      );
+    } catch (_) {
+      widget.onFinished();
+      rethrow;
+    } finally {
+      if (mounted) setState(() => _starting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dpr = MediaQuery.of(context).devicePixelRatio;
+    final imageUrl = TrainingService.animationImageUrl(
+      widget.exercise['animation_url']?.toString(),
+      null,
+    );
+    final imageProvider = imageUrl.isEmpty
+        ? null
+        : TrainingService.gifProvider(
+            imageUrl,
+            cacheWidth: (126 * dpr).round(),
+            cacheHeight: (126 * dpr).round(),
+          );
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF414345),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  width: 126,
+                  height: 126,
+                  color: const Color(0xFFE3E3E3),
+                  child: imageProvider == null
+                      ? const Icon(
+                          Icons.fitness_center,
+                          size: 28,
+                          color: Color(0x661C1D17),
+                        )
+                      : Image(image: imageProvider, fit: BoxFit.cover),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            widget.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              height: 1,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (widget.isDone && !widget.isActive)
+                          const Icon(
+                            Icons.check_circle,
+                            color: Color(0xFF2ECC71),
+                            size: 18,
+                          )
+                        else
+                          const Icon(Icons.more_vert, color: Colors.white70),
+                      ],
+                    ),
+                    const SizedBox(height: 26),
+                    if (widget.isDone && !widget.isActive) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFFAF2),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: const Color(0x662ECC71)),
+                        ),
+                        child: const Text(
+                          "DONE",
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1E7E34),
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                    Text(
+                      "SUGGESTED",
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.65),
+                        fontSize: 9,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        _suggestedTag("${_rows.length} x ${widget.reps}"),
+                        const SizedBox(width: 8),
+                        _suggestedTag("RIR ${widget.rir}"),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              InkWell(
+                onTap: _restCountdownActive ? null : _changeRestSeconds,
+                borderRadius: BorderRadius.circular(8),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.timer_outlined,
+                      color: _restCountdownActive
+                          ? const Color(0x88DDE530)
+                          : const Color(0xFFDDE530),
+                      size: 22,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      "Rest: ${_restCountdownActive ? _restRemainingSeconds : _restSeconds}s",
+                      style: TextStyle(
+                        color: _restCountdownActive
+                            ? const Color(0x88DDE530)
+                            : const Color(0xFFDDE530),
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.edit_outlined,
+                      color: _restCountdownActive
+                          ? const Color(0x88DDE530)
+                          : const Color(0xFFDDE530),
+                      size: 16,
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              if (widget.isActive)
+                Text(
+                  "Total: ${_formatMmSs(_elapsedSecondsSince(_exerciseStartedAtMs))}",
+                  style: const TextStyle(
+                    color: Color(0xFFDDE530),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (widget.isActive) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              decoration: BoxDecoration(
+                color: const Color(0x22E4E93B),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0x55E4E93B)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _setActionLabel(),
+                    style: const TextStyle(
+                      color: Color(0xFFE4E93B),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    "SET TIMER: ${_formatMmSs(_setInProgress ? _elapsedSecondsSince(_setStartedAtMs) : 0)}",
+                    style: const TextStyle(
+                      color: Color(0xFFE4E93B),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: (_restCountdownActive && !_setInProgress)
+                          ? null
+                          : () => unawaited(_onSetActionPressed()),
+                      style: ElevatedButton.styleFrom(
+                        elevation: 0,
+                        backgroundColor: const Color(0xFFE4E93B),
+                        foregroundColor: const Color(0xFF1C1D17),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                      child: Text(
+                        _setActionLabel(),
+                        style: const TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (_restCountdownActive && !_setInProgress) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: _skipRestCountdown,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFE4E93B),
+                          side: const BorderSide(color: Color(0x55E4E93B)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                        child: const Text(
+                          "SKIP REST",
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+          _tableHeader(),
+          const SizedBox(height: 6),
+          for (int i = 0; i < _rows.length; i++) ...[
+            _setRow(i),
+            if (i != _rows.length - 1) const SizedBox(height: 2),
+          ],
+          const SizedBox(height: 10),
+          _ghostButton(label: "ADD SET", onTap: _addSet),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: (_starting || _finishingExercise)
+                  ? null
+                  : (widget.isActive ? _finishExercise : _startExercise),
+              style: ElevatedButton.styleFrom(
+                elevation: 0,
+                backgroundColor: TaqaUiColors.white,
+                foregroundColor: TaqaUiColors.unnamedColor1c1d17,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
+                  side: BorderSide(color: TaqaUiColors.white, width: 1),
+                ),
+              ),
+              child: (_starting || _finishingExercise)
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(
+                      widget.isActive ? "FINISH EXERCISE" : "START EXERCISE",
+                      style: const TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: TaqaUiColors.unnamedColor1c1d17,
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _suggestedTag(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: Colors.white54),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(color: Colors.white, fontSize: 12),
+      ),
+    );
+  }
+
+  Widget _tableHeader() {
+    return const Row(
+      children: [
+        Expanded(flex: 2, child: _HeaderText("SET")),
+        Expanded(flex: 3, child: _HeaderText("PREVIOUS")),
+        Expanded(flex: 2, child: _HeaderText("KG")),
+        Expanded(flex: 2, child: _HeaderText("REPS")),
+        Expanded(flex: 2, child: _HeaderText("RIR")),
+        Expanded(flex: 2, child: _HeaderText("DONE")),
+        SizedBox(width: 26),
+      ],
+    );
+  }
+
+  Widget _setRow(int index) {
+    final row = _rows[index];
+    final highlightFirst = widget.isActive && index == _activeFlowSetIndex();
+    final rowTextColor = highlightFirst
+        ? TaqaUiColors.unnamedColor1c1d17
+        : Colors.white;
+    final previousColor = highlightFirst
+        ? TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.8)
+        : Colors.white70;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => unawaited(_editSetRow(index)),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        decoration: BoxDecoration(
+          color: highlightFirst ? TaqaUiColors.unnamedColorE4e93b : null,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: Text(
+                "${row.setIndex}",
+                style: TextStyle(color: rowTextColor, fontSize: 18),
+              ),
+            ),
+            Expanded(
+              flex: 3,
+              child: Text(
+                "-",
+                style: TextStyle(color: previousColor, fontSize: 18),
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(
+                row.weightKg <= 0 ? "0" : row.weightKg.toStringAsFixed(0),
+                style: TextStyle(color: rowTextColor, fontSize: 18),
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(
+                "${row.reps}",
+                style: TextStyle(color: rowTextColor, fontSize: 18),
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(
+                "${row.rir}",
+                style: TextStyle(color: rowTextColor, fontSize: 18),
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Align(
+                alignment: Alignment.center,
+                child: GestureDetector(
+                  onTap: () => unawaited(_toggleDone(index)),
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: highlightFirst
+                            ? TaqaUiColors.unnamedColor1c1d17
+                            : const Color(0xFFDDE530),
+                      ),
+                    ),
+                    child: row.done
+                        ? Icon(
+                            Icons.check,
+                            size: 16,
+                            color: highlightFirst
+                                ? TaqaUiColors.unnamedColor1c1d17
+                                : const Color(0xFFDDE530),
+                          )
+                        : null,
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(
+              width: 26,
+              child: _rows.length > 1
+                  ? GestureDetector(
+                      onTap: () => unawaited(_deleteSetRow(index)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(
+                          Icons.delete_outline,
+                          size: 18,
+                          color: highlightFirst
+                              ? TaqaUiColors.unnamedColor1c1d17
+                              : Colors.white70,
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _ghostButton({required String label, VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.white54),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LauncherSetRow {
+  const _LauncherSetRow({
+    required this.setIndex,
+    required this.reps,
+    required this.rir,
+    required this.weightKg,
+    required this.done,
+  });
+
+  final int setIndex;
+  final int reps;
+  final int rir;
+  final double weightKg;
+  final bool done;
+
+  _LauncherSetRow copyWith({
+    int? setIndex,
+    int? reps,
+    int? rir,
+    double? weightKg,
+    bool? done,
+  }) {
+    return _LauncherSetRow(
+      setIndex: setIndex ?? this.setIndex,
+      reps: reps ?? this.reps,
+      rir: rir ?? this.rir,
+      weightKg: weightKg ?? this.weightKg,
+      done: done ?? this.done,
+    );
+  }
+}
+
+class _HeaderText extends StatelessWidget {
+  const _HeaderText(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: TextStyle(
+        color: Colors.white.withValues(alpha: 0.75),
+        fontSize: 10,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 0.2,
+      ),
+    );
+  }
 }
 
 class _DayOrderResult {
@@ -47,8 +1871,9 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
   Set<String> completedExerciseNames = {};
   int _tabIndex = 0; // 0 = Train, 1 = Cardio
   bool _cardioBuilt = false;
+  List<Map<String, dynamic>> _cardioLibrary = const [];
+  bool _loadingCardioLibrary = false;
   List<Map<String, dynamic>> _trainExercises = const [];
-  List<Map<String, dynamic>> _cardioExercises = const [];
   final Set<String> _preloadedThumbs = <String>{};
   List<int> _dayOrder = const [];
   List<bool> _dayCompletedByIndex = const [];
@@ -61,10 +1886,15 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
   String? _activeWeekToken;
   bool _weekRefreshInProgress = false;
   Set<String> _historyWorkedDayTokensForWeek = <String>{};
+  Map<String, Set<String>> _historyCompletedExerciseNamesByDayTokenForWeek =
+      <String, Set<String>>{};
   String? _historyWorkedWeekToken;
   bool _historyWorkedLoadedForWeek = false;
   int _unseenPlanChangeCount = 0;
   bool _resumeRefreshInFlight = false;
+  bool _hasCardioSession = false;
+  bool _cardioSessionPaused = false;
+  String? _sessionExerciseName;
 
   int? _userId;
   int? _pendingCompletionDayIndex;
@@ -81,12 +1911,56 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
   bool _showExRestPanel = false;
   Timer? _exRestTimer;
 
+  static const List<Map<String, dynamic>> _fallbackCardioLibrary = [
+    {
+      "exercise_id": 4154,
+      "exercise_name": "Outdoor Run",
+      "animation_name": "Cardio - Running",
+      "category": "Cardio",
+      "sets": 1,
+      "reps": 1,
+      "rir": 0,
+      "primary_muscles": "Cardio",
+    },
+    {
+      "exercise_id": 4155,
+      "exercise_name": "Treadmill",
+      "animation_name": "Cardio - Treadmill",
+      "category": "Cardio",
+      "sets": 1,
+      "reps": 1,
+      "rir": 0,
+      "primary_muscles": "Cardio",
+    },
+    {
+      "exercise_id": 4153,
+      "exercise_name": "Rowing Machine",
+      "animation_name": "Cardio - Rowing Machine",
+      "category": "Cardio",
+      "sets": 1,
+      "reps": 1,
+      "rir": 0,
+      "primary_muscles": "Cardio",
+    },
+    {
+      "exercise_id": 4152,
+      "exercise_name": "Jump Rope",
+      "animation_name": "Cardio - Jump Rope",
+      "category": "Cardio",
+      "sets": 1,
+      "reps": 1,
+      "rir": 0,
+      "primary_muscles": "Cardio",
+    },
+  ];
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     AccountStorage.trainingChange.addListener(_onTrainingChanged);
     AccountStorage.accountChange.addListener(_onAccountChanged);
+    _loadCardioLibraryFromCache();
     _init();
   }
 
@@ -149,6 +2023,38 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     } catch (_) {}
   }
 
+  Future<void> _loadCardioLibraryFromCache() async {
+    final cached = await CardioExercisesStorage.loadList();
+    if (!mounted || cached == null || cached.isEmpty) return;
+    setState(() => _cardioLibrary = cached);
+  }
+
+  Future<void> _loadCardioLibrary() async {
+    if (_loadingCardioLibrary) return;
+    if (_cardioLibrary.isNotEmpty) return;
+    setState(() => _loadingCardioLibrary = true);
+    try {
+      final items = await TrainingService.fetchCardioExercises();
+      if (!mounted) return;
+      final merged = items.isNotEmpty
+          ? items
+          : List<Map<String, dynamic>>.from(_fallbackCardioLibrary);
+      setState(() {
+        _cardioLibrary = merged;
+        _loadingCardioLibrary = false;
+      });
+      CardioExercisesStorage.saveList(merged);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _cardioLibrary = List<Map<String, dynamic>>.from(
+          _fallbackCardioLibrary,
+        );
+        _loadingCardioLibrary = false;
+      });
+    }
+  }
+
   Future<void> _loadWorkoutTimer() async {
     final startMs = await TrainingProgressStorage.getWorkoutStartMs();
     final lastExerciseFinishedMs =
@@ -192,6 +2098,92 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       });
     }
     await _refreshInProgressExercises();
+    await _syncCardioSessionState();
+  }
+
+  bool _isCardioSession(Map<String, dynamic>? session) {
+    if (session == null) return false;
+    final distance = session['distanceKm'];
+    final pace = session['paceMinKm'];
+    return distance is num || pace is num;
+  }
+
+  String _normalizeName(String? name) {
+    return (name ?? '').trim().toLowerCase();
+  }
+
+  bool _isKnownCardioExerciseName(String? rawName) {
+    final target = _normalizeName(rawName);
+    if (target.isEmpty) return false;
+    final days = program?['days'];
+    final plannedCardio = days is List
+        ? _allCardioExercisesForProgram(days)
+        : const <Map<String, dynamic>>[];
+    final cardioList = plannedCardio.isNotEmpty
+        ? plannedCardio
+        : (_cardioLibrary.isNotEmpty ? _cardioLibrary : _fallbackCardioLibrary);
+    for (final ex in cardioList) {
+      final exName = _normalizeName(ex['exercise_name']?.toString());
+      if (exName == target) return true;
+    }
+    return false;
+  }
+
+  Future<void> _syncCardioSessionState() async {
+    final session = await TrainingActivityService.getActiveSession();
+    final rawName = session?['name']?.toString();
+    final isCardio =
+        _isCardioSession(session) || _isKnownCardioExerciseName(rawName);
+    final hasCardioSession = session != null && isCardio;
+    final paused = hasCardioSession && session['paused'] == true;
+    final resolvedName = hasCardioSession ? rawName : null;
+    if (!mounted) return;
+    setState(() {
+      _hasCardioSession = hasCardioSession;
+      _cardioSessionPaused = paused;
+      _sessionExerciseName = resolvedName;
+    });
+  }
+
+  void _continueCardioSession(List<Map<String, dynamic>> list) {
+    final targetName = _normalizeName(_sessionExerciseName);
+    if (targetName.isEmpty) {
+      AppToast.show(
+        context,
+        "Couldn't find the cardio session.",
+        type: AppToastType.info,
+      );
+      return;
+    }
+    Map<String, dynamic>? match;
+    for (final ex in list) {
+      final name = _normalizeName(ex['exercise_name']?.toString());
+      if (name == targetName) {
+        match = ex;
+        break;
+      }
+    }
+    if (match == null) {
+      AppToast.show(
+        context,
+        "Paused cardio not found. Cancel to start a new one.",
+        type: AppToastType.info,
+      );
+      return;
+    }
+    unawaited(_openCardioExerciseSession(match));
+  }
+
+  Future<void> _cancelPausedCardioSession() async {
+    await TrainingActivityService.stopSession();
+    if (!mounted) return;
+    setState(() {
+      _hasCardioSession = false;
+      _cardioSessionPaused = false;
+      _sessionExerciseName = null;
+      _inProgressExerciseIds.clear();
+      _activeSessionExerciseName = null;
+    });
   }
 
   void _syncWorkoutElapsed() {
@@ -300,18 +2292,20 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
               dayKey: workoutDayKey,
               label: workoutBrandName,
             );
-        await healthSyncService.writeWorkoutSession(
-          start: DateTime.fromMillisecondsSinceEpoch(sessionStartMs),
-          end: now,
-          title: "TAQA Workout Session",
-          isCardio: false,
-          workoutBrandName: workoutBrandName,
-          isIndoorWorkout: true,
-          dedupeSignature: trainingDayDedupeSignature,
-          verifyHealthIfCachedDedupeSignature: true,
-          syncIdentifier: trainingDayDedupeSignature,
-          syncVersion: now.millisecondsSinceEpoch,
-        ).timeout(const Duration(seconds: 10));
+        await healthSyncService
+            .writeWorkoutSession(
+              start: DateTime.fromMillisecondsSinceEpoch(sessionStartMs),
+              end: now,
+              title: "TAQA Workout Session",
+              isCardio: false,
+              workoutBrandName: workoutBrandName,
+              isIndoorWorkout: true,
+              dedupeSignature: trainingDayDedupeSignature,
+              verifyHealthIfCachedDedupeSignature: true,
+              syncIdentifier: trainingDayDedupeSignature,
+              syncVersion: now.millisecondsSinceEpoch,
+            )
+            .timeout(const Duration(seconds: 10));
       } catch (_) {
         // Ignore health write failures and continue local finish flow.
       }
@@ -675,13 +2669,11 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     final data = program;
     if (data == null) {
       _trainExercises = const [];
-      _cardioExercises = const [];
       return;
     }
     final days = data['days'];
     if (days is! List || days.isEmpty) {
       _trainExercises = const [];
-      _cardioExercises = const [];
       return;
     }
     if (selectedDay >= days.length) {
@@ -690,20 +2682,16 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     final currentDay = days[selectedDay];
     final exercises = currentDay is Map ? currentDay['exercises'] : null;
     final List<Map<String, dynamic>> train = [];
-    final List<Map<String, dynamic>> cardio = [];
     if (exercises is List) {
       for (final ex in exercises) {
         if (ex is Map<String, dynamic>) {
-          if (_isCardioExercise(ex)) {
-            cardio.add(ex);
-          } else {
+          if (!_isCardioExercise(ex)) {
             train.add(ex);
           }
         }
       }
     }
     _trainExercises = train;
-    _cardioExercises = cardio;
   }
 
   String _normalizeExerciseName(dynamic value) {
@@ -790,30 +2778,14 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     for (var i = 0; i < days.length; i++) {
       final day = days[i];
       if (day is Map<String, dynamic>) {
-        final isCompleted =
-            _isDayFinishedForCurrentWeek(day, i, weekStart) ||
-            _isDayFullyCompletedForWeek(
-              day,
-              weekStart: weekStart,
-              weekEnd: weekEnd,
-            );
-        completedByIndex[i] = isCompleted;
-        greenByIndex[i] =
-            isCompleted ||
-            _isDayWorkedForWeek(day, weekStart, weekEnd, dayIndex: i);
+        final isDone = _isDayAnyExerciseCompletedFromHistory(day, i);
+        completedByIndex[i] = isDone;
+        greenByIndex[i] = isDone;
       } else if (day is Map) {
         final dayMap = Map<String, dynamic>.from(day);
-        final isCompleted =
-            _isDayFinishedForCurrentWeek(dayMap, i, weekStart) ||
-            _isDayFullyCompletedForWeek(
-              dayMap,
-              weekStart: weekStart,
-              weekEnd: weekEnd,
-            );
-        completedByIndex[i] = isCompleted;
-        greenByIndex[i] =
-            isCompleted ||
-            _isDayWorkedForWeek(dayMap, weekStart, weekEnd, dayIndex: i);
+        final isDone = _isDayAnyExerciseCompletedFromHistory(dayMap, i);
+        completedByIndex[i] = isDone;
+        greenByIndex[i] = isDone;
       }
     }
     // Keep current week "green" days (worked or complete) at the end.
@@ -886,13 +2858,112 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _startExerciseFlow(Map<String, dynamic> ex) async {
+  Future<void> _startExerciseFromLauncher(
+    Map<String, dynamic> ex, {
+    required int sets,
+    required int reps,
+  }) async {
     _stopExRestCountdownQuiet();
     if (mounted) setState(() {});
+
+    final days = program?['days'];
+    Map<String, dynamic> exerciseWithDay = ex;
+    final rawDayIndex = ex['training_day_index'];
+    final resolvedDayIndex = rawDayIndex is int
+        ? rawDayIndex
+        : (rawDayIndex is num
+                  ? rawDayIndex.toInt()
+                  : int.tryParse(rawDayIndex?.toString() ?? '')) ??
+              selectedDay;
+    if (days is List &&
+        resolvedDayIndex >= 0 &&
+        resolvedDayIndex < days.length) {
+      final day = days[resolvedDayIndex];
+      if (day is Map) {
+        exerciseWithDay = Map<String, dynamic>.from(ex);
+        exerciseWithDay['training_day_id'] = day['day_id'];
+        exerciseWithDay['training_day_label'] = day['day_label'];
+        exerciseWithDay['training_day_index'] = resolvedDayIndex;
+      }
+    }
+
+    final now = DateTime.now();
+    final entryDateToken =
+        "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+    final programExerciseId = _programExerciseId(exerciseWithDay);
+    if (programExerciseId != null) {
+      try {
+        await TrainingNetworkResilience.withTimeout(
+          TrainingService.startExercise(programExerciseId, entryDate: now),
+          TrainingNetworkResilience.sheetMutation,
+        );
+      } catch (_) {
+        await ExerciseActionQueue.queueAction(
+          action: ExerciseActionQueue.actionStart,
+          programExerciseId: programExerciseId,
+          data: {"entry_date": entryDateToken},
+        );
+      }
+    }
+
+    _markExerciseInProgress(exerciseWithDay);
+    if (!_isCardioExercise(exerciseWithDay)) {
+      await TrainingProgressStorage.recordWorkoutStart(
+        trainingDayIndex: resolvedDayIndex,
+      );
+      AccountStorage.notifyTrainingChanged();
+    }
+
+    final name = (exerciseWithDay['exercise_name'] ?? '').toString().trim();
+    if (name.isNotEmpty) {
+      await TrainingActivityService.startSession(
+        exerciseName: name,
+        sets: sets <= 0 ? 1 : sets,
+        reps: reps <= 0 ? 1 : reps,
+        seconds: 0,
+      );
+    }
+
+    if (!mounted) return;
+    await _loadWorkoutTimer();
+    await _refreshInProgressExercises();
+  }
+
+  Future<void> _handleExerciseFinishedFromLauncher(
+    Map<String, dynamic> ex,
+  ) async {
+    final programExerciseId = _programExerciseId(ex);
+    final normalizedName = _normalizeExerciseName(ex['exercise_name']);
+    if (mounted) {
+      setState(() {
+        if (programExerciseId != null) {
+          _inProgressExerciseIds.remove(programExerciseId);
+        }
+        if (normalizedName.isNotEmpty) {
+          _sessionCompletedExerciseNames = <String>{
+            ..._sessionCompletedExerciseNames,
+            normalizedName,
+          };
+        }
+        _activeSessionExerciseName = null;
+        _showExRestPanel = true;
+        if (!_exRestActive) {
+          _exRestRemaining = _exRestPresetSeconds;
+        }
+      });
+    }
+    await _loadWorkoutTimer();
+    await _refreshInProgressExercises();
+  }
+
+  Future<void> _openCardioExerciseSession(Map<String, dynamic> ex) async {
+    _stopExRestCountdownQuiet();
+    if (mounted) setState(() {});
+
     final dpr = MediaQuery.of(context).devicePixelRatio;
-    final thumbW = (74 * dpr).round();
-    final thumbH = (66 * dpr).round();
-    final sheetH = (160 * dpr).round();
+    final thumbW = (86 * dpr).round();
+    final thumbH = (78 * dpr).round();
+    final sheetH = (200 * dpr).round();
     final gifUrl = TrainingService.animationImageUrl(
       ex['animation_url']?.toString(),
       null,
@@ -905,22 +2976,31 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
             cacheHeight: thumbH,
           );
     if (gifUrl.isNotEmpty) {
-      // Warm the sheet size without blocking UI.
       TrainingService.warmGif(
         context,
         gifUrl,
         cacheHeight: sheetH,
       ).catchError((_) {});
     }
+
     final days = program?['days'];
     Map<String, dynamic> exerciseWithDay = ex;
-    if (days is List && selectedDay >= 0 && selectedDay < days.length) {
-      final day = days[selectedDay];
+    final rawDayIndex = ex['training_day_index'];
+    final resolvedDayIndex = rawDayIndex is int
+        ? rawDayIndex
+        : (rawDayIndex is num
+                  ? rawDayIndex.toInt()
+                  : int.tryParse(rawDayIndex?.toString() ?? '')) ??
+              selectedDay;
+    if (days is List &&
+        resolvedDayIndex >= 0 &&
+        resolvedDayIndex < days.length) {
+      final day = days[resolvedDayIndex];
       if (day is Map) {
         exerciseWithDay = Map<String, dynamic>.from(ex);
         exerciseWithDay['training_day_id'] = day['day_id'];
         exerciseWithDay['training_day_label'] = day['day_label'];
-        exerciseWithDay['training_day_index'] = selectedDay;
+        exerciseWithDay['training_day_index'] = resolvedDayIndex;
       }
     }
 
@@ -1005,6 +3085,7 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       _tabIndex = 1;
       _cardioBuilt = true;
     });
+    unawaited(_loadCardioLibrary());
   }
 
   Future<void> _openReplaceSheet(Map<String, dynamic> ex) async {
@@ -1029,6 +3110,172 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       }
       await _loadProgram();
     }
+  }
+
+  String _titleCase(String input) {
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) return trimmed;
+    return trimmed
+        .split(RegExp(r'\s+'))
+        .map((word) {
+          if (word.isEmpty) return word;
+          if (word.length <= 4 && word == word.toUpperCase()) return word;
+          final lower = word.toLowerCase();
+          return "${lower[0].toUpperCase()}${lower.substring(1)}";
+        })
+        .join(' ');
+  }
+
+  List<Map<String, dynamic>> _trainingExercisesForDay({
+    required List days,
+    required int dayIndex,
+    required String dayLabel,
+  }) {
+    if (dayIndex < 0 || dayIndex >= days.length) return const [];
+    final day = days[dayIndex];
+    final exercises = day is Map ? day['exercises'] : null;
+    if (exercises is! List) return const [];
+
+    final out = <Map<String, dynamic>>[];
+    for (final rawEx in exercises) {
+      Map<String, dynamic>? ex;
+      if (rawEx is Map<String, dynamic>) {
+        ex = Map<String, dynamic>.from(rawEx);
+      } else if (rawEx is Map) {
+        ex = Map<String, dynamic>.from(rawEx);
+      }
+      if (ex == null || _isCardioExercise(ex)) continue;
+      ex['training_day_index'] = dayIndex;
+      ex['training_day_label'] = dayLabel;
+      if (day is Map) {
+        ex['training_day_id'] = day['day_id'];
+      }
+      out.add(ex);
+    }
+    return out;
+  }
+
+  List<Map<String, dynamic>> _allCardioExercisesForProgram(List days) {
+    final out = <Map<String, dynamic>>[];
+    for (var dayIndex = 0; dayIndex < days.length; dayIndex++) {
+      final day = days[dayIndex];
+      final exercises = day is Map ? day['exercises'] : null;
+      if (exercises is! List) continue;
+      final dayLabel =
+          (day is Map
+                  ? (day['day_label'] ?? day['label'] ?? 'Day ${dayIndex + 1}')
+                  : 'Day ${dayIndex + 1}')
+              .toString();
+      for (final rawEx in exercises) {
+        Map<String, dynamic>? ex;
+        if (rawEx is Map<String, dynamic>) {
+          ex = Map<String, dynamic>.from(rawEx);
+        } else if (rawEx is Map) {
+          ex = Map<String, dynamic>.from(rawEx);
+        }
+        if (ex == null || !_isCardioExercise(ex)) continue;
+        ex['training_day_index'] = dayIndex;
+        ex['training_day_label'] = dayLabel;
+        if (day is Map) {
+          ex['training_day_id'] = day['day_id'];
+        }
+        out.add(ex);
+      }
+    }
+    return out;
+  }
+
+  Future<void> _openTrainingDayExercisesPage({
+    required List days,
+    required int dayIndex,
+    required String dayLabel,
+  }) async {
+    setState(() {
+      selectedDay = dayIndex;
+      _rebuildExerciseLists();
+    });
+    await _preloadExerciseGifsForCurrentDay();
+    await _refreshInProgressExercises();
+
+    if (!mounted) return;
+    final exercises = _trainingExercisesForDay(
+      days: days,
+      dayIndex: dayIndex,
+      dayLabel: dayLabel,
+    );
+    final rawDay = (dayIndex >= 0 && dayIndex < days.length)
+        ? days[dayIndex]
+        : null;
+    final dayMap = rawDay is Map<String, dynamic>
+        ? rawDay
+        : (rawDay is Map ? Map<String, dynamic>.from(rawDay) : null);
+    final historyCompletedExerciseNames = dayMap == null
+        ? const <String>{}
+        : _historyCompletedExerciseNamesForDay(dayMap, dayIndex);
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _TrainingDayExercisesPage(
+          dayLabel: dayLabel,
+          exercises: exercises,
+          readDisabledState: () => _isDayDisabledForWorkout(dayIndex),
+          readDayNoteState: () => _dayNoteForWorkoutLock(dayIndex),
+          readLiveState: _readTrainingDayLiveState,
+          historyCompletedExerciseNames: historyCompletedExerciseNames,
+          programExerciseIdOf: _programExerciseId,
+          normalizeExerciseName: _normalizeExerciseName,
+          onStartExercise: _startExerciseFromLauncher,
+          onExerciseFinished: _handleExerciseFinishedFromLauncher,
+          onReplaceExercise: _openReplaceSheet,
+          onFinishWorkout: () => _finishWorkout(),
+          onSkipRest: _skipExRest,
+          onStartRest: _startExRestCountdown,
+          onSetCustomRest: _setCustomExRestPreset,
+          restPresets: const [10, 15, 30, 45, 60],
+          onSelectRestPreset: _setExRestPreset,
+        ),
+      ),
+    );
+  }
+
+  bool _isDayDisabledForWorkout(int dayIndex) {
+    if (_isDeactivated) return true;
+    final workoutLockDayIndex =
+        (_workoutStartMs != null && _workoutDayIndex != null)
+        ? _workoutDayIndex
+        : null;
+    if (workoutLockDayIndex == null) return false;
+    return dayIndex != workoutLockDayIndex;
+  }
+
+  String? _dayNoteForWorkoutLock(int dayIndex) {
+    if (_isDeactivated) return "Account is deactivated";
+    final workoutLockDayIndex =
+        (_workoutStartMs != null && _workoutDayIndex != null)
+        ? _workoutDayIndex
+        : null;
+    if (workoutLockDayIndex == null || dayIndex == workoutLockDayIndex) {
+      return null;
+    }
+    return "Workout in progress";
+  }
+
+  _TrainingDayLiveState _readTrainingDayLiveState() {
+    return _TrainingDayLiveState(
+      inProgressExerciseIds: Set<int>.from(_inProgressExerciseIds),
+      activeSessionExerciseName: _activeSessionExerciseName,
+      sessionCompletedExerciseNames: Set<String>.from(
+        _sessionCompletedExerciseNames,
+      ),
+      showWorkoutTimer: _workoutStartMs != null,
+      workoutTimeText: _formatWorkoutTime(_workoutElapsedSeconds),
+      finishingWorkout: _finishingWorkout,
+      showRestPanel: _showExRestPanel || _exRestActive,
+      restActive: _exRestActive,
+      restTimeText: _exRestActive
+          ? _formatRestTime(_exRestRemaining)
+          : "Rest ${_formatRestTime(_exRestPresetSeconds)}",
+      activeRestPreset: _exRestPresetSeconds,
+    );
   }
 
   bool _isCardioExercise(Map<String, dynamic> ex) {
@@ -1145,6 +3392,31 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     return tokens;
   }
 
+  Set<String> _historyCompletedExerciseNames(Map<String, dynamic> item) {
+    final names = <String>{};
+    void addName(dynamic value) {
+      final normalized = _normalizeExerciseName(value);
+      if (normalized.isNotEmpty) names.add(normalized);
+    }
+
+    final completedExercises = item['completed_exercises'];
+    if (completedExercises is List) {
+      for (final entry in completedExercises) {
+        if (entry is String) {
+          addName(entry);
+        } else if (entry is Map) {
+          addName(
+            entry['exercise_name'] ??
+                entry['name'] ??
+                entry['title'] ??
+                entry['exercise'],
+          );
+        }
+      }
+    }
+    return names;
+  }
+
   bool _historyRowHasWorkedState(Map<String, dynamic> item) {
     if (_flagTrue(item['is_completed_day'])) return true;
     if (_flagTrue(item['worked']) || _flagTrue(item['has_progress'])) {
@@ -1209,6 +3481,7 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     final userId = _userId ?? await AccountStorage.getUserId();
     if (userId == null) {
       _historyWorkedDayTokensForWeek = <String>{};
+      _historyCompletedExerciseNamesByDayTokenForWeek = <String, Set<String>>{};
       _historyWorkedWeekToken = weekToken;
       _historyWorkedLoadedForWeek = false;
       return;
@@ -1220,16 +3493,28 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
         limitDays: 42,
       );
       final workedTokens = <String>{};
+      final completedByDayToken = <String, Set<String>>{};
       for (final row in history) {
         if (!_historyRowInCurrentWeek(row, weekStart, weekEnd)) continue;
         if (!_historyRowHasWorkedState(row)) continue;
-        workedTokens.addAll(_historyDayIdentityTokens(row));
+        final rowTokens = _historyDayIdentityTokens(row);
+        final rowNames = _historyCompletedExerciseNames(row);
+        if (rowTokens.isNotEmpty && rowNames.isNotEmpty) {
+          for (final token in rowTokens) {
+            completedByDayToken
+                .putIfAbsent(token, () => <String>{})
+                .addAll(rowNames);
+          }
+        }
+        workedTokens.addAll(rowTokens);
       }
       _historyWorkedDayTokensForWeek = workedTokens;
+      _historyCompletedExerciseNamesByDayTokenForWeek = completedByDayToken;
       _historyWorkedWeekToken = weekToken;
       _historyWorkedLoadedForWeek = true;
     } catch (_) {
       _historyWorkedDayTokensForWeek = <String>{};
+      _historyCompletedExerciseNamesByDayTokenForWeek = <String, Set<String>>{};
       _historyWorkedWeekToken = weekToken;
       _historyWorkedLoadedForWeek = false;
     }
@@ -1387,37 +3672,76 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     int? dayIndex,
   }) {
     final weekToken = _dateToken(weekStart);
-    if (_historyWorkedLoadedForWeek &&
-        _historyWorkedWeekToken == weekToken &&
-        dayIndex != null &&
-        dayIndex >= 0) {
-      final tokens = _programDayIdentityTokens(day, dayIndex);
-      return tokens.any(_historyWorkedDayTokensForWeek.contains);
+    if (!_historyWorkedLoadedForWeek || _historyWorkedWeekToken != weekToken) {
+      return false;
     }
+    if (dayIndex == null || dayIndex < 0) return false;
+    final tokens = _programDayIdentityTokens(day, dayIndex);
+    return tokens.any(_historyWorkedDayTokensForWeek.contains);
+  }
 
-    if (_isDayFlaggedCompletedForWeek(day, weekStart, weekEnd)) return true;
-    if (_complianceCompletedForWeek(
-          day['program_compliance'],
-          weekStart,
-          weekEnd,
-        ) ||
-        _complianceCompletedForWeek(day['compliance'], weekStart, weekEnd)) {
-      return true;
+  Set<String> _historyCompletedExerciseNamesForDay(
+    Map<String, dynamic> day,
+    int dayIndex,
+  ) {
+    if (!_historyWorkedLoadedForWeek || dayIndex < 0) return const <String>{};
+    final tokens = _programDayIdentityTokens(day, dayIndex);
+    if (tokens.isEmpty) return const <String>{};
+    final names = <String>{};
+    for (final token in tokens) {
+      final tokenNames = _historyCompletedExerciseNamesByDayTokenForWeek[token];
+      if (tokenNames == null || tokenNames.isEmpty) continue;
+      names.addAll(tokenNames);
     }
+    return names;
+  }
 
+  bool _isDayAnyExerciseCompletedFromHistory(
+    Map<String, dynamic> day,
+    int dayIndex,
+  ) {
+    return _historyCompletedExerciseNamesForDay(day, dayIndex).isNotEmpty;
+  }
+
+  bool _isDayAnyExerciseCompletedForWeek(
+    Map<String, dynamic> day, {
+    required DateTime weekStart,
+    required DateTime weekEnd,
+  }) {
     final exercises = day['exercises'];
     if (exercises is! List || exercises.isEmpty) return false;
-    for (final ex in exercises) {
-      if (ex is Map<String, dynamic>) {
-        if (_isExerciseCompletedForWeek(ex, weekStart, weekEnd)) return true;
-      } else if (ex is Map) {
-        if (_isExerciseCompletedForWeek(
-          Map<String, dynamic>.from(ex),
-          weekStart,
-          weekEnd,
-        )) {
-          return true;
-        }
+    for (final rawEx in exercises) {
+      Map<String, dynamic>? ex;
+      if (rawEx is Map<String, dynamic>) {
+        ex = rawEx;
+      } else if (rawEx is Map) {
+        ex = Map<String, dynamic>.from(rawEx);
+      }
+      if (ex == null) continue;
+      if (_isCardioExercise(ex)) continue;
+      if (_isExerciseCompletedForWeek(ex, weekStart, weekEnd)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _isDayAnyExerciseCompletedLocally(Map<String, dynamic> day) {
+    if (_sessionCompletedExerciseNames.isEmpty) return false;
+    final exercises = day['exercises'];
+    if (exercises is! List || exercises.isEmpty) return false;
+    for (final rawEx in exercises) {
+      Map<String, dynamic>? ex;
+      if (rawEx is Map<String, dynamic>) {
+        ex = rawEx;
+      } else if (rawEx is Map) {
+        ex = Map<String, dynamic>.from(rawEx);
+      }
+      if (ex == null) continue;
+      if (_isCardioExercise(ex)) continue;
+      final name = _normalizeExerciseName(ex['exercise_name']);
+      if (name.isNotEmpty && _sessionCompletedExerciseNames.contains(name)) {
+        return true;
       }
     }
     return false;
@@ -1739,31 +4063,35 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     required VoidCallback onTap,
   }) {
     return Expanded(
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOut,
-        decoration: BoxDecoration(
-          color: active
-              ? const Color(0xFF2D7CFF)
-              : Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: active ? const Color(0xFF2D7CFF) : Colors.white24,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(5),
+        child: Container(
+          height: 52,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: active
+                ? TaqaUiColors.unnamedColorE4e93b
+                : TaqaUiColors.white,
+            borderRadius: BorderRadius.circular(5),
+            border: active
+                ? null
+                : Border.all(
+                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                      alpha: 0.12,
+                    ),
+                  ),
           ),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Center(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: active ? Colors.white : Colors.white70,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+          child: Text(
+            label.toUpperCase(),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.2,
+              letterSpacing: 0,
+              color: TaqaUiColors.unnamedColor1c1d17,
             ),
           ),
         ),
@@ -1780,7 +4108,12 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     }
 
     if (program == null) {
-      return Center(child: Text(t.translate("no_active_training_program")));
+      return Center(
+        child: Text(
+          t.translate("no_active_training_program"),
+          style: const TextStyle(color: TaqaUiColors.unnamedColor1c1d17),
+        ),
+      );
     }
 
     _scheduleWeekRefreshIfNeeded();
@@ -1814,17 +4147,10 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
         dayIndex: i,
       );
     }).toList();
-    final disableTrainingToday = _isDeactivated;
     final workoutLockDayIndex =
         (_workoutStartMs != null && _workoutDayIndex != null)
         ? _workoutDayIndex
         : null;
-    final disabledInOrder = List<bool>.generate(dayOrder.length, (i) {
-      if (disableTrainingToday) return true;
-      if (workoutLockDayIndex == null) return false;
-      final actualDayIndex = dayOrder[i];
-      return actualDayIndex != workoutLockDayIndex;
-    });
     final notesInOrder = List<String?>.generate(dayOrder.length, (i) {
       if (_isDeactivated) return "Account is deactivated";
       if (workoutLockDayIndex == null) return null;
@@ -1834,28 +4160,20 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     });
 
     if (days.isEmpty) {
-      return Center(child: Text(t.translate("no_active_training_program")));
+      return Center(
+        child: Text(
+          t.translate("no_active_training_program"),
+          style: const TextStyle(color: TaqaUiColors.unnamedColor1c1d17),
+        ),
+      );
     }
 
     if (selectedDay >= days.length) {
       selectedDay = 0;
     }
 
-    final currentDay = days[selectedDay];
-    final selectedDisplayIndex = dayOrder.indexOf(selectedDay);
-    final safeDisplayIndex = selectedDisplayIndex >= 0
-        ? selectedDisplayIndex
-        : 0;
-    final workoutDisplayIndex =
-        (_workoutStartMs != null && _workoutDayIndex != null)
-        ? dayOrder.indexOf(_workoutDayIndex!)
-        : -1;
-    final safeWorkoutDisplayIndex = workoutDisplayIndex >= 0
-        ? workoutDisplayIndex
-        : null;
-
     return Container(
-      color: Colors.black,
+      color: TaqaUiColors.unnamedColorE3e3e3,
       child: SafeArea(
         child: Column(
           children: [
@@ -1904,236 +4222,26 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                       ),
                       child: const Text(
                         "Account is deactivated. Training actions are disabled until you reactivate.",
-                        style: TextStyle(color: Colors.white),
+                        style: TextStyle(
+                          color: TaqaUiColors.unnamedColor1c1d17,
+                        ),
                       ),
                     ),
-                  SectionHeader(title: t.translate("training")),
-                  const SizedBox(height: 12),
-                  if (_tabIndex == 0) ...[
-                    Text(
-                      currentDay['day_label'] ?? "",
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
+                  Center(
+                    child: Text(
+                      _titleCase(t.translate("training")),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: 15,
                         fontWeight: FontWeight.w700,
+                        height: 2.5,
+                        letterSpacing: 0,
+                        color: TaqaUiColors.unnamedColor1c1d17,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                  ],
-                  if (_workoutStartMs != null) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            const Color(0xFF2D7CFF).withOpacity(0.15),
-                            const Color(0xFF2D7CFF).withOpacity(0.06),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: const Color(0xFF2D7CFF).withOpacity(0.3),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.timer,
-                            color: Color(0xFF2D7CFF),
-                            size: 20,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Workout",
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.7),
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                                Text(
-                                  _formatWorkoutTime(_workoutElapsedSeconds),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 22,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          ElevatedButton(
-                            onPressed: _finishingWorkout
-                                ? null
-                                : _finishWorkout,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.greenAccent.shade400,
-                              foregroundColor: Colors.black,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 10,
-                              ),
-                            ),
-                            child: _finishingWorkout
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.black,
-                                    ),
-                                  )
-                                : const Text(
-                                    "Finish Workout",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  if (_tabIndex == 0 &&
-                      (_showExRestPanel || _exRestActive)) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.12),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _exRestActive
-                                ? Icons.hourglass_bottom
-                                : Icons.timer_outlined,
-                            color: _exRestActive
-                                ? Colors.orangeAccent
-                                : Colors.white70,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  "Between exercises",
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                Text(
-                                  _exRestActive
-                                      ? _formatRestTime(_exRestRemaining)
-                                      : "Rest ${_formatRestTime(_exRestPresetSeconds)}",
-                                  style: TextStyle(
-                                    color: _exRestActive
-                                        ? Colors.orangeAccent
-                                        : Colors.white,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: _exRestActive ? 22 : 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (_exRestActive)
-                            OutlinedButton(
-                              onPressed: _skipExRest,
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                side: BorderSide(
-                                  color: Colors.white.withOpacity(0.3),
-                                ),
-                              ),
-                              child: const Text("Skip"),
-                            )
-                          else ...[
-                            IconButton(
-                              onPressed: _setCustomExRestPreset,
-                              tooltip: "Custom rest",
-                              icon: const Icon(
-                                Icons.tune,
-                                color: Colors.white70,
-                              ),
-                            ),
-                            ElevatedButton(
-                              onPressed: _startExRestCountdown,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orangeAccent
-                                    .withOpacity(0.2),
-                                foregroundColor: Colors.orangeAccent,
-                                elevation: 0,
-                              ),
-                              child: const Text("Start"),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    if (!_exRestActive) ...[
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [10, 15, 30, 45, 60].map((s) {
-                          final active = _exRestPresetSeconds == s;
-                          return InkWell(
-                            onTap: () => _setExRestPreset(s),
-                            borderRadius: BorderRadius.circular(999),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: active
-                                    ? Colors.orangeAccent.withOpacity(0.22)
-                                    : Colors.white.withOpacity(0.05),
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(
-                                  color: active
-                                      ? Colors.orangeAccent.withOpacity(0.45)
-                                      : Colors.white.withOpacity(0.16),
-                                ),
-                              ),
-                              child: Text(
-                                "${s}s",
-                                style: TextStyle(
-                                  color: active
-                                      ? Colors.orangeAccent
-                                      : Colors.white70,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                    const SizedBox(height: 12),
-                  ],
+                  ),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       _tabButton(
@@ -2159,64 +4267,27 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                 children: [
                   RefreshIndicator(
                     color: Colors.blueAccent,
-                    backgroundColor: Colors.black87,
+                    backgroundColor: Colors.white,
                     onRefresh: _loadProgram,
                     child: ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                       children: [
-                        DaySelector(
-                          labels: dayOrder.map<String>((i) {
-                            final d = days[i];
-                            if (d is Map) {
-                              return d['day_label']?.toString() ?? '';
-                            }
-                            return '';
-                          }).toList(),
-                          completed: completedInOrder,
-                          worked: workedInOrder,
-                          disabled: disabledInOrder,
-                          notes: notesInOrder,
-                          workoutInProgress: _workoutStartMs != null,
-                          workoutInProgressIndex: safeWorkoutDisplayIndex,
-                          selectedIndex: safeDisplayIndex,
-                          onSelect: (i) {
-                            final nextIndex = (i >= 0 && i < dayOrder.length)
-                                ? dayOrder[i]
-                                : i;
-                            if (_workoutStartMs != null &&
-                                _workoutDayIndex != null &&
-                                nextIndex != _workoutDayIndex) {
-                              AppToast.show(
-                                context,
-                                "Finish the current workout before switching days.",
-                                type: AppToastType.info,
-                              );
-                              return;
-                            }
-                            setState(() {
-                              selectedDay = nextIndex;
-                              _rebuildExerciseLists();
-                            });
-                            _preloadExerciseGifsForCurrentDay();
-                            unawaited(_refreshInProgressExercises());
-                          },
-                        ),
-                        const SizedBox(height: 24),
                         Row(
                           children: [
                             Expanded(
                               child: Text(
-                                t.translate("training_exercise_list_title"),
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                                "Workout List",
+                                style: const TextStyle(
+                                  fontFamily: TaqaUiFontFamilies.interTight,
+                                  fontSize: 25,
+                                  fontWeight: FontWeight.w700,
+                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                ),
                               ),
                             ),
-                            OutlinedButton.icon(
-                              onPressed: () async {
+                            TaqaTagButton(
+                              onTap: () async {
                                 final currentProgram = program;
                                 if (currentProgram == null) return;
                                 await Navigator.of(context).push(
@@ -2231,114 +4302,319 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                                 if (!mounted) return;
                                 await _refreshTrainingPlanChangeState();
                               },
-                              icon: const Icon(Icons.history, size: 18),
-                              label: Text(
-                                _unseenPlanChangeCount > 0
-                                    ? "History • $_unseenPlanChangeCount"
-                                    : "History",
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                backgroundColor: Colors.white.withOpacity(0.08),
-                                side: BorderSide(
-                                  color: _unseenPlanChangeCount > 0
-                                      ? const Color(
-                                          0xFF2D7CFF,
-                                        ).withOpacity(0.75)
-                                      : Colors.white.withOpacity(0.2),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                                shape: const StadiumBorder(),
-                                textStyle: Theme.of(context)
-                                    .textTheme
-                                    .labelLarge
-                                    ?.copyWith(fontWeight: FontWeight.w600),
-                              ),
+                              icon: Icons.history,
+                              label: _unseenPlanChangeCount > 0
+                                  ? "HISTORY ${_unseenPlanChangeCount}"
+                                  : "HISTORY",
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 12),
                         Text(
-                          t.translate("training_exercise_list_sub"),
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: Colors.white.withOpacity(0.7)),
+                          "Follow the sets & reps shown for each exercise",
+                          style: const TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w400,
+                            color: TaqaUiColors.unnamedColor1c1d17,
+                          ),
                         ),
                         const SizedBox(height: 16),
-                        if (_trainExercises.isEmpty)
-                          Center(
-                            child: Padding(
-                              padding: const EdgeInsets.only(top: 40),
-                              child: Text(
-                                t.translate("rest_day"),
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(color: Colors.white),
+                        ...dayOrder.asMap().entries.map((entry) {
+                          final displayIndex = entry.key;
+                          final dayIndex = entry.value;
+                          final rawDay = days[dayIndex];
+                          Map<String, dynamic>? dayMap;
+                          if (rawDay is Map<String, dynamic>) {
+                            dayMap = rawDay;
+                          } else if (rawDay is Map) {
+                            dayMap = Map<String, dynamic>.from(rawDay);
+                          }
+                          final dayLabel =
+                              (dayMap?['day_label'] ??
+                                      dayMap?['label'] ??
+                                      'Day ${dayIndex + 1}')
+                                  .toString();
+                          final dayNote = displayIndex < notesInOrder.length
+                              ? notesInOrder[displayIndex]
+                              : null;
+                          final isCompleted =
+                              displayIndex < completedInOrder.length
+                              ? completedInOrder[displayIndex]
+                              : false;
+                          final isWorked = displayIndex < workedInOrder.length
+                              ? workedInOrder[displayIndex]
+                              : false;
+                          final dayExercises = _trainingExercisesForDay(
+                            days: days,
+                            dayIndex: dayIndex,
+                            dayLabel: dayLabel,
+                          );
+                          final exerciseNames = dayExercises
+                              .map(
+                                (ex) => _titleCase(
+                                  (ex['exercise_name'] ?? '').toString().trim(),
+                                ),
+                              )
+                              .where((name) => name.isNotEmpty)
+                              .toList();
+                          final exercisePreview = exerciseNames.isEmpty
+                              ? "No Exercises"
+                              : exerciseNames.join(", ");
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(15),
+                              onTap: () {
+                                unawaited(
+                                  _openTrainingDayExercisesPage(
+                                    days: days,
+                                    dayIndex: dayIndex,
+                                    dayLabel: dayLabel,
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 15,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(15),
+                                  border: Border.all(
+                                    color: TaqaUiColors.unnamedColor1c1d17
+                                        .withOpacity(0.1),
+                                    width: 1.0,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _titleCase(dayLabel),
+                                            style: const TextStyle(
+                                              fontFamily:
+                                                  TaqaUiFontFamilies.interTight,
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w700,
+                                              color: TaqaUiColors
+                                                  .unnamedColor1c1d17,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Text(
+                                            exercisePreview,
+                                            style: const TextStyle(
+                                              fontFamily:
+                                                  TaqaUiFontFamilies.interTight,
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w400,
+                                              color: TaqaUiColors
+                                                  .unnamedColor1c1d17,
+                                            ),
+                                          ),
+                                          if (dayNote != null &&
+                                              dayNote.trim().isNotEmpty)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                top: 4,
+                                              ),
+                                              child: Text(
+                                                dayNote,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodySmall
+                                                    ?.copyWith(
+                                                      color: TaqaUiColors
+                                                          .unnamedColor1c1d17
+                                                          .withOpacity(0.6),
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (isCompleted || isWorked)
+                                      const Padding(
+                                        padding: EdgeInsets.only(right: 6),
+                                        child: Icon(
+                                          Icons.check_circle,
+                                          size: 16,
+                                          color: Color(0xFF2ECC71),
+                                        ),
+                                      ),
+                                    Icon(
+                                      Icons.chevron_right,
+                                      size: 18,
+                                      color: TaqaUiColors.unnamedColor1c1d17
+                                          .withOpacity(0.6),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          )
-                        else
-                          ..._trainExercises.asMap().entries.map<Widget>((
-                            entry,
-                          ) {
-                            final ex = entry.value;
-                            final rawId =
-                                ex['program_exercise_id'] ??
-                                ex['exercise_id'] ??
-                                ex['exercise_name'] ??
-                                entry.key;
-                            final programExerciseId = _programExerciseId(ex);
-                            final normalizedName = _normalizeExerciseName(
-                              ex['exercise_name'],
-                            );
-                            final inProgressById =
-                                programExerciseId != null &&
-                                _inProgressExerciseIds.contains(
-                                  programExerciseId,
-                                );
-                            final inProgressByName =
-                                _activeSessionExerciseName != null &&
-                                normalizedName.isNotEmpty &&
-                                normalizedName == _activeSessionExerciseName;
-                            final locallyCompleted =
-                                normalizedName.isNotEmpty &&
-                                _sessionCompletedExerciseNames.contains(
-                                  normalizedName,
-                                );
-                            final exKey = ValueKey("train_ex_$rawId");
-                            return Padding(
-                              key: exKey,
-                              padding: const EdgeInsets.only(bottom: 14),
-                              child: ExerciseCard(
-                                exercise: ex,
-                                onTap: () => _startExerciseFlow(ex),
-                                onReplace: () => _openReplaceSheet(ex),
-                                disabled: disableTrainingToday,
-                                forceCompleted: locallyCompleted,
-                                inProgress: inProgressById || inProgressByName,
-                              ),
-                            );
-                          }).toList(),
+                          );
+                        }),
                       ],
                     ),
                   ),
                   RefreshIndicator(
                     color: Colors.blueAccent,
-                    backgroundColor: Colors.black87,
+                    backgroundColor: Colors.white,
                     onRefresh: _loadProgram,
                     child: _cardioBuilt
                         ? ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                             children: [
-                              const SizedBox(height: 8),
-                              CardioTab(
-                                exercises: _cardioExercises,
-                                onStart: _startExerciseFlow,
-                                onReplace: _openReplaceSheet,
-                                readOnlyLocked: _isDeactivated,
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      "Cardio List",
+                                      style: const TextStyle(
+                                        fontFamily:
+                                            TaqaUiFontFamilies.interTight,
+                                        fontSize: 25,
+                                        fontWeight: FontWeight.w700,
+                                        color: TaqaUiColors.unnamedColor1c1d17,
+                                      ),
+                                    ),
+                                  ),
+                                  TaqaTagButton(
+                                    onTap: () async {
+                                      await Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              const CardioHistoryPage(),
+                                        ),
+                                      );
+                                    },
+                                    icon: Icons.history,
+                                    label: "HISTORY",
+                                  ),
+                                ],
                               ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                "Follow the plan shown for each cardio exercise",
+                                style: TextStyle(
+                                  fontFamily: TaqaUiFontFamilies.interTight,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w400,
+                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              ...(() {
+                                final plannedCardio =
+                                    _allCardioExercisesForProgram(days);
+                                final cardioExercises = plannedCardio.isNotEmpty
+                                    ? plannedCardio
+                                    : (_cardioLibrary.isNotEmpty
+                                          ? _cardioLibrary
+                                          : _fallbackCardioLibrary);
+                                final widgets = <Widget>[];
+                                if (_hasCardioSession) {
+                                  widgets.add(
+                                    CardioResumeBanner(
+                                      paused: _cardioSessionPaused,
+                                      exerciseName: _sessionExerciseName,
+                                      onContinue: () => _continueCardioSession(
+                                        cardioExercises,
+                                      ),
+                                      onCancel: () => unawaited(
+                                        _cancelPausedCardioSession(),
+                                      ),
+                                    ),
+                                  );
+                                }
+                                if (cardioExercises.isEmpty) {
+                                  widgets.add(
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 20),
+                                      child: Text(
+                                        t.translate("rest_day"),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium
+                                            ?.copyWith(
+                                              color: TaqaUiColors
+                                                  .unnamedColor1c1d17,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                      ),
+                                    ),
+                                  );
+                                  return widgets;
+                                }
+                                final workoutLockDayIndex =
+                                    (_workoutStartMs != null &&
+                                        _workoutDayIndex != null)
+                                    ? _workoutDayIndex
+                                    : null;
+                                widgets.addAll(
+                                  cardioExercises.asMap().entries.map((entry) {
+                                    final ex = entry.value;
+                                    final rawId =
+                                        ex['program_exercise_id'] ??
+                                        ex['exercise_id'] ??
+                                        ex['exercise_name'] ??
+                                        entry.key;
+                                    final normalizedName =
+                                        _normalizeExerciseName(
+                                          ex['exercise_name'],
+                                        );
+                                    final locallyCompleted =
+                                        normalizedName.isNotEmpty &&
+                                        _sessionCompletedExerciseNames.contains(
+                                          normalizedName,
+                                        );
+                                    final rawDayIndex =
+                                        ex['training_day_index'];
+                                    final dayIndex = rawDayIndex is int
+                                        ? rawDayIndex
+                                        : (rawDayIndex is num
+                                              ? rawDayIndex.toInt()
+                                              : int.tryParse(
+                                                  rawDayIndex?.toString() ?? '',
+                                                ));
+                                    final cardDisabled =
+                                        _isDeactivated ||
+                                        (workoutLockDayIndex != null &&
+                                            dayIndex != null &&
+                                            dayIndex != workoutLockDayIndex);
+                                    final exKey = ValueKey("cardio_ex_$rawId");
+                                    return Padding(
+                                      key: exKey,
+                                      padding: const EdgeInsets.only(
+                                        bottom: 14,
+                                      ),
+                                      child: ExerciseCard(
+                                        exercise: ex,
+                                        onTap: () {
+                                          unawaited(
+                                            _openCardioExerciseSession(ex),
+                                          );
+                                        },
+                                        onReplace: () => _openReplaceSheet(ex),
+                                        disabled: cardDisabled,
+                                        forceCompleted: locallyCompleted,
+                                        inProgress: false,
+                                      ),
+                                    );
+                                  }).toList(),
+                                );
+                                return widgets;
+                              })(),
                             ],
                           )
                         : const SizedBox.shrink(),
@@ -2390,7 +4666,7 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     }
 
     return Container(
-      color: Colors.black,
+      color: TaqaUiColors.unnamedColorE3e3e3,
       child: SafeArea(
         child: Column(
           children: [
@@ -2399,7 +4675,17 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SectionHeader(title: t.translate("training")),
+                  Text(
+                    t.translate("training"),
+                    style: const TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      height: 2.5,
+                      letterSpacing: 0,
+                      color: TaqaUiColors.unnamedColor1c1d17,
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   skeletonLine(width: 140, height: 16),
                   const SizedBox(height: 12),
@@ -2422,7 +4708,7 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                   Container(
                     height: 44,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.06),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),

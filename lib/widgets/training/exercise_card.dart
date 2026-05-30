@@ -1,25 +1,29 @@
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
+import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 import '../../services/training/training_service.dart';
 import '../../services/training/training_reset_coordinator.dart';
 
 class ExerciseCard extends StatelessWidget {
   final Map<String, dynamic> exercise;
-  final VoidCallback onTap;
   final VoidCallback onReplace;
+  final VoidCallback? onTap;
   final bool disabled;
   final bool inProgress;
   final bool forceCompleted;
+  final bool? completedOverride;
 
   const ExerciseCard({
     super.key,
     required this.exercise,
-    required this.onTap,
     required this.onReplace,
+    this.onTap,
     this.disabled = false,
     this.inProgress = false,
     this.forceCompleted = false,
+    this.completedOverride,
   });
 
   Map<String, dynamic>? _extractCompliance(dynamic value) {
@@ -51,6 +55,20 @@ class ExerciseCard extends StatelessWidget {
     }
     if (value is bool) return value ? "1" : null;
     return value.toString();
+  }
+
+  String _titleCase(String input) {
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) return trimmed;
+    return trimmed
+        .split(RegExp(r'\s+'))
+        .map((word) {
+          if (word.isEmpty) return word;
+          if (word.length <= 4 && word == word.toUpperCase()) return word;
+          final lower = word.toLowerCase();
+          return "${lower[0].toUpperCase()}${lower.substring(1)}";
+        })
+        .join(' ');
   }
 
   double? _toDouble(dynamic value) {
@@ -95,6 +113,10 @@ class ExerciseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const previewWidth = 86.0;
+    const previewHeight = 78.0;
+    const cardPadding = 8.0;
+
     String _lower(dynamic v) => (v ?? '').toString().trim().toLowerCase();
     final category = _lower(exercise['category']);
     final exType = _lower(exercise['exercise_type']);
@@ -191,13 +213,12 @@ class ExerciseCard extends StatelessWidget {
         }
       }
       if (compliance is Map) {
-        final complianceDate =
-            _parseDate(
-              compliance['logged_at'] ??
-                  compliance['completed_at'] ??
-                  compliance['performed_at'] ??
-                  compliance['entry_date'],
-            );
+        final complianceDate = _parseDate(
+          compliance['logged_at'] ??
+              compliance['completed_at'] ??
+              compliance['performed_at'] ??
+              compliance['entry_date'],
+        );
         if (complianceDate == null || !_isInCurrentWeek(complianceDate)) {
           return false;
         }
@@ -253,6 +274,14 @@ class ExerciseCard extends StatelessWidget {
         : null;
     final String rirLabel = overrideRir ?? exercise['rir'].toString();
     final String? weightLabel = _formatWeightLabel(_resolvedWeight(exercise));
+    final metaTags = <String>[];
+    if (!isCardio) {
+      metaTags.add("$setsLabel x $repsLabel");
+      metaTags.add("RIR $rirLabel");
+      if (weightLabel != null) {
+        metaTags.add(weightLabel);
+      }
+    }
 
     // Accept multiple backend representations for completion/compliance flags.
     final completionFields = [
@@ -268,73 +297,32 @@ class ExerciseCard extends StatelessWidget {
     ];
 
     final bool completed =
-        forceCompleted ||
-        complianceDone ||
-        (hasCurrentWeekDate && completionFields.any(_isCompleted));
+        completedOverride ??
+        (forceCompleted ||
+            complianceDone ||
+            (hasCurrentWeekDate && completionFields.any(_isCompleted)));
     final bool showProgress = inProgress;
     final cs = Theme.of(context).colorScheme;
 
-    final gradientColors = showProgress
-        ? const [Color(0xFF251A0B), Color(0xFF120D08)]
-        : completed
-        ? const [Color(0xFF0E2A1E), Color(0xFF0B1F1A)]
-        : const [Color(0xFF0F162A), Color(0xFF0A0F1C)];
-    final shadowColor = showProgress
-        ? const Color(0xFFFFB347).withOpacity(0.35)
-        : completed
-        ? Colors.greenAccent.withOpacity(0.35)
-        : Colors.black.withOpacity(0.45);
     final borderColor = showProgress
-        ? const Color(0xFFFFC870).withOpacity(0.75)
-        : completed
-        ? Colors.greenAccent.withOpacity(0.6)
-        : Colors.white.withOpacity(0.07);
-    final statusChip = completed && !showProgress
-        ? Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.greenAccent.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.greenAccent),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.check, size: 14, color: Colors.greenAccent),
-                SizedBox(width: 3),
-                Text(
-                  "Done",
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: Colors.greenAccent,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          )
-        : null;
+        ? const Color(0xFFFFD68A)
+        : const Color(0x1A1C1D17);
+    final showDoneIcon = completed && !showProgress;
     final progressChip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFB347).withOpacity(0.15),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFFFD68A)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: const Color(0x4D1C1D17)),
       ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.timelapse_rounded, size: 14, color: Color(0xFFFFD68A)),
-          SizedBox(width: 4),
-          Text(
-            "Progress",
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: Color(0xFFFFE6B0),
-              fontSize: 11,
-            ),
-          ),
-        ],
+      child: const Text(
+        "IN PROGRESS",
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF1C1D17),
+          fontSize: 10,
+          letterSpacing: 0.2,
+        ),
       ),
     );
     final replaceChip = GestureDetector(
@@ -343,23 +331,28 @@ class ExerciseCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(disabled ? 0.03 : 0.06),
-          borderRadius: BorderRadius.circular(14),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(7),
           border: Border.all(
-            color: Colors.white24.withOpacity(disabled ? 0.5 : 1),
+            color: const Color(0xFF1C1D17).withOpacity(disabled ? 0.2 : 0.4),
           ),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.swap_horiz, size: 14, color: Colors.white70),
-            SizedBox(width: 4),
+            Icon(
+              Icons.swap_horiz,
+              size: 14,
+              color: const Color(0xFF1C1D17).withOpacity(disabled ? 0.4 : 1),
+            ),
+            const SizedBox(width: 4),
             Text(
-              "Replace",
+              "REPLACE",
               style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF1C1D17).withOpacity(disabled ? 0.4 : 1),
+                fontSize: 10,
+                letterSpacing: 0.2,
               ),
             ),
           ],
@@ -374,177 +367,226 @@ class ExerciseCard extends StatelessWidget {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            borderRadius: BorderRadius.circular(18),
             onTap: disabled ? null : onTap,
+            borderRadius: BorderRadius.circular(15),
             child: Stack(
               children: [
                 Ink(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: gradientColors,
-                    ),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15),
                     border: Border.all(color: borderColor),
                     boxShadow: [
                       BoxShadow(
-                        color: shadowColor,
-                        blurRadius: completed ? 18 : 14,
-                        offset: const Offset(0, 8),
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            width: 74,
-                            height: 66,
-                            color: Colors.black26,
-                            child: () {
-                              final dpr = MediaQuery.of(
-                                context,
-                              ).devicePixelRatio;
-                              final cacheW = (74 * dpr).round();
-                              final cacheH = (66 * dpr).round();
-                              final url = TrainingService.animationImageUrl(
-                                exercise['animation_url']?.toString(),
-                                null,
-                              );
-                              if (url.isEmpty) {
-                                return const Icon(
-                                  Icons.fitness_center,
-                                  size: 20,
-                                  color: Colors.white24,
-                                );
-                              }
-                              return _ExerciseGifThumb(
-                                key: ValueKey(url),
-                                url: url,
-                                cacheWidth: cacheW,
-                                cacheHeight: cacheH,
-                              );
-                            }(),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minHeight: previewHeight + (cardPadding * 2),
+                      maxHeight: previewHeight + (cardPadding * 2),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(cardPadding),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      exercise['exercise_name'] ?? '',
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                        color: showProgress
-                                            ? const Color(0xFFFFD68A)
-                                            : completed
-                                            ? Colors.greenAccent
-                                            : Colors.white,
-                                        fontSize: 15,
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  width: previewWidth,
+                                  height: previewHeight,
+                                  color: const Color(0xFFE3E3E3),
+                                  child: () {
+                                    final dpr = MediaQuery.of(
+                                      context,
+                                    ).devicePixelRatio;
+                                    final cacheW = (previewWidth * dpr).round();
+                                    final cacheH = (previewHeight * dpr)
+                                        .round();
+                                    final url =
+                                        TrainingService.animationImageUrl(
+                                          exercise['animation_url']?.toString(),
+                                          null,
+                                        );
+                                    if (url.isEmpty) {
+                                      return const Icon(
+                                        Icons.fitness_center,
+                                        size: 20,
+                                        color: Color(0x661C1D17),
+                                      );
+                                    }
+                                    return _ExerciseGifThumb(
+                                      key: ValueKey(url),
+                                      url: url,
+                                      cacheWidth: cacheW,
+                                      cacheHeight: cacheH,
+                                    );
+                                  }(),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: SizedBox(
+                                  height: previewHeight,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              _titleCase(
+                                                (exercise['exercise_name'] ??
+                                                        '')
+                                                    .toString(),
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontFamily: TaqaUiFontFamilies
+                                                    .interTight,
+                                                fontWeight: FontWeight.w700,
+                                                color: TaqaUiColors
+                                                    .unnamedColor1c1d17,
+                                                fontSize: 15,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          if (!isCardio && showProgress)
+                                            progressChip,
+                                        ],
+                                      ),
+                                      const Spacer(),
+                                      if (!isCardio &&
+                                          (exercise['primary_muscles'] ?? '')
+                                              .toString()
+                                              .isNotEmpty) ...[
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.fiber_manual_record,
+                                              size: 10,
+                                              color: cs.secondary.withOpacity(
+                                                0.85,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: Text(
+                                                exercise['primary_muscles'],
+                                                style: TextStyle(
+                                                  color: const Color(
+                                                    0xFF1C1D17,
+                                                  ).withOpacity(0.85),
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 2),
+                                      ],
+                                      if (!isCardio && metaTags.isNotEmpty)
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: SingleChildScrollView(
+                                                scrollDirection:
+                                                    Axis.horizontal,
+                                                child: Row(
+                                                  children: [
+                                                    for (
+                                                      int i = 0;
+                                                      i < metaTags.length;
+                                                      i++
+                                                    ) ...[
+                                                      _MetaTag(
+                                                        label: metaTags[i],
+                                                      ),
+                                                      if (i !=
+                                                          metaTags.length - 1)
+                                                        const SizedBox(
+                                                          width: 6,
+                                                        ),
+                                                    ],
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                            if (!completed)
+                                              const SizedBox(width: 8),
+                                            if (!completed) replaceChip,
+                                          ],
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              if (showDoneIcon)
+                                const Padding(
+                                  padding: EdgeInsets.only(left: 8, right: 2),
+                                  child: SizedBox(
+                                    height: previewHeight,
+                                    child: Center(
+                                      child: Icon(
+                                        Icons.check_circle,
+                                        size: 16,
+                                        color: Color(0xFF2ECC71),
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 6),
-                                  if (statusChip != null) statusChip,
-                                  const SizedBox(width: 6),
-                                  if (!isCardio && showProgress) progressChip,
-                                  if (!completed && !isCardio && !showProgress)
-                                    replaceChip,
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              if (!isCardio)
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 6,
-                                  children: [
-                                    _StatChip(
-                                      icon: Icons.repeat,
-                                      label: "$setsLabel x $repsLabel",
-                                    ),
-                                    _StatChip(
-                                      icon: Icons.bolt,
-                                      label: "RIR $rirLabel",
-                                    ),
-                                    if (weightLabel != null)
-                                      _StatChip(
-                                        icon: Icons.fitness_center,
-                                        label: weightLabel,
-                                      ),
-                                  ],
                                 ),
-                              if ((exercise['primary_muscles'] ?? '')
-                                  .toString()
-                                  .isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.fiber_manual_record,
-                                      size: 10,
-                                      color: cs.secondary.withOpacity(0.85),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        exercise['primary_muscles'],
-                                        style: TextStyle(
-                                          color: cs.secondary.withOpacity(0.85),
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
                             ],
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Icon(
-                              Icons.play_arrow_rounded,
-                              color: Colors.white70,
-                              size: 20,
-                            ),
-                            SizedBox(height: 1),
-                            Text(
-                              "start",
-                              style: TextStyle(
-                                color: Colors.white60,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                if (showProgress)
-                  const Positioned.fill(
-                    child: IgnorePointer(child: _SnakeEdgeGlow()),
-                  ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MetaTag extends StatelessWidget {
+  const _MetaTag({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: const Color(0x4D1C1D17)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFF1C1D17),
+          fontWeight: FontWeight.w600,
+          fontSize: 10,
+          letterSpacing: 0.2,
         ),
       ),
     );
@@ -745,41 +787,6 @@ class _ExerciseGifThumbState extends State<_ExerciseGifThumb> {
           errorBuilder: (_, __, ___) => const SizedBox.shrink(),
         ),
       ],
-    );
-  }
-}
-
-class _StatChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color? accent;
-
-  const _StatChip({required this.icon, required this.label, this.accent});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: (accent ?? Colors.white).withOpacity(0.06),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: (accent ?? Colors.white).withOpacity(0.18)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: accent ?? Colors.white70),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: accent ?? Colors.white,
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

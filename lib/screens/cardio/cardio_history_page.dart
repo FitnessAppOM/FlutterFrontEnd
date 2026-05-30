@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
+import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 
 import '../../core/account_storage.dart';
 import '../../services/health/workout_health_sync_service.dart';
@@ -20,6 +22,20 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
   bool _backfillingHealth = false;
   String? _error;
   List<Map<String, dynamic>> _items = const [];
+
+  String _titleCase(String input) {
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) return trimmed;
+    return trimmed
+        .split(RegExp(r'\s+'))
+        .map((word) {
+          if (word.isEmpty) return word;
+          if (word.length <= 4 && word == word.toUpperCase()) return word;
+          final lower = word.toLowerCase();
+          return "${lower[0].toUpperCase()}${lower.substring(1)}";
+        })
+        .join(' ');
+  }
 
   @override
   void initState() {
@@ -151,21 +167,47 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F1014),
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F1014),
+        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
+        centerTitle: true,
         elevation: 0,
-        title: const Text("Cardio history"),
+        title: const Text(
+          "Cardio History",
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            height: 2.5,
+            letterSpacing: 0,
+            color: TaqaUiColors.unnamedColor1c1d17,
+          ),
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           children: [
-            Text(
-              "Your latest sessions",
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.white.withOpacity(0.6),
+            const Text(
+              "Completed Cardio Sessions",
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: 25,
+                fontWeight: FontWeight.w700,
+                color: TaqaUiColors.unnamedColor1c1d17,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              "Your Latest Sessions",
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: 15,
+                fontWeight: FontWeight.w400,
+                color: TaqaUiColors.unnamedColor1c1d17,
               ),
             ),
             const SizedBox(height: 16),
@@ -173,21 +215,29 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
               const Center(
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
-                  child: CircularProgressIndicator(),
+                  child: CircularProgressIndicator(
+                    color: TaqaUiColors.unnamedColor1c1d17,
+                  ),
                 ),
               )
             else if (_error != null)
               Text(
                 _error!,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: Colors.redAccent),
+                style: const TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.redAccent,
+                ),
               )
             else if (_items.isEmpty)
-              Text(
+              const Text(
                 "No cardio sessions yet.",
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white.withOpacity(0.7),
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                  color: TaqaUiColors.unnamedColor1c1d17,
                 ),
               )
             else
@@ -222,7 +272,9 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
   }
 
   Widget _buildHistoryItem(Map<String, dynamic> item) {
-    final name = (item['exercise_name'] ?? 'Cardio session').toString();
+    final name = _titleCase(
+      (item['exercise_name'] ?? 'Cardio Session').toString(),
+    );
     final entryDate = item['entry_date']?.toString();
     final distanceKm = _toDouble(item['distance_km']);
     final pace = _toDouble(item['avg_pace_min_km']);
@@ -240,9 +292,11 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.04),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.1),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,26 +308,50 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
                   name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
+                  style: const TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: TaqaUiColors.unnamedColor1c1d17,
                   ),
                 ),
               ),
               const SizedBox(width: 10),
-              Text(
-                _formatDate(entryDate),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.white.withOpacity(0.6),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(7),
+                  border: Border.all(
+                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                      alpha: 0.6,
+                    ),
+                  ),
+                ),
+                child: Text(
+                  _formatDate(entryDate).toUpperCase(),
+                  style: const TextStyle(
+                    fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w400,
+                    color: TaqaUiColors.unnamedColor1c1d17,
+                    letterSpacing: 0.2,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 12),
           Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Colors.white.withOpacity(0.7),
+            _titleCase(label),
+            style: const TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: 15,
+              fontWeight: FontWeight.w400,
+              color: TaqaUiColors.unnamedColor1c1d17,
             ),
           ),
         ],

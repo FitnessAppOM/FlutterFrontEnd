@@ -98,7 +98,9 @@ class WhoopWidgetDataService {
 
   bool _isToday(DateTime date) {
     final now = DateTime.now();
-    return date.year == now.year && date.month == now.month && date.day == now.day;
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
   }
 
   String _dateKey(DateTime date) =>
@@ -121,13 +123,19 @@ class WhoopWidgetDataService {
   int? _sleepEfficiencyFromSleepPayload(dynamic sleep) {
     if (sleep is! Map<String, dynamic>) return null;
     final scoreNode = sleep["score"];
-    final stage = scoreNode is Map<String, dynamic> ? scoreNode["stage_summary"] : null;
+    final stage = scoreNode is Map<String, dynamic>
+        ? scoreNode["stage_summary"]
+        : null;
     if (stage is! Map<String, dynamic>) return null;
     final totalBed = stage["total_in_bed_time_milli"];
     final light = stage["total_light_sleep_time_milli"];
     final slow = stage["total_slow_wave_sleep_time_milli"];
     final rem = stage["total_rem_sleep_time_milli"];
-    if (totalBed is num && light is num && slow is num && rem is num && totalBed > 0) {
+    if (totalBed is num &&
+        light is num &&
+        slow is num &&
+        rem is num &&
+        totalBed > 0) {
       final sleepMs = light + slow + rem;
       return ((sleepMs / totalBed) * 100).round();
     }
@@ -138,7 +146,9 @@ class WhoopWidgetDataService {
     if (row == null) return null;
     final totalSleepMinutes = _asDouble(row["total_sleep_minutes"]);
     final timeInBedMinutes = _asDouble(row["time_in_bed_minutes"]);
-    if (totalSleepMinutes == null || timeInBedMinutes == null || timeInBedMinutes <= 0) {
+    if (totalSleepMinutes == null ||
+        timeInBedMinutes == null ||
+        timeInBedMinutes <= 0) {
       return null;
     }
     return ((totalSleepMinutes / timeInBedMinutes) * 100).round();
@@ -153,7 +163,9 @@ class WhoopWidgetDataService {
     final url = Uri.parse(
       "${ApiConfig.baseUrl}/whoop/daily-metrics/range?user_id=$userId&start=$dateParam&end=$dateParam",
     );
-    final res = await http.get(url, headers: headers).timeout(const Duration(seconds: 20));
+    final res = await http
+        .get(url, headers: headers)
+        .timeout(const Duration(seconds: 20));
     if (res.statusCode != 200) return null;
     final decoded = jsonDecode(res.body);
     if (decoded is! List || decoded.isEmpty) return null;
@@ -170,9 +182,12 @@ class WhoopWidgetDataService {
     }
 
     final headers = await AccountStorage.getAuthHeaders();
-    final statusUrl = Uri.parse("${ApiConfig.baseUrl}/whoop/status?user_id=$userId&backfill=0");
-    final statusRes =
-        await http.get(statusUrl, headers: headers).timeout(const Duration(seconds: 12));
+    final statusUrl = Uri.parse(
+      "${ApiConfig.baseUrl}/whoop/status?user_id=$userId&backfill=0",
+    );
+    final statusRes = await http
+        .get(statusUrl, headers: headers)
+        .timeout(const Duration(seconds: 12));
     if (statusRes.statusCode != 200) {
       throw Exception("Status ${statusRes.statusCode}");
     }
@@ -202,13 +217,15 @@ class WhoopWidgetDataService {
       final sleepHours = sleepMinutes == null ? null : sleepMinutes / 60.0;
       final sleepScore = _sleepEfficiencyFromDbRow(row);
       final ySleepScore = _sleepEfficiencyFromDbRow(yRow);
-      final sleepDelta =
-          (sleepScore != null && ySleepScore != null) ? (sleepScore - ySleepScore) : null;
+      final sleepDelta = (sleepScore != null && ySleepScore != null)
+          ? (sleepScore - ySleepScore)
+          : null;
 
       final recoveryScore = _asInt(row?["recovery_score"]);
       final yRecovery = _asInt(yRow?["recovery_score"]);
-      final recoveryDelta =
-          (recoveryScore != null && yRecovery != null) ? (recoveryScore - yRecovery) : null;
+      final recoveryDelta = (recoveryScore != null && yRecovery != null)
+          ? (recoveryScore - yRecovery)
+          : null;
 
       final cycleStrain = _asDouble(row?["strain"]);
 
@@ -231,8 +248,9 @@ class WhoopWidgetDataService {
     final dataUrl = Uri.parse(
       "${ApiConfig.baseUrl}/whoop/day?user_id=$userId&date=$dateParam",
     );
-    final dataRes =
-        await http.get(dataUrl, headers: headers).timeout(const Duration(seconds: 20));
+    final dataRes = await http
+        .get(dataUrl, headers: headers)
+        .timeout(const Duration(seconds: 20));
     if (dataRes.statusCode != 200) {
       throw Exception("Status ${dataRes.statusCode}");
     }
@@ -244,14 +262,16 @@ class WhoopWidgetDataService {
     int? sleepDelta;
     int? recoveryDelta;
     final recoveryScore = _asInt(data["recovery_score"]);
+    double? yesterdayCycleStrain;
 
     final yesterday = date.subtract(const Duration(days: 1));
     final yParam = _dateKey(yesterday);
     final yUrl = Uri.parse(
       "${ApiConfig.baseUrl}/whoop/day?user_id=$userId&date=$yParam",
     );
-    final yRes =
-        await http.get(yUrl, headers: headers).timeout(const Duration(seconds: 20));
+    final yRes = await http
+        .get(yUrl, headers: headers)
+        .timeout(const Duration(seconds: 20));
     if (yRes.statusCode == 200) {
       final yData = jsonDecode(yRes.body) as Map<String, dynamic>;
       final yEfficiency = _sleepEfficiencyFromSleepPayload(yData["sleep"]);
@@ -262,9 +282,11 @@ class WhoopWidgetDataService {
       if (recoveryScore != null && yRecovery != null) {
         recoveryDelta = recoveryScore - yRecovery;
       }
+      yesterdayCycleStrain = _asDouble(yData["cycle_strain"]);
     }
 
-    final cycleStrain = _asDouble(data["cycle_strain"]);
+    // For current-day display, always use the last completed day's cycle strain.
+    final cycleStrain = yesterdayCycleStrain;
 
     double? bodyWeightKg;
     try {

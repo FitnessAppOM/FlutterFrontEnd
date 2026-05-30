@@ -612,6 +612,11 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
 
   void _onRestComplete() {
     _stopRestCountdown();
+    final nextSetIndex = _nextPendingSetIndex();
+    if (nextSetIndex != null) {
+      unawaited(_startSet(nextSetIndex));
+      return;
+    }
     if (mounted) setState(() {});
   }
 

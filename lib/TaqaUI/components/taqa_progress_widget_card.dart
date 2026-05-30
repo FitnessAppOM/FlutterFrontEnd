@@ -32,10 +32,16 @@ class TaqaProgressWidgetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final clampedProgress = progress.clamp(0.0, 1.0);
-    final surfaceColor = lightSurface ? TaqaUiColors.white : TaqaUiColors.charcoal;
+    final surfaceColor = lightSurface
+        ? TaqaUiColors.white
+        : TaqaUiColors.charcoal;
     final textColor = lightSurface ? TaqaUiColors.charcoal : TaqaUiColors.white;
-    final baseArcColor = lightSurface ? TaqaUiColors.lightGray : TaqaUiColors.graphite;
-    final valueArcColor = lightSurface ? TaqaUiColors.charcoal : TaqaUiColors.lightGray;
+    final baseArcColor = lightSurface
+        ? TaqaUiColors.lightGray
+        : TaqaUiColors.graphite;
+    final valueArcColor = lightSurface
+        ? TaqaUiColors.charcoal
+        : TaqaUiColors.lightGray;
     const cardRadius = 16.0;
     const arcYOffset = 4.0;
 
@@ -105,6 +111,7 @@ class TaqaProgressWidgetCard extends StatelessWidget {
                                   else
                                     Text(
                                       valueText,
+                                      textAlign: TextAlign.center,
                                       style: TextStyle(
                                         fontFamily:
                                             TaqaUiFontFamilies.interTight,

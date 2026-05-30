@@ -208,23 +208,20 @@ class TrainingActivityService {
   }
 
   static Future<void> stopSession() async {
-    if (!_active) {
-      await _clearSession();
-      return;
-    }
     _active = false;
     _lastUpdateSecond = -1;
     _lastDistanceKm = null;
     _lastPaceMinKm = null;
     _sessionStartMs = null;
     await _clearSession();
+
+    // Always try to stop platform foreground/live activity, even if local
+    // in-memory flags were lost (app restart/process death).
     if (Platform.isAndroid) {
-      if (_androidServiceRunning) {
-        try {
-          await FlutterForegroundTask.stopService();
-        } catch (_) {
-          // ignore
-        }
+      try {
+        await FlutterForegroundTask.stopService();
+      } catch (_) {
+        // ignore
       }
       _androidServiceRunning = false;
     }

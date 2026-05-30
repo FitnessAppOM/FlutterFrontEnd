@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
-
-import '../../theme/app_theme.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class TaqaBottomNavItem {
-  const TaqaBottomNavItem({
-    required this.icon,
-    required this.index,
-  });
+  const TaqaBottomNavItem({required this.assetPath, required this.index});
 
-  final IconData icon;
+  final String assetPath;
   final int index;
 }
 
@@ -40,7 +36,7 @@ class TaqaBottomNavBar extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 70,
+          height: 50,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: items.map((item) {
@@ -49,17 +45,21 @@ class TaqaBottomNavBar extends StatelessWidget {
                 onTap: () => onTap(item.index),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: selected
-                        ? AppColors.accent.withValues(alpha: 0.2)
-                        : Colors.transparent,
+                    color: Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
-                    item.icon,
-                    size: selected ? 30 : 26,
-                    color: selected ? AppColors.accent : Colors.black,
+                  child: SvgPicture.asset(
+                    item.assetPath,
+                    width: selected ? 30 : 26,
+                    height: selected ? 30 : 26,
+                    colorFilter: ColorFilter.mode(
+                      selected
+                          ? const Color(0xFF1C1D17)
+                          : const Color(0x661C1D17),
+                      BlendMode.srcIn,
+                    ),
                   ),
                 ),
               );

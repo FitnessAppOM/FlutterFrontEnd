@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
+import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 
 import '../../core/account_storage.dart';
 import '../../services/health/workout_health_sync_service.dart';
@@ -34,6 +36,20 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
   List<TrainingPlanChangeEvent> _planLogItems = const [];
   int _unseenPlanLogCount = 0;
   bool _planLogsMarkedSeen = false;
+
+  String _titleCase(String input) {
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) return trimmed;
+    return trimmed
+        .split(RegExp(r'\s+'))
+        .map((word) {
+          if (word.isEmpty) return word;
+          if (word.length <= 4 && word == word.toUpperCase()) return word;
+          final lower = word.toLowerCase();
+          return "${lower[0].toUpperCase()}${lower.substring(1)}";
+        })
+        .join(' ');
+  }
 
   @override
   void initState() {
@@ -389,8 +405,7 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
     _TrainingHistoryEntry entry,
   ) {
     final displayStatus = _displayStatusForEntry(entry);
-    final isCompletedDay = entry.isCompletedDay;
-    final isOldPlan = !isCompletedDay && displayStatus == "Old plan";
+    final statusLabel = displayStatus.toUpperCase();
     return InkWell(
       onTap: () {
         Navigator.of(context).push(
@@ -408,19 +423,10 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: isCompletedDay ? null : Colors.white.withOpacity(0.04),
-          gradient: isCompletedDay
-              ? const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF0E2A1E), Color(0xFF0B1F1A)],
-                )
-              : null,
-          borderRadius: BorderRadius.circular(16),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
           border: Border.all(
-            color: isCompletedDay
-                ? Colors.greenAccent.withOpacity(0.6)
-                : Colors.white.withOpacity(0.08),
+            color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.10),
           ),
         ),
         child: Column(
@@ -430,10 +436,12 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
               children: [
                 Expanded(
                   child: Text(
-                    entry.label,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: Colors.white,
+                    _titleCase(entry.label),
+                    style: const TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: 15,
                       fontWeight: FontWeight.w700,
+                      color: TaqaUiColors.unnamedColor1c1d17,
                     ),
                   ),
                 ),
@@ -443,39 +451,37 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: isCompletedDay
-                        ? Colors.greenAccent.withOpacity(0.15)
-                        : isOldPlan
-                        ? const Color(0xFFD4AF37).withOpacity(0.14)
-                        : Colors.white.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(7),
                     border: Border.all(
-                      color: isCompletedDay
-                          ? Colors.greenAccent
-                          : isOldPlan
-                          ? const Color(0xFFD4AF37)
-                          : Colors.white24,
+                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                        alpha: 0.6,
+                      ),
                     ),
                   ),
                   child: Text(
-                    displayStatus,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: isCompletedDay
-                          ? Colors.greenAccent
-                          : isOldPlan
-                          ? const Color(0xFFD4AF37)
-                          : Colors.white70,
-                      fontWeight: FontWeight.w600,
+                    statusLabel,
+                    style: const TextStyle(
+                      fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w400,
+                      color: TaqaUiColors.unnamedColor1c1d17,
+                      letterSpacing: 0.2,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Text(
-              "${entry.completedCount} done • ${entry.weekLabel}",
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.white.withOpacity(0.7),
+              _titleCase(
+                "${entry.completedCount} Done, ${entry.weekLabel.replaceFirst('Week of', 'Week Of')}",
+              ),
+              style: const TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: 15,
+                fontWeight: FontWeight.w400,
+                color: TaqaUiColors.unnamedColor1c1d17,
               ),
             ),
           ],
@@ -982,36 +988,34 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
     required VoidCallback onTap,
   }) {
     return Expanded(
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOut,
-        decoration: BoxDecoration(
-          color: active
-              ? const Color(0xFF2D7CFF)
-              : Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(5),
+        child: Container(
+          height: 52,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
             color: active
-                ? const Color(0xFF6EA8FF)
-                : Colors.white.withOpacity(0.14),
+                ? TaqaUiColors.unnamedColorE4e93b
+                : TaqaUiColors.white,
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(
+              color: active
+                  ? Colors.transparent
+                  : TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.12),
+            ),
           ),
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Center(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    color: active ? Colors.white : Colors.white70,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                  ),
-                ),
+          child: Center(
+            child: Text(
+              label.toUpperCase(),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                height: 1.2,
+                letterSpacing: 0,
+                color: TaqaUiColors.unnamedColor1c1d17,
               ),
             ),
           ),
@@ -1023,52 +1027,56 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
   Widget _buildProgressLogsContent(List<_TrainingHistoryPlanGroup> grouped) {
     if (_loading) {
       return const Center(
-        child: CircularProgressIndicator(color: Colors.white70),
+        child: CircularProgressIndicator(
+          color: TaqaUiColors.unnamedColor1c1d17,
+        ),
       );
     }
     return ListView(
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       children: [
         Text(
-          "Completed training days",
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: Colors.white.withOpacity(0.6),
+          "Completed Training Days",
+          style: const TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: 54 * 0.46,
+            fontWeight: FontWeight.w700,
+            color: TaqaUiColors.unnamedColor1c1d17,
           ),
         ),
         const SizedBox(height: 16),
         if (_entries.isEmpty)
           Text(
             "No training history yet.",
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.white.withOpacity(0.7),
+            style: const TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: 15,
+              fontWeight: FontWeight.w400,
+              color: TaqaUiColors.unnamedColor1c1d17,
             ),
           )
         else
           ...grouped.map((group) {
-            return Container(
-              margin: const EdgeInsets.only(bottom: 14),
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 2),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.03),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white.withOpacity(0.08)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    group.title,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: const Color(0xFFD4AF37),
-                      fontWeight: FontWeight.w700,
-                    ),
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  group.title
+                      .replaceAll('days plan', 'Days Plan')
+                      .replaceAll('Week of', 'Week Of'),
+                  style: const TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: 42 * 0.46,
+                    fontWeight: FontWeight.w700,
+                    color: TaqaUiColors.unnamedColor1c1d17,
                   ),
-                  const SizedBox(height: 10),
-                  ...group.entries.map(
-                    (entry) => _buildHistoryEntryCard(context, entry),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 12),
+                ...group.entries.map(
+                  (entry) => _buildHistoryEntryCard(context, entry),
+                ),
+                const SizedBox(height: 12),
+              ],
             );
           }),
       ],
@@ -1078,26 +1086,32 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
   Widget _buildPlanLogsContent() {
     if (_loadingPlanLogs) {
       return const Center(
-        child: CircularProgressIndicator(color: Colors.white70),
+        child: CircularProgressIndicator(
+          color: TaqaUiColors.unnamedColor1c1d17,
+        ),
       );
     }
     return ListView(
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       children: [
         Text(
-          _unseenPlanLogCount > 0
-              ? "$_unseenPlanLogCount new plan update${_unseenPlanLogCount == 1 ? '' : 's'}"
-              : "Your training plan update history",
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: Colors.white.withOpacity(0.6),
+          "Plan Logs",
+          style: const TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: 54 * 0.46,
+            fontWeight: FontWeight.w700,
+            color: TaqaUiColors.unnamedColor1c1d17,
           ),
         ),
         const SizedBox(height: 16),
         if (_planLogItems.isEmpty)
           Text(
             "No training plan updates yet.",
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.white.withOpacity(0.7),
+            style: const TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: 15,
+              fontWeight: FontWeight.w400,
+              color: TaqaUiColors.unnamedColor1c1d17,
             ),
           )
         else
@@ -1108,11 +1122,13 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
             final sourceTo = _labelForPlanSource(event.toPlanSource);
             return Container(
               margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withOpacity(0.12)),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(
+                  color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.1),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1120,9 +1136,10 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
                   Text(
                     event.summary,
                     style: const TextStyle(
-                      color: Colors.white,
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      color: TaqaUiColors.unnamedColor1c1d17,
                       fontWeight: FontWeight.w700,
-                      fontSize: 14,
+                      fontSize: 16,
                     ),
                   ),
                   if (sourceFrom.isNotEmpty || sourceTo.isNotEmpty)
@@ -1133,7 +1150,8 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
                             ? '$sourceFrom -> $sourceTo'
                             : (sourceTo.isNotEmpty ? sourceTo : sourceFrom),
                         style: const TextStyle(
-                          color: Colors.white60,
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          color: TaqaUiColors.unnamedColor1c1d17,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1145,7 +1163,8 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
                       child: Text(
                         createdAt,
                         style: const TextStyle(
-                          color: Colors.white38,
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          color: TaqaUiColors.unnamedColor1c1d17,
                           fontSize: 11,
                         ),
                       ),
@@ -1166,20 +1185,32 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
   Widget build(BuildContext context) {
     final groupedEntries = _groupEntriesByPlan(_entries);
     return Scaffold(
-      backgroundColor: const Color(0xFF0F1014),
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F1014),
+        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
         elevation: 0,
-        title: const Text("Training history"),
+        centerTitle: true,
+        title: const Text(
+          "Training History",
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            height: 2.5,
+            letterSpacing: 0,
+            color: TaqaUiColors.unnamedColor1c1d17,
+          ),
+        ),
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
             child: Row(
               children: [
                 _historyTabButton(
-                  label: "Progress Logs",
+                  label: "Process Logs",
                   active: _tabIndex == 0,
                   onTap: _openProgressLogsTab,
                 ),

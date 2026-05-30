@@ -111,23 +111,23 @@ class _MainLayoutState extends State<MainLayout> {
       onTap: _selectTab,
       items: const [
         TaqaBottomNavItem(
-          icon: Icons.restaurant_menu,
+          assetPath: 'assets/icons/Diet.svg',
           index: MainLayout._dietTab,
         ),
         TaqaBottomNavItem(
-          icon: Icons.fitness_center,
+          assetPath: 'assets/icons/Exercise.svg',
           index: MainLayout._trainTab,
         ),
         TaqaBottomNavItem(
-          icon: Icons.dashboard,
+          assetPath: 'assets/icons/Home.svg',
           index: MainLayout._dashboardTab,
         ),
         TaqaBottomNavItem(
-          icon: Icons.people_alt,
+          assetPath: 'assets/icons/Community.svg',
           index: MainLayout._communityTab,
         ),
         TaqaBottomNavItem(
-          icon: Icons.person,
+          assetPath: 'assets/icons/Trainer.svg',
           index: MainLayout._profileTab,
         ),
       ],

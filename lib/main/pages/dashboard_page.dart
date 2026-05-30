@@ -23,7 +23,6 @@ import '../../widgets/dashboard/whoop_cycle_card.dart';
 import '../../widgets/dashboard/whoop_body_card.dart';
 import '../../widgets/dashboard/body_measurements_card.dart';
 import '../../widgets/dashboard/body_measurements_sheet.dart';
-import '../../widgets/dashboard/water_intake_sheet.dart';
 import '../../widgets/dashboard/fitbit_daily_activity_card.dart';
 import '../../widgets/dashboard/fitbit_daily_activity_sheet.dart';
 import '../../widgets/dashboard/fitbit_heart_card.dart';
@@ -83,6 +82,7 @@ import '../../services/strava/strava_service.dart';
 import '../../screens/sleep_detail_page.dart';
 import '../../screens/steps_detail_page.dart';
 import '../../screens/calories_detail_page.dart';
+import '../../screens/water_intake_detail_page.dart';
 import '../../screens/daily_journal.dart';
 import '../../screens/taqa_score_detail_page.dart';
 import '../../localization/app_localizations.dart';
@@ -1153,7 +1153,7 @@ class DashboardPageState extends State<DashboardPage>
         ),
         WidgetLibraryOption(
           keyName: 'whoop_cycle',
-          title: "Whoop Cycle",
+          title: "Whoop Strain",
           subtitle: "Daily strain score",
           icon: Icons.loop,
           accentColor: const Color(0xFF2D7CFF),
@@ -3589,7 +3589,7 @@ class DashboardPageState extends State<DashboardPage>
       _whoopSnapshotCache[targetDate] = cachedServiceSnapshot;
     }
     final cached = _whoopSnapshotCache[targetDate];
-    if (!force && cached != null) {
+    if (!force && cached != null && targetDate != _dashboardToday()) {
       if (requestId != _whoopReqId) return;
       setState(() {
         _whoopLinked = cached.linked;
@@ -3682,6 +3682,133 @@ class DashboardPageState extends State<DashboardPage>
         _whoopLoadingDate = null;
       });
     }
+  }
+
+  Future<void> _openWhoopApi7DayPopup() async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        bool loading = false;
+        String? error;
+        List<Map<String, dynamic>> rows = const [];
+
+        String ymd(DateTime d) =>
+            "${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+
+        Future<void> fetch(StateSetter setDialogState) async {
+          setDialogState(() {
+            loading = true;
+            error = null;
+          });
+          try {
+            final userId = await AccountStorage.getUserId();
+            if (userId == null || userId == 0) {
+              throw Exception("No user id");
+            }
+            final headers = await AccountStorage.getAuthHeaders();
+            final now = DateTime.now();
+            final today = DateTime(now.year, now.month, now.day);
+            final out = <Map<String, dynamic>>[];
+            for (int i = 0; i <= 7; i++) {
+              final day = today.subtract(Duration(days: i));
+              final date = ymd(day);
+              final url = Uri.parse(
+                "${ApiConfig.baseUrl}/whoop/day?user_id=$userId&date=$date",
+              );
+              final res = await http
+                  .get(url, headers: headers)
+                  .timeout(const Duration(seconds: 20));
+              String prettyBody = res.body;
+              try {
+                final decoded = jsonDecode(res.body);
+                prettyBody = const JsonEncoder.withIndent(
+                  "  ",
+                ).convert(decoded);
+              } catch (_) {
+                prettyBody = res.body;
+              }
+              out.add({
+                "date": date,
+                "status": res.statusCode,
+                "body": prettyBody,
+              });
+            }
+            setDialogState(() {
+              rows = out;
+            });
+          } catch (e) {
+            setDialogState(() {
+              error = e.toString();
+            });
+          } finally {
+            setDialogState(() {
+              loading = false;
+            });
+          }
+        }
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF1A1A1A),
+              title: const Text(
+                "Whoop API (Today -> Last 7 Days)",
+                style: TextStyle(color: Colors.white, fontSize: 15),
+              ),
+              content: SizedBox(
+                width: 360,
+                child: loading
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    : error != null
+                    ? Text(
+                        error!,
+                        style: const TextStyle(color: Colors.redAccent),
+                      )
+                    : rows.isEmpty
+                    ? const Text(
+                        "Press Fetch",
+                        style: TextStyle(color: Colors.white70),
+                      )
+                    : SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: rows.map((r) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: Text(
+                                "${r["date"]} | status ${r["status"]}\n${r["body"]}",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  height: 1.35,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: loading ? null : () => fetch(setDialogState),
+                  child: const Text("Fetch"),
+                ),
+                TextButton(
+                  onPressed: loading
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
+                  child: const Text("Close"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   void _applyHealthRecoveryLoad(HealthRecoveryLoadSummary? summary) {
@@ -4309,17 +4436,12 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   Future<void> _openWaterSheet() async {
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => WaterIntakeSheet(
-        targetDate: _selectedDate,
-        initialGoal: _waterGoal ?? 2.5,
-        initialIntake: _waterIntake ?? 0,
-        onSaved: _loadWater,
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => WaterIntakeDetailPage(initialDate: _selectedDate),
       ),
     );
+    await _loadWater();
   }
 
   Future<Map<DateTime, DailyMetricsEntry?>> _fetchMetricsRange(
@@ -5713,13 +5835,16 @@ class DashboardPageState extends State<DashboardPage>
                   default:
                     final caloriesGoal = (_caloriesGoal ?? 500).toDouble();
                     final caloriesValue = todaysCaloriesDisplay.toDouble();
+                    final caloriesUnit = t("dash_unit_kcal");
+                    final caloriesValueText = todaysCaloriesDisplay >= 100
+                        ? '${todaysCaloriesDisplay.toString()}\n$caloriesUnit'
+                        : '${todaysCaloriesDisplay.toString()} $caloriesUnit';
                     final caloriesProgress = caloriesGoal > 0
                         ? (caloriesValue / caloriesGoal).clamp(0.0, 1.0)
                         : 0.0;
                     return TaqaProgressWidgetCard(
                       title: t("dash_calories_burned"),
-                      valueText:
-                          '${todaysCaloriesDisplay.toString()} ${t("dash_unit_kcal")}',
+                      valueText: caloriesValueText,
                       goalText: '${t("dash_goal")} ${_caloriesGoal ?? 500}',
                       progress: caloriesProgress,
                       loading: _caloriesLoading && _todayCalories == null,
@@ -5741,7 +5866,13 @@ class DashboardPageState extends State<DashboardPage>
               const crossAxisCount = 2;
               const spacing = 12.0;
               const aspectRatio = 1.10;
-              final tileWidth = (maxWidth - spacing) / crossAxisCount;
+              const maxTileWidth = 184.0;
+              final gridWidth = math.min(
+                maxWidth,
+                maxTileWidth * crossAxisCount + spacing,
+              );
+              final horizontalInset = (maxWidth - gridWidth) / 2;
+              final tileWidth = (gridWidth - spacing) / crossAxisCount;
               final tileHeight = tileWidth / aspectRatio;
               final rows = (_statOrder.length / crossAxisCount).ceil();
               final height = rows > 0
@@ -5757,7 +5888,9 @@ class DashboardPageState extends State<DashboardPage>
                         key: ValueKey(_statOrder[i]),
                         duration: const Duration(milliseconds: 220),
                         curve: Curves.easeOutCubic,
-                        left: (i % crossAxisCount) * (tileWidth + spacing),
+                        left:
+                            horizontalInset +
+                            (i % crossAxisCount) * (tileWidth + spacing),
                         top: (i ~/ crossAxisCount) * (tileHeight + spacing),
                         width: tileWidth,
                         height: tileHeight,
@@ -5986,6 +6119,30 @@ class DashboardPageState extends State<DashboardPage>
                   ),
                 ),
               ),
+              Positioned(
+                right: 20,
+                bottom: 20 + bottomInset,
+                child: ElevatedButton(
+                  onPressed: _openWhoopApi7DayPopup,
+                  style: ElevatedButton.styleFrom(
+                    elevation: 0,
+                    backgroundColor: Colors.black87,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: const BorderSide(color: Colors.white24),
+                    ),
+                  ),
+                  child: const Text(
+                    "WHOOP API 7D",
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -6026,9 +6183,7 @@ class _DailyOutlookDetailPage extends StatelessWidget {
         centerTitle: true,
         title: Text(
           t("dash_daily_outlook_title"),
-          style: TaqaUiStyles.pageTitle.copyWith(
-            color: TaqaUiColors.charcoal,
-          ),
+          style: TaqaUiStyles.pageTitle.copyWith(color: TaqaUiColors.charcoal),
         ),
         iconTheme: const IconThemeData(color: TaqaUiColors.charcoal),
       ),

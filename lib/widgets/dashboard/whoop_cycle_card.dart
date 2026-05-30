@@ -17,19 +17,22 @@ class WhoopCycleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final progress = linked && strain != null
+        ? (strain! / 21.0).clamp(0.0, 1.0)
+        : 0.0;
     final value = linked
         ? (strain != null ? _fmt(strain) : (loading ? "…" : "—"))
         : "Not connected";
     final subtitle = linked
-        ? (strain != null ? "" : "No cycle data yet")
+        ? (strain != null ? "Out of 21" : "No cycle data yet")
         : "Connect Whoop";
     return TaqaDashboardMetricCard(
       source: TaqaDashboardMetricSource.whoop,
       title: "Whoop Daily Strain",
       valueText: value,
       goalText: subtitle,
-      progress: 0.0,
-      showArc: false,
+      progress: progress,
+      showArc: true,
       loading: loading && linked && strain == null,
       onTap: onTap,
     );

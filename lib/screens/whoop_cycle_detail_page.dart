@@ -25,6 +25,18 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
   static int? _cacheUserId;
   int _reqId = 0;
 
+  DateTime _todayOnly() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  DateTime _effectiveCycleDay(DateTime selected) {
+    final day = DateTime(selected.year, selected.month, selected.day);
+    final today = _todayOnly();
+    if (day == today) return day.subtract(const Duration(days: 1));
+    return day;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -35,11 +47,7 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
 
   Future<void> _loadRange() async {
     final requestId = ++_reqId;
-    final day = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-    );
+    final day = _effectiveCycleDay(_selectedDate);
     final start = day.subtract(const Duration(days: 6));
     final end = day;
     final userId = await AccountStorage.getUserId();
@@ -85,11 +93,12 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final dayKey = DateTime(
+    final selectedDay = DateTime(
       _selectedDate.year,
       _selectedDate.month,
       _selectedDate.day,
     );
+    final dayKey = _effectiveCycleDay(selectedDay);
     final bool isPastDay = _isPastDay(dayKey);
     final metrics = _daily[dayKey] ?? _dailyCache[dayKey];
     return Scaffold(
@@ -103,7 +112,7 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _header(dayKey),
+            _header(selectedDay),
             const SizedBox(height: 14),
             _metricsGrid(
               metrics,
@@ -312,11 +321,7 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
   }
 
   List<double?> _avgHrSeries() {
-    final day = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-    );
+    final day = _effectiveCycleDay(_selectedDate);
     final start = day.subtract(const Duration(days: 6));
     final values = <double?>[];
     for (int i = 0; i < 7; i++) {
@@ -333,11 +338,7 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
   }
 
   Widget _avgHrNote() {
-    final dayKey = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-    );
+    final dayKey = _effectiveCycleDay(_selectedDate);
     final yesterdayKey = dayKey.subtract(const Duration(days: 1));
     final today = (_daily[dayKey] ?? _dailyCache[dayKey])?["avg_hr"];
     final yesterday =
