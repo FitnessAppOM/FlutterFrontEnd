@@ -86,6 +86,29 @@ class StepsService {
     }
   }
 
+  /// Returns the deduplicated step total for a single calendar day using the
+  /// platform's aggregated API. On Health Connect this merges overlapping
+  /// records from different sources instead of summing them. If the aggregate
+  /// is unavailable or throws (older devices / no Health Connect), returns
+  /// [fallback] (the raw per-sample sum) so a day that has data never shows 0.
+  Future<int> _aggregatedStepsForDay(
+    DateTime day, {
+    required int fallback,
+  }) async {
+    final dayStart = DateTime(day.year, day.month, day.day);
+    final dayEnd = dayStart.add(const Duration(days: 1));
+    try {
+      final total = await _health.getTotalStepsInInterval(dayStart, dayEnd);
+      if (total != null) return total;
+    } catch (e) {
+      // ignore: avoid_print
+      print(
+        "StepsService: getTotalStepsInInterval failed for $dayStart, using raw sum: $e",
+      );
+    }
+    return fallback;
+  }
+
   Future<Map<DateTime, int>> fetchDailySteps({
     required DateTime start,
     required DateTime end,
@@ -104,13 +127,28 @@ class StepsService {
         types: const [HealthDataType.STEPS],
       );
 
-      final Map<DateTime, int> totals = {};
+      // Build the set of days that actually have step data in the range, then
+      // resolve each day's total via the aggregated API (getTotalStepsInInterval).
+      // On Health Connect this deduplicates overlapping records from multiple
+      // sources (phone pedometer + Health Connect's own record), which the raw
+      // per-sample sum below would otherwise double-count. iOS HealthKit returns
+      // the same already-merged total. Falls back to the raw sum per day if the
+      // aggregate is unavailable (older devices / no Health Connect), so days
+      // that show a value today never drop to zero.
+      final Map<DateTime, int> rawTotals = {};
       for (final s in data.where((e) => e.type == HealthDataType.STEPS)) {
         final num steps = _valueToNum(s.value);
-        final dt = s.dateFrom ?? DateTime.now();
+        final dt = s.dateFrom;
         final dayKey = DateTime(dt.year, dt.month, dt.day);
-        final current = totals[dayKey] ?? 0;
-        totals[dayKey] = current + steps.toInt();
+        rawTotals[dayKey] = (rawTotals[dayKey] ?? 0) + steps.toInt();
+      }
+
+      final Map<DateTime, int> totals = {};
+      for (final dayKey in rawTotals.keys) {
+        totals[dayKey] = await _aggregatedStepsForDay(
+          dayKey,
+          fallback: rawTotals[dayKey] ?? 0,
+        );
       }
 
       // Override with manual entries when provided.
