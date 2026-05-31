@@ -18,8 +18,7 @@ class ExerciseFeedbackSheet extends StatefulWidget {
   });
 
   @override
-  State<ExerciseFeedbackSheet> createState() =>
-      _ExerciseFeedbackSheetState();
+  State<ExerciseFeedbackSheet> createState() => _ExerciseFeedbackSheetState();
 }
 
 class _ExerciseFeedbackSheetState extends State<ExerciseFeedbackSheet> {
@@ -79,45 +78,45 @@ class _ExerciseFeedbackSheetState extends State<ExerciseFeedbackSheet> {
   }
 
   Future<void> _loadQuestions() async {
+    // Render immediately using cached questions when available.
     try {
-      // Try to load from server (will fallback to cache if offline)
-      final q = await TrainingService.getFeedbackQuestions(
+      final cached = await FeedbackQuestionsStorage.loadQuestions(
         widget.exerciseName,
       );
+      final sanitizedCached = _sanitizeQuestions(cached);
+      if (!mounted) return;
+      if (sanitizedCached.isNotEmpty) {
+        setState(() {
+          questions = sanitizedCached;
+          loading = false;
+          error = null;
+        });
+      } else {
+        setState(() {
+          loading = false;
+          error = null;
+        });
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        loading = false;
+        error = null;
+      });
+    }
+
+    try {
+      final q = await TrainingService.getFeedbackQuestions(widget.exerciseName);
       final sanitized = _sanitizeQuestions(q);
       if (!mounted) return;
       setState(() {
         questions = sanitized;
-        loading = false;
         error = null;
       });
-    } catch (e) {
-      // Try loading from cache as fallback
-      try {
-        final cached = await FeedbackQuestionsStorage.loadQuestions(
-          widget.exerciseName,
-        );
-        final sanitized = _sanitizeQuestions(cached);
-        if (!mounted) return;
-        if (sanitized.isNotEmpty) {
-          setState(() {
-            questions = sanitized;
-            loading = false;
-            error = null;
-          });
-        } else {
-          // No cache available
-          if (!mounted) return;
-          setState(() {
-            loading = false;
-            error = "No questions available offline";
-          });
-        }
-      } catch (_) {
-        // Both failed
-        if (!mounted) return;
+    } catch (_) {
+      if (!mounted) return;
+      if (questions.isEmpty) {
         setState(() {
-          loading = false;
           error = "Failed to load questions";
         });
       }
@@ -143,10 +142,7 @@ class _ExerciseFeedbackSheetState extends State<ExerciseFeedbackSheet> {
           await ExerciseActionQueue.queueAction(
             action: ExerciseActionQueue.actionFeedback,
             programExerciseId: widget.programExerciseId,
-            data: {
-              "question_index": index,
-              "answer": answer,
-            },
+            data: {"question_index": index, "answer": answer},
           );
           needsSync = true;
         }
@@ -156,7 +152,7 @@ class _ExerciseFeedbackSheetState extends State<ExerciseFeedbackSheet> {
     if (needsSync && mounted) {
       AppToast.show(
         context,
-        t.translate("feedback_saved_offline") ?? "Feedback saved offline. Will sync when online.",
+        t.translate("feedback_saved_offline"),
         type: AppToastType.info,
       );
     }
@@ -167,204 +163,252 @@ class _ExerciseFeedbackSheetState extends State<ExerciseFeedbackSheet> {
     }
   }
 
+  String _titleCase(String input) {
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) return trimmed;
+    return trimmed
+        .split(RegExp(r'\s+'))
+        .map((word) {
+          if (word.isEmpty) return word;
+          final lower = word.toLowerCase();
+          return "${lower[0].toUpperCase()}${lower.substring(1)}";
+        })
+        .join(' ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
+    final title = _titleCase(t.translate("training_feedback_title"));
+    final subtitle = t.translate("training_feedback_subtitle");
+    final hasQuestions = questions.isNotEmpty;
+    final media = MediaQuery.of(context);
+    final bottomLift = (media.size.height * 0.018).clamp(8.0, 16.0).toDouble();
+    final sheetHeight = (media.size.height * 0.5) + bottomLift;
 
-    Widget body;
-
-    if (loading) {
-      body = Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.emoji_events, color: cs.primary),
-              const SizedBox(width: 10),
-              Text(
-                t.translate("training_feedback_title"),
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: SizedBox(
+        width: double.infinity,
+        height: sheetHeight,
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          child: Material(
+            color: const Color(0xFF404040),
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 10,
+                bottom: 8 + media.viewInsets.bottom + bottomLift,
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          LinearProgressIndicator(
-            backgroundColor: cs.surfaceVariant.withOpacity(0.4),
-            color: cs.primary,
-            minHeight: 4,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            t.translate("loading") ?? "Loading...",
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: cs.onSurface.withOpacity(0.7),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Center(
+                    child: SizedBox(
+                      width: 64,
+                      child: Divider(thickness: 4, color: Color(0x991C1D17)),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontFamily: 'InterTight',
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Center(
+                    child: Text(
+                      subtitle,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontFamily: 'InterTight',
+                        fontSize: 10,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    child: hasQuestions
+                        ? SingleChildScrollView(
+                            child: Column(
+                              children: questions.map((q) {
+                                final index = q['index'] as int;
+                                final question = q['question'] as String;
+                                final options = q['options'] as List<String>;
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 10),
+                                  child: Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.fromLTRB(
+                                      12,
+                                      12,
+                                      12,
+                                      10,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF191C16),
+                                      borderRadius: BorderRadius.circular(22),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          question,
+                                          style: const TextStyle(
+                                            fontFamily: 'InterTight',
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            for (
+                                              int i = 0;
+                                              i < options.length;
+                                              i++
+                                            ) ...[
+                                              Expanded(
+                                                child: OutlinedButton(
+                                                  onPressed: () => setState(
+                                                    () => answers[index] = i,
+                                                  ),
+                                                  style: OutlinedButton.styleFrom(
+                                                    side: BorderSide(
+                                                      color: answers[index] == i
+                                                          ? Colors.white
+                                                          : Colors.white70,
+                                                      width: 1,
+                                                    ),
+                                                    backgroundColor:
+                                                        answers[index] == i
+                                                        ? Colors.white
+                                                        : Colors.transparent,
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          vertical: 10,
+                                                        ),
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            10,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                  child: Text(
+                                                    options[i].toUpperCase(),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    textAlign: TextAlign.center,
+                                                    style: TextStyle(
+                                                      fontFamily:
+                                                          'IAWriterMonoS',
+                                                      fontSize: 8,
+                                                      fontWeight:
+                                                          FontWeight.w400,
+                                                      color: answers[index] == i
+                                                          ? const Color(
+                                                              0xFF1C1D17,
+                                                            )
+                                                          : Colors.white,
+                                                      letterSpacing: 0.4,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              if (i != options.length - 1)
+                                                const SizedBox(width: 8),
+                                            ],
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          )
+                        : Center(
+                            child: Text(
+                              loading ? '' : (error ?? ''),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontFamily: 'InterTight',
+                                fontSize: 10,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () {
+                            widget.onDone();
+                            Navigator.of(context).maybePop();
+                          },
+                          child: Text(
+                            (t.translate("common_cancel")).toUpperCase(),
+                            style: const TextStyle(
+                              fontFamily: 'InterTight',
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: hasQuestions ? _submitFeedback : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFDDE530),
+                            foregroundColor: const Color(0xFF1C1D17),
+                            disabledBackgroundColor: const Color(0x66DDE530),
+                            disabledForegroundColor: const Color(0x801C1D17),
+                            minimumSize: const Size.fromHeight(50),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: Text(
+                            (t.translate(
+                              "training_feedback_submit",
+                            )).toUpperCase(),
+                            style: const TextStyle(
+                              fontFamily: 'InterTight',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
-        ],
-      );
-    } else if (error != null || questions.isEmpty) {
-      // Show message if no questions available
-      body = Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.info_outline,
-                size: 48,
-                color: cs.onSurface.withOpacity(0.5),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                error ?? t.translate("no_feedback_questions") ?? "No feedback questions available",
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: cs.onSurface.withOpacity(0.7),
-                ),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  widget.onDone();
-                },
-                child: Text(t.translate("common_close") ?? "Close"),
-              ),
-            ],
-          ),
-        ),
-      );
-    } else {
-      body = Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: cs.primary.withOpacity(0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.emoji_events, color: cs.primary),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      t.translate("training_feedback_title"),
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      t.translate("training_feedback_subtitle"),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurface.withOpacity(0.7),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ...questions.map((q) {
-            final index = q['index'] as int;
-            final question = q['question'] as String;
-            final options = q['options'] as List<String>;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: cs.surfaceVariant.withOpacity(0.4),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: cs.outlineVariant.withOpacity(0.5)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      question,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        for (int i = 0; i < options.length; i++)
-                          ChoiceChip(
-                            label: Text(options[i]),
-                            selected: answers[index] == i,
-                            onSelected: (_) =>
-                                setState(() => answers[index] = i),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: TextButton(
-                  onPressed: () {
-                    widget.onDone();
-                    Navigator.of(context).maybePop();
-                  },
-                  child: Text(t.translate("common_cancel")),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: _submitFeedback,
-                  child: Text(t.translate("training_feedback_submit")),
-                ),
-              ),
-            ],
-          ),
-        ],
-      );
-    }
-
-    return SafeArea(
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              cs.surfaceVariant.withOpacity(0.4),
-              cs.primary.withOpacity(0.08),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-          ),
-          child: body,
         ),
       ),
     );

@@ -870,12 +870,13 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   void _openInstructionDialog() {
     final instructions = (widget.exercise['instructions'] ?? '').toString();
     if (instructions.trim().isEmpty) return;
-    final t = AppLocalizations.of(context);
-    showDialog(
-      context: context,
-      builder: (_) => ExerciseInstructionDialog(
-        title: t.translate("training_instructions_title"),
-        instructions: instructions,
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ExerciseInstructionDialog(
+          title: (widget.exercise['exercise_name'] ?? '').toString().trim(),
+          instructions: instructions,
+          animationUrl: widget.exercise['animation_url']?.toString(),
+        ),
       ),
     );
   }
@@ -2479,7 +2480,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                 programExerciseId: programExerciseId,
                 exerciseId: exerciseId,
                 distanceKm: distanceKmValue,
-                avgPaceMinKm: _paceMinPerKmFromDistance(distanceKmValue, seconds),
+                avgPaceMinKm: _paceMinPerKmFromDistance(
+                  distanceKmValue,
+                  seconds,
+                ),
                 durationSeconds: seconds,
                 steps: _cardioSteps ?? 0,
                 routePoints: _cardioRoute
@@ -2575,9 +2579,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           context: context,
           useRootNavigator: true,
           isScrollControlled: true,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
+          barrierColor: const Color(0x66000000),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
           builder: (_) => ExerciseFeedbackSheet(
             programExerciseId: programExerciseId,
             exerciseName: widget.exercise['exercise_name'],

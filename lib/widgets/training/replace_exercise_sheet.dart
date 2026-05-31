@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_action_controls.dart';
 import '../../services/training/training_service.dart';
 import '../../services/training/exercise_action_queue.dart';
 import '../../widgets/app_toast.dart';
 import '../../localization/app_localizations.dart';
-import '../../theme/app_theme.dart';
 
 class ReplaceExerciseSheet extends StatefulWidget {
   final int userId;
@@ -49,6 +49,20 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
     return null;
   }
 
+  String _exerciseTitle(Map<String, dynamic> item) {
+    final candidates = [
+      item['exercise_name'],
+      item['name'],
+      item['title'],
+      item['display_name'],
+    ];
+    for (final raw in candidates) {
+      final text = (raw ?? '').toString().trim();
+      if (text.isNotEmpty) return text;
+    }
+    return '';
+  }
+
   String _muscleTagFromAnimationName(String animationName) {
     final raw = animationName.trim();
     if (raw.isEmpty) return '';
@@ -75,7 +89,9 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
   }
 
   Future<void> _load() async {
-    final programExerciseId = _asInt(widget.programExercise['program_exercise_id']);
+    final programExerciseId = _asInt(
+      widget.programExercise['program_exercise_id'],
+    );
     if (programExerciseId == null) {
       setState(() {
         loadingSuggestions = false;
@@ -134,7 +150,7 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
     return allExercises.where((item) {
       if (item is! Map<String, dynamic>) return false;
 
-      final name = (item['exercise_name'] ?? '').toString().trim().toLowerCase();
+      final name = _exerciseTitle(item).toLowerCase();
       final tag = _muscleTagFromAllExercise(item);
 
       final okSearch = s.isEmpty || name.contains(s);
@@ -144,43 +160,50 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
     }).toList();
   }
 
+  List<dynamic> get filteredSuggestions {
+    final s = search.trim().toLowerCase();
+    if (s.isEmpty) return suggestions;
+    return suggestions.where((item) {
+      if (item is! Map<String, dynamic>) return false;
+      final name = _exerciseTitle(item).toLowerCase();
+      return name.contains(s);
+    }).toList();
+  }
+
   Future<void> _doReplace(int newExerciseId, String? newExerciseName) async {
     if (submitting) return;
 
     final t = AppLocalizations.of(context);
-    final currentExerciseName = (widget.programExercise['exercise_name'] ?? '').toString();
-    final replacementExerciseName = newExerciseName ?? 'this exercise';
+    final currentExerciseName = (widget.programExercise['exercise_name'] ?? '')
+        .toString()
+        .trim();
+    final replacementExerciseName = (newExerciseName ?? '').trim().isEmpty
+        ? 'Unnamed exercise'
+        : newExerciseName!.trim();
+    final currentLabel = currentExerciseName.isEmpty
+        ? 'Unnamed exercise'
+        : currentExerciseName;
 
-    // Step 1: Show confirmation dialog
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showTaqaActionConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(t.translate("confirm_replace") ?? "Confirm Replacement"),
-        content: Text(
-          "Are you sure you want to replace \"$currentExerciseName\" with \"$replacementExerciseName\"?",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(t.translate("common_cancel") ?? "Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(t.translate("common_confirm") ?? "Confirm"),
-          ),
-        ],
-      ),
+      title: "Replace Exercise",
+      message:
+          "Are you sure you want to replace this exercise?\n\n\"$currentLabel\" -> \"$replacementExerciseName\"",
+      cancelLabel: (t.translate("common_cancel")).toUpperCase(),
+      confirmLabel: "REPLACE EXERCISE",
     );
 
-    if (confirmed != true) return; // User cancelled
+    if (!confirmed) return; // User cancelled
 
     // Step 2: Ask for reason
     final reason = await _showReasonDialog(newExerciseName ?? '');
-    if (reason == null || reason.trim().isEmpty) return; // User cancelled or didn't provide reason
+    if (reason == null || reason.trim().isEmpty)
+      return; // User cancelled or didn't provide reason
 
     setState(() => submitting = true);
 
-    final programExerciseId = _asInt(widget.programExercise['program_exercise_id']) ?? 0;
+    final programExerciseId =
+        _asInt(widget.programExercise['program_exercise_id']) ?? 0;
 
     try {
       // Try to replace immediately
@@ -190,7 +213,7 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
         newExerciseId: newExerciseId,
         reason: reason.trim(),
       );
-      
+
       // If successful, preload feedback questions for new exercise
       if (newExerciseName != null && newExerciseName.isNotEmpty) {
         try {
@@ -199,18 +222,14 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
           // Ignore if questions can't be loaded, will cache later
         }
       }
-      
+
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       // Don't queue if server rejected (e.g., already started/completed)
       if (e is TrainingApiException && !e.isRetryable) {
         if (!mounted) return;
         setState(() => submitting = false);
-        AppToast.show(
-          context,
-          e.toString(),
-          type: AppToastType.error,
-        );
+        AppToast.show(context, e.toString(), type: AppToastType.error);
         return;
       }
 
@@ -233,7 +252,8 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
         // Show success message with offline notice
         AppToast.show(
           context,
-          t.translate("exercise_replace_queued") ?? "Exercise will be replaced when you're back online.",
+          t.translate("exercise_replace_queued") ??
+              "Exercise will be replaced when you're back online.",
           type: AppToastType.info,
         );
 
@@ -242,9 +262,9 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
         // Queue failed too
         if (!mounted) return;
         setState(() => submitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     }
   }
@@ -259,66 +279,77 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
       barrierDismissible: false,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(t.translate("replace_reason_title") ?? "Why are you replacing this exercise?"),
+          title: Text(
+            t.translate("replace_reason_title") ??
+                "Why are you replacing this exercise?",
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  t.translate("replace_reason_subtitle") ?? 
-                  "Please tell us why you're replacing this exercise. This helps us improve your program.",
+                  t.translate("replace_reason_subtitle") ??
+                      "Please tell us why you're replacing this exercise. This helps us improve your program.",
                   style: const TextStyle(fontSize: 14),
                 ),
                 const SizedBox(height: 16),
                 // Quick reason options
-                ..._getQuickReasons(t).map((quickReason) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: InkWell(
-                    onTap: () {
-                      setDialogState(() {
-                        selectedQuickReason = quickReason;
-                        reasonController.text = quickReason;
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: selectedQuickReason == quickReason 
-                            ? Theme.of(context).colorScheme.primary 
-                            : Colors.grey,
-                          width: selectedQuickReason == quickReason ? 2 : 1,
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                        color: selectedQuickReason == quickReason 
-                          ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
-                          : null,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            selectedQuickReason == quickReason 
-                              ? Icons.radio_button_checked 
-                              : Icons.radio_button_unchecked,
-                            size: 20,
-                            color: selectedQuickReason == quickReason 
-                              ? Theme.of(context).colorScheme.primary 
-                              : Colors.grey,
+                ..._getQuickReasons(t).map(
+                  (quickReason) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: InkWell(
+                      onTap: () {
+                        setDialogState(() {
+                          selectedQuickReason = quickReason;
+                          reasonController.text = quickReason;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: selectedQuickReason == quickReason
+                                ? Theme.of(context).colorScheme.primary
+                                : Colors.grey,
+                            width: selectedQuickReason == quickReason ? 2 : 1,
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text(quickReason)),
-                        ],
+                          borderRadius: BorderRadius.circular(8),
+                          color: selectedQuickReason == quickReason
+                              ? Theme.of(
+                                  context,
+                                ).colorScheme.primary.withOpacity(0.1)
+                              : null,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              selectedQuickReason == quickReason
+                                  ? Icons.radio_button_checked
+                                  : Icons.radio_button_unchecked,
+                              size: 20,
+                              color: selectedQuickReason == quickReason
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Colors.grey,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text(quickReason)),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                )),
+                ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: reasonController,
                   decoration: InputDecoration(
-                    labelText: t.translate("replace_reason_custom") ?? "Or enter your own reason",
-                    hintText: t.translate("replace_reason_hint") ?? "e.g., I don't have the equipment",
+                    labelText:
+                        t.translate("replace_reason_custom") ??
+                        "Or enter your own reason",
+                    hintText:
+                        t.translate("replace_reason_hint") ??
+                        "e.g., I don't have the equipment",
                     border: const OutlineInputBorder(),
                   ),
                   maxLines: 3,
@@ -344,7 +375,10 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
                 if (reason.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(t.translate("replace_reason_required") ?? "Please provide a reason"),
+                      content: Text(
+                        t.translate("replace_reason_required") ??
+                            "Please provide a reason",
+                      ),
                     ),
                   );
                   return;
@@ -361,10 +395,14 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
 
   List<String> _getQuickReasons(AppLocalizations t) {
     return [
-      t.translate("replace_reason_no_equipment") ?? "I don't have the equipment",
-      t.translate("replace_reason_discomfort") ?? "Exercise causes discomfort/pain",
-      t.translate("replace_reason_preference") ?? "I prefer a different exercise",
-      t.translate("replace_reason_difficulty") ?? "Exercise is too difficult/easy",
+      t.translate("replace_reason_no_equipment") ??
+          "I don't have the equipment",
+      t.translate("replace_reason_discomfort") ??
+          "Exercise causes discomfort/pain",
+      t.translate("replace_reason_preference") ??
+          "I prefer a different exercise",
+      t.translate("replace_reason_difficulty") ??
+          "Exercise is too difficult/easy",
       t.translate("replace_reason_other") ?? "Other",
     ];
   }
@@ -377,45 +415,112 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
 
   @override
   Widget build(BuildContext context) {
-    final exName = (widget.programExercise['exercise_name'] ?? '').toString();
+    final tabIndex = _tab.index;
+    final topInset = MediaQueryData.fromView(View.of(context)).padding.top;
 
-    return SafeArea(
+    return SizedBox.expand(
       child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        color: const Color(0xFF1C1D17),
+        padding: EdgeInsets.fromLTRB(16, topInset + 10, 16, 0),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
+            Row(
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white,
+                  ),
+                ),
+                const Expanded(
+                  child: Text(
+                    "Replace Exercise",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'InterTight',
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 48),
+              ],
+            ),
+            const SizedBox(height: 10),
             Container(
-              width: 42,
-              height: 5,
+              height: 58,
               decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(99),
+                color: const Color(0xFF45474A),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              alignment: Alignment.center,
+              child: TextField(
+                style: const TextStyle(
+                  fontFamily: 'InterTight',
+                  fontSize: 14,
+                  color: Colors.white,
+                ),
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  hintText: "Search Exercise",
+                  hintStyle: TextStyle(
+                    fontFamily: 'InterTight',
+                    fontSize: 14,
+                    color: Color(0xFFB9B9B9),
+                  ),
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: Color(0xFFB9B9B9),
+                    size: 20,
+                  ),
+                  prefixIconConstraints: BoxConstraints(minWidth: 26),
+                ),
+                onChanged: (v) => setState(() => search = v),
               ),
             ),
             const SizedBox(height: 12),
-            Text(
-              "Replace: $exName",
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            TabBar(
-              controller: _tab,
-              tabs: const [
-                Tab(text: "Suggested"),
-                Tab(text: "All"),
+            Row(
+              children: [
+                Expanded(
+                  child: TaqaSegmentTabButton(
+                    label: "RECOMMENDED",
+                    active: tabIndex == 0,
+                    onTap: () {
+                      if (_tab.index != 0) {
+                        _tab.animateTo(0);
+                        setState(() {});
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TaqaSegmentTabButton(
+                    label: "ALL",
+                    active: tabIndex == 1,
+                    onTap: () {
+                      if (_tab.index != 1) {
+                        _tab.animateTo(1);
+                        setState(() {});
+                      }
+                    },
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: MediaQuery.of(context).size.height * 0.7,
+            const SizedBox(height: 14),
+            Expanded(
               child: TabBarView(
                 controller: _tab,
-                children: [
-                  _buildSuggestions(),
-                  _buildAllList(),
-                ],
+                physics: const NeverScrollableScrollPhysics(),
+                children: [_buildSuggestions(), _buildAllList()],
               ),
             ),
           ],
@@ -424,35 +529,11 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
     );
   }
 
-  Widget _thumb({
-    String? animationUrl,
-  }) {
-    final src =
-        TrainingService.animationImageUrl(animationUrl, null);
-    if (src.isEmpty) return const Icon(Icons.fitness_center);
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
-      child: Image(
-        image: TrainingService.gifProvider(
-          src,
-          cacheWidth: (54 * MediaQuery.of(context).devicePixelRatio).round(),
-          cacheHeight: (54 * MediaQuery.of(context).devicePixelRatio).round(),
-        ),
-        width: 54,
-        height: 54,
-        fit: BoxFit.cover,
-        gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => const Icon(Icons.fitness_center),
-      ),
-    );
-  }
-
   Widget _buildSuggestions() {
     if (loadingSuggestions) {
       return const Center(child: CircularProgressIndicator());
     }
-    
+
     if (isOffline) {
       final t = AppLocalizations.of(context);
       return Center(
@@ -468,51 +549,42 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
               ),
               const SizedBox(height: 16),
               Text(
-                t.translate("offline_replace_suggestions") ?? 
-                "When you're back online, you can get suggestions here.",
+                t.translate("offline_replace_suggestions") ??
+                    "When you're back online, you can get suggestions here.",
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.white70,
-                ),
+                style: const TextStyle(fontSize: 16, color: Colors.white70),
               ),
             ],
           ),
         ),
       );
     }
-    
-    if (suggestions.isEmpty) {
+
+    final items = filteredSuggestions;
+    if (items.isEmpty) {
       return const Center(child: Text("No suggestions available"));
     }
 
     return ListView.separated(
-      itemCount: suggestions.length,
+      itemCount: items.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (_, i) {
-        final s = suggestions[i];
+        final s = items[i];
         if (s is! Map<String, dynamic>) return const SizedBox.shrink();
 
-        final name = (s['exercise_name'] ?? '').toString().trim();
+        final name = _exerciseTitle(s);
         final animUrl = (s['animation_url'] ?? '').toString().trim();
         final id = _asInt(s['exercise_id']);
 
         final canTap = id != null && !submitting;
+        final replaceId = id ?? 0;
 
-        return ListTile(
-          leading: _thumb(
-            animationUrl: animUrl,
-          ),
-          title: Text(name.isEmpty ? "Unnamed exercise" : name),
-          trailing: submitting
-              ? const SizedBox(
-            width: 18,
-            height: 18,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          )
-              : const Icon(Icons.chevron_right),
+        return _exerciseCard(
+          title: name.isEmpty ? "Unnamed exercise" : name,
+          animationUrl: animUrl,
+          loading: submitting,
           enabled: canTap,
-          onTap: canTap ? () => _doReplace(id!, name) : null,
+          onTap: canTap ? () => _doReplace(replaceId, name) : null,
         );
       },
     );
@@ -538,13 +610,10 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
               ),
               const SizedBox(height: 16),
               Text(
-                t.translate("offline_replace_all_exercises") ?? 
-                "When you're back online, you can browse all exercises here.",
+                t.translate("offline_replace_all_exercises") ??
+                    "When you're back online, you can browse all exercises here.",
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.white70,
-                ),
+                style: const TextStyle(fontSize: 16, color: Colors.white70),
               ),
             ],
           ),
@@ -554,75 +623,98 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
 
     final items = filteredAll;
 
-    return Column(
-      children: [
-        TextField(
-          decoration: const InputDecoration(
-            hintText: "Search exercise...",
-          ),
-          onChanged: (v) => setState(() => search = v),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 40,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              _chip("All", selectedMuscle == null, () {
-                setState(() => selectedMuscle = null);
-              }),
-              ...muscleTags.map((m) => _chip(m, selectedMuscle == m, () {
-                setState(() => selectedMuscle = m);
-              })),
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-        Expanded(
-          child: items.isEmpty
-              ? const Center(child: Text("No exercises found"))
-              : ListView.separated(
+    return items.isEmpty
+        ? const Center(child: Text("No exercises found"))
+        : ListView.separated(
             itemCount: items.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (_, i) {
               final e = items[i];
               if (e is! Map<String, dynamic>) return const SizedBox.shrink();
 
-              final name = (e['exercise_name'] ?? '').toString().trim();
-              final animName = (e['animation_name'] ?? '').toString().trim();
-              final tag = _muscleTagFromAnimationName(animName);
-
+              final name = _exerciseTitle(e);
+              final animUrl = (e['animation_url'] ?? '').toString().trim();
               final id = _asInt(e['exercise_id']);
               final canTap = id != null && !submitting;
+              final replaceId = id ?? 0;
 
-              return ListTile(
-                leading: const Icon(Icons.fitness_center),
-                title: Text(name.isEmpty ? "Unnamed exercise" : name),
-                subtitle: tag.isEmpty ? null : Text(tag),
-                trailing: submitting
-                    ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-                    : const Icon(Icons.chevron_right),
+              return _exerciseCard(
+                title: name.isEmpty ? "Unnamed exercise" : name,
+                animationUrl: animUrl,
+                loading: submitting,
                 enabled: canTap,
-                onTap: canTap ? () => _doReplace(id!, name) : null,
+                onTap: canTap ? () => _doReplace(replaceId, name) : null,
               );
             },
-          ),
-        ),
-      ],
-    );
+          );
   }
 
-  Widget _chip(String label, bool active, VoidCallback onTap) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        selected: active,
-        label: Text(label),
-        onSelected: (_) => onTap(),
+  Widget _exerciseCard({
+    required String title,
+    required String animationUrl,
+    required bool loading,
+    required bool enabled,
+    required VoidCallback? onTap,
+  }) {
+    final dpr = MediaQuery.of(context).devicePixelRatio;
+    final src = TrainingService.animationImageUrl(animationUrl, null);
+    final imageProvider = src.isEmpty
+        ? null
+        : TrainingService.gifProvider(
+            src,
+            cacheWidth: (92 * dpr).round(),
+            cacheHeight: (92 * dpr).round(),
+          );
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: enabled ? onTap : null,
+      child: Container(
+        height: 108,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF45474A),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                width: 76,
+                height: 76,
+                color: Colors.white.withValues(alpha: 0.88),
+                child: imageProvider == null
+                    ? const SizedBox.shrink()
+                    : Image(image: imageProvider, fit: BoxFit.cover),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'InterTight',
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            ),
+            if (loading)
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+          ],
+        ),
       ),
     );
   }

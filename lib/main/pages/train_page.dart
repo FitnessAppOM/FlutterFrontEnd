@@ -3,10 +3,13 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_action_controls.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_steps_ui.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_set_row_edit_dialog.dart';
 import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 import '../../widgets/training/exercise_card.dart';
+import '../../widgets/training/exercise_feedback_sheet.dart';
+import '../../widgets/training/exercise_instruction_dialog.dart';
 import '../../widgets/training/exercise_session_sheet.dart';
 import '../../widgets/cardio/cardio_resume_banner.dart';
 import '../../core/account_storage.dart';
@@ -69,7 +72,7 @@ class _TrainingDayExercisesPage extends StatefulWidget {
     required this.readDisabledState,
     required this.readDayNoteState,
     required this.readLiveState,
-    required this.historyCompletedExerciseNames,
+    required this.readHistoryCompletedExerciseNames,
     required this.programExerciseIdOf,
     required this.normalizeExerciseName,
     required this.onStartExercise,
@@ -88,7 +91,7 @@ class _TrainingDayExercisesPage extends StatefulWidget {
   final bool Function() readDisabledState;
   final String? Function() readDayNoteState;
   final _TrainingDayLiveState Function() readLiveState;
-  final Set<String> historyCompletedExerciseNames;
+  final Set<String> Function() readHistoryCompletedExerciseNames;
   final int? Function(Map<String, dynamic>) programExerciseIdOf;
   final String Function(dynamic) normalizeExerciseName;
   final Future<void> Function(
@@ -397,6 +400,8 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
               )
             else
               ...(() {
+                final historyCompletedExerciseNames = widget
+                    .readHistoryCompletedExerciseNames();
                 final items = widget.exercises.asMap().entries.map((entry) {
                   final ex = entry.value;
                   final rawId =
@@ -422,9 +427,7 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                       );
                   final doneFromHistory =
                       normalizedName.isNotEmpty &&
-                      widget.historyCompletedExerciseNames.contains(
-                        normalizedName,
-                      );
+                      historyCompletedExerciseNames.contains(normalizedName);
                   final done = locallyCompleted || doneFromHistory;
                   return <String, dynamic>{
                     'index': entry.key,
@@ -477,11 +480,14 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                               dayLabel: widget.dayLabel,
                               exercises: widget.exercises,
                               restSeconds: live.activeRestPreset,
+                              readHistoryCompletedExerciseNames:
+                                  widget.readHistoryCompletedExerciseNames,
                               inProgressExerciseIds: live.inProgressExerciseIds,
                               activeSessionExerciseName:
                                   live.activeSessionExerciseName,
                               onStartExercise: widget.onStartExercise,
                               onExerciseFinished: widget.onExerciseFinished,
+                              onReplaceExercise: widget.onReplaceExercise,
                             ),
                           ),
                         );
@@ -525,15 +531,18 @@ class _WorkoutLauncherPage extends StatefulWidget {
     required this.dayLabel,
     required this.exercises,
     required this.restSeconds,
+    required this.readHistoryCompletedExerciseNames,
     required this.inProgressExerciseIds,
     required this.activeSessionExerciseName,
     required this.onStartExercise,
     required this.onExerciseFinished,
+    required this.onReplaceExercise,
   });
 
   final String dayLabel;
   final List<Map<String, dynamic>> exercises;
   final int restSeconds;
+  final Set<String> Function() readHistoryCompletedExerciseNames;
   final Set<int> inProgressExerciseIds;
   final String? activeSessionExerciseName;
   final Future<void> Function(
@@ -543,6 +552,7 @@ class _WorkoutLauncherPage extends StatefulWidget {
   })
   onStartExercise;
   final Future<void> Function(Map<String, dynamic> exercise) onExerciseFinished;
+  final Future<void> Function(Map<String, dynamic> exercise) onReplaceExercise;
 
   @override
   State<_WorkoutLauncherPage> createState() => _WorkoutLauncherPageState();
@@ -604,40 +614,14 @@ class _WorkoutLauncherPageState extends State<_WorkoutLauncherPage> {
     });
   }
 
-  bool _truthy(dynamic value) {
-    if (value is bool) return value;
-    if (value is num) return value != 0;
-    final s = (value ?? '').toString().trim().toLowerCase();
-    if (s.isEmpty) return false;
-    if (s == 'true' || s == 'yes' || s == 'y' || s == 't' || s == '1') {
-      return true;
-    }
-    final numeric = num.tryParse(s);
-    if (numeric != null) return numeric != 0;
-    return !(s == 'false' || s == 'f' || s == 'no' || s == 'n' || s == '0');
-  }
-
   bool _isExerciseDone(Map<String, dynamic> ex) {
     final name = (ex['exercise_name'] ?? '').toString().trim().toLowerCase();
     if (name.isNotEmpty && _locallyCompletedExerciseNames.contains(name)) {
       return true;
     }
-    if (_truthy(ex['history_completed_this_week']) ||
-        _truthy(ex['completed_this_week'])) {
-      return true;
-    }
-
-    final setRows = ex['set_rows'];
-    if (setRows is List && setRows.isNotEmpty) {
-      var hasRow = false;
-      for (final row in setRows) {
-        if (row is! Map) continue;
-        hasRow = true;
-        if (!_truthy(row['completed'])) return false;
-      }
-      if (hasRow) return true;
-    }
-    return false;
+    final historyCompletedExerciseNames = widget
+        .readHistoryCompletedExerciseNames();
+    return name.isNotEmpty && historyCompletedExerciseNames.contains(name);
   }
 
   int _asInt(dynamic value, {required int fallback}) {
@@ -727,6 +711,7 @@ class _WorkoutLauncherPageState extends State<_WorkoutLauncherPage> {
                     onFinished: () {
                       unawaited(_finishExerciseFromLauncher(sourceIndex));
                     },
+                    onReplace: () => unawaited(widget.onReplaceExercise(ex)),
                     onStart: ({required int sets, required int reps}) =>
                         widget.onStartExercise(ex, sets: sets, reps: reps),
                   ),
@@ -758,6 +743,7 @@ class _WorkoutLauncherExerciseCard extends StatefulWidget {
     required this.isActive,
     required this.onStarted,
     required this.onFinished,
+    required this.onReplace,
     required this.onStart,
   });
 
@@ -771,6 +757,7 @@ class _WorkoutLauncherExerciseCard extends StatefulWidget {
   final bool isActive;
   final VoidCallback onStarted;
   final VoidCallback onFinished;
+  final VoidCallback onReplace;
   final Future<void> Function({required int sets, required int reps}) onStart;
 
   @override
@@ -976,6 +963,21 @@ class _WorkoutLauncherExerciseCardState
       await TrainingActivityService.stopSession();
       AccountStorage.notifyTrainingChanged();
       widget.onFinished();
+      if (mounted && programExerciseId != null) {
+        await showModalBottomSheet(
+          context: context,
+          useRootNavigator: true,
+          isScrollControlled: true,
+          barrierColor: const Color(0x66000000),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          builder: (_) => ExerciseFeedbackSheet(
+            programExerciseId: programExerciseId,
+            exerciseName: exerciseName.isNotEmpty ? exerciseName : widget.name,
+            onDone: () {},
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _finishingExercise = false);
     }
@@ -1342,6 +1344,97 @@ class _WorkoutLauncherExerciseCardState
     }
   }
 
+  Future<void> _showExerciseActionsSheet() async {
+    final media = MediaQuery.of(context);
+    final lift = (media.size.height * 0.012).clamp(6.0, 12.0).toDouble();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: const Color(0x66000000),
+      builder: (_) => Align(
+        alignment: Alignment.bottomCenter,
+        child: SizedBox(
+          width: double.infinity,
+          child: Material(
+            color: const Color(0xFF404040),
+            child: Padding(
+              padding: EdgeInsets.only(bottom: lift),
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
+                child: Material(
+                  color: const Color(0xFF404040),
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      22,
+                      10,
+                      22,
+                      14 + media.viewInsets.bottom,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(
+                          width: 64,
+                          child: Divider(
+                            thickness: 4,
+                            color: Color(0x991C1D17),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TaqaSheetActionButton(
+                          label: "HOW TO",
+                          filled: true,
+                          onTap: () async {
+                            Navigator.of(context).pop();
+                            final instructions =
+                                (widget.exercise['instructions'] ?? '')
+                                    .toString()
+                                    .trim();
+                            if (instructions.isEmpty) {
+                              AppToast.show(
+                                context,
+                                "No instructions available.",
+                                type: AppToastType.info,
+                              );
+                              return;
+                            }
+                            await Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => ExerciseInstructionDialog(
+                                  title: widget.name,
+                                  instructions: instructions,
+                                  animationUrl: widget.exercise['animation_url']
+                                      ?.toString(),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TaqaSheetActionButton(
+                          label: "REPLACE EXERCISE",
+                          filled: true,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            widget.onReplace();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final dpr = MediaQuery.of(context).devicePixelRatio;
@@ -1390,18 +1483,24 @@ class _WorkoutLauncherExerciseCardState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: Text(
-                            widget.name,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: TaqaUiFontFamilies.interTight,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              height: 1,
-                              color: Colors.white,
+                          child: Container(
+                            constraints: const BoxConstraints(minHeight: 41),
+                            padding: const EdgeInsets.only(top: 1, bottom: 4),
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              widget.name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: TaqaUiFontFamilies.interTight,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                height: 1.12,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),
@@ -1413,34 +1512,22 @@ class _WorkoutLauncherExerciseCardState
                             size: 18,
                           )
                         else
-                          const Icon(Icons.more_vert, color: Colors.white70),
+                          GestureDetector(
+                            onTap: () => unawaited(_showExerciseActionsSheet()),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 2,
+                                vertical: 2,
+                              ),
+                              child: Icon(
+                                Icons.more_vert,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                     const SizedBox(height: 26),
-                    if (widget.isDone && !widget.isActive) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEFFAF2),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: const Color(0x662ECC71)),
-                        ),
-                        child: const Text(
-                          "DONE",
-                          style: TextStyle(
-                            fontFamily: TaqaUiFontFamilies.interTight,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1E7E34),
-                            letterSpacing: 0.2,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                    ],
                     Text(
                       "SUGGESTED",
                       style: TextStyle(
@@ -1986,11 +2073,16 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
   Future<void> _refreshOnResume() async {
     try {
       await TrainingResetCoordinator.ensureInitialized();
-      await _refreshTrainingPlanChangeState();
-      await _loadProgram();
+      await _refreshLightTrainState();
     } finally {
       _resumeRefreshInFlight = false;
     }
+  }
+
+  Future<void> _refreshLightTrainState() async {
+    await _loadWorkoutTimer();
+    await _refreshTrainingPlanChangeState();
+    await _refreshAccountStatus();
   }
 
   void _onTrainingChanged() {
@@ -2343,6 +2435,7 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       setState(() {
         _finishingWorkout = false;
         _showExRestPanel = false;
+        _sessionCompletedExerciseNames = <String>{};
         if (orderResult != null) {
           _dayOrder = orderResult.order;
           _dayCompletedByIndex = orderResult.completedByIndex;
@@ -2521,10 +2614,13 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       final userId = _userId ?? await AccountStorage.getUserId();
       if (userId == null) throw Exception("User not found");
       _userId = userId;
-      final localCompletedNames =
-          await TrainingProgressStorage.getSessionCompletedExerciseNamesSince(
-            0,
-          );
+      final activeWorkoutStartMs =
+          await TrainingProgressStorage.getWorkoutStartMs();
+      final localCompletedNames = activeWorkoutStartMs == null
+          ? const <String>[]
+          : await TrainingProgressStorage.getSessionCompletedExerciseNamesSince(
+              activeWorkoutStartMs,
+            );
       localCompleted = localCompletedNames
           .map(_normalizeExerciseName)
           .where((e) => e.isNotEmpty)
@@ -2532,7 +2628,10 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       await _loadFinishedDaysForCurrentWeek();
       // Run in parallel with cache + network refresh so we never block the
       // cached-program paint on this request.
-      historyFuture = _loadHistoryWorkedDaysForCurrentWeek(force: true);
+      historyFuture = _loadHistoryWorkedDaysForCurrentWeek(
+        force: true,
+        allowRemote: false,
+      );
 
       // Show cached program immediately if available (no blank UI), except
       // right after a regeneration where cache may still be the old plan.
@@ -2954,6 +3053,7 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     }
     await _loadWorkoutTimer();
     await _refreshInProgressExercises();
+    await _refreshDoneExercisesFromHistory();
   }
 
   Future<void> _openCardioExerciseSession(Map<String, dynamic> ex) async {
@@ -3203,15 +3303,6 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       dayIndex: dayIndex,
       dayLabel: dayLabel,
     );
-    final rawDay = (dayIndex >= 0 && dayIndex < days.length)
-        ? days[dayIndex]
-        : null;
-    final dayMap = rawDay is Map<String, dynamic>
-        ? rawDay
-        : (rawDay is Map ? Map<String, dynamic>.from(rawDay) : null);
-    final historyCompletedExerciseNames = dayMap == null
-        ? const <String>{}
-        : _historyCompletedExerciseNamesForDay(dayMap, dayIndex);
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => _TrainingDayExercisesPage(
@@ -3220,7 +3311,11 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
           readDisabledState: () => _isDayDisabledForWorkout(dayIndex),
           readDayNoteState: () => _dayNoteForWorkoutLock(dayIndex),
           readLiveState: _readTrainingDayLiveState,
-          historyCompletedExerciseNames: historyCompletedExerciseNames,
+          readHistoryCompletedExerciseNames: () {
+            final day = _dayAtIndex(dayIndex);
+            if (day == null) return const <String>{};
+            return _historyCompletedExerciseNamesForDay(day, dayIndex);
+          },
           programExerciseIdOf: _programExerciseId,
           normalizeExerciseName: _normalizeExerciseName,
           onStartExercise: _startExerciseFromLauncher,
@@ -3235,6 +3330,23 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
         ),
       ),
     );
+  }
+
+  Future<void> _refreshDoneExercisesFromHistory() async {
+    await _loadHistoryWorkedDaysForCurrentWeek(force: true);
+    final days = program?['days'];
+    if (days is! List) return;
+    try {
+      await _reconcileFinishedDaysWithProgram(days);
+    } catch (_) {}
+    if (!mounted) return;
+    final orderResult = _buildDayOrder(days);
+    if (!mounted) return;
+    setState(() {
+      _dayOrder = orderResult.order;
+      _dayCompletedByIndex = orderResult.completedByIndex;
+      _rebuildExerciseLists();
+    });
   }
 
   bool _isDayDisabledForWorkout(int dayIndex) {
@@ -3466,6 +3578,7 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
 
   Future<void> _loadHistoryWorkedDaysForCurrentWeek({
     bool force = false,
+    bool allowRemote = true,
   }) async {
     final weekStart = _weekStartMonday(
       TrainingResetCoordinator.currentNowUtc(),
@@ -3488,10 +3601,26 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     }
 
     try {
-      final history = await TrainingService.fetchTrainingHistory(
+      final cachedHistory = await TrainingService.readCachedTrainingHistory(
         userId: userId,
-        limitDays: 42,
+        minLimitDays: 42,
       );
+      if (cachedHistory == null && !allowRemote) {
+        _historyWorkedDayTokensForWeek = <String>{};
+        _historyCompletedExerciseNamesByDayTokenForWeek =
+            <String, Set<String>>{};
+        _historyWorkedWeekToken = weekToken;
+        _historyWorkedLoadedForWeek = false;
+        return;
+      }
+      final history =
+          cachedHistory ??
+          (allowRemote
+              ? await TrainingService.fetchTrainingHistory(
+                  userId: userId,
+                  limitDays: 42,
+                )
+              : const <Map<String, dynamic>>[]);
       final workedTokens = <String>{};
       final completedByDayToken = <String, Set<String>>{};
       for (final row in history) {
@@ -3998,6 +4127,7 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       context: context,
       useRootNavigator: true,
       isScrollControlled: true,
+      barrierColor: const Color(0x66000000),
       backgroundColor: Colors.transparent,
       builder: (_) => TrainingDayCompleteSheet(dayLabel: label),
     );
@@ -4268,7 +4398,7 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                   RefreshIndicator(
                     color: Colors.blueAccent,
                     backgroundColor: Colors.white,
-                    onRefresh: _loadProgram,
+                    onRefresh: _refreshLightTrainState,
                     child: ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -4469,7 +4599,7 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                   RefreshIndicator(
                     color: Colors.blueAccent,
                     backgroundColor: Colors.white,
-                    onRefresh: _loadProgram,
+                    onRefresh: _refreshLightTrainState,
                     child: _cardioBuilt
                         ? ListView(
                             physics: const AlwaysScrollableScrollPhysics(),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -22,6 +23,7 @@ import 'services/core/daily_provider_push_service.dart';
 import 'services/training/exercise_action_queue.dart';
 import 'services/training/cardio_session_queue.dart';
 import 'services/training/training_activity_service.dart';
+import 'services/training/training_service.dart';
 import 'core/account_storage.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'dart:io' show Platform;
@@ -250,6 +252,7 @@ class _MyAppState extends State<MyApp> {
     localeController.addListener(_handleLocaleChange);
     _lifecycleListener.add(_handleLifecycle);
     AccountStorage.accountChange.addListener(_handleAccountChange);
+    unawaited(_prefetchTrainingHistorySnapshot());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _maybeRequestAndroidHealthPermission();
     });
@@ -269,6 +272,7 @@ class _MyAppState extends State<MyApp> {
 
   void _handleLifecycle() async {
     _maybeRequestAndroidHealthPermission();
+    await _prefetchTrainingHistorySnapshot();
     try {
       await DailyProviderPushService().pushIfAfterOneAmLocal();
     } catch (e) {
@@ -296,6 +300,18 @@ class _MyAppState extends State<MyApp> {
         .then((_) => RemotePushService.syncTokenForCurrentUser(force: true))
         .catchError((_) {});
     _maybeRequestAndroidHealthPermission();
+    unawaited(_prefetchTrainingHistorySnapshot(force: true));
+  }
+
+  Future<void> _prefetchTrainingHistorySnapshot({bool force = false}) async {
+    try {
+      await TrainingService.prefetchTrainingHistorySnapshot(
+        limitDays: 42,
+        force: force,
+      );
+    } catch (_) {
+      // Best-effort app-wide preload only.
+    }
   }
 
   Future<void> _maybeRequestAndroidHealthPermission() async {

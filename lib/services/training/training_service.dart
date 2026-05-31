@@ -109,6 +109,12 @@ class TrainingService {
   static final Map<String, ImageProvider> _gifProviders = {};
   static final Set<String> _gifEverLoaded = <String>{};
   static final Map<String, ImageInfo> _gifFrames = {};
+  static List<Map<String, dynamic>> _trainingHistorySnapshot =
+      const <Map<String, dynamic>>[];
+  static int? _trainingHistorySnapshotUserId;
+  static int _trainingHistorySnapshotLimitDays = 0;
+  static DateTime? _trainingHistorySnapshotFetchedAtUtc;
+  static Future<void>? _trainingHistorySnapshotInFlight;
 
   static void _recordServerClock(http.BaseResponse response) {
     unawaited(
@@ -853,9 +859,68 @@ class TrainingService {
     }
     final data = json.decode(res.body);
     if (data is List) {
-      return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      final rows = data
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      _trainingHistorySnapshot = rows;
+      _trainingHistorySnapshotUserId = userId;
+      _trainingHistorySnapshotLimitDays = limitDays;
+      _trainingHistorySnapshotFetchedAtUtc = DateTime.now().toUtc();
+      return rows;
     }
+    _trainingHistorySnapshot = const <Map<String, dynamic>>[];
+    _trainingHistorySnapshotUserId = userId;
+    _trainingHistorySnapshotLimitDays = limitDays;
+    _trainingHistorySnapshotFetchedAtUtc = DateTime.now().toUtc();
     return const [];
+  }
+
+  static Future<List<Map<String, dynamic>>?> readCachedTrainingHistory({
+    required int userId,
+    int minLimitDays = 1,
+  }) async {
+    if (_trainingHistorySnapshotUserId != userId) return null;
+    if (_trainingHistorySnapshotLimitDays < minLimitDays) return null;
+    if (_trainingHistorySnapshot.isEmpty) return const <Map<String, dynamic>>[];
+    return _trainingHistorySnapshot
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList(growable: false);
+  }
+
+  static Future<void> prefetchTrainingHistorySnapshot({
+    int limitDays = 42,
+    bool force = false,
+    Duration maxAge = const Duration(minutes: 20),
+  }) async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null || userId <= 0) return;
+    final now = DateTime.now().toUtc();
+    final hasFreshEnoughCache =
+        !force &&
+        _trainingHistorySnapshotUserId == userId &&
+        _trainingHistorySnapshotLimitDays >= limitDays &&
+        _trainingHistorySnapshotFetchedAtUtc != null &&
+        now.difference(_trainingHistorySnapshotFetchedAtUtc!) <= maxAge;
+    if (hasFreshEnoughCache) return;
+    if (_trainingHistorySnapshotInFlight != null) {
+      await _trainingHistorySnapshotInFlight;
+      return;
+    }
+    final task = () async {
+      try {
+        await fetchTrainingHistory(userId: userId, limitDays: limitDays);
+      } catch (_) {
+        // Best-effort prefetch only.
+      }
+    }();
+    _trainingHistorySnapshotInFlight = task;
+    try {
+      await task;
+    } finally {
+      if (identical(_trainingHistorySnapshotInFlight, task)) {
+        _trainingHistorySnapshotInFlight = null;
+      }
+    }
   }
 
   static Future<Map<String, dynamic>> fetchTrainingPlanChanges({
