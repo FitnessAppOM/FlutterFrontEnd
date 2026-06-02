@@ -2820,6 +2820,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     final isCardio = _isCardioExercise();
     final useSetRows = !isCardio && _supportsSetRows;
     final showSession = !isCardio && (started || widget.showSessionOnOpen);
+    final showFloatingWorkoutTimer = showSession;
     final token = dotenv.isInitialized
         ? dotenv.maybeGet('MAPBOX_PUBLIC_KEY')
         : null;
@@ -2846,9 +2847,24 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       compliance?['performed_rir'] ?? widget.exercise['performed_rir'],
     );
     final String rirLabel = overrideRir ?? widget.exercise['rir'].toString();
+    const floatingTimerBarHeight = 78.0;
+    final floatingTimerBottomSpacing = 14.0 + viewInsets.bottom;
+    final floatingTimerReservedSpace = showFloatingWorkoutTimer
+        ? (floatingTimerBarHeight + floatingTimerBottomSpacing + 10)
+        : 0.0;
     final contentPadding = isCardio
-        ? EdgeInsets.fromLTRB(0, 0, 0, 18 + viewInsets.bottom)
-        : EdgeInsets.fromLTRB(18, 18, 18, 18 + viewInsets.bottom);
+        ? EdgeInsets.fromLTRB(
+            0,
+            0,
+            0,
+            18 + viewInsets.bottom + floatingTimerReservedSpace,
+          )
+        : EdgeInsets.fromLTRB(
+            18,
+            18,
+            18,
+            18 + viewInsets.bottom + floatingTimerReservedSpace,
+          );
 
     Widget animationWidget = const Icon(
       Icons.fitness_center,
@@ -3310,6 +3326,16 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                 child: ColoredBox(color: Colors.transparent),
               ),
             ),
+          if (showFloatingWorkoutTimer)
+            Positioned(
+              left: 18,
+              right: 18,
+              bottom: floatingTimerBottomSpacing,
+              child: IgnorePointer(
+                ignoring: submitting,
+                child: _FloatingWorkoutTimerBar(timeText: _time),
+              ),
+            ),
         ],
       ),
     );
@@ -3363,6 +3389,65 @@ class _SessionChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FloatingWorkoutTimerBar extends StatelessWidget {
+  final String timeText;
+
+  const _FloatingWorkoutTimerBar({required this.timeText});
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF1C1D17).withValues(alpha: 0.14),
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: [
+            const Icon(Icons.timer, color: Color(0xFF1C1D17), size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    "Workout",
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1C1D17),
+                    ),
+                  ),
+                  Text(
+                    timeText,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1C1D17),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

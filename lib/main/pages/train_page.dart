@@ -78,6 +78,7 @@ class _TrainingDayExercisesPage extends StatefulWidget {
     required this.onStartExercise,
     required this.onExerciseFinished,
     required this.onReplaceExercise,
+    required this.onWorkoutSessionClosed,
     required this.onFinishWorkout,
     required this.onSkipRest,
     required this.onStartRest,
@@ -102,6 +103,7 @@ class _TrainingDayExercisesPage extends StatefulWidget {
   onStartExercise;
   final Future<void> Function(Map<String, dynamic> exercise) onExerciseFinished;
   final Future<void> Function(Map<String, dynamic>) onReplaceExercise;
+  final Future<void> Function() onWorkoutSessionClosed;
   final Future<void> Function() onFinishWorkout;
   final VoidCallback onSkipRest;
   final VoidCallback onStartRest;
@@ -463,6 +465,7 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                       completedOverride: done,
                       forceCompleted: done,
                       inProgress: inProgress,
+                      showReplace: !live.showWorkoutTimer,
                     ),
                   );
                 });
@@ -480,6 +483,7 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                               dayLabel: widget.dayLabel,
                               exercises: widget.exercises,
                               restSeconds: live.activeRestPreset,
+                              readLiveState: widget.readLiveState,
                               readHistoryCompletedExerciseNames:
                                   widget.readHistoryCompletedExerciseNames,
                               inProgressExerciseIds: live.inProgressExerciseIds,
@@ -491,6 +495,8 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                             ),
                           ),
                         );
+                        if (!mounted) return;
+                        await widget.onWorkoutSessionClosed();
                         if (!mounted) return;
                         setState(() {});
                       },
@@ -531,6 +537,7 @@ class _WorkoutLauncherPage extends StatefulWidget {
     required this.dayLabel,
     required this.exercises,
     required this.restSeconds,
+    required this.readLiveState,
     required this.readHistoryCompletedExerciseNames,
     required this.inProgressExerciseIds,
     required this.activeSessionExerciseName,
@@ -542,6 +549,7 @@ class _WorkoutLauncherPage extends StatefulWidget {
   final String dayLabel;
   final List<Map<String, dynamic>> exercises;
   final int restSeconds;
+  final _TrainingDayLiveState Function() readLiveState;
   final Set<String> Function() readHistoryCompletedExerciseNames;
   final Set<int> inProgressExerciseIds;
   final String? activeSessionExerciseName;
@@ -561,11 +569,21 @@ class _WorkoutLauncherPage extends StatefulWidget {
 class _WorkoutLauncherPageState extends State<_WorkoutLauncherPage> {
   int? _activeExerciseIndex;
   final Set<String> _locallyCompletedExerciseNames = <String>{};
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _activeExerciseIndex = _resolveActiveExerciseIndex();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   int? _programExerciseId(Map<String, dynamic> ex) {
@@ -642,6 +660,7 @@ class _WorkoutLauncherPageState extends State<_WorkoutLauncherPage> {
 
   @override
   Widget build(BuildContext context) {
+    final live = widget.readLiveState();
     final sortedEntries = widget.exercises.asMap().entries.toList()
       ..sort((a, b) {
         final aDone = _isExerciseDone(a.value);
@@ -649,6 +668,11 @@ class _WorkoutLauncherPageState extends State<_WorkoutLauncherPage> {
         if (aDone == bDone) return a.key.compareTo(b.key);
         return aDone ? 1 : -1;
       });
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final showFloatingWorkoutTimer = live.showWorkoutTimer;
+    final listBottomPadding = showFloatingWorkoutTimer
+        ? 110.0 + bottomInset
+        : 20.0;
 
     return Scaffold(
       backgroundColor: const Color(0xFF11130F),
@@ -674,58 +698,75 @@ class _WorkoutLauncherPageState extends State<_WorkoutLauncherPage> {
           ),
         ],
       ),
-      body: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(14, 10, 14, 20),
-        itemCount: sortedEntries.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final entry = sortedEntries[index];
-          final sourceIndex = entry.key;
-          final ex = entry.value;
-          final isDone = _isExerciseDone(ex);
-          final sets = _asInt(ex['sets'], fallback: 2).clamp(1, 12);
-          final reps = _asInt(ex['reps'], fallback: 8).clamp(1, 200);
-          final rir = _asInt(ex['rir'], fallback: 2).clamp(0, 10);
-          final name = _exerciseName(ex, sourceIndex);
-          final isActive = _activeExerciseIndex == sourceIndex;
-          final dimmed = _activeExerciseIndex != null && !isActive;
-          return IgnorePointer(
-            ignoring: dimmed,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Stack(
-                children: [
-                  _WorkoutLauncherExerciseCard(
-                    exercise: ex,
-                    name: name,
-                    sets: sets,
-                    reps: reps,
-                    rir: rir,
-                    restSeconds: widget.restSeconds,
-                    isDone: isDone,
-                    isActive: isActive,
-                    onStarted: () {
-                      if (!mounted) return;
-                      setState(() => _activeExerciseIndex = sourceIndex);
-                    },
-                    onFinished: () {
-                      unawaited(_finishExerciseFromLauncher(sourceIndex));
-                    },
-                    onReplace: () => unawaited(widget.onReplaceExercise(ex)),
-                    onStart: ({required int sets, required int reps}) =>
-                        widget.onStartExercise(ex, sets: sets, reps: reps),
-                  ),
-                  if (dimmed)
-                    Positioned.fill(
-                      child: Container(
-                        color: Colors.black.withValues(alpha: 0.24),
+      body: Stack(
+        children: [
+          ListView.separated(
+            padding: EdgeInsets.fromLTRB(14, 10, 14, listBottomPadding),
+            itemCount: sortedEntries.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final entry = sortedEntries[index];
+              final sourceIndex = entry.key;
+              final ex = entry.value;
+              final isDone = _isExerciseDone(ex);
+              final sets = _asInt(ex['sets'], fallback: 2).clamp(1, 12);
+              final reps = _asInt(ex['reps'], fallback: 8).clamp(1, 200);
+              final rir = _asInt(ex['rir'], fallback: 2).clamp(0, 10);
+              final name = _exerciseName(ex, sourceIndex);
+              final isActive = _activeExerciseIndex == sourceIndex;
+              final dimmed = _activeExerciseIndex != null && !isActive;
+              return IgnorePointer(
+                ignoring: dimmed,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Stack(
+                    children: [
+                      _WorkoutLauncherExerciseCard(
+                        exercise: ex,
+                        name: name,
+                        sets: sets,
+                        reps: reps,
+                        rir: rir,
+                        restSeconds: widget.restSeconds,
+                        isDone: isDone,
+                        isActive: isActive,
+                        onStarted: () {
+                          if (!mounted) return;
+                          setState(() => _activeExerciseIndex = sourceIndex);
+                        },
+                        onFinished: () {
+                          unawaited(_finishExerciseFromLauncher(sourceIndex));
+                        },
+                        onReplace: () =>
+                            unawaited(widget.onReplaceExercise(ex)),
+                        onStart: ({required int sets, required int reps}) =>
+                            widget.onStartExercise(ex, sets: sets, reps: reps),
                       ),
-                    ),
-                ],
+                      if (dimmed)
+                        Positioned.fill(
+                          child: Container(
+                            color: Colors.black.withValues(alpha: 0.24),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          if (showFloatingWorkoutTimer)
+            Positioned(
+              left: 14,
+              bottom: 14 + bottomInset,
+              child: IgnorePointer(
+                ignoring: live.finishingWorkout,
+                child: _WorkoutFloatingTimerBar(
+                  timeText: live.workoutTimeText,
+                  finishing: live.finishingWorkout,
+                ),
               ),
             ),
-          );
-        },
+        ],
       ),
     );
   }
@@ -770,6 +811,8 @@ class _WorkoutLauncherExerciseCardState
   late List<_LauncherSetRow> _rows;
   bool _starting = false;
   bool _finishingExercise = false;
+  bool _exerciseFinished = false;
+  bool _restoredProgress = false;
   Timer? _activeTicker;
   int? _exerciseStartedAtMs;
   int? _setStartedAtMs;
@@ -789,32 +832,172 @@ class _WorkoutLauncherExerciseCardState
       _setInProgress = true;
       _ensureActiveTimers();
     }
+    unawaited(_restoreLauncherProgressState());
   }
 
   @override
   void didUpdateWidget(covariant _WorkoutLauncherExerciseCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isActive && !oldWidget.isActive) {
-      _setInProgress = true;
-      _flowSetIndex = _flowSetIndex.clamp(0, (_rows.length - 1).clamp(0, 999));
-      _ensureActiveTimers();
+      if (!_restoredProgress) {
+        _setInProgress = true;
+        _flowSetIndex = _flowSetIndex.clamp(
+          0,
+          (_rows.length - 1).clamp(0, 999),
+        );
+        _ensureActiveTimers();
+      }
+      unawaited(_restoreLauncherProgressState());
     } else if (!widget.isActive && oldWidget.isActive) {
       _activeTicker?.cancel();
       _activeTicker = null;
-      _setInProgress = false;
     }
   }
 
   @override
   void dispose() {
+    unawaited(_saveLauncherProgressState());
     _activeTicker?.cancel();
     super.dispose();
+  }
+
+  Future<void> _restoreLauncherProgressState() async {
+    final programExerciseId = _programExerciseId();
+    if (programExerciseId == null) return;
+    final state = await TrainingProgressStorage.loadExerciseTimerState(
+      programExerciseId,
+    );
+    if (!mounted) return;
+    if (state == null || state['started'] != true) {
+      _restoredProgress = false;
+      return;
+    }
+
+    final savedRows = state['saved_set_rows'];
+    final restoredRows = <_LauncherSetRow>[];
+    if (savedRows is List) {
+      for (final raw in savedRows) {
+        if (raw is! Map) continue;
+        restoredRows.add(
+          _LauncherSetRow(
+            setIndex: _toInt(
+              raw['set_index'],
+              fallback: restoredRows.length + 1,
+            ),
+            reps: _toInt(raw['reps'], fallback: widget.reps),
+            rir: _toInt(raw['rir'], fallback: widget.rir),
+            weightKg: _toDouble(raw['weight_kg'], fallback: 0),
+            done: _toBool(raw['completed']),
+          ),
+        );
+      }
+    }
+    if (restoredRows.isNotEmpty) {
+      restoredRows.sort((a, b) => a.setIndex.compareTo(b.setIndex));
+    }
+
+    final savedAtMs = _toInt(
+      state['launcher_saved_at_ms'],
+      fallback: DateTime.now().millisecondsSinceEpoch,
+    );
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final gapSeconds = savedAtMs > 0 ? ((nowMs - savedAtMs) / 1000).floor() : 0;
+    final savedRestActive = state['launcher_rest_countdown_active'] == true;
+    var restRemaining = _toInt(
+      state['launcher_rest_countdown_remaining'],
+      fallback: 0,
+    );
+    var setInProgress = state['launcher_set_in_progress'] == true;
+    int? setStartedAtMs = _toInt(
+      state['launcher_set_started_at_ms'],
+      fallback: 0,
+    );
+    if (setStartedAtMs <= 0) {
+      setStartedAtMs = null;
+    }
+    if (savedRestActive && restRemaining > 0) {
+      restRemaining -= gapSeconds;
+      if (restRemaining <= 0) {
+        restRemaining = 0;
+        setInProgress = true;
+        setStartedAtMs = nowMs;
+      }
+    }
+
+    final savedFlowIndex = _toInt(
+      state['launcher_flow_set_index'],
+      fallback: 0,
+    );
+    final clampedFlowIndex = restoredRows.isEmpty
+        ? savedFlowIndex.clamp(0, 999)
+        : savedFlowIndex.clamp(0, restoredRows.length - 1);
+
+    setState(() {
+      if (restoredRows.isNotEmpty) {
+        _rows = restoredRows;
+      }
+      _restSeconds = _toInt(
+        state['launcher_rest_seconds'],
+        fallback: _restSeconds,
+      );
+      _flowSetIndex = clampedFlowIndex;
+      _setInProgress = setInProgress;
+      _restCountdownActive = savedRestActive && restRemaining > 0;
+      _restRemainingSeconds = _restCountdownActive ? restRemaining : 0;
+      _exerciseStartedAtMs = _toInt(state['start_ms'], fallback: 0);
+      if (_exerciseStartedAtMs != null && _exerciseStartedAtMs! <= 0) {
+        _exerciseStartedAtMs = null;
+      }
+      _setStartedAtMs = _setInProgress ? setStartedAtMs : null;
+      _restoredProgress = true;
+    });
+
+    if (widget.isActive) {
+      _ensureActiveTimers();
+    }
+  }
+
+  Future<void> _saveLauncherProgressState() async {
+    final programExerciseId = _programExerciseId();
+    if (programExerciseId == null) return;
+    if (_finishingExercise) return;
+    if (_exerciseFinished) return;
+    if (!widget.isActive) return;
+    if (_exerciseStartedAtMs == null && !widget.isActive) return;
+
+    await TrainingProgressStorage.saveExerciseTimerState(programExerciseId, {
+      'started': widget.isActive || _exerciseStartedAtMs != null,
+      'paused': false,
+      'seconds': _elapsedSecondsSince(_exerciseStartedAtMs),
+      'start_ms': _exerciseStartedAtMs,
+      'saved_set_rows': _rows
+          .map(
+            (row) => {
+              'set_index': row.setIndex,
+              'reps': row.reps,
+              'rir': row.rir,
+              'weight_kg': row.weightKg,
+              'completed': row.done,
+            },
+          )
+          .toList(),
+      'has_set_rows': _rows.isNotEmpty,
+      'launcher_flow_set_index': _flowSetIndex,
+      'launcher_set_in_progress': _setInProgress,
+      'launcher_set_started_at_ms': _setStartedAtMs,
+      'launcher_rest_seconds': _restSeconds,
+      'launcher_rest_countdown_active': _restCountdownActive,
+      'launcher_rest_countdown_remaining': _restRemainingSeconds,
+      'launcher_saved_at_ms': DateTime.now().millisecondsSinceEpoch,
+    });
   }
 
   void _ensureActiveTimers() {
     final now = DateTime.now().millisecondsSinceEpoch;
     _exerciseStartedAtMs ??= now;
-    _setStartedAtMs ??= now;
+    if (_setInProgress) {
+      _setStartedAtMs ??= now;
+    }
     _activeTicker ??= Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted || !widget.isActive) return;
       setState(() {
@@ -828,6 +1011,7 @@ class _WorkoutLauncherExerciseCardState
           }
         }
       });
+      unawaited(_saveLauncherProgressState());
     });
   }
 
@@ -882,6 +1066,7 @@ class _WorkoutLauncherExerciseCardState
           _restRemainingSeconds = rest;
         });
       }
+      await _saveLauncherProgressState();
       return;
     }
 
@@ -894,6 +1079,7 @@ class _WorkoutLauncherExerciseCardState
       });
     }
     _ensureActiveTimers();
+    await _saveLauncherProgressState();
   }
 
   Future<void> _finishExercise() async {
@@ -959,6 +1145,12 @@ class _WorkoutLauncherExerciseCardState
       _setInProgress = false;
       _restCountdownActive = false;
       _restRemainingSeconds = 0;
+      _exerciseFinished = true;
+      if (programExerciseId != null) {
+        await TrainingProgressStorage.clearExerciseTimerState(
+          programExerciseId,
+        );
+      }
 
       await TrainingActivityService.stopSession();
       AccountStorage.notifyTrainingChanged();
@@ -989,6 +1181,7 @@ class _WorkoutLauncherExerciseCardState
       _restCountdownActive = false;
       _restRemainingSeconds = 0;
     });
+    unawaited(_saveLauncherProgressState());
   }
 
   Future<void> _changeRestSeconds() async {
@@ -1079,6 +1272,7 @@ class _WorkoutLauncherExerciseCardState
         _restRemainingSeconds = selected;
       }
     });
+    await _saveLauncherProgressState();
   }
 
   int _elapsedSecondsSince(int? startedAtMs) {
@@ -1200,6 +1394,7 @@ class _WorkoutLauncherExerciseCardState
     if (mounted) {
       setState(() => _rows = [..._rows, next]);
     }
+    await _saveLauncherProgressState();
     final programExerciseId = _programExerciseId();
     if (programExerciseId == null) return;
     try {
@@ -1228,6 +1423,7 @@ class _WorkoutLauncherExerciseCardState
       setState(() => _rows = next);
     }
     await _persistUpsert(row);
+    await _saveLauncherProgressState();
   }
 
   Future<void> _editSetRow(int index) async {
@@ -1255,6 +1451,7 @@ class _WorkoutLauncherExerciseCardState
       setState(() => _rows = next);
     }
     await _persistUpsert(updated);
+    await _saveLauncherProgressState();
   }
 
   Future<void> _deleteSetRow(int index) async {
@@ -1295,6 +1492,7 @@ class _WorkoutLauncherExerciseCardState
         _setStartedAtMs = nextSetStartedAtMs;
       });
     }
+    await _saveLauncherProgressState();
 
     final programExerciseId = _programExerciseId();
     if (programExerciseId == null) return;
@@ -1328,6 +1526,7 @@ class _WorkoutLauncherExerciseCardState
     _restRemainingSeconds = 0;
     _flowSetIndex = _initialFlowSetIndex();
     _setInProgress = true;
+    _exerciseFinished = false;
     _ensureActiveTimers();
     setState(() => _starting = true);
     widget.onStarted();
@@ -1336,8 +1535,15 @@ class _WorkoutLauncherExerciseCardState
         sets: startSets <= 0 ? 1 : startSets,
         reps: startReps <= 0 ? 1 : startReps,
       );
+      await _saveLauncherProgressState();
     } catch (_) {
       widget.onFinished();
+      final programExerciseId = _programExerciseId();
+      if (programExerciseId != null) {
+        await TrainingProgressStorage.clearExerciseTimerState(
+          programExerciseId,
+        );
+      }
       rethrow;
     } finally {
       if (mounted) setState(() => _starting = false);
@@ -1420,6 +1626,14 @@ class _WorkoutLauncherExerciseCardState
                           filled: true,
                           onTap: () {
                             Navigator.of(context).pop();
+                            if (widget.isActive) {
+                              AppToast.show(
+                                context,
+                                "Finish the current exercise before replacing it.",
+                                type: AppToastType.info,
+                              );
+                              return;
+                            }
                             widget.onReplace();
                           },
                         ),
@@ -1885,6 +2099,83 @@ class _WorkoutLauncherExerciseCardState
             color: Colors.white,
             fontSize: 16,
             fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkoutFloatingTimerBar extends StatelessWidget {
+  const _WorkoutFloatingTimerBar({
+    required this.timeText,
+    required this.finishing,
+  });
+
+  final String timeText;
+  final bool finishing;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 170, maxWidth: 220),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFF1C1D17).withValues(alpha: 0.14),
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x33000000),
+              blurRadius: 18,
+              offset: Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.timer, color: Color(0xFF1C1D17), size: 20),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    "Workout",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: TaqaUiColors.unnamedColor1c1d17,
+                    ),
+                  ),
+                  Text(
+                    timeText,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: TaqaUiColors.unnamedColor1c1d17,
+                    ),
+                  ),
+                ],
+              ),
+              if (finishing) ...[
+                const SizedBox(width: 10),
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ],
+            ],
           ),
         ),
       ),
@@ -3321,6 +3612,10 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
           onStartExercise: _startExerciseFromLauncher,
           onExerciseFinished: _handleExerciseFinishedFromLauncher,
           onReplaceExercise: _openReplaceSheet,
+          onWorkoutSessionClosed: () async {
+            await _loadWorkoutTimer();
+            await _refreshInProgressExercises();
+          },
           onFinishWorkout: () => _finishWorkout(),
           onSkipRest: _skipExRest,
           onStartRest: _startExRestCountdown,
@@ -3330,6 +3625,11 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
         ),
       ),
     );
+    if (!mounted) return;
+    await _loadWorkoutTimer();
+    await _refreshInProgressExercises();
+    if (!mounted) return;
+    setState(() {});
   }
 
   Future<void> _refreshDoneExercisesFromHistory() async {

@@ -14,6 +14,7 @@ class ExerciseCard extends StatelessWidget {
   final bool inProgress;
   final bool forceCompleted;
   final bool? completedOverride;
+  final bool showReplace;
 
   const ExerciseCard({
     super.key,
@@ -24,6 +25,7 @@ class ExerciseCard extends StatelessWidget {
     this.inProgress = false,
     this.forceCompleted = false,
     this.completedOverride,
+    this.showReplace = true,
   });
 
   Map<String, dynamic>? _extractCompliance(dynamic value) {
@@ -527,9 +529,10 @@ class ExerciseCard extends StatelessWidget {
                                                 ),
                                               ),
                                             ),
-                                            if (!completed)
+                                            if (!completed && showReplace)
                                               const SizedBox(width: 8),
-                                            if (!completed) replaceChip,
+                                            if (!completed && showReplace)
+                                              replaceChip,
                                           ],
                                         ),
                                     ],
