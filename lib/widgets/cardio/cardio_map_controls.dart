@@ -14,6 +14,12 @@ class CardioMapControls extends StatefulWidget {
     this.steps,
     this.elapsedSeconds,
     this.running,
+    this.showStatBar = true,
+    this.alwaysShowStatBar = false,
+    this.showTimePill = true,
+    this.showDistancePill = true,
+    this.showPacePill = true,
+    this.showStepsPill = true,
   });
 
   final VoidCallback? onStart;
@@ -25,6 +31,12 @@ class CardioMapControls extends StatefulWidget {
   final int? steps;
   final int? elapsedSeconds;
   final bool? running;
+  final bool showStatBar;
+  final bool alwaysShowStatBar;
+  final bool showTimePill;
+  final bool showDistancePill;
+  final bool showPacePill;
+  final bool showStepsPill;
 
   @override
   State<CardioMapControls> createState() => _CardioMapControlsState();
@@ -152,46 +164,53 @@ class _CardioMapControlsState extends State<CardioMapControls> {
     final distanceLabel = (widget.distanceKm ?? 0).toStringAsFixed(2);
     final paceLabel = _paceLabel();
     final stepsLabel = widget.steps?.toString() ?? "0";
+    final statPills = <Widget>[
+      if (widget.showTimePill) _StatPill(label: "Time", value: _time),
+      if (widget.showDistancePill)
+        _StatPill(label: "Distance", value: "$distanceLabel km"),
+      if (widget.showPacePill) _StatPill(label: "Pace", value: paceLabel),
+      if (widget.showStepsPill) _StatPill(label: "Steps", value: stepsLabel),
+    ];
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        AnimatedSlide(
-          offset: _showStats ? Offset.zero : const Offset(0, 0.25),
-          duration: const Duration(milliseconds: 260),
-          curve: Curves.easeOutCubic,
-          child: AnimatedOpacity(
-            opacity: _showStats ? 1 : 0,
-            duration: const Duration(milliseconds: 220),
+        if (widget.showStatBar)
+          AnimatedSlide(
+            offset: (widget.alwaysShowStatBar || _showStats)
+                ? Offset.zero
+                : const Offset(0, 0.25),
+            duration: const Duration(milliseconds: 260),
             curve: Curves.easeOutCubic,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              margin: const EdgeInsets.only(bottom: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0B0F1A).withOpacity(0.9),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.4),
-                    blurRadius: 16,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  _StatPill(label: "Time", value: _time),
-                  const SizedBox(width: 8),
-                  _StatPill(label: "Distance", value: "$distanceLabel km"),
-                  const SizedBox(width: 8),
-                  _StatPill(label: "Pace", value: paceLabel),
-                  const SizedBox(width: 8),
-                  _StatPill(label: "Steps", value: stepsLabel),
-                ],
+            child: AnimatedOpacity(
+              opacity: (widget.alwaysShowStatBar || _showStats) ? 1 : 0,
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                margin: const EdgeInsets.only(bottom: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0B0F1A).withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.4),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    for (var i = 0; i < statPills.length; i++) ...[
+                      statPills[i],
+                      if (i != statPills.length - 1) const SizedBox(width: 8),
+                    ],
+                  ],
+                ),
               ),
             ),
           ),
-        ),
         SizedBox(
           height: 64,
           width: double.infinity,

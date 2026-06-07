@@ -3,6 +3,7 @@ import 'package:taqaproject/TaqaUI/components/taqa_action_controls.dart';
 import '../../services/training/training_service.dart';
 import '../../services/training/exercise_action_queue.dart';
 import '../../widgets/app_toast.dart';
+import '../cardio/cardio_exercise_utils.dart';
 import '../../localization/app_localizations.dart';
 
 class ReplaceExerciseSheet extends StatefulWidget {
@@ -633,7 +634,10 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
               if (e is! Map<String, dynamic>) return const SizedBox.shrink();
 
               final name = _exerciseTitle(e);
-              final animUrl = (e['animation_url'] ?? '').toString().trim();
+              final animUrl = resolvedCardioAnimationUrl(
+                e['exercise_name']?.toString(),
+                e['animation_url']?.toString(),
+              );
               final id = _asInt(e['exercise_id']);
               final canTap = id != null && !submitting;
               final replaceId = id ?? 0;

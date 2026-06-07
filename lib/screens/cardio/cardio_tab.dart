@@ -9,6 +9,7 @@ import '../../services/training/training_activity_service.dart';
 import '../../services/training/training_service.dart';
 import '../../services/training/cardio_exercises_storage.dart';
 import '../../widgets/cardio/cardio_resume_banner.dart';
+import '../../widgets/cardio/cardio_exercise_utils.dart';
 import '../../core/account_storage.dart';
 import 'cardio_history_page.dart';
 
@@ -156,8 +157,7 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
       "exercise_id": 4158,
       "exercise_name": "Outdoor Cycling",
       "animation_name": "Cardio - Cycling",
-      "animation_rel_path":
-          "animations_raw/Cardio - Cycling/22791301-Stationary-Bike-Run-(version-4)_Cardio_1080.gif",
+      "animation_rel_path": "",
       "category": "Cardio",
       "sets": 1,
       "reps": 1,
@@ -311,7 +311,7 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
   Future<void> _loadCardioLibraryFromCache() async {
     final cached = await CardioExercisesStorage.loadList();
     if (!mounted || cached == null || cached.isEmpty) return;
-    setState(() => _cardioLibrary = cached);
+    setState(() => _cardioLibrary = _sanitizeCardioLibrary(cached));
   }
 
   Future<void> _loadCardioLibrary() async {
@@ -325,11 +325,11 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
           : List<Map<String, dynamic>>.from(_fallbackCardioLibrary);
       final merged = _mergeCardioLibrary(base, items);
       setState(() {
-        _cardioLibrary = merged;
+        _cardioLibrary = _sanitizeCardioLibrary(merged);
         _loadingCardioLibrary = false;
       });
-      _precacheGifs(merged);
-      CardioExercisesStorage.saveList(merged);
+      _precacheGifs(_sanitizeCardioLibrary(merged));
+      CardioExercisesStorage.saveList(_sanitizeCardioLibrary(merged));
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -346,7 +346,10 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
     final cacheH = (66 * dpr).round();
     for (final ex in items) {
       final url = TrainingService.animationImageUrl(
-        ex['animation_url']?.toString(),
+        resolvedCardioAnimationUrl(
+          ex['exercise_name']?.toString(),
+          ex['animation_url']?.toString(),
+        ),
         null,
       );
       if (url.isEmpty) continue;
@@ -384,6 +387,20 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
         'animation_rel_path': null,
       };
     }).toList();
+  }
+
+  List<Map<String, dynamic>> _sanitizeCardioLibrary(
+    List<Map<String, dynamic>> items,
+  ) {
+    return items
+        .map((item) => {
+              ...item,
+              'animation_url': resolvedCardioAnimationUrl(
+                item['exercise_name']?.toString(),
+                item['animation_url']?.toString(),
+              ),
+            })
+        .toList();
   }
 
   String _normalizeName(String? name) {

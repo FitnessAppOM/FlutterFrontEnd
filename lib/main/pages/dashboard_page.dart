@@ -5864,8 +5864,12 @@ class DashboardPageState extends State<DashboardPage>
 
               final maxWidth = constraints.maxWidth;
               const crossAxisCount = 2;
-              const spacing = 12.0;
-              const aspectRatio = 1.10;
+              final spacing = maxWidth < 380 ? 10.0 : 12.0;
+              final aspectRatio = maxWidth < 380
+                  ? 0.82
+                  : maxWidth < 430
+                  ? 0.90
+                  : 1.02;
               const maxTileWidth = 184.0;
               final gridWidth = math.min(
                 maxWidth,

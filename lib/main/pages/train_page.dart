@@ -11,6 +11,7 @@ import '../../widgets/training/exercise_card.dart';
 import '../../widgets/training/exercise_feedback_sheet.dart';
 import '../../widgets/training/exercise_instruction_dialog.dart';
 import '../../widgets/training/exercise_session_sheet.dart';
+import '../../widgets/cardio/cardio_exercise_utils.dart';
 import '../../widgets/cardio/cardio_resume_banner.dart';
 import '../../core/account_storage.dart';
 import '../../core/training_regeneration_flag.dart';
@@ -2736,7 +2737,10 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
           _rebuildExerciseLists();
         }
       });
-      if (showToast) {
+      final shouldShowWorkoutFinishedToast =
+          showToast &&
+          (!hasCompletedExerciseInSession || !shouldShowDayCompletePopup);
+      if (shouldShowWorkoutFinishedToast) {
         AppToast.show(
           context,
           hasCompletedExerciseInSession
@@ -3356,7 +3360,10 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     final thumbH = (78 * dpr).round();
     final sheetH = (200 * dpr).round();
     final gifUrl = TrainingService.animationImageUrl(
-      ex['animation_url']?.toString(),
+      resolvedCardioAnimationUrl(
+        ex['exercise_name']?.toString(),
+        ex['animation_url']?.toString(),
+      ),
       null,
     );
     final ImageProvider? previewProvider = gifUrl.isEmpty
@@ -3395,39 +3402,70 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       }
     }
 
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      isDismissible: true,
-      enableDrag: false,
-      showDragHandle: false,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => FractionallySizedBox(
-        heightFactor: 1.0,
-        child: ExerciseSessionSheet(
-          exercise: exerciseWithDay,
-          completedExerciseNames: completedExerciseNames,
-          onFinished: () {
-            if (_tabIndex == 0 && mounted) {
-              setState(() {
-                _showExRestPanel = true;
-                if (!_exRestActive) {
-                  _exRestRemaining = _exRestPresetSeconds;
-                }
-              });
-            }
-            unawaited(_loadProgram());
-            _loadWorkoutTimer();
-          },
-          onStarted: () => _markExerciseInProgress(exerciseWithDay),
-          previewProvider: previewProvider,
-          showSessionOnOpen: true,
-        ),
-      ),
+    final useFullscreenIndoorCardio = isIndoorCardioExerciseName(
+      exerciseWithDay['exercise_name']?.toString(),
     );
+    if (useFullscreenIndoorCardio) {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          fullscreenDialog: true,
+          builder: (_) => ExerciseSessionSheet(
+            exercise: exerciseWithDay,
+            completedExerciseNames: completedExerciseNames,
+            onFinished: () {
+              if (_tabIndex == 0 && mounted) {
+                setState(() {
+                  _showExRestPanel = true;
+                  if (!_exRestActive) {
+                    _exRestRemaining = _exRestPresetSeconds;
+                  }
+                });
+              }
+              unawaited(_loadProgram());
+              _loadWorkoutTimer();
+            },
+            onStarted: () => _markExerciseInProgress(exerciseWithDay),
+            previewProvider: previewProvider,
+            showSessionOnOpen: true,
+            useFullscreenLayout: true,
+          ),
+        ),
+      );
+    } else {
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        isDismissible: true,
+        enableDrag: false,
+        showDragHandle: false,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (_) => FractionallySizedBox(
+          heightFactor: 1.0,
+          child: ExerciseSessionSheet(
+            exercise: exerciseWithDay,
+            completedExerciseNames: completedExerciseNames,
+            onFinished: () {
+              if (_tabIndex == 0 && mounted) {
+                setState(() {
+                  _showExRestPanel = true;
+                  if (!_exRestActive) {
+                    _exRestRemaining = _exRestPresetSeconds;
+                  }
+                });
+              }
+              unawaited(_loadProgram());
+              _loadWorkoutTimer();
+            },
+            onStarted: () => _markExerciseInProgress(exerciseWithDay),
+            previewProvider: previewProvider,
+            showSessionOnOpen: true,
+          ),
+        ),
+      );
+    }
     if (!mounted) return;
     await _loadWorkoutTimer();
     await _refreshInProgressExercises();

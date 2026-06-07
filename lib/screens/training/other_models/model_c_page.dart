@@ -7,6 +7,7 @@ class ModelCPage extends StatelessWidget {
     super.key,
     required this.route,
     required this.durationLabel,
+    required this.showDistance,
     required this.distanceLabel,
     required this.paceLabel,
     required this.userName,
@@ -16,6 +17,7 @@ class ModelCPage extends StatelessWidget {
 
   final List<CardioPoint> route;
   final String durationLabel;
+  final bool showDistance;
   final String distanceLabel;
   final String paceLabel;
   final String? userName;
@@ -46,7 +48,8 @@ class ModelCPage extends StatelessWidget {
                     children: [
                       _TraceRow(route: route),
                       ModelMetricPill(label: "Duration", value: durationLabel),
-                      ModelMetricPill(label: "Distance", value: distanceLabel),
+                      if (showDistance)
+                        ModelMetricPill(label: "Distance", value: distanceLabel),
                       ModelMetricPill(label: "Pace", value: paceLabel),
                     ],
                   ),

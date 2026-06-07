@@ -6,6 +6,7 @@ class ModelAPage extends StatelessWidget {
     super.key,
     required this.snapshotUrl,
     required this.durationLabel,
+    required this.showDistance,
     required this.distanceLabel,
     required this.paceLabel,
     required this.userName,
@@ -15,6 +16,7 @@ class ModelAPage extends StatelessWidget {
 
   final String snapshotUrl;
   final String durationLabel;
+  final bool showDistance;
   final String distanceLabel;
   final String paceLabel;
   final String? userName;
@@ -46,6 +48,7 @@ class ModelAPage extends StatelessWidget {
                   padding: const EdgeInsets.only(top: 90),
                   child: ModelMetricsColumn(
                     durationLabel: durationLabel,
+                    showDistance: showDistance,
                     distanceLabel: distanceLabel,
                     paceLabel: paceLabel,
                   ),

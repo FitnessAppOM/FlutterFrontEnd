@@ -58,11 +58,13 @@ class ModelMetricsColumn extends StatelessWidget {
   const ModelMetricsColumn({
     super.key,
     required this.durationLabel,
+    required this.showDistance,
     required this.distanceLabel,
     required this.paceLabel,
   });
 
   final String durationLabel;
+  final bool showDistance;
   final String distanceLabel;
   final String paceLabel;
 
@@ -72,7 +74,8 @@ class ModelMetricsColumn extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         ModelMetricPill(label: "Duration", value: durationLabel),
-        ModelMetricPill(label: "Distance", value: distanceLabel),
+        if (showDistance)
+          ModelMetricPill(label: "Distance", value: distanceLabel),
         ModelMetricPill(label: "Pace", value: paceLabel),
       ],
     );

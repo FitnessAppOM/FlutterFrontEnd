@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/training/training_service.dart';
 import '../../services/training/training_network_resilience.dart';
@@ -18,6 +19,8 @@ import '../../services/health/workout_health_sync_service.dart';
 import '../../consents/consent_manager.dart';
 import '../../core/account_storage.dart';
 import '../../widgets/cardio/cardio_map.dart';
+import '../../widgets/cardio/cardio_map_controls.dart';
+import '../../widgets/cardio/cardio_exercise_utils.dart';
 import '../../screens/training/cardio_achievement_sheet.dart';
 import 'package:pedometer/pedometer.dart';
 
@@ -28,6 +31,7 @@ class ExerciseSessionSheet extends StatefulWidget {
   final VoidCallback? onStarted;
   final ImageProvider? previewProvider;
   final bool showSessionOnOpen;
+  final bool useFullscreenLayout;
 
   const ExerciseSessionSheet({
     super.key,
@@ -37,6 +41,7 @@ class ExerciseSessionSheet extends StatefulWidget {
     this.onStarted,
     this.previewProvider,
     this.showSessionOnOpen = false,
+    this.useFullscreenLayout = false,
   });
 
   @override
@@ -52,6 +57,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   bool _cardioMapExpanded = false;
   double _cardioDistanceMeters = 0;
   double _cardioSpeedKmh = 0;
+  double _treadmillIncline = 0;
   List<CardioPoint> _cardioRoute = const [];
   int? _cardioSteps;
   int? _cardioStartSteps;
@@ -59,7 +65,6 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   int? _cardioPausedAtSteps;
   bool _adjustStepsOnResume = false;
   StreamSubscription<StepCount>? _stepSub;
-  bool _showCardioStartButton = true;
   bool _paused = false;
   bool _countdownSessionStarted = false;
   bool _instructionSeen = false;
@@ -106,14 +111,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     _restoreTimerState();
     _maybeAutoShowInstructions();
     if (_isCardioExercise()) {
-      _showCardioStartButton = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         setState(() => _cardioMapExpanded = true);
-      });
-      Future.delayed(const Duration(milliseconds: 520), () {
-        if (!mounted) return;
-        setState(() => _showCardioStartButton = true);
       });
     }
   }
@@ -841,6 +841,29 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         animName.startsWith('cardio -');
   }
 
+  bool _isIndoorCardioExercise() {
+    if (!_isCardioExercise()) return false;
+    return isIndoorCardioExerciseName(
+      (widget.exercise['exercise_name'] ?? widget.exercise['name']).toString(),
+    );
+  }
+
+  bool _shouldTrackCardioRoute() {
+    return _isCardioExercise() && !_isIndoorCardioExercise();
+  }
+
+  bool _isTreadmillExercise() {
+    final name = (widget.exercise['exercise_name'] ?? widget.exercise['name'] ?? '')
+        .toString()
+        .trim()
+        .toLowerCase();
+    return name.contains('treadmill') || name.contains('treadmil');
+  }
+
+  bool _isTimerOnlyIndoorCardio() {
+    return _isIndoorCardioExercise() && !_isTreadmillExercise();
+  }
+
   bool _hasExistingEntry(Map<String, dynamic> exercise) {
     final entries = [
       exercise['program_compliance'],
@@ -895,8 +918,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         final sets = _currentSets();
         final reps = _currentReps();
         final isCardio = _isCardioExercise();
-        final distanceKm = isCardio ? (_cardioDistanceMeters / 1000.0) : null;
-        final paceMinKm = isCardio ? _currentPaceMinPerKm() : null;
+        final distanceKm = isCardio ? _currentCardioDistanceKm() : null;
+        final paceMinKm = isCardio ? _currentCardioPaceMinKm() : null;
         TrainingActivityService.updateSession(
           exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
           sets: sets,
@@ -904,7 +927,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           seconds: currentSeconds,
           distanceKm: distanceKm,
           paceMinKm: paceMinKm,
-          steps: isCardio ? _cardioSteps : null,
+          steps: isCardio ? _currentCardioSteps() : null,
         );
       }
     });
@@ -938,17 +961,15 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         sets: _currentSets(),
         reps: _currentReps(),
         seconds: seconds,
-        distanceKm: _isCardioExercise()
-            ? (_cardioDistanceMeters / 1000.0)
-            : null,
-        paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
-        steps: _isCardioExercise() ? _cardioSteps : null,
+        distanceKm: _currentCardioDistanceKm(),
+        paceMinKm: _currentCardioPaceMinKm(),
+        steps: _currentCardioSteps(),
       ),
     );
   }
 
   Future<void> _startCardioStepsTracking() async {
-    if (!_isCardioExercise()) return;
+    if (!_isCardioExercise() || _isIndoorCardioExercise()) return;
     _cardioSteps ??= 0;
     if (mounted) setState(() {});
     _stepSub?.cancel();
@@ -987,11 +1008,6 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     return 60.0 / speedKmh;
   }
 
-  double _paceMinPerKmFromDistance(double distanceKm, int durationSeconds) {
-    if (distanceKm <= 0.001 || durationSeconds <= 0) return 0;
-    return (durationSeconds / 60.0) / distanceKm;
-  }
-
   double _currentPaceMinPerKm() {
     return _paceMinPerKm(_cardioSpeedKmh);
   }
@@ -1000,6 +1016,34 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     return _cardioRoute
         .map((p) => {"lat": p.lat, "lng": p.lng, if (p.paused) "paused": true})
         .toList();
+  }
+
+  List<Map<String, dynamic>>? _trackedCardioRoutePayload() {
+    if (!_shouldTrackCardioRoute()) return null;
+    final payload = _cardioRoutePayload();
+    return payload.isEmpty ? null : payload;
+  }
+
+  double? _currentCardioDistanceKm() {
+    if (!_isCardioExercise()) return null;
+    if (_isTreadmillExercise()) {
+      if (_cardioSpeedKmh <= 0.01 || seconds <= 0) return 0;
+      return (_cardioSpeedKmh * seconds) / 3600.0;
+    }
+    if (_isTimerOnlyIndoorCardio()) return null;
+    return _cardioDistanceMeters / 1000.0;
+  }
+
+  double? _currentCardioPaceMinKm() {
+    if (!_isCardioExercise()) return null;
+    if (_isTimerOnlyIndoorCardio()) return null;
+    final pace = _currentPaceMinPerKm();
+    return pace > 0.01 ? pace : null;
+  }
+
+  int? _currentCardioSteps() {
+    if (!_isCardioExercise() || _isIndoorCardioExercise()) return null;
+    return _cardioSteps;
   }
 
   List<CardioPoint> _parseCardioRoutePoints(dynamic raw) {
@@ -1067,12 +1111,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           sets: _currentSets(),
           reps: _currentReps(),
           seconds: seconds,
-          distanceKm: _isCardioExercise()
-              ? (_cardioDistanceMeters / 1000.0)
-              : null,
-          paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
-          steps: _isCardioExercise() ? _cardioSteps : null,
-          routePoints: _isCardioExercise() ? _cardioRoutePayload() : null,
+          distanceKm: _currentCardioDistanceKm(),
+          paceMinKm: _currentCardioPaceMinKm(),
+          steps: _currentCardioSteps(),
+          routePoints: _trackedCardioRoutePayload(),
         );
       }
       await _startCardioStepsTracking();
@@ -1083,12 +1125,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           sets: _currentSets(),
           reps: _currentReps(),
           seconds: seconds,
-          distanceKm: _isCardioExercise()
-              ? (_cardioDistanceMeters / 1000.0)
-              : null,
-          paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
-          steps: _isCardioExercise() ? _cardioSteps : null,
-          routePoints: _isCardioExercise() ? _cardioRoutePayload() : null,
+          distanceKm: _currentCardioDistanceKm(),
+          paceMinKm: _currentCardioPaceMinKm(),
+          steps: _currentCardioSteps(),
+          routePoints: _trackedCardioRoutePayload(),
         );
       } else {
         await TrainingActivityService.startSession(
@@ -1096,12 +1136,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           sets: _currentSets(),
           reps: _currentReps(),
           seconds: seconds,
-          distanceKm: _isCardioExercise()
-              ? (_cardioDistanceMeters / 1000.0)
-              : null,
-          paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
-          steps: _isCardioExercise() ? _cardioSteps : null,
-          routePoints: _isCardioExercise() ? _cardioRoutePayload() : null,
+          distanceKm: _currentCardioDistanceKm(),
+          paceMinKm: _currentCardioPaceMinKm(),
+          steps: _currentCardioSteps(),
+          routePoints: _trackedCardioRoutePayload(),
         );
       }
       widget.onStarted?.call();
@@ -1111,7 +1149,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       }
       return;
     }
-    if (_isCardioExercise()) {
+    if (_shouldTrackCardioRoute()) {
       final hasBg = await ConsentManager.hasBackgroundLocationPermission();
       if (!hasBg) {
         if (mounted) {
@@ -1168,12 +1206,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         sets: _currentSets(),
         reps: _currentReps(),
         seconds: seconds,
-        distanceKm: _isCardioExercise()
-            ? (_cardioDistanceMeters / 1000.0)
-            : null,
-        paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
-        steps: _isCardioExercise() ? _cardioSteps : null,
-        routePoints: _isCardioExercise() ? _cardioRoutePayload() : null,
+        distanceKm: _currentCardioDistanceKm(),
+        paceMinKm: _currentCardioPaceMinKm(),
+        steps: _currentCardioSteps(),
+        routePoints: _trackedCardioRoutePayload(),
       );
     } else {
       await TrainingActivityService.startSession(
@@ -1181,12 +1217,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         sets: _currentSets(),
         reps: _currentReps(),
         seconds: seconds,
-        distanceKm: _isCardioExercise()
-            ? (_cardioDistanceMeters / 1000.0)
-            : null,
-        paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
-        steps: _isCardioExercise() ? _cardioSteps : null,
-        routePoints: _isCardioExercise() ? _cardioRoutePayload() : null,
+        distanceKm: _currentCardioDistanceKm(),
+        paceMinKm: _currentCardioPaceMinKm(),
+        steps: _currentCardioSteps(),
+        routePoints: _trackedCardioRoutePayload(),
       );
     }
     _ensureActiveSetSelected();
@@ -2423,8 +2457,11 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
 
       // Save cardio session metrics (distance/speed/time)
       if (isCardio) {
-        final distanceKmValue = _cardioDistanceMeters / 1000.0;
-        final shouldPersistCardio = distanceKmValue >= 0.1;
+        final distanceKmValue = _currentCardioDistanceKm() ?? 0;
+        final avgPaceMinKm = _currentCardioPaceMinKm() ?? 0;
+        final routePoints = _trackedCardioRoutePayload() ?? const [];
+        final shouldPersistCardio =
+            _isIndoorCardioExercise() ? seconds > 0 : distanceKmValue >= 0.1;
         final workoutNameRaw =
             (widget.exercise['exercise_name'] ?? widget.exercise['name'] ?? '')
                 .toString()
@@ -2441,8 +2478,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
             title: workoutName,
             exerciseName: workoutName,
             isCardio: true,
-            totalDistanceMeters: _cardioDistanceMeters.round(),
-            stepsCount: _cardioSteps,
+            totalDistanceMeters: (distanceKmValue * 1000).round(),
+            stepsCount: _currentCardioSteps(),
           );
         } catch (_) {
           // Ignore health write failures and continue finishing cardio session.
@@ -2452,25 +2489,17 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
             ? rawExerciseId
             : int.tryParse(rawExerciseId?.toString() ?? '');
         if (shouldPersistCardio) {
+          final inclinePercent =
+              _isTreadmillExercise() ? _treadmillIncline : null;
           final payload = {
             "program_exercise_id": programExerciseId,
             "exercise_id": exerciseId,
             "distance_km": distanceKmValue,
-            "avg_pace_min_km": _paceMinPerKmFromDistance(
-              distanceKmValue,
-              seconds,
-            ),
+            "avg_pace_min_km": avgPaceMinKm,
             "duration_seconds": seconds,
-            "steps": _cardioSteps ?? 0,
-            "route_points": _cardioRoute
-                .map(
-                  (p) => {
-                    "lat": p.lat,
-                    "lng": p.lng,
-                    if (p.paused) "paused": true,
-                  },
-                )
-                .toList(),
+            "steps": _currentCardioSteps() ?? 0,
+            if (inclinePercent != null) "incline_percent": inclinePercent,
+            "route_points": routePoints,
             "entry_date":
                 "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
           };
@@ -2480,21 +2509,11 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                 programExerciseId: programExerciseId,
                 exerciseId: exerciseId,
                 distanceKm: distanceKmValue,
-                avgPaceMinKm: _paceMinPerKmFromDistance(
-                  distanceKmValue,
-                  seconds,
-                ),
+                avgPaceMinKm: avgPaceMinKm,
                 durationSeconds: seconds,
-                steps: _cardioSteps ?? 0,
-                routePoints: _cardioRoute
-                    .map(
-                      (p) => {
-                        "lat": p.lat,
-                        "lng": p.lng,
-                        if (p.paused) "paused": true,
-                      },
-                    )
-                    .toList(),
+                steps: _currentCardioSteps() ?? 0,
+                inclinePercent: inclinePercent,
+                routePoints: routePoints,
                 entryDate: now,
               ),
               TrainingNetworkResilience.sheetMutation,
@@ -2544,10 +2563,11 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           backgroundColor: Colors.transparent,
           builder: (_) => CardioAchievementSheet(
             durationSeconds: seconds,
-            distanceKm: _cardioDistanceMeters / 1000.0,
+            distanceKm: _currentCardioDistanceKm() ?? 0,
             avgSpeedKmh: _cardioSpeedKmh,
-            steps: _cardioSteps ?? 0,
-            route: _cardioRoute,
+            steps: _currentCardioSteps() ?? 0,
+            route: _shouldTrackCardioRoute() ? _cardioRoute : const [],
+            exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
             userName: name,
           ),
         );
@@ -2658,10 +2678,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       sets: _currentSets(),
       reps: _currentReps(),
       seconds: seconds,
-      distanceKm: _isCardioExercise() ? (_cardioDistanceMeters / 1000.0) : null,
-      paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
-      steps: _isCardioExercise() ? _cardioSteps : null,
-      routePoints: _isCardioExercise() ? _cardioRoutePayload() : null,
+      distanceKm: _currentCardioDistanceKm(),
+      paceMinKm: _currentCardioPaceMinKm(),
+      steps: _currentCardioSteps(),
+      routePoints: _trackedCardioRoutePayload(),
     );
   }
 
@@ -2676,12 +2696,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           sets: _currentSets(),
           reps: _currentReps(),
           seconds: seconds,
-          distanceKm: _isCardioExercise()
-              ? (_cardioDistanceMeters / 1000.0)
-              : null,
-          paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
-          steps: _isCardioExercise() ? _cardioSteps : null,
-          routePoints: _isCardioExercise() ? _cardioRoutePayload() : null,
+          distanceKm: _currentCardioDistanceKm(),
+          paceMinKm: _currentCardioPaceMinKm(),
+          steps: _currentCardioSteps(),
+          routePoints: _trackedCardioRoutePayload(),
           startMs: _sessionStartMs,
         );
       }
@@ -2715,11 +2733,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           sets: _currentSets(),
           reps: _currentReps(),
           seconds: seconds,
-          distanceKm: _isCardioExercise()
-              ? (_cardioDistanceMeters / 1000.0)
-              : null,
-          paceMinKm: _isCardioExercise() ? _currentPaceMinPerKm() : null,
-          steps: _isCardioExercise() ? _cardioSteps : null,
+          distanceKm: _currentCardioDistanceKm(),
+          paceMinKm: _currentCardioPaceMinKm(),
+          steps: _currentCardioSteps(),
         );
       }
     }
@@ -2815,9 +2831,432 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     return 0;
   }
 
+  Future<void> _handleCardioCountdownStart() async {
+    if (!started) {
+      setState(() => _countdownSessionStarted = true);
+      await TrainingActivityService.startSession(
+        exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
+        sets: _currentSets(),
+        reps: _currentReps(),
+        seconds: seconds,
+        distanceKm: _currentCardioDistanceKm(),
+        paceMinKm: _currentCardioPaceMinKm(),
+        steps: _currentCardioSteps(),
+        routePoints: _trackedCardioRoutePayload(),
+        paused: true,
+        pausedSeconds: seconds,
+      );
+    } else if (!_paused) {
+      await TrainingActivityService.updateSession(
+        exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
+        sets: _currentSets(),
+        reps: _currentReps(),
+        seconds: seconds,
+        distanceKm: _currentCardioDistanceKm(),
+        paceMinKm: _currentCardioPaceMinKm(),
+        steps: _currentCardioSteps(),
+        routePoints: _trackedCardioRoutePayload(),
+      );
+    }
+  }
+
+  void _adjustTreadmillSpeed(double delta) {
+    final next = (_cardioSpeedKmh + delta).clamp(0.0, 24.0);
+    setState(() => _cardioSpeedKmh = next);
+  }
+
+  void _adjustTreadmillIncline(double delta) {
+    final next = (_treadmillIncline + delta).clamp(0.0, 15.0);
+    setState(() => _treadmillIncline = next);
+  }
+
+  Widget _buildIndoorCardioFullScreenScaffold() {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 680),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return _buildIndoorCardioHero(
+                    availableHeight: constraints.maxHeight,
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIndoorCardioHero({double? availableHeight}) {
+    final exerciseName = (widget.exercise['exercise_name'] ?? 'Indoor cardio')
+        .toString();
+    final viewportHeight =
+        availableHeight ?? MediaQuery.of(context).size.height;
+    final compact = viewportHeight < 760;
+    final isTreadmill = _isTreadmillExercise();
+    final icon = _indoorCardioIcon();
+    return SizedBox(
+      height: availableHeight,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildIndoorCardioHeader(
+            exerciseName: exerciseName,
+            compact: compact,
+          ),
+          SizedBox(height: compact ? 16 : 22),
+          Expanded(
+            child: isTreadmill
+                ? _buildTreadmillIndoorOverview(compact: compact)
+                : _buildTimerOnlyIndoorOverview(
+                    compact: compact,
+                    exerciseName: exerciseName,
+                    icon: icon,
+                  ),
+          ),
+          SizedBox(height: compact ? 16 : 22),
+          _buildIndoorSessionDock(compact: compact, icon: icon),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIndoorCardioHeader({
+    required String exerciseName,
+    required bool compact,
+  }) {
+    return Row(
+      children: [
+        Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 12 : 14,
+            vertical: compact ? 8 : 10,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.08),
+            ),
+          ),
+          child: Text(
+            exerciseName.toUpperCase(),
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              color: Colors.white,
+              fontSize: compact ? 11 : 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+            ),
+          ),
+        ),
+        const Spacer(),
+        TextButton(
+          onPressed: _minimizeAndClose,
+          child: Text(
+            "Close workout",
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              color: Colors.white.withValues(alpha: 0.74),
+              fontSize: compact ? 13 : 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimerOnlyIndoorOverview({
+    required bool compact,
+    required String exerciseName,
+    required IconData icon,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Spacer(),
+        Container(
+          width: compact ? 92 : 108,
+          height: compact ? 92 : 108,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: const Color(0xFF171717),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+          ),
+          child: Icon(
+            icon,
+            color: const Color(0xFFE2FF3B),
+            size: compact ? 42 : 48,
+          ),
+        ),
+        SizedBox(height: compact ? 18 : 22),
+        Text(
+          exerciseName,
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            color: Colors.white,
+            fontSize: compact ? 34 : 42,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -1.4,
+          ),
+        ),
+        SizedBox(height: compact ? 6 : 8),
+        Text(
+          "Timer-based cardio session",
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            color: Colors.white.withValues(alpha: 0.54),
+            fontSize: compact ? 16 : 18,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const Spacer(),
+        Row(
+          children: const [
+            Expanded(
+              child: _IndoorReadout(
+                value: "0",
+                label: "ACTIVE CAL",
+              ),
+            ),
+            SizedBox(width: 18),
+            Expanded(
+              child: _IndoorReadout(
+                value: "0",
+                label: "TOTAL CAL",
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTreadmillIndoorOverview({required bool compact}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Spacer(),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Flexible(
+              child: Text(
+                (_currentCardioDistanceKm() ?? 0).toStringAsFixed(2),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  color: Colors.white,
+                  fontSize: compact ? 76 : 94,
+                  height: 0.9,
+                  fontWeight: FontWeight.w300,
+                  letterSpacing: -4,
+                ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.only(bottom: compact ? 10 : 14, left: 10),
+              child: Text(
+                "KM",
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  color: Colors.white,
+                  fontSize: compact ? 34 : 40,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -1,
+                ),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: compact ? 18 : 24),
+        Row(
+          children: [
+            Expanded(
+              child: _IndoorReadout(
+                value: _time,
+                label: "SESSION TIME",
+              ),
+            ),
+            const SizedBox(width: 18),
+            Expanded(
+              child: _IndoorReadout(
+                value: '${_cardioSpeedKmh.toStringAsFixed(1)} km/h',
+                label: "CURRENT SPEED",
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: compact ? 16 : 18),
+        Row(
+          children: [
+            Expanded(
+              child: _IndoorReadout(
+                value: '${_treadmillIncline.toStringAsFixed(1)}%',
+                label: "INCLINE",
+              ),
+            ),
+            const SizedBox(width: 18),
+            const Expanded(
+              child: _IndoorReadout(
+                value: "0",
+                label: "ACTIVE CAL",
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: compact ? 22 : 28),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: _TreadmillControlCard(
+                label: 'Speed',
+                value: '${_cardioSpeedKmh.toStringAsFixed(1)} km/h',
+                sliderValue: _cardioSpeedKmh,
+                min: 0,
+                max: 24,
+                divisions: 48,
+                compact: compact,
+                onDecrease: () => _adjustTreadmillSpeed(-0.5),
+                onIncrease: () => _adjustTreadmillSpeed(0.5),
+                onChanged: (value) => setState(() => _cardioSpeedKmh = value),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _TreadmillControlCard(
+                label: 'Incline',
+                value: '${_treadmillIncline.toStringAsFixed(1)}%',
+                sliderValue: _treadmillIncline,
+                min: 0,
+                max: 15,
+                divisions: 30,
+                compact: compact,
+                onDecrease: () => _adjustTreadmillIncline(-0.5),
+                onIncrease: () => _adjustTreadmillIncline(0.5),
+                onChanged: (value) => setState(() => _treadmillIncline = value),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIndoorSessionDock({
+    required bool compact,
+    required IconData icon,
+  }) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        compact ? 18 : 22,
+        compact ? 10 : 12,
+        compact ? 18 : 22,
+        compact ? 16 : 18,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1D1D20),
+        borderRadius: BorderRadius.circular(compact ? 30 : 36),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x66000000),
+            blurRadius: 24,
+            offset: Offset(0, 16),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: compact ? 44 : 52,
+            height: 6,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.28),
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          SizedBox(height: compact ? 14 : 16),
+          Row(
+            children: [
+              Container(
+                width: compact ? 44 : 52,
+                height: compact ? 44 : 52,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFF25380B),
+                ),
+                child: Icon(
+                  icon,
+                  color: const Color(0xFFE2FF3B),
+                  size: compact ? 22 : 26,
+                ),
+              ),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    _time,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      color: const Color(0xFFFFE033),
+                      fontSize: compact ? 46 : 56,
+                      fontWeight: FontWeight.w300,
+                      letterSpacing: -2.8,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: compact ? 44 : 52),
+            ],
+          ),
+          SizedBox(height: compact ? 10 : 12),
+          CardioMapControls(
+            distanceKm: _currentCardioDistanceKm() ?? 0,
+            speedKmh: _cardioSpeedKmh,
+            steps: _currentCardioSteps(),
+            elapsedSeconds: seconds,
+            running: started && !_paused,
+            showStatBar: false,
+            onCountdownStart: () {
+              _handleCardioCountdownStart();
+            },
+            onStart: _startExercise,
+            onPause: _pauseExercise,
+            onFinish: _finishExercise,
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _indoorCardioIcon() {
+    final name = (widget.exercise['exercise_name'] ?? '').toString().toLowerCase();
+    if (name.contains('bike') || name.contains('cycling')) {
+      return Icons.pedal_bike_rounded;
+    }
+    if (name.contains('tread')) {
+      return Icons.directions_run_rounded;
+    }
+    if (name.contains('rowing')) {
+      return Icons.rowing_rounded;
+    }
+    return Icons.local_fire_department_rounded;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isCardio = _isCardioExercise();
+    final isIndoorCardio = _isIndoorCardioExercise();
     final useSetRows = !isCardio && _supportsSetRows;
     final showSession = !isCardio && (started || widget.showSessionOnOpen);
     final showFloatingWorkoutTimer = showSession;
@@ -2914,6 +3353,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       );
     }
 
+    if (isCardio && isIndoorCardio && widget.useFullscreenLayout) {
+      return _buildIndoorCardioFullScreenScaffold();
+    }
+
     return SafeArea(
       bottom: true,
       child: Stack(
@@ -2946,80 +3389,54 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         if (isCardio) ...[
-                          SizedBox(
-                            width: double.infinity,
-                            child: CardioMap(
-                              hasToken: hasToken,
-                              expanded: _cardioMapExpanded,
-                              height: MediaQuery.of(context).size.height * 0.9,
-                              initialDistanceMeters: _cardioDistanceMeters,
-                              initialSpeedKmh: _cardioSpeedKmh,
-                              initialRoute: _cardioRoute,
-                              steps: _cardioSteps,
-                              elapsedSeconds: seconds,
-                              running: started && !_paused,
-                              countdownActive: _countdownSessionStarted,
-                              trackingEnabled:
-                                  started || _countdownSessionStarted,
-                              onCountdownStart: () {
-                                if (!started) {
-                                  setState(
-                                    () => _countdownSessionStarted = true,
-                                  );
-                                  TrainingActivityService.startSession(
-                                    exerciseName:
-                                        (widget.exercise['exercise_name'] ?? '')
-                                            .toString(),
-                                    sets: _currentSets(),
-                                    reps: _currentReps(),
-                                    seconds: seconds,
-                                    distanceKm: _cardioDistanceMeters / 1000.0,
-                                    paceMinKm: _currentPaceMinPerKm(),
-                                    steps: _cardioSteps,
-                                    routePoints: _cardioRoutePayload(),
-                                    paused: true,
-                                    pausedSeconds: seconds,
-                                  );
-                                } else if (!_paused) {
-                                  TrainingActivityService.updateSession(
-                                    exerciseName:
-                                        (widget.exercise['exercise_name'] ?? '')
-                                            .toString(),
-                                    sets: _currentSets(),
-                                    reps: _currentReps(),
-                                    seconds: seconds,
-                                    distanceKm: _cardioDistanceMeters / 1000.0,
-                                    paceMinKm: _currentPaceMinPerKm(),
-                                    steps: _cardioSteps,
-                                  );
-                                }
-                              },
-                              onClose: _minimizeAndClose,
-                              onMetrics: (m) {
-                                _cardioDistanceMeters = m.distanceMeters;
-                                _cardioSpeedKmh = m.speedKmh;
-                                if (started && !_paused) {
-                                  TrainingActivityService.updateSession(
-                                    exerciseName:
-                                        (widget.exercise['exercise_name'] ?? '')
-                                            .toString(),
-                                    sets: _currentSets(),
-                                    reps: _currentReps(),
-                                    seconds: seconds,
-                                    distanceKm: _cardioDistanceMeters / 1000.0,
-                                    paceMinKm: _currentPaceMinPerKm(),
-                                    steps: _cardioSteps,
-                                  );
-                                }
-                              },
-                              onRoute: (route) {
-                                _mergeIncomingCardioRoute(route);
-                              },
-                              onStart: _startExercise,
-                              onPause: _pauseExercise,
-                              onFinish: _finishExercise,
+                          if (isIndoorCardio)
+                            _buildIndoorCardioHero()
+                          else
+                            SizedBox(
+                              width: double.infinity,
+                              child: CardioMap(
+                                hasToken: hasToken,
+                                expanded: _cardioMapExpanded,
+                                height: MediaQuery.of(context).size.height * 0.9,
+                                initialDistanceMeters: _cardioDistanceMeters,
+                                initialSpeedKmh: _cardioSpeedKmh,
+                                initialRoute: _cardioRoute,
+                                steps: _cardioSteps,
+                                elapsedSeconds: seconds,
+                                running: started && !_paused,
+                                countdownActive: _countdownSessionStarted,
+                                trackingEnabled: _shouldTrackCardioRoute() &&
+                                    (started || _countdownSessionStarted),
+                                onCountdownStart: () {
+                                  _handleCardioCountdownStart();
+                                },
+                                onClose: _minimizeAndClose,
+                                onMetrics: (m) {
+                                  _cardioDistanceMeters = m.distanceMeters;
+                                  _cardioSpeedKmh = m.speedKmh;
+                                  if (started && !_paused) {
+                                    TrainingActivityService.updateSession(
+                                      exerciseName:
+                                          (widget.exercise['exercise_name'] ?? '')
+                                              .toString(),
+                                      sets: _currentSets(),
+                                      reps: _currentReps(),
+                                      seconds: seconds,
+                                      distanceKm: _cardioDistanceMeters / 1000.0,
+                                      paceMinKm: _currentPaceMinPerKm(),
+                                      steps: _cardioSteps,
+                                      routePoints: _trackedCardioRoutePayload(),
+                                    );
+                                  }
+                                },
+                                onRoute: (route) {
+                                  _mergeIncomingCardioRoute(route);
+                                },
+                                onStart: _startExercise,
+                                onPause: _pauseExercise,
+                                onFinish: _finishExercise,
+                              ),
                             ),
-                          ),
                           // const SizedBox(height: 12),
                           // Text(
                           //   widget.exercise['exercise_name'] ?? '',
@@ -3389,6 +3806,185 @@ class _SessionChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _IndoorReadout extends StatelessWidget {
+  const _IndoorReadout({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            color: Colors.white.withValues(alpha: 0.48),
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TreadmillControlCard extends StatelessWidget {
+  const _TreadmillControlCard({
+    required this.label,
+    required this.value,
+    required this.sliderValue,
+    required this.min,
+    required this.max,
+    required this.divisions,
+    required this.onDecrease,
+    required this.onIncrease,
+    required this.onChanged,
+    this.compact = false,
+  });
+
+  final String label;
+  final String value;
+  final double sliderValue;
+  final double min;
+  final double max;
+  final int divisions;
+  final VoidCallback onDecrease;
+  final VoidCallback onIncrease;
+  final ValueChanged<double> onChanged;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        compact ? 10 : 12,
+        compact ? 10 : 12,
+        compact ? 10 : 12,
+        compact ? 8 : 10,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.5),
+              fontSize: compact ? 8 : 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.7,
+            ),
+          ),
+          SizedBox(height: compact ? 4 : 6),
+          Text(
+            value,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: compact ? 15 : 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          SizedBox(height: compact ? 6 : 8),
+          Row(
+            children: [
+              Expanded(
+                child: _ManualAdjustButton(icon: Icons.remove, onTap: onDecrease),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _ManualAdjustButton(icon: Icons.add, onTap: onIncrease),
+              ),
+            ],
+          ),
+          SizedBox(height: compact ? 2 : 4),
+          SizedBox(
+            height: compact ? 28 : 32,
+            child: SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+                activeTrackColor: const Color(0xFFFFE033),
+                inactiveTrackColor: Colors.white.withValues(alpha: 0.16),
+                thumbColor: const Color(0xFFFFE033),
+                overlayColor: const Color(0xFFFFE033).withValues(
+                  alpha: 0.18,
+                ),
+                trackHeight: 3,
+                thumbShape: RoundSliderThumbShape(
+                  enabledThumbRadius: compact ? 7 : 8,
+                ),
+                overlayShape: RoundSliderOverlayShape(
+                  overlayRadius: compact ? 12 : 14,
+                ),
+              ),
+              child: Slider(
+                value: sliderValue.clamp(min, max),
+                min: min,
+                max: max,
+                divisions: divisions,
+                onChanged: onChanged,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ManualAdjustButton extends StatelessWidget {
+  const _ManualAdjustButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 34,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.1),
+          ),
+        ),
+        child: Icon(
+          icon,
+          color: Colors.white,
+          size: 18,
+        ),
       ),
     );
   }

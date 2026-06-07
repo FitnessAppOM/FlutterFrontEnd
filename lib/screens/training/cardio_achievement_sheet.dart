@@ -8,6 +8,7 @@ import '../../core/account_storage.dart';
 import '../../services/share/cardio_share_service.dart';
 import '../../services/strava/strava_service.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/cardio/cardio_exercise_utils.dart';
 
 import '../../widgets/cardio/cardio_map.dart';
 import '../../widgets/cardio/cardio_route_utils.dart';
@@ -21,6 +22,7 @@ class CardioAchievementSheet extends StatefulWidget {
     required this.avgSpeedKmh,
     required this.steps,
     required this.route,
+    required this.exerciseName,
     this.userName,
     this.snapshotUrl,
     this.sessionDate,
@@ -31,6 +33,7 @@ class CardioAchievementSheet extends StatefulWidget {
   final double avgSpeedKmh;
   final int steps;
   final List<CardioPoint> route;
+  final String exerciseName;
   final String? userName;
   final String? snapshotUrl;
   final DateTime? sessionDate;
@@ -98,6 +101,9 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
     final dt = (widget.sessionDate ?? DateTime.now()).toLocal();
     return dt.toString().split(' ').first;
   }
+
+  bool get _showDistance =>
+      !isIndoorCardioExerciseName(widget.exerciseName);
 
   Future<void> _saveScreenshot() async {
     if (_saving) return;
@@ -234,8 +240,14 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
           ? widget.distanceKm * 1000.0
           : null;
       final name = "TAQA Cardio ${_sessionDateLabel()}";
-      final description =
-          "Duration ${_formatTime(widget.durationSeconds)} • Distance ${widget.distanceKm.toStringAsFixed(2)} km • Pace ${_avgPaceLabel()} • Steps ${widget.steps}";
+      final descriptionParts = <String>[
+        "Duration ${_formatTime(widget.durationSeconds)}",
+        if (_showDistance)
+          "Distance ${widget.distanceKm.toStringAsFixed(2)} km",
+        "Pace ${_avgPaceLabel()}",
+        "Steps ${widget.steps}",
+      ];
+      final description = descriptionParts.join(" • ");
 
       await _stravaService.createActivity(
         name: name,
@@ -437,14 +449,15 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                                 value: _formatTime(widget.durationSeconds),
                               ),
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: _MetricChip(
-                                label: 'Distance',
-                                value:
-                                    '${widget.distanceKm.toStringAsFixed(2)} km',
+                            if (_showDistance) const SizedBox(width: 10),
+                            if (_showDistance)
+                              Expanded(
+                                child: _MetricChip(
+                                  label: 'Distance',
+                                  value:
+                                      '${widget.distanceKm.toStringAsFixed(2)} km',
+                                ),
                               ),
-                            ),
                             const SizedBox(width: 10),
                             Expanded(
                               child: _MetricChip(
@@ -513,6 +526,7 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                                   durationLabel: _formatTime(
                                     widget.durationSeconds,
                                   ),
+                                  showDistance: _showDistance,
                                   distanceLabel:
                                       "${widget.distanceKm.toStringAsFixed(2)} km",
                                   paceLabel: _avgPaceLabel(),

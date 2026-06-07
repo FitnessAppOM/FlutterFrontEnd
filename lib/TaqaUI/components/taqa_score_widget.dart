@@ -48,122 +48,161 @@ class TaqaScoreWidget extends StatelessWidget {
         : _providerLabel(displayProvider);
     final dataChips = _buildDataChips(score);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: TaqaUiStyles.cardRadius,
-        child: Container(
-          decoration: const BoxDecoration(
-            color: TaqaUiColors.lime,
-            borderRadius: TaqaUiStyles.cardRadius,
-          ),
-          padding: const EdgeInsets.fromLTRB(26, 16, 26, 16),
-          child: loading
-              ? const SizedBox(
-                  height: 100,
-                  child: Center(
-                    child: SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: TaqaUiColors.charcoal,
-                      ),
-                    ),
-                  ),
-                )
-              : Row(
-                  children: [
-                    SizedBox(
-                      width: 150,
-                      height: 150,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          CustomPaint(
-                            size: const Size.square(150),
-                            painter: _OpenArcPainter(progress: progress),
-                          ),
-                          Text(
-                            '$displayValue',
-                            style: const TextStyle(
-                              fontFamily: TaqaUiFontFamilies.interTight,
-                              fontSize: 25,
-                              fontWeight: FontWeight.w700,
-                              color: TaqaUiColors.charcoal,
-                              height: 1,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 22),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            taqaTitle,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: TaqaUiFontFamilies.interTight,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: TaqaUiColors.charcoal,
-                              height: 1.05,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          Text(
-                            dateLabel,
-                            style: const TextStyle(
-                              fontFamily: TaqaUiFontFamilies.interTight,
-                              fontSize: 8,
-                              fontWeight: FontWeight.w400,
-                              color: TaqaUiColors.charcoal,
-                              height: 1.2,
-                            ),
-                          ),
-                          Text(
-                            providerLabel,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: TaqaUiFontFamilies.interTight,
-                              fontSize: 8,
-                              fontWeight: FontWeight.w400,
-                              color: TaqaUiColors.charcoal,
-                              height: 1.2,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          if (dataChips.isNotEmpty)
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: dataChips
-                                  .map((item) => _ScoreChip(item: item))
-                                  .toList(),
-                            )
-                          else
-                            Text(
-                              emptyMessage,
-                              style: const TextStyle(
-                                fontFamily: TaqaUiFontFamilies.interTight,
-                                fontSize: 8,
-                                fontWeight: FontWeight.w400,
-                                color: TaqaUiColors.charcoal,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 360;
+        final arcSize = compact ? 118.0 : 150.0;
+        final valueFontSize = compact ? 22.0 : 25.0;
+        final titleSpacing = compact ? 12.0 : 14.0;
+        final chipSpacing = compact ? 16.0 : 20.0;
+
+        Widget scoreArc() {
+          return SizedBox(
+            width: arcSize,
+            height: arcSize,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CustomPaint(
+                  size: Size.square(arcSize),
+                  painter: _OpenArcPainter(progress: progress),
                 ),
-        ),
-      ),
+                Text(
+                  '$displayValue',
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: valueFontSize,
+                    fontWeight: FontWeight.w700,
+                    color: TaqaUiColors.charcoal,
+                    height: 1,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        Widget scoreDetails({required CrossAxisAlignment crossAxisAlignment}) {
+          return Column(
+            crossAxisAlignment: crossAxisAlignment,
+            children: [
+              Text(
+                taqaTitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: compact ? TextAlign.center : TextAlign.start,
+                style: const TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: TaqaUiColors.charcoal,
+                  height: 1.05,
+                ),
+              ),
+              SizedBox(height: titleSpacing),
+              Text(
+                dateLabel,
+                style: const TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: 8,
+                  fontWeight: FontWeight.w400,
+                  color: TaqaUiColors.charcoal,
+                  height: 1.2,
+                ),
+              ),
+              Text(
+                providerLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: compact ? TextAlign.center : TextAlign.start,
+                style: const TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: 8,
+                  fontWeight: FontWeight.w400,
+                  color: TaqaUiColors.charcoal,
+                  height: 1.2,
+                ),
+              ),
+              SizedBox(height: chipSpacing),
+              if (dataChips.isNotEmpty)
+                Wrap(
+                  alignment: compact ? WrapAlignment.center : WrapAlignment.start,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: dataChips
+                      .map((item) => _ScoreChip(item: item))
+                      .toList(),
+                )
+              else
+                Text(
+                  emptyMessage,
+                  textAlign: compact ? TextAlign.center : TextAlign.start,
+                  style: const TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w400,
+                    color: TaqaUiColors.charcoal,
+                  ),
+                ),
+            ],
+          );
+        }
+
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: TaqaUiStyles.cardRadius,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: TaqaUiColors.lime,
+                borderRadius: TaqaUiStyles.cardRadius,
+              ),
+              padding: EdgeInsets.fromLTRB(
+                compact ? 18 : 26,
+                16,
+                compact ? 18 : 26,
+                16,
+              ),
+              child: loading
+                  ? const SizedBox(
+                      height: 100,
+                      child: Center(
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: TaqaUiColors.charcoal,
+                          ),
+                        ),
+                      ),
+                    )
+                  : compact
+                  ? Column(
+                      children: [
+                        scoreArc(),
+                        const SizedBox(height: 16),
+                        scoreDetails(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        scoreArc(),
+                        const SizedBox(width: 22),
+                        Expanded(
+                          child: scoreDetails(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        );
+      },
     );
   }
 

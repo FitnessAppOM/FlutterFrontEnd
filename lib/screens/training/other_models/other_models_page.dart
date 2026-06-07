@@ -14,6 +14,7 @@ class OtherModelsPage extends StatefulWidget {
     required this.snapshotUrl,
     required this.route,
     required this.durationLabel,
+    required this.showDistance,
     required this.distanceLabel,
     required this.paceLabel,
     required this.userName,
@@ -23,6 +24,7 @@ class OtherModelsPage extends StatefulWidget {
   final String snapshotUrl;
   final List<CardioPoint> route;
   final String durationLabel;
+  final bool showDistance;
   final String distanceLabel;
   final String paceLabel;
   final String? userName;
@@ -175,6 +177,7 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
                 ModelAPage(
                   snapshotUrl: widget.snapshotUrl,
                   durationLabel: widget.durationLabel,
+                  showDistance: widget.showDistance,
                   distanceLabel: widget.distanceLabel,
                   paceLabel: widget.paceLabel,
                   captureKey: _modelAKey,
@@ -184,6 +187,7 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
                 ModelBPage(
                   route: widget.route,
                   durationLabel: widget.durationLabel,
+                  showDistance: widget.showDistance,
                   distanceLabel: widget.distanceLabel,
                   paceLabel: widget.paceLabel,
                   captureKey: _modelBKey,
@@ -193,6 +197,7 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
                 ModelCPage(
                   route: widget.route,
                   durationLabel: widget.durationLabel,
+                  showDistance: widget.showDistance,
                   distanceLabel: widget.distanceLabel,
                   paceLabel: widget.paceLabel,
                   captureKey: _modelCKey,

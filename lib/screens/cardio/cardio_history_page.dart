@@ -8,6 +8,7 @@ import '../../core/account_storage.dart';
 import '../../services/health/workout_health_sync_service.dart';
 import '../../services/training/training_service.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/cardio/cardio_exercise_utils.dart';
 import 'cardio_history_detail_page.dart';
 
 class CardioHistoryPage extends StatefulWidget {
@@ -280,12 +281,16 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
     final pace = _toDouble(item['avg_pace_min_km']);
     final duration = _toInt(item['duration_seconds']);
     final steps = _toInt(item['steps']);
+    final inclinePercent = _toDouble(item['incline_percent']);
+    final showDistance = !isIndoorCardioExerciseName(name);
+    final showIncline = isTreadmillExerciseName(name) && inclinePercent > 0;
 
     final label = [
-      _formatDistance(distanceKm),
+      if (showDistance) _formatDistance(distanceKm),
       _formatPace(pace),
       _formatDuration(duration),
       if (steps > 0) "$steps steps",
+      if (showIncline) "${inclinePercent.toStringAsFixed(1)}% incline",
     ].join(" • ");
 
     return Container(

@@ -7,6 +7,7 @@ class ModelBPage extends StatelessWidget {
     super.key,
     required this.route,
     required this.durationLabel,
+    required this.showDistance,
     required this.distanceLabel,
     required this.paceLabel,
     required this.userName,
@@ -16,6 +17,7 @@ class ModelBPage extends StatelessWidget {
 
   final List<CardioPoint> route;
   final String durationLabel;
+  final bool showDistance;
   final String distanceLabel;
   final String paceLabel;
   final String? userName;
@@ -49,6 +51,7 @@ class ModelBPage extends StatelessWidget {
                   padding: const EdgeInsets.only(top: 90),
                   child: ModelMetricsColumn(
                     durationLabel: durationLabel,
+                    showDistance: showDistance,
                     distanceLabel: distanceLabel,
                     paceLabel: paceLabel,
                   ),

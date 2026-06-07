@@ -5,6 +5,7 @@ import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
 import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 import '../../services/training/training_service.dart';
 import '../../services/training/training_reset_coordinator.dart';
+import '../cardio/cardio_exercise_utils.dart';
 
 class ExerciseCard extends StatelessWidget {
   final Map<String, dynamic> exercise;
@@ -414,7 +415,12 @@ class ExerciseCard extends StatelessWidget {
                                         .round();
                                     final url =
                                         TrainingService.animationImageUrl(
-                                          exercise['animation_url']?.toString(),
+                                          resolvedCardioAnimationUrl(
+                                            exercise['exercise_name']
+                                                ?.toString(),
+                                            exercise['animation_url']
+                                                ?.toString(),
+                                          ),
                                           null,
                                         );
                                     if (url.isEmpty) {

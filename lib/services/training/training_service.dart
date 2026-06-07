@@ -760,6 +760,7 @@ class TrainingService {
     required double avgPaceMinKm,
     required int durationSeconds,
     int? steps,
+    double? inclinePercent,
     List<Map<String, dynamic>>? routePoints,
     DateTime? entryDate,
   }) async {
@@ -774,6 +775,7 @@ class TrainingService {
       'duration_seconds': durationSeconds,
     };
     if (steps != null) body['steps'] = steps;
+    if (inclinePercent != null) body['incline_percent'] = inclinePercent;
     if (programExerciseId != null)
       body['program_exercise_id'] = programExerciseId;
     if (exerciseId != null) body['exercise_id'] = exerciseId;
