@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../localization/app_localizations.dart';
 import '../../services/scores/taqa_score_api.dart';
-import '../Typography/taqa_ui_typography.dart';
+import '../styles/taqa_ui_scale.dart';
 import '../styles/taqa_ui_styles.dart';
 import '../taqa_ui_colors.dart';
 
@@ -43,162 +43,116 @@ class TaqaScoreWidget extends StatelessWidget {
     final displayProvider = score?.scoringPath == 'wearable'
         ? (provider ?? score?.provider)
         : null;
-    final providerLabel = displayProvider == null
-        ? emptyMessage
-        : _providerLabel(displayProvider);
-    final dataChips = _buildDataChips(score);
+    final providerLabel = _scoreSourceLabel(score, displayProvider);
+    final tags = _buildTags(score, displayProvider);
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 360;
-        final arcSize = compact ? 118.0 : 150.0;
-        final valueFontSize = compact ? 22.0 : 25.0;
-        final titleSpacing = compact ? 12.0 : 14.0;
-        final chipSpacing = compact ? 16.0 : 20.0;
+        final targetWidth = TaqaUiStyles.scoreCardWidth;
+        final targetHeight = TaqaUiStyles.scoreCardHeight;
+        final cardWidth = math.min(constraints.maxWidth, targetWidth);
+        final layoutScale = cardWidth <= 0
+            ? 1.0
+            : math.min(1.0, cardWidth / targetWidth);
+        final cardHeight = targetHeight * layoutScale;
+        final cardRadius = TaqaUiScale.r(15) * layoutScale;
+        final arcLeft = TaqaUiScale.w(16) * layoutScale;
+        final arcTop = TaqaUiScale.h(13) * layoutScale;
+        final arcSize = TaqaUiScale.w(141) * layoutScale;
+        final arcVisibleHeight = TaqaUiScale.h(124) * layoutScale;
+        final titleLeft = TaqaUiScale.w(186) * layoutScale;
+        final titleTop = TaqaUiScale.h(20) * layoutScale;
+        final contentRightInset = TaqaUiScale.w(16) * layoutScale;
+        final titleWidth = math.max(
+          0.0,
+          cardWidth - titleLeft - contentRightInset,
+        );
+        final titleHeight = TaqaUiScale.h(32) * layoutScale;
+        final descriptionTop = TaqaUiScale.h(49) * layoutScale;
+        final descriptionWidth = math.max(
+          0.0,
+          cardWidth - titleLeft - contentRightInset,
+        );
+        final descriptionHeight = TaqaUiScale.h(22) * layoutScale;
+        final tagsTop = TaqaUiScale.h(83) * layoutScale;
+        final tagsWidth = math.max(
+          0.0,
+          cardWidth - titleLeft - contentRightInset,
+        );
+        final tagsHeight = math.max(
+          0.0,
+          cardHeight - tagsTop - (TaqaUiScale.h(12) * layoutScale),
+        );
 
-        Widget scoreArc() {
-          return SizedBox(
-            width: arcSize,
-            height: arcSize,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                CustomPaint(
-                  size: Size.square(arcSize),
-                  painter: _OpenArcPainter(progress: progress),
-                ),
-                Text(
-                  '$displayValue',
-                  style: TextStyle(
-                    fontFamily: TaqaUiFontFamilies.interTight,
-                    fontSize: valueFontSize,
-                    fontWeight: FontWeight.w700,
-                    color: TaqaUiColors.charcoal,
-                    height: 1,
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: SizedBox(
+            width: cardWidth,
+            height: cardHeight,
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(cardRadius),
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(cardRadius),
+                child: Ink(
+                  decoration: BoxDecoration(
+                    color: TaqaUiColors.lime,
+                    borderRadius: BorderRadius.circular(cardRadius),
                   ),
-                ),
-              ],
-            ),
-          );
-        }
-
-        Widget scoreDetails({required CrossAxisAlignment crossAxisAlignment}) {
-          return Column(
-            crossAxisAlignment: crossAxisAlignment,
-            children: [
-              Text(
-                taqaTitle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: compact ? TextAlign.center : TextAlign.start,
-                style: const TextStyle(
-                  fontFamily: TaqaUiFontFamilies.interTight,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: TaqaUiColors.charcoal,
-                  height: 1.05,
-                ),
-              ),
-              SizedBox(height: titleSpacing),
-              Text(
-                dateLabel,
-                style: const TextStyle(
-                  fontFamily: TaqaUiFontFamilies.interTight,
-                  fontSize: 8,
-                  fontWeight: FontWeight.w400,
-                  color: TaqaUiColors.charcoal,
-                  height: 1.2,
-                ),
-              ),
-              Text(
-                providerLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: compact ? TextAlign.center : TextAlign.start,
-                style: const TextStyle(
-                  fontFamily: TaqaUiFontFamilies.interTight,
-                  fontSize: 8,
-                  fontWeight: FontWeight.w400,
-                  color: TaqaUiColors.charcoal,
-                  height: 1.2,
-                ),
-              ),
-              SizedBox(height: chipSpacing),
-              if (dataChips.isNotEmpty)
-                Wrap(
-                  alignment: compact ? WrapAlignment.center : WrapAlignment.start,
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: dataChips
-                      .map((item) => _ScoreChip(item: item))
-                      .toList(),
-                )
-              else
-                Text(
-                  emptyMessage,
-                  textAlign: compact ? TextAlign.center : TextAlign.start,
-                  style: const TextStyle(
-                    fontFamily: TaqaUiFontFamilies.interTight,
-                    fontSize: 8,
-                    fontWeight: FontWeight.w400,
-                    color: TaqaUiColors.charcoal,
-                  ),
-                ),
-            ],
-          );
-        }
-
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: TaqaUiStyles.cardRadius,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: TaqaUiColors.lime,
-                borderRadius: TaqaUiStyles.cardRadius,
-              ),
-              padding: EdgeInsets.fromLTRB(
-                compact ? 18 : 26,
-                16,
-                compact ? 18 : 26,
-                16,
-              ),
-              child: loading
-                  ? const SizedBox(
-                      height: 100,
-                      child: Center(
-                        child: SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: TaqaUiColors.charcoal,
-                          ),
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        left: arcLeft,
+                        top: arcTop,
+                        width: arcSize,
+                        height: arcVisibleHeight,
+                        child: _ScoreArc(
+                          progress: progress,
+                          valueText: '$displayValue',
+                          loading: loading,
+                          layoutScale: layoutScale,
                         ),
                       ),
-                    )
-                  : compact
-                  ? Column(
-                      children: [
-                        scoreArc(),
-                        const SizedBox(height: 16),
-                        scoreDetails(
-                          crossAxisAlignment: CrossAxisAlignment.center,
+                      Positioned(
+                        left: titleLeft,
+                        top: titleTop,
+                        width: titleWidth,
+                        height: titleHeight,
+                        child: Text(
+                          taqaTitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TaqaUiStyles.scoreCardTitle,
                         ),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        scoreArc(),
-                        const SizedBox(width: 22),
-                        Expanded(
-                          child: scoreDetails(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                          ),
+                      ),
+                      Positioned(
+                        left: titleLeft,
+                        top: descriptionTop,
+                        width: descriptionWidth,
+                        height: descriptionHeight,
+                        child: Text(
+                          '$dateLabel\n$providerLabel',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TaqaUiStyles.scoreCardMeta,
                         ),
-                      ],
-                    ),
+                      ),
+                      Positioned(
+                        left: titleLeft,
+                        top: tagsTop,
+                        width: tagsWidth,
+                        height: tagsHeight,
+                        child: _ScoreTags(
+                          tags: tags,
+                          emptyMessage: emptyMessage,
+                          layoutScale: layoutScale,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         );
@@ -223,13 +177,37 @@ class TaqaScoreWidget extends StatelessWidget {
     }
   }
 
-  List<_ScoreChipData> _buildDataChips(TaqaDailyScore? value) {
+  String _scoreSourceLabel(TaqaDailyScore? value, String? displayProvider) {
+    if (displayProvider != null && displayProvider.trim().isNotEmpty) {
+      return _providerLabel(displayProvider);
+    }
+    final scoringPath = value?.scoringPath;
+    if (scoringPath == null || scoringPath.trim().isEmpty) return '--';
+    switch (scoringPath) {
+      case 'wearable':
+        return 'Smart Watch';
+      case 'proms':
+        return 'Screening';
+      default:
+        return _humanizeLabel(scoringPath);
+    }
+  }
+
+  List<_ScoreChipData> _buildTags(
+    TaqaDailyScore? value,
+    String? displayProvider,
+  ) {
     if (value == null) return const [];
     final out = <_ScoreChipData>[];
 
+    final sourceLabel = _chipSourceLabel(value, displayProvider);
+    if (sourceLabel != null) {
+      out.add(_ScoreChipData(sourceLabel));
+    }
+
     void addIf(String label, double? score) {
       if (score == null) return;
-      out.add(_ScoreChipData(label: label, value: score.round()));
+      out.add(_ScoreChipData('${score.round()} $label'));
     }
 
     addIf('Sleep', value.sleep.score);
@@ -237,7 +215,101 @@ class TaqaScoreWidget extends StatelessWidget {
     addIf('Stress', value.stress.score);
     addIf('Load', value.trainingLoad.score);
     addIf('Nutrition', value.nutrition.score);
-    return out;
+    return out.take(4).toList(growable: false);
+  }
+
+  String? _chipSourceLabel(TaqaDailyScore value, String? displayProvider) {
+    if (displayProvider != null && displayProvider.trim().isNotEmpty) {
+      return _providerLabel(displayProvider).toUpperCase();
+    }
+    final scoringPath = value.scoringPath;
+    if (scoringPath == null || scoringPath.trim().isEmpty) return null;
+    switch (scoringPath) {
+      case 'proms':
+        return 'SCREENING';
+      case 'wearable':
+        return 'SMART WATCH';
+      default:
+        return _humanizeLabel(scoringPath).toUpperCase();
+    }
+  }
+
+  String _humanizeLabel(String raw) {
+    return raw
+        .split(RegExp(r'[_\s]+'))
+        .where((part) => part.isNotEmpty)
+        .map((part) {
+          final lower = part.toLowerCase();
+          return lower[0].toUpperCase() + lower.substring(1);
+        })
+        .join(' ');
+  }
+}
+
+class _ScoreArc extends StatelessWidget {
+  const _ScoreArc({
+    required this.progress,
+    required this.valueText,
+    required this.loading,
+    required this.layoutScale,
+  });
+
+  final double progress;
+  final String valueText;
+  final bool loading;
+  final double layoutScale;
+
+  @override
+  Widget build(BuildContext context) {
+    final arcSize = TaqaUiScale.w(141) * layoutScale;
+    final visibleHeight = TaqaUiScale.h(124) * layoutScale;
+    final indicatorSize = TaqaUiScale.w(18) * layoutScale;
+
+    return ClipRect(
+      child: OverflowBox(
+        maxWidth: arcSize,
+        maxHeight: arcSize,
+        alignment: Alignment.topCenter,
+        child: SizedBox(
+          width: arcSize,
+          height: arcSize,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              CustomPaint(
+                size: Size.square(arcSize),
+                painter: _OpenArcPainter(progress: progress),
+              ),
+              Transform.translate(
+                offset: Offset(0, -((arcSize - visibleHeight) / 2)),
+                child: loading
+                    ? SizedBox(
+                        width: indicatorSize,
+                        height: indicatorSize,
+                        child: CircularProgressIndicator(
+                          strokeWidth: math.max(1.5, 2 * layoutScale),
+                          color: TaqaUiColors.charcoal,
+                        ),
+                      )
+                    : Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: TaqaUiScale.w(14) * layoutScale,
+                        ),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            valueText,
+                            textAlign: TextAlign.center,
+                            style: TaqaUiStyles.scoreCardValue,
+                          ),
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -248,7 +320,7 @@ class _OpenArcPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    const strokeWidth = 12.0;
+    final strokeWidth = size.width * 0.098;
     final rect = Rect.fromLTWH(
       strokeWidth / 2,
       strokeWidth / 2,
@@ -268,8 +340,8 @@ class _OpenArcPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..color = TaqaUiColors.charcoal.withValues(alpha: 0.3);
 
-    const start = 3 * math.pi / 4; // 135deg (bottom-left)
-    const sweep = 3 * math.pi / 2; // 270deg (open gap at bottom)
+    const start = 3 * math.pi / 4;
+    const sweep = 3 * math.pi / 2;
 
     canvas.drawArc(rect, start, sweep, false, base);
     if (progress > 0) {
@@ -284,34 +356,74 @@ class _OpenArcPainter extends CustomPainter {
 }
 
 class _ScoreChipData {
-  const _ScoreChipData({required this.label, required this.value});
+  const _ScoreChipData(this.text);
 
-  final String label;
-  final int value;
+  final String text;
+}
+
+class _ScoreTags extends StatelessWidget {
+  const _ScoreTags({
+    required this.tags,
+    required this.emptyMessage,
+    required this.layoutScale,
+  });
+
+  final List<_ScoreChipData> tags;
+  final String emptyMessage;
+  final double layoutScale;
+
+  @override
+  Widget build(BuildContext context) {
+    if (tags.isEmpty) {
+      return Align(
+        alignment: Alignment.topLeft,
+        child: Text(
+          emptyMessage,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TaqaUiStyles.scoreCardMeta,
+        ),
+      );
+    }
+
+    return Align(
+      alignment: Alignment.topLeft,
+      child: Wrap(
+        spacing: TaqaUiScale.w(6) * layoutScale,
+        runSpacing: TaqaUiScale.h(6) * layoutScale,
+        children: tags.map((tag) {
+          return _ScoreChip(tag: tag, layoutScale: layoutScale);
+        }).toList(growable: false),
+      ),
+    );
+  }
 }
 
 class _ScoreChip extends StatelessWidget {
-  const _ScoreChip({required this.item});
+  const _ScoreChip({required this.tag, required this.layoutScale});
 
-  final _ScoreChipData item;
+  final _ScoreChipData tag;
+  final double layoutScale;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: TaqaUiScale.w(8) * layoutScale,
+        vertical: TaqaUiScale.h(4) * layoutScale,
+      ),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: TaqaUiColors.charcoal, width: 1),
+        borderRadius: BorderRadius.circular(TaqaUiScale.r(10) * layoutScale),
+        border: Border.all(
+          color: TaqaUiColors.charcoal.withValues(alpha: 0.72),
+          width: math.max(0.8, layoutScale),
+        ),
       ),
       child: Text(
-        '${item.value} ${item.label}',
-        style: const TextStyle(
-          fontFamily: TaqaUiFontFamilies.interTight,
-          fontSize: 8,
-          fontWeight: FontWeight.w400,
-          color: TaqaUiColors.charcoal,
-          height: 1.1,
-        ),
+        tag.text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TaqaUiStyles.scoreCardTag,
       ),
     );
   }

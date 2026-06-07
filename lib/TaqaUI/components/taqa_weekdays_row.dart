@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../styles/taqa_ui_scale.dart';
 import '../styles/taqa_ui_styles.dart';
 import 'taqa_weekday_dot.dart';
 
@@ -8,14 +9,14 @@ class TaqaWeekdaysRow extends StatefulWidget {
     super.key,
     required this.selectedDate,
     required this.todayReference,
-    this.dotSize = TaqaUiStyles.weekdayDotSize,
+    this.dotSize,
     this.maxPastWeeks = 26,
     this.onDateTap,
   });
 
   final DateTime selectedDate;
   final DateTime todayReference;
-  final double dotSize;
+  final double? dotSize;
   final int maxPastWeeks;
   final ValueChanged<DateTime>? onDateTap;
 
@@ -100,23 +101,21 @@ class _TaqaWeekdaysRowState extends State<TaqaWeekdaysRow> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final responsiveDotSize = constraints.maxWidth < 320
-            ? 24.0
-            : widget.dotSize;
+        final resolvedDotSize = widget.dotSize ?? TaqaUiStyles.weekdayDotSize;
+        final responsiveDotSize = resolvedDotSize;
+        final rowWidth = constraints.maxWidth;
         return SizedBox(
-          height: responsiveDotSize + 20,
+          width: rowWidth,
+          height: responsiveDotSize + TaqaUiScale.h(20),
           child: PageView.builder(
             controller: _pageController,
             itemCount: window.totalWeeks,
             itemBuilder: (context, pageIndex) {
-              final totalDotsWidth = responsiveDotSize * 7;
-              final availableGapSpace =
-                  (constraints.maxWidth - totalDotsWidth).clamp(0.0, 120.0);
-              final gap = availableGapSpace / 6;
               final pageWeekStart = window.earliestWeekStart.add(
                 Duration(days: pageIndex * 7),
               );
               return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: List.generate(7, (dayOffset) {
                   final dayDate = pageWeekStart.add(Duration(days: dayOffset));
                   final isSelected = dayDate == selected;
@@ -134,11 +133,7 @@ class _TaqaWeekdaysRowState extends State<TaqaWeekdaysRow> {
                         ? null
                         : () => widget.onDateTap!(dayDate),
                   );
-                  if (dayOffset == 6) return dot;
-                  return Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [dot, SizedBox(width: gap)],
-                  );
+                  return dot;
                 }),
               );
             },

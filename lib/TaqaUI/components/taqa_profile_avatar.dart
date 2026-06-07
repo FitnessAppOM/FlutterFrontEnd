@@ -7,20 +7,21 @@ class TaqaProfileAvatar extends StatelessWidget {
   const TaqaProfileAvatar({
     super.key,
     required this.child,
-    this.size = TaqaUiStyles.avatarSize,
+    this.size,
   });
 
   final Widget child;
-  final double size;
+  final double? size;
 
   @override
   Widget build(BuildContext context) {
+    final resolvedSize = size ?? TaqaUiStyles.avatarSize;
     return Container(
-      width: size,
-      height: size,
-      decoration: const BoxDecoration(
+      width: resolvedSize,
+      height: resolvedSize,
+      decoration: BoxDecoration(
         color: TaqaUiColors.charcoal,
-        shape: BoxShape.circle,
+        borderRadius: TaqaUiStyles.avatarRadius,
       ),
       clipBehavior: Clip.antiAlias,
       child: child,

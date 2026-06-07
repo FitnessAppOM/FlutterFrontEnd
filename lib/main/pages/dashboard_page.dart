@@ -46,6 +46,7 @@ import '../../TaqaUI/components/taqa_progress_widget_card.dart';
 import '../../TaqaUI/components/taqa_training_progress_widget.dart';
 import '../../TaqaUI/components/taqa_edit_mode_bubble.dart';
 import '../../TaqaUI/components/taqa_widget_library_sheet.dart';
+import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../screens/whoop_insights_page.dart';
 import '../../screens/fitbit_insights_page.dart';
 import '../../screens/strava_detail_page.dart';
@@ -5471,7 +5472,7 @@ class DashboardPageState extends State<DashboardPage>
             },
           ),
         ],
-        const SizedBox(height: 12),
+        SizedBox(height: TaqaUiScale.h(12)),
         Row(
           children: [
             Expanded(
@@ -5482,7 +5483,7 @@ class DashboardPageState extends State<DashboardPage>
                 onTap: _wiggling ? null : _openDietPage,
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: TaqaUiScale.w(12)),
             Expanded(
               child: TaqaTrainingProgressWidget(
                 loading: _exerciseLoading,
@@ -5496,7 +5497,7 @@ class DashboardPageState extends State<DashboardPage>
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: TaqaUiScale.h(12)),
         if (!noEntriesForSelectedDate) ...[
           LayoutBuilder(
             builder: (context, constraints) {
@@ -5864,12 +5865,7 @@ class DashboardPageState extends State<DashboardPage>
 
               final maxWidth = constraints.maxWidth;
               const crossAxisCount = 2;
-              final spacing = maxWidth < 380 ? 10.0 : 12.0;
-              final aspectRatio = maxWidth < 380
-                  ? 0.82
-                  : maxWidth < 430
-                  ? 0.90
-                  : 1.02;
+              final spacing = TaqaUiScale.w(12);
               const maxTileWidth = 184.0;
               final gridWidth = math.min(
                 maxWidth,
@@ -5877,7 +5873,7 @@ class DashboardPageState extends State<DashboardPage>
               );
               final horizontalInset = (maxWidth - gridWidth) / 2;
               final tileWidth = (gridWidth - spacing) / crossAxisCount;
-              final tileHeight = tileWidth / aspectRatio;
+              final tileHeight = tileWidth;
               final rows = (_statOrder.length / crossAxisCount).ceil();
               final height = rows > 0
                   ? rows * tileHeight + (rows - 1) * spacing
@@ -6169,93 +6165,114 @@ class _DailyOutlookDetailPage extends StatelessWidget {
     final generatedTag = outlook.readinessState.trim().isNotEmpty
         ? outlook.readinessState.trim()
         : t("dash_daily_outlook_title");
-    const unifiedDataStyle = TextStyle(
+    final bodyStyle = TaqaUiStyles.dailyOutlookDescription;
+    final pageTitleStyle = TaqaUiStyles.pageTitle.copyWith(
+      color: TaqaUiColors.charcoal,
+    );
+    final tagStyle = TaqaUiStyles.dailyOutlookTag;
+    final headlineStyle = TextStyle(
       fontFamily: TaqaUiFontFamilies.interTight,
-      fontSize: 10,
-      fontWeight: FontWeight.w400,
+      fontSize: TaqaUiScale.sp(25),
+      fontWeight: FontWeight.w700,
       color: TaqaUiColors.charcoal,
       letterSpacing: 0,
-      height: 1.2,
+      height: 1,
     );
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        title: Text(
-          t("dash_daily_outlook_title"),
-          style: TaqaUiStyles.pageTitle.copyWith(color: TaqaUiColors.charcoal),
-        ),
-        iconTheme: const IconThemeData(color: TaqaUiColors.charcoal),
-      ),
       body: SafeArea(
         child: Column(
           children: [
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                padding: EdgeInsets.fromLTRB(
+                  TaqaUiScale.w(16),
+                  TaqaUiScale.h(12),
+                  TaqaUiScale.w(16),
+                  0,
+                ),
                 children: [
-                  Text(
-                    generatedTag,
-                    textAlign: TextAlign.left,
-                    style: const TextStyle(
-                      fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-                      fontSize: 8,
-                      fontWeight: FontWeight.w400,
-                      color: TaqaUiColors.charcoal,
-                      letterSpacing: 0.2,
+                  SizedBox(
+                    height: TaqaUiScale.h(40),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: IconButton(
+                            onPressed: () => Navigator.of(context).maybePop(),
+                            splashRadius: TaqaUiScale.w(20),
+                            icon: Icon(
+                              Icons.arrow_back_ios_new,
+                              color: TaqaUiColors.charcoal,
+                              size: TaqaUiScale.w(18),
+                            ),
+                          ),
+                        ),
+                        Text(
+                          t("dash_daily_outlook_title"),
+                          textAlign: TextAlign.center,
+                          style: pageTitleStyle,
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  SizedBox(height: TaqaUiScale.h(42)),
+                  Text(
+                    generatedTag.toUpperCase(),
+                    textAlign: TextAlign.left,
+                    style: tagStyle,
+                  ),
+                  SizedBox(height: TaqaUiScale.h(21)),
                   Text(
                     outlook.headline,
                     textAlign: TextAlign.left,
-                    style: const TextStyle(
-                      fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: 25,
-                      fontWeight: FontWeight.w700,
-                      color: TaqaUiColors.charcoal,
-                      height: 1.2,
+                    style: headlineStyle,
+                  ),
+                  SizedBox(height: TaqaUiScale.h(15)),
+                  SizedBox(
+                    width: TaqaUiScale.w(357),
+                    child: Text(
+                      outlook.summary,
+                      textAlign: TextAlign.left,
+                      style: bodyStyle,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    outlook.summary,
-                    textAlign: TextAlign.left,
-                    style: unifiedDataStyle,
-                  ),
                   if (outlook.actionItems.isNotEmpty) ...[
-                    const SizedBox(height: 14),
+                    SizedBox(height: TaqaUiScale.h(14)),
                     ...outlook.actionItems.map(
                       (item) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
+                        padding: EdgeInsets.only(bottom: TaqaUiScale.h(8)),
                         child: Text(
                           "- $item",
                           textAlign: TextAlign.left,
-                          style: unifiedDataStyle,
+                          style: bodyStyle,
                         ),
                       ),
                     ),
                   ],
                   if (outlook.cautionNote.trim().isNotEmpty) ...[
-                    const SizedBox(height: 8),
+                    SizedBox(height: TaqaUiScale.h(8)),
                     Text(
                       outlook.cautionNote,
                       textAlign: TextAlign.left,
-                      style: unifiedDataStyle,
+                      style: bodyStyle,
                     ),
                   ],
                 ],
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              padding: EdgeInsets.fromLTRB(
+                TaqaUiScale.w(16),
+                TaqaUiScale.h(12),
+                TaqaUiScale.w(16),
+                TaqaUiScale.h(16),
+              ),
               child: SizedBox(
                 width: double.infinity,
-                height: 45,
+                height: TaqaUiScale.h(45),
                 child: ElevatedButton(
                   onPressed: () => Navigator.of(context).pop(),
                   style: ElevatedButton.styleFrom(
@@ -6263,17 +6280,13 @@ class _DailyOutlookDetailPage extends StatelessWidget {
                     backgroundColor: TaqaUiColors.lime,
                     foregroundColor: TaqaUiColors.charcoal,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(5),
+                      borderRadius: TaqaUiStyles.actionButtonRadius,
                     ),
                   ),
                   child: Text(
                     t("okay"),
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TaqaUiStyles.dailyOutlookButton,
                   ),
                 ),
               ),

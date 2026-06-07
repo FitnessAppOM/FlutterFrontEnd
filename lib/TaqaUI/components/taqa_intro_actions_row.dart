@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../styles/taqa_ui_scale.dart';
 import '../styles/taqa_ui_styles.dart';
 import 'taqa_intro_action_button.dart';
 
@@ -8,18 +9,20 @@ class TaqaIntroActionsRow extends StatelessWidget {
     super.key,
     this.onTrainingTap,
     this.onDietTap,
-    this.buttonHeight = TaqaUiStyles.actionButtonHeight,
+    this.buttonHeight,
   });
 
   final VoidCallback? onTrainingTap;
   final VoidCallback? onDietTap;
-  final double buttonHeight;
+  final double? buttonHeight;
 
   @override
   Widget build(BuildContext context) {
+    final resolvedButtonHeight = buttonHeight ?? TaqaUiStyles.actionButtonHeight;
+    final buttonGap = TaqaUiScale.w(15);
     return LayoutBuilder(
       builder: (context, constraints) {
-        final fixedRowWidth = (TaqaUiStyles.actionButtonWidth * 2) + 12;
+        final fixedRowWidth = (TaqaUiStyles.actionButtonWidth * 2) + buttonGap;
         if (constraints.maxWidth >= fixedRowWidth) {
           return Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -28,20 +31,20 @@ class TaqaIntroActionsRow extends StatelessWidget {
                 label: 'GO TO TRAINING',
                 onTap: onTrainingTap,
                 width: TaqaUiStyles.actionButtonWidth,
-                height: buttonHeight,
+                height: resolvedButtonHeight,
               ),
               TaqaIntroActionButton(
                 label: 'GO TO DIET',
                 onTap: onDietTap,
                 width: TaqaUiStyles.actionButtonWidth,
-                height: buttonHeight,
+                height: resolvedButtonHeight,
               ),
             ],
           );
         }
 
         // Keep layout usable on narrow widths while preserving button height.
-        final compactButtonWidth = (constraints.maxWidth - 12) / 2;
+        final compactButtonWidth = (constraints.maxWidth - buttonGap) / 2;
         return Row(
           children: [
             Expanded(
@@ -49,16 +52,16 @@ class TaqaIntroActionsRow extends StatelessWidget {
                 label: 'GO TO TRAINING',
                 onTap: onTrainingTap,
                 width: compactButtonWidth,
-                height: buttonHeight,
+                height: resolvedButtonHeight,
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: buttonGap),
             Expanded(
               child: TaqaIntroActionButton(
                 label: 'GO TO DIET',
                 onTap: onDietTap,
                 width: compactButtonWidth,
-                height: buttonHeight,
+                height: resolvedButtonHeight,
               ),
             ),
           ],

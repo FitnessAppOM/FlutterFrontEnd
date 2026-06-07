@@ -1,7 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../taqa_ui_colors.dart';
-import '../styles/taqa_ui_layout.dart';
+import '../styles/taqa_ui_scale.dart';
 import '../styles/taqa_ui_styles.dart';
 import 'taqa_intro_actions_row.dart';
 import 'taqa_profile_avatar.dart';
@@ -32,55 +34,115 @@ class TaqaDashboardIntroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cleanName = userName.trim().isEmpty ? 'Athlete' : userName.trim();
+    final cleanName = userName.trim().isEmpty
+        ? 'Athlete'
+        : _capitalizeWords(userName.trim());
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        final cardWidth = math.min(
+          constraints.maxWidth,
+          TaqaUiStyles.mainCardWidth,
+        );
+        final cardHeight = TaqaUiStyles.mainCardHeight;
+        final layoutScale = math.min(
+          1.0,
+          cardWidth / TaqaUiStyles.mainCardWidth,
+        );
+        final leftInset = TaqaUiScale.w(14) * layoutScale;
+        final avatarTop = TaqaUiScale.h(15) * layoutScale;
+        final avatarSize = TaqaUiStyles.avatarSize * layoutScale;
+        final nameLeft = TaqaUiScale.w(59) * layoutScale;
+        final nameTop = TaqaUiScale.h(18) * layoutScale;
+        final nameHeight = TaqaUiScale.h(30) * layoutScale;
+        final descriptionTop = TaqaUiScale.h(60) * layoutScale;
+        final descriptionWidth = TaqaUiStyles.introDescriptionWidth * layoutScale;
+        final weekdaysTop = TaqaUiScale.h(107) * layoutScale;
+        final descriptionBottomGap = TaqaUiScale.h(10) * layoutScale;
+        final descriptionHeight = math.max(
+          TaqaUiScale.h(37) * layoutScale,
+          weekdaysTop - descriptionTop - descriptionBottomGap,
+        );
+        final weekdaysWidth = TaqaUiStyles.weekdayTrackWidth * layoutScale;
+        final weekdayDotSize = TaqaUiStyles.weekdayDotSize * layoutScale;
+        final weekdaysHeight =
+            weekdayDotSize + (TaqaUiScale.h(20) * layoutScale);
+        final buttonsTop = TaqaUiScale.h(172) * layoutScale;
+        final buttonRowWidth = TaqaUiScale.w(329) * layoutScale;
+        final buttonHeight = TaqaUiStyles.actionButtonHeight * layoutScale;
+
         return Align(
           alignment: Alignment.centerLeft,
           child: SizedBox(
-            width: constraints.maxWidth,
-            height: TaqaUiStyles.mainCardHeight,
+            width: cardWidth,
+            height: cardHeight,
             child: Container(
-              padding: TaqaUiLayout.introCardContentPadding,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: TaqaUiColors.white,
-                borderRadius: TaqaUiStyles.cardRadius,
+                borderRadius: TaqaUiStyles.introCardRadius,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Stack(
                 children: [
-                  Row(
-                    children: [
-                      TaqaProfileAvatar(child: profilePicture),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          '$cleanName,',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TaqaUiStyles.userName,
-                        ),
+                  Positioned(
+                    left: leftInset,
+                    top: avatarTop,
+                    child: TaqaProfileAvatar(
+                      size: avatarSize,
+                      child: profilePicture,
+                    ),
+                  ),
+                  Positioned(
+                    left: nameLeft,
+                    top: nameTop,
+                    width: math.max(0, cardWidth - nameLeft - leftInset),
+                    height: nameHeight,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '$cleanName,',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TaqaUiStyles.userName,
                       ),
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    message,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TaqaUiStyles.subtitle,
+                  Positioned(
+                    left: leftInset,
+                    top: descriptionTop,
+                    width: math.min(
+                      descriptionWidth,
+                      cardWidth - (leftInset * 2),
+                    ),
+                    height: descriptionHeight,
+                    child: Text(
+                      message,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: TaqaUiStyles.subtitle,
+                    ),
                   ),
-                  const SizedBox(height: 9),
-                  TaqaWeekdaysRow(
-                    selectedDate: selectedDate,
-                    todayReference: todayReference,
-                    onDateTap: onDateTap,
+                  Positioned(
+                    left: leftInset,
+                    top: weekdaysTop,
+                    width: math.min(weekdaysWidth, cardWidth - (leftInset * 2)),
+                    height: weekdaysHeight,
+                    child: TaqaWeekdaysRow(
+                      selectedDate: selectedDate,
+                      todayReference: todayReference,
+                      dotSize: weekdayDotSize,
+                      onDateTap: onDateTap,
+                    ),
                   ),
-                  const Spacer(),
-                  TaqaIntroActionsRow(
-                    onTrainingTap: onTrainingTap,
-                    onDietTap: onDietTap,
+                  Positioned(
+                    left: leftInset,
+                    top: buttonsTop,
+                    width: math.min(buttonRowWidth, cardWidth - (leftInset * 2)),
+                    height: buttonHeight,
+                    child: TaqaIntroActionsRow(
+                      onTrainingTap: onTrainingTap,
+                      onDietTap: onDietTap,
+                      buttonHeight: buttonHeight,
+                    ),
                   ),
                 ],
               ),
@@ -89,5 +151,16 @@ class TaqaDashboardIntroCard extends StatelessWidget {
         );
       },
     );
+  }
+
+  String _capitalizeWords(String value) {
+    return value
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .map((part) {
+          final lower = part.toLowerCase();
+          return lower[0].toUpperCase() + lower.substring(1);
+        })
+        .join(' ');
   }
 }

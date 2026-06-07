@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../Typography/taqa_ui_typography.dart';
+import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
 
 class TaqaProgressWidgetCard extends StatelessWidget {
@@ -42,167 +43,230 @@ class TaqaProgressWidgetCard extends StatelessWidget {
     final valueArcColor = lightSurface
         ? TaqaUiColors.charcoal
         : TaqaUiColors.lightGray;
-    const cardRadius = 16.0;
-    const arcYOffset = 4.0;
+    final targetCardWidth = TaqaUiScale.w(171);
+    final targetCardHeight = TaqaUiScale.h(171);
+    final targetArcSize = TaqaUiScale.w(129);
+    final targetArcVisibleHeight = TaqaUiScale.h(114);
+    final cardRadius = TaqaUiScale.r(15);
+    final baseTitleFontSize = TaqaUiScale.sp(8);
+    final baseGoalFontSize = TaqaUiScale.sp(8);
+    final baseValueFontSize = TaqaUiScale.sp(25);
+    final basePlainValueFontSize = TaqaUiScale.sp(32);
+    final baseIndicatorSize = TaqaUiScale.w(16);
 
     return AspectRatio(
-      aspectRatio: 1.10,
+      aspectRatio: 1,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final height = constraints.maxHeight;
-          final compact = width < 170 || height < 160;
-          final titleFontSize = compact ? 7.0 : 8.0;
-          final goalFontSize = compact ? 7.0 : 8.0;
-          final valueFontSize = showArc
-              ? (compact ? 20.0 : 25.0)
-              : (compact ? 26.0 : 32.0);
-          final indicatorSize = compact ? 14.0 : 16.0;
-          final arcSize = math.min(
-            122.0,
-            math.max(84.0, math.min(width * 0.72, height * 0.64)),
+          final scale = math.min(
+            constraints.maxWidth / targetCardWidth,
+            constraints.maxHeight / targetCardHeight,
           );
+          final safeScale = scale.isFinite ? scale.clamp(0.0, 1.0) : 1.0;
+          final cardWidth = targetCardWidth * safeScale;
+          final cardHeight = targetCardHeight * safeScale;
+          final titleFontSize = baseTitleFontSize * safeScale;
+          final goalFontSize = baseGoalFontSize * safeScale;
+          final valueFontSize =
+              (showArc ? baseValueFontSize : basePlainValueFontSize) * safeScale;
+          final plainValueFontWeight = FontWeight.w600;
+          final indicatorSize = baseIndicatorSize * safeScale;
+          final arcSize = targetArcSize * safeScale;
+          final arcVisibleHeight = targetArcVisibleHeight * safeScale;
+          final horizontalPadding = TaqaUiScale.w(16) * safeScale;
+          final topPadding = TaqaUiScale.h(9) * safeScale;
+          final bottomPadding = TaqaUiScale.h(2) * safeScale;
+          final titleToArcGap = TaqaUiScale.h(8) * safeScale;
+          final goalTopGap = TaqaUiScale.h(0) * safeScale;
+          final goalOverlap = TaqaUiScale.h(6) * safeScale;
 
-          return Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(cardRadius),
-              child: Ink(
-                decoration: BoxDecoration(
-                  color: surfaceColor,
+          return Center(
+            child: SizedBox(
+              width: cardWidth,
+              height: cardHeight,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: onTap,
                   borderRadius: BorderRadius.circular(cardRadius),
-                ),
-                padding: EdgeInsets.fromLTRB(
-                  compact ? 12 : 14,
-                  compact ? 10 : 12,
-                  compact ? 12 : 14,
-                  compact ? 10 : 12,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                  child: Ink(
+                    decoration: BoxDecoration(
+                      color: surfaceColor,
+                      borderRadius: BorderRadius.circular(cardRadius),
+                    ),
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPadding,
+                      topPadding,
+                      horizontalPadding,
+                      bottomPadding,
+                    ),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            title.toUpperCase(),
-                            maxLines: compact ? 2 : 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-                              fontSize: titleFontSize,
-                              fontWeight: FontWeight.w400,
-                              color: textColor,
-                              letterSpacing: 0.2,
-                              height: 1.15,
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                title.toUpperCase(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+                                  fontSize: titleFontSize,
+                                  fontWeight: FontWeight.w400,
+                                  color: textColor,
+                                  letterSpacing: 0.2,
+                                  height: 1.15,
+                                ),
+                              ),
                             ),
-                          ),
+                            topRight ?? _TinyRightArrow(color: textColor),
+                          ],
                         ),
-                        topRight ?? _TinyRightArrow(color: textColor),
-                      ],
-                    ),
-                    Expanded(
-                      child: Center(
-                        child: showArc
-                            ? Transform.translate(
-                                offset: const Offset(0, arcYOffset),
+                        SizedBox(height: titleToArcGap),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              Center(
                                 child: SizedBox(
                                   width: arcSize,
-                                  height: arcSize,
-                                  child: Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      CustomPaint(
-                                        size: Size.square(arcSize),
-                                        painter: _OpenArcPainter(
-                                          progress: clampedProgress,
-                                          baseColor: baseArcColor,
-                                          valueColor: valueArcColor,
-                                        ),
-                                      ),
-                                      if (loading)
-                                        SizedBox(
-                                          width: indicatorSize,
-                                          height: indicatorSize,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: textColor,
-                                          ),
-                                        )
-                                      else
-                                        Padding(
-                                          padding: EdgeInsets.symmetric(
-                                            horizontal: compact ? 12 : 16,
-                                          ),
-                                          child: FittedBox(
-                                            fit: BoxFit.scaleDown,
-                                            child: Text(
-                                              valueText,
-                                              textAlign: TextAlign.center,
-                                              style: TextStyle(
-                                                fontFamily:
-                                                    TaqaUiFontFamilies.interTight,
-                                                fontSize: valueFontSize,
-                                                fontWeight: FontWeight.w700,
-                                                color: textColor,
-                                                height: 1,
+                                  height: arcVisibleHeight,
+                                  child: showArc
+                                      ? ClipRect(
+                                          child: OverflowBox(
+                                            maxWidth: arcSize,
+                                            maxHeight: arcSize,
+                                            alignment: Alignment.topCenter,
+                                            child: SizedBox(
+                                              width: arcSize,
+                                              height: arcSize,
+                                              child: Stack(
+                                                alignment: Alignment.center,
+                                                children: [
+                                                  CustomPaint(
+                                                    size:
+                                                        Size(arcSize, arcSize),
+                                                    painter: _OpenArcPainter(
+                                                      progress:
+                                                          clampedProgress,
+                                                      baseColor: baseArcColor,
+                                                      valueColor:
+                                                          valueArcColor,
+                                                    ),
+                                                  ),
+                                                  if (loading)
+                                                    SizedBox(
+                                                      width: indicatorSize,
+                                                      height: indicatorSize,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                            strokeWidth: 2,
+                                                            color: textColor,
+                                                          ),
+                                                    )
+                                                  else
+                                                    Padding(
+                                                      padding:
+                                                          EdgeInsets.symmetric(
+                                                            horizontal:
+                                                                TaqaUiScale.w(
+                                                                  16,
+                                                                ) *
+                                                                safeScale,
+                                                          ),
+                                                      child: FittedBox(
+                                                        fit: BoxFit.scaleDown,
+                                                        child: Text(
+                                                          valueText,
+                                                          textAlign:
+                                                              TextAlign.center,
+                                                          style: TextStyle(
+                                                            fontFamily:
+                                                                TaqaUiFontFamilies
+                                                                    .interTight,
+                                                            fontSize:
+                                                                valueFontSize,
+                                                            fontWeight:
+                                                                FontWeight.w700,
+                                                            color: textColor,
+                                                            height: 1,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
                                               ),
                                             ),
                                           ),
+                                        )
+                                      : Center(
+                                          child: loading
+                                              ? SizedBox(
+                                                  width: indicatorSize,
+                                                  height: indicatorSize,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        color: textColor,
+                                                      ),
+                                                )
+                                              : Padding(
+                                                  padding: EdgeInsets.symmetric(
+                                                    horizontal:
+                                                        TaqaUiScale.w(4) *
+                                                            safeScale,
+                                                  ),
+                                                  child: FittedBox(
+                                                    fit: BoxFit.scaleDown,
+                                                    child: Text(
+                                                      valueText,
+                                                      textAlign:
+                                                          TextAlign.center,
+                                                      style: TextStyle(
+                                                        fontFamily:
+                                                            TaqaUiFontFamilies
+                                                                .interTight,
+                                                        fontSize:
+                                                            valueFontSize,
+                                                        fontWeight:
+                                                            plainValueFontWeight,
+                                                        color: textColor,
+                                                        height: 1,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
                                         ),
-                                    ],
+                                ),
+                              ),
+                              SizedBox(height: goalTopGap),
+                              Transform.translate(
+                                offset: Offset(0, -goalOverlap),
+                                child: Center(
+                                  child: Text(
+                                    goalText,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontFamily:
+                                          TaqaUiFontFamilies.interTight,
+                                      fontSize: goalFontSize,
+                                      fontWeight: FontWeight.w300,
+                                      color: textColor,
+                                      height: 1.1,
+                                    ),
                                   ),
                                 ),
-                              )
-                            : (loading
-                                  ? SizedBox(
-                                      width: indicatorSize,
-                                      height: indicatorSize,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: textColor,
-                                      ),
-                                    )
-                                  : Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 4,
-                                      ),
-                                      child: FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        child: Text(
-                                          valueText,
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            fontFamily:
-                                                TaqaUiFontFamilies.interTight,
-                                            fontSize: valueFontSize,
-                                            fontWeight: FontWeight.w700,
-                                            color: textColor,
-                                            height: 1,
-                                          ),
-                                        ),
-                                      ),
-                                    )),
-                      ),
-                    ),
-                    Center(
-                      child: Text(
-                        goalText,
-                        maxLines: compact ? 2 : 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: TaqaUiFontFamilies.interTight,
-                          fontSize: goalFontSize,
-                          fontWeight: FontWeight.w300,
-                          color: textColor,
-                          height: 1.1,
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -226,7 +290,7 @@ class _OpenArcPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    const strokeWidth = 12.0;
+    final strokeWidth = size.width * 0.112;
     final rect = Rect.fromLTWH(
       strokeWidth / 2,
       strokeWidth / 2,

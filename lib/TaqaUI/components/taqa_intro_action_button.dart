@@ -8,28 +8,33 @@ class TaqaIntroActionButton extends StatelessWidget {
     super.key,
     required this.label,
     this.onTap,
-    this.width = TaqaUiStyles.actionButtonWidth,
-    this.height = TaqaUiStyles.actionButtonHeight,
+    this.width,
+    this.height,
   });
 
   final String label;
   final VoidCallback? onTap;
-  final double width;
-  final double height;
+  final double? width;
+  final double? height;
 
   @override
   Widget build(BuildContext context) {
+    final resolvedWidth = width ?? TaqaUiStyles.actionButtonWidth;
+    final resolvedHeight = height ?? TaqaUiStyles.actionButtonHeight;
     return ConstrainedBox(
-      constraints: BoxConstraints.tightFor(width: width, height: height),
+      constraints: BoxConstraints.tightFor(
+        width: resolvedWidth,
+        height: resolvedHeight,
+      ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: TaqaUiStyles.actionButtonRadius,
           child: Ink(
             decoration: BoxDecoration(
               color: TaqaUiColors.lime,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: TaqaUiStyles.actionButtonRadius,
             ),
             child: Center(child: Text(label, style: TaqaUiStyles.actionButton)),
           ),

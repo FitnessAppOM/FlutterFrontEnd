@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../taqa_ui_colors.dart';
+import '../styles/taqa_ui_scale.dart';
 import '../styles/taqa_ui_styles.dart';
 
 enum TaqaWeekdayStatus { past, current, future }
@@ -41,7 +42,7 @@ class TaqaWeekdayDot extends StatelessWidget {
               borderRadius: TaqaUiStyles.circleRadius,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: TaqaUiScale.h(8)),
           Text(label, style: TaqaUiStyles.weekdayLabel),
         ],
       ),

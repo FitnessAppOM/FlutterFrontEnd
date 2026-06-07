@@ -39,7 +39,7 @@ class TaqaTrainingProgressWidget extends StatelessWidget {
         : ((safeTotal > 0 && safeCompleted >= safeTotal) || nextUpAllDone)
         ? 'Done for week'
         : hasNextUp
-        ? 'Next up: ${nextUpLabel!.trim()}'
+        ? 'Next: ${nextUpLabel!.trim()}'
         : emptyStateLabel;
 
     return TaqaProgressWidgetCard(

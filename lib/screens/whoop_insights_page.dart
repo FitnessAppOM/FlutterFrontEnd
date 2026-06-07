@@ -112,7 +112,6 @@ class _WhoopInsightsPageState extends State<WhoopInsightsPage> {
                 hours: _sleepHours ?? widget.sleepHours,
                 score: _sleepScore ?? widget.sleepScore,
                 normalSleepGoalHours: (widget.sleepGoal ?? 8.0),
-                showEfficiency: false,
                 onTap: () async {
                   await Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const SleepDetailPage(useWhoop: true)),

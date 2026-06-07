@@ -1,9 +1,10 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../Typography/taqa_ui_typography.dart';
-import '../styles/taqa_ui_layout.dart';
+import '../styles/taqa_ui_scale.dart';
+import '../styles/taqa_ui_styles.dart';
 import '../taqa_ui_colors.dart';
 
 class NewsSlide {
@@ -102,11 +103,15 @@ class _NewsCarouselState extends State<NewsCarousel> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        final cardWidth = math.min(
+          constraints.maxWidth,
+          TaqaUiStyles.carouselCardWidth,
+        );
         return Align(
           alignment: Alignment.centerLeft,
           child: SizedBox(
-            width: constraints.maxWidth,
-            height: 143,
+            width: cardWidth,
+            height: TaqaUiStyles.carouselCardHeight,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onHorizontalDragEnd: _handleSwipe,
@@ -138,87 +143,107 @@ class _SlideCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final indicatorCount = slideCount <= 0 ? 1 : slideCount;
     final safeActive = activeIndex % indicatorCount;
+    final cardWidth = TaqaUiStyles.carouselCardWidth;
+    final leftInset = TaqaUiScale.w(14);
+    final dateTop = TaqaUiScale.h(8);
+    final dateHeight = TaqaUiScale.h(10);
+    final titleTop = TaqaUiScale.h(48);
+    final titleHeight = TaqaUiScale.h(32);
+    final descriptionTop = TaqaUiScale.h(72);
+    final indicatorBottom = TaqaUiScale.h(10);
+    final indicatorHeight = TaqaUiScale.h(2);
+    final indicatorGap = TaqaUiScale.w(12);
+    final titleBottomGap = TaqaUiScale.h(4);
+    final descriptionBottomGap = TaqaUiScale.h(8);
+    final indicatorTop = TaqaUiStyles.carouselCardHeight - indicatorBottom - indicatorHeight;
+    final descriptionHeight = math.max(
+      TaqaUiScale.h(36),
+      indicatorTop - descriptionTop - descriptionBottomGap,
+    );
 
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(28),
+      borderRadius: TaqaUiStyles.carouselCardRadius,
       child: InkWell(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: TaqaUiStyles.carouselCardRadius,
         onTap: slide.onTap,
         child: Ink(
-          padding: TaqaUiLayout.carouselContentPadding,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
+            color: TaqaUiColors.charcoal,
+            borderRadius: TaqaUiStyles.carouselCardRadius,
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [TaqaUiColors.charcoal, TaqaUiColors.charcoal],
             ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Stack(
             children: [
-              Text(
-                slide.dateLabel.toUpperCase(),
-                style: const TextStyle(
-                  fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-                  fontSize: 8,
-                  fontWeight: FontWeight.w400,
-                  color: TaqaUiColors.white,
-                  letterSpacing: 0.2,
+              Positioned(
+                left: leftInset,
+                top: dateTop,
+                width: math.max(0, cardWidth - (leftInset * 2)),
+                height: dateHeight,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    slide.dateLabel.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TaqaUiStyles.carouselDate,
+                  ),
                 ),
               ),
-              const SizedBox(height: 6),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      slide.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontFamily: TaqaUiFontFamilies.interTight,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: TaqaUiColors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      slide.subtitle,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontFamily: TaqaUiFontFamilies.interTight,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w300,
-                        color: TaqaUiColors.white,
-                        height: 1.25,
-                      ),
-                    ),
-                  ],
+              Positioned(
+                left: leftInset,
+                top: titleTop,
+                width: math.max(0, cardWidth - (leftInset * 2)),
+                height: titleHeight,
+                child: Text(
+                  slide.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TaqaUiStyles.carouselTitle,
                 ),
               ),
-              const SizedBox(height: 8),
-              Row(
-                children: List.generate(indicatorCount, (i) {
-                  return Expanded(
-                    child: Container(
-                      margin: EdgeInsets.only(
-                        right: i == indicatorCount - 1 ? 0 : 12,
+              Positioned(
+                left: leftInset,
+                top: math.max(descriptionTop, titleTop + titleHeight + titleBottomGap),
+                width: math.min(
+                  TaqaUiStyles.carouselContentWidth,
+                  cardWidth - (leftInset * 2),
+                ),
+                height: descriptionHeight,
+                child: Text(
+                  slide.subtitle,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: TaqaUiStyles.carouselDescription,
+                ),
+              ),
+              Positioned(
+                left: leftInset,
+                right: leftInset,
+                bottom: indicatorBottom,
+                height: indicatorHeight,
+                child: Row(
+                  children: List.generate(indicatorCount, (i) {
+                    return Expanded(
+                      child: Container(
+                        margin: EdgeInsets.only(
+                          right: i == indicatorCount - 1 ? 0 : indicatorGap,
+                        ),
+                        height: indicatorHeight,
+                        decoration: BoxDecoration(
+                          color: i == safeActive
+                              ? TaqaUiColors.lightGray
+                              : TaqaUiColors.graphite,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
                       ),
-                      height: 2,
-                      decoration: BoxDecoration(
-                        color: i == safeActive
-                            ? TaqaUiColors.lightGray
-                            : TaqaUiColors.graphite,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                  );
-                }),
+                    );
+                  }),
+                ),
               ),
             ],
           ),

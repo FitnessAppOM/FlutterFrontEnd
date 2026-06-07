@@ -1,28 +1,18 @@
 import 'package:flutter/material.dart';
 
+import 'taqa_ui_scale.dart';
+
 class TaqaUiLayout {
   TaqaUiLayout._();
 
-  static const double innerHorizontal = 30;
+  static double get innerHorizontal => TaqaUiScale.w(30);
 
-  static const EdgeInsets introCardContentPadding = EdgeInsets.fromLTRB(
-    innerHorizontal,
-    15,
-    innerHorizontal,
-    15,
-  );
+  static EdgeInsets get introCardContentPadding =>
+      TaqaUiScale.insetsLTRB(30, 15, 30, 15);
 
-  static const EdgeInsets carouselContentPadding = EdgeInsets.fromLTRB(
-    innerHorizontal,
-    12,
-    innerHorizontal,
-    12,
-  );
+  static EdgeInsets get carouselContentPadding =>
+      TaqaUiScale.insetsLTRB(30, 12, 30, 12);
 
-  static const EdgeInsets dailyOutlookContentPadding = EdgeInsets.fromLTRB(
-    innerHorizontal,
-    12,
-    innerHorizontal,
-    15,
-  );
+  static EdgeInsets get dailyOutlookContentPadding =>
+      TaqaUiScale.insetsLTRB(30, 12, 30, 15);
 }

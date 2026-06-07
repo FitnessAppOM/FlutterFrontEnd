@@ -11,7 +11,6 @@ class WhoopSleepCard extends StatelessWidget {
     required this.score,
     required this.normalSleepGoalHours,
     this.onTap,
-    this.showEfficiency = true,
   });
 
   final bool loading;
@@ -21,7 +20,6 @@ class WhoopSleepCard extends StatelessWidget {
   final int? score;
   final double normalSleepGoalHours;
   final VoidCallback? onTap;
-  final bool showEfficiency;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +35,7 @@ class WhoopSleepCard extends StatelessWidget {
     final subtitle = !linkedKnown
         ? "Loading"
         : linked
-        ? _goalText(goalHours, score)
+        ? _goalText(goalHours)
         : "Connect Whoop";
     final efficiency = score;
     final loadingState =
@@ -55,13 +53,7 @@ class WhoopSleepCard extends StatelessWidget {
     );
   }
 
-  String _goalText(double goalHours, int? efficiency) {
-    final base = "Goal: ${_formatHours(goalHours)}";
-    if (showEfficiency && efficiency != null) {
-      return "$base | Efficiency: ${efficiency.toStringAsFixed(0)}%";
-    }
-    return base;
-  }
+  String _goalText(double goalHours) => "Goal: ${_formatHours(goalHours)}";
 
   String _formatHours(double hours) {
     final totalMinutes = (hours * 60).round();

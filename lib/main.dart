@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
@@ -12,6 +13,8 @@ import 'localization/app_localizations.dart';
 import 'screens/welcome.dart';
 import 'screens/account_restore_page.dart';
 import 'screens/splash/boot_gate.dart';
+import 'TaqaUI/styles/taqa_ui_scale.dart';
+import 'TaqaUI/styles/taqa_ui_text_scale_guard.dart';
 import 'theme/app_theme.dart';
 import 'core/locale_controller.dart';
 import 'consents/consent_manager.dart';
@@ -344,35 +347,35 @@ class _MyAppState extends State<MyApp> {
         ? '/daily-journal'
         : '/';
 
-    return MaterialApp(
-      title: 'Taqa Fitness',
-      debugShowCheckedModeBanner: false,
-      locale: localeController.locale,
+    return ScreenUtilInit(
+      designSize: TaqaUiScale.designSize,
+      minTextAdapt: true,
+      splitScreenMode: true,
       builder: (context, child) {
-        final mediaQuery = MediaQuery.of(context);
-        final clampedTextScaler = mediaQuery.textScaler.clamp(
-          minScaleFactor: 1.0,
-          maxScaleFactor: 1.15,
+        return MaterialApp(
+          title: 'Taqa Fitness',
+          debugShowCheckedModeBanner: false,
+          locale: localeController.locale,
+          builder: (context, appChild) {
+            return TaqaUiTextScaleGuard(
+              child: appChild ?? const SizedBox.shrink(),
+            );
+          },
+          localizationsDelegates: const [
+            AppLocalizationsDelegate(),
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [Locale('en'), Locale('ar')],
+          theme: buildDarkTheme(),
+          navigatorKey: NavigationService.navigatorKey,
+          initialRoute: initialRoute,
+          routes: {
+            '/': (_) => const BootGate(),
+            '/daily-journal': (_) => const DailyJournalPage(),
+          },
         );
-
-        return MediaQuery(
-          data: mediaQuery.copyWith(textScaler: clampedTextScaler),
-          child: child ?? const SizedBox.shrink(),
-        );
-      },
-      localizationsDelegates: const [
-        AppLocalizationsDelegate(),
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [Locale('en'), Locale('ar')],
-      theme: buildDarkTheme(),
-      navigatorKey: NavigationService.navigatorKey,
-      initialRoute: initialRoute,
-      routes: {
-        '/': (_) => const BootGate(),
-        '/daily-journal': (_) => const DailyJournalPage(),
       },
     );
   }
