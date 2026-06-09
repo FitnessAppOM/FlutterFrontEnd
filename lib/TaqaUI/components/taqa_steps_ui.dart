@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../Typography/taqa_ui_typography.dart';
+import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
 import 'taqa_value_dialog.dart' as taqa_value_dialog;
 
@@ -20,15 +21,15 @@ class TaqaRangeTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(5),
+      borderRadius: TaqaUiScale.radius(5),
       child: Container(
-        height: 45,
+        height: TaqaUiScale.h(45),
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: selected
               ? TaqaUiColors.unnamedColorE4e93b
               : TaqaUiColors.white,
-          borderRadius: BorderRadius.circular(5),
+          borderRadius: TaqaUiScale.radius(5),
           border: selected
               ? null
               : Border.all(
@@ -40,11 +41,11 @@ class TaqaRangeTab extends StatelessWidget {
         child: Text(
           label.toUpperCase(),
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: 10,
+            fontSize: TaqaUiScale.sp(10),
             fontWeight: FontWeight.w600,
-            height: 1.2,
+            height: 12 / 10,
             letterSpacing: 0,
             color: TaqaUiColors.unnamedColor1c1d17,
           ),
@@ -68,29 +69,33 @@ class TaqaTagButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final border = TaqaUiColors.graphite.withValues(alpha: 0.6);
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(7),
+      borderRadius: TaqaUiScale.radius(5),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: TaqaUiScale.insetsLTRB(8, 5, 8, 5),
         decoration: BoxDecoration(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(7),
-          border: Border.all(color: border, width: 1),
+          borderRadius: TaqaUiScale.radius(5),
+          border: Border.all(
+            color: TaqaUiColors.unnamedColor1c1d17,
+            width: 0.5,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(icon, size: 10, color: TaqaUiColors.unnamedColor1c1d17),
-            const SizedBox(width: 4),
+            Icon(icon, size: TaqaUiScale.w(10), color: TaqaUiColors.unnamedColor1c1d17),
+            SizedBox(width: TaqaUiScale.w(4)),
             Text(
               label.toUpperCase(),
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-                fontSize: 8,
+                fontSize: TaqaUiScale.sp(8),
                 fontWeight: FontWeight.w400,
-                letterSpacing: 0.2,
+                letterSpacing: 0,
+                height: 10 / 8,
                 color: TaqaUiColors.unnamedColor1c1d17,
               ),
             ),

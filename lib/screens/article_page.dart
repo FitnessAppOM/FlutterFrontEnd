@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/styles/taqa_ui_styles.dart';
 import '../localization/app_localizations.dart';
 import '../models/news_item.dart';
@@ -42,94 +43,98 @@ class ArticlePage extends StatelessWidget {
         ),
       ),
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 720),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (dateLabel.isNotEmpty)
-                        Text(
-                          dateLabel.toUpperCase(),
-                          textAlign: TextAlign.left,
-                          style: const TextStyle(
-                            fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-                            fontSize: 8,
-                            fontWeight: FontWeight.w400,
-                            color: TaqaUiColors.white,
-                            letterSpacing: 0.2,
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 720),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (dateLabel.isNotEmpty)
+                          Text(
+                            dateLabel.toUpperCase(),
+                            textAlign: TextAlign.left,
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+                              fontSize: TaqaUiScale.sp(8),
+                              fontWeight: FontWeight.w400,
+                              color: TaqaUiColors.white,
+                              letterSpacing: 0,
+                              height: 10 / 8,
+                            ),
                           ),
-                        ),
-                      if (dateLabel.isNotEmpty) const SizedBox(height: 20),
-                      Text(
-                        item.title,
-                        textAlign: TextAlign.left,
-                        style: const TextStyle(
-                          fontFamily: TaqaUiFontFamilies.interTight,
-                          fontSize: 25,
-                          fontWeight: FontWeight.w700,
-                          color: TaqaUiColors.white,
-                          height: 1.2,
-                        ),
-                      ),
-                      if (item.subtitle.isNotEmpty) ...[
-                        const SizedBox(height: 8),
+                        if (dateLabel.isNotEmpty) SizedBox(height: TaqaUiScale.h(21)),
                         Text(
-                          item.subtitle,
-                          textAlign: TextAlign.left,
-                          style: const TextStyle(
-                            fontFamily: TaqaUiFontFamilies.interTight,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w400,
-                            color: TaqaUiColors.white,
-                            height: 1.35,
-                          ),
-                        ),
-                      ],
-                      if (item.contentUrl.isNotEmpty) ...[
-                        const SizedBox(height: 14),
-                        _PdfButton(url: item.contentUrl),
-                      ],
-                      const SizedBox(height: 18),
-                      if (paragraphs.isEmpty)
-                        const Text(
-                          "No article content yet.",
+                          item.title,
                           textAlign: TextAlign.left,
                           style: TextStyle(
                             fontFamily: TaqaUiFontFamilies.interTight,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w400,
-                            color: TaqaUiColors.lightGray,
+                            fontSize: TaqaUiScale.sp(25),
+                            fontWeight: FontWeight.w700,
+                            color: TaqaUiColors.white,
+                            height: 1,
                           ),
-                        )
-                      else
-                        ...paragraphs.map(
-                          (p) => Padding(
-                            padding: const EdgeInsets.only(bottom: 14),
-                            child: Text(
-                              p,
-                              textAlign: TextAlign.left,
-                              style: const TextStyle(
-                                fontFamily: TaqaUiFontFamilies.interTight,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w400,
-                                color: TaqaUiColors.white,
-                                height: 1.6,
+                        ),
+                        if (item.subtitle.isNotEmpty) ...[
+                          SizedBox(height: TaqaUiScale.h(5)),
+                          Text(
+                            item.subtitle,
+                            textAlign: TextAlign.left,
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: TaqaUiScale.sp(15),
+                              fontWeight: FontWeight.w400,
+                              color: TaqaUiColors.white,
+                              height: 13 / 15,
+                            ),
+                          ),
+                        ],
+                        SizedBox(height: TaqaUiScale.h(15)),
+                        if (paragraphs.isEmpty)
+                          Text(
+                            "No article content yet.",
+                            textAlign: TextAlign.left,
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: TaqaUiScale.sp(10),
+                              fontWeight: FontWeight.w400,
+                              color: TaqaUiColors.lightGray,
+                            ),
+                          )
+                        else
+                          ...paragraphs.map(
+                            (p) => Padding(
+                              padding: EdgeInsets.only(bottom: TaqaUiScale.h(14)),
+                              child: Text(
+                                p,
+                                textAlign: TextAlign.left,
+                                style: TextStyle(
+                                  fontFamily: TaqaUiFontFamilies.interTight,
+                                  fontSize: TaqaUiScale.sp(10),
+                                  fontWeight: FontWeight.w400,
+                                  color: TaqaUiColors.white,
+                                  height: 12 / 10,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            );
-          },
+            ),
+            if (item.contentUrl.isNotEmpty)
+              Padding(
+                padding: TaqaUiScale.insetsLTRB(16, 0, 16, 30),
+                child: _PdfButton(url: item.contentUrl),
+              ),
+          ],
         ),
       ),
     );
@@ -144,24 +149,31 @@ class _PdfButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: () async {
+    return Material(
+      color: TaqaUiColors.lime,
+      borderRadius: TaqaUiScale.radius(5),
+      child: InkWell(
+        borderRadius: TaqaUiScale.radius(5),
+        onTap: () async {
           final uri = Uri.parse(url);
-          await launchUrl(
-            uri,
-            mode: LaunchMode.inAppBrowserView,
-          );
+          await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
         },
-        icon: const Icon(Icons.picture_as_pdf),
-        label: const Text("Open PDF"),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: TaqaUiColors.lime,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+        child: SizedBox(
+          width: TaqaUiScale.w(357),
+          height: TaqaUiScale.h(45),
+          child: Center(
+            child: Text(
+              "OPEN PDF",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(10),
+                fontWeight: FontWeight.w600,
+                color: TaqaUiColors.unnamedColor1c1d17,
+                letterSpacing: 0,
+                height: 12 / 10,
+              ),
+            ),
           ),
         ),
       ),

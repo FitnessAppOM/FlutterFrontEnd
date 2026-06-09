@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../Typography/taqa_ui_typography.dart';
+import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
 
 Future<int?> showTaqaValueDialog({
@@ -49,83 +50,40 @@ Future<String?> _showTaqaInputDialog({
       context: context,
       barrierColor: const Color(0x66000000),
       builder: (ctx) {
-        final media = MediaQuery.of(ctx);
         return StatefulBuilder(
           builder: (ctx, setLocalState) {
-            return AnimatedPadding(
-              duration: const Duration(milliseconds: 160),
-              curve: Curves.easeOut,
-              padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
-              child: Center(
-                child: Dialog(
-                  backgroundColor: Colors.transparent,
-                  insetPadding: const EdgeInsets.symmetric(horizontal: 16),
+            return Align(
+              alignment: Alignment.center,
+              child: Padding(
+                padding: TaqaUiScale.symmetric(horizontal: 17),
+                child: Material(
+                  color: Colors.transparent,
+                  clipBehavior: Clip.none,
                   child: Container(
-                    constraints: const BoxConstraints(maxWidth: 390),
-                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+                    constraints: BoxConstraints(maxWidth: TaqaUiScale.w(356)),
+                    padding: TaqaUiScale.insetsLTRB(17, 15, 17, 15),
                     decoration: BoxDecoration(
                       color: TaqaUiColors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                          alpha: 0.08,
-                        ),
-                      ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x26000000),
-                          blurRadius: 24,
-                          offset: Offset(0, 10),
-                        ),
-                      ],
+                      borderRadius: TaqaUiScale.radius(15),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: const Color(
-                                  0xFFE4E93B,
-                                ).withValues(alpha: 0.28),
-                                borderRadius: BorderRadius.circular(9),
-                              ),
-                              child: const Icon(
-                                Icons.tune_rounded,
-                                size: 18,
-                                color: TaqaUiColors.unnamedColor1c1d17,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                title,
-                                style: const TextStyle(
-                                  fontFamily: TaqaUiFontFamilies.interTight,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: TaqaUiColors.unnamedColor1c1d17,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        Container(
-                          padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF5F6F1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                                alpha: focusNode.hasFocus ? 0.35 : 0.12,
-                              ),
-                            ),
+                        Text(
+                          title,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(15),
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0,
+                            color: TaqaUiColors.unnamedColor1c1d17,
                           ),
+                        ),
+                        SizedBox(height: TaqaUiScale.h(33)),
+                        SizedBox(
+                          height: TaqaUiScale.h(30),
                           child: TextField(
                             controller: controller,
                             focusNode: focusNode,
@@ -148,75 +106,75 @@ Future<String?> _showTaqaInputDialog({
                             },
                             style: TextStyle(
                               fontFamily: TaqaUiFontFamilies.interTight,
-                              fontSize: 32,
-                              fontWeight: FontWeight.w700,
+                              fontSize: TaqaUiScale.sp(25),
+                              fontWeight: FontWeight.w400,
+                              height: 1,
+                              letterSpacing: 0,
                               color: hasEdited
                                   ? TaqaUiColors.unnamedColor1c1d17
-                                  : TaqaUiColors.unnamedColor1c1d17.withValues(
-                                      alpha: 0.35,
-                                    ),
+                                  : TaqaUiColors.unnamedColorE3e3e3,
                             ),
                             decoration: const InputDecoration(
                               isDense: true,
                               border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              contentPadding: EdgeInsets.zero,
                               hintText: "0",
                             ),
                           ),
                         ),
-                        const SizedBox(height: 14),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () => Navigator.pop(ctx),
-                                style: OutlinedButton.styleFrom(
-                                  minimumSize: const Size.fromHeight(44),
-                                  side: BorderSide(
-                                    color: TaqaUiColors.unnamedColor1c1d17
-                                        .withValues(alpha: 0.25),
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: const Text(
-                                  "CANCEL",
-                                  style: TextStyle(
-                                    fontFamily: TaqaUiFontFamilies.interTight,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: TaqaUiColors.unnamedColor1c1d17,
+                        SizedBox(height: TaqaUiScale.h(33)),
+                        SizedBox(
+                          height: TaqaUiScale.h(45),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => Navigator.pop(ctx),
+                                  child: Center(
+                                    child: Text(
+                                      "CANCEL",
+                                      style: TextStyle(
+                                        fontFamily: TaqaUiFontFamilies.interTight,
+                                        fontSize: TaqaUiScale.sp(10),
+                                        fontWeight: FontWeight.w600,
+                                        height: 12 / 10,
+                                        letterSpacing: 0,
+                                        color: TaqaUiColors.unnamedColor1c1d17,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () =>
-                                    Navigator.pop(ctx, controller.text.trim()),
-                                style: ElevatedButton.styleFrom(
-                                  elevation: 0,
-                                  minimumSize: const Size.fromHeight(44),
-                                  backgroundColor:
-                                      TaqaUiColors.unnamedColorE4e93b,
-                                  foregroundColor:
-                                      TaqaUiColors.unnamedColor1c1d17,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: const Text(
-                                  "SAVE",
-                                  style: TextStyle(
-                                    fontFamily: TaqaUiFontFamilies.interTight,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
+                              Material(
+                                color: TaqaUiColors.unnamedColorE4e93b,
+                                borderRadius: TaqaUiScale.radius(5),
+                                child: InkWell(
+                                  borderRadius: TaqaUiScale.radius(5),
+                                  onTap: () => Navigator.pop(ctx, controller.text.trim()),
+                                  child: SizedBox(
+                                    width: TaqaUiScale.w(159),
+                                    height: TaqaUiScale.h(45),
+                                    child: Center(
+                                      child: Text(
+                                        "SAVE",
+                                        style: TextStyle(
+                                          fontFamily: TaqaUiFontFamilies.interTight,
+                                          fontSize: TaqaUiScale.sp(10),
+                                          fontWeight: FontWeight.w700,
+                                          height: 12 / 10,
+                                          letterSpacing: 0,
+                                          color: TaqaUiColors.unnamedColor1c1d17,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),

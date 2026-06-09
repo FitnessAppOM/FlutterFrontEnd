@@ -278,7 +278,7 @@ class _ScoreArc extends StatelessWidget {
             children: [
               CustomPaint(
                 size: Size.square(arcSize),
-                painter: _OpenArcPainter(progress: progress),
+                painter: TaqaOpenArcPainter(progress: progress),
               ),
               Transform.translate(
                 offset: Offset(0, -((arcSize - visibleHeight) / 2)),
@@ -313,8 +313,8 @@ class _ScoreArc extends StatelessWidget {
   }
 }
 
-class _OpenArcPainter extends CustomPainter {
-  const _OpenArcPainter({required this.progress});
+class TaqaOpenArcPainter extends CustomPainter {
+  const TaqaOpenArcPainter({required this.progress});
 
   final double progress;
 
@@ -350,7 +350,7 @@ class _OpenArcPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _OpenArcPainter oldDelegate) {
+  bool shouldRepaint(covariant TaqaOpenArcPainter oldDelegate) {
     return oldDelegate.progress != progress;
   }
 }

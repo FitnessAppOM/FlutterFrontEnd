@@ -1,10 +1,10 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/components/taqa_score_widget.dart' show TaqaOpenArcPainter;
 import '../TaqaUI/taqa_ui_colors.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/styles/taqa_ui_styles.dart';
 import '../core/account_storage.dart';
 import '../localization/app_localizations.dart';
@@ -40,7 +40,10 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     super.initState();
     _scorePreviewController = PageController(
       initialPage: _previewIndexForDate(_selectedDate),
-      viewportFraction: 0.58,
+      // 186px center-to-center spacing (171px card + 15px gap) over the
+      // 358px carousel viewport (390 design width minus 16px list padding
+      // on each side) puts neighbor cards at x = -77 / 295 around center x = 109.
+      viewportFraction: 186 / 358,
     );
     AccountStorage.accountChange.addListener(_onAccountChanged);
     _init();
@@ -323,22 +326,25 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: TaqaUiColors.charcoal,
+                  SizedBox(
+                    width: TaqaUiScale.w(62),
+                    height: TaqaUiScale.h(10),
+                    child: Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+                        fontSize: TaqaUiScale.sp(8),
+                        fontWeight: FontWeight.w400,
+                        color: TaqaUiColors.charcoal,
+                        height: 10 / 8,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Expanded(
-                    child: _ScorePreviewCard(
-                      score: dayScore?.taqaValueScore,
-                      provider: dayScore?.provider,
-                    ),
+                  _ScorePreviewCard(
+                    score: dayScore?.taqaValueScore,
+                    provider: dayScore?.provider,
                   ),
                 ],
               ),
@@ -553,95 +559,77 @@ class _ScorePreviewCard extends StatelessWidget {
     final progress = score == null ? 0.0 : (score! / 100).clamp(0.0, 1.0);
     final providerText = _providerLabel(provider);
 
+    final arcSize = TaqaUiScale.w(141);
+    final visibleHeight = TaqaUiScale.h(124);
+
     return Container(
-      width: double.infinity,
+      width: TaqaUiScale.w(171),
+      height: TaqaUiScale.h(171),
       decoration: BoxDecoration(
         color: TaqaUiColors.unnamedColorE4e93b,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: TaqaUiScale.radius(15),
       ),
       child: Stack(
         children: [
-          Center(
-            child: SizedBox(
-              width: 134,
-              height: 134,
-              child: CustomPaint(
-                painter: _PreviewArcPainter(progress: progress),
-              ),
-            ),
-          ),
-          Center(
-            child: Text(
-              '$value',
-              style: const TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: 35,
-                fontWeight: FontWeight.w800,
-                color: TaqaUiColors.charcoal,
-                height: 1,
+          Positioned(
+            left: TaqaUiScale.w(15),
+            top: TaqaUiScale.h(27),
+            width: arcSize,
+            height: visibleHeight,
+            child: ClipRect(
+              child: OverflowBox(
+                maxWidth: arcSize,
+                maxHeight: arcSize,
+                alignment: Alignment.topCenter,
+                child: SizedBox(
+                  width: arcSize,
+                  height: arcSize,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      CustomPaint(
+                        size: Size.square(arcSize),
+                        painter: TaqaOpenArcPainter(progress: progress),
+                      ),
+                      Transform.translate(
+                        offset: Offset(0, -((arcSize - visibleHeight) / 2)),
+                        child: Text(
+                          '$value',
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(35),
+                            fontWeight: FontWeight.w800,
+                            color: TaqaUiColors.charcoal,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
           Positioned(
-            left: 0,
-            right: 0,
-            bottom: 19,
+            left: TaqaUiScale.w(15),
+            top: TaqaUiScale.h(132),
+            width: TaqaUiScale.w(141),
+            height: TaqaUiScale.h(10),
             child: Text(
               providerText,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: 11,
+                fontSize: TaqaUiScale.sp(8),
                 fontWeight: FontWeight.w400,
                 color: TaqaUiColors.charcoal,
-                height: 1.1,
+                height: 13 / 8,
               ),
             ),
           ),
         ],
       ),
     );
-  }
-}
-
-class _PreviewArcPainter extends CustomPainter {
-  const _PreviewArcPainter({required this.progress});
-
-  final double progress;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const strokeWidth = 16.0;
-    final rect = Rect.fromLTWH(
-      strokeWidth / 2,
-      strokeWidth / 2,
-      size.width - strokeWidth,
-      size.height - strokeWidth,
-    );
-
-    final base = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round
-      ..color = TaqaUiColors.charcoal.withValues(alpha: 0.14);
-
-    final value = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round
-      ..color = TaqaUiColors.charcoal.withValues(alpha: 0.3);
-
-    const start = 3 * math.pi / 4;
-    const sweep = 3 * math.pi / 2;
-    canvas.drawArc(rect, start, sweep, false, base);
-    if (progress > 0) {
-      canvas.drawArc(rect, start, sweep * progress, false, value);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _PreviewArcPainter oldDelegate) {
-    return oldDelegate.progress != progress;
   }
 }
 
@@ -725,73 +713,93 @@ class _PillarCardState extends State<_PillarCard> {
       onTap: hasDetails ? () => setState(() => _expanded = !_expanded) : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+        padding: TaqaUiScale.insetsLTRB(14, 10, 14, 10),
         decoration: BoxDecoration(
           color: cardBg,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: TaqaUiScale.radius(15),
         ),
         child: Column(
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    widget.label,
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      height: 1.15,
+            SizedBox(
+              height: TaqaUiScale.h(78),
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    width: TaqaUiScale.w(39),
+                    height: TaqaUiScale.h(19),
+                    child: Text(
+                      widget.label,
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(15),
+                        fontWeight: FontWeight.w700,
+                        color: textColor,
+                        height: 25 / 15,
+                      ),
                     ),
                   ),
-                ),
-                if (widget.path != null)
-                  _PathChip(
-                    path: widget.path!,
-                    isDark: isDarkCard,
-                    borderColor: chipBorder,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 26),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(999),
-                    child: LinearProgressIndicator(
-                      value: barValue,
-                      backgroundColor: barTrack,
-                      valueColor: AlwaysStoppedAnimation(barFill),
-                      minHeight: 20,
+                  if (widget.path != null)
+                    Positioned(
+                      left: TaqaUiScale.w(247),
+                      top: TaqaUiScale.h(5),
+                      width: TaqaUiScale.w(82),
+                      height: TaqaUiScale.h(15),
+                      child: _PathChip(
+                        path: widget.path!,
+                        isDark: isDarkCard,
+                        borderColor: chipBorder,
+                      ),
+                    ),
+                  if (hasDetails)
+                    Positioned(
+                      right: 0,
+                      top: TaqaUiScale.h(48),
+                      child: Icon(
+                        _expanded
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
+                        color: isDarkCard
+                            ? TaqaUiColors.white.withValues(alpha: 0.85)
+                            : TaqaUiColors.charcoal.withValues(alpha: 0.85),
+                        size: 18,
+                      ),
+                    ),
+                  Positioned(
+                    left: TaqaUiScale.w(265),
+                    top: TaqaUiScale.h(48),
+                    width: TaqaUiScale.w(64),
+                    height: TaqaUiScale.h(30),
+                    child: Text(
+                      scoreDisplay,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(25),
+                        fontWeight: FontWeight.w700,
+                        color: textColor,
+                        height: 1,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 14),
-                Text(
-                  scoreDisplay,
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 21,
-                    fontWeight: FontWeight.w700,
-                    height: 1,
-                  ),
-                ),
-                if (hasDetails) ...[
-                  const SizedBox(width: 2),
-                  Icon(
-                    _expanded
-                        ? Icons.keyboard_arrow_up_rounded
-                        : Icons.keyboard_arrow_down_rounded,
-                    color: isDarkCard
-                        ? TaqaUiColors.white.withValues(alpha: 0.85)
-                        : TaqaUiColors.charcoal.withValues(alpha: 0.85),
-                    size: 18,
+                  Positioned(
+                    left: 0,
+                    top: TaqaUiScale.h(56),
+                    width: TaqaUiScale.w(250),
+                    height: TaqaUiScale.h(17),
+                    child: ClipRRect(
+                      borderRadius: TaqaUiScale.radius(9),
+                      child: LinearProgressIndicator(
+                        value: barValue,
+                        backgroundColor: barTrack,
+                        valueColor: AlwaysStoppedAnimation(barFill),
+                        minHeight: TaqaUiScale.h(17),
+                      ),
+                    ),
                   ),
                 ],
-              ],
+              ),
             ),
             if (_expanded && hasDetails) ...[
               if (_statusMessage() != null) ...[
@@ -949,11 +957,15 @@ class _PathChip extends StatelessWidget {
         ? TaqaUiColors.white
         : TaqaUiColors.unnamedColor1c1d17;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      alignment: Alignment.center,
+      padding: TaqaUiScale.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: isDark ? TaqaUiColors.charcoal : Colors.transparent,
-        borderRadius: BorderRadius.circular(7),
-        border: Border.all(color: borderColor, width: 1),
+        borderRadius: TaqaUiScale.radius(5),
+        border: Border.all(
+          color: isDark ? borderColor : TaqaUiColors.unnamedColor1c1d17,
+          width: 0.5,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -971,9 +983,10 @@ class _PathChip extends StatelessWidget {
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
               color: chipTextColor,
-              fontSize: 8,
+              fontSize: TaqaUiScale.sp(8),
               fontWeight: FontWeight.w400,
-              letterSpacing: 0.2,
+              letterSpacing: 0,
+              height: 10 / 8,
             ),
           ),
         ],

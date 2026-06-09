@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class RangedBarChartEntry {
   const RangedBarChartEntry({required this.axisLabel, required this.value});
@@ -59,10 +60,11 @@ class RangedBarChart extends StatelessWidget {
     final theme = Theme.of(context);
     final axisTextStyle = theme.textTheme.bodySmall?.copyWith(
       color: axisTextColor,
-      fontSize: 11,
+      fontSize: 9.sp,
     );
     final labelTextStyle = theme.textTheme.bodySmall?.copyWith(
       color: labelTextColor,
+      fontSize: 9.sp,
     );
     final lineColor = gridLineColor ?? Colors.white.withValues(alpha: 0.06);
 
@@ -96,7 +98,7 @@ class RangedBarChart extends StatelessWidget {
             height: barMaxHeight * heightFactor,
             width: barWidth,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8.r),
               border: isSelected
                   ? Border.all(
                       color: Colors.white.withValues(alpha: 0.75),
@@ -235,14 +237,14 @@ class RangedBarChart extends StatelessWidget {
       children: [
         Text(
           yAxisTitle!,
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.white60,
-            fontSize: 11,
+            fontSize: 9.sp,
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 8),
-        SizedBox(height: 210, child: chart),
+        SizedBox(height: 8.h),
+        SizedBox(height: 210.h, child: chart),
       ],
     );
   }

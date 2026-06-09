@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../TaqaUI/components/taqa_steps_ui.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../core/account_storage.dart';
 import '../services/metrics/daily_metrics_api.dart';
 import '../services/health/steps_service.dart';
@@ -198,15 +199,16 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
     final bars = _buildBars(theme, t, avg, total);
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         centerTitle: true,
         title: Text(
           t("steps_title"),
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: 15,
+            fontSize: TaqaUiScale.sp(15),
             fontWeight: FontWeight.w700,
-            height: 2.5,
+            height: 25 / 15,
             letterSpacing: 0,
             color: TaqaUiColors.unnamedColor1c1d17,
           ),
@@ -217,29 +219,32 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
       ),
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       body: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Expanded(
+                SizedBox(
+                  width: TaqaUiScale.w(109),
                   child: TaqaRangeTab(
                     label: t("range_weekly"),
                     selected: _range == 'weekly',
                     onTap: () => _onRangeTabTap('weekly'),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
+                SizedBox(width: TaqaUiScale.w(15)),
+                SizedBox(
+                  width: TaqaUiScale.w(109),
                   child: TaqaRangeTab(
                     label: t("range_monthly"),
                     selected: _range == 'monthly',
                     onTap: () => _onRangeTabTap('monthly'),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
+                SizedBox(width: TaqaUiScale.w(15)),
+                SizedBox(
+                  width: TaqaUiScale.w(109),
                   child: TaqaRangeTab(
                     label: t("range_yearly"),
                     selected: _range == 'yearly',
@@ -248,22 +253,26 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: TaqaUiScale.h(19)),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Expanded(
+                SizedBox(
+                  width: TaqaUiScale.w(147),
+                  height: TaqaUiScale.h(30),
                   child: Text(
                     "Goal: ${(_goal ?? 10000)}",
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: 25,
+                      fontSize: TaqaUiScale.sp(25),
                       fontWeight: FontWeight.w700,
-                      height: 2.5,
+                      height: 1,
                       letterSpacing: 0,
                       color: TaqaUiColors.unnamedColor1c1d17,
                     ),
                   ),
                 ),
+                const Spacer(),
                 if (_canManualEdit) ...[
                   TaqaTagButton(
                     icon: Icons.edit_outlined,
@@ -272,7 +281,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                   ),
                 ],
                 if (_canManualEdit && !widget.useFitbit) ...[
-                  const SizedBox(width: 8),
+                  SizedBox(width: TaqaUiScale.w(8)),
                   TaqaTagButton(
                     icon: Icons.add,
                     label: "ADD",
@@ -281,7 +290,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                 ],
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: TaqaUiScale.h(19)),
             Expanded(
               child: _loading
                   ? const Center(
@@ -321,12 +330,12 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
     final maxVal = entries.fold<int>(0, (m, e) => e.value > m ? e.value : m);
     final actualMax = maxVal == 0 ? 1.0 : maxVal.toDouble();
     final midVal = actualMax / 2.0;
-    const yAxisWidth = 45.0;
-    const yAxisGap = 8.0;
-    const labelHeight = 16.0;
-    const labelGap = 4.0;
+    final yAxisWidth = TaqaUiScale.w(45);
+    final yAxisGap = TaqaUiScale.w(8);
+    final labelHeight = TaqaUiScale.h(16);
+    final labelGap = TaqaUiScale.h(4);
     final dense = entries.length > 12;
-    final barSpacing = dense ? 2.0 : 4.0;
+    final barSpacing = dense ? TaqaUiScale.w(2) : TaqaUiScale.w(4);
     final useFixedSlots = dense || _range != 'weekly';
     final showLabels = _range != 'monthly';
     final chartEntries = entries
@@ -342,38 +351,40 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
         child: Container(
-          padding: const EdgeInsets.all(14),
+          padding: TaqaUiScale.insetsLTRB(14, 10, 14, 14),
           decoration: BoxDecoration(
             color: TaqaUiColors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: TaqaUiScale.radius(15),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
                 _range == 'weekly' ? 'Last 7 days' : _rangeLabel(t),
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
-                  fontSize: 18,
+                  fontSize: TaqaUiScale.sp(15),
                   fontWeight: FontWeight.w700,
+                  height: 25 / 15,
                   color: TaqaUiColors.unnamedColor1c1d17,
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: TaqaUiScale.h(5)),
               Text(
                 _loading
                     ? t("dash_loading")
                     : 'Avg: ${avg.toStringAsFixed(0)} | Total: $total',
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
-                  fontSize: 12,
+                  fontSize: TaqaUiScale.sp(10),
                   fontWeight: FontWeight.w400,
+                  height: 11 / 10,
                   color: TaqaUiColors.unnamedColor1c1d17,
                 ),
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: TaqaUiScale.h(10)),
               SizedBox(
-                height: 34,
+                height: TaqaUiScale.h(34),
                 child: Center(
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 180),
@@ -384,17 +395,13 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                         ? const SizedBox.shrink()
                         : Container(
                             key: ValueKey<int>(_selectedBarIndex!),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 7,
-                            ),
+                            padding: TaqaUiScale.insetsLTRB(12, 7, 12, 7),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF0F1826),
-                              borderRadius: BorderRadius.circular(12),
+                              color: TaqaUiColors.charcoal,
+                              borderRadius: TaqaUiScale.radius(10),
                               border: Border.all(
-                                color: const Color(
-                                  0xFF35B6FF,
-                                ).withValues(alpha: 0.45),
+                                color: TaqaUiColors.lime.withValues(alpha: 0.45),
+                                width: 0.5,
                               ),
                             ),
                             child: Text(
@@ -402,16 +409,18 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                               textAlign: TextAlign.center,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: TaqaUiColors.white,
+                              style: TextStyle(
+                                fontFamily: TaqaUiFontFamilies.interTight,
+                                fontSize: TaqaUiScale.sp(10),
                                 fontWeight: FontWeight.w700,
+                                color: TaqaUiColors.white,
                               ),
                             ),
                           ),
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: TaqaUiScale.h(10)),
               Expanded(
                 child: RangedBarChart(
                   entries: chartEntries,
@@ -431,7 +440,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                   showAxisLabels: showLabels,
                   useFixedSlots: useFixedSlots,
                   barSpacing: barSpacing,
-                  minBarWidth: 4.0,
+                  minBarWidth: TaqaUiScale.w(4),
                   yAxisWidth: yAxisWidth,
                   yAxisGap: yAxisGap,
                   labelHeight: labelHeight,
