@@ -6,6 +6,7 @@ import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_action_controls.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_steps_ui.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_set_row_edit_dialog.dart';
+import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 import '../../widgets/training/exercise_card.dart';
 import '../../widgets/training/exercise_feedback_sheet.dart';
@@ -162,7 +163,8 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
     final live = widget.readLiveState();
     final isDisabled = widget.readDisabledState();
     final dayNote = widget.readDayNoteState();
-    final blockLeave = live.showWorkoutTimer || live.finishingWorkout;
+    final blockLeave =
+        !isDisabled && (live.showWorkoutTimer || live.finishingWorkout);
     return PopScope(
       canPop: !blockLeave,
       onPopInvokedWithResult: (didPop, result) {
@@ -467,6 +469,7 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                       forceCompleted: done,
                       inProgress: inProgress,
                       showReplace: !live.showWorkoutTimer,
+                      showWeight: false,
                     ),
                   );
                 });
@@ -507,21 +510,21 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                   foregroundColor: const Color(0xFF1C1D17),
                   disabledBackgroundColor: const Color(0x80E4E93B),
                   disabledForegroundColor: const Color(0x801C1D17),
+                  minimumSize: Size(double.infinity, TaqaUiScale.h(45)),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(5),
+                    borderRadius: TaqaUiScale.radius(5),
                   ),
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 14,
-                    horizontal: 5,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: TaqaUiScale.w(5)),
                 ),
-                child: const Text(
+                child: Text(
                   "START WORKOUT",
                   style: TextStyle(
                     fontFamily: TaqaUiFontFamilies.interTight,
-                    fontSize: 10,
+                    fontSize: TaqaUiScale.sp(10),
                     fontWeight: FontWeight.w600,
+                    height: 12 / 10,
                     letterSpacing: 0,
+                    color: TaqaUiColors.unnamedColor1c1d17,
                   ),
                 ),
               ),
@@ -3341,10 +3344,10 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
         }
         _activeSessionExerciseName = null;
         _showExRestPanel = true;
-        if (!_exRestActive) {
-          _exRestRemaining = _exRestPresetSeconds;
-        }
       });
+      if (!_exRestActive) {
+        _startExRestCountdown();
+      }
     }
     await _loadWorkoutTimer();
     await _refreshInProgressExercises();
@@ -3416,10 +3419,10 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
               if (_tabIndex == 0 && mounted) {
                 setState(() {
                   _showExRestPanel = true;
-                  if (!_exRestActive) {
-                    _exRestRemaining = _exRestPresetSeconds;
-                  }
                 });
+                if (!_exRestActive) {
+                  _startExRestCountdown();
+                }
               }
               unawaited(_loadProgram());
               _loadWorkoutTimer();
@@ -3451,10 +3454,10 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
               if (_tabIndex == 0 && mounted) {
                 setState(() {
                   _showExRestPanel = true;
-                  if (!_exRestActive) {
-                    _exRestRemaining = _exRestPresetSeconds;
-                  }
                 });
+                if (!_exRestActive) {
+                  _startExRestCountdown();
+                }
               }
               unawaited(_loadProgram());
               _loadWorkoutTimer();
@@ -4525,48 +4528,6 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     }
   }
 
-  Widget _tabButton({
-    required String label,
-    required bool active,
-    required VoidCallback onTap,
-  }) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(5),
-        child: Container(
-          height: 52,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: active
-                ? TaqaUiColors.unnamedColorE4e93b
-                : TaqaUiColors.white,
-            borderRadius: BorderRadius.circular(5),
-            border: active
-                ? null
-                : Border.all(
-                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                      alpha: 0.12,
-                    ),
-                  ),
-          ),
-          child: Text(
-            label.toUpperCase(),
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontFamily: TaqaUiFontFamilies.interTight,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              height: 1.2,
-              letterSpacing: 0,
-              color: TaqaUiColors.unnamedColor1c1d17,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
@@ -4712,16 +4673,20 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      _tabButton(
-                        label: "Train",
-                        active: _tabIndex == 0,
-                        onTap: _openTrainTab,
+                      Expanded(
+                        child: TaqaRangeTab(
+                          label: "Train",
+                          selected: _tabIndex == 0,
+                          onTap: _openTrainTab,
+                        ),
                       ),
-                      const SizedBox(width: 10),
-                      _tabButton(
-                        label: "Cardio",
-                        active: _tabIndex == 1,
-                        onTap: _openCardioTab,
+                      SizedBox(width: TaqaUiScale.w(15)),
+                      Expanded(
+                        child: TaqaRangeTab(
+                          label: "Cardio",
+                          selected: _tabIndex == 1,
+                          onTap: _openCardioTab,
+                        ),
                       ),
                     ],
                   ),
@@ -4746,10 +4711,12 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                             Expanded(
                               child: Text(
                                 "Workout List",
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontFamily: TaqaUiFontFamilies.interTight,
-                                  fontSize: 25,
+                                  fontSize: TaqaUiScale.sp(25),
                                   fontWeight: FontWeight.w700,
+                                  height: 1,
+                                  letterSpacing: 0,
                                   color: TaqaUiColors.unnamedColor1c1d17,
                                 ),
                               ),
@@ -4777,17 +4744,19 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
+                        SizedBox(height: TaqaUiScale.h(5)),
                         Text(
                           "Follow the sets & reps shown for each exercise",
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontFamily: TaqaUiFontFamilies.interTight,
-                            fontSize: 15,
+                            fontSize: TaqaUiScale.sp(15),
                             fontWeight: FontWeight.w400,
+                            height: 18 / 15,
+                            letterSpacing: 0,
                             color: TaqaUiColors.unnamedColor1c1d17,
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: TaqaUiScale.h(30)),
                         ...dayOrder.asMap().entries.map((entry) {
                           final displayIndex = entry.key;
                           final dayIndex = entry.value;
@@ -4830,102 +4799,167 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                               ? "No Exercises"
                               : exerciseNames.join(", ");
 
+                          final isWorkoutLockDay =
+                              workoutLockDayIndex != null &&
+                              dayIndex == workoutLockDayIndex;
+                          final isLockedOut =
+                              workoutLockDayIndex != null &&
+                              dayIndex != workoutLockDayIndex;
+
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(15),
-                              onTap: () {
-                                unawaited(
-                                  _openTrainingDayExercisesPage(
-                                    days: days,
-                                    dayIndex: dayIndex,
-                                    dayLabel: dayLabel,
-                                  ),
-                                );
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 15,
-                                  vertical: 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(15),
-                                  border: Border.all(
-                                    color: TaqaUiColors.unnamedColor1c1d17
-                                        .withOpacity(0.1),
-                                    width: 1.0,
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            _titleCase(dayLabel),
-                                            style: const TextStyle(
-                                              fontFamily:
-                                                  TaqaUiFontFamilies.interTight,
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.w700,
-                                              color: TaqaUiColors
-                                                  .unnamedColor1c1d17,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
-                                          Text(
-                                            exercisePreview,
-                                            style: const TextStyle(
-                                              fontFamily:
-                                                  TaqaUiFontFamilies.interTight,
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.w400,
-                                              color: TaqaUiColors
-                                                  .unnamedColor1c1d17,
-                                            ),
-                                          ),
-                                          if (dayNote != null &&
-                                              dayNote.trim().isNotEmpty)
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                top: 4,
-                                              ),
-                                              child: Text(
-                                                dayNote,
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .bodySmall
-                                                    ?.copyWith(
-                                                      color: TaqaUiColors
-                                                          .unnamedColor1c1d17
-                                                          .withOpacity(0.6),
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                    ),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
+                            padding: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
+                            child: Opacity(
+                              opacity: isLockedOut ? 0.5 : 1,
+                              child: InkWell(
+                                borderRadius: TaqaUiScale.radius(15),
+                                onTap: () {
+                                  if (isLockedOut) {
+                                    AppToast.show(
+                                      context,
+                                      "Finish your in-progress workout before viewing other days.",
+                                      type: AppToastType.info,
+                                    );
+                                    return;
+                                  }
+                                  unawaited(
+                                    _openTrainingDayExercisesPage(
+                                      days: days,
+                                      dayIndex: dayIndex,
+                                      dayLabel: dayLabel,
                                     ),
-                                    if (isCompleted || isWorked)
-                                      const Padding(
-                                        padding: EdgeInsets.only(right: 6),
-                                        child: Icon(
-                                          Icons.check_circle,
-                                          size: 16,
-                                          color: Color(0xFF2ECC71),
+                                  );
+                                },
+                                child: Container(
+                                  padding: TaqaUiScale.insetsLTRB(
+                                    14,
+                                    10,
+                                    14,
+                                    10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: TaqaUiScale.radius(15),
+                                    border: Border.all(
+                                      color: TaqaUiColors.unnamedColor1c1d17
+                                          .withOpacity(0.1),
+                                      width: 1.0,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              _titleCase(dayLabel),
+                                              style: TextStyle(
+                                                fontFamily: TaqaUiFontFamilies
+                                                    .interTight,
+                                                fontSize: TaqaUiScale.sp(15),
+                                                fontWeight: FontWeight.w700,
+                                                height: 25 / 15,
+                                                letterSpacing: 0,
+                                                color: TaqaUiColors
+                                                    .unnamedColor1c1d17,
+                                              ),
+                                            ),
+                                            SizedBox(height: TaqaUiScale.h(19)),
+                                            Text(
+                                              exercisePreview,
+                                              style: TextStyle(
+                                                fontFamily: TaqaUiFontFamilies
+                                                    .interTight,
+                                                fontSize: TaqaUiScale.sp(15),
+                                                fontWeight: FontWeight.w400,
+                                                height: 21 / 15,
+                                                letterSpacing: 0,
+                                                color: TaqaUiColors
+                                                    .unnamedColor1c1d17,
+                                              ),
+                                            ),
+                                            if (dayNote != null &&
+                                                dayNote.trim().isNotEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  top: 4,
+                                                ),
+                                                child: Text(
+                                                  dayNote,
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .bodySmall
+                                                      ?.copyWith(
+                                                        color: TaqaUiColors
+                                                            .unnamedColor1c1d17
+                                                            .withOpacity(0.6),
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                ),
+                                              ),
+                                          ],
                                         ),
                                       ),
-                                    Icon(
-                                      Icons.chevron_right,
-                                      size: 18,
-                                      color: TaqaUiColors.unnamedColor1c1d17
-                                          .withOpacity(0.6),
-                                    ),
-                                  ],
+                                      if (isCompleted || isWorked)
+                                        const Padding(
+                                          padding: EdgeInsets.only(right: 6),
+                                          child: Icon(
+                                            Icons.check_circle,
+                                            size: 16,
+                                            color: Color(0xFF2ECC71),
+                                          ),
+                                        )
+                                      else if (isWorkoutLockDay)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            right: 6,
+                                          ),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: TaqaUiColors
+                                                  .unnamedColor1c1d17,
+                                              borderRadius:
+                                                  BorderRadius.circular(7),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: const [
+                                                Icon(
+                                                  Icons.play_circle_fill,
+                                                  size: 12,
+                                                  color: Color(0xFF2ECC71),
+                                                ),
+                                                SizedBox(width: 4),
+                                                Text(
+                                                  "CONTINUE",
+                                                  style: TextStyle(
+                                                    fontFamily:
+                                                        TaqaUiFontFamilies
+                                                            .interTight,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w700,
+                                                    letterSpacing: 0.2,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      Icon(
+                                        Icons.chevron_right,
+                                        size: 18,
+                                        color: TaqaUiColors.unnamedColor1c1d17
+                                            .withOpacity(0.6),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),

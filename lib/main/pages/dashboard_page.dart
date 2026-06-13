@@ -5228,10 +5228,18 @@ class DashboardPageState extends State<DashboardPage>
     }
   }
 
+  Future<List<NewsItem>> _filterNewsForUser(List<NewsItem> items) async {
+    final isExpert = await AccountStorage.isExpert();
+    if (!isExpert) return items;
+    return items.where((n) => !NewsTagActions.isExpertApplyTag(n.tag)).toList();
+  }
+
   Future<void> _loadNews() async {
     try {
       // Try to fetch from server first
-      final items = await NewsApi.fetchNews(limit: 10);
+      final items = await _filterNewsForUser(
+        await NewsApi.fetchNews(limit: 10),
+      );
       if (!mounted) return;
       setState(() {
         _news = items;
@@ -5241,7 +5249,9 @@ class DashboardPageState extends State<DashboardPage>
     } catch (e) {
       // Network failed, try loading from cache
       try {
-        final cached = await NewsApi.fetchNewsFromCache();
+        final cached = await _filterNewsForUser(
+          await NewsApi.fetchNewsFromCache(),
+        );
         if (!mounted) return;
         setState(() {
           _news = cached;

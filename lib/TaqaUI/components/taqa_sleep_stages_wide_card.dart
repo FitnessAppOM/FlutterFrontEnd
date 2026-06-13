@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../Typography/taqa_ui_typography.dart';
+import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
 
 class TaqaSleepStagesWideCard extends StatelessWidget {
@@ -23,8 +24,8 @@ class TaqaSleepStagesWideCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const arcSize = 122.0;
-    const arcStrokeWidth = 12.0;
+    final arcSize = TaqaUiScale.w(120);
+    final strokeWidth = TaqaUiScale.w(12);
     final safeLight = lightPct.clamp(0.0, 1.0).toDouble();
     final safeDeep = deepPct.clamp(0.0, 1.0).toDouble();
     final safeRem = remPct.clamp(0.0, 1.0).toDouble();
@@ -40,26 +41,28 @@ class TaqaSleepStagesWideCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+      padding: TaqaUiScale.insetsLTRB(15, 10, 15, 15),
       decoration: BoxDecoration(
         color: TaqaUiColors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: TaqaUiScale.radius(15),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title.toUpperCase(),
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-              fontSize: 8,
+              fontSize: TaqaUiScale.sp(8),
               fontWeight: FontWeight.w400,
               color: TaqaUiColors.unnamedColor1c1d17,
-              letterSpacing: 0.2,
+              letterSpacing: 0,
+              height: 10 / 8,
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: TaqaUiScale.h(12)),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               SizedBox(
                 width: arcSize,
@@ -68,12 +71,12 @@ class TaqaSleepStagesWideCard extends StatelessWidget {
                   alignment: Alignment.center,
                   children: [
                     CustomPaint(
-                      size: const Size.square(arcSize),
+                      size: Size.square(arcSize),
                       painter: _OpenStageArcPainter(
                         lightPct: nLight,
                         deepPct: nDeep,
                         remPct: nRem,
-                        strokeWidth: arcStrokeWidth,
+                        strokeWidth: strokeWidth,
                         baseColor: const Color(0xFFCECED0),
                         lightColor: lightColor,
                         deepColor: deepColor,
@@ -82,18 +85,18 @@ class TaqaSleepStagesWideCard extends StatelessWidget {
                     ),
                     Text(
                       centerLabel,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: TaqaUiFontFamilies.interTight,
-                        fontSize: 25,
+                        fontSize: TaqaUiScale.sp(13),
                         fontWeight: FontWeight.w700,
                         color: TaqaUiColors.unnamedColor1c1d17,
-                        height: 1.0,
+                        height: 1,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 24),
+              SizedBox(width: TaqaUiScale.w(20)),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -103,13 +106,13 @@ class TaqaSleepStagesWideCard extends StatelessWidget {
                       label: 'Light',
                       value: '${(safeLight * 100).toStringAsFixed(0)}%',
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: TaqaUiScale.h(6)),
                     _legendRow(
                       color: deepColor,
                       label: 'Deep',
                       value: '${(safeDeep * 100).toStringAsFixed(0)}%',
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: TaqaUiScale.h(6)),
                     _legendRow(
                       color: remColor,
                       label: 'REM',
@@ -133,31 +136,33 @@ class TaqaSleepStagesWideCard extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: 10,
-          height: 10,
+          width: TaqaUiScale.w(8),
+          height: TaqaUiScale.h(8),
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: TaqaUiScale.w(8)),
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
-              fontSize: 12,
+              fontSize: TaqaUiScale.sp(8),
               fontWeight: FontWeight.w400,
               color: TaqaUiColors.unnamedColor1c1d17,
-              height: 1.0,
+              letterSpacing: 0,
+              height: 13 / 8,
             ),
           ),
         ),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: 12,
+            fontSize: TaqaUiScale.sp(8),
             fontWeight: FontWeight.w400,
             color: TaqaUiColors.unnamedColor1c1d17,
-            height: 1.0,
+            letterSpacing: 0,
+            height: 13 / 8,
           ),
         ),
       ],

@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_steps_ui.dart';
+import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 
 import '../../core/account_storage.dart';
@@ -406,85 +408,79 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
   ) {
     final displayStatus = _displayStatusForEntry(entry);
     final statusLabel = displayStatus.toUpperCase();
-    return InkWell(
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => TrainingHistoryDayDetailPage(
-              dayLabel: entry.label,
-              statusText: displayStatus,
-              weekLabel: entry.weekLabel,
-              completedExercises: entry.completedExercises,
+    return Padding(
+      padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
+      child: InkWell(
+        borderRadius: TaqaUiScale.radius(15),
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => TrainingHistoryDayDetailPage(
+                dayLabel: entry.label,
+                statusText: displayStatus,
+                weekLabel: entry.weekLabel,
+                completedExercises: entry.completedExercises,
+              ),
+            ),
+          );
+        },
+        child: Container(
+          padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: TaqaUiScale.radius(15),
+            border: Border.all(
+              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.10),
             ),
           ),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(
-            color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.10),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _titleCase(entry.label),
-                    style: const TextStyle(
-                      fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: TaqaUiColors.unnamedColor1c1d17,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(7),
-                    border: Border.all(
-                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                        alpha: 0.6,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      _titleCase(entry.label),
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(15),
+                        fontWeight: FontWeight.w700,
+                        height: 25 / 15,
+                        letterSpacing: 0,
+                        color: TaqaUiColors.unnamedColor1c1d17,
                       ),
                     ),
                   ),
-                  child: Text(
+                  Text(
                     statusLabel,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-                      fontSize: 8,
+                      fontSize: TaqaUiScale.sp(8),
                       fontWeight: FontWeight.w400,
+                      height: 10 / 8,
+                      letterSpacing: 0,
                       color: TaqaUiColors.unnamedColor1c1d17,
-                      letterSpacing: 0.2,
                     ),
                   ),
+                ],
+              ),
+              SizedBox(height: TaqaUiScale.h(19)),
+              Text(
+                _titleCase(
+                  "${entry.completedCount} Done, ${entry.weekLabel.replaceFirst('Week of', 'Week Of')}",
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              _titleCase(
-                "${entry.completedCount} Done, ${entry.weekLabel.replaceFirst('Week of', 'Week Of')}",
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(15),
+                  fontWeight: FontWeight.w400,
+                  height: 21 / 15,
+                  letterSpacing: 0,
+                  color: TaqaUiColors.unnamedColor1c1d17,
+                ),
               ),
-              style: const TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: 15,
-                fontWeight: FontWeight.w400,
-                color: TaqaUiColors.unnamedColor1c1d17,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -982,48 +978,6 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
     return widgets;
   }
 
-  Widget _historyTabButton({
-    required String label,
-    required bool active,
-    required VoidCallback onTap,
-  }) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(5),
-        child: Container(
-          height: 52,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: active
-                ? TaqaUiColors.unnamedColorE4e93b
-                : TaqaUiColors.white,
-            borderRadius: BorderRadius.circular(5),
-            border: Border.all(
-              color: active
-                  ? Colors.transparent
-                  : TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.12),
-            ),
-          ),
-          child: Center(
-            child: Text(
-              label.toUpperCase(),
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                height: 1.2,
-                letterSpacing: 0,
-                color: TaqaUiColors.unnamedColor1c1d17,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildProgressLogsContent(List<_TrainingHistoryPlanGroup> grouped) {
     if (_loading) {
       return const Center(
@@ -1033,45 +987,52 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
       );
     }
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      padding: TaqaUiScale.insetsLTRB(16, 19, 16, 24),
       children: [
         Text(
           "Completed Training Days",
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: 54 * 0.46,
+            fontSize: TaqaUiScale.sp(25),
             fontWeight: FontWeight.w700,
+            height: 1,
+            letterSpacing: 0,
             color: TaqaUiColors.unnamedColor1c1d17,
           ),
         ),
-        const SizedBox(height: 16),
-        if (_entries.isEmpty)
+        if (_entries.isEmpty) ...[
+          SizedBox(height: TaqaUiScale.h(25)),
           Text(
             "No training history yet.",
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
-              fontSize: 15,
+              fontSize: TaqaUiScale.sp(15),
               fontWeight: FontWeight.w400,
+              height: 21 / 15,
+              letterSpacing: 0,
               color: TaqaUiColors.unnamedColor1c1d17,
             ),
-          )
-        else
+          ),
+        ] else
           ...grouped.map((group) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                SizedBox(height: TaqaUiScale.h(25)),
                 Text(
                   group.title
                       .replaceAll('days plan', 'Days Plan')
                       .replaceAll('Week of', 'Week Of'),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: TaqaUiFontFamilies.interTight,
-                    fontSize: 42 * 0.46,
+                    fontSize: TaqaUiScale.sp(15),
                     fontWeight: FontWeight.w700,
+                    height: 25 / 15,
+                    letterSpacing: 0,
                     color: TaqaUiColors.unnamedColor1c1d17,
                   ),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: TaqaUiScale.h(19)),
                 ...group.entries.map(
                   (entry) => _buildHistoryEntryCard(context, entry),
                 ),
@@ -1092,91 +1053,110 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
       );
     }
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      padding: TaqaUiScale.insetsLTRB(16, 19, 16, 24),
       children: [
         Text(
           "Plan Logs",
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: 54 * 0.46,
+            fontSize: TaqaUiScale.sp(25),
             fontWeight: FontWeight.w700,
+            height: 1,
+            letterSpacing: 0,
             color: TaqaUiColors.unnamedColor1c1d17,
           ),
         ),
-        const SizedBox(height: 16),
-        if (_planLogItems.isEmpty)
+        if (_planLogItems.isEmpty) ...[
+          SizedBox(height: TaqaUiScale.h(25)),
           Text(
             "No training plan updates yet.",
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
-              fontSize: 15,
+              fontSize: TaqaUiScale.sp(15),
               fontWeight: FontWeight.w400,
+              height: 21 / 15,
+              letterSpacing: 0,
               color: TaqaUiColors.unnamedColor1c1d17,
             ),
-          )
-        else
+          ),
+        ] else ...[
+          SizedBox(height: TaqaUiScale.h(25)),
           ..._planLogItems.map((event) {
             final detailWidgets = _buildPlanChangeDetailWidgets(event);
             final createdAt = _formatPlanChangeDate(event.createdAt);
             final sourceFrom = _labelForPlanSource(event.fromPlanSource);
             final sourceTo = _labelForPlanSource(event.toPlanSource);
-            return Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(
-                  color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.1),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    event.summary,
-                    style: const TextStyle(
-                      fontFamily: TaqaUiFontFamilies.interTight,
-                      color: TaqaUiColors.unnamedColor1c1d17,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
+            final titleLabel = sourceTo.isNotEmpty
+                ? sourceTo
+                : (sourceFrom.isNotEmpty ? sourceFrom : "Update");
+            return Padding(
+              padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
+              child: Container(
+                padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: TaqaUiScale.radius(15),
+                  border: Border.all(
+                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                      alpha: 0.1,
                     ),
                   ),
-                  if (sourceFrom.isNotEmpty || sourceTo.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        sourceFrom.isNotEmpty && sourceTo.isNotEmpty
-                            ? '$sourceFrom -> $sourceTo'
-                            : (sourceTo.isNotEmpty ? sourceTo : sourceFrom),
-                        style: const TextStyle(
-                          fontFamily: TaqaUiFontFamilies.interTight,
-                          color: TaqaUiColors.unnamedColor1c1d17,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _titleCase(titleLabel),
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: TaqaUiScale.sp(15),
+                              fontWeight: FontWeight.w700,
+                              height: 25 / 15,
+                              letterSpacing: 0,
+                              color: TaqaUiColors.unnamedColor1c1d17,
+                            ),
+                          ),
                         ),
+                        if (createdAt.isNotEmpty)
+                          Text(
+                            createdAt.toUpperCase(),
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+                              fontSize: TaqaUiScale.sp(8),
+                              fontWeight: FontWeight.w400,
+                              height: 10 / 8,
+                              letterSpacing: 0,
+                              color: TaqaUiColors.unnamedColor1c1d17,
+                            ),
+                          ),
+                      ],
+                    ),
+                    SizedBox(height: TaqaUiScale.h(19)),
+                    Text(
+                      event.summary,
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(15),
+                        fontWeight: FontWeight.w400,
+                        height: 21 / 15,
+                        letterSpacing: 0,
+                        color: TaqaUiColors.unnamedColor1c1d17,
                       ),
                     ),
-                  if (createdAt.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(
-                        createdAt,
-                        style: const TextStyle(
-                          fontFamily: TaqaUiFontFamilies.interTight,
-                          color: TaqaUiColors.unnamedColor1c1d17,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  if (detailWidgets.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    ...detailWidgets,
+                    if (detailWidgets.isNotEmpty) ...[
+                      SizedBox(height: TaqaUiScale.h(8)),
+                      ...detailWidgets,
+                    ],
                   ],
-                ],
+                ),
               ),
             );
           }),
+        ],
       ],
     );
   }
@@ -1206,26 +1186,29 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+            padding: TaqaUiScale.insetsLTRB(16, 20, 16, 0),
             child: Row(
               children: [
-                _historyTabButton(
-                  label: "Process Logs",
-                  active: _tabIndex == 0,
-                  onTap: _openProgressLogsTab,
+                Expanded(
+                  child: TaqaRangeTab(
+                    label: "Process Logs",
+                    selected: _tabIndex == 0,
+                    onTap: _openProgressLogsTab,
+                  ),
                 ),
-                const SizedBox(width: 10),
-                _historyTabButton(
-                  label: _unseenPlanLogCount > 0
-                      ? "Plan Logs ($_unseenPlanLogCount)"
-                      : "Plan Logs",
-                  active: _tabIndex == 1,
-                  onTap: _openPlanLogsTab,
+                SizedBox(width: TaqaUiScale.w(15)),
+                Expanded(
+                  child: TaqaRangeTab(
+                    label: _unseenPlanLogCount > 0
+                        ? "Plan Logs ($_unseenPlanLogCount)"
+                        : "Plan Logs",
+                    selected: _tabIndex == 1,
+                    onTap: _openPlanLogsTab,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 8),
           Expanded(
             child: _tabIndex == 0
                 ? _buildProgressLogsContent(groupedEntries)

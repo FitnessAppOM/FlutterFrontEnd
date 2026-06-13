@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../localization/app_localizations.dart';
 import '../services/diet/diet_service.dart';
 import '../theme/app_theme.dart';
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 
 class DietFavoritesSheet extends StatefulWidget {
   const DietFavoritesSheet({
@@ -95,124 +98,32 @@ class _DietFavoritesSheetState extends State<DietFavoritesSheet> {
   }
 
   Future<void> _showFavoriteDetail(Map<String, dynamic> fav) async {
-    final t = AppLocalizations.of(context);
     final favId = int.tryParse(fav['id']?.toString() ?? '');
     if (favId == null) return;
-    await showDialog<void>(
+    await showModalBottomSheet<void>(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          scrollable: true,
-          title: Text(fav['meal_name']?.toString() ?? ''),
-          content: FutureBuilder<Map<String, dynamic>>(
-            future: DietService.fetchFavoriteMealDetail(
-              userId: widget.userId,
-              favoriteMealId: favId,
-            ),
-            builder: (ctx, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
-              if (snapshot.hasError) {
-                return Text(
-                  "${t.translate("diet_favorites_load_failed")}: ${snapshot.error}",
-                  style: const TextStyle(color: AppColors.errorRed),
-                );
-              }
-              final data = snapshot.data ?? {};
-              final items = data['items'];
-              final list = items is List
-                  ? items.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList()
-                  : <Map<String, dynamic>>[];
-              if (list.isEmpty) {
-                return Text(t.translate("diet_no_results"));
-              }
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if ((data['notes'] ?? '').toString().trim().isNotEmpty) ...[
-                    Text(
-                      data['notes'].toString(),
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  ...list.map((item) {
-                    final name = (item['item_name'] ?? '').toString();
-                    final kcal = item['calories'] ?? 0;
-                    final p = item['protein_g'] ?? 0;
-                    final c = item['carbs_g'] ?? 0;
-                    final f = item['fat_g'] ?? 0;
-                    final grams = item['grams'];
-                    final ingredients = item['ingredients'];
-                    final ingList = ingredients is List
-                        ? ingredients.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList()
-                        : <Map<String, dynamic>>[];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
-                          const SizedBox(height: 2),
-                          Text(
-                            "${t.translate("diet_kcal_label")} $kcal • "
-                            "${t.translate("diet_p_short")} $p • "
-                            "${t.translate("diet_c_short")} $c • "
-                            "${t.translate("diet_f_short")} $f"
-                            "${grams != null ? " • ${grams}g" : ""}",
-                            style: const TextStyle(color: Colors.white60, fontSize: 12),
-                          ),
-                          if (ingList.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              ingList
-                                  .map((ing) {
-                                    final n = (ing['ingredient_name'] ?? '').toString();
-                                    final amt = ing['amount'];
-                                    final unit = (ing['unit'] ?? '').toString();
-                                    final amountLabel = amt != null ? " ${amt.toString()}" : "";
-                                    final unitLabel = unit.isNotEmpty ? " $unit" : "";
-                                    return "$n$amountLabel$unitLabel";
-                                  })
-                                  .where((e) => e.trim().isNotEmpty)
-                                  .join(" • "),
-                              style: const TextStyle(color: Colors.white54, fontSize: 12),
-                            ),
-                          ],
-                        ],
-                      ),
-                    );
-                  }),
-                ],
-              );
-            },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(t.translate("common_cancel")),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                _logFavorite(favId);
-              },
-              child: Text(t.translate("diet_favorites_log")),
-            ),
-          ],
-        );
-      },
+      isScrollControlled: true,
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(TaqaUiScale.r(15)),
+        ),
+      ),
+      builder: (ctx) => _FavoriteDetailSheet(
+        title: fav['meal_name']?.toString() ?? '',
+        userId: widget.userId,
+        favoriteMealId: favId,
+        onLog: () {
+          Navigator.of(ctx).pop();
+          _logFavorite(favId);
+        },
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
-    final theme = Theme.of(context);
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
     return SafeArea(
@@ -223,90 +134,410 @@ class _DietFavoritesSheetState extends State<DietFavoritesSheet> {
         child: SizedBox(
           height: MediaQuery.sizeOf(context).height * 0.78,
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: TaqaUiScale.insetsLTRB(16, 12, 16, 16),
             child: Column(
               children: [
                 Container(
                   height: 5,
                   width: 44,
-                  margin: const EdgeInsets.only(bottom: 12),
+                  margin: EdgeInsets.only(bottom: TaqaUiScale.h(16)),
                   decoration: BoxDecoration(
-                    color: Colors.white24,
+                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                      alpha: 0.12,
+                    ),
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
-                Row(
+                Stack(
+                  alignment: Alignment.center,
                   children: [
-                    Expanded(
-                      child: Text(
-                        t.translate("diet_favorites_title"),
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
+                    Text(
+                      t.translate("diet_favorites_title"),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(15),
+                        fontWeight: FontWeight.w700,
+                        height: 25 / 15,
+                        letterSpacing: 0,
+                        color: TaqaUiColors.unnamedColor1c1d17,
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: IconButton(
+                        onPressed: _loading
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                        icon: Icon(
+                          Icons.close,
+                          color: TaqaUiColors.unnamedColor1c1d17,
                         ),
                       ),
                     ),
-                    IconButton(
-                      onPressed: _loading ? null : () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close, color: Colors.white70),
-                    ),
                   ],
                 ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    widget.mealTitle,
-                    style: theme.textTheme.bodySmall?.copyWith(color: Colors.white60),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(height: 12),
+                SizedBox(height: TaqaUiScale.h(12)),
                 Expanded(
                   child: _loading
                       ? const Center(child: CircularProgressIndicator())
                       : _error != null
-                          ? Center(
-                              child: Text(
-                                _error!,
-                                style: const TextStyle(color: AppColors.errorRed),
+                      ? Center(
+                          child: Text(
+                            _error!,
+                            style: const TextStyle(color: AppColors.errorRed),
+                          ),
+                        )
+                      : _favorites.isEmpty
+                      ? Center(
+                          child: Text(
+                            t.translate("diet_favorites_empty"),
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                                alpha: 0.6,
                               ),
-                            )
-                          : _favorites.isEmpty
-                              ? Center(
-                                  child: Text(
-                                    t.translate("diet_favorites_empty"),
-                                    style: const TextStyle(color: Colors.white60),
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          itemCount: _favorites.length,
+                          separatorBuilder: (context, index) =>
+                              SizedBox(height: TaqaUiScale.h(12)),
+                          itemBuilder: (ctx, i) {
+                            final fav = _favorites[i];
+                            final title = fav['meal_name']?.toString() ?? '';
+                            final notes = fav['notes']?.toString() ?? '';
+                            final dynamicCount =
+                                fav['item_count'] ??
+                                (fav['items'] is List
+                                    ? (fav['items'] as List).length
+                                    : null);
+                            final count = (dynamicCount ?? 0).toString();
+                            final subtitle = notes.isNotEmpty
+                                ? "$notes • $count ${t.translate("diet_items_plural")}"
+                                : "$count ${t.translate("diet_items_plural")}";
+                            return InkWell(
+                              borderRadius: TaqaUiScale.radius(15),
+                              onTap: () => _showFavoriteDetail(fav),
+                              child: Container(
+                                padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
+                                decoration: BoxDecoration(
+                                  color: TaqaUiColors.white,
+                                  borderRadius: TaqaUiScale.radius(15),
+                                  border: Border.all(
+                                    color: TaqaUiColors.unnamedColor1c1d17
+                                        .withValues(alpha: 0.10),
                                   ),
-                                )
-                              : ListView.separated(
-                                  itemCount: _favorites.length,
-                                  separatorBuilder: (context, index) =>
-                                      const Divider(color: AppColors.dividerDark, height: 1),
-                                  itemBuilder: (ctx, i) {
-                                    final fav = _favorites[i];
-                                    final title = fav['meal_name']?.toString() ?? '';
-                                    final notes = fav['notes']?.toString() ?? '';
-                                    final dynamicCount = fav['item_count'] ?? (fav['items'] is List ? (fav['items'] as List).length : null);
-                                    final count = (dynamicCount ?? 0).toString();
-                                    return ListTile(
-                                      title: Text(title, style: const TextStyle(color: Colors.white)),
-                                      subtitle: Text(
-                                        notes.isNotEmpty
-                                            ? "$notes • $count ${t.translate("diet_items_plural")}"
-                                            : "$count ${t.translate("diet_items_plural")}",
-                                        style: const TextStyle(color: Colors.white60),
-                                      ),
-                                      trailing: const Icon(Icons.chevron_right, color: Colors.white54),
-                                      onTap: () => _showFavoriteDetail(fav),
-                                    );
-                                  },
                                 ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            title,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontFamily:
+                                                  TaqaUiFontFamilies.interTight,
+                                              fontSize: TaqaUiScale.sp(15),
+                                              fontWeight: FontWeight.w700,
+                                              height: 21 / 15,
+                                              letterSpacing: 0,
+                                              color: TaqaUiColors
+                                                  .unnamedColor1c1d17,
+                                            ),
+                                          ),
+                                          SizedBox(height: TaqaUiScale.h(2)),
+                                          Text(
+                                            subtitle,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontFamily:
+                                                  TaqaUiFontFamilies.interTight,
+                                              fontSize: TaqaUiScale.sp(13),
+                                              fontWeight: FontWeight.w400,
+                                              height: 18 / 13,
+                                              letterSpacing: 0,
+                                              color: TaqaUiColors
+                                                  .unnamedColor1c1d17
+                                                  .withValues(alpha: 0.5),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    SizedBox(width: TaqaUiScale.w(8)),
+                                    Icon(
+                                      Icons.chevron_right,
+                                      color: TaqaUiColors.unnamedColor1c1d17
+                                          .withValues(alpha: 0.4),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                 ),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _FavoriteDetailSheet extends StatelessWidget {
+  const _FavoriteDetailSheet({
+    required this.title,
+    required this.userId,
+    required this.favoriteMealId,
+    required this.onLog,
+  });
+
+  final String title;
+  final int userId;
+  final int favoriteMealId;
+  final VoidCallback onLog;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.78,
+        child: Padding(
+          padding: TaqaUiScale.insetsLTRB(16, 12, 16, 16),
+          child: Column(
+            children: [
+              Container(
+                height: 5,
+                width: 44,
+                margin: EdgeInsets.only(bottom: TaqaUiScale.h(16)),
+                decoration: BoxDecoration(
+                  color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                    alpha: 0.12,
+                  ),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(15),
+                      fontWeight: FontWeight.w700,
+                      height: 25 / 15,
+                      letterSpacing: 0,
+                      color: TaqaUiColors.unnamedColor1c1d17,
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: Icon(
+                        Icons.close,
+                        color: TaqaUiColors.unnamedColor1c1d17,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: TaqaUiScale.h(12)),
+              Expanded(
+                child: FutureBuilder<Map<String, dynamic>>(
+                  future: DietService.fetchFavoriteMealDetail(
+                    userId: userId,
+                    favoriteMealId: favoriteMealId,
+                  ),
+                  builder: (ctx, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Text(
+                          "${t.translate("diet_favorites_load_failed")}: ${snapshot.error}",
+                          style: const TextStyle(color: AppColors.errorRed),
+                        ),
+                      );
+                    }
+                    final data = snapshot.data ?? {};
+                    final items = data['items'];
+                    final list = items is List
+                        ? items
+                              .whereType<Map>()
+                              .map((e) => e.cast<String, dynamic>())
+                              .toList()
+                        : <Map<String, dynamic>>[];
+                    final notes = (data['notes'] ?? '').toString().trim();
+                    if (list.isEmpty) {
+                      return Center(
+                        child: Text(
+                          t.translate("diet_no_results"),
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            color: TaqaUiColors.unnamedColor1c1d17,
+                          ),
+                        ),
+                      );
+                    }
+                    return ListView(
+                      children: [
+                        if (notes.isNotEmpty) ...[
+                          Text(
+                            notes,
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: TaqaUiScale.sp(13),
+                              color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                                alpha: 0.6,
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: TaqaUiScale.h(12)),
+                        ],
+                        ...list.map(
+                          (item) => Padding(
+                            padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
+                            child: _buildFavoriteItem(t, item),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+              SizedBox(height: TaqaUiScale.h(12)),
+              Material(
+                color: TaqaUiColors.unnamedColorE4e93b,
+                borderRadius: TaqaUiScale.radius(5),
+                child: InkWell(
+                  borderRadius: TaqaUiScale.radius(5),
+                  onTap: onLog,
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: TaqaUiScale.h(45),
+                    child: Center(
+                      child: Text(
+                        t.translate("diet_favorites_log").toUpperCase(),
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          fontSize: TaqaUiScale.sp(10),
+                          fontWeight: FontWeight.w600,
+                          height: 12 / 10,
+                          letterSpacing: 0,
+                          color: TaqaUiColors.unnamedColor1c1d17,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFavoriteItem(AppLocalizations t, Map<String, dynamic> item) {
+    final name = (item['item_name'] ?? '').toString();
+    final kcal = item['calories'] ?? 0;
+    final p = item['protein_g'] ?? 0;
+    final c = item['carbs_g'] ?? 0;
+    final f = item['fat_g'] ?? 0;
+    final grams = item['grams'];
+    final ingredients = item['ingredients'];
+    final ingList = ingredients is List
+        ? ingredients
+              .whereType<Map>()
+              .map((e) => e.cast<String, dynamic>())
+              .toList()
+        : <Map<String, dynamic>>[];
+    final macros =
+        "${t.translate("diet_kcal_label")} $kcal • "
+        "${t.translate("diet_p_short")} $p • "
+        "${t.translate("diet_c_short")} $c • "
+        "${t.translate("diet_f_short")} $f"
+        "${grams != null ? " • ${grams}g" : ""}";
+
+    return Container(
+      padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
+      decoration: BoxDecoration(
+        color: TaqaUiColors.white,
+        borderRadius: TaqaUiScale.radius(15),
+        border: Border.all(
+          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.10),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(15),
+              fontWeight: FontWeight.w700,
+              height: 21 / 15,
+              letterSpacing: 0,
+              color: TaqaUiColors.unnamedColor1c1d17,
+            ),
+          ),
+          SizedBox(height: TaqaUiScale.h(8)),
+          Text(
+            macros,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(15),
+              fontWeight: FontWeight.w400,
+              height: 21 / 15,
+              letterSpacing: 0,
+              color: TaqaUiColors.unnamedColor1c1d17,
+            ),
+          ),
+          if (ingList.isNotEmpty) ...[
+            SizedBox(height: TaqaUiScale.h(4)),
+            Text(
+              ingList
+                  .map((ing) {
+                    final n = (ing['ingredient_name'] ?? '').toString();
+                    final amt = ing['amount'];
+                    final unit = (ing['unit'] ?? '').toString();
+                    final amountLabel = amt != null ? " ${amt.toString()}" : "";
+                    final unitLabel = unit.isNotEmpty ? " $unit" : "";
+                    return "$n$amountLabel$unitLabel";
+                  })
+                  .where((e) => e.trim().isNotEmpty)
+                  .join(" • "),
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(13),
+                fontWeight: FontWeight.w400,
+                height: 18 / 13,
+                letterSpacing: 0,
+                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.5),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

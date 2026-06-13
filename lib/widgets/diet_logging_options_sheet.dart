@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../localization/app_localizations.dart';
-import '../theme/app_theme.dart';
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 
 class DietLoggingOptionsSheet extends StatelessWidget {
   const DietLoggingOptionsSheet({
@@ -19,162 +21,103 @@ class DietLoggingOptionsSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
-    final theme = Theme.of(context);
 
-    return SafeArea(
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: AppColors.black,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              height: 5,
-              width: 44,
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(999),
-              ),
+    return Align(
+      alignment: Alignment.center,
+      child: Padding(
+        padding: TaqaUiScale.symmetric(horizontal: 17),
+        child: Material(
+          color: Colors.transparent,
+          clipBehavior: Clip.none,
+          child: Container(
+            constraints: BoxConstraints(maxWidth: TaqaUiScale.w(356)),
+            padding: TaqaUiScale.insetsLTRB(13.5, 15, 13.5, 15),
+            decoration: BoxDecoration(
+              color: TaqaUiColors.white,
+              borderRadius: TaqaUiScale.radius(15),
             ),
-            Row(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Expanded(
-                  child: Text(
-                    t.translate("diet_add_item_title"),
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                    ),
+                Text(
+                  t.translate("diet_add_item_title"),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: TaqaUiScale.sp(15),
+                    fontWeight: FontWeight.w700,
+                    height: 25 / 15,
+                    letterSpacing: 0,
+                    color: TaqaUiColors.unnamedColor1c1d17,
                   ),
                 ),
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close, color: Colors.white70),
+                SizedBox(height: TaqaUiScale.h(11)),
+                _OptionButton(
+                  label: t.translate("diet_option_search"),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    onSearch();
+                  },
+                ),
+                SizedBox(height: TaqaUiScale.h(12)),
+                _OptionButton(
+                  label: t.translate("diet_option_manual"),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    onManualEntry();
+                  },
+                ),
+                SizedBox(height: TaqaUiScale.h(12)),
+                _OptionButton(
+                  label: t.translate("diet_option_photo"),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    onPhotoEntry();
+                  },
                 ),
               ],
             ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                mealTitle,
-                style: theme.textTheme.bodySmall?.copyWith(color: Colors.white60),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(height: 20),
-            _OptionTile(
-              icon: Icons.search,
-              title: t.translate("diet_option_search"),
-              subtitle: t.translate("diet_option_search_desc"),
-              onTap: () {
-                Navigator.of(context).pop();
-                // Delay so first sheet is fully disposed before opening second (avoids duplicate GlobalKeys / attached errors)
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  onSearch();
-                });
-              },
-            ),
-            const SizedBox(height: 12),
-            _OptionTile(
-              icon: Icons.edit,
-              title: t.translate("diet_option_manual"),
-              subtitle: t.translate("diet_option_manual_desc"),
-              onTap: () {
-                Navigator.of(context).pop();
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  onManualEntry();
-                });
-              },
-            ),
-            const SizedBox(height: 12),
-            _OptionTile(
-              icon: Icons.camera_alt,
-              title: t.translate("diet_option_photo"),
-              subtitle: t.translate("diet_option_photo_desc"),
-              onTap: () {
-                Navigator.of(context).pop();
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  onPhotoEntry();
-                });
-              },
-            ),
-            const SizedBox(height: 20),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _OptionTile extends StatelessWidget {
-  const _OptionTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
+class _OptionButton extends StatelessWidget {
+  const _OptionButton({required this.label, required this.onTap});
 
-  final IconData icon;
-  final String title;
-  final String subtitle;
+  final String label;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.cardDark,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
+    return Material(
+      color: TaqaUiColors.unnamedColorE4e93b,
+      borderRadius: TaqaUiScale.radius(5),
+      child: InkWell(
+        borderRadius: TaqaUiScale.radius(5),
+        onTap: onTap,
+        child: SizedBox(
+          width: double.infinity,
+          height: TaqaUiScale.h(45),
+          child: Center(
+            child: Text(
+              label.toUpperCase(),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(10),
+                fontWeight: FontWeight.w600,
+                height: 12 / 10,
+                letterSpacing: 0,
+                color: TaqaUiColors.unnamedColor1c1d17,
+              ),
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              height: 48,
-              width: 48,
-              decoration: BoxDecoration(
-                color: const Color(0xFFD4AF37).withValues(alpha: 0.14),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: const Color(0xFFD4AF37)),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: Colors.white60,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right, color: Colors.white54),
-          ],
         ),
       ),
     );

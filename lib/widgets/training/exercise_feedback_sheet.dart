@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../../TaqaUI/styles/taqa_ui_scale.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/training/training_service.dart';
 import '../../services/training/exercise_action_queue.dart';
@@ -22,6 +25,7 @@ class ExerciseFeedbackSheet extends StatefulWidget {
 }
 
 class _ExerciseFeedbackSheetState extends State<ExerciseFeedbackSheet> {
+  static const double _sheetDesignHeight = 520;
   List<Map<String, dynamic>> questions = [];
   final Map<int, int> answers = {};
   bool loading = true;
@@ -163,6 +167,13 @@ class _ExerciseFeedbackSheetState extends State<ExerciseFeedbackSheet> {
     }
   }
 
+  void _cancel() {
+    widget.onDone();
+    if (mounted) {
+      Navigator.pop(context);
+    }
+  }
+
   String _titleCase(String input) {
     final trimmed = input.trim();
     if (trimmed.isEmpty) return trimmed;
@@ -183,229 +194,241 @@ class _ExerciseFeedbackSheetState extends State<ExerciseFeedbackSheet> {
     final subtitle = t.translate("training_feedback_subtitle");
     final hasQuestions = questions.isNotEmpty;
     final media = MediaQuery.of(context);
-    final bottomLift = (media.size.height * 0.018).clamp(8.0, 16.0).toDouble();
-    final sheetHeight = (media.size.height * 0.5) + bottomLift;
+    final bottomInset = media.viewInsets.bottom + media.padding.bottom;
 
     return Align(
       alignment: Alignment.bottomCenter,
-      child: SizedBox(
-        width: double.infinity,
-        height: sheetHeight,
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          child: Material(
-            color: const Color(0xFF404040),
-            child: Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 10,
-                bottom: 8 + media.viewInsets.bottom + bottomLift,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+        child: SizedBox(
+          width: double.infinity,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: TaqaUiScale.h(_sheetDesignHeight) + bottomInset,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(TaqaUiScale.r(15)),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Center(
-                    child: SizedBox(
-                      width: 64,
-                      child: Divider(thickness: 4, color: Color(0x991C1D17)),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Center(
-                    child: Text(
-                      title,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontFamily: 'InterTight',
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
+              child: Material(
+                color: TaqaUiColors.graphite,
+                child: SingleChildScrollView(
+                  padding: TaqaUiScale.insetsLTRB(17, 20, 16, 18 + bottomInset),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(height: TaqaUiScale.h(3)),
+                      SizedBox(
+                        width: TaqaUiScale.w(168),
+                        child: Text(
+                          title,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(15),
+                            fontWeight: FontWeight.w700,
+                            height: 25 / 15,
+                            letterSpacing: 0,
+                            color: TaqaUiColors.white,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Center(
-                    child: Text(
-                      subtitle,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontFamily: 'InterTight',
-                        fontSize: 10,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.white70,
+                      SizedBox(height: TaqaUiScale.h(4)),
+                      SizedBox(
+                        width: TaqaUiScale.w(329),
+                        child: Text(
+                          subtitle,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(10),
+                            fontWeight: FontWeight.w400,
+                            height: 18 / 10,
+                            letterSpacing: 0,
+                            color: TaqaUiColors.white,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Expanded(
-                    child: hasQuestions
-                        ? SingleChildScrollView(
-                            child: Column(
-                              children: questions.map((q) {
-                                final index = q['index'] as int;
-                                final question = q['question'] as String;
-                                final options = q['options'] as List<String>;
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 10),
-                                  child: Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.fromLTRB(
-                                      12,
-                                      12,
-                                      12,
-                                      10,
+                      SizedBox(height: TaqaUiScale.h(31)),
+                      if (hasQuestions)
+                        Column(
+                          children: questions.map((q) {
+                            final index = q['index'] as int;
+                            final question = q['question'] as String;
+                            final options = q['options'] as List<String>;
+                            return Padding(
+                              padding: EdgeInsets.only(
+                                bottom: TaqaUiScale.h(12),
+                              ),
+                              child: Container(
+                                width: double.infinity,
+                                constraints: BoxConstraints(
+                                  minHeight: TaqaUiScale.h(83),
+                                ),
+                                padding: TaqaUiScale.insetsLTRB(13, 11, 13, 11),
+                                decoration: BoxDecoration(
+                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                  borderRadius: TaqaUiScale.radius(15),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      question,
+                                      style: TextStyle(
+                                        fontFamily:
+                                            TaqaUiFontFamilies.interTight,
+                                        fontSize: TaqaUiScale.sp(10),
+                                        fontWeight: FontWeight.w700,
+                                        height: 25 / 10,
+                                        letterSpacing: 0,
+                                        color: TaqaUiColors.white,
+                                      ),
                                     ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF191C16),
-                                      borderRadius: BorderRadius.circular(22),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                    SizedBox(height: TaqaUiScale.h(9)),
+                                    Wrap(
+                                      spacing: TaqaUiScale.w(8),
+                                      runSpacing: TaqaUiScale.h(8),
+                                      alignment: WrapAlignment.center,
                                       children: [
-                                        Text(
-                                          question,
-                                          style: const TextStyle(
-                                            fontFamily: 'InterTight',
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          children: [
-                                            for (
-                                              int i = 0;
-                                              i < options.length;
-                                              i++
-                                            ) ...[
-                                              Expanded(
-                                                child: OutlinedButton(
-                                                  onPressed: () => setState(
-                                                    () => answers[index] = i,
-                                                  ),
-                                                  style: OutlinedButton.styleFrom(
-                                                    side: BorderSide(
-                                                      color: answers[index] == i
-                                                          ? Colors.white
-                                                          : Colors.white70,
-                                                      width: 1,
-                                                    ),
-                                                    backgroundColor:
-                                                        answers[index] == i
-                                                        ? Colors.white
-                                                        : Colors.transparent,
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          vertical: 10,
-                                                        ),
-                                                    shape: RoundedRectangleBorder(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            10,
-                                                          ),
-                                                    ),
-                                                  ),
-                                                  child: Text(
-                                                    options[i].toUpperCase(),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    textAlign: TextAlign.center,
-                                                    style: TextStyle(
-                                                      fontFamily:
-                                                          'IAWriterMonoS',
-                                                      fontSize: 8,
-                                                      fontWeight:
-                                                          FontWeight.w400,
-                                                      color: answers[index] == i
-                                                          ? const Color(
-                                                              0xFF1C1D17,
-                                                            )
-                                                          : Colors.white,
-                                                      letterSpacing: 0.4,
-                                                    ),
-                                                  ),
+                                        for (int i = 0; i < options.length; i++)
+                                          SizedBox(
+                                            width: TaqaUiScale.w(103),
+                                            height: TaqaUiScale.h(30),
+                                            child: OutlinedButton(
+                                              onPressed: () => setState(
+                                                () => answers[index] = i,
+                                              ),
+                                              style: OutlinedButton.styleFrom(
+                                                padding: EdgeInsets.zero,
+                                                side: BorderSide(
+                                                  color: TaqaUiColors.white,
+                                                  width: 0.5,
+                                                ),
+                                                backgroundColor:
+                                                    answers[index] == i
+                                                    ? TaqaUiColors.white
+                                                    : Colors.transparent,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      TaqaUiScale.radius(5),
                                                 ),
                                               ),
-                                              if (i != options.length - 1)
-                                                const SizedBox(width: 8),
-                                            ],
-                                          ],
-                                        ),
+                                              child: Text(
+                                                options[i].toUpperCase(),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                  fontFamily: TaqaUiFontFamilies
+                                                      .iaWriterMonoS,
+                                                  fontSize: TaqaUiScale.sp(8),
+                                                  fontWeight: FontWeight.w400,
+                                                  height: 10 / 8,
+                                                  letterSpacing: 0,
+                                                  color: answers[index] == i
+                                                      ? TaqaUiColors
+                                                            .unnamedColor1c1d17
+                                                      : TaqaUiColors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
                                       ],
                                     ),
-                                  ),
-                                );
-                              }).toList(),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        )
+                      else
+                        Center(
+                          child: Text(
+                            loading
+                                ? ''
+                                : (error ??
+                                      t.translate("no_feedback_questions")),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: TaqaUiScale.sp(10),
+                              fontWeight: FontWeight.w400,
+                              height: 18 / 10,
+                              letterSpacing: 0,
+                              color: TaqaUiColors.white,
                             ),
-                          )
-                        : Center(
-                            child: Text(
-                              loading ? '' : (error ?? ''),
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontFamily: 'InterTight',
-                                fontSize: 10,
-                                fontWeight: FontWeight.w400,
-                                color: Colors.white70,
+                          ),
+                        ),
+                      SizedBox(height: TaqaUiScale.h(18)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Padding(
+                            padding: EdgeInsets.only(left: TaqaUiScale.w(70)),
+                            child: TextButton(
+                              onPressed: _cancel,
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                t.translate("common_cancel").toUpperCase(),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontFamily: TaqaUiFontFamilies.interTight,
+                                  fontSize: TaqaUiScale.sp(10),
+                                  fontWeight: FontWeight.w600,
+                                  height: 12 / 10,
+                                  letterSpacing: 0,
+                                  color: TaqaUiColors.white,
+                                ),
                               ),
                             ),
                           ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () {
-                            widget.onDone();
-                            Navigator.of(context).maybePop();
-                          },
-                          child: Text(
-                            (t.translate("common_cancel")).toUpperCase(),
-                            style: const TextStyle(
-                              fontFamily: 'InterTight',
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.3,
+                          SizedBox(
+                            width: TaqaUiScale.w(173),
+                            height: TaqaUiScale.h(45),
+                            child: ElevatedButton(
+                              onPressed: hasQuestions ? _submitFeedback : null,
+                              style: ElevatedButton.styleFrom(
+                                elevation: 0,
+                                backgroundColor:
+                                    TaqaUiColors.unnamedColorE4e93b,
+                                foregroundColor:
+                                    TaqaUiColors.unnamedColor1c1d17,
+                                disabledBackgroundColor: TaqaUiColors
+                                    .unnamedColorE4e93b
+                                    .withValues(alpha: 0.45),
+                                disabledForegroundColor: TaqaUiColors
+                                    .unnamedColor1c1d17
+                                    .withValues(alpha: 0.65),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: TaqaUiScale.radius(5),
+                                ),
+                              ),
+                              child: Text(
+                                t
+                                    .translate("training_feedback_submit")
+                                    .toUpperCase(),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontFamily: TaqaUiFontFamilies.interTight,
+                                  fontSize: TaqaUiScale.sp(10),
+                                  fontWeight: FontWeight.w600,
+                                  height: 12 / 10,
+                                  letterSpacing: 0,
+                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: hasQuestions ? _submitFeedback : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFDDE530),
-                            foregroundColor: const Color(0xFF1C1D17),
-                            disabledBackgroundColor: const Color(0x66DDE530),
-                            disabledForegroundColor: const Color(0x801C1D17),
-                            minimumSize: const Size.fromHeight(50),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: Text(
-                            (t.translate(
-                              "training_feedback_submit",
-                            )).toUpperCase(),
-                            style: const TextStyle(
-                              fontFamily: 'InterTight',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
             ),
           ),

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/components/taqa_empty_card.dart';
 import '../TaqaUI/components/taqa_steps_ui.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../core/account_storage.dart';
 import '../localization/app_localizations.dart';
@@ -190,18 +192,18 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context).translate;
-    final theme = Theme.of(context);
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         centerTitle: true,
         title: Text(
           t("water_title"),
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: 15,
+            fontSize: TaqaUiScale.sp(15),
             fontWeight: FontWeight.w700,
-            height: 2.5,
+            height: 25 / 15,
             letterSpacing: 0,
             color: TaqaUiColors.unnamedColor1c1d17,
           ),
@@ -212,29 +214,32 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
       ),
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       body: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Expanded(
+                SizedBox(
+                  width: TaqaUiScale.w(109),
                   child: TaqaRangeTab(
                     label: t("range_weekly"),
                     selected: _range == 'weekly',
                     onTap: () => _onRangeTabTap('weekly'),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
+                SizedBox(width: TaqaUiScale.w(15)),
+                SizedBox(
+                  width: TaqaUiScale.w(109),
                   child: TaqaRangeTab(
                     label: t("range_monthly"),
                     selected: _range == 'monthly',
                     onTap: () => _onRangeTabTap('monthly'),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
+                SizedBox(width: TaqaUiScale.w(15)),
+                SizedBox(
+                  width: TaqaUiScale.w(109),
                   child: TaqaRangeTab(
                     label: t("range_yearly"),
                     selected: _range == 'yearly',
@@ -243,29 +248,33 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: TaqaUiScale.h(19)),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Expanded(
+                SizedBox(
+                  width: TaqaUiScale.w(147),
+                  height: TaqaUiScale.h(30),
                   child: Text(
                     "Goal: ${(_goal ?? 2.5).toStringAsFixed(1)} ${t("dash_unit_l")}",
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: 25,
+                      fontSize: TaqaUiScale.sp(25),
                       fontWeight: FontWeight.w700,
-                      height: 2.5,
+                      height: 1,
                       letterSpacing: 0,
                       color: TaqaUiColors.unnamedColor1c1d17,
                     ),
                   ),
                 ),
+                const Spacer(),
                 if (_canManualEdit) ...[
                   TaqaTagButton(
                     icon: Icons.edit_outlined,
                     label: "EDIT GOAL",
                     onTap: _editGoal,
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: TaqaUiScale.w(8)),
                   TaqaTagButton(
                     icon: Icons.add,
                     label: "ADD",
@@ -274,33 +283,33 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
                 ],
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: TaqaUiScale.h(19)),
             Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 560),
-                child: const Align(
+                child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
                     "History",
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: 10,
+                      fontSize: TaqaUiScale.sp(10),
                       fontWeight: FontWeight.w400,
                       color: TaqaUiColors.unnamedColor1c1d17,
                       letterSpacing: 0,
-                      height: 1.1,
+                      height: 11 / 10,
                     ),
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: TaqaUiScale.h(8)),
             Expanded(
               child: _loading
                   ? const Center(
                       child: CircularProgressIndicator(color: AppColors.accent),
                     )
-                  : _buildHistoryLogs(theme, t),
+                  : _buildHistoryLogs(t),
             ),
           ],
         ),
@@ -308,13 +317,18 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
     );
   }
 
-  Widget _buildHistoryLogs(ThemeData theme, String Function(String) t) {
+
+  Widget _buildHistoryLogs(String Function(String) t) {
     final logs = _daily.entries.toList()
       ..sort((a, b) => b.key.compareTo(a.key));
     final nonZero = logs.where((e) => e.value > 0).toList();
 
     if (nonZero.isEmpty) {
-      return _noDataCard(theme);
+      return const TaqaEmptyCard(
+        title: "No water data",
+        subtitle: "No records in this range",
+        icon: Icons.water_drop_outlined,
+      );
     }
 
     return Center(
@@ -322,39 +336,39 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
         constraints: const BoxConstraints(maxWidth: 560),
         child: ListView.separated(
           itemCount: nonZero.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 10),
+          separatorBuilder: (_, _) => SizedBox(height: TaqaUiScale.h(10)),
           itemBuilder: (context, index) {
             final entry = nonZero[index];
             return Container(
-              padding: const EdgeInsets.fromLTRB(15, 12, 15, 12),
+              padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFFFFF),
-                borderRadius: BorderRadius.circular(15),
+                color: TaqaUiColors.white,
+                borderRadius: TaqaUiScale.radius(15),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     "${entry.value.toStringAsFixed(1)} ${t("dash_unit_l")}",
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: 15,
+                      fontSize: TaqaUiScale.sp(15),
                       fontWeight: FontWeight.w700,
                       color: TaqaUiColors.unnamedColor1c1d17,
                       letterSpacing: 0,
-                      height: 2.5,
+                      height: 25 / 15,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(height: TaqaUiScale.h(19)),
                   Text(
                     "${_weekdayShort(entry.key.weekday)}, ${entry.key.day} ${_monthShort(entry.key.month)} ${entry.key.year}",
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: 15,
+                      fontSize: TaqaUiScale.sp(15),
                       fontWeight: FontWeight.w400,
                       color: TaqaUiColors.unnamedColor1c1d17,
                       letterSpacing: 0,
-                      height: 2.1,
+                      height: 21 / 15,
                     ),
                   ),
                 ],
@@ -362,25 +376,6 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
             );
           },
         ),
-      ),
-    );
-  }
-
-  Widget _noDataCard(ThemeData theme) {
-    return Container(
-      height: 220,
-      padding: const EdgeInsets.all(16),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: TaqaUiColors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Text(
-        "No water data for this range.",
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: TaqaUiColors.unnamedColor1c1d17,
-        ),
-        textAlign: TextAlign.center,
       ),
     );
   }
@@ -424,5 +419,3 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
     }
   }
 }
-
-class predefined3 {}

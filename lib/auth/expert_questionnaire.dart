@@ -13,7 +13,8 @@ class ExpertQuestionnairePage extends StatefulWidget {
   const ExpertQuestionnairePage({super.key});
 
   @override
-  State<ExpertQuestionnairePage> createState() => _ExpertQuestionnairePageState();
+  State<ExpertQuestionnairePage> createState() =>
+      _ExpertQuestionnairePageState();
 }
 
 class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
@@ -33,7 +34,7 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
         title: Text(_t("expert_questionnaire_title")),
         centerTitle: true,
       ),
-      backgroundColor: cs.surface,
+      backgroundColor: Colors.black,
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
         child: _started
@@ -150,14 +151,15 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
     final expertId = await AccountStorage.getUserId();
     if (expertId == null) {
       if (!mounted) return;
-      AppToast.show(context, t.translate("user_missing"), type: AppToastType.error);
+      AppToast.show(
+        context,
+        t.translate("user_missing"),
+        type: AppToastType.error,
+      );
       return;
     }
 
-    final payload = {
-      "expert_id": expertId,
-      ...values,
-    };
+    final payload = {"expert_id": expertId, ...values};
 
     setState(() => _submitting = true);
     try {

@@ -15,10 +15,13 @@ class NewsTagActions {
     'daily journal',
   };
 
-  static const Set<String> _applyTags = {
-    'apply',
-    'application',
-  };
+  static const Set<String> _applyTags = {'apply', 'application'};
+
+  /// True if [tag] identifies a "become an expert" promo item.
+  /// Used to hide such news from users who are already experts.
+  static bool isExpertApplyTag(String tag) {
+    return _applyTags.contains(tag.toLowerCase().trim());
+  }
 
   static bool _isArticleTag(String normalized) {
     return normalized == "article" ||
@@ -34,16 +37,16 @@ class NewsTagActions {
       return true;
     }
 
-    if (_applyTags.contains(normalized)) {
+    if (isExpertApplyTag(normalized)) {
       _navigateToExpertQuestionnaire(context);
       return true;
     }
 
     if (_isArticleTag(normalized)) {
       if (item == null) return false;
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => ArticlePage(item: item)),
-      );
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => ArticlePage(item: item)));
       return true;
     }
 
@@ -64,9 +67,9 @@ Future<void> _navigateToExpertQuestionnaire(BuildContext context) async {
     );
     return;
   }
-  Navigator.of(context).push(
-    MaterialPageRoute(builder: (_) => const ExpertQuestionnairePage()),
-  );
+  Navigator.of(
+    context,
+  ).push(MaterialPageRoute(builder: (_) => const ExpertQuestionnairePage()));
 }
 
 Future<bool> _hasSubmittedExpertQuestionnaire() async {

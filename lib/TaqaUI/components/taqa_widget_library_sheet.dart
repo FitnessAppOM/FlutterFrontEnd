@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../Typography/taqa_ui_typography.dart';
+import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
 
 class WidgetLibraryOption {
@@ -35,7 +36,7 @@ class WidgetLibrarySheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = min(MediaQuery.of(context).size.width * 0.84, 360.0);
+    final width = min(MediaQuery.of(context).size.width * 0.84, TaqaUiScale.w(360));
     final topInset = MediaQuery.of(context).padding.top;
     final bottomInset = MediaQuery.of(context).padding.bottom;
 
@@ -46,14 +47,19 @@ class WidgetLibrarySheet extends StatelessWidget {
         child: Container(
           width: width,
           height: double.infinity,
-          padding: EdgeInsets.fromLTRB(16, 16 + topInset, 16, 20 + bottomInset),
-          decoration: const BoxDecoration(
+          padding: EdgeInsets.fromLTRB(
+            TaqaUiScale.w(16),
+            TaqaUiScale.h(16) + topInset,
+            TaqaUiScale.w(16),
+            TaqaUiScale.h(20) + bottomInset,
+          ),
+          decoration: BoxDecoration(
             color: TaqaUiColors.white,
             borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(26),
-              bottomLeft: Radius.circular(26),
+              topLeft: TaqaUiScale.radius(26).topLeft,
+              bottomLeft: TaqaUiScale.radius(26).bottomLeft,
             ),
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
                 color: Color(0x29000000),
                 blurRadius: 30,
@@ -66,12 +72,14 @@ class WidgetLibrarySheet extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Text(
+                  Text(
                     "Widgets",
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: 20,
+                      fontSize: TaqaUiScale.sp(15),
                       fontWeight: FontWeight.w700,
+                      height: 25 / 15,
+                      letterSpacing: 0,
                       color: TaqaUiColors.charcoal,
                     ),
                   ),
@@ -82,27 +90,27 @@ class WidgetLibrarySheet extends StatelessWidget {
                   ),
                 ],
               ),
-              const Text(
+              Text(
                 "Available to add",
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
-                  fontSize: 12,
+                  fontSize: TaqaUiScale.sp(12),
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF636363),
+                  color: const Color(0xFF636363),
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: TaqaUiScale.h(12)),
               if (options.isEmpty)
-                const Expanded(
+                Expanded(
                   child: Center(
                     child: Text(
                       "All widgets are already on your dashboard.",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontFamily: TaqaUiFontFamilies.interTight,
-                        fontSize: 13,
+                        fontSize: TaqaUiScale.sp(13),
                         fontWeight: FontWeight.w500,
-                        color: Color(0xFF636363),
+                        color: const Color(0xFF636363),
                       ),
                     ),
                   ),
@@ -111,7 +119,7 @@ class WidgetLibrarySheet extends StatelessWidget {
                 Expanded(
                   child: ListView.separated(
                     itemCount: options.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    separatorBuilder: (_, _) => SizedBox(height: TaqaUiScale.h(10)),
                     itemBuilder: (context, index) {
                       final option = options[index];
                       return _WidgetLibraryTile(
@@ -142,12 +150,12 @@ class _WidgetLibraryTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: TaqaUiScale.radius(16),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: TaqaUiScale.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: const Color(0xFFF7F7F7),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: TaqaUiScale.radius(16),
           border: Border.all(
             color: Colors.black.withValues(alpha: 0.09),
             width: 1,
@@ -156,46 +164,46 @@ class _WidgetLibraryTile extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: TaqaUiScale.w(42),
+              height: TaqaUiScale.h(42),
               decoration: BoxDecoration(
                 color: Colors.black.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: TaqaUiScale.radius(12),
               ),
               child: Icon(option.icon, color: TaqaUiColors.charcoal),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: TaqaUiScale.w(12)),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     option.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: 14,
+                      fontSize: TaqaUiScale.sp(14),
                       fontWeight: FontWeight.w700,
                       color: TaqaUiColors.charcoal,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: TaqaUiScale.h(4)),
                   Text(
                     option.subtitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: 12,
+                      fontSize: TaqaUiScale.sp(12),
                       fontWeight: FontWeight.w500,
-                      color: Color(0xFF636363),
+                      color: const Color(0xFF636363),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 6),
-            const Icon(
+            SizedBox(width: TaqaUiScale.w(6)),
+            Icon(
               Icons.add_circle_outline,
               color: TaqaUiColors.charcoal,
-              size: 18,
+              size: TaqaUiScale.w(18),
             ),
           ],
         ),

@@ -41,13 +41,11 @@ Future<TaqaSetRowEditResult?> showTaqaSetRowEditDialog({
       context: context,
       barrierColor: const Color(0x66000000),
       builder: (ctx) {
-        final media = MediaQuery.of(ctx);
         return StatefulBuilder(
           builder: (ctx, setLocalState) {
-            return AnimatedPadding(
-              duration: const Duration(milliseconds: 160),
-              curve: Curves.easeOut,
-              padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+            return MediaQuery.removeViewInsets(
+              context: ctx,
+              removeBottom: true,
               child: Center(
                 child: Dialog(
                   backgroundColor: Colors.transparent,
@@ -104,8 +102,14 @@ Future<TaqaSetRowEditResult?> showTaqaSetRowEditDialog({
                                     color: TaqaUiColors.unnamedColor1c1d17,
                                   ),
                                   decoration: const InputDecoration(
-                                    border: InputBorder.none,
                                     isDense: true,
+                                    filled: false,
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    disabledBorder: InputBorder.none,
+                                    errorBorder: InputBorder.none,
+                                    focusedErrorBorder: InputBorder.none,
                                     hintText: "0",
                                   ),
                                 ),
@@ -126,8 +130,14 @@ Future<TaqaSetRowEditResult?> showTaqaSetRowEditDialog({
                                     color: TaqaUiColors.unnamedColor1c1d17,
                                   ),
                                   decoration: const InputDecoration(
-                                    border: InputBorder.none,
                                     isDense: true,
+                                    filled: false,
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    disabledBorder: InputBorder.none,
+                                    errorBorder: InputBorder.none,
+                                    focusedErrorBorder: InputBorder.none,
                                     hintText: "0",
                                   ),
                                 ),
@@ -148,8 +158,14 @@ Future<TaqaSetRowEditResult?> showTaqaSetRowEditDialog({
                                     color: TaqaUiColors.unnamedColor1c1d17,
                                   ),
                                   decoration: const InputDecoration(
-                                    border: InputBorder.none,
                                     isDense: true,
+                                    filled: false,
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    disabledBorder: InputBorder.none,
+                                    errorBorder: InputBorder.none,
+                                    focusedErrorBorder: InputBorder.none,
                                     hintText: "0",
                                   ),
                                 ),

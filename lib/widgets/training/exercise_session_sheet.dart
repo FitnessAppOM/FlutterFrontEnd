@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
+import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
+import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/training/training_service.dart';
 import '../../services/training/training_network_resilience.dart';
@@ -154,6 +156,20 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     final s = (value ?? '').toString().trim().toLowerCase();
     if (s.isEmpty) return false;
     return s == 'true' || s == '1' || s == 'yes' || s == 'y' || s == 't';
+  }
+
+  String _titleCase(String input) {
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) return trimmed;
+    return trimmed
+        .split(RegExp(r'\s+'))
+        .map((word) {
+          if (word.isEmpty) return word;
+          if (word.length <= 4 && word == word.toUpperCase()) return word;
+          final lower = word.toLowerCase();
+          return "${lower[0].toUpperCase()}${lower.substring(1)}";
+        })
+        .join(' ');
   }
 
   int _plannedSets() {
@@ -620,11 +636,6 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     if (mounted) setState(() {});
   }
 
-  bool _isSetCompleted(int setIndex) {
-    final row = _rowBySetIndex(setIndex);
-    return row != null && _toBool(row['completed']);
-  }
-
   int? _nextPendingSetIndex() {
     for (final row in _setRows) {
       final idx = _toInt(row['set_index'], fallback: 0);
@@ -853,10 +864,11 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   }
 
   bool _isTreadmillExercise() {
-    final name = (widget.exercise['exercise_name'] ?? widget.exercise['name'] ?? '')
-        .toString()
-        .trim()
-        .toLowerCase();
+    final name =
+        (widget.exercise['exercise_name'] ?? widget.exercise['name'] ?? '')
+            .toString()
+            .trim()
+            .toLowerCase();
     return name.contains('treadmill') || name.contains('treadmil');
   }
 
@@ -1535,52 +1547,48 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         text: timeSeconds > 0 ? timeSeconds.toString() : '',
       );
       bool timerDone = done;
-      final saved = await showDialog<bool>(
-        context: context,
-        builder: (ctx) {
-          return StatefulBuilder(
-            builder: (ctx, setModalState) {
-              return AlertDialog(
-                backgroundColor: const Color(0xFF121727),
-                title: Text(
-                  "Set $setIndex",
-                  style: const TextStyle(color: Colors.white),
-                ),
-                content: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextField(
-                        controller: timeCtrl,
-                        keyboardType: TextInputType.number,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: _inputStyle("Time (seconds)"),
-                      ),
-                      const SizedBox(height: 10),
-                      SwitchListTile(
-                        value: timerDone,
-                        onChanged: (v) => setModalState(() => timerDone = v),
-                        activeColor: Colors.greenAccent,
-                        title: const Text(
-                          "Completed",
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    ],
+      final saved = await _showSetEditDialog(
+        title: "SET $setIndex",
+        contentBuilder: (ctx, setLocalState) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: TaqaUiScale.h(30),
+                child: TextField(
+                  controller: timeCtrl,
+                  keyboardType: TextInputType.number,
+                  autofocus: true,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: TaqaUiScale.sp(25),
+                    fontWeight: FontWeight.w400,
+                    height: 1,
+                    letterSpacing: 0,
+                    color: TaqaUiColors.unnamedColor1c1d17,
+                  ),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    focusedErrorBorder: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                    hintText: "0",
                   ),
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(false),
-                    child: const Text("Cancel"),
-                  ),
-                  ElevatedButton(
-                    onPressed: () => Navigator.of(ctx).pop(true),
-                    child: const Text("Save"),
-                  ),
-                ],
-              );
-            },
+              ),
+              SizedBox(height: TaqaUiScale.h(20)),
+              _buildCompletedToggle(
+                timerDone,
+                setLocalState,
+                (v) => timerDone = v,
+              ),
+            ],
           );
         },
       );
@@ -1605,68 +1613,44 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           ? ''
           : (_toDouble(row['weight_kg'])?.toString() ?? ''),
     );
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setModalState) {
-            return AlertDialog(
-              backgroundColor: const Color(0xFF121727),
-              title: Text(
-                "Set $setIndex",
-                style: const TextStyle(color: Colors.white),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: weightCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      style: const TextStyle(color: Colors.white),
-                      decoration: _inputStyle("Weight (kg)"),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: repsCtrl,
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: _inputStyle("Reps"),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: rirCtrl,
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: _inputStyle("RIR"),
-                    ),
-                    const SizedBox(height: 10),
-                    SwitchListTile(
-                      value: done,
-                      onChanged: (v) => setModalState(() => done = v),
-                      activeColor: Colors.greenAccent,
-                      title: const Text(
-                        "Completed",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ],
+    bool fieldDone = done;
+    final saved = await _showSetEditDialog(
+      title: "SET $setIndex",
+      contentBuilder: (ctx, setLocalState) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSetEditField(
+                  label: "KG",
+                  controller: weightCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                 ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(false),
-                  child: const Text("Cancel"),
+                SizedBox(width: TaqaUiScale.w(17)),
+                _buildSetEditField(
+                  label: "REPS",
+                  controller: repsCtrl,
+                  keyboardType: TextInputType.number,
                 ),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(ctx).pop(true),
-                  child: const Text("Save"),
+                SizedBox(width: TaqaUiScale.w(17)),
+                _buildSetEditField(
+                  label: "RIR",
+                  controller: rirCtrl,
+                  keyboardType: TextInputType.number,
                 ),
               ],
-            );
-          },
+            ),
+            SizedBox(height: TaqaUiScale.h(20)),
+            _buildCompletedToggle(
+              fieldDone,
+              setLocalState,
+              (v) => fieldDone = v,
+            ),
+          ],
         );
       },
     );
@@ -1676,635 +1660,1050 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       reps: int.tryParse(repsCtrl.text.trim()),
       rirValue: int.tryParse(rirCtrl.text.trim()),
       weightKg: double.tryParse(weightCtrl.text.trim()),
-      completed: done,
+      completed: fieldDone,
     );
   }
 
-  Widget _buildSetRowsEditor() {
-    final rows = _setRows;
-    final int? pendingSetIndex = _nextPendingSetIndex();
-    int? focusedSetIndex = _activeSetIndex;
-    if (focusedSetIndex == null ||
-        (_isSetCompleted(focusedSetIndex) && pendingSetIndex != null)) {
-      focusedSetIndex = pendingSetIndex;
-    }
-    final bool focusedCompleted = focusedSetIndex == null
-        ? true
-        : _isSetCompleted(focusedSetIndex);
-    final showRestPreset =
-        _activeSetIndex != null &&
-        !_activeSetTimerRunning &&
-        !_restCountdownActive &&
-        !_hideRestPresetAfterStart;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0E1320),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
-      ),
+  Widget _buildSetEditField({
+    required String label,
+    required TextEditingController controller,
+    required TextInputType keyboardType,
+  }) {
+    return Expanded(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              const Text(
-                "Sets",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                "${rows.where((r) => _toBool(r['completed'])).length}/${rows.length} done",
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.65),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // --- Active set timer (counts UP) ---
-          if (_activeSetIndex != null && _activeSetTimerRunning) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: const Color(0xFF2D7CFF).withOpacity(0.4),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.timer, color: Color(0xFF2D7CFF), size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    "Set $_activeSetIndex",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _formatSeconds(_activeSetElapsedSeconds),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 20,
-                    ),
-                  ),
-                  const Spacer(),
-                  _CompactButton(
-                    label: "Finish Set",
-                    color: Colors.greenAccent,
-                    onTap: _finishActiveSet,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          // --- Rest + Start section (minimize when a set starts) ---
-          AnimatedSize(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeInOut,
-            alignment: Alignment.topCenter,
-            clipBehavior: Clip.hardEdge,
-            child: !_activeSetTimerRunning
-                ? Column(
-                    key: const ValueKey("rest_section_on"),
-                    children: [
-                      // Rest countdown (counts DOWN, user-triggered)
-                      if (_restCountdownActive) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.orangeAccent.withOpacity(0.15),
-                                Colors.deepOrange.withOpacity(0.06),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.orangeAccent.withOpacity(0.35),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.hourglass_bottom,
-                                color: Colors.orangeAccent,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                _formatSeconds(_restCountdownRemaining),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 26,
-                                ),
-                              ),
-                              const Spacer(),
-                              TextButton(
-                                onPressed: () {
-                                  setState(() => _restCountdownRemaining += 30);
-                                },
-                                style: TextButton.styleFrom(
-                                  foregroundColor: Colors.white70,
-                                  visualDensity: VisualDensity.compact,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                  ),
-                                ),
-                                child: const Text("+30s"),
-                              ),
-                              _CompactButton(
-                                label: "Skip",
-                                color: const Color(0xFF2D7CFF),
-                                onTap: _skipRest,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                      ],
-                      // Rest preset + Start Rest (shown when NOT counting down)
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 220),
-                        switchInCurve: Curves.easeOut,
-                        switchOutCurve: Curves.easeIn,
-                        transitionBuilder: (child, anim) {
-                          final curved = CurvedAnimation(
-                            parent: anim,
-                            curve: Curves.easeInOut,
-                          );
-                          return SizeTransition(
-                            sizeFactor: curved,
-                            axisAlignment: -1.0,
-                            child: FadeTransition(opacity: anim, child: child),
-                          );
-                        },
-                        child: showRestPreset
-                            ? Column(
-                                key: const ValueKey("rest_preset_on"),
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 10,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.04),
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                        color: Colors.white.withOpacity(0.06),
-                                      ),
-                                    ),
-                                    child: Column(
-                                      children: [
-                                        Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.snooze,
-                                              color: Colors.orangeAccent,
-                                              size: 18,
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Text(
-                                              "Rest",
-                                              style: TextStyle(
-                                                color: Colors.white.withOpacity(
-                                                  0.6,
-                                                ),
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                            const Spacer(),
-                                            GestureDetector(
-                                              onTap: _setCustomRestPreset,
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  const Icon(
-                                                    Icons.edit,
-                                                    size: 12,
-                                                    color: Colors.white38,
-                                                  ),
-                                                  const SizedBox(width: 3),
-                                                  Text(
-                                                    "Custom",
-                                                    style: TextStyle(
-                                                      color: Colors.white
-                                                          .withOpacity(0.5),
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      fontSize: 11,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          children: [
-                                            for (final s in [30, 60, 90, 120])
-                                              Expanded(
-                                                child: Padding(
-                                                  padding: EdgeInsets.only(
-                                                    right: s == 120 ? 0 : 6,
-                                                  ),
-                                                  child: _RestPill(
-                                                    label: "${s}s",
-                                                    active:
-                                                        _restPresetSeconds == s,
-                                                    onTap: () =>
-                                                        _setRestPreset(s),
-                                                  ),
-                                                ),
-                                              ),
-                                            if (![
-                                              30,
-                                              60,
-                                              90,
-                                              120,
-                                            ].contains(_restPresetSeconds))
-                                              Expanded(
-                                                child: Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                        left: 6,
-                                                      ),
-                                                  child: _RestPill(
-                                                    label:
-                                                        "${_restPresetSeconds}s",
-                                                    active: true,
-                                                    onTap: _setCustomRestPreset,
-                                                  ),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 8),
-                                        SizedBox(
-                                          width: double.infinity,
-                                          child: ElevatedButton.icon(
-                                            onPressed: () =>
-                                                _startRestCountdown(
-                                                  _restPresetSeconds,
-                                                ),
-                                            icon: const Icon(
-                                              Icons.hourglass_top,
-                                              size: 18,
-                                            ),
-                                            label: Text(
-                                              "Start Rest  ${_formatSeconds(_restPresetSeconds)}",
-                                            ),
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors
-                                                  .orangeAccent
-                                                  .withOpacity(0.15),
-                                              foregroundColor:
-                                                  Colors.orangeAccent,
-                                              elevation: 0,
-                                              minimumSize: const Size(
-                                                double.infinity,
-                                                40,
-                                              ),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(10),
-                                                side: BorderSide(
-                                                  color: Colors.orangeAccent
-                                                      .withOpacity(0.3),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                ],
-                              )
-                            : const SizedBox.shrink(
-                                key: ValueKey("rest_preset_off"),
-                              ),
-                      ),
-                      // Start Set button (always visible for next pending set)
-                      if (focusedSetIndex != null) ...[
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: focusedCompleted
-                                ? null
-                                : () => _startSet(focusedSetIndex!),
-                            icon: const Icon(Icons.play_arrow, size: 20),
-                            label: Text("Start Set $focusedSetIndex"),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF2D7CFF),
-                              foregroundColor: Colors.white,
-                              minimumSize: const Size(double.infinity, 44),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                      ],
-                    ],
-                  )
-                : const SizedBox.shrink(key: ValueKey("rest_section_off")),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.04),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 34,
-                  child: Text(
-                    "SET",
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.62),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-                if (_isTimerBased())
-                  Expanded(
-                    child: Text(
-                      "TIME",
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.62),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 11,
-                      ),
-                    ),
-                  )
-                else ...[
-                  SizedBox(
-                    width: 62,
-                    child: Text(
-                      "KG",
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.62),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 52,
-                    child: Text(
-                      "REPS",
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.62),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: Text(
-                        "RIR / DONE",
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.62),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
+          Text(
+            label,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+              fontSize: TaqaUiScale.sp(8),
+              fontWeight: FontWeight.w400,
+              height: 10 / 8,
+              letterSpacing: 0,
+              color: TaqaUiColors.unnamedColor1c1d17,
             ),
           ),
-          const SizedBox(height: 10),
-          if (rows.isEmpty)
-            Text(
-              "No sets yet.",
-              style: TextStyle(color: Colors.white.withOpacity(0.7)),
-            )
-          else
-            ...rows.asMap().entries.map((entry) {
-              final row = entry.value;
-              final setIndex = _toInt(row['set_index']);
-              final done = _toBool(row['completed']);
-              final isActive = _activeSetIndex == setIndex;
-              final isTimer = _isTimerBased();
-              final timeSecs = _toInt(
-                row['performed_time_seconds'],
-                fallback: 0,
-              );
-              final timeLabel = timeSecs > 0 ? _formatSeconds(timeSecs) : '-';
-              final weight = _toDouble(row['weight_kg']);
-              final weightLabel = weight == null
-                  ? '-'
-                  : weight.toStringAsFixed(
-                      weight == weight.roundToDouble() ? 0 : 1,
-                    );
-
-              return Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(
-                  color: isActive
-                      ? const Color(0xFF10263B)
-                      : (done
-                            ? const Color(0xFF112418)
-                            : Colors.black.withOpacity(0.2)),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isActive
-                        ? const Color(0xFF2D7CFF)
-                        : (done
-                              ? Colors.greenAccent.withOpacity(0.35)
-                              : Colors.white.withOpacity(0.07)),
-                  ),
-                ),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () => _openSetEditDialog(row),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 10,
-                    ),
-                    child: Row(
-                      children: [
-                        SizedBox(
-                          width: 34,
-                          child: Text(
-                            "$setIndex",
-                            style: TextStyle(
-                              color: done ? Colors.greenAccent : Colors.white,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        if (isTimer)
-                          Expanded(
-                            child: Text(
-                              timeLabel,
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.88),
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          )
-                        else ...[
-                          SizedBox(
-                            width: 62,
-                            child: Text(
-                              weightLabel,
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.88),
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          SizedBox(
-                            width: 52,
-                            child: Text(
-                              row['reps'] == null
-                                  ? '-'
-                                  : _toInt(row['reps']).toString(),
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.88),
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  "RIR ${row['rir'] == null ? '-' : _toInt(row['rir'])}",
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.7),
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                              ],
-                            ),
-                          ),
-                        ],
-                        GestureDetector(
-                          onTap: () async {
-                            final wasActive = _activeSetIndex == setIndex;
-                            if (!done && wasActive) {
-                              _pauseActiveSetTimer();
-                            }
-                            await _upsertSetRow(
-                              setIndex: setIndex,
-                              completed: !done,
-                              performedTimeSeconds: wasActive
-                                  ? _activeSetElapsedSeconds
-                                  : null,
-                              restAfterSeconds: wasActive
-                                  ? _activeSetRestSeconds
-                                  : null,
-                            );
-                            if (!mounted) return;
-                            if (!done) {
-                              final nextSet = _nextPendingSetIndex();
-                              setState(() {
-                                _activeSetIndex = nextSet ?? setIndex;
-                                _activeSetElapsedSeconds = 0;
-                                _activeSetRestSeconds = _restPresetSeconds;
-                                _hideRestPresetAfterStart = false;
-                              });
-                            } else {
-                              setState(() {
-                                _hideRestPresetAfterStart = false;
-                              });
-                              _stopRestCountdown();
-                            }
-                          },
-                          child: Container(
-                            width: 28,
-                            height: 28,
-                            decoration: BoxDecoration(
-                              color: done
-                                  ? Colors.greenAccent.withOpacity(0.2)
-                                  : Colors.white.withOpacity(0.07),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: done
-                                    ? Colors.greenAccent
-                                    : Colors.white24,
-                              ),
-                            ),
-                            child: Icon(
-                              Icons.check,
-                              color: done ? Colors.greenAccent : Colors.white54,
-                              size: 18,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          onPressed: rows.length > 1
-                              ? () => _deleteSetRow(setIndex)
-                              : null,
-                          icon: const Icon(
-                            Icons.delete_outline,
-                            color: Colors.redAccent,
-                            size: 19,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }),
-          const SizedBox(height: 8),
+          SizedBox(height: TaqaUiScale.h(8)),
           SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _addSetRow,
-              icon: const Icon(Icons.add),
-              label: const Text("Add Set"),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white,
-                side: BorderSide(color: Colors.white.withOpacity(0.16)),
-                backgroundColor: Colors.white.withOpacity(0.05),
-                minimumSize: const Size(double.infinity, 46),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+            height: TaqaUiScale.h(30),
+            child: TextField(
+              controller: controller,
+              keyboardType: keyboardType,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(20),
+                fontWeight: FontWeight.w400,
+                height: 1,
+                letterSpacing: 0,
+                color: TaqaUiColors.unnamedColor1c1d17,
+              ),
+              decoration: const InputDecoration(
+                isDense: true,
+                filled: false,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+                hintText: "0",
               ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildCompletedToggle(
+    bool value,
+    void Function(void Function()) setLocalState,
+    void Function(bool) onChanged,
+  ) {
+    return GestureDetector(
+      onTap: () => setLocalState(() => onChanged(!value)),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: TaqaUiScale.w(14),
+            height: TaqaUiScale.h(14),
+            decoration: BoxDecoration(
+              color: value
+                  ? TaqaUiColors.unnamedColorE4e93b
+                  : Colors.transparent,
+              border: Border.all(
+                color: TaqaUiColors.unnamedColor1c1d17,
+                width: 0.5,
+              ),
+              borderRadius: TaqaUiScale.radius(3),
+            ),
+            child: value
+                ? Icon(
+                    Icons.check,
+                    size: TaqaUiScale.sp(10),
+                    color: TaqaUiColors.unnamedColor1c1d17,
+                  )
+                : null,
+          ),
+          SizedBox(width: TaqaUiScale.w(8)),
+          Text(
+            "COMPLETED",
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(10),
+              fontWeight: FontWeight.w600,
+              height: 12 / 10,
+              letterSpacing: 0,
+              color: TaqaUiColors.unnamedColor1c1d17,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool?> _showSetEditDialog({
+    required String title,
+    required Widget Function(
+      BuildContext ctx,
+      void Function(void Function()) setLocalState,
+    )
+    contentBuilder,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      barrierColor: const Color(0x66000000),
+      builder: (ctx) {
+        return MediaQuery.removeViewInsets(
+          context: ctx,
+          removeBottom: true,
+          child: StatefulBuilder(
+            builder: (ctx, setLocalState) {
+              return Align(
+                alignment: Alignment.center,
+                child: Padding(
+                  padding: TaqaUiScale.symmetric(horizontal: 17),
+                  child: Material(
+                    color: Colors.transparent,
+                    clipBehavior: Clip.none,
+                    child: Container(
+                      constraints: BoxConstraints(maxWidth: TaqaUiScale.w(356)),
+                      padding: TaqaUiScale.insetsLTRB(17, 15, 17, 15),
+                      decoration: BoxDecoration(
+                        color: TaqaUiColors.white,
+                        borderRadius: TaqaUiScale.radius(15),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            title,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: TaqaUiScale.sp(15),
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0,
+                              color: TaqaUiColors.unnamedColor1c1d17,
+                            ),
+                          ),
+                          SizedBox(height: TaqaUiScale.h(33)),
+                          contentBuilder(ctx, setLocalState),
+                          SizedBox(height: TaqaUiScale.h(33)),
+                          SizedBox(
+                            height: TaqaUiScale.h(45),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () => Navigator.pop(ctx, false),
+                                    child: Center(
+                                      child: Text(
+                                        "CANCEL",
+                                        style: TextStyle(
+                                          fontFamily:
+                                              TaqaUiFontFamilies.interTight,
+                                          fontSize: TaqaUiScale.sp(10),
+                                          fontWeight: FontWeight.w600,
+                                          height: 12 / 10,
+                                          letterSpacing: 0,
+                                          color:
+                                              TaqaUiColors.unnamedColor1c1d17,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Material(
+                                  color: TaqaUiColors.unnamedColorE4e93b,
+                                  borderRadius: TaqaUiScale.radius(5),
+                                  child: InkWell(
+                                    borderRadius: TaqaUiScale.radius(5),
+                                    onTap: () => Navigator.pop(ctx, true),
+                                    child: SizedBox(
+                                      width: TaqaUiScale.w(159),
+                                      height: TaqaUiScale.h(45),
+                                      child: Center(
+                                        child: Text(
+                                          "SAVE",
+                                          style: TextStyle(
+                                            fontFamily:
+                                                TaqaUiFontFamilies.interTight,
+                                            fontSize: TaqaUiScale.sp(10),
+                                            fontWeight: FontWeight.w700,
+                                            height: 12 / 10,
+                                            letterSpacing: 0,
+                                            color:
+                                                TaqaUiColors.unnamedColor1c1d17,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildExerciseSessionCard({
+    required AppLocalizations t,
+    required String setsLabel,
+    required String repsLabel,
+    required String rirLabel,
+    required String instructions,
+    required String animationUrl,
+  }) {
+    final exerciseName =
+        (widget.exercise['exercise_name'] ?? widget.exercise['name'] ?? '')
+            .toString();
+    final isTimer = _isTimerBased();
+    final useSetRows = _supportsSetRows;
+
+    final plannedWeight = _plannedWeight();
+    final tagLabel = plannedWeight != null
+        ? "${plannedWeight.toStringAsFixed(plannedWeight == plannedWeight.roundToDouble() ? 0 : 1)}KG"
+        : repsLabel;
+
+    String gifUrl = '';
+    if (animationUrl.isNotEmpty) {
+      gifUrl = TrainingService.animationImageUrl(animationUrl, null);
+    }
+    final dpr = MediaQuery.of(context).devicePixelRatio;
+    final cacheH = (TaqaUiScale.h(146) * dpr).round();
+
+    return Container(
+      width: double.infinity,
+      padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
+      decoration: BoxDecoration(
+        color: const Color(0xFF404040),
+        borderRadius: TaqaUiScale.radius(15),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.only(top: TaqaUiScale.h(4)),
+                child: ClipRRect(
+                  borderRadius: TaqaUiScale.radius(5),
+                  child: Container(
+                    width: TaqaUiScale.w(131),
+                    height: TaqaUiScale.h(131),
+                    color: Colors.white,
+                    child: gifUrl.isEmpty
+                        ? const Center(
+                            child: Icon(
+                              Icons.fitness_center,
+                              size: 40,
+                              color: Colors.grey,
+                            ),
+                          )
+                        : Stack(
+                            fit: StackFit.expand,
+                            alignment: Alignment.center,
+                            children: [
+                              if (widget.previewProvider != null)
+                                Image(
+                                  image: widget.previewProvider!,
+                                  fit: BoxFit.cover,
+                                  gaplessPlayback: true,
+                                ),
+                              Image(
+                                image: TrainingService.gifProvider(
+                                  gifUrl,
+                                  cacheHeight: cacheH,
+                                ),
+                                fit: BoxFit.cover,
+                                gaplessPlayback: true,
+                                errorBuilder: (_, __, ___) => const Icon(
+                                  Icons.fitness_center,
+                                  size: 40,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _titleCase(exerciseName),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: TaqaUiScale.sp(15),
+                              fontWeight: FontWeight.w700,
+                              height: 25 / 15,
+                              letterSpacing: 0,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () =>
+                              _showExerciseOptionsMenu(t, instructions),
+                          child: Padding(
+                            padding: EdgeInsets.only(left: TaqaUiScale.w(8)),
+                            child: Icon(
+                              Icons.more_vert,
+                              size: TaqaUiScale.w(16),
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: TaqaUiScale.h(84)),
+                    Text(
+                      "SUGGESTED",
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+                        fontSize: TaqaUiScale.sp(8),
+                        fontWeight: FontWeight.w400,
+                        height: 10 / 8,
+                        letterSpacing: 0,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: TaqaUiScale.h(5)),
+                    Container(
+                      width: TaqaUiScale.w(34),
+                      height: TaqaUiScale.h(16),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.white, width: 0.5),
+                        borderRadius: TaqaUiScale.radius(5),
+                      ),
+                      child: Text(
+                        tagLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+                          fontSize: TaqaUiScale.sp(8),
+                          fontWeight: FontWeight.w400,
+                          height: 10 / 8,
+                          letterSpacing: 0,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: TaqaUiScale.h(6)),
+          Padding(
+            padding: EdgeInsets.only(left: TaqaUiScale.w(25)),
+            child: Text(
+              _time,
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(15),
+                fontWeight: FontWeight.w700,
+                height: 25 / 15,
+                letterSpacing: 0,
+                color: const Color(0xFFE4E93B),
+              ),
+            ),
+          ),
+          SizedBox(height: TaqaUiScale.h(30)),
+          if (useSetRows)
+            ..._buildSetRowsSection(isTimer)
+          else
+            ..._buildFallbackInputsSection(t),
+          SizedBox(height: TaqaUiScale.h(10)),
+          _buildStartFinishButton(t),
+        ],
+      ),
+    );
+  }
+
+  void _showExerciseOptionsMenu(AppLocalizations t, String instructions) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(borderRadius: TaqaUiScale.radius(15)),
+      builder: (sheetContext) {
+        return Container(
+          width: double.infinity,
+          height: TaqaUiScale.h(520),
+          padding: TaqaUiScale.insetsLTRB(17, 20, 17, 20),
+          decoration: BoxDecoration(
+            color: const Color(0xFF404040),
+            borderRadius: TaqaUiScale.radius(15),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (instructions.isNotEmpty)
+                _buildOptionMenuButton(
+                  label: t.translate("training_instructions_title"),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _openInstructionDialog();
+                  },
+                ),
+              _buildOptionMenuButton(
+                label: t.translate("common_cancel"),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _cancelSession();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildOptionMenuButton({
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: TaqaUiScale.h(45),
+          decoration: BoxDecoration(
+            color: TaqaUiColors.unnamedColor1c1d17,
+            borderRadius: TaqaUiScale.radius(5),
+          ),
+          child: Center(
+            child: Text(
+              label.toUpperCase(),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(10),
+                fontWeight: FontWeight.w600,
+                height: 12 / 10,
+                letterSpacing: 0,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildSetRowsSection(bool isTimer) {
+    final rows = _setRows;
+    final showRestPreset =
+        _activeSetIndex != null &&
+        !_activeSetTimerRunning &&
+        !_restCountdownActive &&
+        !_hideRestPresetAfterStart;
+
+    return [
+      Padding(
+        padding: EdgeInsets.only(left: TaqaUiScale.w(93)),
+        child: SizedBox(
+          width: TaqaUiScale.w(91),
+          child: Text(
+            isTimer ? "SET   TIME" : "SET   KG   REPS",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+              fontSize: TaqaUiScale.sp(8),
+              fontWeight: FontWeight.w400,
+              height: 10 / 8,
+              letterSpacing: 0,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ),
+      SizedBox(height: TaqaUiScale.h(16)),
+      if (_activeSetIndex != null && _activeSetTimerRunning) ...[
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFF2D7CFF).withOpacity(0.4)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.timer, color: Color(0xFF2D7CFF), size: 20),
+              const SizedBox(width: 8),
+              Text(
+                "Set $_activeSetIndex",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _formatSeconds(_activeSetElapsedSeconds),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 20,
+                ),
+              ),
+              const Spacer(),
+              _CompactButton(
+                label: "Finish Set",
+                color: Colors.greenAccent,
+                onTap: _finishActiveSet,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+      ],
+      AnimatedSize(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeInOut,
+        alignment: Alignment.topCenter,
+        clipBehavior: Clip.hardEdge,
+        child: !_activeSetTimerRunning
+            ? Column(
+                key: const ValueKey("rest_section_on"),
+                children: [
+                  if (_restCountdownActive) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.orangeAccent.withOpacity(0.15),
+                            Colors.deepOrange.withOpacity(0.06),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.orangeAccent.withOpacity(0.35),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.hourglass_bottom,
+                            color: Colors.orangeAccent,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _formatSeconds(_restCountdownRemaining),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 26,
+                            ),
+                          ),
+                          const Spacer(),
+                          TextButton(
+                            onPressed: () {
+                              setState(() => _restCountdownRemaining += 30);
+                            },
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.white70,
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                            ),
+                            child: const Text("+30s"),
+                          ),
+                          _CompactButton(
+                            label: "Skip",
+                            color: const Color(0xFF2D7CFF),
+                            onTap: _skipRest,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    switchInCurve: Curves.easeOut,
+                    switchOutCurve: Curves.easeIn,
+                    transitionBuilder: (child, anim) {
+                      final curved = CurvedAnimation(
+                        parent: anim,
+                        curve: Curves.easeInOut,
+                      );
+                      return SizeTransition(
+                        sizeFactor: curved,
+                        axisAlignment: -1.0,
+                        child: FadeTransition(opacity: anim, child: child),
+                      );
+                    },
+                    child: showRestPreset
+                        ? Column(
+                            key: const ValueKey("rest_preset_on"),
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.04),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.06),
+                                  ),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.snooze,
+                                          color: Colors.orangeAccent,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          "Rest",
+                                          style: TextStyle(
+                                            color: Colors.white.withOpacity(
+                                              0.6,
+                                            ),
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        GestureDetector(
+                                          onTap: _setCustomRestPreset,
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(
+                                                Icons.edit,
+                                                size: 12,
+                                                color: Colors.white38,
+                                              ),
+                                              const SizedBox(width: 3),
+                                              Text(
+                                                "Custom",
+                                                style: TextStyle(
+                                                  color: Colors.white
+                                                      .withOpacity(0.5),
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        for (final s in [30, 60, 90, 120])
+                                          Expanded(
+                                            child: Padding(
+                                              padding: EdgeInsets.only(
+                                                right: s == 120 ? 0 : 6,
+                                              ),
+                                              child: _RestPill(
+                                                label: "${s}s",
+                                                active: _restPresetSeconds == s,
+                                                onTap: () => _setRestPreset(s),
+                                              ),
+                                            ),
+                                          ),
+                                        if (![
+                                          30,
+                                          60,
+                                          90,
+                                          120,
+                                        ].contains(_restPresetSeconds))
+                                          Expanded(
+                                            child: Padding(
+                                              padding: const EdgeInsets.only(
+                                                left: 6,
+                                              ),
+                                              child: _RestPill(
+                                                label: "${_restPresetSeconds}s",
+                                                active: true,
+                                                onTap: _setCustomRestPreset,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton.icon(
+                                        onPressed: () => _startRestCountdown(
+                                          _restPresetSeconds,
+                                        ),
+                                        icon: const Icon(
+                                          Icons.hourglass_top,
+                                          size: 18,
+                                        ),
+                                        label: Text(
+                                          "Start Rest  ${_formatSeconds(_restPresetSeconds)}",
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.orangeAccent
+                                              .withOpacity(0.15),
+                                          foregroundColor: Colors.orangeAccent,
+                                          elevation: 0,
+                                          minimumSize: const Size(
+                                            double.infinity,
+                                            40,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            side: BorderSide(
+                                              color: Colors.orangeAccent
+                                                  .withOpacity(0.3),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                            ],
+                          )
+                        : const SizedBox.shrink(
+                            key: ValueKey("rest_preset_off"),
+                          ),
+                  ),
+                ],
+              )
+            : const SizedBox.shrink(key: ValueKey("rest_section_off")),
+      ),
+      if (rows.isEmpty)
+        Padding(
+          padding: EdgeInsets.only(top: TaqaUiScale.h(8)),
+          child: Text(
+            "No sets yet.",
+            style: TextStyle(color: Colors.white.withOpacity(0.7)),
+          ),
+        )
+      else
+        ...rows.map((row) => _buildSessionSetRow(row, isTimer)),
+      SizedBox(height: TaqaUiScale.h(8)),
+      _buildAddSetButton(),
+    ];
+  }
+
+  Widget _buildSessionSetRow(Map<String, dynamic> row, bool isTimer) {
+    final setIndex = _toInt(row['set_index']);
+    final done = _toBool(row['completed']);
+    final isActive = _activeSetIndex == setIndex;
+    final timeSecs = _toInt(row['performed_time_seconds'], fallback: 0);
+    final timeLabel = timeSecs > 0 ? _formatSeconds(timeSecs) : '-';
+    final weight = _toDouble(row['weight_kg']);
+    final weightLabel = weight == null
+        ? '-'
+        : weight.toStringAsFixed(weight == weight.roundToDouble() ? 0 : 1);
+    final repsVal = row['reps'] == null ? '-' : _toInt(row['reps']).toString();
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: TaqaUiScale.h(8)),
+      child: InkWell(
+        borderRadius: TaqaUiScale.radius(8),
+        onTap: () {
+          if (!done && !isActive) {
+            _startSet(setIndex);
+          } else {
+            _openSetEditDialog(row);
+          }
+        },
+        onLongPress: _setRows.length > 1 ? () => _deleteSetRow(setIndex) : null,
+        child: Container(
+          padding: TaqaUiScale.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: isActive
+                ? Colors.white.withValues(alpha: 0.12)
+                : (done
+                      ? const Color(0xFFE4E93B).withValues(alpha: 0.12)
+                      : Colors.white.withValues(alpha: 0.05)),
+            borderRadius: TaqaUiScale.radius(8),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: TaqaUiScale.w(34),
+                child: Text(
+                  "$setIndex",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: TaqaUiScale.sp(12),
+                  ),
+                ),
+              ),
+              if (isTimer)
+                Expanded(
+                  child: Text(
+                    timeLabel,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontWeight: FontWeight.w600,
+                      fontSize: TaqaUiScale.sp(12),
+                    ),
+                  ),
+                )
+              else ...[
+                SizedBox(
+                  width: TaqaUiScale.w(62),
+                  child: Text(
+                    weightLabel,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontWeight: FontWeight.w600,
+                      fontSize: TaqaUiScale.sp(12),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    repsVal,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontWeight: FontWeight.w600,
+                      fontSize: TaqaUiScale.sp(12),
+                    ),
+                  ),
+                ),
+              ],
+              GestureDetector(
+                onTap: () async {
+                  final wasActive = _activeSetIndex == setIndex;
+                  if (!done && wasActive) {
+                    _pauseActiveSetTimer();
+                  }
+                  await _upsertSetRow(
+                    setIndex: setIndex,
+                    completed: !done,
+                    performedTimeSeconds: wasActive
+                        ? _activeSetElapsedSeconds
+                        : null,
+                    restAfterSeconds: wasActive ? _activeSetRestSeconds : null,
+                  );
+                  if (!mounted) return;
+                  if (!done) {
+                    final nextSet = _nextPendingSetIndex();
+                    setState(() {
+                      _activeSetIndex = nextSet ?? setIndex;
+                      _activeSetElapsedSeconds = 0;
+                      _activeSetRestSeconds = _restPresetSeconds;
+                      _hideRestPresetAfterStart = false;
+                    });
+                  } else {
+                    setState(() {
+                      _hideRestPresetAfterStart = false;
+                    });
+                    _stopRestCountdown();
+                  }
+                },
+                child: Container(
+                  width: TaqaUiScale.w(10),
+                  height: TaqaUiScale.h(8),
+                  decoration: BoxDecoration(
+                    color: done ? const Color(0xFFE4E93B) : Colors.transparent,
+                    border: done
+                        ? null
+                        : Border.all(color: Colors.white, width: 0.5),
+                    borderRadius: TaqaUiScale.radius(2),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAddSetButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: TaqaUiScale.h(30),
+      child: OutlinedButton(
+        onPressed: _addSetRow,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.white,
+          side: const BorderSide(color: Colors.white, width: 0.5),
+          backgroundColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: TaqaUiScale.radius(5)),
+          padding: EdgeInsets.zero,
+        ),
+        child: Text(
+          "ADD SET",
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(10),
+            fontWeight: FontWeight.w600,
+            height: 12 / 10,
+            letterSpacing: 0,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStartFinishButton(AppLocalizations t) {
+    return SizedBox(
+      width: double.infinity,
+      height: TaqaUiScale.h(30),
+      child: ElevatedButton(
+        onPressed: submitting ? null : _onPrimaryExerciseButtonPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF1C1D17),
+          disabledBackgroundColor: Colors.white.withValues(alpha: 0.6),
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: TaqaUiScale.radius(5)),
+          padding: EdgeInsets.zero,
+        ),
+        child: (submitting && started)
+            ? SizedBox(
+                height: TaqaUiScale.h(12),
+                width: TaqaUiScale.h(12),
+                child: const CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Color(0xFF1C1D17),
+                ),
+              )
+            : Text(
+                (started
+                        ? t.translate("finish")
+                        : t.translate("training_start_exercise"))
+                    .toUpperCase(),
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(10),
+                  fontWeight: FontWeight.w600,
+                  height: 12 / 10,
+                  letterSpacing: 0,
+                  color: const Color(0xFF1C1D17),
+                ),
+              ),
+      ),
+    );
+  }
+
+  List<Widget> _buildFallbackInputsSection(AppLocalizations t) {
+    return [
+      TextField(
+        controller: weightCtrl,
+        style: const TextStyle(color: Colors.white),
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: _inputStyle(t.translate("training_weight_label")),
+      ),
+      SizedBox(height: TaqaUiScale.h(10)),
+      TextField(
+        controller: setsCtrl,
+        style: const TextStyle(color: Colors.white),
+        keyboardType: TextInputType.number,
+        decoration: _inputStyle(t.translate("training_performed_sets")),
+      ),
+      SizedBox(height: TaqaUiScale.h(10)),
+      TextField(
+        controller: repsCtrl,
+        style: const TextStyle(color: Colors.white),
+        keyboardType: TextInputType.number,
+        decoration: _inputStyle(t.translate("training_performed_reps")),
+      ),
+      SizedBox(height: TaqaUiScale.h(12)),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            t.translate("training_rir_label"),
+            style: const TextStyle(color: Colors.white70),
+          ),
+          Text(
+            rir.round().toString(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+      Slider(
+        min: 0,
+        max: 3,
+        divisions: 3,
+        value: rir,
+        activeColor: const Color(0xFFE4E93B),
+        inactiveColor: Colors.white24,
+        onChanged: (v) => setState(() => rir = v),
+      ),
+      SizedBox(height: TaqaUiScale.h(8)),
+    ];
   }
 
   Future<void> _finishExercise() async {
@@ -2460,8 +2859,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         final distanceKmValue = _currentCardioDistanceKm() ?? 0;
         final avgPaceMinKm = _currentCardioPaceMinKm() ?? 0;
         final routePoints = _trackedCardioRoutePayload() ?? const [];
-        final shouldPersistCardio =
-            _isIndoorCardioExercise() ? seconds > 0 : distanceKmValue >= 0.1;
+        final shouldPersistCardio = _isIndoorCardioExercise()
+            ? seconds > 0
+            : distanceKmValue >= 0.1;
         final workoutNameRaw =
             (widget.exercise['exercise_name'] ?? widget.exercise['name'] ?? '')
                 .toString()
@@ -2489,8 +2889,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
             ? rawExerciseId
             : int.tryParse(rawExerciseId?.toString() ?? '');
         if (shouldPersistCardio) {
-          final inclinePercent =
-              _isTreadmillExercise() ? _treadmillIncline : null;
+          final inclinePercent = _isTreadmillExercise()
+              ? _treadmillIncline
+              : null;
           final payload = {
             "program_exercise_id": programExerciseId,
             "exercise_id": exerciseId,
@@ -2875,7 +3276,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       backgroundColor: Colors.black,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
+          padding: TaqaUiScale.insetsLTRB(18, 8, 18, 18),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 680),
@@ -2910,7 +3311,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
             exerciseName: exerciseName,
             compact: compact,
           ),
-          SizedBox(height: compact ? 16 : 22),
+          SizedBox(height: TaqaUiScale.h(compact ? 16 : 22)),
           Expanded(
             child: isTreadmill
                 ? _buildTreadmillIndoorOverview(compact: compact)
@@ -2920,7 +3321,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                     icon: icon,
                   ),
           ),
-          SizedBox(height: compact ? 16 : 22),
+          SizedBox(height: TaqaUiScale.h(compact ? 16 : 22)),
           _buildIndoorSessionDock(compact: compact, icon: icon),
         ],
       ),
@@ -2934,23 +3335,21 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     return Row(
       children: [
         Container(
-          padding: EdgeInsets.symmetric(
+          padding: TaqaUiScale.symmetric(
             horizontal: compact ? 12 : 14,
             vertical: compact ? 8 : 10,
           ),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.08),
-            ),
+            borderRadius: TaqaUiScale.radius(18),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
           child: Text(
             exerciseName.toUpperCase(),
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
               color: Colors.white,
-              fontSize: compact ? 11 : 12,
+              fontSize: TaqaUiScale.sp(compact ? 11 : 12),
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
             ),
@@ -2964,7 +3363,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
               color: Colors.white.withValues(alpha: 0.74),
-              fontSize: compact ? 13 : 14,
+              fontSize: TaqaUiScale.sp(compact ? 13 : 14),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -2983,8 +3382,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       children: [
         const Spacer(),
         Container(
-          width: compact ? 92 : 108,
-          height: compact ? 92 : 108,
+          width: TaqaUiScale.w(compact ? 92 : 108),
+          height: TaqaUiScale.w(compact ? 92 : 108),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: const Color(0xFF171717),
@@ -2993,45 +3392,39 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           child: Icon(
             icon,
             color: const Color(0xFFE2FF3B),
-            size: compact ? 42 : 48,
+            size: TaqaUiScale.sp(compact ? 42 : 48),
           ),
         ),
-        SizedBox(height: compact ? 18 : 22),
+        SizedBox(height: TaqaUiScale.h(compact ? 18 : 22)),
         Text(
           exerciseName,
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
             color: Colors.white,
-            fontSize: compact ? 34 : 42,
+            fontSize: TaqaUiScale.sp(compact ? 34 : 42),
             fontWeight: FontWeight.w700,
             letterSpacing: -1.4,
           ),
         ),
-        SizedBox(height: compact ? 6 : 8),
+        SizedBox(height: TaqaUiScale.h(compact ? 6 : 8)),
         Text(
           "Timer-based cardio session",
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
             color: Colors.white.withValues(alpha: 0.54),
-            fontSize: compact ? 16 : 18,
+            fontSize: TaqaUiScale.sp(compact ? 16 : 18),
             fontWeight: FontWeight.w500,
           ),
         ),
         const Spacer(),
         Row(
-          children: const [
-            Expanded(
-              child: _IndoorReadout(
-                value: "0",
-                label: "ACTIVE CAL",
-              ),
+          children: [
+            const Expanded(
+              child: _IndoorReadout(value: "0", label: "ACTIVE CAL"),
             ),
-            SizedBox(width: 18),
-            Expanded(
-              child: _IndoorReadout(
-                value: "0",
-                label: "TOTAL CAL",
-              ),
+            SizedBox(width: TaqaUiScale.w(18)),
+            const Expanded(
+              child: _IndoorReadout(value: "0", label: "TOTAL CAL"),
             ),
           ],
         ),
@@ -3055,7 +3448,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
                   color: Colors.white,
-                  fontSize: compact ? 76 : 94,
+                  fontSize: TaqaUiScale.sp(compact ? 76 : 94),
                   height: 0.9,
                   fontWeight: FontWeight.w300,
                   letterSpacing: -4,
@@ -3063,13 +3456,16 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
               ),
             ),
             Padding(
-              padding: EdgeInsets.only(bottom: compact ? 10 : 14, left: 10),
+              padding: EdgeInsets.only(
+                bottom: TaqaUiScale.h(compact ? 10 : 14),
+                left: TaqaUiScale.w(10),
+              ),
               child: Text(
                 "KM",
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
                   color: Colors.white,
-                  fontSize: compact ? 34 : 40,
+                  fontSize: TaqaUiScale.sp(compact ? 34 : 40),
                   fontWeight: FontWeight.w700,
                   letterSpacing: -1,
                 ),
@@ -3077,16 +3473,13 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
             ),
           ],
         ),
-        SizedBox(height: compact ? 18 : 24),
+        SizedBox(height: TaqaUiScale.h(compact ? 18 : 24)),
         Row(
           children: [
             Expanded(
-              child: _IndoorReadout(
-                value: _time,
-                label: "SESSION TIME",
-              ),
+              child: _IndoorReadout(value: _time, label: "SESSION TIME"),
             ),
-            const SizedBox(width: 18),
+            SizedBox(width: TaqaUiScale.w(18)),
             Expanded(
               child: _IndoorReadout(
                 value: '${_cardioSpeedKmh.toStringAsFixed(1)} km/h',
@@ -3095,7 +3488,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
             ),
           ],
         ),
-        SizedBox(height: compact ? 16 : 18),
+        SizedBox(height: TaqaUiScale.h(compact ? 16 : 18)),
         Row(
           children: [
             Expanded(
@@ -3104,16 +3497,13 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                 label: "INCLINE",
               ),
             ),
-            const SizedBox(width: 18),
+            SizedBox(width: TaqaUiScale.w(18)),
             const Expanded(
-              child: _IndoorReadout(
-                value: "0",
-                label: "ACTIVE CAL",
-              ),
+              child: _IndoorReadout(value: "0", label: "ACTIVE CAL"),
             ),
           ],
         ),
-        SizedBox(height: compact ? 22 : 28),
+        SizedBox(height: TaqaUiScale.h(compact ? 22 : 28)),
         Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -3131,7 +3521,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                 onChanged: (value) => setState(() => _cardioSpeedKmh = value),
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: TaqaUiScale.w(12)),
             Expanded(
               child: _TreadmillControlCard(
                 label: 'Incline',
@@ -3158,14 +3548,14 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   }) {
     return Container(
       padding: EdgeInsets.fromLTRB(
-        compact ? 18 : 22,
-        compact ? 10 : 12,
-        compact ? 18 : 22,
-        compact ? 16 : 18,
+        TaqaUiScale.w(compact ? 18 : 22),
+        TaqaUiScale.h(compact ? 10 : 12),
+        TaqaUiScale.w(compact ? 18 : 22),
+        TaqaUiScale.h(compact ? 16 : 18),
       ),
       decoration: BoxDecoration(
         color: const Color(0xFF1D1D20),
-        borderRadius: BorderRadius.circular(compact ? 30 : 36),
+        borderRadius: TaqaUiScale.radius(compact ? 30 : 36),
         border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
         boxShadow: const [
           BoxShadow(
@@ -3179,19 +3569,19 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: compact ? 44 : 52,
-            height: 6,
+            width: TaqaUiScale.w(compact ? 44 : 52),
+            height: TaqaUiScale.h(6),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.28),
-              borderRadius: BorderRadius.circular(999),
+              borderRadius: TaqaUiScale.radius(999),
             ),
           ),
-          SizedBox(height: compact ? 14 : 16),
+          SizedBox(height: TaqaUiScale.h(compact ? 14 : 16)),
           Row(
             children: [
               Container(
-                width: compact ? 44 : 52,
-                height: compact ? 44 : 52,
+                width: TaqaUiScale.w(compact ? 44 : 52),
+                height: TaqaUiScale.w(compact ? 44 : 52),
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   color: Color(0xFF25380B),
@@ -3199,7 +3589,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                 child: Icon(
                   icon,
                   color: const Color(0xFFE2FF3B),
-                  size: compact ? 22 : 26,
+                  size: TaqaUiScale.sp(compact ? 22 : 26),
                 ),
               ),
               Expanded(
@@ -3209,17 +3599,17 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
                       color: const Color(0xFFFFE033),
-                      fontSize: compact ? 46 : 56,
+                      fontSize: TaqaUiScale.sp(compact ? 46 : 56),
                       fontWeight: FontWeight.w300,
                       letterSpacing: -2.8,
                     ),
                   ),
                 ),
               ),
-              SizedBox(width: compact ? 44 : 52),
+              SizedBox(width: TaqaUiScale.w(compact ? 44 : 52)),
             ],
           ),
-          SizedBox(height: compact ? 10 : 12),
+          SizedBox(height: TaqaUiScale.h(compact ? 10 : 12)),
           CardioMapControls(
             distanceKm: _currentCardioDistanceKm() ?? 0,
             speedKmh: _cardioSpeedKmh,
@@ -3240,7 +3630,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   }
 
   IconData _indoorCardioIcon() {
-    final name = (widget.exercise['exercise_name'] ?? '').toString().toLowerCase();
+    final name = (widget.exercise['exercise_name'] ?? '')
+        .toString()
+        .toLowerCase();
     if (name.contains('bike') || name.contains('cycling')) {
       return Icons.pedal_bike_rounded;
     }
@@ -3257,7 +3649,6 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   Widget build(BuildContext context) {
     final isCardio = _isCardioExercise();
     final isIndoorCardio = _isIndoorCardioExercise();
-    final useSetRows = !isCardio && _supportsSetRows;
     final showSession = !isCardio && (started || widget.showSessionOnOpen);
     final showFloatingWorkoutTimer = showSession;
     final token = dotenv.isInitialized
@@ -3305,54 +3696,6 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
             18 + viewInsets.bottom + floatingTimerReservedSpace,
           );
 
-    Widget animationWidget = const Icon(
-      Icons.fitness_center,
-      size: 80,
-      color: Colors.grey,
-    );
-
-    if (!isCardio && animationUrl.isNotEmpty) {
-      final String gifUrl = TrainingService.animationImageUrl(
-        animationUrl,
-        null,
-      );
-
-      final dpr = MediaQuery.of(context).devicePixelRatio;
-      final cacheH = (160 * dpr).round();
-
-      animationWidget = SizedBox(
-        height: 160,
-        child: gifUrl.isEmpty
-            ? const Icon(Icons.fitness_center, size: 80, color: Colors.grey)
-            : Stack(
-                alignment: Alignment.center,
-                children: [
-                  if (widget.previewProvider != null)
-                    Image(
-                      image: widget.previewProvider!,
-                      fit: BoxFit.contain,
-                      gaplessPlayback: true,
-                    ),
-                  Image(
-                    image: TrainingService.gifProvider(
-                      gifUrl,
-                      cacheHeight: cacheH,
-                    ),
-                    fit: BoxFit.contain,
-                    gaplessPlayback: true,
-                    errorBuilder: (_, __, ___) {
-                      return const Icon(
-                        Icons.fitness_center,
-                        size: 80,
-                        color: Colors.grey,
-                      );
-                    },
-                  ),
-                ],
-              ),
-      );
-    }
-
     if (isCardio && isIndoorCardio && widget.useFullscreenLayout) {
       return _buildIndoorCardioFullScreenScaffold();
     }
@@ -3397,7 +3740,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                               child: CardioMap(
                                 hasToken: hasToken,
                                 expanded: _cardioMapExpanded,
-                                height: MediaQuery.of(context).size.height * 0.9,
+                                height:
+                                    MediaQuery.of(context).size.height * 0.9,
                                 initialDistanceMeters: _cardioDistanceMeters,
                                 initialSpeedKmh: _cardioSpeedKmh,
                                 initialRoute: _cardioRoute,
@@ -3405,7 +3749,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                                 elapsedSeconds: seconds,
                                 running: started && !_paused,
                                 countdownActive: _countdownSessionStarted,
-                                trackingEnabled: _shouldTrackCardioRoute() &&
+                                trackingEnabled:
+                                    _shouldTrackCardioRoute() &&
                                     (started || _countdownSessionStarted),
                                 onCountdownStart: () {
                                   _handleCardioCountdownStart();
@@ -3417,12 +3762,14 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                                   if (started && !_paused) {
                                     TrainingActivityService.updateSession(
                                       exerciseName:
-                                          (widget.exercise['exercise_name'] ?? '')
+                                          (widget.exercise['exercise_name'] ??
+                                                  '')
                                               .toString(),
                                       sets: _currentSets(),
                                       reps: _currentReps(),
                                       seconds: seconds,
-                                      distanceKm: _cardioDistanceMeters / 1000.0,
+                                      distanceKm:
+                                          _cardioDistanceMeters / 1000.0,
                                       paceMinKm: _currentPaceMinPerKm(),
                                       steps: _cardioSteps,
                                       routePoints: _trackedCardioRoutePayload(),
@@ -3448,286 +3795,13 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                           //   ),
                           // ),
                         ] else ...[
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(20),
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF162447), Color(0xFF0D1325)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.05),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.45),
-                                  blurRadius: 18,
-                                  offset: const Offset(0, 10),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.04),
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                  child: animationWidget,
-                                ),
-                                const SizedBox(height: 14),
-                                Text(
-                                  widget.exercise['exercise_name'] ?? '',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 19,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Wrap(
-                                  spacing: 10,
-                                  runSpacing: 8,
-                                  alignment: WrapAlignment.center,
-                                  children: [
-                                    _SessionChip(
-                                      icon: Icons.repeat,
-                                      label: "$setsLabel x $repsLabel",
-                                    ),
-                                    _SessionChip(
-                                      icon: Icons.bolt,
-                                      label:
-                                          "${t.translate("training_rir_label")} $rirLabel",
-                                    ),
-                                    if (started)
-                                      _SessionChip(
-                                        icon: Icons.timer,
-                                        label: _time,
-                                        accent: Colors.blueAccent,
-                                      ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 18),
-                        if (!started && !isCardio && !widget.showSessionOnOpen)
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.greenAccent.shade400,
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                            icon: const Icon(Icons.play_arrow_rounded),
-                            label: Text(
-                              t.translate("training_start_exercise"),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            onPressed: _onPrimaryExerciseButtonPressed,
-                          ),
-                        if (showSession) ...[
-                          Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.03),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.05),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  t.translate("training_session_title"),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: [
-                                    _SessionChip(
-                                      icon: Icons.timer,
-                                      label: _time,
-                                      accent: Colors.blueAccent,
-                                    ),
-                                    if (!isCardio)
-                                      _SessionChip(
-                                        icon: Icons.monitor_weight,
-                                        label: t.translate(
-                                          "training_log_weight_reps",
-                                        ),
-                                        accent: Colors.purpleAccent,
-                                      ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                if (useSetRows) ...[
-                                  _buildSetRowsEditor(),
-                                ] else ...[
-                                  TextField(
-                                    controller: weightCtrl,
-                                    keyboardType:
-                                        const TextInputType.numberWithOptions(
-                                          decimal: true,
-                                        ),
-                                    decoration: _inputStyle(
-                                      t.translate("training_weight_label"),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  TextField(
-                                    controller: setsCtrl,
-                                    keyboardType: TextInputType.number,
-                                    decoration: _inputStyle(
-                                      t.translate("training_performed_sets"),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  TextField(
-                                    controller: repsCtrl,
-                                    keyboardType: TextInputType.number,
-                                    decoration: _inputStyle(
-                                      t.translate("training_performed_reps"),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        t.translate("training_rir_label"),
-                                        style: const TextStyle(
-                                          color: Colors.white70,
-                                        ),
-                                      ),
-                                      Text(
-                                        rir.round().toString(),
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Slider(
-                                    min: 0,
-                                    max: 3,
-                                    divisions: 3,
-                                    value: rir,
-                                    activeColor: Colors.greenAccent,
-                                    inactiveColor: Colors.white24,
-                                    onChanged: (v) => setState(() => rir = v),
-                                  ),
-                                ],
-                                const SizedBox(height: 10),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: TextButton(
-                                        onPressed: submitting
-                                            ? null
-                                            : _cancelSession,
-                                        child: Text(
-                                          t.translate("common_cancel"),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor:
-                                              Colors.greenAccent.shade400,
-                                          foregroundColor: Colors.black,
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 14,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              14,
-                                            ),
-                                          ),
-                                        ),
-                                        onPressed: submitting
-                                            ? null
-                                            : _onPrimaryExerciseButtonPressed,
-                                        child: (submitting && started)
-                                            ? const SizedBox(
-                                                height: 18,
-                                                width: 18,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      color: Colors.black,
-                                                    ),
-                                              )
-                                            : Text(
-                                                started
-                                                    ? t.translate("finish")
-                                                    : t.translate(
-                                                        "training_start_exercise",
-                                                      ),
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.w700,
-                                                  fontSize: 14,
-                                                ),
-                                              ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (instructions.isNotEmpty) ...[
-                                  const SizedBox(height: 10),
-                                  OutlinedButton.icon(
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.white,
-                                      side: BorderSide(
-                                        color: Colors.white.withOpacity(0.2),
-                                      ),
-                                      minimumSize: const Size(
-                                        double.infinity,
-                                        48,
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 12,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      backgroundColor: Colors.white.withOpacity(
-                                        0.04,
-                                      ),
-                                    ),
-                                    icon: const Icon(Icons.menu_book),
-                                    label: Text(
-                                      t.translate(
-                                        "training_instructions_title",
-                                      ),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    onPressed: _openInstructionDialog,
-                                  ),
-                                ],
-                              ],
-                            ),
+                          _buildExerciseSessionCard(
+                            t: t,
+                            setsLabel: setsLabel,
+                            repsLabel: repsLabel,
+                            rirLabel: rirLabel,
+                            instructions: instructions,
+                            animationUrl: animationUrl,
                           ),
                         ],
                       ],
@@ -3776,46 +3850,8 @@ InputDecoration _inputStyle(String label) {
   );
 }
 
-class _SessionChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color? accent;
-
-  const _SessionChip({required this.icon, required this.label, this.accent});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: (accent ?? Colors.white).withOpacity(0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: (accent ?? Colors.white).withOpacity(0.15)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: accent ?? Colors.white70),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: accent ?? Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _IndoorReadout extends StatelessWidget {
-  const _IndoorReadout({
-    required this.label,
-    required this.value,
-  });
+  const _IndoorReadout({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -3833,17 +3869,19 @@ class _IndoorReadout extends StatelessWidget {
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
             color: Colors.white,
-            fontSize: 20,
+            fontSize: TaqaUiScale.sp(20),
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: TaqaUiScale.h(4)),
         Text(
           label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
             color: Colors.white.withValues(alpha: 0.48),
-            fontSize: 13,
+            fontSize: TaqaUiScale.sp(13),
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
           ),
@@ -3882,17 +3920,15 @@ class _TreadmillControlCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.fromLTRB(
-        compact ? 10 : 12,
-        compact ? 10 : 12,
-        compact ? 10 : 12,
-        compact ? 8 : 10,
+        TaqaUiScale.w(compact ? 10 : 12),
+        TaqaUiScale.h(compact ? 10 : 12),
+        TaqaUiScale.w(compact ? 10 : 12),
+        TaqaUiScale.h(compact ? 8 : 10),
       ),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
-        ),
+        borderRadius: TaqaUiScale.radius(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3901,49 +3937,50 @@ class _TreadmillControlCard extends StatelessWidget {
             label.toUpperCase(),
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.5),
-              fontSize: compact ? 8 : 9,
+              fontSize: TaqaUiScale.sp(compact ? 8 : 9),
               fontWeight: FontWeight.w700,
               letterSpacing: 0.7,
             ),
           ),
-          SizedBox(height: compact ? 4 : 6),
+          SizedBox(height: TaqaUiScale.h(compact ? 4 : 6)),
           Text(
             value,
             style: TextStyle(
               color: Colors.white,
-              fontSize: compact ? 15 : 16,
+              fontSize: TaqaUiScale.sp(compact ? 15 : 16),
               fontWeight: FontWeight.w800,
             ),
           ),
-          SizedBox(height: compact ? 6 : 8),
+          SizedBox(height: TaqaUiScale.h(compact ? 6 : 8)),
           Row(
             children: [
               Expanded(
-                child: _ManualAdjustButton(icon: Icons.remove, onTap: onDecrease),
+                child: _ManualAdjustButton(
+                  icon: Icons.remove,
+                  onTap: onDecrease,
+                ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: TaqaUiScale.w(8)),
               Expanded(
                 child: _ManualAdjustButton(icon: Icons.add, onTap: onIncrease),
               ),
             ],
           ),
-          SizedBox(height: compact ? 2 : 4),
+          SizedBox(height: TaqaUiScale.h(compact ? 2 : 4)),
           SizedBox(
-            height: compact ? 28 : 32,
+            height: TaqaUiScale.h(compact ? 28 : 32),
             child: SliderTheme(
-            data: SliderTheme.of(context).copyWith(
+              data: SliderTheme.of(context).copyWith(
                 activeTrackColor: const Color(0xFFFFE033),
                 inactiveTrackColor: Colors.white.withValues(alpha: 0.16),
                 thumbColor: const Color(0xFFFFE033),
-                overlayColor: const Color(0xFFFFE033).withValues(
-                  alpha: 0.18,
-                ),
-                trackHeight: 3,
+                overlayColor: const Color(0xFFFFE033).withValues(alpha: 0.18),
+                trackHeight: TaqaUiScale.h(3),
                 thumbShape: RoundSliderThumbShape(
-                  enabledThumbRadius: compact ? 7 : 8,
+                  enabledThumbRadius: TaqaUiScale.w(compact ? 7 : 8),
                 ),
                 overlayShape: RoundSliderOverlayShape(
-                  overlayRadius: compact ? 12 : 14,
+                  overlayRadius: TaqaUiScale.w(compact ? 12 : 14),
                 ),
               ),
               child: Slider(
@@ -3972,19 +4009,13 @@ class _ManualAdjustButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 34,
+        height: TaqaUiScale.h(34),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.1),
-          ),
+          borderRadius: TaqaUiScale.radius(12),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         ),
-        child: Icon(
-          icon,
-          color: Colors.white,
-          size: 18,
-        ),
+        child: Icon(icon, color: Colors.white, size: TaqaUiScale.sp(18)),
       ),
     );
   }

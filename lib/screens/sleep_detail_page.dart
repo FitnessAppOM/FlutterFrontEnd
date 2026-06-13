@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../TaqaUI/components/taqa_empty_card.dart';
 import '../TaqaUI/components/taqa_linear_metric_card.dart';
 import '../TaqaUI/components/taqa_progress_widget_card.dart';
 import '../TaqaUI/components/taqa_sleep_stages_wide_card.dart';
 import '../TaqaUI/components/taqa_steps_ui.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../core/account_storage.dart';
@@ -555,11 +557,11 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
         centerTitle: true,
         title: Text(
           t("sleep_title"),
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: 15,
+            fontSize: TaqaUiScale.sp(15),
             fontWeight: FontWeight.w700,
-            height: 2.5,
+            height: 25 / 15,
             letterSpacing: 0,
             color: TaqaUiColors.unnamedColor1c1d17,
           ),
@@ -568,15 +570,17 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
         foregroundColor: TaqaUiColors.unnamedColor1c1d17,
         elevation: 0,
       ),
+      resizeToAvoidBottomInset: false,
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       body: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Expanded(
+                SizedBox(
+                  width: TaqaUiScale.w(171),
                   child: TaqaRangeTab(
                     label: "Sleep trend",
                     selected: _topTabIndex == 0,
@@ -586,8 +590,9 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                     },
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
+                SizedBox(width: TaqaUiScale.w(15)),
+                SizedBox(
+                  width: TaqaUiScale.w(171),
                   child: TaqaRangeTab(
                     label: "Sleep metrics",
                     selected: _topTabIndex == 1,
@@ -599,7 +604,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            SizedBox(height: TaqaUiScale.h(14)),
             Expanded(
               child: _topTabIndex == 0
                   ? _buildTrendsTab(t, theme, bars)
@@ -623,23 +628,26 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       children: [
         Row(
           children: [
-            Expanded(
+            SizedBox(
+              width: TaqaUiScale.w(109),
               child: TaqaRangeTab(
                 label: t("range_weekly"),
                 selected: _range == 'weekly',
                 onTap: () => _onRangeTabTap('weekly'),
               ),
             ),
-            const SizedBox(width: 8),
-            Expanded(
+            SizedBox(width: TaqaUiScale.w(15)),
+            SizedBox(
+              width: TaqaUiScale.w(109),
               child: TaqaRangeTab(
                 label: t("range_monthly"),
                 selected: _range == 'monthly',
                 onTap: () => _onRangeTabTap('monthly'),
               ),
             ),
-            const SizedBox(width: 8),
-            Expanded(
+            SizedBox(width: TaqaUiScale.w(15)),
+            SizedBox(
+              width: TaqaUiScale.w(109),
               child: TaqaRangeTab(
                 label: t("range_yearly"),
                 selected: _range == 'yearly',
@@ -648,20 +656,20 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: TaqaUiScale.h(19)),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
               child: Text(
-                "Goal: ${(_goal ?? 8.0).toStringAsFixed(1)} h",
+                "Goal: ${(_goal ?? 8.0).toStringAsFixed(1)}h",
                 maxLines: 1,
-                softWrap: false,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
-                  fontSize: 25,
+                  fontSize: TaqaUiScale.sp(25),
                   fontWeight: FontWeight.w700,
-                  height: 2.5,
+                  height: 1,
                   letterSpacing: 0,
                   color: TaqaUiColors.unnamedColor1c1d17,
                 ),
@@ -675,7 +683,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
               ),
             ],
             if (_canManualEdit && !widget.useWhoop) ...[
-              const SizedBox(width: 8),
+              SizedBox(width: TaqaUiScale.w(8)),
               TaqaTagButton(
                 icon: Icons.add,
                 label: "ADD",
@@ -684,14 +692,18 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
             ],
           ],
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: TaqaUiScale.h(19)),
         Expanded(
           child: _loading
               ? const Center(
                   child: CircularProgressIndicator(color: AppColors.accent),
                 )
               : _daily.isEmpty || !_daily.values.any((v) => v > 0)
-              ? _noDataCard(theme)
+              ? TaqaEmptyCard(
+                  title: "No sleep data",
+                  subtitle: "No records in this range",
+                  icon: Icons.bedtime_outlined,
+                )
               : bars,
         ),
       ],
@@ -833,8 +845,12 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _metricsDateHeader(),
-            const SizedBox(height: 12),
-            _metricsNoDataCard(theme),
+            SizedBox(height: TaqaUiScale.h(12)),
+            TaqaEmptyCard(
+              title: "No sleep metrics",
+              subtitle: "${_monthName(_metricsDate.month)} ${_metricsDate.day}",
+              icon: Icons.bedtime_outlined,
+            ),
           ],
         ),
       );
@@ -853,7 +869,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _metricsDateHeader(),
-          const SizedBox(height: 12),
+          SizedBox(height: TaqaUiScale.h(12)),
           Row(
             children: [
               Expanded(
@@ -867,7 +883,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                   loading: isLoading,
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: TaqaUiScale.w(12)),
               Expanded(
                 child: _buildArcSleepMetricCard(
                   title: "Time in bed",
@@ -881,59 +897,56 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: TaqaUiScale.h(12)),
           _buildEfficiencyMetricCard(
             efficiency: (isLoading || !hasMetrics) ? 0.0 : efficiency,
             loading: isLoading,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: TaqaUiScale.h(12)),
           Row(
             children: [
-              Expanded(
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: _buildCompactSleepStatCard(
-                    title: "Disturbances",
-                    valueText: (isLoading || !hasMetrics)
-                        ? "0"
-                        : m.disturbances.toString(),
-                    subtitle: "Night disruptions",
-                  ),
+              SizedBox(
+                width: TaqaUiScale.w(109),
+                height: TaqaUiScale.h(109),
+                child: _buildCompactSleepStatCard(
+                  title: "Disturbances",
+                  valueText: (isLoading || !hasMetrics)
+                      ? "0"
+                      : m.disturbances.toString(),
+                  subtitle: "Night disruptions",
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: _buildCompactSleepStatCard(
-                    title: "Sleep cycles",
-                    valueText: (isLoading || !hasMetrics)
-                        ? "0"
-                        : m.cycles.toString(),
-                    subtitle: "Completed cycles",
-                  ),
+              SizedBox(width: TaqaUiScale.w(12)),
+              SizedBox(
+                width: TaqaUiScale.w(109),
+                height: TaqaUiScale.h(109),
+                child: _buildCompactSleepStatCard(
+                  title: "Sleep cycles",
+                  valueText: (isLoading || !hasMetrics)
+                      ? "0"
+                      : m.cycles.toString(),
+                  subtitle: "Completed cycles",
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: _buildCompactSleepStatCard(
-                    title: "Naps",
-                    valueText: (isLoading || !hasMetrics)
-                        ? "0"
-                        : (napCount == null ? "0" : napCount.toString()),
-                    subtitle: isLoading
-                        ? "Total 0.0"
-                        : (napHours == null
-                              ? "Total 0.0"
-                              : "Total ${_formatHours(napHours)}"),
-                  ),
+              SizedBox(width: TaqaUiScale.w(12)),
+              SizedBox(
+                width: TaqaUiScale.w(109),
+                height: TaqaUiScale.h(109),
+                child: _buildCompactSleepStatCard(
+                  title: "Naps",
+                  valueText: (isLoading || !hasMetrics)
+                      ? "0"
+                      : (napCount == null ? "0" : napCount.toString()),
+                  subtitle: isLoading
+                      ? "Total 0.0"
+                      : (napHours == null
+                            ? "Total 0.0"
+                            : "Total ${_formatHours(napHours)}"),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: TaqaUiScale.h(12)),
           TaqaSleepStagesWideCard(
             title: "Total sleep",
             centerLabel: "Stages",
@@ -941,6 +954,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
             deepPct: (isLoading || !hasMetrics) ? 0 : (stage["slow_wave"] ?? 0),
             remPct: (isLoading || !hasMetrics) ? 0 : (stage["rem"] ?? 0),
           ),
+
         ],
       ),
     );
@@ -956,8 +970,12 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _nativeMetricsDateHeader(),
-            const SizedBox(height: 12),
-            _nativeNoDataCard(theme),
+            SizedBox(height: TaqaUiScale.h(12)),
+            TaqaEmptyCard(
+              title: "No sleep metrics",
+              subtitle: "${_monthName(_metricsDate.month)} ${_metricsDate.day}",
+              icon: Icons.bedtime_outlined,
+            ),
           ],
         ),
       );
@@ -1007,7 +1025,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _nativeMetricsDateHeader(),
-          const SizedBox(height: 12),
+          SizedBox(height: TaqaUiScale.h(12)),
           Row(
             children: [
               Expanded(
@@ -1021,7 +1039,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                   loading: isLoading,
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: TaqaUiScale.w(12)),
               Expanded(
                 child: _buildArcSleepMetricCard(
                   title: "Time in bed",
@@ -1035,14 +1053,14 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: TaqaUiScale.h(12)),
           _buildEfficiencyMetricCard(
             efficiency: (isLoading || !hasData || efficiency == null)
                 ? 0.0
                 : efficiency,
             loading: isLoading,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: TaqaUiScale.h(12)),
           TaqaLinearMetricCard(
             title: "Awake time",
             valueText: (isLoading || !hasData || awakeHours == null)
@@ -1053,9 +1071,9 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
             loading: isLoading,
             lightSurface: true,
             showBar: false,
-            keepBarSpaceWhenHidden: true,
+            keepBarSpaceWhenHidden: false,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: TaqaUiScale.h(12)),
           TaqaSleepStagesWideCard(
             title: "Total sleep",
             centerLabel: "Stages",
@@ -1084,15 +1102,16 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       onPrev: () => _changeMetricsDate(-1),
       onNext: () => _changeMetricsDate(1),
       canGoNext: canGoNext,
-      labelStyle: const TextStyle(
+      labelStyle: TextStyle(
         color: TaqaUiColors.unnamedColor1c1d17,
         fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-        fontSize: 8,
+        fontSize: TaqaUiScale.sp(8),
         fontWeight: FontWeight.w400,
         letterSpacing: 0,
+        height: 10 / 8,
       ),
       iconColor: TaqaUiColors.unnamedColor1c1d17,
-      labelWidth: 100,
+      labelWidth: TaqaUiScale.w(62),
     );
   }
 
@@ -1126,50 +1145,6 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
           labelWidth: 100,
         ),
       ],
-    );
-  }
-
-  Widget _nativeNoDataCard(ThemeData theme) {
-    final dateLabel = "${_monthName(_metricsDate.month)} ${_metricsDate.day}";
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            height: 36,
-            width: 36,
-            decoration: BoxDecoration(
-              color: const Color(0xFF2D7CFF).withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              _nativeMetricsLoading
-                  ? Icons.hourglass_bottom
-                  : Icons.info_outline,
-              color: const Color(0xFF2D7CFF),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              _nativeMetricsLoading
-                  ? "Loading sleep metrics..."
-                  : "No saved sleep metrics for $dateLabel",
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.white60,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1286,10 +1261,10 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     required String subtitle,
   }) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      padding: TaqaUiScale.insetsLTRB(14, 10, 14, 14),
       decoration: BoxDecoration(
         color: TaqaUiColors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: TaqaUiScale.radius(15),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1298,37 +1273,38 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
             title.toUpperCase(),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-              fontSize: 8,
+              fontSize: TaqaUiScale.sp(8),
               fontWeight: FontWeight.w400,
               color: TaqaUiColors.unnamedColor1c1d17,
-              letterSpacing: 0.2,
+              letterSpacing: 0,
+              height: 10 / 8,
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: TaqaUiScale.h(30)),
           Text(
             valueText,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
-              fontSize: 25,
+              fontSize: TaqaUiScale.sp(25),
               fontWeight: FontWeight.w700,
               color: TaqaUiColors.unnamedColor1c1d17,
-              height: 1.0,
+              height: 1,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: TaqaUiScale.h(5)),
           Text(
             subtitle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
-              fontSize: 8,
+              fontSize: TaqaUiScale.sp(8),
               fontWeight: FontWeight.w400,
               color: TaqaUiColors.unnamedColor1c1d17,
               letterSpacing: 0,
-              height: 1.3,
+              height: 13 / 8,
             ),
           ),
         ],
@@ -1348,47 +1324,6 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     return _formatHours(hours);
   }
 
-  Widget _metricsNoDataCard(ThemeData theme, {bool loading = false}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            height: 36,
-            width: 36,
-            decoration: BoxDecoration(
-              color: const Color(0xFF2D7CFF).withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              loading ? Icons.hourglass_bottom : Icons.info_outline,
-              color: const Color(0xFF2D7CFF),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              loading
-                  ? "Loading sleep metrics..."
-                  : "No sleep metrics for this day",
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.white60,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _onRangeTabTap(String value) {
     if (_range == value) return;
     _barValueTimer?.cancel();
@@ -1403,22 +1338,26 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     final hasData = _daily.isNotEmpty && _daily.values.any((v) => v > 0);
 
     if (!hasData) {
-      return _noDataCard(theme);
+      return TaqaEmptyCard(
+        title: "No sleep data",
+        subtitle: "No records in this range",
+        icon: Icons.bedtime_outlined,
+      );
     }
 
     final entries = _prepareEntries();
     final maxVal = entries.fold<double>(0, (m, e) => e.value > m ? e.value : m);
     final actualMax = maxVal == 0 ? 1.0 : maxVal;
     final midVal = actualMax / 2.0;
-    const yAxisWidth = 45.0;
-    const yAxisGap = 8.0;
-    const labelHeight = 16.0;
-    const labelGap = 4.0;
+    final yAxisWidth = TaqaUiScale.w(45);
+    final yAxisGap = TaqaUiScale.w(8);
+    final labelHeight = TaqaUiScale.h(16);
+    final labelGap = TaqaUiScale.h(4);
 
     final isMonthly = _range == 'monthly';
     final isYearly = _range == 'yearly';
     final dense = entries.length > 12;
-    final barSpacing = dense ? 2.0 : 4.0;
+    final barSpacing = dense ? TaqaUiScale.w(2) : TaqaUiScale.w(4);
     final useFixedSlots = dense || isMonthly || isYearly;
     final showLabels = _range != 'monthly';
     final chartEntries = entries
@@ -1431,10 +1370,10 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
         child: Container(
-          padding: const EdgeInsets.all(14),
+          padding: TaqaUiScale.insetsLTRB(14, 10, 14, 14),
           decoration: BoxDecoration(
             color: TaqaUiColors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: TaqaUiScale.radius(15),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1445,26 +1384,28 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                     : _range == 'yearly'
                     ? 'Last year'
                     : _rangeLabel(AppLocalizations.of(context).translate),
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
-                  fontSize: 18,
+                  fontSize: TaqaUiScale.sp(15),
                   fontWeight: FontWeight.w700,
+                  height: 25 / 15,
                   color: TaqaUiColors.unnamedColor1c1d17,
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: TaqaUiScale.h(5)),
               Text(
                 'Avg: ${avg.toStringAsFixed(1)} h | Total: ${total.toStringAsFixed(1)} h',
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
-                  fontSize: 12,
+                  fontSize: TaqaUiScale.sp(10),
                   fontWeight: FontWeight.w400,
+                  height: 11 / 10,
                   color: TaqaUiColors.unnamedColor1c1d17,
                 ),
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: TaqaUiScale.h(10)),
               SizedBox(
-                height: 34,
+                height: TaqaUiScale.h(34),
                 child: Center(
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 180),
@@ -1475,17 +1416,13 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                         ? const SizedBox.shrink()
                         : Container(
                             key: ValueKey<int>(_selectedBarIndex!),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 7,
-                            ),
+                            padding: TaqaUiScale.insetsLTRB(12, 7, 12, 7),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF0F1826),
-                              borderRadius: BorderRadius.circular(12),
+                              color: TaqaUiColors.charcoal,
+                              borderRadius: TaqaUiScale.radius(10),
                               border: Border.all(
-                                color: const Color(
-                                  0xFF35B6FF,
-                                ).withValues(alpha: 0.45),
+                                color: TaqaUiColors.lime.withValues(alpha: 0.45),
+                                width: 0.5,
                               ),
                             ),
                             child: Text(
@@ -1493,16 +1430,18 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                               textAlign: TextAlign.center,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: Colors.white,
+                              style: TextStyle(
+                                fontFamily: TaqaUiFontFamilies.interTight,
+                                fontSize: TaqaUiScale.sp(10),
                                 fontWeight: FontWeight.w700,
+                                color: TaqaUiColors.white,
                               ),
                             ),
                           ),
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: TaqaUiScale.h(10)),
               Expanded(
                 child: RangedBarChart(
                   entries: chartEntries,
@@ -1519,7 +1458,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                   showAxisLabels: showLabels,
                   useFixedSlots: useFixedSlots,
                   barSpacing: barSpacing,
-                  minBarWidth: 4.0,
+                  minBarWidth: TaqaUiScale.w(4),
                   yAxisWidth: yAxisWidth,
                   yAxisGap: yAxisGap,
                   labelHeight: labelHeight,
@@ -1712,30 +1651,6 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       default:
         return "${value}th";
     }
-  }
-
-  Widget _noDataCard(ThemeData theme) {
-    return Container(
-      height: 220,
-      padding: const EdgeInsets.all(16),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: TaqaUiColors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            AppLocalizations.of(context).translate("no_sleep_range"),
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: TaqaUiColors.unnamedColor1c1d17,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _promptManualEntry() async {

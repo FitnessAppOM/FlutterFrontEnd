@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../localization/app_localizations.dart';
 import '../services/diet/diet_service.dart';
-import '../theme/app_theme.dart';
-import 'diet_foods_master_picker_sheet.dart';
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
+import 'diet_item_search_sheet.dart';
 
 class DietManualEntrySheet extends StatefulWidget {
   const DietManualEntrySheet({
@@ -40,30 +42,22 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
     return double.tryParse(raw.replaceAll(',', '.')) ?? fallback;
   }
 
-  double _macroFrom(Map<String, dynamic> payload, List<String> keys) {
-    for (final key in keys) {
-      if (!payload.containsKey(key)) continue;
-      final parsed = _asDouble(payload[key], fallback: 0);
-      if (parsed > 0) return parsed;
-      if (payload[key] != null) return parsed;
-    }
-    return 0;
-  }
-
   @override
   void initState() {
     super.initState();
     _mealNameCtrl.text = widget.mealTitle;
     // Start with one empty ingredient slot so the sheet doesn't look empty
-    _ingredients.add(_IngredientRow(
-      name: '',
-      grams: null,
-      calories: 0,
-      protein: 0,
-      carbs: 0,
-      fat: 0,
-      foodId: null,
-    ));
+    _ingredients.add(
+      _IngredientRow(
+        name: '',
+        grams: null,
+        calories: 0,
+        protein: 0,
+        carbs: 0,
+        fat: 0,
+        foodId: null,
+      ),
+    );
   }
 
   @override
@@ -85,15 +79,17 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
     int? foodId,
   }) {
     setState(() {
-      _ingredients.add(_IngredientRow(
-        name: name ?? '',
-        grams: grams,
-        calories: calories ?? 0,
-        protein: protein ?? 0,
-        carbs: carbs ?? 0,
-        fat: fat ?? 0,
-        foodId: foodId,
-      ));
+      _ingredients.add(
+        _IngredientRow(
+          name: name ?? '',
+          grams: grams,
+          calories: calories ?? 0,
+          protein: protein ?? 0,
+          carbs: carbs ?? 0,
+          fat: fat ?? 0,
+          foodId: foodId,
+        ),
+      );
     });
   }
 
@@ -103,78 +99,39 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
     setState(() {});
   }
 
-  /// Add one ingredient from Foods Master: pick food + grams, preview macros, add editable row.
+  /// Open the same food/restaurant search sheet used for logging meal items.
   Future<void> _addFromSearch() async {
     if (_loading) return;
-    final t = AppLocalizations.of(context);
-    final result = await showModalBottomSheet<Map<String, dynamic>>(
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.black,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      backgroundColor: TaqaUiColors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(TaqaUiScale.r(15)),
+        ),
       ),
-      builder: (_) => DietFoodsMasterPickerSheet(
-        title: t.translate("diet_manual_prefill_title"),
-        requireGrams: true,
+      builder: (_) => DietItemSearchSheet(
+        rootContext: widget.rootContext,
+        userId: widget.userId,
+        mealId: widget.mealId,
+        mealTitle: widget.mealTitle,
+        trainingDayId: widget.trainingDayId,
+        initialTab: 0,
+        onLogged: widget.onLogged,
+        onPickForManualEntry: (ingredient) {
+          _addIngredientRow(
+            name: ingredient['name'] as String?,
+            grams: ingredient['grams'] as double?,
+            calories: ingredient['calories'] as double?,
+            protein: ingredient['protein'] as double?,
+            carbs: ingredient['carbs'] as double?,
+            fat: ingredient['fat'] as double?,
+            foodId: ingredient['food_id'] as int?,
+          );
+        },
       ),
     );
-    if (!mounted || result == null) return;
-
-    final foodId = int.tryParse(result['food_id']?.toString() ?? '');
-    final grams = double.tryParse(result['grams']?.toString() ?? '');
-    if (foodId == null || foodId == 0 || grams == null || grams <= 0) return;
-
-    setState(() => _loading = true);
-    try {
-      final preview = await DietService.previewManualItemFromFoodsMaster(
-        userId: widget.userId,
-        foodId: foodId,
-        grams: grams,
-      );
-      if (!mounted) return;
-      final itemName = (preview['item_name'] ?? '').toString().trim();
-      final cal = _macroFrom(preview, const [
-        'calories',
-        'calories_kcal',
-        'kcal',
-      ]);
-      final p = _macroFrom(preview, const [
-        'protein_g',
-        'protein',
-      ]);
-      final c = _macroFrom(preview, const [
-        'carbs_g',
-        'carbs',
-        'carbohydrates_g',
-        'carbohydrate_g',
-      ]);
-      final f = _macroFrom(preview, const [
-        'fat_g',
-        'fats_g',
-        'fat',
-        'total_fat_g',
-        'total_fat',
-      ]);
-      _addIngredientRow(
-        name: itemName.isNotEmpty ? itemName : (result['food_name'] ?? '').toString().trim(),
-        grams: grams,
-        calories: cal,
-        protein: p,
-        carbs: c,
-        fat: f,
-        foodId: foodId,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      if (widget.rootContext.mounted) {
-        ScaffoldMessenger.of(widget.rootContext).showSnackBar(
-          SnackBar(content: Text("${t.translate("diet_failed_to_add_item")}: $e")),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
   }
 
   void _addManualIngredient() {
@@ -210,7 +167,9 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
     final ingredients = _buildIngredientsPayload();
     if (ingredients.isEmpty) {
       ScaffoldMessenger.of(widget.rootContext).showSnackBar(
-        SnackBar(content: Text(t.translate("diet_manual_at_least_one_ingredient"))),
+        SnackBar(
+          content: Text(t.translate("diet_manual_at_least_one_ingredient")),
+        ),
       );
       return;
     }
@@ -233,9 +192,9 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
           : null;
 
       if (widget.rootContext.mounted) {
-        ScaffoldMessenger.of(widget.rootContext).showSnackBar(
-          SnackBar(content: Text(t.translate("diet_item_added"))),
-        );
+        ScaffoldMessenger.of(
+          widget.rootContext,
+        ).showSnackBar(SnackBar(content: Text(t.translate("diet_item_added"))));
       }
 
       final onLogged = widget.onLogged;
@@ -248,7 +207,9 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
       if (!mounted) return;
       if (widget.rootContext.mounted) {
         ScaffoldMessenger.of(widget.rootContext).showSnackBar(
-          SnackBar(content: Text("${t.translate("diet_failed_to_add_item")}: $e")),
+          SnackBar(
+            content: Text("${t.translate("diet_failed_to_add_item")}: $e"),
+          ),
         );
       }
     } finally {
@@ -259,7 +220,6 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
-    final theme = Theme.of(context);
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
     return SafeArea(
@@ -270,7 +230,7 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
         child: SizedBox(
           height: MediaQuery.sizeOf(context).height * 0.88,
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: TaqaUiScale.insetsLTRB(20, 12, 20, 20),
             child: Form(
               key: _formKey,
               child: Column(
@@ -278,9 +238,11 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
                   Container(
                     height: 5,
                     width: 44,
-                    margin: const EdgeInsets.only(bottom: 16),
+                    margin: EdgeInsets.only(bottom: TaqaUiScale.h(16)),
                     decoration: BoxDecoration(
-                      color: Colors.white24,
+                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                        alpha: 0.12,
+                      ),
                       borderRadius: BorderRadius.circular(999),
                     ),
                   ),
@@ -289,91 +251,152 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
                       Expanded(
                         child: Text(
                           t.translate("diet_manual_entry_title"),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(15),
+                            fontWeight: FontWeight.w700,
+                            height: 25 / 15,
+                            letterSpacing: 0,
+                            color: TaqaUiColors.unnamedColor1c1d17,
                           ),
                         ),
                       ),
                       IconButton(
-                        onPressed: _loading ? null : () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close, color: Colors.white70),
+                        onPressed: _loading
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                        icon: Icon(
+                          Icons.close,
+                          color: TaqaUiColors.unnamedColor1c1d17,
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _mealNameCtrl,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      labelText: t.translate("diet_add_meal_name"),
-                      hintText: t.translate("diet_add_meal_name_hint"),
-                      labelStyle: const TextStyle(color: Colors.white70),
-                      hintStyle: const TextStyle(color: Colors.white38),
-                      filled: true,
-                      fillColor: AppColors.cardDark,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
+                  SizedBox(height: TaqaUiScale.h(16)),
+                  Container(
+                    width: double.infinity,
+                    padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
+                    decoration: BoxDecoration(
+                      color: TaqaUiColors.white,
+                      borderRadius: TaqaUiScale.radius(15),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          t.translate("diet_add_meal_name"),
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(15),
+                            fontWeight: FontWeight.w700,
+                            height: 25 / 15,
+                            letterSpacing: 0,
+                            color: TaqaUiColors.unnamedColor1c1d17,
+                          ),
                         ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
+                        SizedBox(height: TaqaUiScale.h(8)),
+                        TextFormField(
+                          controller: _mealNameCtrl,
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(15),
+                            fontWeight: FontWeight.w400,
+                            height: 21 / 15,
+                            letterSpacing: 0,
+                            color: TaqaUiColors.unnamedColor1c1d17,
+                          ),
+                          decoration: _borderlessFieldDecoration(
+                            hintText: t.translate("diet_add_meal_name_hint"),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  SizedBox(height: TaqaUiScale.h(20)),
                   Row(
                     children: [
                       Expanded(
                         child: Text(
                           t.translate("diet_ingredients_title"),
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            color: Colors.white,
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(15),
                             fontWeight: FontWeight.w700,
+                            height: 25 / 15,
+                            letterSpacing: 0,
+                            color: TaqaUiColors.unnamedColor1c1d17,
                           ),
                         ),
                       ),
-                      OutlinedButton.icon(
-                        onPressed: _loading ? null : _addFromSearch,
-                        icon: const Icon(Icons.search, size: 20),
-                        label: Text(t.translate("diet_manual_prefill_button")),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: BorderSide(
-                            color: const Color(0xFFD4AF37).withValues(alpha: 0.5),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
                       IconButton(
                         tooltip: t.translate("diet_add_ingredient_manual"),
                         onPressed: _loading ? null : _addManualIngredient,
-                        icon: const Icon(Icons.add_circle_outline, color: Colors.white70),
+                        icon: Icon(
+                          Icons.add_circle_outline,
+                          color: TaqaUiColors.unnamedColor1c1d17,
+                        ),
                       ),
                     ],
                   ),
-                  if (_ingredients.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        t.translate("diet_ingredients_empty"),
-                        style: theme.textTheme.bodySmall?.copyWith(color: Colors.white60),
+                  SizedBox(height: TaqaUiScale.h(8)),
+                  InkWell(
+                    borderRadius: TaqaUiScale.radius(15),
+                    onTap: _loading ? null : _addFromSearch,
+                    child: Container(
+                      height: TaqaUiScale.h(39),
+                      padding: TaqaUiScale.symmetric(horizontal: 14),
+                      decoration: BoxDecoration(
+                        color: TaqaUiColors.white,
+                        borderRadius: TaqaUiScale.radius(15),
+                        border: Border.all(
+                          color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                            alpha: 0.10,
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.search,
+                            size: TaqaUiScale.w(18),
+                            color: TaqaUiColors.unnamedColorE3e3e3,
+                          ),
+                          SizedBox(width: TaqaUiScale.w(8)),
+                          Text(
+                            "Search",
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: TaqaUiScale.sp(15),
+                              letterSpacing: 0,
+                              color: TaqaUiColors.unnamedColorE3e3e3,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  const SizedBox(height: 12),
+                  ),
+                  if (_ingredients.isEmpty)
+                    Padding(
+                      padding: EdgeInsets.only(top: TaqaUiScale.h(8)),
+                      child: Text(
+                        t.translate("diet_ingredients_empty"),
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          fontSize: TaqaUiScale.sp(12),
+                          color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                            alpha: 0.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  SizedBox(height: TaqaUiScale.h(12)),
                   Expanded(
                     child: ListView.builder(
                       itemCount: _ingredients.length,
                       itemBuilder: (context, idx) {
                         final row = _ingredients[idx];
                         return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
+                          padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
                           child: _IngredientTile(
                             row: row,
                             onRemove: () => _removeIngredientRow(idx),
@@ -384,23 +407,39 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
                       },
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _loading ? null : _submit,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: const Color(0xFFD4AF37),
-                        foregroundColor: Colors.black,
+                  SizedBox(height: TaqaUiScale.h(20)),
+                  Material(
+                    color: TaqaUiColors.unnamedColorE4e93b,
+                    borderRadius: TaqaUiScale.radius(5),
+                    child: InkWell(
+                      borderRadius: TaqaUiScale.radius(5),
+                      onTap: _loading ? null : _submit,
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: TaqaUiScale.h(45),
+                        child: Center(
+                          child: _loading
+                              ? SizedBox(
+                                  height: TaqaUiScale.h(18),
+                                  width: TaqaUiScale.w(18),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: TaqaUiColors.unnamedColor1c1d17,
+                                  ),
+                                )
+                              : Text(
+                                  t.translate("diet_log").toUpperCase(),
+                                  style: TextStyle(
+                                    fontFamily: TaqaUiFontFamilies.interTight,
+                                    fontSize: TaqaUiScale.sp(10),
+                                    fontWeight: FontWeight.w700,
+                                    height: 12 / 10,
+                                    letterSpacing: 0,
+                                    color: TaqaUiColors.unnamedColor1c1d17,
+                                  ),
+                                ),
+                        ),
                       ),
-                      child: _loading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Text(t.translate("diet_log")),
                     ),
                   ),
                 ],
@@ -411,6 +450,49 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
       ),
     );
   }
+}
+
+TextStyle _hintTextStyle() => TextStyle(
+  fontFamily: TaqaUiFontFamilies.interTight,
+  fontSize: TaqaUiScale.sp(15),
+  fontWeight: FontWeight.w400,
+  height: 21 / 15,
+  letterSpacing: 0,
+  color: TaqaUiColors.unnamedColorE3e3e3,
+);
+
+InputDecoration _borderlessFieldDecoration({String? hintText}) {
+  return InputDecoration(
+    isDense: true,
+    contentPadding: EdgeInsets.zero,
+    hintText: hintText,
+    hintStyle: _hintTextStyle(),
+    border: InputBorder.none,
+    enabledBorder: InputBorder.none,
+    focusedBorder: InputBorder.none,
+    errorBorder: InputBorder.none,
+    disabledBorder: InputBorder.none,
+    focusedErrorBorder: InputBorder.none,
+  );
+}
+
+InputDecoration _underlineFieldDecoration({String? hintText}) {
+  final lineSide = BorderSide(color: TaqaUiColors.unnamedColorE3e3e3);
+  return InputDecoration(
+    isDense: true,
+    contentPadding: EdgeInsets.only(bottom: TaqaUiScale.h(8)),
+    hintText: hintText,
+    hintStyle: _hintTextStyle(),
+    border: UnderlineInputBorder(borderSide: lineSide),
+    enabledBorder: UnderlineInputBorder(borderSide: lineSide),
+    errorBorder: UnderlineInputBorder(borderSide: lineSide),
+    focusedBorder: UnderlineInputBorder(
+      borderSide: BorderSide(color: TaqaUiColors.unnamedColor1c1d17),
+    ),
+    focusedErrorBorder: UnderlineInputBorder(
+      borderSide: BorderSide(color: TaqaUiColors.unnamedColor1c1d17),
+    ),
+  );
 }
 
 class _IngredientTile extends StatelessWidget {
@@ -428,42 +510,35 @@ class _IngredientTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final fieldStyle = TextStyle(
+      fontFamily: TaqaUiFontFamilies.interTight,
+      fontSize: TaqaUiScale.sp(15),
+      fontWeight: FontWeight.w400,
+      height: 21 / 15,
+      letterSpacing: 0,
+      color: TaqaUiColors.unnamedColor1c1d17,
+    );
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(12),
+        color: TaqaUiColors.white,
+        borderRadius: TaqaUiScale.radius(15),
         border: Border.all(
-          color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
+          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.10),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: TextFormField(
                   controller: row.nameCtrl,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: t.translate("diet_ingredient_name"),
-                    labelStyle: const TextStyle(color: Colors.white70),
-                    filled: true,
-                    fillColor: AppColors.black,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(
-                        color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(
-                        color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-                      ),
-                    ),
+                  style: fieldStyle,
+                  decoration: _underlineFieldDecoration(
+                    hintText: t.translate("diet_ingredient_name"),
                   ),
                   validator: (v) {
                     if (v?.trim().isEmpty ?? true) {
@@ -475,178 +550,116 @@ class _IngredientTile extends StatelessWidget {
               ),
               IconButton(
                 onPressed: loading ? null : onRemove,
-                icon: const Icon(Icons.close, color: Colors.white54),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: TextFormField(
-                  controller: row.gramsCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: t.translate("diet_manual_grams"),
-                    hintText: t.translate("diet_manual_grams_optional"),
-                    labelStyle: const TextStyle(color: Colors.white70),
-                    hintStyle: const TextStyle(color: Colors.white38),
-                    filled: true,
-                    fillColor: AppColors.black,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(
-                        color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(
-                        color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-                      ),
-                    ),
-                  ),
-                  validator: (v) {
-                    if (v?.trim().isEmpty ?? true) return null;
-                    final val = double.tryParse(v!.trim());
-                    if (val == null || val < 0) return t.translate("diet_manual_grams_invalid");
-                    return null;
-                  },
+                icon: Icon(
+                  Icons.close,
+                  color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.4),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            t.translate("diet_manual_macros"),
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: Colors.white70,
-              fontWeight: FontWeight.w600,
+          SizedBox(height: TaqaUiScale.h(10)),
+          TextFormField(
+            controller: row.gramsCtrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: fieldStyle,
+            decoration: _underlineFieldDecoration(
+              hintText: t.translate("diet_manual_grams"),
             ),
+            validator: (v) {
+              if (v?.trim().isEmpty ?? true) return null;
+              final val = double.tryParse(v!.trim());
+              if (val == null || val < 0) {
+                return t.translate("diet_manual_grams_invalid");
+              }
+              return null;
+            },
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: TaqaUiScale.h(10)),
           Row(
             children: [
               Expanded(
                 child: TextFormField(
                   controller: row.calCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: t.translate("diet_manual_calories"),
-                    labelStyle: const TextStyle(color: Colors.white70),
-                    filled: true,
-                    fillColor: AppColors.black,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(
-                        color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(
-                        color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-                      ),
-                    ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
+                  style: fieldStyle,
+                  decoration: _underlineFieldDecoration(hintText: "Cals"),
                   validator: (v) {
-                    final val = double.tryParse((v ?? '').trim().replaceAll(',', '.'));
-                    if (val == null || val < 0) return t.translate("diet_manual_calories_invalid");
+                    final val = double.tryParse(
+                      (v ?? '').trim().replaceAll(',', '.'),
+                    );
+                    if (val == null || val < 0) {
+                      return t.translate("diet_manual_calories_invalid");
+                    }
                     return null;
                   },
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: TaqaUiScale.w(16)),
               Expanded(
                 child: TextFormField(
                   controller: row.proteinCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: t.translate("protein"),
-                    labelStyle: const TextStyle(color: Colors.white70),
-                    filled: true,
-                    fillColor: AppColors.black,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(
-                        color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(
-                        color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-                      ),
-                    ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
+                  style: fieldStyle,
+                  decoration: _underlineFieldDecoration(hintText: "Prtn"),
                   validator: (v) {
-                    final val = double.tryParse((v ?? '').trim().replaceAll(',', '.'));
-                    if (val == null || val < 0) return t.translate("diet_manual_macro_invalid");
+                    final val = double.tryParse(
+                      (v ?? '').trim().replaceAll(',', '.'),
+                    );
+                    if (val == null || val < 0) {
+                      return t.translate("diet_manual_macro_invalid");
+                    }
                     return null;
                   },
                 ),
               ),
-              const SizedBox(width: 8),
+            ],
+          ),
+          SizedBox(height: TaqaUiScale.h(10)),
+          Row(
+            children: [
               Expanded(
                 child: TextFormField(
                   controller: row.carbsCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: t.translate("diet_carbs"),
-                    labelStyle: const TextStyle(color: Colors.white70),
-                    filled: true,
-                    fillColor: AppColors.black,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(
-                        color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(
-                        color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-                      ),
-                    ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  style: fieldStyle,
+                  decoration: _underlineFieldDecoration(
+                    hintText: t.translate("diet_carbs"),
                   ),
                   validator: (v) {
-                    final val = double.tryParse((v ?? '').trim().replaceAll(',', '.'));
-                    if (val == null || val < 0) return t.translate("diet_manual_macro_invalid");
+                    final val = double.tryParse(
+                      (v ?? '').trim().replaceAll(',', '.'),
+                    );
+                    if (val == null || val < 0) {
+                      return t.translate("diet_manual_macro_invalid");
+                    }
                     return null;
                   },
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: TaqaUiScale.w(16)),
               Expanded(
                 child: TextFormField(
                   controller: row.fatCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: t.translate("diet_fat"),
-                    labelStyle: const TextStyle(color: Colors.white70),
-                    filled: true,
-                    fillColor: AppColors.black,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(
-                        color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(
-                        color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-                      ),
-                    ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  style: fieldStyle,
+                  decoration: _underlineFieldDecoration(
+                    hintText: t.translate("diet_fat"),
                   ),
                   validator: (v) {
-                    final val = double.tryParse((v ?? '').trim().replaceAll(',', '.'));
-                    if (val == null || val < 0) return t.translate("diet_manual_macro_invalid");
+                    final val = double.tryParse(
+                      (v ?? '').trim().replaceAll(',', '.'),
+                    );
+                    if (val == null || val < 0) {
+                      return t.translate("diet_manual_macro_invalid");
+                    }
                     return null;
                   },
                 ),
@@ -673,16 +686,15 @@ class _IngredientRow {
     double protein = 0,
     double carbs = 0,
     double fat = 0,
-    int? foodId,
-  })  : nameCtrl = TextEditingController(text: name),
-        gramsCtrl = TextEditingController(
-          text: grams != null && grams > 0 ? grams.toString() : '',
-        ),
-        calCtrl = TextEditingController(text: _numToText(calories)),
-        proteinCtrl = TextEditingController(text: _numToText(protein)),
-        carbsCtrl = TextEditingController(text: _numToText(carbs)),
-        fatCtrl = TextEditingController(text: _numToText(fat)),
-        foodId = foodId;
+    this.foodId,
+  }) : nameCtrl = TextEditingController(text: name),
+       gramsCtrl = TextEditingController(
+         text: grams != null && grams > 0 ? grams.toString() : '',
+       ),
+       calCtrl = TextEditingController(text: _numToText(calories)),
+       proteinCtrl = TextEditingController(text: _numToText(protein)),
+       carbsCtrl = TextEditingController(text: _numToText(carbs)),
+       fatCtrl = TextEditingController(text: _numToText(fat));
 
   final TextEditingController nameCtrl;
   final TextEditingController gramsCtrl;

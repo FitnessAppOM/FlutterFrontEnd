@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
+import '../TaqaUI/components/taqa_empty_card.dart';
 import '../TaqaUI/components/taqa_steps_ui.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../core/account_storage.dart';
@@ -297,7 +298,11 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                       child: CircularProgressIndicator(color: AppColors.accent),
                     )
                   : !_daily.values.any((v) => v > 0)
-                  ? _noDataCard(theme)
+                  ? const TaqaEmptyCard(
+                      title: "No steps data",
+                      subtitle: "No records in this range",
+                      icon: Icons.directions_walk_outlined,
+                    )
                   : bars,
             ),
           ],
@@ -323,7 +328,11 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
     int total,
   ) {
     if (!_daily.values.any((v) => v > 0)) {
-      return _noDataCard(theme);
+      return const TaqaEmptyCard(
+        title: "No steps data",
+        subtitle: "No records in this range",
+        icon: Icons.directions_walk_outlined,
+      );
     }
 
     final entries = _prepareEntries();
@@ -545,25 +554,6 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
       if (!mounted) return;
       setState(() => _selectedBarIndex = null);
     });
-  }
-
-  Widget _noDataCard(ThemeData theme) {
-    return Container(
-      height: 220,
-      padding: const EdgeInsets.all(16),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: TaqaUiColors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Text(
-        AppLocalizations.of(context).translate("no_steps_range"),
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: TaqaUiColors.unnamedColor1c1d17,
-        ),
-        textAlign: TextAlign.center,
-      ),
-    );
   }
 
   String _rangeLabel(String Function(String) t) {

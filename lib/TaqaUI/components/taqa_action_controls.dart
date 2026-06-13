@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../Typography/taqa_ui_typography.dart';
+import '../styles/taqa_ui_scale.dart';
 
 class TaqaSheetActionButton extends StatelessWidget {
   const TaqaSheetActionButton({
@@ -59,14 +60,14 @@ class TaqaSegmentTabButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 52,
+      height: TaqaUiScale.h(52),
       child: ElevatedButton(
         onPressed: onTap,
         style: ElevatedButton.styleFrom(
           elevation: 0,
           backgroundColor: active ? const Color(0xFFDDE530) : Colors.white,
           foregroundColor: const Color(0xFF1C1D17),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+          shape: RoundedRectangleBorder(borderRadius: TaqaUiScale.radius(5)),
           side: active
               ? BorderSide.none
               : BorderSide(
@@ -76,11 +77,11 @@ class TaqaSegmentTabButton extends StatelessWidget {
         child: Text(
           label.toUpperCase(),
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: 10,
+            fontSize: TaqaUiScale.sp(10),
             fontWeight: FontWeight.w600,
-            color: Color(0xFF1C1D17),
+            color: const Color(0xFF1C1D17),
             height: 1.2,
             letterSpacing: 0,
           ),

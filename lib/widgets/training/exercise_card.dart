@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_steps_ui.dart';
+import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 import '../../services/training/training_service.dart';
 import '../../services/training/training_reset_coordinator.dart';
@@ -16,6 +18,7 @@ class ExerciseCard extends StatelessWidget {
   final bool forceCompleted;
   final bool? completedOverride;
   final bool showReplace;
+  final bool showWeight;
 
   const ExerciseCard({
     super.key,
@@ -27,6 +30,7 @@ class ExerciseCard extends StatelessWidget {
     this.forceCompleted = false,
     this.completedOverride,
     this.showReplace = true,
+    this.showWeight = true,
   });
 
   Map<String, dynamic>? _extractCompliance(dynamic value) {
@@ -116,9 +120,10 @@ class ExerciseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const previewWidth = 86.0;
-    const previewHeight = 78.0;
-    const cardPadding = 8.0;
+    final previewWidth = TaqaUiScale.w(70);
+    final previewHeight = TaqaUiScale.h(70);
+    final cardPadding = TaqaUiScale.insetsLTRB(14, 14, 14, 14);
+    final cardHeight = previewHeight + cardPadding.vertical;
 
     String _lower(dynamic v) => (v ?? '').toString().trim().toLowerCase();
     final category = _lower(exercise['category']);
@@ -277,12 +282,12 @@ class ExerciseCard extends StatelessWidget {
         : null;
     final String rirLabel = overrideRir ?? exercise['rir'].toString();
     final String? weightLabel = _formatWeightLabel(_resolvedWeight(exercise));
-    final metaTags = <String>[];
+    final metaTags = <(IconData, String)>[];
     if (!isCardio) {
-      metaTags.add("$setsLabel x $repsLabel");
-      metaTags.add("RIR $rirLabel");
-      if (weightLabel != null) {
-        metaTags.add(weightLabel);
+      metaTags.add((Icons.repeat, "$setsLabel x $repsLabel"));
+      metaTags.add((Icons.speed, "RIR $rirLabel"));
+      if (showWeight && weightLabel != null) {
+        metaTags.add((Icons.fitness_center, weightLabel));
       }
     }
 
@@ -328,39 +333,21 @@ class ExerciseCard extends StatelessWidget {
         ),
       ),
     );
-    final replaceChip = GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: disabled ? null : onReplace,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(7),
-          border: Border.all(
-            color: const Color(0xFF1C1D17).withOpacity(disabled ? 0.2 : 0.4),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.swap_horiz,
-              size: 14,
-              color: const Color(0xFF1C1D17).withOpacity(disabled ? 0.4 : 1),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              "REPLACE",
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF1C1D17).withOpacity(disabled ? 0.4 : 1),
-                fontSize: 10,
-                letterSpacing: 0.2,
-              ),
-            ),
-          ],
-        ),
+    final replaceChip = TaqaTagButton(
+      icon: Icons.swap_horiz,
+      label: "REPLACE",
+      onTap: disabled ? () {} : onReplace,
+    );
+
+    final previewDpr = MediaQuery.of(context).devicePixelRatio;
+    final previewCacheWidth = (previewWidth * previewDpr).round();
+    final previewCacheHeight = (previewHeight * previewDpr).round();
+    final previewUrl = TrainingService.animationImageUrl(
+      resolvedCardioAnimationUrl(
+        exercise['exercise_name']?.toString(),
+        exercise['animation_url']?.toString(),
       ),
+      null,
     );
 
     return Opacity(
@@ -371,13 +358,13 @@ class ExerciseCard extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             onTap: disabled ? null : onTap,
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: TaqaUiScale.radius(15),
             child: Stack(
               children: [
                 Ink(
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(15),
+                    borderRadius: TaqaUiScale.radius(15),
                     border: Border.all(color: borderColor),
                     boxShadow: [
                       BoxShadow(
@@ -388,12 +375,12 @@ class ExerciseCard extends StatelessWidget {
                     ],
                   ),
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      minHeight: previewHeight + (cardPadding * 2),
-                      maxHeight: previewHeight + (cardPadding * 2),
+                    constraints: BoxConstraints(
+                      minHeight: cardHeight,
+                      maxHeight: cardHeight,
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(cardPadding),
+                      padding: cardPadding,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -401,45 +388,28 @@ class ExerciseCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: TaqaUiScale.radius(5),
                                 child: Container(
                                   width: previewWidth,
                                   height: previewHeight,
-                                  color: const Color(0xFFE3E3E3),
-                                  child: () {
-                                    final dpr = MediaQuery.of(
-                                      context,
-                                    ).devicePixelRatio;
-                                    final cacheW = (previewWidth * dpr).round();
-                                    final cacheH = (previewHeight * dpr)
-                                        .round();
-                                    final url =
-                                        TrainingService.animationImageUrl(
-                                          resolvedCardioAnimationUrl(
-                                            exercise['exercise_name']
-                                                ?.toString(),
-                                            exercise['animation_url']
-                                                ?.toString(),
-                                          ),
-                                          null,
-                                        );
-                                    if (url.isEmpty) {
-                                      return const Icon(
-                                        Icons.fitness_center,
-                                        size: 20,
-                                        color: Color(0x661C1D17),
-                                      );
-                                    }
-                                    return _ExerciseGifThumb(
-                                      key: ValueKey(url),
-                                      url: url,
-                                      cacheWidth: cacheW,
-                                      cacheHeight: cacheH,
-                                    );
-                                  }(),
+                                  color: previewUrl.isEmpty
+                                      ? Colors.white
+                                      : const Color(0xFF1C1D17),
+                                  child: previewUrl.isEmpty
+                                      ? const Icon(
+                                          Icons.fitness_center,
+                                          size: 20,
+                                          color: Color(0x661C1D17),
+                                        )
+                                      : _ExerciseGifThumb(
+                                          key: ValueKey(previewUrl),
+                                          url: previewUrl,
+                                          cacheWidth: previewCacheWidth,
+                                          cacheHeight: previewCacheHeight,
+                                        ),
                                 ),
                               ),
-                              const SizedBox(width: 12),
+                              SizedBox(width: TaqaUiScale.w(15)),
                               Expanded(
                                 child: SizedBox(
                                   height: previewHeight,
@@ -460,17 +430,19 @@ class ExerciseCard extends StatelessWidget {
                                               ),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontFamily: TaqaUiFontFamilies
                                                     .interTight,
                                                 fontWeight: FontWeight.w700,
                                                 color: TaqaUiColors
                                                     .unnamedColor1c1d17,
-                                                fontSize: 15,
+                                                fontSize: TaqaUiScale.sp(15),
+                                                height: 25 / 15,
+                                                letterSpacing: 0,
                                               ),
                                             ),
                                           ),
-                                          const SizedBox(width: 6),
+                                          SizedBox(width: TaqaUiScale.w(6)),
                                           if (!isCardio && showProgress)
                                             progressChip,
                                         ],
@@ -484,21 +456,27 @@ class ExerciseCard extends StatelessWidget {
                                           children: [
                                             Icon(
                                               Icons.fiber_manual_record,
-                                              size: 10,
+                                              size: TaqaUiScale.w(10),
                                               color: cs.secondary.withOpacity(
                                                 0.85,
                                               ),
                                             ),
-                                            const SizedBox(width: 6),
+                                            SizedBox(width: TaqaUiScale.w(6)),
                                             Expanded(
                                               child: Text(
-                                                exercise['primary_muscles'],
+                                                _titleCase(
+                                                  exercise['primary_muscles']
+                                                      .toString(),
+                                                ),
                                                 style: TextStyle(
-                                                  color: const Color(
-                                                    0xFF1C1D17,
-                                                  ).withOpacity(0.85),
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w600,
+                                                  fontFamily: TaqaUiFontFamilies
+                                                      .interTight,
+                                                  fontSize: TaqaUiScale.sp(15),
+                                                  fontWeight: FontWeight.w400,
+                                                  height: 21 / 15,
+                                                  letterSpacing: 0,
+                                                  color: TaqaUiColors
+                                                      .unnamedColor1c1d17,
                                                 ),
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
@@ -506,7 +484,7 @@ class ExerciseCard extends StatelessWidget {
                                             ),
                                           ],
                                         ),
-                                        const SizedBox(height: 2),
+                                        SizedBox(height: TaqaUiScale.h(2)),
                                       ],
                                       if (!isCardio && metaTags.isNotEmpty)
                                         Row(
@@ -522,13 +500,17 @@ class ExerciseCard extends StatelessWidget {
                                                       i < metaTags.length;
                                                       i++
                                                     ) ...[
-                                                      _MetaTag(
-                                                        label: metaTags[i],
+                                                      TaqaTagButton(
+                                                        icon: metaTags[i].$1,
+                                                        label: metaTags[i].$2,
+                                                        onTap: () {},
                                                       ),
                                                       if (i !=
                                                           metaTags.length - 1)
-                                                        const SizedBox(
-                                                          width: 6,
+                                                        SizedBox(
+                                                          width: TaqaUiScale.w(
+                                                            6,
+                                                          ),
                                                         ),
                                                     ],
                                                   ],
@@ -536,7 +518,7 @@ class ExerciseCard extends StatelessWidget {
                                               ),
                                             ),
                                             if (!completed && showReplace)
-                                              const SizedBox(width: 8),
+                                              SizedBox(width: TaqaUiScale.w(8)),
                                             if (!completed && showReplace)
                                               replaceChip,
                                           ],
@@ -546,11 +528,14 @@ class ExerciseCard extends StatelessWidget {
                                 ),
                               ),
                               if (showDoneIcon)
-                                const Padding(
-                                  padding: EdgeInsets.only(left: 8, right: 2),
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: 8,
+                                    right: 2,
+                                  ),
                                   child: SizedBox(
                                     height: previewHeight,
-                                    child: Center(
+                                    child: const Center(
                                       child: Icon(
                                         Icons.check_circle,
                                         size: 16,
@@ -569,33 +554,6 @@ class ExerciseCard extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MetaTag extends StatelessWidget {
-  const _MetaTag({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(7),
-        border: Border.all(color: const Color(0x4D1C1D17)),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Color(0xFF1C1D17),
-          fontWeight: FontWeight.w600,
-          fontSize: 10,
-          letterSpacing: 0.2,
         ),
       ),
     );

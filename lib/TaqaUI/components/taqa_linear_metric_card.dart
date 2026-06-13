@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../Typography/taqa_ui_typography.dart';
+import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
 
 class TaqaLinearMetricCard extends StatelessWidget {
@@ -34,18 +35,15 @@ class TaqaLinearMetricCard extends StatelessWidget {
     final textColor = lightSurface
         ? TaqaUiColors.unnamedColor1c1d17
         : TaqaUiColors.white;
-    final baseBarColor = lightSurface
-        ? TaqaUiColors.lightGray
-        : TaqaUiColors.graphite;
     final valueBarColor = lightSurface
         ? TaqaUiColors.charcoal
         : TaqaUiColors.lightGray;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
       decoration: BoxDecoration(
         color: surfaceColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: TaqaUiScale.radius(15),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -54,17 +52,18 @@ class TaqaLinearMetricCard extends StatelessWidget {
             title.toUpperCase(),
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-              fontSize: 8,
+              fontSize: TaqaUiScale.sp(8),
               fontWeight: FontWeight.w400,
               color: textColor,
-              letterSpacing: 0.2,
+              letterSpacing: 0,
+              height: 10 / 8,
             ),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: TaqaUiScale.h(20)),
           if (loading)
             SizedBox(
-              width: 16,
-              height: 16,
+              width: TaqaUiScale.w(16),
+              height: TaqaUiScale.h(16),
               child: CircularProgressIndicator(
                 strokeWidth: 2,
                 color: textColor,
@@ -75,32 +74,32 @@ class TaqaLinearMetricCard extends StatelessWidget {
               valueText,
               style: TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: 25,
+                fontSize: TaqaUiScale.sp(25),
                 fontWeight: FontWeight.w700,
                 color: textColor,
-                height: 1.0,
+                height: 1,
               ),
             ),
-          const SizedBox(height: 4),
+          SizedBox(height: TaqaUiScale.h(5)),
           Text(
             subtitle,
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
-              fontSize: 8,
+              fontSize: TaqaUiScale.sp(8),
               fontWeight: FontWeight.w400,
               color: textColor,
               letterSpacing: 0,
-              height: 1.3,
+              height: 13 / 8,
             ),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: TaqaUiScale.h(10)),
           if (showBar)
             Container(
-              height: 20,
+              height: TaqaUiScale.h(17),
               width: double.infinity,
               decoration: BoxDecoration(
-                color: baseBarColor,
-                borderRadius: BorderRadius.circular(999),
+                color: TaqaUiColors.unnamedColorE3e3e3,
+                borderRadius: TaqaUiScale.radius(9),
               ),
               child: Align(
                 alignment: Alignment.centerLeft,
@@ -109,14 +108,14 @@ class TaqaLinearMetricCard extends StatelessWidget {
                   child: Container(
                     decoration: BoxDecoration(
                       color: valueBarColor,
-                      borderRadius: BorderRadius.circular(999),
+                      borderRadius: TaqaUiScale.radius(9),
                     ),
                   ),
                 ),
               ),
             )
           else if (keepBarSpaceWhenHidden)
-            const SizedBox(height: 20, width: double.infinity),
+            SizedBox(height: TaqaUiScale.h(17), width: double.infinity),
         ],
       ),
     );

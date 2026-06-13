@@ -86,7 +86,11 @@ class TaqaTagButton extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(icon, size: TaqaUiScale.w(10), color: TaqaUiColors.unnamedColor1c1d17),
+            Icon(
+              icon,
+              size: TaqaUiScale.w(10),
+              color: TaqaUiColors.unnamedColor1c1d17,
+            ),
             SizedBox(width: TaqaUiScale.w(4)),
             Text(
               label.toUpperCase(),

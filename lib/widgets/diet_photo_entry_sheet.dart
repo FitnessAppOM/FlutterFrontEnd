@@ -5,7 +5,9 @@ import 'package:image_picker/image_picker.dart';
 
 import '../localization/app_localizations.dart';
 import '../services/diet/diet_service.dart';
-import '../theme/app_theme.dart';
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 
 class DietPhotoEntrySheet extends StatefulWidget {
   const DietPhotoEntrySheet({
@@ -130,9 +132,9 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
           : null;
 
       if (widget.rootContext.mounted) {
-        ScaffoldMessenger.of(widget.rootContext).showSnackBar(
-          SnackBar(content: Text(t.translate("diet_item_added"))),
-        );
+        ScaffoldMessenger.of(
+          widget.rootContext,
+        ).showSnackBar(SnackBar(content: Text(t.translate("diet_item_added"))));
       }
 
       // Capture before closing sheet so we don't use widget/context after pop
@@ -146,7 +148,9 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
       if (!mounted) return;
       if (widget.rootContext.mounted) {
         ScaffoldMessenger.of(widget.rootContext).showSnackBar(
-          SnackBar(content: Text("${t.translate("diet_failed_to_add_item")}: $e")),
+          SnackBar(
+            content: Text("${t.translate("diet_failed_to_add_item")}: $e"),
+          ),
         );
       }
     } finally {
@@ -157,7 +161,6 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
-    final theme = Theme.of(context);
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
     return SafeArea(
@@ -168,45 +171,50 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
         child: SizedBox(
           height: MediaQuery.sizeOf(context).height * 0.88,
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: TaqaUiScale.insetsLTRB(16, 12, 16, 16),
             child: Column(
               children: [
                 Container(
                   height: 5,
                   width: 44,
-                  margin: const EdgeInsets.only(bottom: 16),
+                  margin: EdgeInsets.only(bottom: TaqaUiScale.h(16)),
                   decoration: BoxDecoration(
-                    color: Colors.white24,
+                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                      alpha: 0.12,
+                    ),
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
-                Row(
+                Stack(
+                  alignment: Alignment.center,
                   children: [
-                    Expanded(
-                      child: Text(
-                        t.translate("diet_photo_title"),
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
+                    Text(
+                      t.translate("diet_photo_title"),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(15),
+                        fontWeight: FontWeight.w700,
+                        height: 25 / 15,
+                        letterSpacing: 0,
+                        color: TaqaUiColors.unnamedColor1c1d17,
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: IconButton(
+                        onPressed: _loading
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                        icon: Icon(
+                          Icons.close,
+                          color: TaqaUiColors.unnamedColor1c1d17,
                         ),
                       ),
                     ),
-                    IconButton(
-                      onPressed: _loading ? null : () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close, color: Colors.white70),
-                    ),
                   ],
                 ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    widget.mealTitle,
-                    style: theme.textTheme.bodySmall?.copyWith(color: Colors.white60),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(height: 16),
+                SizedBox(height: TaqaUiScale.h(12)),
                 Expanded(
                   child: SingleChildScrollView(
                     child: Column(
@@ -215,36 +223,30 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
                         Row(
                           children: [
                             Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: _loading ? null : () => _pick(ImageSource.camera),
-                                icon: const Icon(Icons.photo_camera),
-                                label: Text(t.translate("diet_photo_take")),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  side: BorderSide(color: Colors.white24.withValues(alpha: 0.8)),
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                ),
+                              child: _PhotoSourceButton(
+                                icon: Icons.photo_camera,
+                                label: t.translate("diet_photo_take"),
+                                onTap: _loading
+                                    ? null
+                                    : () => _pick(ImageSource.camera),
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            SizedBox(width: TaqaUiScale.w(12)),
                             Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: _loading ? null : () => _pick(ImageSource.gallery),
-                                icon: const Icon(Icons.photo_library),
-                                label: Text(t.translate("diet_photo_pick")),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  side: BorderSide(color: Colors.white24.withValues(alpha: 0.8)),
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                ),
+                              child: _PhotoSourceButton(
+                                icon: Icons.photo_library,
+                                label: t.translate("diet_photo_pick"),
+                                onTap: _loading
+                                    ? null
+                                    : () => _pick(ImageSource.gallery),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 14),
                         if (_photoBytes != null) ...[
+                          SizedBox(height: TaqaUiScale.h(12)),
                           ClipRRect(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: TaqaUiScale.radius(15),
                             child: AspectRatio(
                               aspectRatio: 16 / 10,
                               child: Image.memory(
@@ -253,60 +255,108 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 14),
                         ],
-                        TextField(
-                          controller: _descCtrl,
-                          enabled: !_loading,
-                          maxLines: 3,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            labelText: t.translate("diet_photo_description_optional"),
-                            labelStyle: const TextStyle(color: Colors.white70),
-                            hintText: t.translate("diet_photo_description_hint"),
-                            hintStyle: const TextStyle(color: Colors.white38),
-                            filled: true,
-                            fillColor: AppColors.cardDark,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
+                        SizedBox(height: TaqaUiScale.h(12)),
+                        Container(
+                          width: double.infinity,
+                          padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
+                          decoration: BoxDecoration(
+                            color: TaqaUiColors.white,
+                            borderRadius: TaqaUiScale.radius(15),
+                            border: Border.all(
+                              color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                                alpha: 0.10,
                               ),
                             ),
                           ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                t.translate("diet_photo_description_optional"),
+                                style: TextStyle(
+                                  fontFamily: TaqaUiFontFamilies.interTight,
+                                  fontSize: TaqaUiScale.sp(15),
+                                  fontWeight: FontWeight.w700,
+                                  height: 25 / 15,
+                                  letterSpacing: 0,
+                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                ),
+                              ),
+                              SizedBox(height: TaqaUiScale.h(8)),
+                              TextField(
+                                controller: _descCtrl,
+                                enabled: !_loading,
+                                maxLines: 3,
+                                style: TextStyle(
+                                  fontFamily: TaqaUiFontFamilies.interTight,
+                                  fontSize: TaqaUiScale.sp(15),
+                                  fontWeight: FontWeight.w400,
+                                  height: 21 / 15,
+                                  letterSpacing: 0,
+                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                ),
+                                decoration: _borderlessFieldDecoration(
+                                  hintText: t.translate(
+                                    "diet_photo_description_hint",
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 10),
+                        SizedBox(height: TaqaUiScale.h(10)),
                         Text(
                           t.translate("diet_photo_note"),
-                          style: const TextStyle(color: Colors.white54, fontSize: 12),
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(12),
+                            fontWeight: FontWeight.w400,
+                            letterSpacing: 0,
+                            color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                              alpha: 0.5,
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: (_loading || _photoBytes == null) ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: const Color(0xFFD4AF37),
-                      foregroundColor: Colors.black,
+                SizedBox(height: TaqaUiScale.h(16)),
+                Material(
+                  color: _photoBytes == null
+                      ? TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.12)
+                      : TaqaUiColors.unnamedColorE4e93b,
+                  borderRadius: TaqaUiScale.radius(5),
+                  child: InkWell(
+                    borderRadius: TaqaUiScale.radius(5),
+                    onTap: (_loading || _photoBytes == null) ? null : _submit,
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: TaqaUiScale.h(45),
+                      child: Center(
+                        child: _loading
+                            ? SizedBox(
+                                height: TaqaUiScale.h(18),
+                                width: TaqaUiScale.w(18),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                ),
+                              )
+                            : Text(
+                                t.translate("diet_log").toUpperCase(),
+                                style: TextStyle(
+                                  fontFamily: TaqaUiFontFamilies.interTight,
+                                  fontSize: TaqaUiScale.sp(10),
+                                  fontWeight: FontWeight.w700,
+                                  height: 12 / 10,
+                                  letterSpacing: 0,
+                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                ),
+                              ),
+                      ),
                     ),
-                    child: _loading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(t.translate("diet_log")),
                   ),
                 ),
               ],
@@ -318,3 +368,77 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
   }
 }
 
+InputDecoration _borderlessFieldDecoration({String? hintText}) {
+  return InputDecoration(
+    isDense: true,
+    contentPadding: EdgeInsets.zero,
+    hintText: hintText,
+    hintStyle: TextStyle(
+      fontFamily: TaqaUiFontFamilies.interTight,
+      fontSize: TaqaUiScale.sp(15),
+      fontWeight: FontWeight.w400,
+      height: 21 / 15,
+      letterSpacing: 0,
+      color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.3),
+    ),
+    border: InputBorder.none,
+    enabledBorder: InputBorder.none,
+    focusedBorder: InputBorder.none,
+    errorBorder: InputBorder.none,
+    disabledBorder: InputBorder.none,
+    focusedErrorBorder: InputBorder.none,
+  );
+}
+
+class _PhotoSourceButton extends StatelessWidget {
+  const _PhotoSourceButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: TaqaUiScale.radius(15),
+      onTap: onTap,
+      child: Container(
+        height: TaqaUiScale.h(45),
+        decoration: BoxDecoration(
+          color: TaqaUiColors.white,
+          borderRadius: TaqaUiScale.radius(15),
+          border: Border.all(
+            color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.10),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: TaqaUiScale.w(18),
+              color: TaqaUiColors.unnamedColor1c1d17,
+            ),
+            SizedBox(width: TaqaUiScale.w(8)),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(13),
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0,
+                color: TaqaUiColors.unnamedColor1c1d17,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

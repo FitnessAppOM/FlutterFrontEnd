@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_action_controls.dart';
+import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
+import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 import '../../services/training/training_service.dart';
 import '../../services/training/exercise_action_queue.dart';
 import '../../widgets/app_toast.dart';
@@ -434,14 +437,16 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
                     color: Colors.white,
                   ),
                 ),
-                const Expanded(
+                Expanded(
                   child: Text(
                     "Replace Exercise",
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontFamily: 'InterTight',
-                      fontSize: 15,
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(15),
                       fontWeight: FontWeight.w700,
+                      height: 25 / 15,
+                      letterSpacing: 0,
                       color: Colors.white,
                     ),
                   ),
@@ -653,6 +658,19 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
           );
   }
 
+  String _titleCase(String input) {
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) return trimmed;
+    return trimmed
+        .split(RegExp(r'\s+'))
+        .map((word) {
+          if (word.isEmpty) return word;
+          final lower = word.toLowerCase();
+          return "${lower[0].toUpperCase()}${lower.substring(1)}";
+        })
+        .join(' ');
+  }
+
   Widget _exerciseCard({
     required String title,
     required String animationUrl,
@@ -661,63 +679,85 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
     required VoidCallback? onTap,
   }) {
     final dpr = MediaQuery.of(context).devicePixelRatio;
+    final previewWidth = TaqaUiScale.w(70);
+    final previewHeight = TaqaUiScale.h(70);
+    final cardPadding = TaqaUiScale.insetsLTRB(14, 14, 14, 14);
+    final cardHeight = previewHeight + cardPadding.vertical;
     final src = TrainingService.animationImageUrl(animationUrl, null);
     final imageProvider = src.isEmpty
         ? null
         : TrainingService.gifProvider(
             src,
-            cacheWidth: (92 * dpr).round(),
-            cacheHeight: (92 * dpr).round(),
+            cacheWidth: (previewWidth * dpr).round(),
+            cacheHeight: (previewHeight * dpr).round(),
           );
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: enabled ? onTap : null,
-      child: Container(
-        height: 108,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF45474A),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                width: 76,
-                height: 76,
-                color: Colors.white.withValues(alpha: 0.88),
-                child: imageProvider == null
-                    ? const SizedBox.shrink()
-                    : Image(image: imageProvider, fit: BoxFit.cover),
-              ),
+    return Opacity(
+      opacity: enabled ? 1 : 0.45,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: TaqaUiScale.radius(15),
+          onTap: enabled ? onTap : null,
+          child: Ink(
+            decoration: BoxDecoration(
+              color: TaqaUiColors.graphite,
+              borderRadius: TaqaUiScale.radius(15),
             ),
-            const SizedBox(width: 14),
-            Expanded(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: cardHeight,
+                maxHeight: cardHeight,
+              ),
               child: Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontFamily: 'InterTight',
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    height: 1.2,
-                  ),
+                padding: cardPadding,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClipRRect(
+                      borderRadius: TaqaUiScale.radius(5),
+                      child: Container(
+                        width: previewWidth,
+                        height: previewHeight,
+                        color: Colors.white,
+                        child: imageProvider == null
+                            ? const SizedBox.shrink()
+                            : Image(image: imageProvider, fit: BoxFit.cover),
+                      ),
+                    ),
+                    SizedBox(width: TaqaUiScale.w(15)),
+                    Expanded(
+                      child: SizedBox(
+                        height: previewHeight,
+                        child: Align(
+                          alignment: Alignment.topLeft,
+                          child: Text(
+                            _titleCase(title),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.left,
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontWeight: FontWeight.w700,
+                              color: TaqaUiColors.white,
+                              fontSize: TaqaUiScale.sp(15),
+                              height: 25 / 15,
+                              letterSpacing: 0,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (loading)
+                      SizedBox(
+                        width: TaqaUiScale.w(18),
+                        height: TaqaUiScale.w(18),
+                        child: const CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                  ],
                 ),
               ),
             ),
-            if (loading)
-              const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-          ],
+          ),
         ),
       ),
     );

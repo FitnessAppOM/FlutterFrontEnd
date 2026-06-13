@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
+import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 import '../../services/training/training_service.dart';
 
 class ExerciseInstructionDialog extends StatelessWidget {
@@ -81,35 +83,37 @@ class ExerciseInstructionDialog extends StatelessWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 2),
+              padding: TaqaUiScale.insetsLTRB(8, 8, 8, 2),
               child: Row(
                 children: [
                   IconButton(
                     onPressed: () => Navigator.of(context).maybePop(),
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.arrow_back_ios_new_rounded,
                       color: Colors.white,
-                      size: 20,
+                      size: TaqaUiScale.sp(20),
                     ),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       "How To",
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontFamily: 'InterTight',
-                        fontSize: 15,
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(15),
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
+                        height: 25 / 15,
+                        letterSpacing: 0,
                       ),
                     ),
                   ),
                   IconButton(
                     onPressed: () => Navigator.of(context).maybePop(),
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.close,
                       color: Colors.white,
-                      size: 24,
+                      size: TaqaUiScale.sp(24),
                     ),
                   ),
                 ],
@@ -117,47 +121,48 @@ class ExerciseInstructionDialog extends StatelessWidget {
             ),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
+                padding: TaqaUiScale.insetsLTRB(17, 14, 17, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Center(
                       child: Container(
-                        width: phWidth.clamp(170.0, 260.0),
-                        height: phWidth.clamp(170.0, 260.0),
+                        width: TaqaUiScale.w(200),
+                        height: TaqaUiScale.h(200),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.86),
-                          borderRadius: BorderRadius.circular(8),
+                          color: Colors.white,
+                          borderRadius: TaqaUiScale.radius(5),
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: TaqaUiScale.radius(5),
                           child: imageProvider == null
                               ? const SizedBox.shrink()
                               : Image(image: imageProvider, fit: BoxFit.cover),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    SizedBox(height: TaqaUiScale.h(20)),
                     Text(
                       exName,
-                      style: const TextStyle(
-                        fontFamily: 'InterTight',
-                        fontSize: 15,
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(15),
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
-                        height: 1.2,
+                        height: 25 / 15,
+                        letterSpacing: 0,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: TaqaUiScale.h(10)),
                     if (rows.isEmpty)
-                      const Text(
+                      Text(
                         "No instructions available.",
                         style: TextStyle(
-                          fontFamily: 'InterTight',
-                          fontSize: 12,
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          fontSize: TaqaUiScale.sp(10),
                           fontWeight: FontWeight.w400,
                           color: Colors.white,
-                          height: 1.45,
+                          height: 13 / 10,
                         ),
                       )
                     else
@@ -167,32 +172,32 @@ class ExerciseInstructionDialog extends StatelessWidget {
                             .padLeft(2, '0');
                         final text = row['text']?.toString() ?? '';
                         return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
+                          padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               SizedBox(
-                                width: 34,
+                                width: TaqaUiScale.w(34),
                                 child: Text(
                                   "$idx.",
-                                  style: const TextStyle(
-                                    fontFamily: 'InterTight',
-                                    fontSize: 11,
+                                  style: TextStyle(
+                                    fontFamily: TaqaUiFontFamilies.interTight,
+                                    fontSize: TaqaUiScale.sp(10),
                                     fontWeight: FontWeight.w700,
                                     color: Colors.white,
-                                    height: 1.45,
+                                    height: 13 / 10,
                                   ),
                                 ),
                               ),
                               Expanded(
                                 child: Text(
                                   text,
-                                  style: const TextStyle(
-                                    fontFamily: 'InterTight',
-                                    fontSize: 12,
+                                  style: TextStyle(
+                                    fontFamily: TaqaUiFontFamilies.interTight,
+                                    fontSize: TaqaUiScale.sp(10),
                                     fontWeight: FontWeight.w400,
                                     color: Colors.white,
-                                    height: 1.45,
+                                    height: 13 / 10,
                                   ),
                                 ),
                               ),
