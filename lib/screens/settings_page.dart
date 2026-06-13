@@ -6,7 +6,6 @@ import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:http/http.dart' as http;
 import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
-import '../widgets/lang_button.dart';
 import '../core/locale_controller.dart';
 import 'ForgetPassword/forgot_password_page.dart';
 import '../services/auth/profile_service.dart';
@@ -29,6 +28,10 @@ import '../screens/welcome.dart';
 import '../screens/account_restore_page.dart';
 import '../screens/coach_page.dart';
 import '../screens/expert_dashboard_page.dart';
+import '../TaqaUI/components/taqa_value_dialog.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -38,9 +41,7 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  final _usernameController = TextEditingController();
   final RegExp _usernameRegex = RegExp(r'^[A-Za-z0-9._-]+$');
-  bool _updatingUsername = false;
   bool _updatingAvatar = false;
   bool _deletingAccount = false;
   bool _deactivatingAccount = false;
@@ -234,7 +235,6 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   void dispose() {
-    _usernameController.dispose();
     AccountStorage.accountChange.removeListener(_handleAccountChanged);
     super.dispose();
   }
@@ -319,9 +319,7 @@ class _SettingsPageState extends State<SettingsPage> {
           cachedProfile?["filled_expert_questionnaire"] == true;
       final cachedIsExpert = cachedProfile?["is_expert"] == true;
       done = done || cachedFilledExpert;
-      isExpert =
-          isExpert ||
-          cachedIsExpert;
+      isExpert = isExpert || cachedIsExpert;
     } catch (_) {
       // Ignore cache parse failures.
     }
@@ -1055,110 +1053,63 @@ class _SettingsPageState extends State<SettingsPage> {
     if (currentUsername.isEmpty) {
       currentUsername = (await AccountStorage.getName() ?? "").trim();
     }
-    _usernameController.text = currentUsername;
 
-    await showDialog(
+    final newUsername = await showTaqaTextValueDialog(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: AppColors.black,
-          title: Text(
-            t.translate("settings_change_username"),
-            style: const TextStyle(color: Colors.white),
-          ),
-          content: TextField(
-            controller: _usernameController,
-            decoration: InputDecoration(
-              labelText: t.translate("settings_change_username"),
-              hintText: "yourname_123",
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(t.translate("cancel")),
-            ),
-            TextButton(
-              onPressed: _updatingUsername
-                  ? null
-                  : () async {
-                      final newUsername = _usernameController.text.trim();
-                      if (newUsername.length < 3) {
-                        AppToast.show(
-                          context,
-                          t.translate("signup_username_short"),
-                          type: AppToastType.error,
-                        );
-                        return;
-                      }
-                      if (newUsername.length > 50) {
-                        AppToast.show(
-                          context,
-                          t.translate("signup_username_long"),
-                          type: AppToastType.error,
-                        );
-                        return;
-                      }
-                      if (!_usernameRegex.hasMatch(newUsername)) {
-                        AppToast.show(
-                          context,
-                          t.translate("signup_username_invalid"),
-                          type: AppToastType.error,
-                        );
-                        return;
-                      }
-                      if (newUsername.isEmpty ||
-                          newUsername == currentUsername) {
-                        Navigator.pop(ctx);
-                        return;
-                      }
-                      setState(() => _updatingUsername = true);
-                      try {
-                        final uid = await AccountStorage.getUserId();
-                        if (uid == null) {
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(t.translate("user_missing")),
-                            ),
-                          );
-                          setState(() => _updatingUsername = false);
-                          return;
-                        }
-                        final updated = await ProfileApi.updateUsername(
-                          uid,
-                          newUsername,
-                        );
-                        await AccountStorage.setName(updated);
-                        await _showSuccessDialog(
-                          "${t.translate("username_updated")}: $updated",
-                        );
-                        if (Navigator.canPop(ctx)) Navigator.pop(ctx);
-                      } catch (e) {
-                        if (!mounted) return;
-                        AppToast.show(
-                          context,
-                          e.toString(),
-                          type: AppToastType.error,
-                        );
-                      } finally {
-                        if (mounted) {
-                          setState(() => _updatingUsername = false);
-                        }
-                      }
-                    },
-              child: _updatingUsername
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(t.translate("save")),
-            ),
-          ],
-        );
-      },
+      title: t.translate("settings_change_username"),
+      initialValue: currentUsername,
+      keyboardType: TextInputType.text,
     );
+    if (newUsername == null) return;
+
+    if (newUsername.length < 3) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        t.translate("signup_username_short"),
+        type: AppToastType.error,
+      );
+      return;
+    }
+    if (newUsername.length > 50) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        t.translate("signup_username_long"),
+        type: AppToastType.error,
+      );
+      return;
+    }
+    if (!_usernameRegex.hasMatch(newUsername)) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        t.translate("signup_username_invalid"),
+        type: AppToastType.error,
+      );
+      return;
+    }
+    if (newUsername.isEmpty || newUsername == currentUsername) return;
+
+    try {
+      final uid = await AccountStorage.getUserId();
+      if (uid == null) {
+        if (!mounted) return;
+        AppToast.show(
+          context,
+          t.translate("user_missing"),
+          type: AppToastType.error,
+        );
+        return;
+      }
+      final updated = await ProfileApi.updateUsername(uid, newUsername);
+      await AccountStorage.setName(updated);
+      if (!mounted) return;
+      await _showSuccessDialog("${t.translate("username_updated")}: $updated");
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, e.toString(), type: AppToastType.error);
+    }
   }
 
   Future<void> _confirmDeleteAccount() async {
@@ -1347,334 +1298,430 @@ class _SettingsPageState extends State<SettingsPage> {
     final t = AppLocalizations.of(context);
 
     return Scaffold(
-      backgroundColor: AppColors.black,
-      appBar: AppBar(
-        backgroundColor: AppColors.black,
-        title: Text(t.translate("settings")),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Text(
-            t.translate("settings_language"),
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: TaqaUiScale.insetsLTRB(16, 12, 16, 0),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Text(
+                    t.translate("settings"),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(15),
+                      fontWeight: FontWeight.w700,
+                      height: 25 / 15,
+                      letterSpacing: 0,
+                      color: TaqaUiColors.unnamedColor1c1d17,
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: Icon(
+                        Icons.arrow_back_ios_new,
+                        size: TaqaUiScale.w(18),
+                        color: TaqaUiColors.unnamedColor1c1d17,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              LangButton(
-                label: "EN",
-                flag: "🇬🇧",
-                selected: _langCode == "en",
-                onTap: () => _changeLanguage(const Locale('en')),
-              ),
-              LangButton(
-                label: "AR",
-                flag: "🇸🇦",
-                selected: _langCode == "ar",
-                onTap: () => _changeLanguage(const Locale('ar')),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          if (_isDeactivated) ...[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.orange.withValues(alpha: 0.35),
-                ),
-              ),
-              child: Text(
-                _scheduledPurgeAtDisplay == null
-                    ? t.translate("deactivated_banner_no_date")
-                    : t
-                          .translate("deactivated_banner_with_date")
-                          .replaceAll("{date}", _scheduledPurgeAtDisplay!),
-                style: const TextStyle(color: Colors.white),
+            Expanded(
+              child: ListView(
+                padding: TaqaUiScale.insetsLTRB(16, 20, 16, 24),
+                children: [
+                  _sectionTitle(t.translate("settings_language")),
+                  SizedBox(height: TaqaUiScale.h(12)),
+                  Row(
+                    children: [
+                      _LangPill(
+                        label: "EN",
+                        flag: "🇬🇧",
+                        selected: _langCode == "en",
+                        onTap: () => _changeLanguage(const Locale('en')),
+                      ),
+                      SizedBox(width: TaqaUiScale.w(8)),
+                      _LangPill(
+                        label: "AR",
+                        flag: "🇸🇦",
+                        selected: _langCode == "ar",
+                        onTap: () => _changeLanguage(const Locale('ar')),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: TaqaUiScale.h(24)),
+                  if (_isDeactivated) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: TaqaUiScale.insetsLTRB(14, 10, 14, 10),
+                      margin: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.12),
+                        borderRadius: TaqaUiScale.radius(15),
+                        border: Border.all(
+                          color: Colors.orange.withValues(alpha: 0.35),
+                        ),
+                      ),
+                      child: Text(
+                        _scheduledPurgeAtDisplay == null
+                            ? t.translate("deactivated_banner_no_date")
+                            : t
+                                  .translate("deactivated_banner_with_date")
+                                  .replaceAll(
+                                    "{date}",
+                                    _scheduledPurgeAtDisplay!,
+                                  ),
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          fontSize: TaqaUiScale.sp(13),
+                          fontWeight: FontWeight.w400,
+                          color: TaqaUiColors.unnamedColor1c1d17,
+                        ),
+                      ),
+                    ),
+                  ],
+                  _sectionTitle(t.translate("settings_profile")),
+                  SizedBox(height: TaqaUiScale.h(12)),
+                  _SettingsTile(
+                    title: t.translate("settings_change_username"),
+                    subtitle: t.translate("settings_change_username_sub"),
+                    icon: Icons.person_outline,
+                    onTap: _isDeactivated ? null : _promptChangeUsername,
+                  ),
+                  _SettingsTile(
+                    title: t.translate("settings_change_avatar"),
+                    subtitle: t.translate("settings_change_avatar_sub"),
+                    icon: _updatingAvatar
+                        ? Icons.hourglass_bottom
+                        : Icons.image_outlined,
+                    onTap: _isDeactivated ? null : _pickAvatar,
+                  ),
+                  if (_showBeExpertButton)
+                    _SettingsTile(
+                      title: t.translate("settings_be_expert"),
+                      subtitle: t.translate("settings_be_expert_sub"),
+                      icon: Icons.work_outline,
+                      onTap: _isDeactivated
+                          ? null
+                          : () async {
+                              final userId = await AccountStorage.getUserId();
+                              if (userId == null) {
+                                AppToast.show(
+                                  context,
+                                  t.translate("user_missing"),
+                                  type: AppToastType.error,
+                                );
+                                return;
+                              }
+                              try {
+                                final lang = AppLocalizations.of(
+                                  context,
+                                ).locale.languageCode;
+                                final profile = await ProfileApi.fetchProfile(
+                                  userId,
+                                  lang: lang,
+                                );
+                                final done =
+                                    profile["filled_expert_questionnaire"] ==
+                                    true;
+                                if (done) {
+                                  AppToast.show(
+                                    context,
+                                    t.translate(
+                                      "expert_questionnaire_already_done",
+                                    ),
+                                    type: AppToastType.info,
+                                  );
+                                  return;
+                                }
+                              } catch (_) {
+                                // If check fails, allow navigation so user can try
+                              }
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const ExpertQuestionnairePage(),
+                                ),
+                              );
+                              await _loadExpertFlag();
+                            },
+                    ),
+                  _SettingsTile(
+                    title: t.translate("settings_coach_portal"),
+                    subtitle: _isExpert
+                        ? t.translate("settings_coach_portal_sub_expert")
+                        : t.translate("settings_coach_portal_sub_client"),
+                    icon: _isExpert
+                        ? Icons.analytics_outlined
+                        : Icons.record_voice_over,
+                    onTap: _isDeactivated ? null : _openCoachPortal,
+                  ),
+                  const SizedBox(height: 12),
+                  _sectionTitle(t.translate("settings_security")),
+                  SizedBox(height: TaqaUiScale.h(12)),
+                  if (_authProvider != "google" && _authProvider != "apple")
+                    _SettingsTile(
+                      title: t.translate("settings_change_password"),
+                      subtitle: t.translate("settings_change_password_sub"),
+                      icon: Icons.lock_reset,
+                      onTap: _isDeactivated
+                          ? null
+                          : () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ForgotPasswordPage(
+                                    lockedEmail: _email,
+                                    lockEmailField: _email != null,
+                                  ),
+                                ),
+                              );
+                            },
+                    ),
+                  if (_isDeactivated)
+                    _SettingsTile(
+                      title: t.translate("account_reactivate_action"),
+                      subtitle: t.translate("settings_reactivate_account_sub"),
+                      icon: Icons.refresh,
+                      onTap: _openReactivationFlow,
+                    ),
+                  if (!_isDeactivated)
+                    _SettingsTile(
+                      title: t.translate("settings_deactivate_account"),
+                      subtitle: t.translate("settings_deactivate_account_sub"),
+                      icon: _deactivatingAccount
+                          ? Icons.hourglass_bottom
+                          : Icons.pause_circle_outline,
+                      onTap: _deactivatingAccount
+                          ? null
+                          : _confirmDeactivateAccount,
+                    ),
+                  _SettingsTile(
+                    title: t.translate("settings_delete_account"),
+                    subtitle: t.translate("settings_delete_account_sub"),
+                    icon: _deletingAccount
+                        ? Icons.hourglass_bottom
+                        : Icons.delete_forever,
+                    onTap: _deletingAccount ? null : _confirmDeleteAccount,
+                  ),
+                  SizedBox(height: TaqaUiScale.h(24)),
+                  _sectionTitle("Devices"),
+                  SizedBox(height: TaqaUiScale.h(12)),
+                  _SettingsTile(
+                    title: _whoopLinked ? "Whoop connected" : "Connect Whoop",
+                    subtitle: _whoopLinked
+                        ? "Disconnect your Whoop"
+                        : "Link your Whoop account",
+                    icon: _whoopLoading
+                        ? Icons.hourglass_bottom
+                        : Icons.monitor_heart,
+                    onTap: (_whoopLoading || _isDeactivated)
+                        ? null
+                        : _handleWhoopTap,
+                    leading: SizedBox(
+                      height: 28,
+                      width: 28,
+                      child: Center(
+                        child: Image.asset(
+                          'assets/images/whoop.png',
+                          height: 18,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+                  ),
+                  _SettingsTile(
+                    title: _fitbitLinked
+                        ? "Fitbit connected"
+                        : "Connect Fitbit",
+                    subtitle: _fitbitLinked
+                        ? "Disconnect your Fitbit"
+                        : "Link your Fitbit account",
+                    icon: _fitbitLoading
+                        ? Icons.hourglass_bottom
+                        : Icons.directions_walk,
+                    onTap: (_fitbitLoading || _isDeactivated)
+                        ? null
+                        : _handleFitbitTap,
+                    leading: SizedBox(
+                      height: 28,
+                      width: 28,
+                      child: Center(
+                        child: Image.asset(
+                          'assets/images/fitbit.png',
+                          height: 14,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+                  ),
+                  _SettingsTile(
+                    title: _stravaLinked
+                        ? "Strava connected"
+                        : "Connect Strava",
+                    subtitle: _stravaLinked
+                        ? "Disconnect your Strava"
+                        : "Link your Strava account",
+                    icon: _stravaLoading
+                        ? Icons.hourglass_bottom
+                        : Icons.directions_bike,
+                    onTap: (_stravaLoading || _isDeactivated)
+                        ? null
+                        : _handleStravaTap,
+                    leading: SizedBox(
+                      height: 28,
+                      width: 28,
+                      child: Center(
+                        child: Image.asset(
+                          'assets/images/strava_logo_icon_170697.png',
+                          height: 18,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+                  ),
+                  _SettingsTile(
+                    title: !Platform.isIOS
+                        ? "Wearable detection unavailable"
+                        : _appleWatchChecking
+                        ? "Checking wearables..."
+                        : (_appleWatchDetected == true
+                              ? (_wearableDetectedType == 'apple'
+                                    ? "Apple Watch detected"
+                                    : "Wearable detected")
+                              : "Wearable not detected"),
+                    subtitle: !Platform.isIOS
+                        ? "Wearable source detection works on iPhone only"
+                        : (_appleWatchDetected == true
+                              ? (_wearableDetectedType == 'apple'
+                                    ? "Health data from Apple Watch is available"
+                                    : "Health data from a connected wearable is available")
+                              : "No wearable source found in Apple Health data"),
+                    icon: _appleWatchChecking
+                        ? Icons.hourglass_bottom
+                        : Icons.watch,
+                    onTap:
+                        (!Platform.isIOS ||
+                            _isDeactivated ||
+                            _appleWatchChecking)
+                        ? null
+                        : _handleAppleWatchTap,
+                    leading: Container(
+                      height: 28,
+                      width: 28,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF7A7A7A),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Icon(
+                        Icons.watch,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: TaqaUiScale.h(24)),
+                  _sectionTitle(t.translate("settings_support")),
+                  SizedBox(height: TaqaUiScale.h(12)),
+                  _SettingsTile(
+                    title: t.translate("settings_contact"),
+                    subtitle: t.translate("settings_contact_sub"),
+                    icon: Icons.mail_outline,
+                    onTap: () => _showSupportDialog(
+                      title: t.translate("settings_contact"),
+                      body: t.translate("settings_contact_body"),
+                    ),
+                  ),
+                  _SettingsTile(
+                    title: t.translate("settings_help"),
+                    subtitle: t.translate("settings_help_sub"),
+                    icon: Icons.help_outline,
+                    onTap: () => _showSupportDialog(
+                      title: t.translate("settings_help"),
+                      body: t.translate("settings_help_body"),
+                    ),
+                  ),
+                  const SizedBox(height: 60),
+                ],
               ),
             ),
           ],
-          Text(
-            t.translate("settings_profile"),
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-            ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String text) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontFamily: TaqaUiFontFamilies.interTight,
+        fontSize: TaqaUiScale.sp(15),
+        fontWeight: FontWeight.w700,
+        height: 25 / 15,
+        letterSpacing: 0,
+        color: TaqaUiColors.unnamedColor1c1d17,
+      ),
+    );
+  }
+}
+
+class _LangPill extends StatelessWidget {
+  const _LangPill({
+    required this.label,
+    required this.flag,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final String flag;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: TaqaUiScale.radius(999),
+      onTap: onTap,
+      child: Container(
+        padding: TaqaUiScale.insetsLTRB(14, 8, 14, 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? TaqaUiColors.unnamedColor1c1d17
+              : TaqaUiColors.white,
+          borderRadius: TaqaUiScale.radius(999),
+          border: Border.all(
+            color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.10),
           ),
-          const SizedBox(height: 12),
-          _SettingsTile(
-            title: t.translate("settings_change_username"),
-            subtitle: t.translate("settings_change_username_sub"),
-            icon: Icons.person_outline,
-            onTap: _isDeactivated ? null : _promptChangeUsername,
-          ),
-          _SettingsTile(
-            title: t.translate("settings_change_avatar"),
-            subtitle: t.translate("settings_change_avatar_sub"),
-            icon: _updatingAvatar
-                ? Icons.hourglass_bottom
-                : Icons.image_outlined,
-            onTap: _isDeactivated ? null : _pickAvatar,
-          ),
-          if (_showBeExpertButton)
-            _SettingsTile(
-              title: t.translate("settings_be_expert"),
-              subtitle: t.translate("settings_be_expert_sub"),
-              icon: Icons.work_outline,
-              onTap: _isDeactivated
-                  ? null
-                  : () async {
-                      final userId = await AccountStorage.getUserId();
-                      if (userId == null) {
-                        AppToast.show(
-                          context,
-                          t.translate("user_missing"),
-                          type: AppToastType.error,
-                        );
-                        return;
-                      }
-                      try {
-                        final lang = AppLocalizations.of(
-                          context,
-                        ).locale.languageCode;
-                        final profile = await ProfileApi.fetchProfile(
-                          userId,
-                          lang: lang,
-                        );
-                        final done =
-                            profile["filled_expert_questionnaire"] == true;
-                        if (done) {
-                          AppToast.show(
-                            context,
-                            t.translate("expert_questionnaire_already_done"),
-                            type: AppToastType.info,
-                          );
-                          return;
-                        }
-                      } catch (_) {
-                        // If check fails, allow navigation so user can try
-                      }
-                      await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const ExpertQuestionnairePage(),
-                        ),
-                      );
-                      await _loadExpertFlag();
-                    },
-            ),
-          _SettingsTile(
-            title: t.translate("settings_coach_portal"),
-            subtitle: _isExpert
-                ? t.translate("settings_coach_portal_sub_expert")
-                : t.translate("settings_coach_portal_sub_client"),
-            icon: _isExpert
-                ? Icons.analytics_outlined
-                : Icons.record_voice_over,
-            onTap: _isDeactivated ? null : _openCoachPortal,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            t.translate("settings_security"),
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (_authProvider != "google" && _authProvider != "apple")
-            _SettingsTile(
-              title: t.translate("settings_change_password"),
-              subtitle: t.translate("settings_change_password_sub"),
-              icon: Icons.lock_reset,
-              onTap: _isDeactivated
-                  ? null
-                  : () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ForgotPasswordPage(
-                            lockedEmail: _email,
-                            lockEmailField: _email != null,
-                          ),
-                        ),
-                      );
-                    },
-            ),
-          if (_isDeactivated)
-            _SettingsTile(
-              title: t.translate("account_reactivate_action"),
-              subtitle: t.translate("settings_reactivate_account_sub"),
-              icon: Icons.refresh,
-              onTap: _openReactivationFlow,
-              color: AppColors.accent,
-            ),
-          if (!_isDeactivated)
-            _SettingsTile(
-              title: t.translate("settings_deactivate_account"),
-              subtitle: t.translate("settings_deactivate_account_sub"),
-              icon: _deactivatingAccount
-                  ? Icons.hourglass_bottom
-                  : Icons.pause_circle_outline,
-              onTap: _deactivatingAccount ? null : _confirmDeactivateAccount,
-              color: Colors.amberAccent,
-            ),
-          _SettingsTile(
-            title: t.translate("settings_delete_account"),
-            subtitle: t.translate("settings_delete_account_sub"),
-            icon: _deletingAccount
-                ? Icons.hourglass_bottom
-                : Icons.delete_forever,
-            onTap: _deletingAccount ? null : _confirmDeleteAccount,
-            color: Colors.redAccent,
-          ),
-          const SizedBox(height: 24),
-          Text(
-            "Devices",
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _SettingsTile(
-            title: _whoopLinked ? "Whoop connected" : "Connect Whoop",
-            subtitle: _whoopLinked
-                ? "Disconnect your Whoop"
-                : "Link your Whoop account",
-            icon: _whoopLoading ? Icons.hourglass_bottom : Icons.monitor_heart,
-            onTap: (_whoopLoading || _isDeactivated) ? null : _handleWhoopTap,
-            color: _whoopLinked ? const Color(0xFF4CD964) : null,
-            leading: SizedBox(
-              height: 28,
-              width: 28,
-              child: Center(
-                child: Image.asset(
-                  'assets/images/whoop.png',
-                  height: 18,
-                  fit: BoxFit.contain,
-                ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(flag, style: TextStyle(fontSize: TaqaUiScale.sp(14))),
+            SizedBox(width: TaqaUiScale.w(6)),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(13),
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0,
+                color: selected
+                    ? TaqaUiColors.white
+                    : TaqaUiColors.unnamedColor1c1d17,
               ),
             ),
-          ),
-          _SettingsTile(
-            title: _fitbitLinked ? "Fitbit connected" : "Connect Fitbit",
-            subtitle: _fitbitLinked
-                ? "Disconnect your Fitbit"
-                : "Link your Fitbit account",
-            icon: _fitbitLoading
-                ? Icons.hourglass_bottom
-                : Icons.directions_walk,
-            onTap: (_fitbitLoading || _isDeactivated) ? null : _handleFitbitTap,
-            color: _fitbitLinked ? const Color(0xFF4CD964) : null,
-            leading: SizedBox(
-              height: 28,
-              width: 28,
-              child: Center(
-                child: Image.asset(
-                  'assets/images/fitbit.png',
-                  height: 14,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
-          ),
-          _SettingsTile(
-            title: _stravaLinked ? "Strava connected" : "Connect Strava",
-            subtitle: _stravaLinked
-                ? "Disconnect your Strava"
-                : "Link your Strava account",
-            icon: _stravaLoading
-                ? Icons.hourglass_bottom
-                : Icons.directions_bike,
-            onTap: (_stravaLoading || _isDeactivated) ? null : _handleStravaTap,
-            color: _stravaLinked ? const Color(0xFF4CD964) : null,
-            leading: SizedBox(
-              height: 28,
-              width: 28,
-              child: Center(
-                child: Image.asset(
-                  'assets/images/strava_logo_icon_170697.png',
-                  height: 18,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
-          ),
-          _SettingsTile(
-            title: !Platform.isIOS
-                ? "Wearable detection unavailable"
-                : _appleWatchChecking
-                ? "Checking wearables..."
-                : (_appleWatchDetected == true
-                      ? (_wearableDetectedType == 'apple'
-                            ? "Apple Watch detected"
-                            : "Wearable detected")
-                      : "Wearable not detected"),
-            subtitle: !Platform.isIOS
-                ? "Wearable source detection works on iPhone only"
-                : (_appleWatchDetected == true
-                      ? (_wearableDetectedType == 'apple'
-                            ? "Health data from Apple Watch is available"
-                            : "Health data from a connected wearable is available")
-                      : "No wearable source found in Apple Health data"),
-            icon: _appleWatchChecking ? Icons.hourglass_bottom : Icons.watch,
-            onTap: (!Platform.isIOS || _isDeactivated || _appleWatchChecking)
-                ? null
-                : _handleAppleWatchTap,
-            color: _appleWatchDetected == true ? const Color(0xFF4CD964) : null,
-            leading: Container(
-              height: 28,
-              width: 28,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: const Color(0xFF7A7A7A),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Icon(Icons.watch, color: Colors.white, size: 16),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            t.translate("settings_support"),
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _SettingsTile(
-            title: t.translate("settings_contact"),
-            subtitle: t.translate("settings_contact_sub"),
-            icon: Icons.mail_outline,
-            onTap: () => _showSupportDialog(
-              title: t.translate("settings_contact"),
-              body: t.translate("settings_contact_body"),
-            ),
-          ),
-          _SettingsTile(
-            title: t.translate("settings_help"),
-            subtitle: t.translate("settings_help_sub"),
-            icon: Icons.help_outline,
-            onTap: () => _showSupportDialog(
-              title: t.translate("settings_help"),
-              body: t.translate("settings_help_body"),
-            ),
-          ),
-          const SizedBox(height: 60),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1686,7 +1733,6 @@ class _SettingsTile extends StatelessWidget {
     required this.subtitle,
     required this.icon,
     required this.onTap,
-    this.color,
     this.leading,
   });
 
@@ -1694,61 +1740,65 @@ class _SettingsTile extends StatelessWidget {
   final String subtitle;
   final IconData icon;
   final VoidCallback? onTap;
-  final Color? color;
   final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Material(
-        color: const Color(0xFF1E1E1E),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: Colors.white10),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          splashFactory: InkRipple.splashFactory,
-          splashColor: Colors.white.withValues(alpha: 0.08),
-          highlightColor: Colors.white.withValues(alpha: 0.08),
-          overlayColor: MaterialStateProperty.resolveWith(
-            (states) => states.contains(MaterialState.pressed)
-                ? Colors.white.withValues(alpha: 0.08)
-                : null,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                leading ?? Icon(icon, color: color ?? AppColors.accent),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          color: color ?? Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right, color: Colors.white54),
-              ],
+      padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
+      child: InkWell(
+        borderRadius: TaqaUiScale.radius(15),
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: TaqaUiColors.white,
+            borderRadius: TaqaUiScale.radius(15),
+            border: Border.all(
+              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.10),
             ),
+          ),
+          padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
+          child: Row(
+            children: [
+              leading ?? Icon(icon, color: TaqaUiColors.unnamedColor1c1d17),
+              SizedBox(width: TaqaUiScale.w(12)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(15),
+                        fontWeight: FontWeight.w700,
+                        height: 25 / 15,
+                        letterSpacing: 0,
+                        color: TaqaUiColors.unnamedColor1c1d17,
+                      ),
+                    ),
+                    SizedBox(height: TaqaUiScale.h(4)),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(13),
+                        fontWeight: FontWeight.w400,
+                        height: 18 / 13,
+                        letterSpacing: 0,
+                        color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                          alpha: 0.6,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.4),
+              ),
+            ],
           ),
         ),
       ),
