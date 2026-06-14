@@ -430,20 +430,18 @@ class AccountStorage {
 
     if (statusCode == 403) {
       final payload = await _decodeAuthPayload(responseBody);
-      if (payload.isNotEmpty && !_looksDeactivatedPayload(payload)) {
+      // Only treat a 403 as "deactivated" when the server EXPLICITLY says so.
+      // A bodyless/ambiguous 403 must NOT trigger the restore screen, which
+      // previously fabricated a deactivated state and showed a stale "restore
+      // account" prompt for already-deleted accounts.
+      if (payload.isEmpty || !_looksDeactivatedPayload(payload)) {
         return false;
       }
       final dismissed = await _isDeactivatedPromptDismissed();
       if (dismissed) {
         return false;
       }
-      final data = payload.isNotEmpty
-          ? payload
-          : <String, dynamic>{
-              'status': 'deactivated',
-              'detail': 'Account is deactivated',
-            };
-      onDeactivated?.call(data);
+      onDeactivated?.call(payload);
       return true;
     }
 

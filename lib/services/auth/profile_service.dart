@@ -293,6 +293,9 @@ class ProfileApi {
       responseBody: res.body,
     );
     if (res.statusCode == 200 || res.statusCode == 202) {
+      // Clear the cached token/email so the device stops acting on behalf of
+      // the deleted account (prevents a stale "restore account" prompt later).
+      await AccountStorage.clearSession();
       return _decodeMap(res.body);
     }
 
@@ -314,6 +317,10 @@ class ProfileApi {
       responseBody: res.body,
     );
     if (res.statusCode == 200) {
+      // Stop the device from acting on behalf of the now-deactivated account.
+      // Leaving the cached token/email caused a stale "restore account" prompt
+      // on next launch even after the account was removed server-side.
+      await AccountStorage.clearSession();
       return _decodeMap(res.body);
     }
 

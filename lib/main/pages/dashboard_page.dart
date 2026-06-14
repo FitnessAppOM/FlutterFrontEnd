@@ -4071,7 +4071,11 @@ class DashboardPageState extends State<DashboardPage>
         _fitbitSummaryLoadingDate == selectedDay) {
       return;
     }
-    if (!force && _fitbitSummaryCache.containsKey(selectedDay)) {
+    // For past days the dashboard cache is authoritative (the data is final).
+    // For "today" the value is still accumulating, so we skip this short-circuit
+    // and fall through to fetchSummary, which has its own short TTL — that keeps
+    // same-day data live while still throttling network calls.
+    if (!force && !isToday && _fitbitSummaryCache.containsKey(selectedDay)) {
       final cachedBundle = _fitbitSummaryCache[selectedDay];
       if (!mounted) return;
       setState(() {

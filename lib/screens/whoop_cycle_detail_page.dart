@@ -31,10 +31,8 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
   }
 
   DateTime _effectiveCycleDay(DateTime selected) {
-    final day = DateTime(selected.year, selected.month, selected.day);
-    final today = _todayOnly();
-    if (day == today) return day.subtract(const Duration(days: 1));
-    return day;
+    // Strain/cycle is same-day: the selected day maps to its own cycle.
+    return DateTime(selected.year, selected.month, selected.day);
   }
 
   @override

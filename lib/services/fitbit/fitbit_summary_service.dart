@@ -32,6 +32,12 @@ class FitbitSummaryBundle {
 
 class FitbitSummaryService {
   static final Map<String, FitbitSummaryBundle?> _todaySummaryCache = {};
+  // When the selected day is "today" the value is still accumulating, so the
+  // cache is only trusted for a short window. After it expires we re-fetch the
+  // live value. This keeps same-day data fresh without hammering the API:
+  // repeated dashboard loads inside the window are cache hits, not requests.
+  static final Map<String, DateTime> _todaySummaryCachedAt = {};
+  static const Duration _todayCacheTtl = Duration(minutes: 2);
 
   static String _dateParam(DateTime d) {
     final yyyy = d.year.toString().padLeft(4, '0');
@@ -94,7 +100,12 @@ class FitbitSummaryService {
     if (userId == null) return null;
     final cacheKey = _todayCacheKey(userId: userId, date: date);
     if (!forceRefresh && _todaySummaryCache.containsKey(cacheKey)) {
-      return _todaySummaryCache[cacheKey];
+      final cachedAt = _todaySummaryCachedAt[cacheKey];
+      final fresh = cachedAt != null &&
+          DateTime.now().difference(cachedAt) <= _todayCacheTtl;
+      if (fresh) {
+        return _todaySummaryCache[cacheKey];
+      }
     }
     final dateStr = _dateParam(date);
     final headers = await AccountStorage.getAuthHeaders();
@@ -313,11 +324,13 @@ class FitbitSummaryService {
       body: body,
     );
     _todaySummaryCache[cacheKey] = bundle;
+    _todaySummaryCachedAt[cacheKey] = DateTime.now();
     if (_todaySummaryCache.length > 120) {
       final keys = _todaySummaryCache.keys.toList(growable: false);
       final removeCount = _todaySummaryCache.length - 120;
       for (var i = 0; i < removeCount; i++) {
         _todaySummaryCache.remove(keys[i]);
+        _todaySummaryCachedAt.remove(keys[i]);
       }
     }
     return bundle;

@@ -262,7 +262,6 @@ class WhoopWidgetDataService {
     int? sleepDelta;
     int? recoveryDelta;
     final recoveryScore = _asInt(data["recovery_score"]);
-    double? yesterdayCycleStrain;
 
     final yesterday = date.subtract(const Duration(days: 1));
     final yParam = _dateKey(yesterday);
@@ -282,11 +281,10 @@ class WhoopWidgetDataService {
       if (recoveryScore != null && yRecovery != null) {
         recoveryDelta = recoveryScore - yRecovery;
       }
-      yesterdayCycleStrain = _asDouble(yData["cycle_strain"]);
     }
 
-    // For current-day display, always use the last completed day's cycle strain.
-    final cycleStrain = yesterdayCycleStrain;
+    // Strain is same-day: use today's live cycle strain.
+    final cycleStrain = _asDouble(data["cycle_strain"]);
 
     double? bodyWeightKg;
     try {
