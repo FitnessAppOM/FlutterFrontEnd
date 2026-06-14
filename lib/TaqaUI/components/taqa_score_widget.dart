@@ -391,9 +391,11 @@ class _ScoreTags extends StatelessWidget {
       child: Wrap(
         spacing: TaqaUiScale.w(6) * layoutScale,
         runSpacing: TaqaUiScale.h(6) * layoutScale,
-        children: tags.map((tag) {
-          return _ScoreChip(tag: tag, layoutScale: layoutScale);
-        }).toList(growable: false),
+        children: tags
+            .map((tag) {
+              return _ScoreChip(tag: tag, layoutScale: layoutScale);
+            })
+            .toList(growable: false),
       ),
     );
   }
@@ -419,12 +421,7 @@ class _ScoreChip extends StatelessWidget {
           width: math.max(0.8, layoutScale),
         ),
       ),
-      child: Text(
-        tag.text,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TaqaUiStyles.scoreCardTag,
-      ),
+      child: Text(tag.text, maxLines: 2, style: TaqaUiStyles.scoreCardTag),
     );
   }
 }

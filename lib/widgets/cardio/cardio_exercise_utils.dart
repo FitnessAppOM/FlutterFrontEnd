@@ -10,10 +10,7 @@ bool isTreadmillExerciseName(String? rawName) {
   return name.contains('treadmill') || name.contains('treadmil');
 }
 
-String resolvedCardioAnimationUrl(
-  String? exerciseName,
-  String? animationUrl,
-) {
+String resolvedCardioAnimationUrl(String? exerciseName, String? animationUrl) {
   if (isOutdoorCyclingExerciseName(exerciseName)) return '';
   return (animationUrl ?? '').trim();
 }
@@ -33,7 +30,6 @@ bool isIndoorCardioExerciseName(String? rawName) {
     'jump rope',
     'battle rope',
     'battling rope',
-    'skating',
     'treadmill',
     'treadmil',
   ];

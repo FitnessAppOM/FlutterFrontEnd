@@ -189,7 +189,8 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     final day = _dateOnly(date);
     if (day.isAfter(_maxSelectableDate())) return;
     final key = _dayKey(day);
-    if (_previewLoadingKeys.contains(key) || _scorePreviewCache.containsKey(key)) {
+    if (_previewLoadingKeys.contains(key) ||
+        _scorePreviewCache.containsKey(key)) {
       return;
     }
     _previewLoadingKeys.add(key);
@@ -246,9 +247,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
         backgroundColor: AppColors.appBackground,
         title: Text(
           t("taqa_detail_title"),
-          style: TaqaUiStyles.pageTitle.copyWith(
-            color: TaqaUiColors.charcoal,
-          ),
+          style: TaqaUiStyles.pageTitle.copyWith(color: TaqaUiColors.charcoal),
         ),
         leading: const BackButton(color: TaqaUiColors.charcoal),
         elevation: 0,
@@ -311,7 +310,10 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
           final day = _previewDateForIndex(index);
           final isCenter = index == currentIndex;
           final dayScore = _scoreForPreviewDay(day);
-          final label = DateFormat('EEE, MMM d', _locale).format(day).toUpperCase();
+          final label = DateFormat(
+            'EEE, MMM d',
+            _locale,
+          ).format(day).toUpperCase();
           return AnimatedPadding(
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOut,
@@ -727,10 +729,12 @@ class _PillarCardState extends State<_PillarCard> {
                   Positioned(
                     left: 0,
                     top: 0,
-                    width: TaqaUiScale.w(39),
-                    height: TaqaUiScale.h(19),
+                    width: TaqaUiScale.w(180),
+                    height: TaqaUiScale.h(25),
                     child: Text(
                       widget.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontFamily: TaqaUiFontFamilies.interTight,
                         fontSize: TaqaUiScale.sp(15),
@@ -742,10 +746,8 @@ class _PillarCardState extends State<_PillarCard> {
                   ),
                   if (widget.path != null)
                     Positioned(
-                      left: TaqaUiScale.w(247),
+                      right: 0,
                       top: TaqaUiScale.h(5),
-                      width: TaqaUiScale.w(82),
-                      height: TaqaUiScale.h(15),
                       child: _PathChip(
                         path: widget.path!,
                         isDark: isDarkCard,

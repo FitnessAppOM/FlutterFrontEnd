@@ -17,6 +17,8 @@ import '../../services/training/training_completion_storage.dart';
 import '../../services/training/training_progress_storage.dart';
 import '../../services/training/training_activity_service.dart';
 import '../../services/training/training_calories_service.dart';
+import '../../services/training/training_calorie_estimator.dart';
+import '../../services/auth/profile_storage.dart';
 import '../../services/health/workout_health_sync_service.dart';
 import '../../consents/consent_manager.dart';
 import '../../core/account_storage.dart';
@@ -78,6 +80,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   int seconds = 0;
   Timer? timer;
   int? _sessionStartMs;
+  double? _bodyWeightKg;
   final ScrollController _sheetScrollController = ScrollController();
 
   int? _dismissSwipePointer;
@@ -117,7 +120,29 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         if (!mounted) return;
         setState(() => _cardioMapExpanded = true);
       });
+      _loadBodyWeight();
     }
+  }
+
+  Future<void> _loadBodyWeight() async {
+    try {
+      final profile = await ProfileStorage.loadProfile();
+      final raw = profile?['weight_kg'];
+      final weight = raw is num
+          ? raw.toDouble()
+          : double.tryParse(raw?.toString() ?? '');
+      if (weight != null && weight > 0 && mounted) {
+        setState(() => _bodyWeightKg = weight);
+      }
+    } catch (_) {}
+  }
+
+  int get _indoorActiveCaloriesKcal {
+    return TrainingCalorieEstimator.estimateCaloriesKcal(
+      durationSeconds: seconds,
+      isCardio: true,
+      weightKg: _bodyWeightKg ?? TrainingCalorieEstimator.defaultWeightKg,
+    );
   }
 
   bool get _supportsSetRows =>
@@ -3417,16 +3442,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           ),
         ),
         const Spacer(),
-        Row(
-          children: [
-            const Expanded(
-              child: _IndoorReadout(value: "0", label: "ACTIVE CAL"),
-            ),
-            SizedBox(width: TaqaUiScale.w(18)),
-            const Expanded(
-              child: _IndoorReadout(value: "0", label: "TOTAL CAL"),
-            ),
-          ],
+        _IndoorReadout(
+          value: _indoorActiveCaloriesKcal.toString(),
+          label: "ACTIVE CAL",
         ),
       ],
     );
@@ -3498,8 +3516,11 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
               ),
             ),
             SizedBox(width: TaqaUiScale.w(18)),
-            const Expanded(
-              child: _IndoorReadout(value: "0", label: "ACTIVE CAL"),
+            Expanded(
+              child: _IndoorReadout(
+                value: _indoorActiveCaloriesKcal.toString(),
+                label: "ACTIVE CAL",
+              ),
             ),
           ],
         ),

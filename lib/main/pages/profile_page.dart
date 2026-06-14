@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../widgets/profile/profile_header.dart';
@@ -361,16 +363,53 @@ class _ProfilePageState extends State<ProfilePage> {
           children: [
             Padding(
               padding: TaqaUiScale.insetsLTRB(16, 12, 16, 0),
-              child: Text(
-                t.translate("profile_title"),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: TaqaUiFontFamilies.interTight,
-                  fontSize: TaqaUiScale.sp(15),
-                  fontWeight: FontWeight.w700,
-                  height: 25 / 15,
-                  letterSpacing: 0,
-                  color: TaqaUiColors.unnamedColor1c1d17,
+              child: SizedBox(
+                height: TaqaUiScale.h(25),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: GestureDetector(
+                        onTap: () => Navigator.of(context).maybePop(),
+                        behavior: HitTestBehavior.opaque,
+                        child: Padding(
+                          padding: TaqaUiScale.insetsLTRB(0, 10, 10, 10),
+                          child: Transform.rotate(
+                            angle: math.pi / 4,
+                            child: Container(
+                              width: TaqaUiScale.w(5),
+                              height: TaqaUiScale.h(5),
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  left: BorderSide(
+                                    color: TaqaUiColors.unnamedColor1c1d17,
+                                    width: TaqaUiScale.w(2),
+                                  ),
+                                  bottom: BorderSide(
+                                    color: TaqaUiColors.unnamedColor1c1d17,
+                                    width: TaqaUiScale.w(2),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      t.translate("profile_title"),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(15),
+                        fontWeight: FontWeight.w700,
+                        height: 25 / 15,
+                        letterSpacing: 0,
+                        color: TaqaUiColors.unnamedColor1c1d17,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
