@@ -26,9 +26,8 @@ import '../services/whoop/whoop_latest_service.dart';
 import '../services/auth/profile_storage.dart';
 import '../screens/welcome.dart';
 import '../screens/account_restore_page.dart';
-import '../screens/coach_page.dart';
-import '../screens/expert_dashboard_page.dart';
 import '../TaqaUI/components/taqa_value_dialog.dart';
+import '../TaqaUI/components/taqa_steps_ui.dart' show TaqaRangeTab;
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
@@ -353,88 +352,6 @@ class _SettingsPageState extends State<SettingsPage> {
         _expertFlagReady = true;
       });
     }
-  }
-
-  Future<bool> _resolveExpertPortalAccess() async {
-    await _loadExpertFlag();
-    return AccountStorage.isExpert();
-  }
-
-  Future<void> _openCoachPortal() async {
-    final isExpert = await _resolveExpertPortalAccess();
-    if (!mounted) return;
-
-    if (!isExpert) {
-      await Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => const CoachPage()));
-      return;
-    }
-
-    final choice = await showDialog<String>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: AppColors.cardDark,
-          title: const Text(
-            'Open coach portal',
-            style: TextStyle(color: Colors.white),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(
-                  Icons.analytics_outlined,
-                  color: Colors.white,
-                ),
-                title: const Text(
-                  'Expert Dashboard',
-                  style: TextStyle(color: Colors.white),
-                ),
-                subtitle: const Text(
-                  'Approve and apply recommendations',
-                  style: TextStyle(color: Colors.white60),
-                ),
-                onTap: () => Navigator.of(context).pop('expert'),
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(
-                  Icons.record_voice_over,
-                  color: Colors.white,
-                ),
-                title: const Text(
-                  'Client Coach Page',
-                  style: TextStyle(color: Colors.white),
-                ),
-                subtitle: const Text(
-                  'Open feedback/chat/form-check view',
-                  style: TextStyle(color: Colors.white60),
-                ),
-                onTap: () => Navigator.of(context).pop('client'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (!mounted || choice == null) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => choice == 'expert'
-            ? const ExpertDashboardPage()
-            : const CoachPage(),
-      ),
-    );
   }
 
   bool get _showBeExpertButton {
@@ -1341,18 +1258,20 @@ class _SettingsPageState extends State<SettingsPage> {
                   SizedBox(height: TaqaUiScale.h(12)),
                   Row(
                     children: [
-                      _LangPill(
-                        label: "EN",
-                        flag: "🇬🇧",
-                        selected: _langCode == "en",
-                        onTap: () => _changeLanguage(const Locale('en')),
+                      Expanded(
+                        child: TaqaRangeTab(
+                          label: "English",
+                          selected: _langCode == "en",
+                          onTap: () => _changeLanguage(const Locale('en')),
+                        ),
                       ),
-                      SizedBox(width: TaqaUiScale.w(8)),
-                      _LangPill(
-                        label: "AR",
-                        flag: "🇸🇦",
-                        selected: _langCode == "ar",
-                        onTap: () => _changeLanguage(const Locale('ar')),
+                      SizedBox(width: TaqaUiScale.w(15)),
+                      Expanded(
+                        child: TaqaRangeTab(
+                          label: "Arabic",
+                          selected: _langCode == "ar",
+                          onTap: () => _changeLanguage(const Locale('ar')),
+                        ),
                       ),
                     ],
                   ),
@@ -1392,22 +1311,17 @@ class _SettingsPageState extends State<SettingsPage> {
                   _SettingsTile(
                     title: t.translate("settings_change_username"),
                     subtitle: t.translate("settings_change_username_sub"),
-                    icon: Icons.person_outline,
                     onTap: _isDeactivated ? null : _promptChangeUsername,
                   ),
                   _SettingsTile(
                     title: t.translate("settings_change_avatar"),
                     subtitle: t.translate("settings_change_avatar_sub"),
-                    icon: _updatingAvatar
-                        ? Icons.hourglass_bottom
-                        : Icons.image_outlined,
                     onTap: _isDeactivated ? null : _pickAvatar,
                   ),
                   if (_showBeExpertButton)
                     _SettingsTile(
                       title: t.translate("settings_be_expert"),
                       subtitle: t.translate("settings_be_expert_sub"),
-                      icon: Icons.work_outline,
                       onTap: _isDeactivated
                           ? null
                           : () async {
@@ -1453,16 +1367,6 @@ class _SettingsPageState extends State<SettingsPage> {
                               await _loadExpertFlag();
                             },
                     ),
-                  _SettingsTile(
-                    title: t.translate("settings_coach_portal"),
-                    subtitle: _isExpert
-                        ? t.translate("settings_coach_portal_sub_expert")
-                        : t.translate("settings_coach_portal_sub_client"),
-                    icon: _isExpert
-                        ? Icons.analytics_outlined
-                        : Icons.record_voice_over,
-                    onTap: _isDeactivated ? null : _openCoachPortal,
-                  ),
                   const SizedBox(height: 12),
                   _sectionTitle(t.translate("settings_security")),
                   SizedBox(height: TaqaUiScale.h(12)),
@@ -1470,7 +1374,6 @@ class _SettingsPageState extends State<SettingsPage> {
                     _SettingsTile(
                       title: t.translate("settings_change_password"),
                       subtitle: t.translate("settings_change_password_sub"),
-                      icon: Icons.lock_reset,
                       onTap: _isDeactivated
                           ? null
                           : () {
@@ -1489,16 +1392,12 @@ class _SettingsPageState extends State<SettingsPage> {
                     _SettingsTile(
                       title: t.translate("account_reactivate_action"),
                       subtitle: t.translate("settings_reactivate_account_sub"),
-                      icon: Icons.refresh,
                       onTap: _openReactivationFlow,
                     ),
                   if (!_isDeactivated)
                     _SettingsTile(
                       title: t.translate("settings_deactivate_account"),
                       subtitle: t.translate("settings_deactivate_account_sub"),
-                      icon: _deactivatingAccount
-                          ? Icons.hourglass_bottom
-                          : Icons.pause_circle_outline,
                       onTap: _deactivatingAccount
                           ? null
                           : _confirmDeactivateAccount,
@@ -1506,9 +1405,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   _SettingsTile(
                     title: t.translate("settings_delete_account"),
                     subtitle: t.translate("settings_delete_account_sub"),
-                    icon: _deletingAccount
-                        ? Icons.hourglass_bottom
-                        : Icons.delete_forever,
                     onTap: _deletingAccount ? null : _confirmDeleteAccount,
                   ),
                   SizedBox(height: TaqaUiScale.h(24)),
@@ -1519,22 +1415,13 @@ class _SettingsPageState extends State<SettingsPage> {
                     subtitle: _whoopLinked
                         ? "Disconnect your Whoop"
                         : "Link your Whoop account",
-                    icon: _whoopLoading
-                        ? Icons.hourglass_bottom
-                        : Icons.monitor_heart,
                     onTap: (_whoopLoading || _isDeactivated)
                         ? null
                         : _handleWhoopTap,
-                    leading: SizedBox(
-                      height: 28,
-                      width: 28,
-                      child: Center(
-                        child: Image.asset(
-                          'assets/images/whoop.png',
-                          height: 18,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
+                    badge: Image.asset(
+                      'assets/images/whoop.png',
+                      height: TaqaUiScale.h(18),
+                      fit: BoxFit.contain,
                     ),
                   ),
                   _SettingsTile(
@@ -1544,22 +1431,13 @@ class _SettingsPageState extends State<SettingsPage> {
                     subtitle: _fitbitLinked
                         ? "Disconnect your Fitbit"
                         : "Link your Fitbit account",
-                    icon: _fitbitLoading
-                        ? Icons.hourglass_bottom
-                        : Icons.directions_walk,
                     onTap: (_fitbitLoading || _isDeactivated)
                         ? null
                         : _handleFitbitTap,
-                    leading: SizedBox(
-                      height: 28,
-                      width: 28,
-                      child: Center(
-                        child: Image.asset(
-                          'assets/images/fitbit.png',
-                          height: 14,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
+                    badge: Image.asset(
+                      'assets/images/fitbit.png',
+                      height: TaqaUiScale.h(14),
+                      fit: BoxFit.contain,
                     ),
                   ),
                   _SettingsTile(
@@ -1569,22 +1447,13 @@ class _SettingsPageState extends State<SettingsPage> {
                     subtitle: _stravaLinked
                         ? "Disconnect your Strava"
                         : "Link your Strava account",
-                    icon: _stravaLoading
-                        ? Icons.hourglass_bottom
-                        : Icons.directions_bike,
                     onTap: (_stravaLoading || _isDeactivated)
                         ? null
                         : _handleStravaTap,
-                    leading: SizedBox(
-                      height: 28,
-                      width: 28,
-                      child: Center(
-                        child: Image.asset(
-                          'assets/images/strava_logo_icon_170697.png',
-                          height: 18,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
+                    badge: Image.asset(
+                      'assets/images/strava_logo_icon_170697.png',
+                      height: TaqaUiScale.h(18),
+                      fit: BoxFit.contain,
                     ),
                   ),
                   _SettingsTile(
@@ -1604,27 +1473,24 @@ class _SettingsPageState extends State<SettingsPage> {
                                     ? "Health data from Apple Watch is available"
                                     : "Health data from a connected wearable is available")
                               : "No wearable source found in Apple Health data"),
-                    icon: _appleWatchChecking
-                        ? Icons.hourglass_bottom
-                        : Icons.watch,
                     onTap:
                         (!Platform.isIOS ||
                             _isDeactivated ||
                             _appleWatchChecking)
                         ? null
                         : _handleAppleWatchTap,
-                    leading: Container(
-                      height: 28,
-                      width: 28,
+                    badge: Container(
+                      height: TaqaUiScale.h(20),
+                      width: TaqaUiScale.w(20),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: const Color(0xFF7A7A7A),
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: TaqaUiScale.radius(6),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.watch,
-                        color: Colors.white,
-                        size: 16,
+                        color: TaqaUiColors.white,
+                        size: TaqaUiScale.w(12),
                       ),
                     ),
                   ),
@@ -1634,7 +1500,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   _SettingsTile(
                     title: t.translate("settings_contact"),
                     subtitle: t.translate("settings_contact_sub"),
-                    icon: Icons.mail_outline,
                     onTap: () => _showSupportDialog(
                       title: t.translate("settings_contact"),
                       body: t.translate("settings_contact_body"),
@@ -1643,7 +1508,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   _SettingsTile(
                     title: t.translate("settings_help"),
                     subtitle: t.translate("settings_help_sub"),
-                    icon: Icons.help_outline,
                     onTap: () => _showSupportDialog(
                       title: t.translate("settings_help"),
                       body: t.translate("settings_help_body"),
@@ -1674,73 +1538,18 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 }
 
-class _LangPill extends StatelessWidget {
-  const _LangPill({
-    required this.label,
-    required this.flag,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final String flag;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: TaqaUiScale.radius(999),
-      onTap: onTap,
-      child: Container(
-        padding: TaqaUiScale.insetsLTRB(14, 8, 14, 8),
-        decoration: BoxDecoration(
-          color: selected
-              ? TaqaUiColors.unnamedColor1c1d17
-              : TaqaUiColors.white,
-          borderRadius: TaqaUiScale.radius(999),
-          border: Border.all(
-            color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.10),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(flag, style: TextStyle(fontSize: TaqaUiScale.sp(14))),
-            SizedBox(width: TaqaUiScale.w(6)),
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: TaqaUiScale.sp(13),
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0,
-                color: selected
-                    ? TaqaUiColors.white
-                    : TaqaUiColors.unnamedColor1c1d17,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _SettingsTile extends StatelessWidget {
   const _SettingsTile({
     required this.title,
     required this.subtitle,
-    required this.icon,
     required this.onTap,
-    this.leading,
+    this.badge,
   });
 
   final String title;
   final String subtitle;
-  final IconData icon;
   final VoidCallback? onTap;
-  final Widget? leading;
+  final Widget? badge;
 
   @override
   Widget build(BuildContext context) {
@@ -1758,15 +1567,16 @@ class _SettingsTile extends StatelessWidget {
             ),
           ),
           padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
-          child: Row(
+          child: Stack(
             children: [
-              leading ?? Icon(icon, color: TaqaUiColors.unnamedColor1c1d17),
-              SizedBox(width: TaqaUiScale.w(12)),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: badge == null
+                        ? EdgeInsets.zero
+                        : EdgeInsets.only(right: TaqaUiScale.w(36)),
+                    child: Text(
                       title,
                       style: TextStyle(
                         fontFamily: TaqaUiFontFamilies.interTight,
@@ -1777,27 +1587,24 @@ class _SettingsTile extends StatelessWidget {
                         color: TaqaUiColors.unnamedColor1c1d17,
                       ),
                     ),
-                    SizedBox(height: TaqaUiScale.h(4)),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontFamily: TaqaUiFontFamilies.interTight,
-                        fontSize: TaqaUiScale.sp(13),
-                        fontWeight: FontWeight.w400,
-                        height: 18 / 13,
-                        letterSpacing: 0,
-                        color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                          alpha: 0.6,
-                        ),
+                  ),
+                  SizedBox(height: TaqaUiScale.h(4)),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(13),
+                      fontWeight: FontWeight.w400,
+                      height: 18 / 13,
+                      letterSpacing: 0,
+                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                        alpha: 0.6,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              Icon(
-                Icons.chevron_right,
-                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.4),
-              ),
+              if (badge != null) Positioned(top: 0, right: 0, child: badge!),
             ],
           ),
         ),

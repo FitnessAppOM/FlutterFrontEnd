@@ -123,6 +123,140 @@ Future<bool> showTaqaConfirmDialog({
   return result == true;
 }
 
+class TaqaDialogOption<T> {
+  const TaqaDialogOption({
+    required this.value,
+    required this.title,
+    this.subtitle,
+  });
+
+  final T value;
+  final String title;
+  final String? subtitle;
+}
+
+Future<T?> showTaqaOptionDialog<T>({
+  required BuildContext context,
+  required String title,
+  required List<TaqaDialogOption<T>> options,
+  String? cancelLabel,
+}) {
+  return showDialog<T>(
+    context: context,
+    barrierColor: const Color(0x66000000),
+    builder: (ctx) {
+      return Align(
+        alignment: Alignment.center,
+        child: Padding(
+          padding: TaqaUiScale.symmetric(horizontal: 17),
+          child: Material(
+            color: Colors.transparent,
+            clipBehavior: Clip.none,
+            child: Container(
+              constraints: BoxConstraints(maxWidth: TaqaUiScale.w(356)),
+              padding: TaqaUiScale.insetsLTRB(17, 15, 17, 15),
+              decoration: BoxDecoration(
+                color: TaqaUiColors.white,
+                borderRadius: TaqaUiScale.radius(15),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(15),
+                      fontWeight: FontWeight.w700,
+                      height: 25 / 15,
+                      letterSpacing: 0,
+                      color: TaqaUiColors.unnamedColor1c1d17,
+                    ),
+                  ),
+                  SizedBox(height: TaqaUiScale.h(16)),
+                  for (final option in options)
+                    Padding(
+                      padding: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
+                      child: InkWell(
+                        borderRadius: TaqaUiScale.radius(15),
+                        onTap: () => Navigator.pop(ctx, option.value),
+                        child: Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            borderRadius: TaqaUiScale.radius(15),
+                            border: Border.all(
+                              color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                                alpha: 0.10,
+                              ),
+                            ),
+                          ),
+                          padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                option.title,
+                                textAlign: TextAlign.left,
+                                style: TextStyle(
+                                  fontFamily: TaqaUiFontFamilies.interTight,
+                                  fontSize: TaqaUiScale.sp(15),
+                                  fontWeight: FontWeight.w700,
+                                  height: 25 / 15,
+                                  letterSpacing: 0,
+                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                ),
+                              ),
+                              if (option.subtitle != null &&
+                                  option.subtitle!.trim().isNotEmpty) ...[
+                                SizedBox(height: TaqaUiScale.h(4)),
+                                Text(
+                                  option.subtitle!,
+                                  textAlign: TextAlign.left,
+                                  style: TextStyle(
+                                    fontFamily: TaqaUiFontFamilies.interTight,
+                                    fontSize: TaqaUiScale.sp(13),
+                                    fontWeight: FontWeight.w400,
+                                    height: 18 / 13,
+                                    letterSpacing: 0,
+                                    color: TaqaUiColors.unnamedColor1c1d17
+                                        .withValues(alpha: 0.6),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(ctx),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: TaqaUiScale.h(6)),
+                      child: Text(
+                        (cancelLabel ?? "CANCEL").toUpperCase(),
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          fontSize: TaqaUiScale.sp(10),
+                          fontWeight: FontWeight.w600,
+                          height: 12 / 10,
+                          letterSpacing: 0,
+                          color: TaqaUiColors.unnamedColor1c1d17,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
 Future<int?> showTaqaValueDialog({
   required BuildContext context,
   required String title,

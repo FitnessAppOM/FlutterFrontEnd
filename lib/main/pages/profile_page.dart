@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../theme/app_theme.dart';
 import '../../widgets/profile/profile_header.dart';
 import '../../widgets/profile/profile_info_section.dart';
 import '../../widgets/profile/profile_goals_section.dart';
@@ -10,7 +9,12 @@ import '../../core/account_storage.dart';
 import '../../config/base_url.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/auth/profile_storage.dart';
+import '../../services/core/notification_service.dart';
 import '../../screens/edit_profile_page.dart';
+import '../../screens/welcome.dart';
+import '../../TaqaUI/styles/taqa_ui_scale.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
+import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -351,99 +355,141 @@ class _ProfilePageState extends State<ProfilePage> {
     );
 
     return Scaffold(
-      backgroundColor: AppColors.black,
-      appBar: AppBar(
-        title: Text(t.translate("profile_title")),
-        backgroundColor: AppColors.black,
-      ),
-      body: (_error != null && _profile == null)
-          ? Center(
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: TaqaUiScale.insetsLTRB(16, 12, 16, 0),
               child: Text(
-                _error == "user_missing"
-                    ? t.translate("user_missing")
-                    : t.translate("network_error"),
-                style: const TextStyle(color: Colors.white70),
-              ),
-            )
-          : RefreshIndicator(
-              onRefresh: _loadProfile,
-              color: AppColors.accent,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (_loading)
-                      const Padding(
-                        padding: EdgeInsets.only(bottom: 12),
-                        child: LinearProgressIndicator(
-                          color: AppColors.accent,
-                          backgroundColor: Colors.white12,
-                          minHeight: 2,
-                        ),
-                      ),
-                    ProfileHeader(
-                      name: _display(displayName),
-                      occupation: _display(
-                        affiliationDisplay.isNotEmpty
-                            ? affiliationDisplay
-                            : null,
-                      ),
-                      avatarUrl: _avatarUrl,
-                      avatarPath: _avatarPath,
-                    ),
-                    const SizedBox(height: 24),
-                    ProfileInfoSection(
-                      age: _display(age),
-                      sex: _display(sex),
-                      height: _displayWithUnit(height, "cm"),
-                      occupation: _display(occupation),
-                      weight: _displayWithUnit(weight, "kg"),
-                    ),
-                    const SizedBox(height: 24),
-                    ProfileGoalsSection(
-                      mainGoal: _display(mainGoal),
-                      workoutFreq: _displayDays(trainingDays),
-                      dietPref: _display(dietType),
-                      experience: _display(fitnessExperience),
-                    ),
-                    const SizedBox(height: 24),
-                    if (_isDeactivated)
-                      Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: Colors.orange.withValues(alpha: 0.4),
-                          ),
-                        ),
-                        child: const Text(
-                          "Account is deactivated. Profile editing is disabled until you reactivate.",
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    ProfileActionsSection(
-                      editEnabled: !_isDeactivated,
-                      onEditProfile: () async {
-                        if (_profile == null) return;
-                        final updated = await Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => EditProfilePage(profile: _profile!),
-                          ),
-                        );
-                        if (updated == true) {
-                          _loadProfile();
-                        }
-                      },
-                    ),
-                  ],
+                t.translate("profile_title"),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(15),
+                  fontWeight: FontWeight.w700,
+                  height: 25 / 15,
+                  letterSpacing: 0,
+                  color: TaqaUiColors.unnamedColor1c1d17,
                 ),
               ),
             ),
+            Expanded(
+              child: (_error != null && _profile == null)
+                  ? Center(
+                      child: Text(
+                        _error == "user_missing"
+                            ? t.translate("user_missing")
+                            : t.translate("network_error"),
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                            alpha: 0.6,
+                          ),
+                        ),
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _loadProfile,
+                      color: TaqaUiColors.unnamedColor1c1d17,
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: TaqaUiScale.insetsLTRB(16, 20, 16, 24),
+                        children: [
+                          if (_loading)
+                            Padding(
+                              padding: EdgeInsets.only(
+                                bottom: TaqaUiScale.h(12),
+                              ),
+                              child: LinearProgressIndicator(
+                                color: TaqaUiColors.unnamedColorE4e93b,
+                                backgroundColor: TaqaUiColors.unnamedColor1c1d17
+                                    .withValues(alpha: 0.1),
+                                minHeight: 2,
+                              ),
+                            ),
+                          ProfileHeader(
+                            name: _display(displayName),
+                            occupation: _display(
+                              affiliationDisplay.isNotEmpty
+                                  ? affiliationDisplay
+                                  : null,
+                            ),
+                            avatarUrl: _avatarUrl,
+                            avatarPath: _avatarPath,
+                          ),
+                          SizedBox(height: TaqaUiScale.h(24)),
+                          ProfileInfoSection(
+                            age: _display(age),
+                            sex: _display(sex),
+                            height: _displayWithUnit(height, "cm"),
+                            occupation: _display(occupation),
+                            weight: _displayWithUnit(weight, "kg"),
+                          ),
+                          SizedBox(height: TaqaUiScale.h(15)),
+                          ProfileGoalsSection(
+                            mainGoal: _display(mainGoal),
+                            workoutFreq: _displayDays(trainingDays),
+                            dietPref: _display(dietType),
+                            experience: _display(fitnessExperience),
+                          ),
+                          SizedBox(height: TaqaUiScale.h(15)),
+                          if (_isDeactivated)
+                            Container(
+                              width: double.infinity,
+                              margin: EdgeInsets.only(
+                                bottom: TaqaUiScale.h(15),
+                              ),
+                              padding: TaqaUiScale.insetsLTRB(14, 10, 14, 10),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withValues(alpha: 0.14),
+                                borderRadius: TaqaUiScale.radius(15),
+                                border: Border.all(
+                                  color: Colors.orange.withValues(alpha: 0.4),
+                                ),
+                              ),
+                              child: Text(
+                                "Account is deactivated. Profile editing is disabled until you reactivate.",
+                                style: TextStyle(
+                                  fontFamily: TaqaUiFontFamilies.interTight,
+                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                ),
+                              ),
+                            ),
+                          ProfileActionsSection(
+                            editEnabled: !_isDeactivated,
+                            onEditProfile: () async {
+                              if (_profile == null) return;
+                              final updated = await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      EditProfilePage(profile: _profile!),
+                                ),
+                              );
+                              if (updated == true) {
+                                _loadProfile();
+                              }
+                            },
+                            onLogout: () async {
+                              await AccountStorage.clearSessionOnly();
+                              if (!context.mounted) return;
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => WelcomePage(fromLogout: true),
+                                ),
+                                (route) => false,
+                              );
+                              NotificationService.refreshDailyJournalRemindersForCurrentUser();
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

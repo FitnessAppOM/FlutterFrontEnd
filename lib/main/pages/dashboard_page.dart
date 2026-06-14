@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../../widgets/Main/section_header.dart';
 import '../../widgets/Main/card_container.dart';
+import 'profile_page.dart';
 import '../../TaqaUI/components/taqa_news_carousel.dart';
 import '../../TaqaUI/screens/taqa_news_page.dart';
 import '../../services/news/news_service.dart';
@@ -5283,6 +5284,12 @@ class DashboardPageState extends State<DashboardPage>
     widget.onNavigateToTab?.call(0);
   }
 
+  void _openProfilePage() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ProfilePage()));
+  }
+
   Widget _buildAvatar() {
     // Prefer stored file if present
     if (_avatarPath != null && _avatarPath!.isNotEmpty) {
@@ -5386,6 +5393,7 @@ class DashboardPageState extends State<DashboardPage>
           onDateTap: _changeToDate,
           onTrainingTap: _wiggling ? null : _openTrainingPage,
           onDietTap: _wiggling ? null : _openDietPage,
+          onAvatarTap: _wiggling ? null : _openProfilePage,
         ),
         const SizedBox(height: 16),
         if (_loading)

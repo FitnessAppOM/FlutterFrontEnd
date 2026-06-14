@@ -4,11 +4,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../config/base_url.dart';
 import '../../localization/app_localizations.dart';
-import '../../theme/app_theme.dart';
-import '../../screens/welcome.dart';
 import '../../screens/settings_page.dart';
-import '../../core/account_storage.dart';
-import '../../services/core/notification_service.dart';
+import '../../TaqaUI/styles/taqa_ui_scale.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
+import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 
 class ProfileHeader extends StatelessWidget {
   const ProfileHeader({
@@ -30,69 +29,91 @@ class ProfileHeader extends StatelessWidget {
     final ImageProvider? avatarImage = _resolveAvatarImage();
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CircleAvatar(
-          radius: 38,
-          backgroundColor: AppColors.greyDark,
-          backgroundImage: avatarImage,
-          child: avatarImage == null
-              ? const Icon(Icons.person, size: 48, color: Colors.white)
-              : null,
+        SizedBox(
+          height: TaqaUiScale.w(62),
+          width: TaqaUiScale.w(62),
+          child: CircleAvatar(
+            backgroundColor: TaqaUiColors.unnamedColor1c1d17,
+            backgroundImage: avatarImage,
+            child: avatarImage == null
+                ? Icon(
+                    Icons.person,
+                    size: TaqaUiScale.w(32),
+                    color: TaqaUiColors.white,
+                  )
+                : null,
+          ),
         ),
-
-        const SizedBox(width: 16),
-
+        SizedBox(width: TaqaUiScale.w(15)),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 name ?? t.translate("profile_user_name"),
-                style: const TextStyle(
-                  color: AppColors.white,
-                  fontSize: 20,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(25),
                   fontWeight: FontWeight.w700,
+                  height: 25 / 25,
+                  letterSpacing: 0,
+                  color: TaqaUiColors.unnamedColor1c1d17,
                 ),
               ),
               if (occupation != null && occupation!.trim().isNotEmpty) ...[
-                const SizedBox(height: 4),
+                SizedBox(height: TaqaUiScale.h(4)),
                 Text(
                   occupation!,
-                  style: const TextStyle(
-                    color: AppColors.textDim,
-                    fontSize: 14,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: TaqaUiScale.sp(15),
+                    fontWeight: FontWeight.w400,
+                    height: 18 / 15,
+                    letterSpacing: 0,
+                    color: TaqaUiColors.unnamedColor1c1d17,
                   ),
                 ),
               ],
             ],
           ),
         ),
-
-        IconButton(
-          icon: const Icon(Icons.settings, color: Colors.white, size: 26),
-          onPressed: () {
+        InkWell(
+          borderRadius: TaqaUiScale.radius(5),
+          onTap: () {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const SettingsPage()),
             );
           },
-        ),
-
-        IconButton(
-          icon: const Icon(Icons.logout, color: Colors.redAccent, size: 26),
-          onPressed: () async {
-            // Clear first so a later login is never overwritten by a delayed clear.
-            await AccountStorage.clearSessionOnly();
-            if (!context.mounted) return;
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (_) => WelcomePage(fromLogout: true)),
-              (route) => false,
-            );
-            // Refresh notifications after leaving; don't await so we don't race with new login.
-            NotificationService.refreshDailyJournalRemindersForCurrentUser();
-          },
+          child: Container(
+            height: TaqaUiScale.h(20),
+            padding: TaqaUiScale.symmetric(horizontal: 10),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: TaqaUiColors.unnamedColor1c1d17,
+                width: 0.5,
+              ),
+              borderRadius: TaqaUiScale.radius(5),
+            ),
+            child: Text(
+              t.translate("settings").toUpperCase(),
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(10),
+                fontWeight: FontWeight.w600,
+                height: 12 / 10,
+                letterSpacing: 0,
+                color: TaqaUiColors.unnamedColor1c1d17,
+              ),
+            ),
+          ),
         ),
       ],
     );

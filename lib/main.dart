@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -35,6 +36,18 @@ void main() async {
   final bootWatch = Stopwatch()..start();
   print('[Main] Entry');
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Draw edge-to-edge and make the Android system navigation bar
+  // transparent so it overlays our custom bottom nav bar instead of
+  // stacking below it as a second bar.
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
+    ),
+  );
+
   // Keep larger GIFs in memory to avoid reloads when opening sheets.
   final imageCache = PaintingBinding.instance.imageCache;
   imageCache.maximumSize = 2000;

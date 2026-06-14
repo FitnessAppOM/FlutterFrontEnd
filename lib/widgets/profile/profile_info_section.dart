@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../localization/app_localizations.dart';
-import 'section_title.dart';
+import '../../TaqaUI/styles/taqa_ui_scale.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
+import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 
 class ProfileInfoSection extends StatelessWidget {
   const ProfileInfoSection({
@@ -22,34 +24,63 @@ class ProfileInfoSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SectionTitle(text: t.translate("profile_info_title")),
-        const SizedBox(height: 12),
-
-        _infoTile(t.translate("profile_age"), age),
-        _infoTile(t.translate("profile_sex"), sex),
-        _infoTile(t.translate("profile_height"), height),
-        _infoTile(t.translate("profile_weight"), weight),
-        _infoTile(t.translate("profile_occupation"), occupation),
-      ],
+    return Container(
+      width: double.infinity,
+      padding: TaqaUiScale.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: TaqaUiColors.white,
+        borderRadius: TaqaUiScale.radius(15),
+      ),
+      child: Column(
+        children: [
+          ProfileInfoRow(label: t.translate("profile_age"), value: age),
+          ProfileInfoRow(label: t.translate("profile_sex"), value: sex),
+          ProfileInfoRow(label: t.translate("profile_height"), value: height),
+          ProfileInfoRow(label: t.translate("profile_weight"), value: weight),
+          ProfileInfoRow(
+            label: t.translate("profile_occupation"),
+            value: occupation,
+          ),
+        ],
+      ),
     );
   }
+}
 
-  Widget _infoTile(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(10),
-      ),
+class ProfileInfoRow extends StatelessWidget {
+  const ProfileInfoRow({super.key, required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      fontFamily: TaqaUiFontFamilies.interTight,
+      fontSize: TaqaUiScale.sp(15),
+      fontWeight: FontWeight.w400,
+      height: 25 / 15,
+      letterSpacing: 0,
+      color: TaqaUiColors.unnamedColor1c1d17,
+    );
+
+    return Padding(
+      padding: TaqaUiScale.symmetric(vertical: 5),
       child: Row(
         children: [
-          Text(label, style: const TextStyle(color: Colors.white70)),
-          const Spacer(),
-          Text(value, style: const TextStyle(color: Colors.white)),
+          Text(label, style: style),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: style,
+              ),
+            ),
+          ),
         ],
       ),
     );

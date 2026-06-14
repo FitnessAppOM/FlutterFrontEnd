@@ -19,6 +19,7 @@ class TaqaDashboardIntroCard extends StatelessWidget {
     this.onDateTap,
     this.onTrainingTap,
     this.onDietTap,
+    this.onAvatarTap,
     this.message =
         'Get ready and start logging your workouts and caloric intake for the week',
   });
@@ -30,6 +31,7 @@ class TaqaDashboardIntroCard extends StatelessWidget {
   final ValueChanged<DateTime>? onDateTap;
   final VoidCallback? onTrainingTap;
   final VoidCallback? onDietTap;
+  final VoidCallback? onAvatarTap;
   final String message;
 
   @override
@@ -56,7 +58,8 @@ class TaqaDashboardIntroCard extends StatelessWidget {
         final nameTop = TaqaUiScale.h(18) * layoutScale;
         final nameHeight = TaqaUiScale.h(30) * layoutScale;
         final descriptionTop = TaqaUiScale.h(60) * layoutScale;
-        final descriptionWidth = TaqaUiStyles.introDescriptionWidth * layoutScale;
+        final descriptionWidth =
+            TaqaUiStyles.introDescriptionWidth * layoutScale;
         final weekdaysTop = TaqaUiScale.h(107) * layoutScale;
         final descriptionBottomGap = TaqaUiScale.h(10) * layoutScale;
         final descriptionHeight = math.max(
@@ -86,9 +89,12 @@ class TaqaDashboardIntroCard extends StatelessWidget {
                   Positioned(
                     left: leftInset,
                     top: avatarTop,
-                    child: TaqaProfileAvatar(
-                      size: avatarSize,
-                      child: profilePicture,
+                    child: GestureDetector(
+                      onTap: onAvatarTap,
+                      child: TaqaProfileAvatar(
+                        size: avatarSize,
+                        child: profilePicture,
+                      ),
                     ),
                   ),
                   Positioned(
@@ -136,7 +142,10 @@ class TaqaDashboardIntroCard extends StatelessWidget {
                   Positioned(
                     left: leftInset,
                     top: buttonsTop,
-                    width: math.min(buttonRowWidth, cardWidth - (leftInset * 2)),
+                    width: math.min(
+                      buttonRowWidth,
+                      cardWidth - (leftInset * 2),
+                    ),
                     height: buttonHeight,
                     child: TaqaIntroActionsRow(
                       onTrainingTap: onTrainingTap,

@@ -4,12 +4,15 @@ import 'pages/dashboard_page.dart';
 import 'pages/train_page.dart';
 import 'pages/diet_page.dart';
 import 'pages/community_page.dart';
-import 'pages/profile_page.dart';
 import '../core/account_storage.dart';
+import '../localization/app_localizations.dart';
 import '../services/auth/profile_service.dart';
 import '../services/core/navigation_service.dart';
 import '../services/screenings/screening_prompt_service.dart';
+import '../screens/coach_page.dart';
+import '../screens/expert_dashboard_page.dart';
 import '../TaqaUI/components/taqa_bottom_nav_bar.dart';
+import '../TaqaUI/components/taqa_value_dialog.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key, this.initialIndex = _dashboardTab});
@@ -18,7 +21,7 @@ class MainLayout extends StatefulWidget {
   static const int _trainTab = 1;
   static const int _dashboardTab = 2;
   static const int _communityTab = 3;
-  static const int _profileTab = 4;
+  static const int _coachTab = 4;
 
   final int initialIndex;
 
@@ -66,6 +69,10 @@ class _MainLayoutState extends State<MainLayout> {
 
   void _selectTab(int idx) {
     if (idx < 0 || idx > 4) return;
+    if (idx == MainLayout._coachTab) {
+      _openCoach();
+      return;
+    }
     setState(() {
       _index = idx;
       _pages[idx] ??= _buildPage(idx);
@@ -81,28 +88,64 @@ class _MainLayoutState extends State<MainLayout> {
         await _dietKey.currentState?.refreshTargetsAndMeals();
       });
     }
-    if (idx == MainLayout._profileTab) {
-      _preloadExpertFlagsForProfileTab();
-    }
   }
 
-  Future<void> _preloadExpertFlagsForProfileTab() async {
+  Future<bool> _resolveIsExpert() async {
     try {
       final lang = Localizations.localeOf(context).languageCode;
       final userId = await AccountStorage.getUserId();
-      if (userId == null || userId <= 0) return;
+      if (userId == null || userId <= 0) return AccountStorage.isExpert();
       final profile = await ProfileApi.fetchProfile(userId, lang: lang);
       final filledExpertQuestionnaire =
           profile["filled_expert_questionnaire"] == true;
-
-      final done = filledExpertQuestionnaire;
       final isExpert = profile["is_expert"] == true;
-
-      await AccountStorage.setExpertQuestionnaireDone(done);
+      await AccountStorage.setExpertQuestionnaireDone(
+        filledExpertQuestionnaire,
+      );
       await AccountStorage.setIsExpert(isExpert);
+      return isExpert;
     } catch (_) {
-      // Best-effort preload only.
+      return AccountStorage.isExpert();
     }
+  }
+
+  Future<void> _openCoach() async {
+    final isExpert = await _resolveIsExpert();
+    if (!mounted) return;
+
+    if (!isExpert) {
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const CoachPage()));
+      return;
+    }
+
+    final t = AppLocalizations.of(context);
+    final choice = await showTaqaOptionDialog<String>(
+      context: context,
+      title: t.translate("coach_portal_dialog_title"),
+      options: [
+        TaqaDialogOption(
+          value: 'expert',
+          title: t.translate("coach_portal_expert_title"),
+          subtitle: t.translate("coach_portal_expert_sub"),
+        ),
+        TaqaDialogOption(
+          value: 'client',
+          title: t.translate("coach_portal_client_title"),
+          subtitle: t.translate("coach_portal_client_sub"),
+        ),
+      ],
+    );
+
+    if (!mounted || choice == null) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => choice == 'expert'
+            ? const ExpertDashboardPage()
+            : const CoachPage(),
+      ),
+    );
   }
 
   Widget _buildBottomNav() {
@@ -128,7 +171,7 @@ class _MainLayoutState extends State<MainLayout> {
         ),
         TaqaBottomNavItem(
           assetPath: 'assets/icons/Trainer.svg',
-          index: MainLayout._profileTab,
+          index: MainLayout._coachTab,
         ),
       ],
     );
@@ -144,9 +187,8 @@ class _MainLayoutState extends State<MainLayout> {
         return DashboardPage(key: _dashboardKey, onNavigateToTab: _selectTab);
       case MainLayout._communityTab:
         return const CommunityPage();
-      case MainLayout._profileTab:
       default:
-        return const ProfilePage();
+        return const SizedBox.shrink();
     }
   }
 }
