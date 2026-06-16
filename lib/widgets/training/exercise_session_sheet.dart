@@ -33,6 +33,10 @@ class ExerciseSessionSheet extends StatefulWidget {
   final Set<String> completedExerciseNames;
   final VoidCallback onFinished;
   final VoidCallback? onStarted;
+  // Optimistic signal: fired when every set is marked complete, so the parent
+  // can turn the exercise card green immediately without a server refresh.
+  // Distinct from onFinished, which closes the session.
+  final VoidCallback? onAllSetsCompleted;
   final ImageProvider? previewProvider;
   final bool showSessionOnOpen;
   final bool useFullscreenLayout;
@@ -43,6 +47,7 @@ class ExerciseSessionSheet extends StatefulWidget {
     required this.completedExerciseNames,
     required this.onFinished,
     this.onStarted,
+    this.onAllSetsCompleted,
     this.previewProvider,
     this.showSessionOnOpen = false,
     this.useFullscreenLayout = false,
@@ -80,6 +85,13 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   int seconds = 0;
   Timer? timer;
   int? _sessionStartMs;
+
+  // Issue 5: hard cap on a single continuous session. After this much elapsed
+  // time we auto-save (minimize) so the timer/session can't run open forever.
+  // Checked inside the per-second ticker so restored sessions count too.
+  static const int _maxSessionSeconds = 4 * 60 * 60; // 4 hours
+  bool _maxSessionGuardFired = false;
+
   double? _bodyWeightKg;
   final ScrollController _sheetScrollController = ScrollController();
 
@@ -951,6 +963,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         setState(() => seconds++);
       }
       final currentSeconds = seconds;
+      if (currentSeconds >= _maxSessionSeconds) {
+        _handleMaxSessionReached();
+        return;
+      }
       if (_isCardioExercise() || currentSeconds % 5 == 0) {
         final sets = _currentSets();
         final reps = _currentReps();
@@ -968,6 +984,22 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         );
       }
     });
+  }
+
+  // Issue 5: session reached the 4h cap. Stop the ticker, save the in-progress
+  // state (minimize/close the sheet) and tell the user it was auto-saved.
+  void _handleMaxSessionReached() {
+    if (_maxSessionGuardFired) return;
+    _maxSessionGuardFired = true;
+    timer?.cancel();
+    if (mounted) {
+      AppToast.show(
+        context,
+        "Session auto-saved after 4 hours.",
+        type: AppToastType.info,
+      );
+    }
+    unawaited(_minimizeAndClose());
   }
 
   bool _hasAnySetProgress() {
@@ -1526,6 +1558,14 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       _setRows = next;
     });
 
+    // Optimistic completion: if this upsert completed a set and none remain
+    // pending, tell the parent to mark the exercise card green right away.
+    if (completed == true &&
+        next.isNotEmpty &&
+        next.every((row) => _toBool(row['completed']))) {
+      widget.onAllSetsCompleted?.call();
+    }
+
     final programExerciseId = _programExerciseId();
     if (programExerciseId == null) return;
     final payload = <String, dynamic>{
@@ -1617,7 +1657,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           );
         },
       );
-      if (saved != true) return;
+      // Persist what the user entered even if they dismissed the dialog
+      // without tapping SAVE. Only an explicit CANCEL returns false; a
+      // tap-outside/back dismiss returns null and should still save.
+      if (saved == false) return;
       final secs = int.tryParse(timeCtrl.text.trim());
       await _upsertSetRow(
         setIndex: setIndex,
@@ -1679,7 +1722,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         );
       },
     );
-    if (saved != true) return;
+    // Persist what the user entered even on tap-outside/back dismiss (null);
+    // only an explicit CANCEL (false) discards.
+    if (saved == false) return;
     await _upsertSetRow(
       setIndex: setIndex,
       reps: int.tryParse(repsCtrl.text.trim()),
@@ -2679,6 +2724,26 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     );
   }
 
+  // Persist fallback-mode text fields immediately so values aren't lost if the
+  // sheet is closed before "Finish Exercise". These inputs aren't backed by set
+  // rows, so we snapshot them into the active session (same store _minimizeAndClose
+  // writes to).
+  Future<void> _persistFallbackInputs() async {
+    if (_supportsSetRows) return;
+    if (!started || _paused) return;
+    await TrainingActivityService.updateSession(
+      exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
+      sets: _currentSets(),
+      reps: _currentReps(),
+      seconds: seconds,
+      distanceKm: _currentCardioDistanceKm(),
+      paceMinKm: _currentCardioPaceMinKm(),
+      steps: _currentCardioSteps(),
+      routePoints: _trackedCardioRoutePayload(),
+      startMs: _sessionStartMs,
+    );
+  }
+
   List<Widget> _buildFallbackInputsSection(AppLocalizations t) {
     return [
       TextField(
@@ -2686,6 +2751,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         style: const TextStyle(color: Colors.white),
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         decoration: _inputStyle(t.translate("training_weight_label")),
+        onEditingComplete: () => unawaited(_persistFallbackInputs()),
+        onSubmitted: (_) => unawaited(_persistFallbackInputs()),
       ),
       SizedBox(height: TaqaUiScale.h(10)),
       TextField(
@@ -2693,6 +2760,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         style: const TextStyle(color: Colors.white),
         keyboardType: TextInputType.number,
         decoration: _inputStyle(t.translate("training_performed_sets")),
+        onEditingComplete: () => unawaited(_persistFallbackInputs()),
+        onSubmitted: (_) => unawaited(_persistFallbackInputs()),
       ),
       SizedBox(height: TaqaUiScale.h(10)),
       TextField(
@@ -2700,6 +2769,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         style: const TextStyle(color: Colors.white),
         keyboardType: TextInputType.number,
         decoration: _inputStyle(t.translate("training_performed_reps")),
+        onEditingComplete: () => unawaited(_persistFallbackInputs()),
+        onSubmitted: (_) => unawaited(_persistFallbackInputs()),
       ),
       SizedBox(height: TaqaUiScale.h(12)),
       Row(
@@ -3682,6 +3753,15 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         .trim();
     final String instructions = widget.exercise['instructions'] ?? '';
     final viewInsets = MediaQuery.of(context).viewInsets;
+    // Extra bottom clearance for the Android/Samsung system nav bar, which can
+    // overlap the floating timer bar in this bottom sheet. The enclosing
+    // SafeArea/useSafeArea already CONSUMES MediaQuery.viewPadding here (so it
+    // reads 0), so read the true device inset straight from the root view.
+    // Android ONLY so iPhone layout is untouched.
+    final androidNavInset =
+        Theme.of(context).platform == TargetPlatform.android
+        ? MediaQueryData.fromView(View.of(context)).viewPadding.bottom
+        : 0.0;
     final t = AppLocalizations.of(context);
     final compliance =
         _extractCompliance(widget.exercise['program_compliance']) ??
@@ -3699,7 +3779,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     );
     final String rirLabel = overrideRir ?? widget.exercise['rir'].toString();
     const floatingTimerBarHeight = 78.0;
-    final floatingTimerBottomSpacing = 14.0 + viewInsets.bottom;
+    final floatingTimerBottomSpacing =
+        14.0 + viewInsets.bottom + androidNavInset;
     final floatingTimerReservedSpace = showFloatingWorkoutTimer
         ? (floatingTimerBarHeight + floatingTimerBottomSpacing + 10)
         : 0.0;

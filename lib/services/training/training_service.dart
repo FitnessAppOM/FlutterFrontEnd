@@ -753,6 +753,34 @@ class TrainingService {
     }
   }
 
+  /// Auto-close any open workout session older than [olderThanSeconds]
+  /// (default 4h). Not scoped to today's entry_date, so it also cleans up
+  /// abandoned sessions left open from previous days. Returns how many closed.
+  static Future<int> finishStaleSessions({
+    int olderThanSeconds = 4 * 60 * 60,
+  }) async {
+    final url = Uri.parse('$baseUrl/training/session/finish-stale');
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
+    final res = await http.post(
+      url,
+      headers: headers,
+      body: json.encode({'older_than_seconds': olderThanSeconds}),
+    );
+    _recordServerClock(res);
+    await AccountStorage.handle401(res.statusCode);
+    if (res.statusCode != 200) {
+      throw Exception("Failed to finish stale sessions");
+    }
+    final data = json.decode(res.body);
+    if (data is Map && data['closed'] is num) {
+      return (data['closed'] as num).toInt();
+    }
+    return 0;
+  }
+
   static Future<void> saveCardioSession({
     int? programExerciseId,
     int? exerciseId,

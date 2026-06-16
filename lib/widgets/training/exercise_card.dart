@@ -19,6 +19,10 @@ class ExerciseCard extends StatelessWidget {
   final bool? completedOverride;
   final bool showReplace;
   final bool showWeight;
+  // When inProgress, tapping Resume reopens the exercise's running session.
+  final VoidCallback? onResume;
+  // Session start (ms since epoch) used to show a live elapsed timer on Resume.
+  final int? sessionStartMs;
 
   const ExerciseCard({
     super.key,
@@ -31,7 +35,19 @@ class ExerciseCard extends StatelessWidget {
     this.completedOverride,
     this.showReplace = true,
     this.showWeight = true,
+    this.onResume,
+    this.sessionStartMs,
   });
+
+  String _formatElapsed(int totalSeconds) {
+    final s = totalSeconds < 0 ? 0 : totalSeconds;
+    final h = s ~/ 3600;
+    final m = (s % 3600) ~/ 60;
+    final sec = s % 60;
+    final mm = m.toString().padLeft(2, '0');
+    final ss = sec.toString().padLeft(2, '0');
+    return h > 0 ? "${h.toString().padLeft(2, '0')}:$mm:$ss" : "$mm:$ss";
+  }
 
   Map<String, dynamic>? _extractCompliance(dynamic value) {
     if (value == null) return null;
@@ -91,14 +107,35 @@ class ExerciseCard extends StatelessWidget {
     return parsed;
   }
 
+  bool _rowCompleted(dynamic value) {
+    if (value == null) return false;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    final s = value.toString().trim().toLowerCase();
+    if (s.isEmpty) return false;
+    return s == "true" || s == "yes" || s == "y" || s == "t" || s == "1";
+  }
+
   double? _resolvedWeight(Map<String, dynamic> exercise) {
+    // Prefer the heaviest COMPLETED set; fall back to the heaviest set overall
+    // if none are explicitly flagged completed.
     final rawRows = exercise['set_rows'];
     if (rawRows is List) {
+      double? maxCompleted;
+      double? maxAny;
       for (final raw in rawRows) {
         if (raw is! Map) continue;
         final weight = _positiveWeight(raw['weight_kg']);
-        if (weight != null) return weight;
+        if (weight == null) continue;
+        if (maxAny == null || weight > maxAny) maxAny = weight;
+        if (_rowCompleted(raw['completed'] ?? raw['done'])) {
+          if (maxCompleted == null || weight > maxCompleted) {
+            maxCompleted = weight;
+          }
+        }
       }
+      final fromRows = maxCompleted ?? maxAny;
+      if (fromRows != null) return fromRows;
     }
     final compliance =
         _extractCompliance(exercise['program_compliance']) ??
@@ -339,6 +376,56 @@ class ExerciseCard extends StatelessWidget {
       onTap: disabled ? () {} : onReplace,
     );
 
+    // Resume button for an in-progress exercise: shows a live elapsed timer
+    // and reopens the running session on tap.
+    final bool showResume = showProgress && !completed && onResume != null;
+    Widget? resumeChip;
+    if (showResume) {
+      // Compact: a play icon plus the live timer only (no "Resume" word) so it
+      // stays small and doesn't crowd the name / other chips.
+      String? timeLabel;
+      if (sessionStartMs != null && sessionStartMs! > 0) {
+        final elapsed =
+            ((DateTime.now().millisecondsSinceEpoch - sessionStartMs!) / 1000)
+                .floor();
+        timeLabel = _formatElapsed(elapsed);
+      }
+      resumeChip = Material(
+        color: const Color(0xFFE4E93B),
+        borderRadius: BorderRadius.circular(7),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(7),
+          onTap: disabled ? null : onResume,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(timeLabel == null ? 5 : 6, 5, 6, 5),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.play_arrow_rounded,
+                  size: 14,
+                  color: Color(0xFF1C1D17),
+                ),
+                if (timeLabel != null) ...[
+                  const SizedBox(width: 2),
+                  Text(
+                    timeLabel,
+                    style: const TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1C1D17),
+                      fontSize: 10,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     final previewDpr = MediaQuery.of(context).devicePixelRatio;
     final previewCacheWidth = (previewWidth * previewDpr).round();
     final previewCacheHeight = (previewHeight * previewDpr).round();
@@ -517,6 +604,9 @@ class ExerciseCard extends StatelessWidget {
                                                 ),
                                               ),
                                             ),
+                                            if (resumeChip != null)
+                                              SizedBox(width: TaqaUiScale.w(8)),
+                                            if (resumeChip != null) resumeChip,
                                             if (!completed && showReplace)
                                               SizedBox(width: TaqaUiScale.w(8)),
                                             if (!completed && showReplace)

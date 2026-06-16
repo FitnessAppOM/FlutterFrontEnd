@@ -345,6 +345,25 @@ class TrainingProgressStorage {
     }
   }
 
+  /// Restore the local workout start time from an explicit timestamp (e.g. a
+  /// server session's started_at) so the in-progress timer UI can resume after
+  /// the app was force-killed. Overwrites any existing value for today.
+  static Future<void> recordWorkoutStartAt({
+    required int startMs,
+    int? trainingDayIndex,
+  }) async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return;
+    final sp = await SharedPreferences.getInstance();
+    final today = await TrainingResetCoordinator.currentDayToken();
+    final key = _userKey(userId, 'workout_start_ms_$today');
+    await sp.setInt(key, startMs);
+    if (trainingDayIndex != null && trainingDayIndex >= 0) {
+      final dayIndexKey = _userKey(userId, 'workout_day_index_$today');
+      await sp.setInt(dayIndexKey, trainingDayIndex);
+    }
+  }
+
   static Future<int?> getWorkoutStartMs() async {
     final userId = await AccountStorage.getUserId();
     if (userId == null) return null;

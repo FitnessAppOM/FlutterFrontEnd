@@ -38,12 +38,13 @@ class TrainPage extends StatefulWidget {
   const TrainPage({super.key});
 
   @override
-  State<TrainPage> createState() => _TrainPageState();
+  State<TrainPage> createState() => TrainPageState();
 }
 
 class _TrainingDayLiveState {
   const _TrainingDayLiveState({
     required this.inProgressExerciseIds,
+    required this.inProgressStartMsById,
     required this.activeSessionExerciseName,
     required this.sessionCompletedExerciseNames,
     required this.showWorkoutTimer,
@@ -56,6 +57,7 @@ class _TrainingDayLiveState {
   });
 
   final Set<int> inProgressExerciseIds;
+  final Map<int, int> inProgressStartMsById;
   final String? activeSessionExerciseName;
   final Set<String> sessionCompletedExerciseNames;
   final bool showWorkoutTimer;
@@ -158,20 +160,49 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
     super.dispose();
   }
 
+  // Opens the workout launcher screen (same as the START WORKOUT button). The
+  // launcher auto-focuses any in-progress exercise, so this doubles as "resume".
+  Future<void> _openWorkoutLauncher() async {
+    final live = widget.readLiveState();
+    await Navigator.of(context).push(
+      _buildLauncherRoute(
+        _WorkoutLauncherPage(
+          dayLabel: widget.dayLabel,
+          exercises: widget.exercises,
+          restSeconds: live.activeRestPreset,
+          readLiveState: widget.readLiveState,
+          readHistoryCompletedExerciseNames:
+              widget.readHistoryCompletedExerciseNames,
+          inProgressExerciseIds: live.inProgressExerciseIds,
+          activeSessionExerciseName: live.activeSessionExerciseName,
+          onStartExercise: widget.onStartExercise,
+          onExerciseFinished: widget.onExerciseFinished,
+          onReplaceExercise: widget.onReplaceExercise,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    await widget.onWorkoutSessionClosed();
+    if (!mounted) return;
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final live = widget.readLiveState();
     final isDisabled = widget.readDisabledState();
     final dayNote = widget.readDayNoteState();
-    final blockLeave =
-        !isDisabled && (live.showWorkoutTimer || live.finishingWorkout);
+    // Leaving mid-workout is allowed: the session keeps running and the
+    // persistent minimized workout bar (in the app shell) lets the user return.
+    // Only block while a finish is actively in flight to avoid a torn state.
+    final blockLeave = !isDisabled && live.finishingWorkout;
     return PopScope(
       canPop: !blockLeave,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop || !blockLeave) return;
         AppToast.show(
           context,
-          "Finish workout before leaving this day.",
+          "Finishing workout — one moment.",
           type: AppToastType.info,
         );
       },
@@ -196,7 +227,14 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
         backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
         body: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          // Include the bottom safe-area inset so the START WORKOUT button
+          // isn't covered by the Android system nav bar.
+          padding: EdgeInsets.fromLTRB(
+            20,
+            8,
+            20,
+            20 + MediaQuery.of(context).viewPadding.bottom,
+          ),
           children: [
             if (live.showWorkoutTimer) ...[
               Container(
@@ -438,6 +476,7 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                     'index': entry.key,
                     'exercise': ex,
                     'rawId': rawId,
+                    'programExerciseId': programExerciseId,
                     'inProgress': inProgressById || inProgressByName,
                     'done': done,
                   };
@@ -457,6 +496,11 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                   final rawId = item['rawId'];
                   final done = item['done'] == true;
                   final inProgress = item['inProgress'] == true;
+                  final programExerciseId = item['programExerciseId'] as int?;
+                  final sessionStartMs =
+                      (inProgress && programExerciseId != null)
+                      ? live.inProgressStartMsById[programExerciseId]
+                      : null;
                   final exKey = ValueKey("day_ex_$rawId");
                   return Padding(
                     key: exKey,
@@ -469,7 +513,16 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                       forceCompleted: done,
                       inProgress: inProgress,
                       showReplace: !live.showWorkoutTimer,
-                      showWeight: false,
+                      // Show the (heaviest completed) weight on finished cards;
+                      // it persists via weight_used so it stays on every load.
+                      showWeight: done,
+                      // Resume opens the same workout launcher the START WORKOUT
+                      // button does (it auto-focuses the in-progress exercise),
+                      // with a live per-exercise timer on the button.
+                      onResume: (inProgress && !done)
+                          ? () => unawaited(_openWorkoutLauncher())
+                          : null,
+                      sessionStartMs: sessionStartMs,
                     ),
                   );
                 });
@@ -480,30 +533,7 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
               child: ElevatedButton(
                 onPressed: isDisabled || widget.exercises.isEmpty
                     ? null
-                    : () async {
-                        await Navigator.of(context).push(
-                          _buildLauncherRoute(
-                            _WorkoutLauncherPage(
-                              dayLabel: widget.dayLabel,
-                              exercises: widget.exercises,
-                              restSeconds: live.activeRestPreset,
-                              readLiveState: widget.readLiveState,
-                              readHistoryCompletedExerciseNames:
-                                  widget.readHistoryCompletedExerciseNames,
-                              inProgressExerciseIds: live.inProgressExerciseIds,
-                              activeSessionExerciseName:
-                                  live.activeSessionExerciseName,
-                              onStartExercise: widget.onStartExercise,
-                              onExerciseFinished: widget.onExerciseFinished,
-                              onReplaceExercise: widget.onReplaceExercise,
-                            ),
-                          ),
-                        );
-                        if (!mounted) return;
-                        await widget.onWorkoutSessionClosed();
-                        if (!mounted) return;
-                        setState(() {});
-                      },
+                    : () => unawaited(_openWorkoutLauncher()),
                 style: ElevatedButton.styleFrom(
                   elevation: 0,
                   backgroundColor: const Color(0xFFE4E93B),
@@ -673,10 +703,17 @@ class _WorkoutLauncherPageState extends State<_WorkoutLauncherPage> {
         return aDone ? 1 : -1;
       });
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    // Android-only system nav bar clearance for the floating workout timer.
+    // iPhone already clears it (and adding this would shift the iPhone layout),
+    // so gate it to Android.
+    final androidNavInset =
+        Theme.of(context).platform == TargetPlatform.android
+        ? MediaQuery.of(context).viewPadding.bottom
+        : 0.0;
     final showFloatingWorkoutTimer = live.showWorkoutTimer;
     final listBottomPadding = showFloatingWorkoutTimer
-        ? 110.0 + bottomInset
-        : 20.0;
+        ? 110.0 + bottomInset + androidNavInset
+        : 20.0 + androidNavInset;
 
     return Scaffold(
       backgroundColor: const Color(0xFF11130F),
@@ -761,7 +798,7 @@ class _WorkoutLauncherPageState extends State<_WorkoutLauncherPage> {
           if (showFloatingWorkoutTimer)
             Positioned(
               left: 14,
-              bottom: 14 + bottomInset,
+              bottom: 14 + bottomInset + androidNavInset,
               child: IgnorePointer(
                 ignoring: live.finishingWorkout,
                 child: _WorkoutFloatingTimerBar(
@@ -1101,9 +1138,53 @@ class _WorkoutLauncherExerciseCardState
       final performedReps = lastRow?.reps ?? widget.reps;
       final performedRir = lastRow?.rir ?? widget.rir;
       final durationSeconds = _elapsedSecondsSince(_exerciseStartedAtMs);
+      // Heaviest weight among COMPLETED sets, so the finished card can show a
+      // durable weight that persists across loads (weight_used).
+      double maxCompletedWeight = 0;
+      for (final row in completedRows) {
+        if (row.weightKg > maxCompletedWeight) {
+          maxCompletedWeight = row.weightKg;
+        }
+      }
+
+      // Optimistic: write the performed summary onto the shared exercise map so
+      // the day card shows done + weight/sets/reps IMMEDIATELY, without waiting
+      // for the whole-day server refresh. (widget.exercise is the same map
+      // object the parent reads.)
+      widget.exercise['set_rows'] = sourceRows
+          .map(
+            (row) => {
+              'set_index': row.setIndex,
+              'reps': row.reps,
+              'rir': row.rir,
+              'weight_kg': row.weightKg,
+              'completed': row.done,
+            },
+          )
+          .toList();
+      widget.exercise['performed_sets'] = performedSets;
+      widget.exercise['performed_reps'] = performedReps;
+      widget.exercise['performed_rir'] = performedRir;
+      if (maxCompletedWeight > 0) {
+        widget.exercise['weight_used'] = maxCompletedWeight;
+        widget.exercise['weight_kg'] = maxCompletedWeight;
+      }
+      widget.exercise['is_completed'] = true;
+      widget.exercise['logged_at'] = now.toIso8601String();
+
       final programExerciseId = _programExerciseId();
 
       if (programExerciseId != null) {
+        if (maxCompletedWeight > 0) {
+          // Persist durably so the weight reappears on every future load.
+          // Best-effort: failure here must not block finishing the exercise.
+          try {
+            await TrainingService.saveWeight(
+              programExerciseId,
+              maxCompletedWeight,
+            );
+          } catch (_) {}
+        }
         try {
           await TrainingNetworkResilience.withTimeout(
             TrainingService.finishExercise(
@@ -2245,7 +2326,7 @@ class _DayOrderResult {
   final List<bool> completedByIndex;
 }
 
-class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
+class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
   Map<String, dynamic>? program;
   int selectedDay = 0;
   bool loading = true;
@@ -2261,6 +2342,9 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
   List<bool> _dayCompletedByIndex = const [];
   bool _isDeactivated = false;
   final Set<int> _inProgressExerciseIds = <int>{};
+  // Per-exercise session start time (ms since epoch) for in-progress exercises,
+  // used to show a live elapsed timer on the Resume button.
+  final Map<int, int> _inProgressStartMsById = <int, int>{};
   String? _activeSessionExerciseName;
   int _inProgressLoadSeq = 0;
   Set<String> _finishedDayKeysForWeek = <String>{};
@@ -2286,6 +2370,13 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
   int _workoutElapsedSeconds = 0;
   Timer? _workoutTimer;
   bool _finishingWorkout = false;
+
+  // Resume flow for a workout session the server still has open but the local
+  // timer lost (e.g. app force-killed mid-workout).
+  static const int _staleSessionSeconds = 4 * 60 * 60; // 4 hours
+  Map<String, dynamic>? _resumableSession;
+  bool _openSessionCheckDone = false;
+  bool _discardingResumableSession = false;
 
   int _exRestPresetSeconds = 60;
   int _exRestRemaining = 0;
@@ -2397,6 +2488,92 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     await _loadExRestPreset();
     await _restoreExRestState();
     await _refreshTrainingPlanChangeState();
+    await _checkOpenWorkoutSessionOnLaunch();
+  }
+
+  /// Issues 3 & 5: reconcile the server's open workout session with local state
+  /// on launch. Stale sessions (>=4h) are auto-closed silently; a recent open
+  /// session the local timer lost surfaces a "Resume Workout" banner.
+  Future<void> _checkOpenWorkoutSessionOnLaunch() async {
+    if (_openSessionCheckDone) return;
+    _openSessionCheckDone = true;
+
+    Map<String, dynamic> session;
+    try {
+      session = await TrainingService.fetchCurrentSession();
+    } catch (_) {
+      return; // offline or schema missing — nothing to reconcile
+    }
+    if (!mounted) return;
+    if (session.isEmpty || session['started_at'] == null) return;
+
+    final startedAt = _parseDateTime(session['started_at']);
+    if (startedAt == null) return;
+    final ageSeconds = DateTime.now().difference(startedAt).inSeconds;
+
+    // Stale (>=4h) → close silently without prompting (Issue 5).
+    if (ageSeconds >= _staleSessionSeconds) {
+      try {
+        await TrainingService.finishStaleSessions(
+          olderThanSeconds: _staleSessionSeconds,
+        );
+        await TrainingProgressStorage.clearWorkoutStart();
+        await TrainingProgressStorage.clearAllExerciseTimers();
+      } catch (_) {}
+      if (!mounted) return;
+      await _loadWorkoutTimer();
+      return;
+    }
+
+    // Recent session the local timer already tracks — normal UI covers it.
+    if (_workoutStartMs != null) return;
+
+    // Recent open session with no local timer state (force-killed): offer
+    // resume or discard (Issue 3).
+    if (!mounted) return;
+    setState(() => _resumableSession = session);
+  }
+
+  Future<void> _resumeWorkoutSession() async {
+    final session = _resumableSession;
+    if (session == null) return;
+    final startedAt = _parseDateTime(session['started_at']);
+    setState(() => _resumableSession = null);
+    if (startedAt != null) {
+      await TrainingProgressStorage.recordWorkoutStartAt(
+        startMs: startedAt.millisecondsSinceEpoch,
+      );
+      AccountStorage.notifyTrainingChanged();
+    }
+    if (!mounted) return;
+    await _loadWorkoutTimer();
+  }
+
+  Future<void> _discardResumableSession() async {
+    if (_discardingResumableSession) return;
+    if (_resumableSession == null) return;
+    setState(() => _discardingResumableSession = true);
+    try {
+      await TrainingService.finishSession(entryDate: DateTime.now());
+    } catch (_) {
+      try {
+        await TrainingService.finishStaleSessions(olderThanSeconds: 0);
+      } catch (_) {}
+    }
+    try {
+      await TrainingActivityService.stopSession();
+      await TrainingProgressStorage.clearWorkoutStart();
+      await TrainingProgressStorage.clearAllExerciseTimers();
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() {
+      _resumableSession = null;
+      _discardingResumableSession = false;
+      _activeSessionExerciseName = null;
+      _inProgressExerciseIds.clear();
+    });
+    await _loadWorkoutTimer();
+    AccountStorage.notifyTrainingChanged();
   }
 
   Future<void> _refreshAccountStatus() async {
@@ -3139,6 +3316,7 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     }
 
     final inProgressIds = <int>{};
+    final startMsById = <int, int>{};
 
     for (final ex in exercises) {
       final id = _programExerciseId(ex);
@@ -3147,6 +3325,12 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       if (state == null) continue;
       if (state['started'] == true) {
         inProgressIds.add(id);
+        final startMs = state['start_ms'];
+        if (startMs is int && startMs > 0) {
+          startMsById[id] = startMs;
+        } else if (startMs is num && startMs > 0) {
+          startMsById[id] = startMs.toInt();
+        }
       }
     }
 
@@ -3154,11 +3338,21 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     final changed =
         inProgressIds.length != _inProgressExerciseIds.length ||
         !inProgressIds.containsAll(_inProgressExerciseIds);
-    if (!changed) return;
+    // The start-ms map can change even when the id set doesn't, but we only
+    // need a rebuild when membership changes; the 1s ticker re-renders timers.
+    if (!changed) {
+      _inProgressStartMsById
+        ..clear()
+        ..addAll(startMsById);
+      return;
+    }
     setState(() {
       _inProgressExerciseIds
         ..clear()
         ..addAll(inProgressIds);
+      _inProgressStartMsById
+        ..clear()
+        ..addAll(startMsById);
     });
   }
 
@@ -3428,6 +3622,8 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
               _loadWorkoutTimer();
             },
             onStarted: () => _markExerciseInProgress(exerciseWithDay),
+            onAllSetsCompleted: () =>
+                _markExerciseLocallyCompleted(exerciseWithDay),
             previewProvider: previewProvider,
             showSessionOnOpen: true,
             useFullscreenLayout: true,
@@ -3463,6 +3659,8 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
               _loadWorkoutTimer();
             },
             onStarted: () => _markExerciseInProgress(exerciseWithDay),
+            onAllSetsCompleted: () =>
+                _markExerciseLocallyCompleted(exerciseWithDay),
             previewProvider: previewProvider,
             showSessionOnOpen: true,
           ),
@@ -3472,6 +3670,21 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     if (!mounted) return;
     await _loadWorkoutTimer();
     await _refreshInProgressExercises();
+  }
+
+  // Optimistically mark an exercise completed in local state so its card turns
+  // green immediately (before the next server refresh). Does not run finish-
+  // session side effects; that still happens via onFinished.
+  void _markExerciseLocallyCompleted(Map<String, dynamic> ex) {
+    final normalizedName = _normalizeExerciseName(ex['exercise_name']);
+    if (normalizedName.isEmpty || !mounted) return;
+    if (_sessionCompletedExerciseNames.contains(normalizedName)) return;
+    setState(() {
+      _sessionCompletedExerciseNames = <String>{
+        ..._sessionCompletedExerciseNames,
+        normalizedName,
+      };
+    });
   }
 
   void _markExerciseInProgress(Map<String, dynamic> ex) {
@@ -3617,6 +3830,27 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     return out;
   }
 
+  // Public entry used by the app-shell minimized workout bar: open the
+  // in-progress day's exercises page (same destination as START WORKOUT).
+  Future<void> openActiveWorkoutLauncher() async {
+    final days = program?['days'];
+    if (days is! List || days.isEmpty) return;
+    int dayIndex = _workoutDayIndex ??
+        (selectedDay >= 0 && selectedDay < days.length ? selectedDay : 0);
+    if (dayIndex < 0 || dayIndex >= days.length) dayIndex = 0;
+    final day = days[dayIndex];
+    final dayLabel =
+        (day is Map
+                ? (day['day_label'] ?? day['label'] ?? 'Day ${dayIndex + 1}')
+                : 'Day ${dayIndex + 1}')
+            .toString();
+    await _openTrainingDayExercisesPage(
+      days: days,
+      dayIndex: dayIndex,
+      dayLabel: dayLabel,
+    );
+  }
+
   Future<void> _openTrainingDayExercisesPage({
     required List days,
     required int dayIndex,
@@ -3712,9 +3946,97 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     return "Workout in progress";
   }
 
+  Widget _buildResumeWorkoutBanner() {
+    final startedAt = _parseDateTime(_resumableSession?['started_at']);
+    final elapsed = startedAt == null
+        ? null
+        : _formatWorkoutTime(DateTime.now().difference(startedAt).inSeconds);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF1C1D17).withValues(alpha: 0.14),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.play_circle_fill, color: Color(0xFF1C1D17), size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Workout in progress",
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: TaqaUiColors.unnamedColor1c1d17,
+                  ),
+                ),
+                Text(
+                  elapsed != null
+                      ? "Started $elapsed ago — resume or discard"
+                      : "Resume or discard your last session",
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                      alpha: 0.6,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: _discardingResumableSession
+                ? null
+                : () => unawaited(_discardResumableSession()),
+            style: TextButton.styleFrom(
+              foregroundColor: TaqaUiColors.unnamedColor1c1d17,
+            ),
+            child: _discardingResumableSession
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text("Discard"),
+          ),
+          const SizedBox(width: 4),
+          ElevatedButton(
+            onPressed: _discardingResumableSession
+                ? null
+                : () => unawaited(_resumeWorkoutSession()),
+            style: ElevatedButton.styleFrom(
+              elevation: 0,
+              backgroundColor: const Color(0xFFE4E93B),
+              foregroundColor: const Color(0xFF1C1D17),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              "Resume",
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   _TrainingDayLiveState _readTrainingDayLiveState() {
     return _TrainingDayLiveState(
       inProgressExerciseIds: Set<int>.from(_inProgressExerciseIds),
+      inProgressStartMsById: Map<int, int>.from(_inProgressStartMsById),
       activeSessionExerciseName: _activeSessionExerciseName,
       sessionCompletedExerciseNames: Set<String>.from(
         _sessionCompletedExerciseNames,
@@ -4656,6 +4978,7 @@ class _TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                         ),
                       ),
                     ),
+                  if (_resumableSession != null) _buildResumeWorkoutBanner(),
                   Center(
                     child: Text(
                       _titleCase(t.translate("training")),
