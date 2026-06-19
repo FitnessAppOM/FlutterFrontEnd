@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import '../core/daily_provider_push_service.dart';
 import 'fitbit_db_service.dart';
 
 class FitbitBodySummary {
@@ -25,8 +26,9 @@ class FitbitBodyService {
   }
 
   bool _isToday(DateTime date) {
-    final now = DateTime.now();
-    return date.year == now.year && date.month == now.month && date.day == now.day;
+    // Treat the dashboard's push-clock "today" as live; see
+    // DailyProviderPushService.isInProgressDay.
+    return DailyProviderPushService.isInProgressDay(date);
   }
 
   Future<FitbitBodySummary?> fetchSummary(DateTime date) async {

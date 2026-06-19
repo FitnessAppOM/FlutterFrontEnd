@@ -4064,7 +4064,11 @@ class DashboardPageState extends State<DashboardPage>
       _selectedDate.month,
       _selectedDate.day,
     );
-    final isToday = selectedDay == _dashboardToday();
+    // In-progress day uses the shared push-clock-aware rule so the still-
+    // accumulating current day is never served from a stale dashboard cache
+    // (and FitbitSummaryService below also fetches it live, not from the empty
+    // persisted DB row). See DailyProviderPushService.isInProgressDay.
+    final isToday = DailyProviderPushService.isInProgressDay(selectedDay);
     if (!force &&
         _fitbitSummaryLoading &&
         _fitbitSummaryLoadingDate != null &&

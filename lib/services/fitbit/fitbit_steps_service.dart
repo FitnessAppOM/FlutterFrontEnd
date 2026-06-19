@@ -41,7 +41,10 @@ class FitbitStepsService {
     final url = Uri.parse(
       "${ApiConfig.baseUrl}/fitbit/steps-range?user_id=$userId&start=$startStr&end=$endStr",
     );
-    final res = await http.get(url);
+    // /fitbit/steps-range is auth-protected on the backend; send the token like
+    // every other Fitbit call so this doesn't 401.
+    final headers = await AccountStorage.getAuthHeaders();
+    final res = await http.get(url, headers: headers);
     if (res.statusCode != 200) {
       throw Exception("Failed to load Fitbit steps: ${res.body}");
     }

@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import '../core/daily_provider_push_service.dart';
 import 'fitbit_db_service.dart';
 import 'fitbit_activity_service.dart';
 import 'fitbit_heart_service.dart';
@@ -51,10 +52,10 @@ class FitbitSummaryService {
   }
 
   bool _isToday(DateTime date) {
-    final now = DateTime.now();
-    return date.year == now.year &&
-        date.month == now.month &&
-        date.day == now.day;
+    // Use the shared in-progress-day rule so the dashboard's "today"
+    // (a 1 AM push clock) always resolves to the live fetch, never the
+    // empty persisted DB row. See DailyProviderPushService.isInProgressDay.
+    return DailyProviderPushService.isInProgressDay(date);
   }
 
   Map<String, int> _parseSleepStageMinutes(dynamic raw) {
