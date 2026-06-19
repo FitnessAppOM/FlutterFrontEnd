@@ -89,8 +89,12 @@ class _TrainingDayExercisesPage extends StatefulWidget {
     required this.onSetCustomRest,
     required this.restPresets,
     required this.onSelectRestPreset,
+    this.autoOpenLauncher = false,
   });
 
+  // When true, the workout launcher (sets flow) opens automatically right after
+  // this page builds — used by the minimized bar to jump straight into sets.
+  final bool autoOpenLauncher;
   final String dayLabel;
   final List<Map<String, dynamic>> exercises;
   final bool Function() readDisabledState;
@@ -152,6 +156,12 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
     _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
+    if (widget.autoOpenLauncher) {
+      // Jump straight into the sets flow once this page is mounted.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_openWorkoutLauncher());
+      });
+    }
   }
 
   @override
@@ -547,7 +557,8 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                   padding: EdgeInsets.symmetric(horizontal: TaqaUiScale.w(5)),
                 ),
                 child: Text(
-                  "START WORKOUT",
+                  // Reflect that a workout is already running for this day.
+                  live.showWorkoutTimer ? "CONTINUE WORKOUT" : "START WORKOUT",
                   style: TextStyle(
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: TaqaUiScale.sp(10),
@@ -1265,7 +1276,12 @@ class _WorkoutLauncherExerciseCardState
     setState(() {
       _restCountdownActive = false;
       _restRemainingSeconds = 0;
+      // Auto-start the next set's timer immediately (same as when rest finishes
+      // naturally), so skipping rest doesn't require a manual "START SET" tap.
+      _setInProgress = true;
+      _setStartedAtMs = DateTime.now().millisecondsSinceEpoch;
     });
+    _ensureActiveTimers();
     unawaited(_saveLauncherProgressState());
   }
 
@@ -3848,6 +3864,9 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       days: days,
       dayIndex: dayIndex,
       dayLabel: dayLabel,
+      // From the minimized bar: go straight into the sets flow, not just the
+      // day list.
+      autoOpenLauncher: true,
     );
   }
 
@@ -3855,6 +3874,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     required List days,
     required int dayIndex,
     required String dayLabel,
+    bool autoOpenLauncher = false,
   }) async {
     setState(() {
       selectedDay = dayIndex;
@@ -3874,6 +3894,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
         builder: (_) => _TrainingDayExercisesPage(
           dayLabel: dayLabel,
           exercises: exercises,
+          autoOpenLauncher: autoOpenLauncher,
           readDisabledState: () => _isDayDisabledForWorkout(dayIndex),
           readDayNoteState: () => _dayNoteForWorkoutLock(dayIndex),
           readLiveState: _readTrainingDayLiveState,
