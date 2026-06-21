@@ -3066,6 +3066,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
             route: _shouldTrackCardioRoute() ? _cardioRoute : const [],
             exerciseName: (widget.exercise['exercise_name'] ?? '').toString(),
             userName: name,
+            inclinePercent: _isTreadmillExercise() ? _treadmillIncline : null,
           ),
         );
         AccountStorage.notifyTrainingChanged();

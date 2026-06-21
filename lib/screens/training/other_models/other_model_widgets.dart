@@ -61,12 +61,14 @@ class ModelMetricsColumn extends StatelessWidget {
     required this.showDistance,
     required this.distanceLabel,
     required this.paceLabel,
+    this.elevationLabel,
   });
 
   final String durationLabel;
   final bool showDistance;
   final String distanceLabel;
   final String paceLabel;
+  final String? elevationLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +79,8 @@ class ModelMetricsColumn extends StatelessWidget {
         if (showDistance)
           ModelMetricPill(label: "Distance", value: distanceLabel),
         ModelMetricPill(label: "Pace", value: paceLabel),
+        if (elevationLabel != null && elevationLabel!.trim().isNotEmpty)
+          ModelMetricPill(label: "Elevation", value: elevationLabel!),
       ],
     );
   }

@@ -12,6 +12,7 @@ import '../../widgets/cardio/cardio_exercise_utils.dart';
 
 import '../../widgets/cardio/cardio_map.dart';
 import '../../widgets/cardio/cardio_route_utils.dart';
+import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import 'other_models/other_models_page.dart';
 
 class CardioAchievementSheet extends StatefulWidget {
@@ -26,6 +27,7 @@ class CardioAchievementSheet extends StatefulWidget {
     this.userName,
     this.snapshotUrl,
     this.sessionDate,
+    this.inclinePercent,
   });
 
   final int durationSeconds;
@@ -37,6 +39,7 @@ class CardioAchievementSheet extends StatefulWidget {
   final String? userName;
   final String? snapshotUrl;
   final DateTime? sessionDate;
+  final double? inclinePercent;
 
   @override
   State<CardioAchievementSheet> createState() => _CardioAchievementSheetState();
@@ -104,6 +107,14 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
 
   bool get _showDistance =>
       !isIndoorCardioExerciseName(widget.exerciseName);
+
+  bool get _isMapless => isIndoorCardioExerciseName(widget.exerciseName);
+
+  String? get _elevationLabel {
+    final incline = widget.inclinePercent;
+    if (incline == null || incline <= 0) return null;
+    return '${incline.toStringAsFixed(1)}%';
+  }
 
   Future<void> _saveScreenshot() async {
     if (_saving) return;
@@ -389,8 +400,10 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                             ),
                           ],
                         ),
-                        if (!_hideMapForCapture) ...[
-                          const SizedBox(height: 14),
+                        if (_isMapless)
+                          SizedBox(height: TaqaUiScale.h(36))
+                        else if (!_hideMapForCapture) ...[
+                          SizedBox(height: TaqaUiScale.h(14)),
                           ClipRRect(
                             borderRadius: BorderRadius.circular(16),
                             child: SizedBox(
@@ -438,9 +451,10 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                                     ),
                             ),
                           ),
-                          const SizedBox(height: 14),
+                          SizedBox(height: TaqaUiScale.h(14)),
                         ],
-                        if (_hideMapForCapture) const SizedBox(height: 8),
+                        if (!_isMapless && _hideMapForCapture)
+                          SizedBox(height: TaqaUiScale.h(8)),
                         Row(
                           children: [
                             Expanded(
@@ -532,6 +546,8 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                                   paceLabel: _avgPaceLabel(),
                                   userName: widget.userName,
                                   dateLabel: _sessionDateLabel(),
+                                  isMapless: _isMapless,
+                                  elevationLabel: _elevationLabel,
                                 ),
                               ),
                             );

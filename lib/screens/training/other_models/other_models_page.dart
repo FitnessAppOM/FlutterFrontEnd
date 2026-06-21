@@ -19,6 +19,8 @@ class OtherModelsPage extends StatefulWidget {
     required this.paceLabel,
     required this.userName,
     required this.dateLabel,
+    this.isMapless = false,
+    this.elevationLabel,
   });
 
   final String snapshotUrl;
@@ -29,6 +31,8 @@ class OtherModelsPage extends StatefulWidget {
   final String paceLabel;
   final String? userName;
   final String dateLabel;
+  final bool isMapless;
+  final String? elevationLabel;
 
   @override
   State<OtherModelsPage> createState() => _OtherModelsPageState();
@@ -44,6 +48,12 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
   final GlobalKey _modelAKey = GlobalKey();
   final GlobalKey _modelBKey = GlobalKey();
   final GlobalKey _modelCKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isMapless) _index = 1;
+  }
 
   @override
   void didChangeDependencies() {
@@ -170,45 +180,58 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
       body: Column(
         children: [
           Expanded(
-            child: PageView(
-              controller: _controller,
-              onPageChanged: (i) => setState(() => _index = i),
-              children: [
-                ModelAPage(
-                  snapshotUrl: widget.snapshotUrl,
-                  durationLabel: widget.durationLabel,
-                  showDistance: widget.showDistance,
-                  distanceLabel: widget.distanceLabel,
-                  paceLabel: widget.paceLabel,
-                  captureKey: _modelAKey,
-                  userName: widget.userName,
-                  dateLabel: widget.dateLabel,
-                ),
-                ModelBPage(
-                  route: widget.route,
-                  durationLabel: widget.durationLabel,
-                  showDistance: widget.showDistance,
-                  distanceLabel: widget.distanceLabel,
-                  paceLabel: widget.paceLabel,
-                  captureKey: _modelBKey,
-                  userName: widget.userName,
-                  dateLabel: widget.dateLabel,
-                ),
-                ModelCPage(
-                  route: widget.route,
-                  durationLabel: widget.durationLabel,
-                  showDistance: widget.showDistance,
-                  distanceLabel: widget.distanceLabel,
-                  paceLabel: widget.paceLabel,
-                  captureKey: _modelCKey,
-                  userName: widget.userName,
-                  dateLabel: widget.dateLabel,
-                ),
-              ],
-            ),
+            child: widget.isMapless
+                ? ModelBPage(
+                    route: widget.route,
+                    durationLabel: widget.durationLabel,
+                    showDistance: widget.showDistance,
+                    distanceLabel: widget.distanceLabel,
+                    paceLabel: widget.paceLabel,
+                    elevationLabel: widget.elevationLabel,
+                    captureKey: _modelBKey,
+                    userName: widget.userName,
+                    dateLabel: widget.dateLabel,
+                  )
+                : PageView(
+                    controller: _controller,
+                    onPageChanged: (i) => setState(() => _index = i),
+                    children: [
+                      ModelAPage(
+                        snapshotUrl: widget.snapshotUrl,
+                        durationLabel: widget.durationLabel,
+                        showDistance: widget.showDistance,
+                        distanceLabel: widget.distanceLabel,
+                        paceLabel: widget.paceLabel,
+                        captureKey: _modelAKey,
+                        userName: widget.userName,
+                        dateLabel: widget.dateLabel,
+                      ),
+                      ModelBPage(
+                        route: widget.route,
+                        durationLabel: widget.durationLabel,
+                        showDistance: widget.showDistance,
+                        distanceLabel: widget.distanceLabel,
+                        paceLabel: widget.paceLabel,
+                        elevationLabel: widget.elevationLabel,
+                        captureKey: _modelBKey,
+                        userName: widget.userName,
+                        dateLabel: widget.dateLabel,
+                      ),
+                      ModelCPage(
+                        route: widget.route,
+                        durationLabel: widget.durationLabel,
+                        showDistance: widget.showDistance,
+                        distanceLabel: widget.distanceLabel,
+                        paceLabel: widget.paceLabel,
+                        captureKey: _modelCKey,
+                        userName: widget.userName,
+                        dateLabel: widget.dateLabel,
+                      ),
+                    ],
+                  ),
           ),
           const SizedBox(height: 8),
-          _PageDots(count: 3, index: _index),
+          if (!widget.isMapless) _PageDots(count: 3, index: _index),
           const SizedBox(height: 10),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),

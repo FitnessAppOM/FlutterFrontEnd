@@ -37,14 +37,14 @@ void main() async {
   print('[Main] Entry');
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Draw edge-to-edge and make the Android system navigation bar
-  // transparent so it overlays our custom bottom nav bar instead of
-  // stacking below it as a second bar.
+  // Draw edge-to-edge and paint the Android system navigation bar the same
+  // solid color as TaqaBottomNavBar so it reads as one continuous bar.
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
-      systemNavigationBarColor: Colors.transparent,
-      systemNavigationBarDividerColor: Colors.transparent,
+      systemNavigationBarColor: Color(0xFFFFFFFF),
+      systemNavigationBarDividerColor: Color(0xFFFFFFFF),
+      systemNavigationBarIconBrightness: Brightness.dark,
     ),
   );
 

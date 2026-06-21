@@ -77,8 +77,7 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
     final route = _route;
     final showDistance = !isIndoorCardioExerciseName(name);
     final showIncline = isTreadmillExerciseName(name) && inclinePercent > 0;
-    final useIndoorStatsHero =
-        isIndoorCardioExerciseName(name) && route.isEmpty && !_loading;
+    final isMapless = isIndoorCardioExerciseName(name);
 
     final snapshotUrl = _buildSnapshotUrl(
       route: route,
@@ -114,6 +113,7 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
                   userName: userName,
                   snapshotUrl: snapshotUrl,
                   sessionDate: sessionDate,
+                  inclinePercent: inclinePercent,
                 ),
               );
             },
@@ -142,19 +142,9 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
               padding: EdgeInsets.only(top: 12),
               child: Center(child: CircularProgressIndicator()),
             )
-          else if (useIndoorStatsHero)
-            _buildIndoorStatsHero(
-              context,
-              showDistance: showDistance,
-              distanceKm: distanceKm,
-              pace: pace,
-              duration: duration,
-              steps: steps,
-              inclinePercent: inclinePercent,
-            )
-          else
+          else if (!isMapless)
             _buildMapCard(context, snapshotUrl, route.isNotEmpty),
-          const SizedBox(height: 18),
+          if (_loading || !isMapless) const SizedBox(height: 18),
           if (showDistance) ...[
             _buildMetricsRow(
               context,
@@ -272,82 +262,6 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
                 ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIndoorStatsHero(
-    BuildContext context, {
-    required bool showDistance,
-    required double distanceKm,
-    required double pace,
-    required int duration,
-    required int steps,
-    required double inclinePercent,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF182B52), Color(0xFF0B1222)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
-      ),
-      child: Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        children: [
-          if (showDistance)
-            _buildHeroMetricTile("Distance", _formatDistance(distanceKm)),
-          _buildHeroMetricTile("Pace", _formatPace(pace)),
-          _buildHeroMetricTile("Duration", _formatDuration(duration)),
-          _buildHeroMetricTile("Steps", steps.toString()),
-          if (inclinePercent > 0)
-            _buildHeroMetricTile(
-              "Incline",
-              "${inclinePercent.toStringAsFixed(1)}%",
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeroMetricTile(String label, String value) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final width = ((screenWidth - 64) / 2).clamp(120.0, 220.0);
-    return Container(
-      width: width,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label.toUpperCase(),
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.58),
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.7,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
           ),
         ],
       ),

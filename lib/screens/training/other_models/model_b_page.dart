@@ -12,6 +12,7 @@ class ModelBPage extends StatelessWidget {
     required this.paceLabel,
     required this.userName,
     required this.dateLabel,
+    this.elevationLabel,
     this.captureKey,
   });
 
@@ -22,6 +23,7 @@ class ModelBPage extends StatelessWidget {
   final String paceLabel;
   final String? userName;
   final String dateLabel;
+  final String? elevationLabel;
   final GlobalKey? captureKey;
 
   @override
@@ -54,6 +56,7 @@ class ModelBPage extends StatelessWidget {
                     showDistance: showDistance,
                     distanceLabel: distanceLabel,
                     paceLabel: paceLabel,
+                    elevationLabel: elevationLabel,
                   ),
                 ),
               ),
