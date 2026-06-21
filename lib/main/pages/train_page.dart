@@ -1431,7 +1431,11 @@ class _WorkoutLauncherExerciseCardState
             reps: _toInt(raw['reps'], fallback: widget.reps),
             rir: _toInt(raw['rir'], fallback: widget.rir),
             weightKg: _toDouble(raw['weight_kg'], fallback: 0),
-            done: _toBool(raw['completed']),
+            // Always start un-ticked. The "completed" flag in set_rows can be
+            // stale (e.g. from an earlier session this week), which would wrongly
+            // pre-check sets. A genuine resume restores real ticks separately via
+            // _restoreLauncherProgressState (saved_set_rows).
+            done: false,
           ),
         );
       }
@@ -5143,9 +5147,6 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                               ? "No Exercises"
                               : exerciseNames.join(", ");
 
-                          final isWorkoutLockDay =
-                              workoutLockDayIndex != null &&
-                              dayIndex == workoutLockDayIndex;
                           final isLockedOut =
                               workoutLockDayIndex != null &&
                               dayIndex != workoutLockDayIndex;
@@ -5253,47 +5254,6 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                                             Icons.check_circle,
                                             size: 16,
                                             color: Color(0xFF2ECC71),
-                                          ),
-                                        )
-                                      else if (isWorkoutLockDay)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            right: 6,
-                                          ),
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: TaqaUiColors
-                                                  .unnamedColor1c1d17,
-                                              borderRadius:
-                                                  BorderRadius.circular(7),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: const [
-                                                Icon(
-                                                  Icons.play_circle_fill,
-                                                  size: 12,
-                                                  color: Color(0xFF2ECC71),
-                                                ),
-                                                SizedBox(width: 4),
-                                                Text(
-                                                  "CONTINUE",
-                                                  style: TextStyle(
-                                                    fontFamily:
-                                                        TaqaUiFontFamilies
-                                                            .interTight,
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.w700,
-                                                    letterSpacing: 0.2,
-                                                    color: Colors.white,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
                                           ),
                                         ),
                                       Icon(
