@@ -37,14 +37,17 @@ void main() async {
   print('[Main] Entry');
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Draw edge-to-edge and paint the Android system navigation bar the same
-  // solid color as TaqaBottomNavBar so it reads as one continuous bar.
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  // The Android system navigation bar is painted solid white natively in
+  // MainActivity.onCreate/onPostResume (window.navigationBarColor). We do that
+  // on the native side because Flutter's SystemUiOverlayStyle.light/.dark
+  // constants hardcode the nav bar to black and re-apply it on frame changes,
+  // which reverted any white we set from here. We still set the status-bar
+  // style from Dart, but leave the nav-bar color to the native layer.
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
-      systemNavigationBarColor: Color(0xFFFFFFFF),
-      systemNavigationBarDividerColor: Color(0xFFFFFFFF),
-      systemNavigationBarIconBrightness: Brightness.dark,
+      statusBarColor: Color(0x00000000),
+      statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
     ),
   );
 
