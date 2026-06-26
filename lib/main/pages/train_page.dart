@@ -873,10 +873,14 @@ class _WorkoutLauncherExerciseCardState
   int _restRemainingSeconds = 0;
   int _flowSetIndex = 0;
   bool _setInProgress = false;
+  // Previous session's logged value per set index (label like "60×8"), shown in
+  // the PREVIOUS column. Captured once at init from the exercise's prior data.
+  Map<int, String> _previousBySetIndex = const {};
 
   @override
   void initState() {
     super.initState();
+    _previousBySetIndex = _buildPreviousLabels();
     _rows = _seedRows();
     _restSeconds = widget.restSeconds;
     _flowSetIndex = _initialFlowSetIndex();
@@ -1136,6 +1140,23 @@ class _WorkoutLauncherExerciseCardState
 
   Future<void> _finishExercise() async {
     if (_finishingExercise) return;
+    // If a set is currently in progress (the user started it and pressed
+    // "Finish Exercise" instead of "Finish Set"), count that active set as
+    // completed so its tick is recorded and persisted.
+    if (_setInProgress) {
+      final activeIdx = _activeFlowSetIndex();
+      if (activeIdx >= 0 &&
+          activeIdx < _rows.length &&
+          !_rows[activeIdx].done) {
+        final nextRows = List<_LauncherSetRow>.from(_rows);
+        nextRows[activeIdx] = nextRows[activeIdx].copyWith(done: true);
+        if (mounted) {
+          setState(() => _rows = nextRows);
+        } else {
+          _rows = nextRows;
+        }
+      }
+    }
     setState(() => _finishingExercise = true);
     final now = DateTime.now();
     try {
@@ -1186,6 +1207,14 @@ class _WorkoutLauncherExerciseCardState
       final programExerciseId = _programExerciseId();
 
       if (programExerciseId != null) {
+        // Persist every set's final state (completed/reps/rir/weight) so the
+        // ticks survive a server reload. "Finish Set" upserts per set, but
+        // "Finish Exercise" otherwise only sends the summary — so sets completed
+        // without an explicit "Finish Set" (e.g. the last set) would lose their
+        // tick on reload, especially with more than one set.
+        for (final row in _rows) {
+          await _persistUpsert(row);
+        }
         if (maxCompletedWeight > 0) {
           // Persist durably so the weight reappears on every future load.
           // Best-effort: failure here must not block finishing the exercise.
@@ -1418,6 +1447,62 @@ class _WorkoutLauncherExerciseCardState
     return s == 'true' || s == '1' || s == 'yes' || s == 'y' || s == 't';
   }
 
+  // Build the "previous session" label per set index for the PREVIOUS column.
+  // Prefers per-set rows; falls back to a single compliance value applied to
+  // all sets. Returns {} when there's no prior data.
+  Map<int, String> _buildPreviousLabels() {
+    String? fmtWeight(double w) {
+      if (w <= 0) return null;
+      final r = w.roundToDouble();
+      return (w - r).abs() < 0.001 ? r.toStringAsFixed(0) : w.toStringAsFixed(1);
+    }
+
+    // Show only the previous weight (no reps), e.g. "60 kg".
+    String? label(double weight, int reps) {
+      final wl = fmtWeight(weight);
+      if (wl != null) return "$wl kg";
+      return null;
+    }
+
+    final out = <int, String>{};
+    // The PREVIOUS column reflects the previous logged session, not the current
+    // prescription. Prefer compliance history (weight_used / performed_reps);
+    // program_exercise_sets.weight_kg is the prescribed/current load and must
+    // NOT be used here, otherwise PREVIOUS mirrors the CURRENT weight column.
+    final compliance =
+        _extractComplianceMap(widget.exercise['program_compliance']) ??
+        _extractComplianceMap(widget.exercise['compliance']);
+    final prevWeight = _toDouble(
+      compliance?['weight_used'] ?? widget.exercise['weight_used'],
+      fallback: 0,
+    );
+    final prevReps = _toInt(
+      compliance?['performed_reps'] ?? widget.exercise['performed_reps'],
+      fallback: 0,
+    );
+    final l = label(prevWeight, prevReps);
+    if (l != null) {
+      for (var i = 1; i <= widget.sets; i++) {
+        out[i] = l;
+      }
+    }
+    return out;
+  }
+
+  Map<String, dynamic>? _extractComplianceMap(dynamic value) {
+    if (value == null) return null;
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    if (value is String) {
+      try {
+        final decoded = jsonDecode(value);
+        if (decoded is Map<String, dynamic>) return decoded;
+        if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      } catch (_) {}
+    }
+    return null;
+  }
+
   List<_LauncherSetRow> _seedRows() {
     final rawRows = widget.exercise['set_rows'];
     final out = <_LauncherSetRow>[];
@@ -1431,11 +1516,12 @@ class _WorkoutLauncherExerciseCardState
             reps: _toInt(raw['reps'], fallback: widget.reps),
             rir: _toInt(raw['rir'], fallback: widget.rir),
             weightKg: _toDouble(raw['weight_kg'], fallback: 0),
-            // Always start un-ticked. The "completed" flag in set_rows can be
-            // stale (e.g. from an earlier session this week), which would wrongly
-            // pre-check sets. A genuine resume restores real ticks separately via
-            // _restoreLauncherProgressState (saved_set_rows).
-            done: false,
+            // Only show ticks when the exercise is actually finished (then the
+            // set_rows 'completed' flags reflect which sets were done). For a
+            // not-yet-done exercise, start un-ticked so a stale 'completed'
+            // (e.g. from earlier this week) doesn't wrongly pre-check sets. A
+            // genuine resume restores real ticks separately via saved_set_rows.
+            done: widget.isDone ? _toBool(raw['completed']) : false,
           ),
         );
       }
@@ -2107,8 +2193,11 @@ class _WorkoutLauncherExerciseCardState
             Expanded(
               flex: 3,
               child: Text(
-                "-",
-                style: TextStyle(color: previousColor, fontSize: 18),
+                _previousBySetIndex[row.setIndex] ?? "-",
+                style: TextStyle(
+                  color: previousColor,
+                  fontSize: _previousBySetIndex[row.setIndex] != null ? 13 : 18,
+                ),
               ),
             ),
             Expanded(

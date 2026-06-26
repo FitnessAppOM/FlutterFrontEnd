@@ -54,6 +54,12 @@ class _ExpertTrainingPlanReviewPageState
     return int.tryParse(value?.toString() ?? '') ?? fallback;
   }
 
+  double? _toNullableDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString());
+  }
+
   List<Map<String, dynamic>> _mapList(dynamic value) {
     if (value is! List) return const [];
     return value
@@ -81,6 +87,7 @@ class _ExpertTrainingPlanReviewPageState
         final exerciseName = (exercise['exercise_name'] ?? '')
             .toString()
             .trim();
+        final weightKg = _toNullableDouble(exercise['weight_kg']);
         return _PlanExerciseDraft(
           exerciseId: _toInt(exercise['exercise_id'], fallback: 0),
           exerciseName: exerciseName,
@@ -89,6 +96,7 @@ class _ExpertTrainingPlanReviewPageState
           rir: exercise['rir'] == null
               ? null
               : _toInt(exercise['rir']).clamp(0, 6),
+          weightKg: (weightKg != null && weightKg >= 0) ? weightKg : null,
         );
       }).toList(growable: true);
       return _PlanDayDraft(
@@ -109,6 +117,7 @@ class _ExpertTrainingPlanReviewPageState
             sets: exercise.sets,
             reps: exercise.reps,
             rir: exercise.rir,
+            weightKg: exercise.weightKg,
           );
         }).toList(growable: true),
       );
@@ -121,7 +130,7 @@ class _ExpertTrainingPlanReviewPageState
       chunks.add(day.dayLabel.trim());
       for (final exercise in day.exercises) {
         chunks.add(
-          '${exercise.exerciseId}|${exercise.exerciseName}|${exercise.sets}|${exercise.reps}|${exercise.rir ?? ''}',
+          '${exercise.exerciseId}|${exercise.exerciseName}|${exercise.sets}|${exercise.reps}|${exercise.rir ?? ''}|${exercise.weightKg ?? ''}',
         );
       }
       chunks.add('::');
@@ -339,6 +348,7 @@ class _ExpertTrainingPlanReviewPageState
               'sets': exercise.sets,
               'reps': exercise.reps,
               'rir': exercise.rir,
+              'weight_kg': exercise.weightKg,
             };
           }).toList(growable: false),
         });
@@ -371,6 +381,7 @@ class _ExpertTrainingPlanReviewPageState
               'sets': exercise.sets,
               'reps': exercise.reps,
               'rir': exercise.rir,
+              'weight_kg': exercise.weightKg,
             };
           }).toList(growable: false),
         };
@@ -615,6 +626,12 @@ class _ExpertTrainingPlanReviewPageState
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 8),
+                  _WeightField(
+                    initialValue: ex.weightKg,
+                    enabled: !(_saving || _verifying),
+                    onChanged: (value) => ex.weightKg = value,
                   ),
                 ],
               ),
@@ -870,6 +887,7 @@ class _PlanExerciseDraft {
     required this.sets,
     required this.reps,
     required this.rir,
+    this.weightKg,
   });
 
   int exerciseId;
@@ -877,6 +895,7 @@ class _PlanExerciseDraft {
   int sets;
   int reps;
   int? rir;
+  double? weightKg;
 }
 
 class _NumberField extends StatefulWidget {
@@ -955,6 +974,101 @@ class _NumberFieldState extends State<_NumberField> {
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: widget.label,
+        isDense: true,
+      ),
+      onChanged: _handleChange,
+      onFieldSubmitted: (_) => FocusScope.of(context).unfocus(),
+    );
+  }
+}
+
+class _WeightField extends StatefulWidget {
+  const _WeightField({
+    required this.initialValue,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final double? initialValue;
+  final bool enabled;
+  final ValueChanged<double?> onChanged;
+
+  @override
+  State<_WeightField> createState() => _WeightFieldState();
+}
+
+class _WeightFieldState extends State<_WeightField> {
+  late final TextEditingController _controller;
+
+  static const double _maxWeight = 1000;
+
+  String _format(double? value) {
+    if (value == null) return '';
+    if (value == value.roundToDouble()) return value.toStringAsFixed(0);
+    return value.toString();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: _format(widget.initialValue));
+  }
+
+  @override
+  void didUpdateWidget(covariant _WeightField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialValue != widget.initialValue &&
+        _toDouble(_controller.text) != widget.initialValue) {
+      _controller.text = _format(widget.initialValue);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  double? _toDouble(String raw) {
+    final text = raw.trim();
+    if (text.isEmpty) return null;
+    return double.tryParse(text);
+  }
+
+  void _handleChange(String raw) {
+    final text = raw.trim();
+    if (text.isEmpty) {
+      widget.onChanged(null);
+      return;
+    }
+    final parsed = double.tryParse(text);
+    if (parsed == null) return;
+    if (parsed < 0) {
+      widget.onChanged(0);
+      return;
+    }
+    if (parsed > _maxWeight) {
+      _controller.text = _format(_maxWeight);
+      _controller.selection = TextSelection.fromPosition(
+        TextPosition(offset: _controller.text.length),
+      );
+      widget.onChanged(_maxWeight);
+      return;
+    }
+    widget.onChanged(parsed);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: _controller,
+      enabled: widget.enabled,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      textInputAction: TextInputAction.done,
+      style: const TextStyle(color: Colors.white),
+      decoration: const InputDecoration(
+        labelText: 'Weight (kg)',
+        hintText: 'Not set',
         isDense: true,
       ),
       onChanged: _handleChange,

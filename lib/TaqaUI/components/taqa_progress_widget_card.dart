@@ -49,7 +49,7 @@ class TaqaProgressWidgetCard extends StatelessWidget {
     final targetArcVisibleHeight = TaqaUiScale.h(114);
     final cardRadius = TaqaUiScale.r(15);
     final baseTitleFontSize = TaqaUiScale.sp(8);
-    final baseGoalFontSize = TaqaUiScale.sp(8);
+    final baseGoalFontSize = TaqaUiScale.sp(10);
     final baseValueFontSize = TaqaUiScale.sp(25);
     final basePlainValueFontSize = TaqaUiScale.sp(32);
     final baseIndicatorSize = TaqaUiScale.w(16);

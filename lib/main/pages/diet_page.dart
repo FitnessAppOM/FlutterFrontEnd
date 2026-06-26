@@ -56,8 +56,6 @@ class DietPageState extends State<DietPage> {
   bool _manualEntrySheetOpen = false;
   bool _photoEntrySheetOpen = false;
   bool _dietRecommendationShown = false;
-  bool _dietRecommendationCancelled = false;
-  DialogRoute<bool>? _dietRecommendationDialogRoute;
   bool _loadingUploadedPlans = false;
   int _unseenDietTargetChangeCount = 0;
 
@@ -256,67 +254,64 @@ class DietPageState extends State<DietPage> {
     if (mounted) refreshTargetsAndMeals();
   }
 
+  /// Remaining calories from the locally-cached day summary, if known.
+  /// Lets the recommendation dialog show "you have X kcal left" instantly,
+  /// before the network call for food options resolves.
+  int? _cachedRemainingCalories() {
+    final summary = (_meals?["day_summary"] is Map)
+        ? _meals!["day_summary"] as Map
+        : null;
+    if (summary == null) return null;
+    final live = (summary["live"] is Map) ? summary["live"] as Map : summary;
+    final remaining = (live["remaining"] is Map) ? live["remaining"] as Map : null;
+    final dynamic cal = remaining?["calories"] ?? live["remaining_calories"];
+    if (cal == null) return null;
+    if (cal is int) return cal;
+    if (cal is num) return cal.toInt();
+    return int.tryParse(cal.toString().trim());
+  }
+
   Future<void> _maybeShowDietRecommendation() async {
     if (_dietRecommendationShown) return;
     final shouldShow = NavigationService.consumeDietNotification();
     if (!shouldShow) return;
     _dietRecommendationShown = true;
-    _dietRecommendationCancelled = false;
 
-    if (mounted) {
-      showDietRecommendationLoadingDialog(
-        context: context,
-        onRouteReady: (route) => _dietRecommendationDialogRoute = route,
-      ).then((value) {
-        _dietRecommendationDialogRoute = null;
-        if (value == true) {
-          _dietRecommendationCancelled = true;
-        }
-      });
-    }
+    final userId = await AccountStorage.getUserId();
+    if (userId == null || !mounted) return;
 
-    void closeLoadingDialogIfOpen() {
-      final route = _dietRecommendationDialogRoute;
-      if (route == null) return;
-      _dietRecommendationDialogRoute = null;
-      if (route.isActive) {
-        route.navigator?.removeRoute(route);
-      }
-    }
+    // Kick off the fetch immediately, but open the dialog right away with the
+    // remaining-calorie number we already have cached — no blank "please wait".
+    final optionsFuture = DietService.fetchRemainingRecommendations(userId).then(
+      (data) {
+        final rec = (data["recommendation"] is Map)
+            ? data["recommendation"] as Map
+            : const {};
+        final message =
+            (rec["message"] ?? "Here are a few ideas to finish your day.")
+                .toString();
+        final optionsRaw = rec["options"];
+        final options = (optionsRaw is List)
+            ? optionsRaw
+                  .whereType<Map>()
+                  .map((e) => e.cast<String, dynamic>())
+                  .toList()
+            : <Map<String, dynamic>>[];
+        return DietRecommendationResult(message: message, options: options);
+      },
+    );
+    // Swallow the error here so an unawaited rejection doesn't surface; the
+    // dialog's own catchError renders the failure state to the user.
+    optionsFuture.catchError(
+      (_) => const DietRecommendationResult(message: "", options: []),
+    );
 
-    try {
-      final userId = await AccountStorage.getUserId();
-      if (userId == null || !mounted) {
-        closeLoadingDialogIfOpen();
-        return;
-      }
-      final data = await DietService.fetchRemainingRecommendations(userId);
-      if (!mounted || _dietRecommendationCancelled) return;
-      closeLoadingDialogIfOpen();
-      final rec = (data["recommendation"] is Map)
-          ? data["recommendation"] as Map
-          : const {};
-      final message =
-          (rec["message"] ?? "Here are a few ideas to finish your day.")
-              .toString();
-      final optionsRaw = rec["options"];
-      final options = (optionsRaw is List)
-          ? optionsRaw
-                .whereType<Map>()
-                .map((e) => e.cast<String, dynamic>())
-                .toList()
-          : <Map<String, dynamic>>[];
-
-      await showDietRecommendationDialog(
-        context: context,
-        title: "Diet Suggestions",
-        message: message,
-        options: options,
-      );
-    } catch (_) {
-      closeLoadingDialogIfOpen();
-      // Best-effort: no dialog if recommendation fails.
-    }
+    await showDietRecommendationDialog(
+      context: context,
+      title: "Diet Suggestions",
+      remainingCalories: _cachedRemainingCalories(),
+      optionsFuture: optionsFuture,
+    );
   }
 
   @override
