@@ -13,7 +13,9 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 
 class CardioShareService {
-  static const MethodChannel _instagramChannel = MethodChannel('instagram_share');
+  static const MethodChannel _instagramChannel = MethodChannel(
+    'instagram_share',
+  );
 
   static Future<bool> ensurePhotoPermission() async {
     final photos = await Permission.photos.request();
@@ -31,10 +33,17 @@ class CardioShareService {
     return byteData?.buffer.asUint8List();
   }
 
+  /// [cornerRadius] is the *logical* corner radius of the captured widget
+  /// (i.e. the same value passed to its BorderRadius/ClipRRect, before any
+  /// device scaling). [pixelRatio] must match the pixelRatio used in
+  /// [capturePng] for [bytes] so the mask lines up with the widget's actual
+  /// rendered corner instead of cutting a mismatched radius on the
+  /// already-scaled bitmap.
   static Future<Uint8List?> flattenPngOnBackground(
     Uint8List bytes,
     Color background, {
     double cornerRadius = 26,
+    double pixelRatio = 3.0,
   }) async {
     try {
       final image = await _decodeImage(bytes);
@@ -43,8 +52,16 @@ class CardioShareService {
         recorder,
         Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
       );
-      final rect = Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble());
-      final rrect = RRect.fromRectAndRadius(rect, Radius.circular(cornerRadius));
+      final rect = Rect.fromLTWH(
+        0,
+        0,
+        image.width.toDouble(),
+        image.height.toDouble(),
+      );
+      final rrect = RRect.fromRectAndRadius(
+        rect,
+        Radius.circular(cornerRadius * pixelRatio),
+      );
       final paint = Paint()..color = background;
       canvas.drawRRect(rrect, paint);
       canvas.save();
@@ -53,14 +70,19 @@ class CardioShareService {
       canvas.restore();
       final picture = recorder.endRecording();
       final outImage = await picture.toImage(image.width, image.height);
-      final byteData = await outImage.toByteData(format: ui.ImageByteFormat.png);
+      final byteData = await outImage.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
       return byteData?.buffer.asUint8List();
     } catch (_) {
       return null;
     }
   }
 
-  static Future<void> savePngBytes(Uint8List bytes, {String name = 'cardio_achievement'}) async {
+  static Future<void> savePngBytes(
+    Uint8List bytes, {
+    String name = 'cardio_achievement',
+  }) async {
     await ImageGallerySaverPlus.saveImage(bytes, quality: 100, name: name);
   }
 
@@ -90,7 +112,8 @@ class CardioShareService {
 
   static Future<String?> shareInstagramStickerDetailed(Uint8List bytes) async {
     if (!Platform.isIOS) return 'not_ios';
-    final appId = dotenv.maybeGet('INSTAGRAM_APP_ID') ??
+    final appId =
+        dotenv.maybeGet('INSTAGRAM_APP_ID') ??
         dotenv.maybeGet('FACEBOOK_APP_ID') ??
         '';
     if (appId.trim().isEmpty) return 'missing_app_id';

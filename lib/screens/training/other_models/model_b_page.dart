@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../widgets/cardio/cardio_map.dart';
+import '../../../TaqaUI/styles/taqa_ui_scale.dart';
 import 'other_model_widgets.dart';
 
 class ModelBPage extends StatelessWidget {
@@ -29,19 +30,19 @@ class ModelBPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: TaqaUiScale.insetsLTRB(10, 10, 10, 10),
       child: RepaintBoundary(
         key: captureKey,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: TaqaUiScale.radius(20),
           child: Stack(
             fit: StackFit.expand,
             children: [
               RouteTraceCanvas(route: route, showMarkers: true),
               Positioned(
-                top: 16,
-                left: 16,
-                right: 16,
+                top: TaqaUiScale.h(14),
+                left: TaqaUiScale.w(14),
+                right: TaqaUiScale.w(14),
                 child: ModelHeader(
                   appName: "Taqa Fitness",
                   userName: userName,
@@ -50,7 +51,7 @@ class ModelBPage extends StatelessWidget {
               ),
               Positioned.fill(
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 90),
+                  padding: EdgeInsets.only(top: TaqaUiScale.h(80)),
                   child: ModelMetricsColumn(
                     durationLabel: durationLabel,
                     showDistance: showDistance,

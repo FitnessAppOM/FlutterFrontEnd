@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../widgets/cardio/cardio_map.dart';
+import '../../../TaqaUI/styles/taqa_ui_scale.dart';
 import 'other_model_widgets.dart';
 
 class ModelCPage extends StatelessWidget {
@@ -27,13 +28,13 @@ class ModelCPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: TaqaUiScale.insetsLTRB(10, 10, 10, 10),
       child: RepaintBoundary(
         key: captureKey,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: TaqaUiScale.radius(20),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+            padding: TaqaUiScale.insetsLTRB(14, 15, 14, 15),
             child: Column(
               children: [
                 ModelHeader(
@@ -41,7 +42,7 @@ class ModelCPage extends StatelessWidget {
                   userName: userName,
                   dateLabel: dateLabel,
                 ),
-                const SizedBox(height: 18),
+                SizedBox(height: TaqaUiScale.h(15)),
                 Expanded(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -49,7 +50,10 @@ class ModelCPage extends StatelessWidget {
                       _TraceRow(route: route),
                       ModelMetricPill(label: "Duration", value: durationLabel),
                       if (showDistance)
-                        ModelMetricPill(label: "Distance", value: distanceLabel),
+                        ModelMetricPill(
+                          label: "Distance",
+                          value: distanceLabel,
+                        ),
                       ModelMetricPill(label: "Pace", value: paceLabel),
                     ],
                   ),
@@ -90,9 +94,7 @@ class _TraceRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      children: [
-        Expanded(child: _TraceBox(route: route)),
-      ],
+      children: [Expanded(child: _TraceBox(route: route))],
     );
   }
 }

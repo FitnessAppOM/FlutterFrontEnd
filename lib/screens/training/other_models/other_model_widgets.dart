@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../widgets/cardio/cardio_map.dart';
+import '../../../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../../../TaqaUI/styles/taqa_ui_scale.dart';
+import '../../../TaqaUI/taqa_ui_colors.dart';
 
 class ModelMapCard extends StatelessWidget {
   const ModelMapCard({
@@ -18,7 +21,7 @@ class ModelMapCard extends StatelessWidget {
     final hasMap = snapshotUrl.trim().isNotEmpty;
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: TaqaUiScale.radius(20),
         color: const Color(0xFF0B0F1A),
         border: Border.all(color: Colors.white10),
       ),
@@ -47,8 +50,8 @@ class ModelMapCard extends StatelessWidget {
   Widget _mapFallback() {
     return Container(
       color: const Color(0xFF0E1A33),
-      child: const Center(
-        child: Icon(Icons.map, color: Colors.white54, size: 36),
+      child: Center(
+        child: Icon(Icons.map, color: Colors.white54, size: TaqaUiScale.w(32)),
       ),
     );
   }
@@ -103,52 +106,60 @@ class ModelHeader extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: 42,
-          height: 42,
+          width: TaqaUiScale.w(36),
+          height: TaqaUiScale.h(36),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF2D7CFF), Color(0xFF48E1B9)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(14),
+            color: TaqaUiColors.lime,
+            borderRadius: TaqaUiScale.radius(12),
           ),
-          child: const Icon(Icons.fitness_center, color: Colors.black, size: 20),
+          child: Icon(
+            Icons.fitness_center,
+            color: TaqaUiColors.unnamedColor1c1d17,
+            size: TaqaUiScale.w(17),
+          ),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: TaqaUiScale.w(9)),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 appName,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.3,
-                    ),
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(14),
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.3,
+                ),
               ),
               Text(
                 userName != null && userName!.trim().isNotEmpty
                     ? userName!
                     : 'Cardio Achievement',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.white70,
-                    ),
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(11),
+                  color: Colors.white70,
+                ),
               ),
             ],
           ),
         ),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: TaqaUiScale.insetsLTRB(8, 5, 8, 5),
           decoration: BoxDecoration(
             color: Colors.white10,
-            borderRadius: BorderRadius.circular(999),
+            borderRadius: TaqaUiScale.radius(999),
             border: Border.all(color: Colors.white12),
           ),
           child: Text(
             dateLabel,
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+              color: Colors.white70,
+              fontSize: TaqaUiScale.sp(10),
+            ),
           ),
         ),
       ],
@@ -170,24 +181,34 @@ class ModelMetricPill extends StatelessWidget {
         Text(
           label.toUpperCase(),
           style: TextStyle(
-            color: Colors.white.withOpacity(0.6),
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
+            fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+            color: Colors.white.withValues(alpha: 0.6),
+            fontSize: TaqaUiScale.sp(9),
+            fontWeight: FontWeight.w400,
             letterSpacing: 0.6,
             shadows: const [
-              Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2)),
+              Shadow(
+                color: Colors.black54,
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
             ],
           ),
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: TaqaUiScale.h(3)),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
             color: Colors.white,
             fontWeight: FontWeight.w800,
-            fontSize: 18,
-            shadows: [
-              Shadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 2)),
+            fontSize: TaqaUiScale.sp(16),
+            shadows: const [
+              Shadow(
+                color: Colors.black54,
+                blurRadius: 10,
+                offset: Offset(0, 2),
+              ),
             ],
           ),
         ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../TaqaUI/styles/taqa_ui_scale.dart';
 import 'other_model_widgets.dart';
 
 class ModelAPage extends StatelessWidget {
@@ -26,7 +27,7 @@ class ModelAPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: TaqaUiScale.insetsLTRB(10, 10, 10, 10),
       child: RepaintBoundary(
         key: captureKey,
         child: ModelMapCard(
@@ -34,9 +35,9 @@ class ModelAPage extends StatelessWidget {
           overlay: Stack(
             children: [
               Positioned(
-                top: 16,
-                left: 16,
-                right: 16,
+                top: TaqaUiScale.h(14),
+                left: TaqaUiScale.w(14),
+                right: TaqaUiScale.w(14),
                 child: ModelHeader(
                   appName: "Taqa Fitness",
                   userName: userName,
@@ -45,7 +46,7 @@ class ModelAPage extends StatelessWidget {
               ),
               Positioned.fill(
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 90),
+                  padding: EdgeInsets.only(top: TaqaUiScale.h(80)),
                   child: ModelMetricsColumn(
                     durationLabel: durationLabel,
                     showDistance: showDistance,

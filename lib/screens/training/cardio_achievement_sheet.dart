@@ -12,7 +12,9 @@ import '../../widgets/cardio/cardio_exercise_utils.dart';
 
 import '../../widgets/cardio/cardio_map.dart';
 import '../../widgets/cardio/cardio_route_utils.dart';
+import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 import 'other_models/other_models_page.dart';
 
 class CardioAchievementSheet extends StatefulWidget {
@@ -105,8 +107,7 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
     return dt.toString().split(' ').first;
   }
 
-  bool get _showDistance =>
-      !isIndoorCardioExerciseName(widget.exerciseName);
+  bool get _showDistance => !isIndoorCardioExerciseName(widget.exerciseName);
 
   bool get _isMapless => isIndoorCardioExerciseName(widget.exerciseName);
 
@@ -156,8 +157,11 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
     if (bytes == null) return null;
     final flattened = await CardioShareService.flattenPngOnBackground(
       bytes,
-      const Color(0xFF0B0F1A),
-      cornerRadius: 22,
+      TaqaUiColors.white,
+      // Must match the captured card's own borderRadius (TaqaUiScale.radius(15)
+      // in build()) so the background mask lines up with the card's actual
+      // rounded corner instead of leaving square edges outside it.
+      cornerRadius: TaqaUiScale.r(15),
     );
     return flattened ?? bytes;
   }
@@ -290,43 +294,52 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
       _snapshotReady = true;
     }
 
+    final actionTextStyle = TextStyle(
+      fontFamily: TaqaUiFontFamilies.interTight,
+      fontSize: TaqaUiScale.sp(13),
+      fontWeight: FontWeight.w600,
+      color: TaqaUiColors.unnamedColor1c1d17,
+    );
+
     return SafeArea(
       bottom: false,
       child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: const BoxDecoration(
-          color: Color(0xFF0B0F1A),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        padding: TaqaUiScale.insetsLTRB(12, 12, 12, 12),
+        decoration: BoxDecoration(
+          color: TaqaUiColors.unnamedColorE3e3e3,
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(TaqaUiScale.r(20)),
+          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 40,
-              height: 5,
-              margin: const EdgeInsets.only(bottom: 16),
+              width: TaqaUiScale.w(34),
+              height: TaqaUiScale.h(4),
+              margin: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
               decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(99),
+                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.12),
+                borderRadius: TaqaUiScale.radius(99),
               ),
             ),
             ClipRRect(
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: TaqaUiScale.radius(18),
               child: Container(
-                color: const Color(0xFF0B0F1A),
-                padding: const EdgeInsets.all(6),
+                color: TaqaUiColors.unnamedColorE3e3e3,
+                padding: TaqaUiScale.insetsLTRB(4, 4, 4, 4),
                 child: RepaintBoundary(
                   key: _captureKey,
                   child: Container(
-                    padding: const EdgeInsets.all(18),
+                    padding: TaqaUiScale.insetsLTRB(14, 14, 14, 14),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF0E1A33), Color(0xFF0B0F1A)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                      color: TaqaUiColors.white,
+                      borderRadius: TaqaUiScale.radius(15),
+                      border: Border.all(
+                        color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                          alpha: 0.10,
+                        ),
                       ),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: Colors.white10),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -334,87 +347,89 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                         Row(
                           children: [
                             Container(
-                              width: 42,
-                              height: 42,
+                              width: TaqaUiScale.w(36),
+                              height: TaqaUiScale.h(36),
                               decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFF2D7CFF),
-                                    Color(0xFF48E1B9),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(14),
+                                color: TaqaUiColors.lime,
+                                borderRadius: TaqaUiScale.radius(12),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.fitness_center,
-                                color: Colors.black,
-                                size: 20,
+                                color: TaqaUiColors.unnamedColor1c1d17,
+                                size: TaqaUiScale.w(17),
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            SizedBox(width: TaqaUiScale.w(9)),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     'Taqa Fitness',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: 0.3,
-                                        ),
+                                    style: TextStyle(
+                                      fontFamily: TaqaUiFontFamilies.interTight,
+                                      fontSize: TaqaUiScale.sp(14),
+                                      color: TaqaUiColors.unnamedColor1c1d17,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.3,
+                                    ),
                                   ),
                                   Text(
                                     widget.userName != null &&
                                             widget.userName!.trim().isNotEmpty
                                         ? widget.userName!
                                         : 'Cardio Achievement',
-                                    style: Theme.of(context).textTheme.bodySmall
-                                        ?.copyWith(color: Colors.white70),
+                                    style: TextStyle(
+                                      fontFamily: TaqaUiFontFamilies.interTight,
+                                      fontSize: TaqaUiScale.sp(11),
+                                      color: TaqaUiColors.unnamedColor1c1d17
+                                          .withValues(alpha: 0.6),
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
-                              ),
+                              padding: TaqaUiScale.insetsLTRB(8, 5, 8, 5),
                               decoration: BoxDecoration(
-                                color: Colors.white10,
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(color: Colors.white12),
+                                borderRadius: TaqaUiScale.radius(999),
+                                border: Border.all(
+                                  color: TaqaUiColors.unnamedColor1c1d17
+                                      .withValues(alpha: 0.6),
+                                ),
                               ),
                               child: Text(
                                 _sessionDateLabel(),
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 12,
+                                style: TextStyle(
+                                  fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                  fontSize: TaqaUiScale.sp(10),
                                 ),
                               ),
                             ),
                           ],
                         ),
                         if (_isMapless)
-                          SizedBox(height: TaqaUiScale.h(36))
+                          SizedBox(height: TaqaUiScale.h(30))
                         else if (!_hideMapForCapture) ...[
-                          SizedBox(height: TaqaUiScale.h(14)),
+                          SizedBox(height: TaqaUiScale.h(12)),
                           ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: TaqaUiScale.radius(14),
                             child: SizedBox(
-                              height: 220,
+                              height: TaqaUiScale.h(190),
                               child: snapshotUrl.isEmpty
                                   ? Container(
-                                      color: Colors.white12,
+                                      color: TaqaUiColors.unnamedColorE3e3e3,
                                       alignment: Alignment.center,
-                                      child: const Text(
+                                      child: Text(
                                         'Route unavailable',
-                                        style: TextStyle(color: Colors.white70),
+                                        style: TextStyle(
+                                          fontFamily:
+                                              TaqaUiFontFamilies.interTight,
+                                          color: TaqaUiColors.unnamedColor1c1d17
+                                              .withValues(alpha: 0.6),
+                                          fontSize: TaqaUiScale.sp(13),
+                                        ),
                                       ),
                                     )
                                   : ClipRect(
@@ -424,37 +439,45 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                                           snapshotUrl,
                                           fit: BoxFit.cover,
                                           gaplessPlayback: true,
-                                          loadingBuilder: (context, child, progress) {
-                                            if (progress == null) {
-                                              if (!_snapshotReady) {
-                                                WidgetsBinding.instance
-                                                    .addPostFrameCallback((_) {
-                                                      if (mounted) {
-                                                        setState(
-                                                          () => _snapshotReady =
-                                                              true,
-                                                        );
-                                                      }
-                                                    });
-                                              }
-                                              return child;
-                                            }
-                                            return Container(
-                                              color: Colors.white10,
-                                              alignment: Alignment.center,
-                                              child:
-                                                  const CircularProgressIndicator(),
-                                            );
-                                          },
+                                          loadingBuilder:
+                                              (context, child, progress) {
+                                                if (progress == null) {
+                                                  if (!_snapshotReady) {
+                                                    WidgetsBinding.instance
+                                                        .addPostFrameCallback((
+                                                          _,
+                                                        ) {
+                                                          if (mounted) {
+                                                            setState(
+                                                              () =>
+                                                                  _snapshotReady =
+                                                                      true,
+                                                            );
+                                                          }
+                                                        });
+                                                  }
+                                                  return child;
+                                                }
+                                                return Container(
+                                                  color: TaqaUiColors
+                                                      .unnamedColorE3e3e3,
+                                                  alignment: Alignment.center,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        color: TaqaUiColors
+                                                            .unnamedColor1c1d17,
+                                                      ),
+                                                );
+                                              },
                                         ),
                                       ),
                                     ),
                             ),
                           ),
-                          SizedBox(height: TaqaUiScale.h(14)),
+                          SizedBox(height: TaqaUiScale.h(12)),
                         ],
                         if (!_isMapless && _hideMapForCapture)
-                          SizedBox(height: TaqaUiScale.h(8)),
+                          SizedBox(height: TaqaUiScale.h(6)),
                         Row(
                           children: [
                             Expanded(
@@ -463,7 +486,8 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                                 value: _formatTime(widget.durationSeconds),
                               ),
                             ),
-                            if (_showDistance) const SizedBox(width: 10),
+                            if (_showDistance)
+                              SizedBox(width: TaqaUiScale.w(8)),
                             if (_showDistance)
                               Expanded(
                                 child: _MetricChip(
@@ -472,14 +496,14 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                                       '${widget.distanceKm.toStringAsFixed(2)} km',
                                 ),
                               ),
-                            const SizedBox(width: 10),
+                            SizedBox(width: TaqaUiScale.w(8)),
                             Expanded(
                               child: _MetricChip(
                                 label: 'Pace',
                                 value: _avgPaceLabel(),
                               ),
                             ),
-                            const SizedBox(width: 10),
+                            SizedBox(width: TaqaUiScale.w(8)),
                             Expanded(
                               child: _MetricChip(
                                 label: 'Steps',
@@ -494,98 +518,147 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: TaqaUiScale.h(12)),
             SizedBox(
               width: double.infinity,
+              height: TaqaUiScale.h(45),
               child: ElevatedButton(
                 onPressed: (_saving || !_snapshotReady)
                     ? null
                     : _saveScreenshot,
+                style: ElevatedButton.styleFrom(
+                  elevation: 0,
+                  backgroundColor: TaqaUiColors.lime,
+                  disabledBackgroundColor: TaqaUiColors.lime.withValues(
+                    alpha: 0.5,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: TaqaUiScale.radius(5),
+                  ),
+                ),
                 child: Text(
                   _saving
                       ? 'Saving...'
                       : _snapshotReady
                       ? 'Save to Photos'
                       : 'Preparing...',
+                  style: actionTextStyle,
                 ),
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: TaqaUiScale.h(8)),
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
-                    onPressed: (_sharing || !_snapshotReady)
-                        ? null
-                        : _shareScreenshot,
-                    child: Text(
-                      _sharing
-                          ? 'Sharing...'
-                          : _snapshotReady
-                          ? 'Share'
-                          : 'Preparing...',
+                  child: SizedBox(
+                    height: TaqaUiScale.h(45),
+                    child: OutlinedButton(
+                      onPressed: (_sharing || !_snapshotReady)
+                          ? null
+                          : _shareScreenshot,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
+                        side: BorderSide(
+                          color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                            alpha: 0.3,
+                          ),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: TaqaUiScale.radius(5),
+                        ),
+                      ),
+                      child: Text(
+                        _sharing
+                            ? 'Sharing...'
+                            : _snapshotReady
+                            ? 'Share'
+                            : 'Preparing...',
+                        style: actionTextStyle,
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                SizedBox(width: TaqaUiScale.w(8)),
                 Expanded(
-                  child: OutlinedButton(
-                    onPressed: _snapshotReady
-                        ? () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => OtherModelsPage(
-                                  snapshotUrl: snapshotUrl,
-                                  route: widget.route,
-                                  durationLabel: _formatTime(
-                                    widget.durationSeconds,
+                  child: SizedBox(
+                    height: TaqaUiScale.h(45),
+                    child: OutlinedButton(
+                      onPressed: _snapshotReady
+                          ? () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => OtherModelsPage(
+                                    snapshotUrl: snapshotUrl,
+                                    route: widget.route,
+                                    durationLabel: _formatTime(
+                                      widget.durationSeconds,
+                                    ),
+                                    showDistance: _showDistance,
+                                    distanceLabel:
+                                        "${widget.distanceKm.toStringAsFixed(2)} km",
+                                    paceLabel: _avgPaceLabel(),
+                                    userName: widget.userName,
+                                    dateLabel: _sessionDateLabel(),
+                                    isMapless: _isMapless,
+                                    elevationLabel: _elevationLabel,
                                   ),
-                                  showDistance: _showDistance,
-                                  distanceLabel:
-                                      "${widget.distanceKm.toStringAsFixed(2)} km",
-                                  paceLabel: _avgPaceLabel(),
-                                  userName: widget.userName,
-                                  dateLabel: _sessionDateLabel(),
-                                  isMapless: _isMapless,
-                                  elevationLabel: _elevationLabel,
                                 ),
-                              ),
-                            );
-                          }
-                        : null,
-                    child: const Text('Other models'),
+                              );
+                            }
+                          : null,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
+                        side: BorderSide(
+                          color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                            alpha: 0.3,
+                          ),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: TaqaUiScale.radius(5),
+                        ),
+                      ),
+                      child: Text('Other models', style: actionTextStyle),
+                    ),
                   ),
                 ),
               ],
             ),
             if (_stravaLinked) ...[
-              const SizedBox(height: 8),
+              SizedBox(height: TaqaUiScale.h(8)),
               SizedBox(
                 width: double.infinity,
+                height: TaqaUiScale.h(45),
                 child: OutlinedButton.icon(
                   onPressed: _stravaUploading ? null : _uploadToStrava,
-                  icon: const Icon(Icons.upload, size: 18),
+                  icon: Icon(Icons.upload, size: TaqaUiScale.w(16)),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFFFC4C02),
                     side: const BorderSide(color: Color(0xFFFC4C02)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: TaqaUiScale.radius(5),
+                    ),
                   ),
                   label: Text(
                     _stravaUploading
                         ? 'Uploading to Strava...'
                         : 'Upload to Strava',
+                    style: actionTextStyle.copyWith(
+                      color: const Color(0xFFFC4C02),
+                    ),
                   ),
                 ),
               ),
             ],
-            const SizedBox(height: 8),
+            SizedBox(height: TaqaUiScale.h(8)),
             SizedBox(
               width: double.infinity,
+              height: TaqaUiScale.h(36),
               child: TextButton(
                 onPressed: () => Navigator.of(context).maybePop(),
-                child: const Text('Cancel'),
+                child: Text('Cancel', style: actionTextStyle),
               ),
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: TaqaUiScale.h(4)),
           ],
         ),
       ),
@@ -602,11 +675,13 @@ class _MetricChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: TaqaUiScale.insetsLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
-        color: Colors.white10,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white12),
+        color: TaqaUiColors.unnamedColorE3e3e3,
+        borderRadius: TaqaUiScale.radius(12),
+        border: Border.all(
+          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.10),
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -617,24 +692,26 @@ class _MetricChip extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               label.toUpperCase(),
-              style: const TextStyle(
-                color: Colors.white60,
-                fontSize: 10,
-                letterSpacing: 0.8,
-                fontWeight: FontWeight.w700,
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+                fontSize: TaqaUiScale.sp(9),
+                letterSpacing: 0.6,
+                fontWeight: FontWeight.w400,
               ),
             ),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: TaqaUiScale.h(3)),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Text(
               value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                color: TaqaUiColors.unnamedColor1c1d17,
+                fontSize: TaqaUiScale.sp(13),
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),

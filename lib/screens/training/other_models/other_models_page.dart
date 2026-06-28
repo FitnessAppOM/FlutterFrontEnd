@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import '../../../services/share/cardio_share_service.dart';
 import '../../../widgets/cardio/cardio_map.dart';
+import '../../../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../../../TaqaUI/styles/taqa_ui_scale.dart';
+import '../../../TaqaUI/taqa_ui_colors.dart';
 import 'model_a_page.dart';
 import 'model_b_page.dart';
 import 'model_c_page.dart';
@@ -108,9 +111,10 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
     final key = _index == 0
         ? _modelAKey
         : _index == 1
-            ? _modelBKey
-            : _modelCKey;
-    final boundary = key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+        ? _modelBKey
+        : _modelCKey;
+    final boundary =
+        key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
     if (boundary == null) return null;
     final bytes = await CardioShareService.capturePng(boundary);
     if (bytes == null) return null;
@@ -119,7 +123,10 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
       final flattened = await CardioShareService.flattenPngOnBackground(
         bytes,
         const Color(0xFF0B0F1A),
-        cornerRadius: 22,
+        // Must match ModelMapCard's own borderRadius (TaqaUiScale.radius(20))
+        // so the background mask lines up with the card's actual rounded
+        // corner instead of leaving square edges outside it.
+        cornerRadius: TaqaUiScale.r(20),
       );
       return flattened ?? bytes;
     }
@@ -158,7 +165,9 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
     try {
       final output = await _captureCurrentPage();
       if (output == null) return;
-      final error = await CardioShareService.shareInstagramStickerDetailed(output);
+      final error = await CardioShareService.shareInstagramStickerDetailed(
+        output,
+      );
       // Debug only
       // ignore: avoid_print
       print('[IGSticker] result=${error ?? "ok"}');
@@ -166,6 +175,26 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
       if (mounted) setState(() => _sharing = false);
     }
   }
+
+  static final _actionTextStyle = TextStyle(
+    fontFamily: TaqaUiFontFamilies.interTight,
+    fontSize: TaqaUiScale.sp(13),
+    fontWeight: FontWeight.w600,
+  );
+
+  static final _outlinedStyle = OutlinedButton.styleFrom(
+    foregroundColor: Colors.white,
+    side: const BorderSide(color: Colors.white54),
+    shape: RoundedRectangleBorder(borderRadius: TaqaUiScale.radius(5)),
+  );
+
+  static final _elevatedStyle = ElevatedButton.styleFrom(
+    elevation: 0,
+    backgroundColor: TaqaUiColors.lime,
+    foregroundColor: TaqaUiColors.unnamedColor1c1d17,
+    disabledBackgroundColor: TaqaUiColors.lime.withValues(alpha: 0.5),
+    shape: RoundedRectangleBorder(borderRadius: TaqaUiScale.radius(5)),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -175,7 +204,15 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF0B0F1A),
         elevation: 0,
-        title: const Text('Models'),
+        title: Text(
+          'Models',
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(15),
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
       ),
       body: Column(
         children: [
@@ -230,53 +267,71 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
                     ],
                   ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: TaqaUiScale.h(8)),
           if (!widget.isMapless) _PageDots(count: 3, index: _index),
-          const SizedBox(height: 10),
+          SizedBox(height: TaqaUiScale.h(10)),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            padding: TaqaUiScale.insetsLTRB(14, 0, 14, 14),
             child: _index == 0
                 ? Column(
                     children: [
                       Row(
                         children: [
                           Expanded(
-                            child: OutlinedButton(
-                              onPressed:
-                                  (_sharing || !mapReadyForCurrent) ? null : _shareCurrentPage,
-                              child: Text(
-                                _sharing
-                                    ? 'Sharing...'
-                                    : !mapReadyForCurrent
-                                        ? 'Preparing map...'
-                                    : 'Share',
+                            child: SizedBox(
+                              height: TaqaUiScale.h(45),
+                              child: OutlinedButton(
+                                onPressed: (_sharing || !mapReadyForCurrent)
+                                    ? null
+                                    : _shareCurrentPage,
+                                style: _outlinedStyle,
+                                child: Text(
+                                  _sharing
+                                      ? 'Sharing...'
+                                      : !mapReadyForCurrent
+                                      ? 'Preparing map...'
+                                      : 'Share',
+                                  style: _actionTextStyle,
+                                ),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          SizedBox(width: TaqaUiScale.w(8)),
                           Expanded(
-                            child: OutlinedButton(
-                              onPressed:
-                                  (_sharing || !mapReadyForCurrent) ? null : _shareInstagramOnly,
-                              child: Text(
-                                !mapReadyForCurrent ? 'Preparing map...' : 'IG Sticker',
+                            child: SizedBox(
+                              height: TaqaUiScale.h(45),
+                              child: OutlinedButton(
+                                onPressed: (_sharing || !mapReadyForCurrent)
+                                    ? null
+                                    : _shareInstagramOnly,
+                                style: _outlinedStyle,
+                                child: Text(
+                                  !mapReadyForCurrent
+                                      ? 'Preparing map...'
+                                      : 'IG Sticker',
+                                  style: _actionTextStyle,
+                                ),
                               ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
+                      SizedBox(height: TaqaUiScale.h(8)),
                       SizedBox(
                         width: double.infinity,
+                        height: TaqaUiScale.h(45),
                         child: ElevatedButton(
-                          onPressed:
-                              (_saving || !mapReadyForCurrent) ? null : _saveCurrentPage,
+                          onPressed: (_saving || !mapReadyForCurrent)
+                              ? null
+                              : _saveCurrentPage,
+                          style: _elevatedStyle,
                           child: Text(
                             _saving
                                 ? 'Saving...'
                                 : !mapReadyForCurrent
-                                    ? 'Preparing map...'
+                                ? 'Preparing map...'
                                 : 'Save to Photos',
+                            style: _actionTextStyle,
                           ),
                         ),
                       ),
@@ -287,33 +342,46 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
                       Row(
                         children: [
                           Expanded(
-                            child: OutlinedButton(
-                              onPressed: _sharing ? null : _shareCurrentPage,
-                              child: Text(
-                                _sharing
-                                    ? 'Sharing...'
-                                    : 'Share',
+                            child: SizedBox(
+                              height: TaqaUiScale.h(45),
+                              child: OutlinedButton(
+                                onPressed: _sharing ? null : _shareCurrentPage,
+                                style: _outlinedStyle,
+                                child: Text(
+                                  _sharing ? 'Sharing...' : 'Share',
+                                  style: _actionTextStyle,
+                                ),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          SizedBox(width: TaqaUiScale.w(8)),
                           Expanded(
-                            child: OutlinedButton(
-                              onPressed: _sharing ? null : _shareInstagramOnly,
-                              child: const Text('IG Sticker'),
+                            child: SizedBox(
+                              height: TaqaUiScale.h(45),
+                              child: OutlinedButton(
+                                onPressed: _sharing
+                                    ? null
+                                    : _shareInstagramOnly,
+                                style: _outlinedStyle,
+                                child: Text(
+                                  'IG Sticker',
+                                  style: _actionTextStyle,
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
+                      SizedBox(height: TaqaUiScale.h(8)),
                       SizedBox(
                         width: double.infinity,
+                        height: TaqaUiScale.h(45),
                         child: ElevatedButton(
                           onPressed: _saving ? null : _saveCurrentPage,
+                          style: _elevatedStyle,
                           child: Text(
-                            _saving
-                                ? 'Saving...'
-                                : 'Save to Photos',
+                            _saving ? 'Saving...' : 'Save to Photos',
+                            style: _actionTextStyle,
                           ),
                         ),
                       ),
@@ -339,18 +407,15 @@ class _PageDots extends StatelessWidget {
       return AnimatedContainer(
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        width: active ? 16 : 8,
-        height: 8,
+        margin: EdgeInsets.symmetric(horizontal: TaqaUiScale.w(4)),
+        width: active ? TaqaUiScale.w(14) : TaqaUiScale.w(7),
+        height: TaqaUiScale.h(7),
         decoration: BoxDecoration(
-          color: active ? Colors.white : Colors.white24,
-          borderRadius: BorderRadius.circular(99),
+          color: active ? TaqaUiColors.lime : Colors.white24,
+          borderRadius: TaqaUiScale.radius(99),
         ),
       );
     });
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: dots,
-    );
+    return Row(mainAxisAlignment: MainAxisAlignment.center, children: dots);
   }
 }
