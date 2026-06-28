@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_log_entry_card.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_steps_ui.dart';
 import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
@@ -407,82 +408,24 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
     _TrainingHistoryEntry entry,
   ) {
     final displayStatus = _displayStatusForEntry(entry);
-    final statusLabel = displayStatus.toUpperCase();
-    return Padding(
-      padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
-      child: InkWell(
-        borderRadius: TaqaUiScale.radius(15),
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => TrainingHistoryDayDetailPage(
-                dayLabel: entry.label,
-                statusText: displayStatus,
-                weekLabel: entry.weekLabel,
-                completedExercises: entry.completedExercises,
-              ),
-            ),
-          );
-        },
-        child: Container(
-          padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: TaqaUiScale.radius(15),
-            border: Border.all(
-              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.10),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Text(
-                      _titleCase(entry.label),
-                      style: TextStyle(
-                        fontFamily: TaqaUiFontFamilies.interTight,
-                        fontSize: TaqaUiScale.sp(15),
-                        fontWeight: FontWeight.w700,
-                        height: 25 / 15,
-                        letterSpacing: 0,
-                        color: TaqaUiColors.unnamedColor1c1d17,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    statusLabel,
-                    style: TextStyle(
-                      fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-                      fontSize: TaqaUiScale.sp(8),
-                      fontWeight: FontWeight.w400,
-                      height: 10 / 8,
-                      letterSpacing: 0,
-                      color: TaqaUiColors.unnamedColor1c1d17,
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: TaqaUiScale.h(19)),
-              Text(
-                _titleCase(
-                  "${entry.completedCount} Done, ${entry.weekLabel.replaceFirst('Week of', 'Week Of')}",
-                ),
-                style: TextStyle(
-                  fontFamily: TaqaUiFontFamilies.interTight,
-                  fontSize: TaqaUiScale.sp(15),
-                  fontWeight: FontWeight.w400,
-                  height: 21 / 15,
-                  letterSpacing: 0,
-                  color: TaqaUiColors.unnamedColor1c1d17,
-                ),
-              ),
-            ],
-          ),
-        ),
+    return TaqaLogEntryCard(
+      title: _titleCase(entry.label),
+      badgeText: displayStatus.toUpperCase(),
+      subtitle: _titleCase(
+        "${entry.completedCount} Done, ${entry.weekLabel.replaceFirst('Week of', 'Week Of')}",
       ),
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => TrainingHistoryDayDetailPage(
+              dayLabel: entry.label,
+              statusText: displayStatus,
+              weekLabel: entry.weekLabel,
+              completedExercises: entry.completedExercises,
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1089,71 +1032,11 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
             final titleLabel = sourceTo.isNotEmpty
                 ? sourceTo
                 : (sourceFrom.isNotEmpty ? sourceFrom : "Update");
-            return Padding(
-              padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
-              child: Container(
-                padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: TaqaUiScale.radius(15),
-                  border: Border.all(
-                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                      alpha: 0.1,
-                    ),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            _titleCase(titleLabel),
-                            style: TextStyle(
-                              fontFamily: TaqaUiFontFamilies.interTight,
-                              fontSize: TaqaUiScale.sp(15),
-                              fontWeight: FontWeight.w700,
-                              height: 25 / 15,
-                              letterSpacing: 0,
-                              color: TaqaUiColors.unnamedColor1c1d17,
-                            ),
-                          ),
-                        ),
-                        if (createdAt.isNotEmpty)
-                          Text(
-                            createdAt.toUpperCase(),
-                            style: TextStyle(
-                              fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-                              fontSize: TaqaUiScale.sp(8),
-                              fontWeight: FontWeight.w400,
-                              height: 10 / 8,
-                              letterSpacing: 0,
-                              color: TaqaUiColors.unnamedColor1c1d17,
-                            ),
-                          ),
-                      ],
-                    ),
-                    SizedBox(height: TaqaUiScale.h(19)),
-                    Text(
-                      event.summary,
-                      style: TextStyle(
-                        fontFamily: TaqaUiFontFamilies.interTight,
-                        fontSize: TaqaUiScale.sp(15),
-                        fontWeight: FontWeight.w400,
-                        height: 21 / 15,
-                        letterSpacing: 0,
-                        color: TaqaUiColors.unnamedColor1c1d17,
-                      ),
-                    ),
-                    if (detailWidgets.isNotEmpty) ...[
-                      SizedBox(height: TaqaUiScale.h(8)),
-                      ...detailWidgets,
-                    ],
-                  ],
-                ),
-              ),
+            return TaqaLogEntryCard(
+              title: _titleCase(titleLabel),
+              badgeText: createdAt.toUpperCase(),
+              subtitle: event.summary,
+              detailWidgets: detailWidgets,
             );
           }),
         ],
@@ -1171,11 +1054,11 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
         foregroundColor: TaqaUiColors.unnamedColor1c1d17,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
+        title: Text(
           "Training History",
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: 15,
+            fontSize: TaqaUiScale.sp(15),
             fontWeight: FontWeight.w700,
             height: 2.5,
             letterSpacing: 0,

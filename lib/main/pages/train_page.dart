@@ -717,8 +717,7 @@ class _WorkoutLauncherPageState extends State<_WorkoutLauncherPage> {
     // Android-only system nav bar clearance for the floating workout timer.
     // iPhone already clears it (and adding this would shift the iPhone layout),
     // so gate it to Android.
-    final androidNavInset =
-        Theme.of(context).platform == TargetPlatform.android
+    final androidNavInset = Theme.of(context).platform == TargetPlatform.android
         ? MediaQuery.of(context).viewPadding.bottom
         : 0.0;
     final showFloatingWorkoutTimer = live.showWorkoutTimer;
@@ -1454,7 +1453,9 @@ class _WorkoutLauncherExerciseCardState
     String? fmtWeight(double w) {
       if (w <= 0) return null;
       final r = w.roundToDouble();
-      return (w - r).abs() < 0.001 ? r.toStringAsFixed(0) : w.toStringAsFixed(1);
+      return (w - r).abs() < 0.001
+          ? r.toStringAsFixed(0)
+          : w.toStringAsFixed(1);
     }
 
     // Show only the previous weight (no reps), e.g. "60 kg".
@@ -2148,15 +2149,15 @@ class _WorkoutLauncherExerciseCardState
   }
 
   Widget _tableHeader() {
-    return const Row(
+    return Row(
       children: [
-        Expanded(flex: 2, child: _HeaderText("SET")),
-        Expanded(flex: 3, child: _HeaderText("PREVIOUS")),
-        Expanded(flex: 2, child: _HeaderText("KG")),
-        Expanded(flex: 2, child: _HeaderText("REPS")),
-        Expanded(flex: 2, child: _HeaderText("RIR")),
-        Expanded(flex: 2, child: _HeaderText("DONE")),
-        SizedBox(width: 26),
+        const Expanded(flex: 2, child: _HeaderText("SET")),
+        const Expanded(flex: 3, child: _HeaderText("PREV.")),
+        const Expanded(flex: 2, child: _HeaderText("KG")),
+        const Expanded(flex: 2, child: _HeaderText("REPS")),
+        const Expanded(flex: 2, child: _HeaderText("RIR")),
+        const Expanded(flex: 2, child: _HeaderText("DONE")),
+        SizedBox(width: TaqaUiScale.w(26)),
       ],
     );
   }
@@ -2176,10 +2177,10 @@ class _WorkoutLauncherExerciseCardState
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOut,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        padding: TaqaUiScale.symmetric(horizontal: 6, vertical: 4),
         decoration: BoxDecoration(
           color: highlightFirst ? TaqaUiColors.unnamedColorE4e93b : null,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: TaqaUiScale.radius(8),
         ),
         child: Row(
           children: [
@@ -2187,7 +2188,10 @@ class _WorkoutLauncherExerciseCardState
               flex: 2,
               child: Text(
                 "${row.setIndex}",
-                style: TextStyle(color: rowTextColor, fontSize: 18),
+                style: TextStyle(
+                  color: rowTextColor,
+                  fontSize: TaqaUiScale.sp(18),
+                ),
               ),
             ),
             Expanded(
@@ -2196,7 +2200,9 @@ class _WorkoutLauncherExerciseCardState
                 _previousBySetIndex[row.setIndex] ?? "-",
                 style: TextStyle(
                   color: previousColor,
-                  fontSize: _previousBySetIndex[row.setIndex] != null ? 13 : 18,
+                  fontSize: TaqaUiScale.sp(
+                    _previousBySetIndex[row.setIndex] != null ? 13 : 18,
+                  ),
                 ),
               ),
             ),
@@ -2204,21 +2210,30 @@ class _WorkoutLauncherExerciseCardState
               flex: 2,
               child: Text(
                 row.weightKg <= 0 ? "0" : row.weightKg.toStringAsFixed(0),
-                style: TextStyle(color: rowTextColor, fontSize: 18),
+                style: TextStyle(
+                  color: rowTextColor,
+                  fontSize: TaqaUiScale.sp(18),
+                ),
               ),
             ),
             Expanded(
               flex: 2,
               child: Text(
                 "${row.reps}",
-                style: TextStyle(color: rowTextColor, fontSize: 18),
+                style: TextStyle(
+                  color: rowTextColor,
+                  fontSize: TaqaUiScale.sp(18),
+                ),
               ),
             ),
             Expanded(
               flex: 2,
               child: Text(
                 "${row.rir}",
-                style: TextStyle(color: rowTextColor, fontSize: 18),
+                style: TextStyle(
+                  color: rowTextColor,
+                  fontSize: TaqaUiScale.sp(18),
+                ),
               ),
             ),
             Expanded(
@@ -2228,10 +2243,10 @@ class _WorkoutLauncherExerciseCardState
                 child: GestureDetector(
                   onTap: () => unawaited(_toggleDone(index)),
                   child: Container(
-                    width: 24,
-                    height: 24,
+                    width: TaqaUiScale.w(24),
+                    height: TaqaUiScale.h(24),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: TaqaUiScale.radius(6),
                       border: Border.all(
                         color: highlightFirst
                             ? TaqaUiColors.unnamedColor1c1d17
@@ -2241,7 +2256,7 @@ class _WorkoutLauncherExerciseCardState
                     child: row.done
                         ? Icon(
                             Icons.check,
-                            size: 16,
+                            size: TaqaUiScale.w(16),
                             color: highlightFirst
                                 ? TaqaUiColors.unnamedColor1c1d17
                                 : const Color(0xFFDDE530),
@@ -2252,15 +2267,15 @@ class _WorkoutLauncherExerciseCardState
               ),
             ),
             SizedBox(
-              width: 26,
+              width: TaqaUiScale.w(26),
               child: _rows.length > 1
                   ? GestureDetector(
                       onTap: () => unawaited(_deleteSetRow(index)),
                       child: Padding(
-                        padding: const EdgeInsets.all(4),
+                        padding: EdgeInsets.all(TaqaUiScale.w(4)),
                         child: Icon(
                           Icons.delete_outline,
-                          size: 18,
+                          size: TaqaUiScale.w(18),
                           color: highlightFirst
                               ? TaqaUiColors.unnamedColor1c1d17
                               : Colors.white70,
@@ -2278,20 +2293,20 @@ class _WorkoutLauncherExerciseCardState
   Widget _ghostButton({required String label, VoidCallback? onTap}) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: TaqaUiScale.radius(6),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: EdgeInsets.symmetric(vertical: TaqaUiScale.h(10)),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: TaqaUiScale.radius(6),
           border: Border.all(color: Colors.white54),
         ),
         child: Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.white,
-            fontSize: 16,
+            fontSize: TaqaUiScale.sp(16),
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -2420,7 +2435,7 @@ class _HeaderText extends StatelessWidget {
       label,
       style: TextStyle(
         color: Colors.white.withValues(alpha: 0.75),
-        fontSize: 10,
+        fontSize: TaqaUiScale.sp(10),
         fontWeight: FontWeight.w500,
         letterSpacing: 0.2,
       ),
@@ -3944,7 +3959,8 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
   Future<void> openActiveWorkoutLauncher() async {
     final days = program?['days'];
     if (days is! List || days.isEmpty) return;
-    int dayIndex = _workoutDayIndex ??
+    int dayIndex =
+        _workoutDayIndex ??
         (selectedDay >= 0 && selectedDay < days.length ? selectedDay : 0);
     if (dayIndex < 0 || dayIndex >= days.length) dayIndex = 0;
     final day = days[dayIndex];
@@ -4078,7 +4094,11 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       ),
       child: Row(
         children: [
-          const Icon(Icons.play_circle_fill, color: Color(0xFF1C1D17), size: 22),
+          const Icon(
+            Icons.play_circle_fill,
+            color: Color(0xFF1C1D17),
+            size: 22,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(

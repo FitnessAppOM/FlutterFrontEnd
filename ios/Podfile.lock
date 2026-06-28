@@ -108,6 +108,8 @@ PODS:
     - Flutter
   - flutter_local_notifications (0.0.1):
     - Flutter
+  - flutter_pdfview (1.0.2):
+    - Flutter
   - flutter_timezone (0.0.1):
     - Flutter
   - flutter_web_auth_2 (5.0.0):
@@ -233,6 +235,7 @@ DEPENDENCIES:
   - Flutter (from `Flutter`)
   - flutter_foreground_task (from `.symlinks/plugins/flutter_foreground_task/ios`)
   - flutter_local_notifications (from `.symlinks/plugins/flutter_local_notifications/ios`)
+  - flutter_pdfview (from `.symlinks/plugins/flutter_pdfview/ios`)
   - flutter_timezone (from `.symlinks/plugins/flutter_timezone/ios`)
   - flutter_web_auth_2 (from `.symlinks/plugins/flutter_web_auth_2/ios`)
   - geolocator_apple (from `.symlinks/plugins/geolocator_apple/darwin`)
@@ -307,6 +310,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/flutter_foreground_task/ios"
   flutter_local_notifications:
     :path: ".symlinks/plugins/flutter_local_notifications/ios"
+  flutter_pdfview:
+    :path: ".symlinks/plugins/flutter_pdfview/ios"
   flutter_timezone:
     :path: ".symlinks/plugins/flutter_timezone/ios"
   flutter_web_auth_2:
@@ -373,6 +378,7 @@ SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   flutter_foreground_task: a159d2c2173b33699ddb3e6c2a067045d7cebb89
   flutter_local_notifications: ad39620c743ea4c15127860f4b5641649a988100
+  flutter_pdfview: 32bf27bda6fd85b9dd2c09628a824df5081246cf
   flutter_timezone: 7c838e17ffd4645d261e87037e5bebf6d38fe544
   flutter_web_auth_2: 646fc9df97a01c59e5eea99b237da2c6360f8439
   geolocator_apple: ab36aa0e8b7d7a2d7639b3b4e48308394e8cef5e

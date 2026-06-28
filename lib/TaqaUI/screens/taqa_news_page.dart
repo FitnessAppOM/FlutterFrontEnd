@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../taqa_ui_colors.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../styles/taqa_ui_styles.dart';
+import '../components/taqa_back_button.dart';
 import '../../../localization/app_localizations.dart';
 import '../../../models/news_item.dart';
 import '../../../services/news/news_tag_actions.dart';
@@ -75,27 +76,10 @@ class TaqaNewsPage extends StatelessWidget {
             const Positioned(
               top: 20,
               left: 8,
-              child: _BackButton(),
+              child: TaqaBackButton(),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _BackButton extends StatelessWidget {
-  const _BackButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      onPressed: () => Navigator.of(context).maybePop(),
-      splashRadius: 20,
-      icon: const Icon(
-        Icons.arrow_back_ios_new,
-        color: TaqaUiColors.charcoal,
-        size: 18,
       ),
     );
   }

@@ -5,6 +5,7 @@ import '../services/diet/diet_service.dart';
 import '../services/diet/nutrition_search_service.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_steps_ui.dart' show TaqaRangeTab;
+import '../TaqaUI/components/taqa_value_dialog.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 
@@ -334,41 +335,16 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
     required String initial,
   }) async {
     final t = AppLocalizations.of(context);
-    String value = initial;
-    final res = await showDialog<double>(
+    final text = await showTaqaTextValueDialog(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          scrollable: true,
-          title: Text(title),
-          content: Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: TextFormField(
-              initialValue: initial,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              onChanged: (v) => value = v,
-              decoration: InputDecoration(hintText: hint, suffixText: unit),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(null),
-              child: Text(t.translate("common_cancel")),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final v = double.tryParse(value.trim());
-                Navigator.of(ctx).pop(v);
-              },
-              child: Text(t.translate("diet_log")),
-            ),
-          ],
-        );
-      },
+      title: title,
+      initialValue: initial,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      unit: unit,
+      confirmLabel: t.translate("diet_log").toUpperCase(),
     );
-    return res;
+    if (text == null) return null;
+    return double.tryParse(text.trim());
   }
 
   Future<int?> _intDialog({
@@ -378,39 +354,16 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
     required String initial,
   }) async {
     final t = AppLocalizations.of(context);
-    String value = initial;
-    final res = await showDialog<int>(
+    final text = await showTaqaTextValueDialog(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          scrollable: true,
-          title: Text(title),
-          content: Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: TextFormField(
-              initialValue: initial,
-              keyboardType: TextInputType.number,
-              onChanged: (v) => value = v,
-              decoration: InputDecoration(hintText: hint, suffixText: unit),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(null),
-              child: Text(t.translate("common_cancel")),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final v = int.tryParse(value.trim());
-                Navigator.of(ctx).pop(v);
-              },
-              child: Text(t.translate("diet_log")),
-            ),
-          ],
-        );
-      },
+      title: title,
+      initialValue: initial,
+      keyboardType: TextInputType.number,
+      unit: unit,
+      confirmLabel: t.translate("diet_log").toUpperCase(),
     );
-    return res;
+    if (text == null) return null;
+    return int.tryParse(text.trim());
   }
 
   String _foodName(Map<String, dynamic> item) {
@@ -450,190 +403,204 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final maxSheetHeight = MediaQuery.sizeOf(context).height * 0.88;
+    final sheetHeight = (maxSheetHeight - bottomInset).clamp(
+      0.0,
+      maxSheetHeight,
+    );
 
-    return SafeArea(
-      child: AnimatedPadding(
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOut,
-        padding: EdgeInsets.only(bottom: bottomInset),
-        child: SizedBox(
-          height: MediaQuery.sizeOf(context).height * 0.88,
-          child: Padding(
-            padding: TaqaUiScale.insetsLTRB(16, 12, 16, 16),
-            child: Column(
-              children: [
-                Container(
-                  height: 5,
-                  width: 44,
-                  margin: EdgeInsets.only(bottom: TaqaUiScale.h(16)),
-                  decoration: BoxDecoration(
-                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                      alpha: 0.12,
-                    ),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-                Stack(
-                  alignment: Alignment.center,
+    return PopScope(
+      onPopInvokedWithResult: (_, _) => FocusScope.of(context).unfocus(),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SafeArea(
+          child: AnimatedPadding(
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOut,
+            padding: EdgeInsets.only(bottom: bottomInset),
+            child: SizedBox(
+              height: sheetHeight,
+              child: Padding(
+                padding: TaqaUiScale.insetsLTRB(16, 12, 16, 16),
+                child: Column(
                   children: [
-                    Text(
-                      t.translate("diet_add_item_title"),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: TaqaUiFontFamilies.interTight,
-                        fontSize: TaqaUiScale.sp(15),
-                        fontWeight: FontWeight.w700,
-                        height: 25 / 15,
-                        letterSpacing: 0,
-                        color: TaqaUiColors.unnamedColor1c1d17,
-                      ),
-                    ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: IconButton(
-                        onPressed: _loading
-                            ? null
-                            : () => Navigator.of(context).pop(),
-                        icon: Icon(
-                          Icons.close,
-                          color: TaqaUiColors.unnamedColor1c1d17,
+                    Container(
+                      height: 5,
+                      width: 44,
+                      margin: EdgeInsets.only(bottom: TaqaUiScale.h(16)),
+                      decoration: BoxDecoration(
+                        color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                          alpha: 0.12,
                         ),
+                        borderRadius: BorderRadius.circular(999),
                       ),
                     ),
-                  ],
-                ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    widget.mealTitle,
-                    style: TextStyle(
-                      fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: TaqaUiScale.sp(13),
-                      letterSpacing: 0,
-                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                        alpha: 0.6,
-                      ),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                SizedBox(height: TaqaUiScale.h(12)),
-                _isPopping
-                    ? Container(
-                        height: TaqaUiScale.h(39),
-                        decoration: BoxDecoration(
-                          color: TaqaUiColors.white,
-                          borderRadius: TaqaUiScale.radius(15),
-                          border: Border.all(
-                            color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                              alpha: 0.10,
-                            ),
-                          ),
-                        ),
-                        alignment: Alignment.centerLeft,
-                        padding: TaqaUiScale.symmetric(horizontal: 14),
-                        child: Text(
-                          "Search",
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Text(
+                          t.translate("diet_add_item_title"),
+                          textAlign: TextAlign.center,
                           style: TextStyle(
                             fontFamily: TaqaUiFontFamilies.interTight,
                             fontSize: TaqaUiScale.sp(15),
+                            fontWeight: FontWeight.w700,
+                            height: 25 / 15,
                             letterSpacing: 0,
-                            color: TaqaUiColors.unnamedColorE3e3e3,
+                            color: TaqaUiColors.unnamedColor1c1d17,
                           ),
                         ),
-                      )
-                    : Container(
-                        height: TaqaUiScale.h(39),
-                        padding: TaqaUiScale.symmetric(horizontal: 14),
-                        decoration: BoxDecoration(
-                          color: TaqaUiColors.white,
-                          borderRadius: TaqaUiScale.radius(15),
-                          border: Border.all(
-                            color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                              alpha: 0.10,
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: IconButton(
+                            onPressed: _loading
+                                ? null
+                                : () {
+                                    FocusScope.of(context).unfocus();
+                                    Navigator.of(context).pop();
+                                  },
+                            icon: Icon(
+                              Icons.close,
+                              color: TaqaUiColors.unnamedColor1c1d17,
                             ),
                           ),
                         ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.search,
-                              size: TaqaUiScale.w(18),
-                              color: TaqaUiColors.unnamedColorE3e3e3,
-                            ),
-                            SizedBox(width: TaqaUiScale.w(8)),
-                            Expanded(
-                              child: TextField(
-                                controller: _qCtrl,
-                                onChanged: (_) => _scheduleSearch(),
-                                style: TextStyle(
-                                  fontFamily: TaqaUiFontFamilies.interTight,
-                                  fontSize: TaqaUiScale.sp(15),
-                                  letterSpacing: 0,
-                                  color: TaqaUiColors.unnamedColor1c1d17,
-                                ),
-                                decoration: InputDecoration(
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.zero,
-                                  hintText: "Search",
-                                  hintStyle: TextStyle(
-                                    fontFamily: TaqaUiFontFamilies.interTight,
-                                    fontSize: TaqaUiScale.sp(15),
-                                    letterSpacing: 0,
-                                    color: TaqaUiColors.unnamedColorE3e3e3,
-                                  ),
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                  errorBorder: InputBorder.none,
-                                  disabledBorder: InputBorder.none,
-                                  focusedErrorBorder: InputBorder.none,
-                                ),
+                      ],
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        widget.mealTitle,
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          fontSize: TaqaUiScale.sp(13),
+                          letterSpacing: 0,
+                          color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                            alpha: 0.6,
+                          ),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    SizedBox(height: TaqaUiScale.h(12)),
+                    _isPopping
+                        ? Container(
+                            height: TaqaUiScale.h(39),
+                            decoration: BoxDecoration(
+                              color: TaqaUiColors.white,
+                              borderRadius: TaqaUiScale.radius(15),
+                              border: Border.all(
+                                color: TaqaUiColors.unnamedColor1c1d17
+                                    .withValues(alpha: 0.10),
                               ),
                             ),
-                          ],
+                            alignment: Alignment.centerLeft,
+                            padding: TaqaUiScale.symmetric(horizontal: 14),
+                            child: Text(
+                              "Search",
+                              style: TextStyle(
+                                fontFamily: TaqaUiFontFamilies.interTight,
+                                fontSize: TaqaUiScale.sp(15),
+                                letterSpacing: 0,
+                                color: TaqaUiColors.unnamedColorE3e3e3,
+                              ),
+                            ),
+                          )
+                        : Container(
+                            height: TaqaUiScale.h(39),
+                            padding: TaqaUiScale.symmetric(horizontal: 14),
+                            decoration: BoxDecoration(
+                              color: TaqaUiColors.white,
+                              borderRadius: TaqaUiScale.radius(15),
+                              border: Border.all(
+                                color: TaqaUiColors.unnamedColor1c1d17
+                                    .withValues(alpha: 0.10),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.search,
+                                  size: TaqaUiScale.w(18),
+                                  color: TaqaUiColors.unnamedColorE3e3e3,
+                                ),
+                                SizedBox(width: TaqaUiScale.w(8)),
+                                Expanded(
+                                  child: TextField(
+                                    controller: _qCtrl,
+                                    onChanged: (_) => _scheduleSearch(),
+                                    style: TextStyle(
+                                      fontFamily: TaqaUiFontFamilies.interTight,
+                                      fontSize: TaqaUiScale.sp(15),
+                                      letterSpacing: 0,
+                                      color: TaqaUiColors.unnamedColor1c1d17,
+                                    ),
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                      hintText: "Search",
+                                      hintStyle: TextStyle(
+                                        fontFamily:
+                                            TaqaUiFontFamilies.interTight,
+                                        fontSize: TaqaUiScale.sp(15),
+                                        letterSpacing: 0,
+                                        color: TaqaUiColors.unnamedColorE3e3e3,
+                                      ),
+                                      border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      errorBorder: InputBorder.none,
+                                      disabledBorder: InputBorder.none,
+                                      focusedErrorBorder: InputBorder.none,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                    SizedBox(height: TaqaUiScale.h(12)),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TaqaRangeTab(
+                            label: t.translate("diet_tab_foods"),
+                            selected: _tabIndex == 0,
+                            onTap: () {
+                              if (_tabIndex == 0) return;
+                              setState(() {
+                                _tabIndex = 0;
+                                _results = [];
+                                _error = null;
+                              });
+                              _scheduleSearch();
+                            },
+                          ),
                         ),
-                      ),
-                SizedBox(height: TaqaUiScale.h(12)),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TaqaRangeTab(
-                        label: t.translate("diet_tab_foods"),
-                        selected: _tabIndex == 0,
-                        onTap: () {
-                          if (_tabIndex == 0) return;
-                          setState(() {
-                            _tabIndex = 0;
-                            _results = [];
-                            _error = null;
-                          });
-                          _scheduleSearch();
-                        },
-                      ),
+                        SizedBox(width: TaqaUiScale.w(15)),
+                        Expanded(
+                          child: TaqaRangeTab(
+                            label: t.translate("diet_tab_restaurants"),
+                            selected: _tabIndex == 1,
+                            onTap: () {
+                              if (_tabIndex == 1) return;
+                              setState(() {
+                                _tabIndex = 1;
+                                _results = [];
+                                _error = null;
+                              });
+                              _scheduleSearch();
+                            },
+                          ),
+                        ),
+                      ],
                     ),
-                    SizedBox(width: TaqaUiScale.w(15)),
-                    Expanded(
-                      child: TaqaRangeTab(
-                        label: t.translate("diet_tab_restaurants"),
-                        selected: _tabIndex == 1,
-                        onTap: () {
-                          if (_tabIndex == 1) return;
-                          setState(() {
-                            _tabIndex = 1;
-                            _results = [];
-                            _error = null;
-                          });
-                          _scheduleSearch();
-                        },
-                      ),
-                    ),
+                    SizedBox(height: TaqaUiScale.h(12)),
+                    Expanded(child: _buildResults()),
                   ],
                 ),
-                SizedBox(height: TaqaUiScale.h(12)),
-                Expanded(child: _buildResults()),
-              ],
+              ),
             ),
           ),
         ),

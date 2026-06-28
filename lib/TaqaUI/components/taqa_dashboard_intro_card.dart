@@ -102,13 +102,17 @@ class TaqaDashboardIntroCard extends StatelessWidget {
                     top: nameTop,
                     width: math.max(0, cardWidth - nameLeft - leftInset),
                     height: nameHeight,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        '$cleanName,',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TaqaUiStyles.userName,
+                    child: GestureDetector(
+                      onTap: onAvatarTap,
+                      behavior: HitTestBehavior.opaque,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '$cleanName,',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TaqaUiStyles.userName,
+                        ),
                       ),
                     ),
                   ),
@@ -124,7 +128,11 @@ class TaqaDashboardIntroCard extends StatelessWidget {
                       message,
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
-                      style: TaqaUiStyles.subtitle,
+                      style: TaqaUiStyles.subtitle.copyWith(
+                        fontSize:
+                            (TaqaUiStyles.subtitle.fontSize ?? 15) *
+                            layoutScale,
+                      ),
                     ),
                   ),
                   Positioned(

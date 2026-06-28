@@ -220,13 +220,11 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
-    return SafeArea(
-      child: AnimatedPadding(
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOut,
-        padding: EdgeInsets.only(bottom: bottomInset),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: SafeArea(
         child: SizedBox(
           height: MediaQuery.sizeOf(context).height * 0.88,
           child: Padding(

@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../widgets/profile/profile_header.dart';
@@ -17,6 +15,7 @@ import '../../screens/welcome.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../../TaqaUI/components/taqa_back_button.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -370,31 +369,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   children: [
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: GestureDetector(
-                        onTap: () => Navigator.of(context).maybePop(),
-                        behavior: HitTestBehavior.opaque,
-                        child: Padding(
-                          padding: TaqaUiScale.insetsLTRB(0, 10, 10, 10),
-                          child: Transform.rotate(
-                            angle: math.pi / 4,
-                            child: Container(
-                              width: TaqaUiScale.w(5),
-                              height: TaqaUiScale.h(5),
-                              decoration: BoxDecoration(
-                                border: Border(
-                                  left: BorderSide(
-                                    color: TaqaUiColors.unnamedColor1c1d17,
-                                    width: TaqaUiScale.w(2),
-                                  ),
-                                  bottom: BorderSide(
-                                    color: TaqaUiColors.unnamedColor1c1d17,
-                                    width: TaqaUiScale.w(2),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
+                      child: TaqaBackButton(
+                        color: TaqaUiColors.unnamedColor1c1d17,
                       ),
                     ),
                     Text(

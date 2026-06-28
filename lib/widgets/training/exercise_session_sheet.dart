@@ -2243,31 +2243,37 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       SizedBox(height: TaqaUiScale.h(16)),
       if (_activeSetIndex != null && _activeSetTimerRunning) ...[
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: TaqaUiScale.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF2D7CFF).withOpacity(0.4)),
+            color: Colors.white.withValues(alpha: 0.05),
+            borderRadius: TaqaUiScale.radius(12),
+            border: Border.all(
+              color: const Color(0xFF2D7CFF).withValues(alpha: 0.4),
+            ),
           ),
           child: Row(
             children: [
-              const Icon(Icons.timer, color: Color(0xFF2D7CFF), size: 20),
-              const SizedBox(width: 8),
+              Icon(
+                Icons.timer,
+                color: const Color(0xFF2D7CFF),
+                size: TaqaUiScale.w(20),
+              ),
+              SizedBox(width: TaqaUiScale.w(8)),
               Text(
                 "Set $_activeSetIndex",
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
-                  fontSize: 13,
+                  fontSize: TaqaUiScale.sp(13),
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: TaqaUiScale.w(8)),
               Text(
                 _formatSeconds(_activeSetElapsedSeconds),
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w800,
-                  fontSize: 20,
+                  fontSize: TaqaUiScale.sp(20),
                 ),
               ),
               const Spacer(),
@@ -2279,7 +2285,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
             ],
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: TaqaUiScale.h(8)),
       ],
       AnimatedSize(
         duration: const Duration(milliseconds: 220),
@@ -2292,36 +2298,36 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                 children: [
                   if (_restCountdownActive) ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(
+                      padding: TaqaUiScale.symmetric(
                         horizontal: 14,
                         vertical: 12,
                       ),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            Colors.orangeAccent.withOpacity(0.15),
-                            Colors.deepOrange.withOpacity(0.06),
+                            Colors.orangeAccent.withValues(alpha: 0.15),
+                            Colors.deepOrange.withValues(alpha: 0.06),
                           ],
                         ),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: TaqaUiScale.radius(12),
                         border: Border.all(
-                          color: Colors.orangeAccent.withOpacity(0.35),
+                          color: Colors.orangeAccent.withValues(alpha: 0.35),
                         ),
                       ),
                       child: Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.hourglass_bottom,
                             color: Colors.orangeAccent,
-                            size: 20,
+                            size: TaqaUiScale.w(20),
                           ),
-                          const SizedBox(width: 8),
+                          SizedBox(width: TaqaUiScale.w(8)),
                           Text(
                             _formatSeconds(_restCountdownRemaining),
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
-                              fontSize: 26,
+                              fontSize: TaqaUiScale.sp(26),
                             ),
                           ),
                           const Spacer(),
@@ -2332,11 +2338,14 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                             style: TextButton.styleFrom(
                               foregroundColor: Colors.white70,
                               visualDensity: VisualDensity.compact,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: TaqaUiScale.w(8),
                               ),
                             ),
-                            child: const Text("+30s"),
+                            child: Text(
+                              "+30s",
+                              style: TextStyle(fontSize: TaqaUiScale.sp(14)),
+                            ),
                           ),
                           _CompactButton(
                             label: "Skip",
@@ -2346,7 +2355,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                         ],
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: TaqaUiScale.h(8)),
                   ],
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 220),
@@ -2368,35 +2377,35 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                             key: const ValueKey("rest_preset_on"),
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(
+                                padding: TaqaUiScale.symmetric(
                                   horizontal: 10,
                                   vertical: 10,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.04),
-                                  borderRadius: BorderRadius.circular(10),
+                                  color: Colors.white.withValues(alpha: 0.04),
+                                  borderRadius: TaqaUiScale.radius(10),
                                   border: Border.all(
-                                    color: Colors.white.withOpacity(0.06),
+                                    color: Colors.white.withValues(alpha: 0.06),
                                   ),
                                 ),
                                 child: Column(
                                   children: [
                                     Row(
                                       children: [
-                                        const Icon(
+                                        Icon(
                                           Icons.snooze,
                                           color: Colors.orangeAccent,
-                                          size: 18,
+                                          size: TaqaUiScale.w(18),
                                         ),
-                                        const SizedBox(width: 6),
+                                        SizedBox(width: TaqaUiScale.w(6)),
                                         Text(
                                           "Rest",
                                           style: TextStyle(
-                                            color: Colors.white.withOpacity(
-                                              0.6,
+                                            color: Colors.white.withValues(
+                                              alpha: 0.6,
                                             ),
                                             fontWeight: FontWeight.w600,
-                                            fontSize: 12,
+                                            fontSize: TaqaUiScale.sp(12),
                                           ),
                                         ),
                                         const Spacer(),
@@ -2405,19 +2414,19 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              const Icon(
+                                              Icon(
                                                 Icons.edit,
-                                                size: 12,
+                                                size: TaqaUiScale.w(12),
                                                 color: Colors.white38,
                                               ),
-                                              const SizedBox(width: 3),
+                                              SizedBox(width: TaqaUiScale.w(3)),
                                               Text(
                                                 "Custom",
                                                 style: TextStyle(
                                                   color: Colors.white
-                                                      .withOpacity(0.5),
+                                                      .withValues(alpha: 0.5),
                                                   fontWeight: FontWeight.w600,
-                                                  fontSize: 11,
+                                                  fontSize: TaqaUiScale.sp(11),
                                                 ),
                                               ),
                                             ],
@@ -2425,14 +2434,16 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 8),
+                                    SizedBox(height: TaqaUiScale.h(8)),
                                     Row(
                                       children: [
                                         for (final s in [30, 60, 90, 120])
                                           Expanded(
                                             child: Padding(
                                               padding: EdgeInsets.only(
-                                                right: s == 120 ? 0 : 6,
+                                                right: s == 120
+                                                    ? 0
+                                                    : TaqaUiScale.w(6),
                                               ),
                                               child: _RestPill(
                                                 label: "${s}s",
@@ -2449,8 +2460,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                                         ].contains(_restPresetSeconds))
                                           Expanded(
                                             child: Padding(
-                                              padding: const EdgeInsets.only(
-                                                left: 6,
+                                              padding: EdgeInsets.only(
+                                                left: TaqaUiScale.w(6),
                                               ),
                                               child: _RestPill(
                                                 label: "${_restPresetSeconds}s",
@@ -2461,36 +2472,39 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                                           ),
                                       ],
                                     ),
-                                    const SizedBox(height: 8),
+                                    SizedBox(height: TaqaUiScale.h(8)),
                                     SizedBox(
                                       width: double.infinity,
                                       child: ElevatedButton.icon(
                                         onPressed: () => _startRestCountdown(
                                           _restPresetSeconds,
                                         ),
-                                        icon: const Icon(
+                                        icon: Icon(
                                           Icons.hourglass_top,
-                                          size: 18,
+                                          size: TaqaUiScale.w(18),
                                         ),
                                         label: Text(
                                           "Start Rest  ${_formatSeconds(_restPresetSeconds)}",
+                                          style: TextStyle(
+                                            fontSize: TaqaUiScale.sp(14),
+                                          ),
                                         ),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.orangeAccent
-                                              .withOpacity(0.15),
+                                              .withValues(alpha: 0.15),
                                           foregroundColor: Colors.orangeAccent,
                                           elevation: 0,
-                                          minimumSize: const Size(
+                                          minimumSize: Size(
                                             double.infinity,
-                                            40,
+                                            TaqaUiScale.h(40),
                                           ),
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
+                                            borderRadius: TaqaUiScale.radius(
                                               10,
                                             ),
                                             side: BorderSide(
                                               color: Colors.orangeAccent
-                                                  .withOpacity(0.3),
+                                                  .withValues(alpha: 0.3),
                                             ),
                                           ),
                                         ),
@@ -2515,7 +2529,11 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           padding: EdgeInsets.only(top: TaqaUiScale.h(8)),
           child: Text(
             "No sets yet.",
-            style: TextStyle(color: Colors.white.withOpacity(0.7)),
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(13),
+              color: Colors.white.withValues(alpha: 0.7),
+            ),
           ),
         )
       else
@@ -3759,8 +3777,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     // SafeArea/useSafeArea already CONSUMES MediaQuery.viewPadding here (so it
     // reads 0), so read the true device inset straight from the root view.
     // Android ONLY so iPhone layout is untouched.
-    final androidNavInset =
-        Theme.of(context).platform == TargetPlatform.android
+    final androidNavInset = Theme.of(context).platform == TargetPlatform.android
         ? MediaQueryData.fromView(View.of(context)).viewPadding.bottom
         : 0.0;
     final t = AppLocalizations.of(context);
@@ -4199,16 +4216,16 @@ class _RestPill extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: TaqaUiScale.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: active
-              ? Colors.orangeAccent.withOpacity(0.2)
-              : Colors.white.withOpacity(0.06),
-          borderRadius: BorderRadius.circular(8),
+              ? Colors.orangeAccent.withValues(alpha: 0.2)
+              : Colors.white.withValues(alpha: 0.06),
+          borderRadius: TaqaUiScale.radius(8),
           border: Border.all(
             color: active
-                ? Colors.orangeAccent.withOpacity(0.5)
-                : Colors.white.withOpacity(0.1),
+                ? Colors.orangeAccent.withValues(alpha: 0.5)
+                : Colors.white.withValues(alpha: 0.1),
           ),
         ),
         child: Center(
@@ -4217,7 +4234,7 @@ class _RestPill extends StatelessWidget {
             style: TextStyle(
               color: active ? Colors.orangeAccent : Colors.white70,
               fontWeight: FontWeight.w600,
-              fontSize: 12,
+              fontSize: TaqaUiScale.sp(12),
             ),
           ),
         ),
@@ -4242,18 +4259,18 @@ class _CompactButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        padding: TaqaUiScale.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withOpacity(0.4)),
+          color: color.withValues(alpha: 0.15),
+          borderRadius: TaqaUiScale.radius(8),
+          border: Border.all(color: color.withValues(alpha: 0.4)),
         ),
         child: Text(
           label,
           style: TextStyle(
             color: color,
             fontWeight: FontWeight.w700,
-            fontSize: 12,
+            fontSize: TaqaUiScale.sp(12),
           ),
         ),
       ),

@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_log_entry_card.dart';
+import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 
 import '../../core/account_storage.dart';
@@ -174,11 +176,11 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
         foregroundColor: TaqaUiColors.unnamedColor1c1d17,
         centerTitle: true,
         elevation: 0,
-        title: const Text(
+        title: Text(
           "Cardio History",
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: 15,
+            fontSize: TaqaUiScale.sp(15),
             fontWeight: FontWeight.w700,
             height: 2.5,
             letterSpacing: 0,
@@ -190,32 +192,24 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
         onRefresh: _load,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          padding: TaqaUiScale.insetsLTRB(16, 19, 16, 24),
           children: [
-            const Text(
+            Text(
               "Completed Cardio Sessions",
               style: TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: 25,
+                fontSize: TaqaUiScale.sp(25),
                 fontWeight: FontWeight.w700,
+                height: 1,
+                letterSpacing: 0,
                 color: TaqaUiColors.unnamedColor1c1d17,
               ),
             ),
-            const SizedBox(height: 12),
-            const Text(
-              "Your Latest Sessions",
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: 15,
-                fontWeight: FontWeight.w400,
-                color: TaqaUiColors.unnamedColor1c1d17,
-              ),
-            ),
-            const SizedBox(height: 16),
+            SizedBox(height: TaqaUiScale.h(25)),
             if (_loading)
-              const Center(
+              Center(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
+                  padding: EdgeInsets.symmetric(vertical: TaqaUiScale.h(24)),
                   child: CircularProgressIndicator(
                     color: TaqaUiColors.unnamedColor1c1d17,
                   ),
@@ -224,55 +218,36 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
             else if (_error != null)
               Text(
                 _error!,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
-                  fontSize: 15,
+                  fontSize: TaqaUiScale.sp(15),
                   fontWeight: FontWeight.w400,
+                  height: 21 / 15,
+                  letterSpacing: 0,
                   color: Colors.redAccent,
                 ),
               )
             else if (_items.isEmpty)
-              const Text(
+              Text(
                 "No cardio sessions yet.",
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
-                  fontSize: 15,
+                  fontSize: TaqaUiScale.sp(15),
                   fontWeight: FontWeight.w400,
+                  height: 21 / 15,
+                  letterSpacing: 0,
                   color: TaqaUiColors.unnamedColor1c1d17,
                 ),
               )
             else
-              ..._items.map((item) {
-                final sessionId = _toInt(item['id']);
-                return InkWell(
-                  onTap: () {
-                    if (sessionId <= 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Couldn't open this session."),
-                        ),
-                      );
-                      return;
-                    }
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => CardioHistoryDetailPage(
-                          sessionId: sessionId,
-                          initialItem: item,
-                        ),
-                      ),
-                    );
-                  },
-                  child: _buildHistoryItem(item),
-                );
-              }),
+              ..._items.map((item) => _buildHistoryItem(context, item)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHistoryItem(Map<String, dynamic> item) {
+  Widget _buildHistoryItem(BuildContext context, Map<String, dynamic> item) {
     final name = _titleCase(
       (item['exercise_name'] ?? 'Cardio Session').toString(),
     );
@@ -284,6 +259,7 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
     final inclinePercent = _toDouble(item['incline_percent']);
     final showDistance = !isIndoorCardioExerciseName(name);
     final showIncline = isTreadmillExerciseName(name) && inclinePercent > 0;
+    final sessionId = _toInt(item['id']);
 
     final label = [
       if (showDistance) _formatDistance(distanceKm),
@@ -293,74 +269,26 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
       if (showIncline) "${inclinePercent.toStringAsFixed(1)}% incline",
     ].join(" • ");
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.1),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontFamily: TaqaUiFontFamilies.interTight,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: TaqaUiColors.unnamedColor1c1d17,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(7),
-                  border: Border.all(
-                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                      alpha: 0.6,
-                    ),
-                  ),
-                ),
-                child: Text(
-                  _formatDate(entryDate).toUpperCase(),
-                  style: const TextStyle(
-                    fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-                    fontSize: 8,
-                    fontWeight: FontWeight.w400,
-                    color: TaqaUiColors.unnamedColor1c1d17,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            _titleCase(label),
-            style: const TextStyle(
-              fontFamily: TaqaUiFontFamilies.interTight,
-              fontSize: 15,
-              fontWeight: FontWeight.w400,
-              color: TaqaUiColors.unnamedColor1c1d17,
+    return TaqaLogEntryCard(
+      title: name,
+      badgeText: _formatDate(entryDate).toUpperCase(),
+      subtitle: _titleCase(label),
+      onTap: () {
+        if (sessionId <= 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Couldn't open this session.")),
+          );
+          return;
+        }
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => CardioHistoryDetailPage(
+              sessionId: sessionId,
+              initialItem: item,
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 

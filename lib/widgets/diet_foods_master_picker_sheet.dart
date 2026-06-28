@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../localization/app_localizations.dart';
 import '../services/diet/nutrition_search_service.dart';
 import '../theme/app_theme.dart';
+import '../TaqaUI/components/taqa_value_dialog.dart';
 
 class DietFoodsMasterPickerSheet extends StatefulWidget {
   const DietFoodsMasterPickerSheet({
@@ -99,42 +100,18 @@ class _DietFoodsMasterPickerSheetState extends State<DietFoodsMasterPickerSheet>
     required String unit,
     required String initial,
   }) async {
-    String value = initial;
-    final res = await showDialog<double>(
+    final text = await showTaqaTextValueDialog(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          scrollable: true,
-          title: Text(title),
-          content: Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: TextFormField(
-              initialValue: initial,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              onChanged: (v) => value = v,
-              decoration: InputDecoration(
-                hintText: hint,
-                suffixText: unit,
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(null),
-              child: Text(AppLocalizations.of(context).translate("common_cancel")),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final v = double.tryParse(value.trim());
-                Navigator.of(ctx).pop(v);
-              },
-              child: Text(AppLocalizations.of(context).translate("diet_log")),
-            ),
-          ],
-        );
-      },
+      title: title,
+      initialValue: initial,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      unit: unit,
+      confirmLabel: AppLocalizations.of(context)
+          .translate("diet_log")
+          .toUpperCase(),
     );
-    return res;
+    if (text == null) return null;
+    return double.tryParse(text.trim());
   }
 
   String _foodTitle(Map<String, dynamic> item) {
@@ -160,6 +137,11 @@ class _DietFoodsMasterPickerSheetState extends State<DietFoodsMasterPickerSheet>
     final t = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final maxSheetHeight = MediaQuery.sizeOf(context).height * 0.82;
+    final sheetHeight = (maxSheetHeight - bottomInset).clamp(
+      0.0,
+      maxSheetHeight,
+    );
 
     return SafeArea(
       child: AnimatedPadding(
@@ -167,7 +149,7 @@ class _DietFoodsMasterPickerSheetState extends State<DietFoodsMasterPickerSheet>
         curve: Curves.easeOut,
         padding: EdgeInsets.only(bottom: bottomInset),
         child: SizedBox(
-          height: MediaQuery.sizeOf(context).height * 0.82,
+          height: sheetHeight,
           child: Padding(
             padding: const EdgeInsets.only(left: 16, right: 16, top: 12, bottom: 16),
             child: Column(

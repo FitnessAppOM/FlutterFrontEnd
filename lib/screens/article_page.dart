@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/styles/taqa_ui_styles.dart';
 import '../localization/app_localizations.dart';
 import '../models/news_item.dart';
+import 'pdf_viewer_page.dart';
 
 class ArticlePage extends StatelessWidget {
   final NewsItem item;
@@ -132,7 +132,7 @@ class ArticlePage extends StatelessWidget {
             if (item.contentUrl.isNotEmpty)
               Padding(
                 padding: TaqaUiScale.insetsLTRB(16, 0, 16, 30),
-                child: _PdfButton(url: item.contentUrl),
+                child: _PdfButton(url: item.contentUrl, title: item.title),
               ),
           ],
         ),
@@ -144,8 +144,9 @@ class ArticlePage extends StatelessWidget {
 
 class _PdfButton extends StatelessWidget {
   final String url;
+  final String title;
 
-  const _PdfButton({required this.url});
+  const _PdfButton({required this.url, this.title = 'Document'});
 
   @override
   Widget build(BuildContext context) {
@@ -154,9 +155,12 @@ class _PdfButton extends StatelessWidget {
       borderRadius: TaqaUiScale.radius(5),
       child: InkWell(
         borderRadius: TaqaUiScale.radius(5),
-        onTap: () async {
-          final uri = Uri.parse(url);
-          await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => PdfViewerPage(url: url, title: title),
+            ),
+          );
         },
         child: SizedBox(
           width: TaqaUiScale.w(357),

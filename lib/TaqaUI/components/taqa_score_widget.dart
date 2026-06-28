@@ -421,7 +421,14 @@ class _ScoreChip extends StatelessWidget {
           width: math.max(0.8, layoutScale),
         ),
       ),
-      child: Text(tag.text, maxLines: 2, style: TaqaUiStyles.scoreCardTag),
+      child: Text(
+        tag.text,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: TaqaUiStyles.scoreCardTag.copyWith(
+          fontSize: (TaqaUiStyles.scoreCardTag.fontSize ?? 8) * layoutScale,
+        ),
+      ),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_action_controls.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_value_dialog.dart';
 import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 import '../../services/training/training_service.dart';
@@ -188,13 +189,13 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
         ? 'Unnamed exercise'
         : currentExerciseName;
 
-    final confirmed = await showTaqaActionConfirmDialog(
+    final confirmed = await showTaqaConfirmDialog(
       context: context,
       title: "Replace Exercise",
       message:
           "Are you sure you want to replace this exercise?\n\n\"$currentLabel\" -> \"$replacementExerciseName\"",
       cancelLabel: (t.translate("common_cancel")).toUpperCase(),
-      confirmLabel: "REPLACE EXERCISE",
+      confirmLabel: "REPLACE",
     );
 
     if (!confirmed) return; // User cancelled
@@ -278,121 +279,279 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
     final reasonController = TextEditingController();
     String? selectedQuickReason;
 
+    final textStyle = TextStyle(
+      fontFamily: TaqaUiFontFamilies.interTight,
+      fontSize: TaqaUiScale.sp(13),
+      fontWeight: FontWeight.w400,
+      color: TaqaUiColors.unnamedColor1c1d17,
+    );
+
     return showDialog<String>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text(
-            t.translate("replace_reason_title") ??
-                "Why are you replacing this exercise?",
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  t.translate("replace_reason_subtitle") ??
-                      "Please tell us why you're replacing this exercise. This helps us improve your program.",
-                  style: const TextStyle(fontSize: 14),
-                ),
-                const SizedBox(height: 16),
-                // Quick reason options
-                ..._getQuickReasons(t).map(
-                  (quickReason) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: InkWell(
-                      onTap: () {
-                        setDialogState(() {
-                          selectedQuickReason = quickReason;
-                          reasonController.text = quickReason;
-                        });
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: selectedQuickReason == quickReason
-                                ? Theme.of(context).colorScheme.primary
-                                : Colors.grey,
-                            width: selectedQuickReason == quickReason ? 2 : 1,
+      barrierColor: const Color(0x66000000),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          return Align(
+            alignment: Alignment.center,
+            child: Padding(
+              padding: TaqaUiScale.symmetric(horizontal: 17),
+              child: Material(
+                color: Colors.transparent,
+                clipBehavior: Clip.none,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => FocusScope.of(ctx).unfocus(),
+                  child: Container(
+                    constraints: BoxConstraints(
+                      maxWidth: TaqaUiScale.w(356),
+                      maxHeight: MediaQuery.sizeOf(ctx).height * 0.8,
+                    ),
+                    padding: TaqaUiScale.insetsLTRB(17, 15, 17, 15),
+                    decoration: BoxDecoration(
+                      color: TaqaUiColors.white,
+                      borderRadius: TaqaUiScale.radius(15),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          t.translate("replace_reason_title") ??
+                              "Why are you replacing this exercise?",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(15),
+                            fontWeight: FontWeight.w700,
+                            height: 25 / 15,
+                            letterSpacing: 0,
+                            color: TaqaUiColors.unnamedColor1c1d17,
                           ),
-                          borderRadius: BorderRadius.circular(8),
-                          color: selectedQuickReason == quickReason
-                              ? Theme.of(
-                                  context,
-                                ).colorScheme.primary.withOpacity(0.1)
-                              : null,
                         ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              selectedQuickReason == quickReason
-                                  ? Icons.radio_button_checked
-                                  : Icons.radio_button_unchecked,
-                              size: 20,
-                              color: selectedQuickReason == quickReason
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Colors.grey,
+                        SizedBox(height: TaqaUiScale.h(8)),
+                        Text(
+                          t.translate("replace_reason_subtitle") ??
+                              "Please tell us why you're replacing this exercise. This helps us improve your program.",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(13),
+                            fontWeight: FontWeight.w400,
+                            height: 18 / 13,
+                            letterSpacing: 0,
+                            color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                              alpha: 0.6,
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(child: Text(quickReason)),
-                          ],
+                          ),
                         ),
-                      ),
+                        SizedBox(height: TaqaUiScale.h(16)),
+                        Flexible(
+                          child: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ..._getQuickReasons(t).map((quickReason) {
+                                  final selected =
+                                      selectedQuickReason == quickReason;
+                                  return Padding(
+                                    padding: EdgeInsets.only(
+                                      bottom: TaqaUiScale.h(8),
+                                    ),
+                                    child: InkWell(
+                                      borderRadius: TaqaUiScale.radius(15),
+                                      onTap: () {
+                                        setDialogState(() {
+                                          selectedQuickReason = quickReason;
+                                          reasonController.text = quickReason;
+                                        });
+                                      },
+                                      child: Container(
+                                        padding: TaqaUiScale.insetsLTRB(
+                                          14,
+                                          10,
+                                          14,
+                                          10,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          borderRadius: TaqaUiScale.radius(15),
+                                          color: selected
+                                              ? TaqaUiColors.unnamedColorE4e93b
+                                                    .withValues(alpha: 0.2)
+                                              : null,
+                                          border: Border.all(
+                                            color: selected
+                                                ? TaqaUiColors
+                                                      .unnamedColorE4e93b
+                                                : TaqaUiColors
+                                                      .unnamedColor1c1d17
+                                                      .withValues(alpha: 0.10),
+                                            width: selected ? 1.5 : 1,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              selected
+                                                  ? Icons.radio_button_checked
+                                                  : Icons
+                                                        .radio_button_unchecked,
+                                              size: TaqaUiScale.w(18),
+                                              color: selected
+                                                  ? TaqaUiColors
+                                                        .unnamedColor1c1d17
+                                                  : TaqaUiColors
+                                                        .unnamedColor1c1d17
+                                                        .withValues(alpha: 0.4),
+                                            ),
+                                            SizedBox(width: TaqaUiScale.w(8)),
+                                            Expanded(
+                                              child: Text(
+                                                quickReason,
+                                                style: textStyle,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                                SizedBox(height: TaqaUiScale.h(4)),
+                                TextField(
+                                  controller: reasonController,
+                                  maxLines: 3,
+                                  style: textStyle,
+                                  decoration: InputDecoration(
+                                    labelText:
+                                        t.translate("replace_reason_custom") ??
+                                        "Or enter your own reason",
+                                    hintText:
+                                        t.translate("replace_reason_hint") ??
+                                        "e.g., I don't have the equipment",
+                                    labelStyle: textStyle.copyWith(
+                                      color: TaqaUiColors.unnamedColor1c1d17
+                                          .withValues(alpha: 0.6),
+                                    ),
+                                    hintStyle: textStyle.copyWith(
+                                      color: TaqaUiColors.unnamedColor1c1d17
+                                          .withValues(alpha: 0.3),
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: TaqaUiScale.radius(10),
+                                      borderSide: BorderSide(
+                                        color: TaqaUiColors.unnamedColor1c1d17
+                                            .withValues(alpha: 0.10),
+                                      ),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: TaqaUiScale.radius(10),
+                                      borderSide: BorderSide(
+                                        color: TaqaUiColors.unnamedColor1c1d17
+                                            .withValues(alpha: 0.10),
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: TaqaUiScale.radius(10),
+                                      borderSide: BorderSide(
+                                        color: TaqaUiColors.unnamedColor1c1d17,
+                                      ),
+                                    ),
+                                  ),
+                                  onChanged: (value) {
+                                    setDialogState(() {
+                                      if (value != selectedQuickReason) {
+                                        selectedQuickReason = null;
+                                      }
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: TaqaUiScale.h(24)),
+                        SizedBox(
+                          height: TaqaUiScale.h(45),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => Navigator.pop(ctx, null),
+                                  child: Center(
+                                    child: Text(
+                                      (t.translate("common_cancel") ?? "Cancel")
+                                          .toUpperCase(),
+                                      style: TextStyle(
+                                        fontFamily:
+                                            TaqaUiFontFamilies.interTight,
+                                        fontSize: TaqaUiScale.sp(10),
+                                        fontWeight: FontWeight.w600,
+                                        height: 12 / 10,
+                                        letterSpacing: 0,
+                                        color: TaqaUiColors.unnamedColor1c1d17,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Material(
+                                color: TaqaUiColors.unnamedColorE4e93b,
+                                borderRadius: TaqaUiScale.radius(5),
+                                child: InkWell(
+                                  borderRadius: TaqaUiScale.radius(5),
+                                  onTap: () {
+                                    final reason = reasonController.text.trim();
+                                    if (reason.isEmpty) {
+                                      ScaffoldMessenger.of(ctx).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            t.translate(
+                                                  "replace_reason_required",
+                                                ) ??
+                                                "Please provide a reason",
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    Navigator.pop(ctx, reason);
+                                  },
+                                  child: SizedBox(
+                                    width: TaqaUiScale.w(159),
+                                    height: TaqaUiScale.h(45),
+                                    child: Center(
+                                      child: Text(
+                                        (t.translate("common_confirm") ??
+                                                "Confirm")
+                                            .toUpperCase(),
+                                        style: TextStyle(
+                                          fontFamily:
+                                              TaqaUiFontFamilies.interTight,
+                                          fontSize: TaqaUiScale.sp(10),
+                                          fontWeight: FontWeight.w700,
+                                          height: 12 / 10,
+                                          letterSpacing: 0,
+                                          color:
+                                              TaqaUiColors.unnamedColor1c1d17,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: reasonController,
-                  decoration: InputDecoration(
-                    labelText:
-                        t.translate("replace_reason_custom") ??
-                        "Or enter your own reason",
-                    hintText:
-                        t.translate("replace_reason_hint") ??
-                        "e.g., I don't have the equipment",
-                    border: const OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                  onChanged: (value) {
-                    setDialogState(() {
-                      if (value != selectedQuickReason) {
-                        selectedQuickReason = null;
-                      }
-                    });
-                  },
-                ),
-              ],
+              ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, null),
-              child: Text(t.translate("common_cancel") ?? "Cancel"),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final reason = reasonController.text.trim();
-                if (reason.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        t.translate("replace_reason_required") ??
-                            "Please provide a reason",
-                      ),
-                    ),
-                  );
-                  return;
-                }
-                Navigator.pop(context, reason);
-              },
-              child: Text(t.translate("common_confirm") ?? "Confirm"),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

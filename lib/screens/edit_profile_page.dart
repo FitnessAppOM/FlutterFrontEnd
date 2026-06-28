@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../TaqaUI/components/taqa_back_button.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 import '../../core/account_storage.dart';
 import '../../core/diet_regeneration_flag.dart';
 import '../../localization/app_localizations.dart';
@@ -633,7 +635,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
         appBar: AppBar(
           title: Text(t.translate("edit_profile")),
           backgroundColor: AppColors.black,
-          automaticallyImplyLeading: !_saving,
+          automaticallyImplyLeading: false,
+          leading: _saving
+              ? null
+              : TaqaBackButton(color: TaqaUiColors.white),
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
