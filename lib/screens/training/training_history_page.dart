@@ -839,9 +839,19 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
     final y = local.year.toString().padLeft(4, '0');
     final m = local.month.toString().padLeft(2, '0');
     final d = local.day.toString().padLeft(2, '0');
-    final hh = local.hour.toString().padLeft(2, '0');
-    final mm = local.minute.toString().padLeft(2, '0');
-    return '$y-$m-$d  $hh:$mm';
+    return '$y-$m-$d';
+  }
+
+  String _titleForPlanChangeEvent(TrainingPlanChangeEvent event) {
+    if (event.coachUserId == null) return 'AI';
+    if (event.coachIsAdmin && !event.coachIsAssignedCoach) return 'Admin';
+    final firstName = event.coachFirstName?.trim();
+    if (firstName != null && firstName.isNotEmpty) return 'Coach $firstName';
+    final sourceTo = _labelForPlanSource(event.toPlanSource);
+    final sourceFrom = _labelForPlanSource(event.fromPlanSource);
+    return sourceTo.isNotEmpty
+        ? sourceTo
+        : (sourceFrom.isNotEmpty ? sourceFrom : 'Update');
   }
 
   String _labelForPlanSource(String? source) {
@@ -862,7 +872,9 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
   }
 
   bool _isWholePlanChange(TrainingPlanChangeEvent event) {
-    return event.eventType.trim() == 'plan_created' ||
+    final eventType = event.eventType.trim();
+    return eventType == 'plan_created' ||
+        eventType == 'template_assigned' ||
         event.sourceProgramId == null;
   }
 
@@ -882,8 +894,26 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
         ),
       ];
     }
+    if (event.coachUserId == null) {
+      return [
+        Text(
+          "Template changed.",
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(13),
+            fontWeight: FontWeight.w600,
+            height: 18 / 13,
+            letterSpacing: 0,
+            color: TaqaUiColors.unnamedColor1c1d17,
+          ),
+        ),
+      ];
+    }
     if (event.details.isEmpty) return const <Widget>[];
 
+    // 'added'/'removed' show as a +/- pair (an exercise swap shows up as
+    // both). 'updated' (sets/reps/rir tweak on the same exercise, no name
+    // change) doesn't belong in either bucket.
     final addedNames = <String>[];
     final replacedNames = <String>[];
     for (final change in event.details) {
@@ -896,12 +926,6 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
         final from = change['from'];
         final name = from is Map
             ? (from['exercise_name'] ?? '').toString().trim()
-            : '';
-        if (name.isNotEmpty) replacedNames.add(name);
-      } else if (type == 'updated') {
-        final pos = change['position'];
-        final name = pos is Map
-            ? (pos['exercise_name'] ?? '').toString().trim()
             : '';
         if (name.isNotEmpty) replacedNames.add(name);
       }
@@ -917,7 +941,7 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
             fontSize: TaqaUiScale.sp(13),
             fontWeight: FontWeight.w600,
             height: 18 / 13,
-            color: const Color(0xFF2E9E5B),
+            color: TaqaUiColors.unnamedColor1c1d17,
           ),
         ),
       );
@@ -931,7 +955,7 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
             fontSize: TaqaUiScale.sp(13),
             fontWeight: FontWeight.w600,
             height: 18 / 13,
-            color: const Color(0xFFD1483A),
+            color: TaqaUiColors.unnamedColor1c1d17,
           ),
         ),
       );
@@ -1052,11 +1076,7 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
           ..._planLogItems.map((event) {
             final detailWidgets = _buildPlanChangeDetailWidgets(event);
             final createdAt = _formatPlanChangeDate(event.createdAt);
-            final sourceFrom = _labelForPlanSource(event.fromPlanSource);
-            final sourceTo = _labelForPlanSource(event.toPlanSource);
-            final titleLabel = sourceTo.isNotEmpty
-                ? sourceTo
-                : (sourceFrom.isNotEmpty ? sourceFrom : "Update");
+            final titleLabel = _titleForPlanChangeEvent(event);
             return TaqaLogEntryCard(
               title: _titleCase(titleLabel),
               badgeText: createdAt.toUpperCase(),

@@ -47,6 +47,9 @@ class TrainingPlanChangeEvent {
   final String? createdAt;
   final String? clientSeenAt;
   final bool isNew;
+  final String? coachFirstName;
+  final bool coachIsAdmin;
+  final bool coachIsAssignedCoach;
 
   const TrainingPlanChangeEvent({
     required this.eventId,
@@ -61,6 +64,9 @@ class TrainingPlanChangeEvent {
     required this.createdAt,
     required this.clientSeenAt,
     required this.isNew,
+    this.coachFirstName,
+    this.coachIsAdmin = false,
+    this.coachIsAssignedCoach = false,
   });
 
   factory TrainingPlanChangeEvent.fromJson(Map<String, dynamic> json) {
@@ -100,6 +106,11 @@ class TrainingPlanChangeEvent {
           ? null
           : (json['client_seen_at'] ?? '').toString(),
       isNew: json['is_new'] == true,
+      coachFirstName: (json['coach_first_name'] ?? '').toString().trim().isEmpty
+          ? null
+          : (json['coach_first_name'] ?? '').toString().trim(),
+      coachIsAdmin: json['coach_is_admin'] == true,
+      coachIsAssignedCoach: json['coach_is_assigned_coach'] == true,
     );
   }
 }

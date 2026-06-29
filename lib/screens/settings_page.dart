@@ -139,10 +139,11 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _showJwtTokenDialog() async {
+    final t = AppLocalizations.of(context);
     final token = await AccountStorage.getAccessToken();
     if (!mounted) return;
     final display = (token == null || token.trim().isEmpty)
-        ? "No JWT token found. Please log in again."
+        ? t.translate("jwt_token_missing")
         : token.trim();
 
     // ignore: use_build_context_synchronously
@@ -160,9 +161,9 @@ class _SettingsPageState extends State<SettingsPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "JWT Token",
-                  style: TextStyle(
+                Text(
+                  t.translate("jwt_token_title"),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
@@ -192,7 +193,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text("Close"),
+                        child: Text(t.translate("common_close")),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -207,7 +208,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                 if (!context.mounted) return;
                                 AppToast.show(
                                   context,
-                                  "Token copied",
+                                  t.translate("jwt_token_copied"),
                                   type: AppToastType.success,
                                 );
                               },
@@ -549,12 +550,13 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _connectWhoop() async {
+    final loc = AppLocalizations.of(context);
     final userId = await AccountStorage.getUserId();
     if (!mounted) return;
     if (userId == null || userId == 0) {
       AppToast.show(
         context,
-        "Please log in to connect Whoop.",
+        loc.translate("whoop_login_required"),
         type: AppToastType.info,
       );
       return;
@@ -564,7 +566,11 @@ class _SettingsPageState extends State<SettingsPage> {
       final token = await AccountStorage.getAccessToken();
       final t = token?.trim();
       if (t == null || t.isEmpty) {
-        AppToast.show(context, "Please log in again.", type: AppToastType.info);
+        AppToast.show(
+          context,
+          loc.translate("please_login_again"),
+          type: AppToastType.info,
+        );
         return;
       }
       final url =
@@ -590,7 +596,9 @@ class _SettingsPageState extends State<SettingsPage> {
       }
       AppToast.show(
         context,
-        ok ? "Whoop connected successfully." : "Whoop connect failed.",
+        ok
+            ? loc.translate("whoop_connect_success")
+            : loc.translate("whoop_connect_failed"),
         type: ok ? AppToastType.success : AppToastType.error,
       );
     } catch (e) {
@@ -600,7 +608,7 @@ class _SettingsPageState extends State<SettingsPage> {
       }
       AppToast.show(
         context,
-        "Whoop connect failed: $e",
+        loc.translate("whoop_connect_failed_detail").replaceAll("{error}", "$e"),
         type: AppToastType.error,
       );
     } finally {
@@ -610,11 +618,12 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _connectFitbit() async {
     if (_fitbitAuthInFlight) return;
+    final loc = AppLocalizations.of(context);
     final userId = await AccountStorage.getUserId();
     if (userId == null) {
       AppToast.show(
         context,
-        "Please log in to connect Fitbit.",
+        loc.translate("fitbit_login_required"),
         type: AppToastType.info,
       );
       return;
@@ -625,7 +634,11 @@ class _SettingsPageState extends State<SettingsPage> {
       final token = await AccountStorage.getAccessToken();
       final t = token?.trim();
       if (t == null || t.isEmpty) {
-        AppToast.show(context, "Please log in again.", type: AppToastType.info);
+        AppToast.show(
+          context,
+          loc.translate("please_login_again"),
+          type: AppToastType.info,
+        );
         return;
       }
       final url =
@@ -645,7 +658,9 @@ class _SettingsPageState extends State<SettingsPage> {
       }
       AppToast.show(
         context,
-        ok ? "Fitbit connected successfully." : "Fitbit connect failed.",
+        ok
+            ? loc.translate("fitbit_connect_success")
+            : loc.translate("fitbit_connect_failed"),
         type: ok ? AppToastType.success : AppToastType.error,
       );
     } catch (e) {
@@ -654,7 +669,7 @@ class _SettingsPageState extends State<SettingsPage> {
       }
       AppToast.show(
         context,
-        "Fitbit connect failed: $e",
+        loc.translate("fitbit_connect_failed_detail").replaceAll("{error}", "$e"),
         type: AppToastType.error,
       );
     } finally {
@@ -665,11 +680,12 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _connectStrava() async {
     if (_stravaAuthInFlight) return;
+    final loc = AppLocalizations.of(context);
     final userId = await AccountStorage.getUserId();
     if (userId == null) {
       AppToast.show(
         context,
-        "Please log in to connect Strava.",
+        loc.translate("strava_login_required"),
         type: AppToastType.info,
       );
       return;
@@ -680,7 +696,11 @@ class _SettingsPageState extends State<SettingsPage> {
       final token = await AccountStorage.getAccessToken();
       final t = token?.trim();
       if (t == null || t.isEmpty) {
-        AppToast.show(context, "Please log in again.", type: AppToastType.info);
+        AppToast.show(
+          context,
+          loc.translate("please_login_again"),
+          type: AppToastType.info,
+        );
         return;
       }
       final url =
@@ -698,7 +718,9 @@ class _SettingsPageState extends State<SettingsPage> {
       }
       AppToast.show(
         context,
-        ok ? "Strava connected successfully." : "Strava connect failed.",
+        ok
+            ? loc.translate("strava_connect_success")
+            : loc.translate("strava_connect_failed"),
         type: ok ? AppToastType.success : AppToastType.error,
       );
     } catch (e) {
@@ -707,7 +729,7 @@ class _SettingsPageState extends State<SettingsPage> {
       }
       AppToast.show(
         context,
-        "Strava connect failed: $e",
+        loc.translate("strava_connect_failed_detail").replaceAll("{error}", "$e"),
         type: AppToastType.error,
       );
     } finally {
@@ -717,13 +739,14 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _disconnectFitbit() async {
+    final loc = AppLocalizations.of(context);
     final userId = await AccountStorage.getUserId();
     if (userId == null) return;
     final ok = await showConfirmDialog(
       context: context,
-      title: "Disconnect Fitbit",
-      message: "Are you sure you want to disconnect Fitbit?",
-      confirmText: "Disconnect",
+      title: loc.translate("fitbit_disconnect_title"),
+      message: loc.translate("fitbit_disconnect_confirm"),
+      confirmText: loc.translate("common_disconnect"),
     );
     if (ok != true) return;
     setState(() => _fitbitLoading = true);
@@ -738,13 +761,13 @@ class _SettingsPageState extends State<SettingsPage> {
       AccountStorage.notifyAccountChanged();
       AppToast.show(
         context,
-        "Fitbit disconnected.",
+        loc.translate("fitbit_disconnected"),
         type: AppToastType.success,
       );
     } catch (e) {
       AppToast.show(
         context,
-        "Fitbit disconnect failed: $e",
+        loc.translate("fitbit_disconnect_failed_detail").replaceAll("{error}", "$e"),
         type: AppToastType.error,
       );
     } finally {
@@ -753,13 +776,14 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _disconnectStrava() async {
+    final loc = AppLocalizations.of(context);
     final userId = await AccountStorage.getUserId();
     if (userId == null) return;
     final ok = await showConfirmDialog(
       context: context,
-      title: "Disconnect Strava",
-      message: "Are you sure you want to disconnect Strava?",
-      confirmText: "Disconnect",
+      title: loc.translate("strava_disconnect_title"),
+      message: loc.translate("strava_disconnect_confirm"),
+      confirmText: loc.translate("common_disconnect"),
     );
     if (ok != true) return;
     setState(() => _stravaLoading = true);
@@ -774,13 +798,13 @@ class _SettingsPageState extends State<SettingsPage> {
       AccountStorage.notifyAccountChanged();
       AppToast.show(
         context,
-        "Strava disconnected.",
+        loc.translate("strava_disconnected"),
         type: AppToastType.success,
       );
     } catch (e) {
       AppToast.show(
         context,
-        "Strava disconnect failed: $e",
+        loc.translate("strava_disconnect_failed_detail").replaceAll("{error}", "$e"),
         type: AppToastType.error,
       );
     } finally {
@@ -807,17 +831,18 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _disconnectWhoop() async {
+    final loc = AppLocalizations.of(context);
     final userId = await AccountStorage.getUserId();
     if (!mounted) return;
     if (userId == null || userId == 0) {
-      AppToast.show(context, "Please log in.", type: AppToastType.info);
+      AppToast.show(context, loc.translate("please_login"), type: AppToastType.info);
       return;
     }
     final ok = await showConfirmDialog(
       context: context,
-      title: "Disconnect Whoop",
-      message: "Are you sure you want to disconnect Whoop?",
-      confirmText: "Disconnect",
+      title: loc.translate("whoop_disconnect_title"),
+      message: loc.translate("whoop_disconnect_confirm"),
+      confirmText: loc.translate("common_disconnect"),
     );
     if (ok != true) return;
     setState(() => _whoopLoading = true);
@@ -837,10 +862,18 @@ class _SettingsPageState extends State<SettingsPage> {
       await AccountStorage.setWhoopLinked(false);
       AccountStorage.notifyWhoopChanged();
       AccountStorage.notifyAccountChanged();
-      AppToast.show(context, "Whoop disconnected.", type: AppToastType.success);
+      AppToast.show(
+        context,
+        loc.translate("whoop_disconnected"),
+        type: AppToastType.success,
+      );
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, "Disconnect failed: $e", type: AppToastType.error);
+      AppToast.show(
+        context,
+        loc.translate("common_disconnect_failed_detail").replaceAll("{error}", "$e"),
+        type: AppToastType.error,
+      );
     } finally {
       if (mounted) setState(() => _whoopLoading = false);
     }
@@ -1395,13 +1428,15 @@ class _SettingsPageState extends State<SettingsPage> {
                     onTap: _deletingAccount ? null : _confirmDeleteAccount,
                   ),
                   SizedBox(height: TaqaUiScale.h(24)),
-                  _sectionTitle("Devices"),
+                  _sectionTitle(t.translate("settings_devices")),
                   SizedBox(height: TaqaUiScale.h(12)),
                   _SettingsTile(
-                    title: _whoopLinked ? "Whoop connected" : "Connect Whoop",
+                    title: _whoopLinked
+                        ? t.translate("whoop_connected_title")
+                        : t.translate("whoop_connect_title"),
                     subtitle: _whoopLinked
-                        ? "Disconnect your Whoop"
-                        : "Link your Whoop account",
+                        ? t.translate("whoop_disconnect_subtitle")
+                        : t.translate("whoop_link_subtitle"),
                     onTap: (_whoopLoading || _isDeactivated)
                         ? null
                         : _handleWhoopTap,
@@ -1413,11 +1448,11 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   _SettingsTile(
                     title: _fitbitLinked
-                        ? "Fitbit connected"
-                        : "Connect Fitbit",
+                        ? t.translate("fitbit_connected_title")
+                        : t.translate("fitbit_connect_title"),
                     subtitle: _fitbitLinked
-                        ? "Disconnect your Fitbit"
-                        : "Link your Fitbit account",
+                        ? t.translate("fitbit_disconnect_subtitle")
+                        : t.translate("fitbit_link_subtitle"),
                     onTap: (_fitbitLoading || _isDeactivated)
                         ? null
                         : _handleFitbitTap,
@@ -1429,11 +1464,11 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   _SettingsTile(
                     title: _stravaLinked
-                        ? "Strava connected"
-                        : "Connect Strava",
+                        ? t.translate("strava_connected_title")
+                        : t.translate("strava_connect_title"),
                     subtitle: _stravaLinked
-                        ? "Disconnect your Strava"
-                        : "Link your Strava account",
+                        ? t.translate("strava_disconnect_subtitle")
+                        : t.translate("strava_link_subtitle"),
                     onTap: (_stravaLoading || _isDeactivated)
                         ? null
                         : _handleStravaTap,
@@ -1445,21 +1480,21 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   _SettingsTile(
                     title: !Platform.isIOS
-                        ? "Wearable detection unavailable"
+                        ? t.translate("wearable_unavailable_title")
                         : _appleWatchChecking
-                        ? "Checking wearables..."
+                        ? t.translate("wearable_checking_title")
                         : (_appleWatchDetected == true
                               ? (_wearableDetectedType == 'apple'
-                                    ? "Apple Watch detected"
-                                    : "Wearable detected")
-                              : "Wearable not detected"),
+                                    ? t.translate("apple_watch_detected_title")
+                                    : t.translate("wearable_detected_title"))
+                              : t.translate("wearable_not_detected_title")),
                     subtitle: !Platform.isIOS
-                        ? "Wearable source detection works on iPhone only"
+                        ? t.translate("wearable_ios_only_subtitle")
                         : (_appleWatchDetected == true
                               ? (_wearableDetectedType == 'apple'
-                                    ? "Health data from Apple Watch is available"
-                                    : "Health data from a connected wearable is available")
-                              : "No wearable source found in Apple Health data"),
+                                    ? t.translate("apple_watch_health_data_subtitle")
+                                    : t.translate("wearable_health_data_subtitle"))
+                              : t.translate("wearable_no_source_subtitle")),
                     onTap:
                         (!Platform.isIOS ||
                             _isDeactivated ||

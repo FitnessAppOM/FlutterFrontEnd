@@ -464,7 +464,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                 ),
                               ),
                               child: Text(
-                                "Account is deactivated. Profile editing is disabled until you reactivate.",
+                                t.translate("profile_deactivated_edit_disabled"),
                                 style: TextStyle(
                                   fontFamily: TaqaUiFontFamilies.interTight,
                                   color: TaqaUiColors.unnamedColor1c1d17,

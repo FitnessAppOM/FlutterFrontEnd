@@ -1259,18 +1259,19 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Affiliation"),
+        title: Text(t.translate("affiliation")),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             DropdownButtonFormField<String>(
-              decoration: const InputDecoration(
-                labelText: "Category",
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: t.translate("affiliation_category"),
+                border: const OutlineInputBorder(),
               ),
               value: _selectedCategory,
               items: _categories
@@ -1286,7 +1287,9 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               decoration: InputDecoration(
-                labelText: _loading ? "Loading..." : "Affiliation",
+                labelText: _loading
+                    ? t.translate("affiliation_loading")
+                    : t.translate("affiliation"),
                 border: const OutlineInputBorder(),
               ),
               value: _selectedAffId,
@@ -1314,9 +1317,9 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
             const SizedBox(height: 12),
             TextFormField(
               controller: _otherCtrl,
-              decoration: const InputDecoration(
-                labelText: "Other affiliation",
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: t.translate("affiliation_other"),
+                border: const OutlineInputBorder(),
               ),
               onChanged: (_) => setState(() => _selectedAffId = null),
             ),
@@ -1329,7 +1332,7 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
               width: double.infinity,
               child: PrimaryWhiteButton(
                 onPressed: _submit,
-                child: const Text("Save"),
+                child: Text(t.translate("common_save")),
               ),
             ),
           ],
