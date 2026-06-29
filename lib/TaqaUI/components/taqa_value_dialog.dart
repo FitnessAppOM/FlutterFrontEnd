@@ -123,6 +123,97 @@ Future<bool> showTaqaConfirmDialog({
   return result == true;
 }
 
+Future<void> showTaqaInfoDialog({
+  required BuildContext context,
+  required String title,
+  required String message,
+  String confirmLabel = "OK",
+}) {
+  return showDialog<void>(
+    context: context,
+    barrierColor: const Color(0x66000000),
+    builder: (ctx) {
+      return Align(
+        alignment: Alignment.center,
+        child: Padding(
+          padding: TaqaUiScale.symmetric(horizontal: 17),
+          child: Material(
+            color: Colors.transparent,
+            clipBehavior: Clip.none,
+            child: Container(
+              constraints: BoxConstraints(maxWidth: TaqaUiScale.w(356)),
+              padding: TaqaUiScale.insetsLTRB(17, 15, 17, 15),
+              decoration: BoxDecoration(
+                color: TaqaUiColors.white,
+                borderRadius: TaqaUiScale.radius(15),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(15),
+                      fontWeight: FontWeight.w700,
+                      height: 25 / 15,
+                      letterSpacing: 0,
+                      color: TaqaUiColors.unnamedColor1c1d17,
+                    ),
+                  ),
+                  SizedBox(height: TaqaUiScale.h(12)),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(13),
+                      fontWeight: FontWeight.w400,
+                      height: 18 / 13,
+                      letterSpacing: 0,
+                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                        alpha: 0.6,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: TaqaUiScale.h(24)),
+                  Material(
+                    color: TaqaUiColors.unnamedColorE4e93b,
+                    borderRadius: TaqaUiScale.radius(5),
+                    child: InkWell(
+                      borderRadius: TaqaUiScale.radius(5),
+                      onTap: () => Navigator.pop(ctx),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: TaqaUiScale.h(45),
+                        child: Center(
+                          child: Text(
+                            confirmLabel.toUpperCase(),
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: TaqaUiScale.sp(10),
+                              fontWeight: FontWeight.w700,
+                              height: 12 / 10,
+                              letterSpacing: 0,
+                              color: TaqaUiColors.unnamedColor1c1d17,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
 class TaqaDialogOption<T> {
   const TaqaDialogOption({
     required this.value,

@@ -90,7 +90,7 @@ import '../../screens/taqa_score_detail_page.dart';
 import '../../localization/app_localizations.dart';
 import '../../widgets/app_toast.dart';
 import '../../core/user_friendly_error.dart';
-import '../../widgets/confirm_dialog.dart';
+import '../../TaqaUI/components/taqa_value_dialog.dart';
 import '../../services/training/training_service.dart';
 import '../../services/training/training_calories_service.dart';
 import '../../services/training/training_progress_storage.dart';
@@ -997,17 +997,16 @@ class DashboardPageState extends State<DashboardPage>
     }
 
     if (!mounted) return;
-    final confirmed = await showConfirmDialog(
+    final confirmed = await showTaqaConfirmDialog(
       context: context,
       title: "Daily journal check-in",
       message: "Take 60 seconds to log how you’re feeling today.",
-      cancelText: "Later",
-      confirmText: "Take me there",
-      borderColor: const Color(0xFFD4AF37),
+      cancelLabel: "Later",
+      confirmLabel: "Take me there",
     );
 
     await prefs.setString(promptShownKey, dayKey);
-    if (confirmed == true && mounted) {
+    if (confirmed && mounted) {
       await Navigator.of(
         context,
       ).push(MaterialPageRoute(builder: (_) => const DailyJournalPage()));
@@ -5611,6 +5610,9 @@ class DashboardPageState extends State<DashboardPage>
                       distanceKm: summary?.distance,
                       calories: summary?.calories,
                       activeMinutes: summary?.activeMinutes,
+                      goalSteps: summary?.goalSteps,
+                      goalCalories: summary?.goalCalories,
+                      goalActiveMinutes: summary?.goalActiveMinutes,
                       onTap: summary == null
                           ? null
                           : () async {

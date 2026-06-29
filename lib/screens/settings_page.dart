@@ -934,24 +934,11 @@ class _SettingsPageState extends State<SettingsPage> {
     required String body,
   }) async {
     if (!mounted) return;
-    await showDialog(
+    await showTaqaInfoDialog(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: AppColors.black,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(title, style: const TextStyle(color: Colors.white)),
-          content: Text(body, style: const TextStyle(color: Colors.white70)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(AppLocalizations.of(context).translate("ok")),
-            ),
-          ],
-        );
-      },
+      title: title,
+      message: body,
+      confirmLabel: AppLocalizations.of(context).translate("ok"),
     );
   }
 

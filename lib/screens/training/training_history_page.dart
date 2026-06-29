@@ -861,64 +861,89 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
     }
   }
 
+  bool _isWholePlanChange(TrainingPlanChangeEvent event) {
+    return event.eventType.trim() == 'plan_created' ||
+        event.sourceProgramId == null;
+  }
+
   List<Widget> _buildPlanChangeDetailWidgets(TrainingPlanChangeEvent event) {
+    if (_isWholePlanChange(event)) {
+      return [
+        Text(
+          "Training plan has been changed.",
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(13),
+            fontWeight: FontWeight.w600,
+            height: 18 / 13,
+            letterSpacing: 0,
+            color: TaqaUiColors.unnamedColor1c1d17,
+          ),
+        ),
+      ];
+    }
     if (event.details.isEmpty) return const <Widget>[];
-    final widgets = <Widget>[];
+
+    final addedNames = <String>[];
+    final replacedNames = <String>[];
     for (final change in event.details) {
       final type = (change['type'] ?? '').toString().trim();
       if (type == 'added') {
         final to = change['to'];
-        if (to is Map) {
-          final ex = (to['exercise_name'] ?? '').toString();
-          final sets = to['sets']?.toString() ?? '-';
-          final reps = to['reps']?.toString() ?? '-';
-          final rir = to['rir']?.toString() ?? '-';
-          final day = (to['day_label'] ?? 'Day').toString();
-          widgets.add(
-            Text(
-              '+ $day: $ex ($sets x $reps, RIR $rir)',
-              style: const TextStyle(color: Color(0xFF7CFFB0), fontSize: 12),
-            ),
-          );
-        }
+        final name = to is Map ? (to['exercise_name'] ?? '').toString().trim() : '';
+        if (name.isNotEmpty) addedNames.add(name);
       } else if (type == 'removed') {
         final from = change['from'];
-        if (from is Map) {
-          final ex = (from['exercise_name'] ?? '').toString();
-          final day = (from['day_label'] ?? 'Day').toString();
-          widgets.add(
-            Text(
-              '- $day: $ex',
-              style: const TextStyle(color: Color(0xFFFF8C8C), fontSize: 12),
-            ),
-          );
-        }
+        final name = from is Map
+            ? (from['exercise_name'] ?? '').toString().trim()
+            : '';
+        if (name.isNotEmpty) replacedNames.add(name);
       } else if (type == 'updated') {
         final pos = change['position'];
-        final fields = change['fields'];
-        if (pos is Map && fields is Map) {
-          final day = (pos['day_label'] ?? 'Day').toString();
-          final exerciseName = (pos['exercise_name'] ?? '').toString().trim();
-          final fieldLabels = <String>[];
-          fields.forEach((key, value) {
-            if (value is Map) {
-              final from = value['from']?.toString() ?? '-';
-              final to = value['to']?.toString() ?? '-';
-              fieldLabels.add('$key: $from -> $to');
-            }
-          });
-          widgets.add(
-            Text(
-              exerciseName.isEmpty
-                  ? '~ $day: ${fieldLabels.join(' | ')}'
-                  : '~ $day: $exerciseName (${fieldLabels.join(' | ')})',
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-          );
-        }
+        final name = pos is Map
+            ? (pos['exercise_name'] ?? '').toString().trim()
+            : '';
+        if (name.isNotEmpty) replacedNames.add(name);
       }
     }
+
+    final widgets = <Widget>[];
+    if (addedNames.isNotEmpty) {
+      widgets.add(
+        Text(
+          '+ ${_joinExerciseNames(addedNames)}',
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(13),
+            fontWeight: FontWeight.w600,
+            height: 18 / 13,
+            color: const Color(0xFF2E9E5B),
+          ),
+        ),
+      );
+    }
+    if (replacedNames.isNotEmpty) {
+      widgets.add(
+        Text(
+          '- ${_joinExerciseNames(replacedNames)}',
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(13),
+            fontWeight: FontWeight.w600,
+            height: 18 / 13,
+            color: const Color(0xFFD1483A),
+          ),
+        ),
+      );
+    }
     return widgets;
+  }
+
+  String _joinExerciseNames(List<String> names) {
+    const maxShown = 4;
+    if (names.length <= maxShown) return names.join(', ');
+    final shown = names.take(maxShown).join(', ');
+    return '$shown +${names.length - maxShown} more';
   }
 
   Widget _buildProgressLogsContent(List<_TrainingHistoryPlanGroup> grouped) {
