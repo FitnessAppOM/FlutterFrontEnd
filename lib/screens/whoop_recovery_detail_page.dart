@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/account_storage.dart';
 import '../theme/app_theme.dart';
+import '../localization/app_localizations.dart';
 import '../services/whoop/whoop_recovery_service.dart';
 import '../widgets/charts/simple_line_chart.dart';
 import '../widgets/recovery/recovery_gauge.dart';
@@ -98,7 +99,7 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Recovery"),
+        title: Text(AppLocalizations.of(context).translate("whoop_recovery_title")),
         backgroundColor: AppColors.black,
       ),
       backgroundColor: AppColors.black,
@@ -118,7 +119,7 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
             ],
             const SizedBox(height: 16),
             if (metrics.recoveryScore != null || hasAnyData || _loading) ...[
-              Center(child: _sectionTitle("Recovery Trend (7 Days)")),
+              Center(child: _sectionTitle(AppLocalizations.of(context).translate("whoop_recovery_trend"))),
               const SizedBox(height: 8),
               _loading && !hasAnyData
                   ? const Center(
@@ -171,7 +172,7 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              "No recovery data yet for this day",
+              AppLocalizations.of(context).translate("whoop_no_recovery_data"),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Colors.white60,
                 fontWeight: FontWeight.w600,
@@ -217,7 +218,7 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
           ),
           const SizedBox(height: 6),
           Text(
-            "Recovery Details",
+            AppLocalizations.of(context).translate("whoop_recovery_details"),
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               color: Colors.white,
               fontWeight: FontWeight.w800,
@@ -269,7 +270,7 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
           children: [
             Expanded(
               child: RecoveryMetricCard(
-                title: "Resting Heart Rate",
+                title: AppLocalizations.of(context).translate("fitbit_heart_resting_hr"),
                 value: _fmt(metrics.rhr),
                 unit: "bpm",
                 icon: Icons.favorite,
@@ -279,7 +280,7 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
             const SizedBox(width: 12),
             Expanded(
               child: RecoveryMetricCard(
-                title: "HRV (RMSSD)",
+                title: AppLocalizations.of(context).translate("fitbit_heart_hrv_rmssd"),
                 value: _fmt(metrics.hrv),
                 unit: "ms",
                 icon: Icons.show_chart,
@@ -293,7 +294,7 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
           children: [
             Expanded(
               child: RecoveryMetricCard(
-                title: "SpO₂ Level",
+                title: AppLocalizations.of(context).translate("whoop_spo2_level"),
                 value: _fmt(metrics.spo2),
                 unit: "%",
                 icon: Icons.water_drop,
@@ -303,7 +304,7 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
             const SizedBox(width: 12),
             Expanded(
               child: RecoveryMetricCard(
-                title: "Skin Temperature",
+                title: AppLocalizations.of(context).translate("whoop_skin_temp"),
                 value: _fmt(metrics.skinTemp),
                 unit: "°C",
                 icon: Icons.thermostat,

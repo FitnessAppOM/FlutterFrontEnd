@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../TaqaUI/components/taqa_dashboard_metric_card.dart';
+import '../../localization/app_localizations.dart';
 
 class WhoopRecoveryCard extends StatelessWidget {
   const WhoopRecoveryCard({
@@ -21,20 +22,21 @@ class WhoopRecoveryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final value = linked
         ? (score != null ? "$score%" : (loading ? "…" : "—"))
-        : "Not connected";
+        : t("whoop_not_connected");
     final safeMaxScore = maxScore <= 0 ? 100 : maxScore;
     final progress = linked && score != null
         ? (score! / safeMaxScore).clamp(0.0, 1.0)
         : 0.0;
     final subtitle = linked
-        ? "Goal $safeMaxScore%${_deltaLabel(delta)}"
-        : "Connect Whoop";
+        ? "${t("common_goal_value").replaceAll("{value}", "$safeMaxScore%")}${_deltaLabel(delta)}"
+        : t("whoop_connect_title");
 
     return TaqaDashboardMetricCard(
       source: TaqaDashboardMetricSource.whoop,
-      title: "Whoop Recovery",
+      title: t("whoop_recovery_title"),
       valueText: value,
       goalText: subtitle,
       progress: progress,

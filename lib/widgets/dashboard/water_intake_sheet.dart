@@ -6,6 +6,7 @@ import '../../services/core/daily_provider_push_service.dart';
 import '../../services/health/water_service.dart';
 import '../../services/metrics/daily_metrics_api.dart';
 import '../../theme/app_theme.dart';
+import '../../localization/app_localizations.dart';
 import '../app_toast.dart';
 
 class WaterIntakeSheet extends StatefulWidget {
@@ -111,16 +112,17 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
   Future<void> _save() async {
     if (_saving) return;
     FocusScope.of(context).unfocus();
+    final t = AppLocalizations.of(context).translate;
     final goal = double.tryParse(_goalCtrl.text.trim());
     final intake = double.tryParse(_intakeCtrl.text.trim());
     if (goal == null && intake == null) {
-      AppToast.show(context, "Enter goal or intake", type: AppToastType.info);
+      AppToast.show(context, t("water_enter_goal_or_intake"), type: AppToastType.info);
       return;
     }
     final userId = await AccountStorage.getUserId();
     if (!mounted) return;
     if (userId == null) {
-      AppToast.show(context, "Not authenticated", type: AppToastType.error);
+      AppToast.show(context, t("error_not_authenticated"), type: AppToastType.error);
       return;
     }
     setState(() => _saving = true);
@@ -146,21 +148,21 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
             );
             DailyMetricsApi.clearCache();
           } catch (_) {
-            syncNotice = "Saved locally. DB sync failed, will retry later.";
+            syncNotice = t("water_saved_sync_failed");
           }
         } else if (!changed) {
-          syncNotice = "No change to save";
+          syncNotice = t("no_changes");
         }
       }
       await _loadLogs(forceRefresh: true);
       if (syncNotice != null && mounted) {
         AppToast.show(context, syncNotice, type: AppToastType.info);
       } else if (mounted) {
-        AppToast.show(context, "Water saved.", type: AppToastType.success);
+        AppToast.show(context, t("water_saved"), type: AppToastType.success);
       }
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, "Failed to save: $e", type: AppToastType.error);
+      AppToast.show(context, t("water_failed_to_save").replaceAll("{error}", "$e"), type: AppToastType.error);
       setState(() => _saving = false);
       return;
     }
@@ -173,10 +175,11 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final viewInset = MediaQuery.of(context).viewInsets.bottom;
+    final t = AppLocalizations.of(context).translate;
     final isTargetToday = _isSameDay(_targetDay, _dashboardToday());
     final intakeLabel = isTargetToday
-        ? "Today intake (L)"
-        : "Intake (${DateFormat('MMM d').format(_targetDay)})";
+        ? t("water_today_intake_l")
+        : "${t("water_intake_prefix")} (${DateFormat('MMM d').format(_targetDay)})";
     return AnimatedPadding(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
@@ -215,7 +218,7 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
                   Row(
                     children: [
                       Text(
-                        "Water intake",
+                        t("water_title"),
                         style: AppTextStyles.subtitle.copyWith(
                           color: Colors.white,
                         ),
@@ -229,7 +232,7 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
                   ),
                   const SizedBox(height: 8),
                   _FieldRow(
-                    label: "Goal (L)",
+                    label: t("water_goal_l"),
                     controller: _goalCtrl,
                     icon: Icons.flag,
                   ),
@@ -252,14 +255,14 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: Text(_saving ? "Saving..." : "Save"),
+                      child: Text(_saving ? t("common_saving") : t("common_save")),
                     ),
                   ),
                   const SizedBox(height: 16),
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      "History",
+                      t("common_history"),
                       style: AppTextStyles.small.copyWith(
                         color: Colors.white70,
                       ),
@@ -270,7 +273,7 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       child: Text(
-                        "No logs yet.",
+                        t("water_no_logs_yet"),
                         style: AppTextStyles.small.copyWith(
                           color: AppColors.textDim,
                         ),

@@ -20,14 +20,13 @@ class FitbitHeartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final value = restingHr != null
         ? "$restingHr bpm"
         : (loading ? "…" : "—");
-    final hrv = hrvRmssd != null ? "HRV ${hrvRmssd!.toStringAsFixed(0)}" : null;
+    final hrv = hrvRmssd != null ? "${t("health_hrv_label")} ${hrvRmssd!.toStringAsFixed(0)}" : null;
     final vo2 = vo2Max != null && vo2Max!.isNotEmpty ? "VO₂ ${vo2Max!}" : null;
     final subtitle = [hrv, vo2].whereType<String>().join(" • ");
-
-    final t = AppLocalizations.of(context).translate;
     return TaqaDashboardMetricCard(
       source: TaqaDashboardMetricSource.fitbit,
       title: t("fitbit_heart_title"),

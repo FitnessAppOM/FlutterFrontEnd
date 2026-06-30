@@ -873,7 +873,7 @@ class DashboardPageState extends State<DashboardPage>
     showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
-      barrierLabel: "Widgets",
+      barrierLabel: AppLocalizations.of(context).translate("widget_library_title"),
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 220),
       pageBuilder: (context, anim, secondary) {
@@ -997,12 +997,13 @@ class DashboardPageState extends State<DashboardPage>
     }
 
     if (!mounted) return;
+    final t = AppLocalizations.of(context).translate;
     final confirmed = await showTaqaConfirmDialog(
       context: context,
-      title: "Daily journal check-in",
-      message: "Take 60 seconds to log how you’re feeling today.",
-      cancelLabel: "Later",
-      confirmLabel: "Take me there",
+      title: t("dash_journal_title"),
+      message: t("dash_journal_message"),
+      cancelLabel: t("dash_journal_later"),
+      confirmLabel: t("dash_journal_go"),
     );
 
     await prefs.setString(promptShownKey, dayKey);
@@ -1067,15 +1068,15 @@ class DashboardPageState extends State<DashboardPage>
       ),
       WidgetLibraryOption(
         keyName: 'body',
-        title: "Body measurements",
-        subtitle: "Height & weight",
+        title: t("dash_widget_body_title"),
+        subtitle: t("dash_widget_body_subtitle"),
         icon: Icons.person,
         accentColor: const Color(0xFF6A5AE0),
       ),
       WidgetLibraryOption(
         keyName: 'health_recovery_load',
-        title: "Recovery & load",
-        subtitle: "RHR, HRV, zones, active minutes",
+        title: t("dash_widget_recovery_title"),
+        subtitle: t("dash_widget_recovery_subtitle"),
         icon: Icons.monitor_heart,
         accentColor: const Color(0xFF2EC4B6),
       ),
@@ -1084,8 +1085,8 @@ class DashboardPageState extends State<DashboardPage>
       all.add(
         WidgetLibraryOption(
           keyName: 'fitbit_activity',
-          title: "Fitbit Daily Activity",
-          subtitle: "Steps, distance, calories",
+          title: t("dash_widget_fitbit_activity_title"),
+          subtitle: t("dash_widget_fitbit_activity_subtitle"),
           icon: Icons.insights,
           accentColor: const Color(0xFF00B0B9),
         ),
@@ -1093,8 +1094,8 @@ class DashboardPageState extends State<DashboardPage>
       all.add(
         WidgetLibraryOption(
           keyName: 'fitbit_heart',
-          title: "Fitbit Heart & Cardio",
-          subtitle: "Resting HR, HRV, VO₂ max",
+          title: t("dash_widget_fitbit_heart_title"),
+          subtitle: t("dash_widget_fitbit_heart_subtitle"),
           icon: Icons.favorite,
           accentColor: const Color(0xFF0C6A73),
         ),
@@ -1102,8 +1103,8 @@ class DashboardPageState extends State<DashboardPage>
       all.add(
         WidgetLibraryOption(
           keyName: 'fitbit_sleep',
-          title: "Fitbit Sleep",
-          subtitle: "Duration, stages, goals",
+          title: t("dash_widget_fitbit_sleep_title"),
+          subtitle: t("dash_widget_fitbit_sleep_subtitle"),
           icon: Icons.nights_stay,
           accentColor: const Color(0xFF0C6A73),
         ),
@@ -1111,8 +1112,8 @@ class DashboardPageState extends State<DashboardPage>
       all.add(
         WidgetLibraryOption(
           keyName: 'fitbit_scores',
-          title: "Fitbit Scores",
-          subtitle: "Readiness, stress",
+          title: t("dash_widget_fitbit_scores_title"),
+          subtitle: t("dash_widget_fitbit_scores_subtitle"),
           icon: Icons.emoji_events_outlined,
           accentColor: const Color(0xFF0C6A73),
         ),
@@ -1120,8 +1121,8 @@ class DashboardPageState extends State<DashboardPage>
       all.add(
         WidgetLibraryOption(
           keyName: 'fitbit_vitals',
-          title: "Fitbit Health Metrics",
-          subtitle: "SpO₂, temp, breathing, ECG",
+          title: t("dash_widget_fitbit_vitals_title"),
+          subtitle: t("dash_widget_fitbit_vitals_subtitle"),
           icon: Icons.health_and_safety,
           accentColor: const Color(0xFF0C6A73),
         ),
@@ -1129,8 +1130,8 @@ class DashboardPageState extends State<DashboardPage>
       all.add(
         WidgetLibraryOption(
           keyName: 'fitbit_body',
-          title: "Fitbit Body",
-          subtitle: "Weight",
+          title: t("dash_widget_fitbit_body_title"),
+          subtitle: t("dash_widget_fitbit_body_subtitle"),
           icon: Icons.monitor_weight,
           accentColor: const Color(0xFF0C6A73),
         ),
@@ -1140,29 +1141,29 @@ class DashboardPageState extends State<DashboardPage>
       all.addAll([
         WidgetLibraryOption(
           keyName: 'whoop_sleep',
-          title: "Whoop Sleep",
-          subtitle: "Sleep + efficiency",
+          title: t("dash_widget_whoop_sleep_title"),
+          subtitle: t("dash_widget_whoop_sleep_subtitle"),
           icon: Icons.nights_stay,
           accentColor: const Color(0xFF2D7CFF),
         ),
         WidgetLibraryOption(
           keyName: 'whoop_recovery',
-          title: "Whoop Recovery",
-          subtitle: "Recovery score",
+          title: t("dash_widget_whoop_recovery_title"),
+          subtitle: t("dash_widget_whoop_recovery_subtitle"),
           icon: Icons.monitor_heart,
           accentColor: const Color(0xFF4CD964),
         ),
         WidgetLibraryOption(
           keyName: 'whoop_cycle',
-          title: "Whoop Strain",
-          subtitle: "Daily strain score",
+          title: t("dash_widget_whoop_cycle_title"),
+          subtitle: t("dash_widget_whoop_cycle_subtitle"),
           icon: Icons.loop,
           accentColor: const Color(0xFF2D7CFF),
         ),
         WidgetLibraryOption(
           keyName: 'whoop_body',
-          title: "Whoop Body",
-          subtitle: "Body measurements",
+          title: t("dash_widget_whoop_body_title"),
+          subtitle: t("dash_widget_whoop_body_subtitle"),
           icon: Icons.person,
           accentColor: const Color(0xFF2D7CFF),
         ),
@@ -1172,8 +1173,8 @@ class DashboardPageState extends State<DashboardPage>
       all.addAll([
         WidgetLibraryOption(
           keyName: 'strava_activities',
-          title: "Strava Activities",
-          subtitle: "Your activities with key metrics",
+          title: t("dash_widget_strava_title"),
+          subtitle: t("dash_widget_strava_subtitle"),
           icon: Icons.directions_run,
           accentColor: const Color(0xFFFC4C02),
         ),
@@ -1440,6 +1441,7 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   void _activateWidget(String key) {
+    final t = AppLocalizations.of(context).translate;
     final group = _exclusiveGroupForKey(key);
     if (group != null) {
       final existing = _statOrder.firstWhere(
@@ -1449,7 +1451,7 @@ class DashboardPageState extends State<DashboardPage>
       if (existing.isNotEmpty && existing != key) {
         AppToast.show(
           context,
-          "Only one ${_exclusiveGroupLabel(group)} widget can be active",
+          t("dash_only_one_widget").replaceAll("{group}", _exclusiveGroupLabel(group)),
           type: AppToastType.info,
         );
         return;
@@ -1463,7 +1465,7 @@ class DashboardPageState extends State<DashboardPage>
         key == 'fitbit_vitals' ||
         key == 'fitbit_body') {
       if (!_fitbitLinked) {
-        AppToast.show(context, "Connect Fitbit first", type: AppToastType.info);
+        AppToast.show(context, t("dash_connect_fitbit_first"), type: AppToastType.info);
         return;
       }
     } else if (key == 'whoop_sleep' ||
@@ -1471,12 +1473,12 @@ class DashboardPageState extends State<DashboardPage>
         key == 'whoop_cycle' ||
         key == 'whoop_body') {
       if (!_whoopLinked) {
-        AppToast.show(context, "Connect Whoop first", type: AppToastType.info);
+        AppToast.show(context, t("dash_connect_whoop_first"), type: AppToastType.info);
         return;
       }
     } else if (key == 'strava_activities') {
       if (!_stravaLinked) {
-        AppToast.show(context, "Connect Strava first", type: AppToastType.info);
+        AppToast.show(context, t("dash_connect_strava_first"), type: AppToastType.info);
         return;
       }
     }
@@ -2191,7 +2193,7 @@ class DashboardPageState extends State<DashboardPage>
         _pruneDeviceWidgets();
         AppToast.show(
           context,
-          "Strava session expired. Please reconnect Strava.",
+          AppLocalizations.of(context).translate("dash_strava_expired"),
           type: AppToastType.error,
         );
         return;
@@ -4837,7 +4839,7 @@ class DashboardPageState extends State<DashboardPage>
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text("Cancel"),
+              child: Text(AppLocalizations.of(ctx).translate("common_cancel")),
             ),
             TextButton(
               onPressed: () {
@@ -4853,7 +4855,7 @@ class DashboardPageState extends State<DashboardPage>
                 }
                 Navigator.of(ctx).pop(allowDecimal ? parsed : parsed.toInt());
               },
-              child: const Text("Save"),
+              child: Text(AppLocalizations.of(ctx).translate("common_save")),
             ),
           ],
         );
@@ -4862,10 +4864,11 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   Future<void> _editStepsGoal() async {
+    final t = AppLocalizations.of(context).translate;
     final current = _stepsGoal ?? 10000;
     final res = await _promptGoal(
-      title: "Steps goal",
-      label: "Steps per day",
+      title: t("dash_steps_goal_title"),
+      label: t("dash_steps_per_day"),
       initial: current,
       allowDecimal: false,
     );
@@ -4878,10 +4881,11 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   Future<void> _editSleepGoal() async {
+    final t = AppLocalizations.of(context).translate;
     final current = _sleepGoal ?? 8.0;
     final res = await _promptGoal(
-      title: "Sleep goal",
-      label: "Hours per night",
+      title: t("dash_sleep_goal_title"),
+      label: t("dash_hours_per_night"),
       initial: current,
       allowDecimal: true,
     );
@@ -4894,10 +4898,11 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   Future<void> _editCaloriesGoal() async {
+    final t = AppLocalizations.of(context).translate;
     final current = _caloriesGoal ?? 500;
     final res = await _promptGoal(
-      title: "Calories burn goal",
-      label: "kcal per day",
+      title: t("dash_calories_goal_title"),
+      label: t("dash_kcal_per_day"),
       initial: current,
       allowDecimal: false,
     );
@@ -5260,7 +5265,7 @@ class DashboardPageState extends State<DashboardPage>
     final bool isCurrentDay = _isToday();
     final String introName =
         (_displayName == null || _displayName!.trim().isEmpty)
-        ? "Athlete"
+        ? AppLocalizations.of(context).translate("dash_athlete")
         : _displayName!.trim();
     final listView = ListView(
       padding: const EdgeInsets.all(20),
@@ -5521,9 +5526,9 @@ class DashboardPageState extends State<DashboardPage>
                         : '${_stravaActivitiesCount ?? 0}';
                     return TaqaDashboardMetricCard(
                       source: TaqaDashboardMetricSource.strava,
-                      title: "Strava Activities",
+                      title: AppLocalizations.of(context).translate("strava_activities_title"),
                       valueText: stravaActivitiesValue,
-                      goalText: "sessions done",
+                      goalText: AppLocalizations.of(context).translate("dash_strava_sessions_done"),
                       progress: 0.0,
                       showArc: false,
                       loading: _stravaActivitiesLoading,
@@ -6005,7 +6010,7 @@ class DashboardPageState extends State<DashboardPage>
                             if (_wearableBubbleType == 'apple') ...[
                               const SizedBox(width: 8),
                               Text(
-                                "Apple Watch",
+                                AppLocalizations.of(context).translate("dash_apple_watch"),
                                 style: Theme.of(context).textTheme.labelSmall
                                     ?.copyWith(
                                       color: Colors.white70,

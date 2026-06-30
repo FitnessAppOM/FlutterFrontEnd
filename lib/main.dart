@@ -178,6 +178,7 @@ void main() async {
     });
   };
 
+  await localeController.loadSaved();
   print('[BOOT] Pre-runApp total ${bootWatch.elapsedMilliseconds}ms');
   runApp(WithForegroundTask(child: MyApp(initialPayload: launchPayload)));
   WidgetsBinding.instance.addPostFrameCallback((_) {

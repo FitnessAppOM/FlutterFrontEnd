@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/account_storage.dart';
 import '../theme/app_theme.dart';
+import '../localization/app_localizations.dart';
 import '../services/whoop/whoop_cycle_service.dart';
 import '../widgets/recovery/recovery_metric_card.dart';
 import '../widgets/charts/simple_line_chart.dart';
@@ -101,7 +102,7 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
     final metrics = _daily[dayKey] ?? _dailyCache[dayKey];
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Daily Cycle"),
+        title: Text(AppLocalizations.of(context).translate("whoop_daily_cycle_title")),
         backgroundColor: AppColors.black,
       ),
       backgroundColor: AppColors.black,
@@ -121,7 +122,7 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
               const SizedBox(height: 16),
               Center(
                 child: Text(
-                  "Average HR Trend (7 Days)",
+                  AppLocalizations.of(context).translate("whoop_avg_hr_trend"),
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -191,7 +192,7 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                "No cycle data yet for this day",
+                AppLocalizations.of(context).translate("whoop_no_cycle_data"),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Colors.white60,
                   fontWeight: FontWeight.w600,
@@ -207,13 +208,14 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
       return _dashMetricsGrid();
     }
 
+    final t = AppLocalizations.of(context).translate;
     return Column(
       children: [
         Row(
           children: [
             Expanded(
               child: RecoveryMetricCard(
-                title: "Strain",
+                title: t("whoop_strain_label"),
                 value: _fmt(metrics?["strain"]),
                 unit: "",
                 icon: Icons.bolt,
@@ -223,7 +225,7 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
             const SizedBox(width: 12),
             Expanded(
               child: RecoveryMetricCard(
-                title: "Avg HR",
+                title: t("whoop_avg_hr_label"),
                 value: _fmt(metrics?["avg_hr"]),
                 unit: "bpm",
                 icon: Icons.favorite,
@@ -237,7 +239,7 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
           children: [
             Expanded(
               child: RecoveryMetricCard(
-                title: "Max HR",
+                title: t("whoop_max_hr_label"),
                 value: _fmt(metrics?["max_hr"]),
                 unit: "bpm",
                 icon: Icons.show_chart,
@@ -247,7 +249,7 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
             const SizedBox(width: 12),
             Expanded(
               child: RecoveryMetricCard(
-                title: "Energy",
+                title: t("whoop_energy_label"),
                 value: _fmt(metrics?["kilojoules"]),
                 unit: "kJ",
                 icon: Icons.local_fire_department,
@@ -261,51 +263,52 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
   }
 
   Widget _dashMetricsGrid() {
+    final t = AppLocalizations.of(context).translate;
     return Column(
       children: [
         Row(
-          children: const [
+          children: [
             Expanded(
               child: RecoveryMetricCard(
-                title: "Strain",
+                title: t("whoop_strain_label"),
                 value: "—",
                 unit: "",
                 icon: Icons.bolt,
-                accent: Color(0xFFFF8A00),
+                accent: const Color(0xFFFF8A00),
               ),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: RecoveryMetricCard(
-                title: "Avg HR",
+                title: t("whoop_avg_hr_label"),
                 value: "—",
                 unit: "bpm",
                 icon: Icons.favorite,
-                accent: Color(0xFFE84C4F),
+                accent: const Color(0xFFE84C4F),
               ),
             ),
           ],
         ),
-        SizedBox(height: 12),
+        const SizedBox(height: 12),
         Row(
-          children: const [
+          children: [
             Expanded(
               child: RecoveryMetricCard(
-                title: "Max HR",
+                title: t("whoop_max_hr_label"),
                 value: "—",
                 unit: "bpm",
                 icon: Icons.show_chart,
-                accent: Color(0xFF7BD4FF),
+                accent: const Color(0xFF7BD4FF),
               ),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: RecoveryMetricCard(
-                title: "Energy",
+                title: t("whoop_energy_label"),
                 value: "—",
                 unit: "kJ",
                 icon: Icons.local_fire_department,
-                accent: Color(0xFFB8E91E),
+                accent: const Color(0xFFB8E91E),
               ),
             ),
           ],
@@ -346,9 +349,10 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
     }
     final delta = (today.toDouble() - yesterday.toDouble());
     final up = delta >= 0;
+    final t = AppLocalizations.of(context).translate;
     final text = up
-        ? "Avg HR up by ${delta.toStringAsFixed(1)} bpm vs yesterday"
-        : "Avg HR down by ${delta.abs().toStringAsFixed(1)} bpm vs yesterday";
+        ? t("whoop_avg_hr_up").replaceAll("{delta}", delta.toStringAsFixed(1))
+        : t("whoop_avg_hr_down").replaceAll("{delta}", delta.abs().toStringAsFixed(1));
     return Center(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

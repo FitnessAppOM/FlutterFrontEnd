@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../TaqaUI/components/taqa_dashboard_metric_card.dart';
+import '../../localization/app_localizations.dart';
 
 class WhoopSleepCard extends StatelessWidget {
   const WhoopSleepCard({
@@ -23,20 +24,21 @@ class WhoopSleepCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final value = !linkedKnown
         ? "…"
         : linked
         ? (hours != null ? _formatHours(hours!) : (loading ? "…" : "—"))
-        : "Not connected";
+        : t("whoop_not_connected");
     final goalHours = normalSleepGoalHours > 0 ? normalSleepGoalHours : 8.0;
     final progress = linked && hours != null && goalHours > 0
         ? (hours! / goalHours).clamp(0.0, 1.0)
         : 0.0;
     final subtitle = !linkedKnown
-        ? "Loading"
+        ? t("common_loading")
         : linked
-        ? _goalText(goalHours)
-        : "Connect Whoop";
+        ? t("common_goal_value").replaceAll("{value}", _formatHours(goalHours))
+        : t("whoop_connect_title");
     final efficiency = score;
     final loadingState =
         !linkedKnown ||
@@ -44,7 +46,7 @@ class WhoopSleepCard extends StatelessWidget {
 
     return TaqaDashboardMetricCard(
       source: TaqaDashboardMetricSource.whoop,
-      title: "Whoop Sleep",
+      title: t("whoop_sleep_title"),
       valueText: value,
       goalText: subtitle,
       progress: progress,
@@ -52,8 +54,6 @@ class WhoopSleepCard extends StatelessWidget {
       onTap: onTap,
     );
   }
-
-  String _goalText(double goalHours) => "Goal: ${_formatHours(goalHours)}";
 
   String _formatHours(double hours) {
     final totalMinutes = (hours * 60).round();

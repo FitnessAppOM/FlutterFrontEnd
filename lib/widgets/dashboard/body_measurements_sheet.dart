@@ -10,6 +10,7 @@ import '../../config/base_url.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/diet/diet_targets_storage.dart';
 import '../../theme/app_theme.dart';
+import '../../localization/app_localizations.dart';
 import '../app_toast.dart';
 
 class BodyMeasurementsSheet extends StatefulWidget {
@@ -88,10 +89,11 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
   Future<void> _saveLog() async {
     if (_saving) return;
     FocusScope.of(context).unfocus();
+    final t = AppLocalizations.of(context).translate;
     final height = double.tryParse(_heightCtrl.text.trim());
     final weight = double.tryParse(_weightCtrl.text.trim());
     if (height == null && weight == null) {
-      AppToast.show(context, "Enter height or weight", type: AppToastType.info);
+      AppToast.show(context, t("body_enter_height_or_weight"), type: AppToastType.info);
       return;
     }
 
@@ -99,7 +101,7 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
     final userId = await AccountStorage.getUserId();
     if (userId == null) {
       if (mounted) {
-        AppToast.show(context, "Not authenticated", type: AppToastType.error);
+        AppToast.show(context, t("error_not_authenticated"), type: AppToastType.error);
         setState(() => _saving = false);
       }
       return;
@@ -107,7 +109,7 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
     final latest = await _fetchLatestQuestionnaire(userId);
     if (latest == null) {
       if (mounted) {
-        AppToast.show(context, "Profile data unavailable", type: AppToastType.error);
+        AppToast.show(context, t("body_profile_unavailable"), type: AppToastType.error);
         setState(() => _saving = false);
       }
       return;
@@ -125,7 +127,7 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
     final weightChanged = nextWeight != null && nextWeight != latestWeight;
     if (!heightChanged && !weightChanged) {
       if (mounted) {
-        AppToast.show(context, "No changes to save", type: AppToastType.info);
+        AppToast.show(context, t("no_changes"), type: AppToastType.info);
         setState(() => _saving = false);
       }
       return;
@@ -142,7 +144,7 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
       }
     } catch (e) {
       if (mounted) {
-        AppToast.show(context, "Failed to update profile: $e", type: AppToastType.error);
+        AppToast.show(context, t("body_update_failed").replaceAll("{error}", "$e"), type: AppToastType.error);
         setState(() => _saving = false);
       }
       return;
@@ -243,6 +245,7 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
           minChildSize: 0.6,
           maxChildSize: 0.95,
           builder: (context, controller) {
+            final t = AppLocalizations.of(context).translate;
             return SingleChildScrollView(
               controller: controller,
               child: Column(
@@ -259,7 +262,7 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
                   ),
                   Row(
                     children: [
-                      Text("Body measurements",
+                      Text(t("body_measurements_title"),
                           style: AppTextStyles.subtitle.copyWith(color: Colors.white)),
                       const Spacer(),
                       IconButton(
@@ -270,13 +273,13 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
                   ),
                   const SizedBox(height: 8),
                   _MeasurementField(
-                    label: "Height (cm)",
+                    label: t("body_height_cm"),
                     controller: _heightCtrl,
                     icon: Icons.height,
                   ),
                   const SizedBox(height: 12),
                   _MeasurementField(
-                    label: "Weight (kg)",
+                    label: t("body_weight_kg"),
                     controller: _weightCtrl,
                     icon: Icons.monitor_weight,
                   ),
@@ -293,14 +296,14 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: Text(_saving ? "Saving..." : "Save"),
+                      child: Text(_saving ? t("common_saving") : t("common_save")),
                     ),
                   ),
                   const SizedBox(height: 16),
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      "History",
+                      t("common_history"),
                       style: AppTextStyles.small.copyWith(color: Colors.white70),
                     ),
                   ),
@@ -309,7 +312,7 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       child: Text(
-                        "No measurements yet.",
+                        t("body_no_measurements_yet"),
                         style: AppTextStyles.small.copyWith(color: AppColors.textDim),
                       ),
                     )

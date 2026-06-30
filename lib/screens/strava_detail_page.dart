@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/account_storage.dart';
+import '../localization/app_localizations.dart';
 import '../services/strava/strava_service.dart';
 import '../widgets/Main/card_container.dart';
 
@@ -67,12 +68,13 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
     super.dispose();
   }
 
-  String get _title {
+  String _pageTitle(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     switch (widget.kind) {
       case StravaDetailKind.activities:
-        return "Strava Activities";
+        return t("strava_activities_title");
       case StravaDetailKind.create:
-        return "Strava Create Activity";
+        return t("strava_create_title");
     }
   }
 
@@ -131,7 +133,7 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
     final lower = raw.toLowerCase();
     if (lower.contains("activity:write_permission") ||
         lower.contains("activity:write")) {
-      return "Missing Strava activity:write permission. Disconnect and reconnect Strava, then try again.";
+      return AppLocalizations.of(context).translate("strava_missing_permission");
     }
     return raw;
   }
@@ -406,6 +408,7 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
   }
 
   Widget _buildActivitiesLoadingView() {
+    final t = AppLocalizations.of(context).translate;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -424,9 +427,9 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _sectionTitle('Your Activities'),
+                  _sectionTitle(t('strava_your_activities')),
                   const Spacer(),
-                  _metricChip(label: 'Count', value: '…'),
+                  _metricChip(label: t('strava_count_label'), value: '…'),
                 ],
               ),
               const SizedBox(height: 12),
@@ -452,7 +455,7 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _sectionTitle('Selected Activity'),
+                  _sectionTitle(t('strava_selected_activity')),
                 ],
               ),
               const SizedBox(height: 14),
@@ -462,19 +465,19 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
               const SizedBox(height: 12),
               _activityDetailLine(
                 icon: Icons.straighten,
-                label: 'Distance',
+                label: t('fitbit_distance_label'),
                 value: '…',
               ),
               const SizedBox(height: 8),
               _activityDetailLine(
                 icon: Icons.timer_outlined,
-                label: 'Moving Time',
+                label: t('strava_moving_time'),
                 value: '…',
               ),
               const SizedBox(height: 8),
               _activityDetailLine(
                 icon: Icons.hourglass_bottom,
-                label: 'Elapsed Time',
+                label: t('strava_elapsed_time'),
                 value: '…',
               ),
             ],
@@ -485,11 +488,12 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
   }
 
   Widget _buildActivitiesView() {
+    final t = AppLocalizations.of(context).translate;
     final data = _data ?? const <String, dynamic>{};
     final activities = _asMapList(data['activities']);
     final selected = _asMap(data['selected']);
     final details = _asMap(selected['details']);
-    final selectedName = details['name']?.toString() ?? 'No activity selected';
+    final selectedName = details['name']?.toString() ?? t('strava_untitled_activity');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -520,9 +524,9 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _sectionTitle('Your Activities'),
+                  _sectionTitle(t('strava_your_activities')),
                   const Spacer(),
-                  _metricChip(label: 'Count', value: '${activities.length}'),
+                  _metricChip(label: t('strava_count_label'), value: '${activities.length}'),
                 ],
               ),
               const SizedBox(height: 12),
@@ -540,25 +544,25 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
                       color: Colors.white.withValues(alpha: 0.08),
                     ),
                   ),
-                  child: const Text(
-                    'No activities returned.',
-                    style: TextStyle(color: Colors.white70),
+                  child: Text(
+                    t('strava_no_activities'),
+                    style: const TextStyle(color: Colors.white70),
                   ),
                 )
               else
                 ...activities.take(20).map((item) {
                   final id = _asInt(item['id']);
-                  final name = item['name']?.toString() ?? 'Untitled activity';
+                  final name = item['name']?.toString() ?? t('strava_untitled_activity');
                   final type =
                       item['sport_type']?.toString() ??
                       item['type']?.toString() ??
-                      'Activity';
+                      t('strava_activity_fallback');
                   final distance = _fmtDistanceMeters(item['distance']);
                   final moving = _fmtDurationSeconds(item['moving_time']);
                   final selectedItem = id != null && id == _selectedActivityId;
                   return _buildActivityListItem(
                     title: name,
-                    subtitle: '$type\nDistance: $distance\nMoving: $moving',
+                    subtitle: '$type\n${t("fitbit_distance_label")}: $distance\n${t("strava_moving_time")}: $moving',
                     selected: selectedItem,
                     onTap: id == null ? null : () => _load(activityId: id),
                   );
@@ -582,7 +586,7 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _sectionTitle('Selected Activity'),
+                  _sectionTitle(t('strava_selected_activity')),
                 ],
               ),
               const SizedBox(height: 12),
@@ -600,9 +604,9 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
                       color: Colors.white.withValues(alpha: 0.08),
                     ),
                   ),
-                  child: const Text(
-                    'Select an activity to view details.',
-                    style: TextStyle(color: Colors.white70),
+                  child: Text(
+                    t('strava_select_hint'),
+                    style: const TextStyle(color: Colors.white70),
                   ),
                 )
               else ...[
@@ -616,44 +620,44 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${details['sport_type']?.toString() ?? details['type']?.toString() ?? 'Activity'} • ${_fmtDate(details['start_date_local'])}',
+                  '${details['sport_type']?.toString() ?? details['type']?.toString() ?? t('strava_activity_fallback')} • ${_fmtDate(details['start_date_local'])}',
                   style: const TextStyle(color: Colors.white70),
                 ),
                 const SizedBox(height: 12),
                 _activityDetailLine(
                   icon: Icons.straighten,
-                  label: 'Distance',
+                  label: t('fitbit_distance_label'),
                   value: _fmtDistanceMeters(details['distance']),
                   emphasize: true,
                 ),
                 const SizedBox(height: 8),
                 _activityDetailLine(
                   icon: Icons.timer_outlined,
-                  label: 'Moving Time',
+                  label: t('strava_moving_time'),
                   value: _fmtDurationSeconds(details['moving_time']),
                 ),
                 const SizedBox(height: 8),
                 _activityDetailLine(
                   icon: Icons.hourglass_bottom,
-                  label: 'Elapsed Time',
+                  label: t('strava_elapsed_time'),
                   value: _fmtDurationSeconds(details['elapsed_time']),
                 ),
                 const SizedBox(height: 8),
                 _activityDetailLine(
                   icon: Icons.speed,
-                  label: 'Average Speed',
+                  label: t('strava_avg_speed'),
                   value: _fmtSpeedMps(details['average_speed']),
                 ),
                 const SizedBox(height: 8),
                 _activityDetailLine(
                   icon: Icons.thumb_up_alt_outlined,
-                  label: 'Kudos',
+                  label: t('strava_kudos'),
                   value: _fmtInt(details['kudos_count']),
                 ),
                 const SizedBox(height: 8),
                 _activityDetailLine(
                   icon: Icons.chat_bubble_outline,
-                  label: 'Comments',
+                  label: t('strava_comments'),
                   value: _fmtInt(details['comment_count']),
                 ),
               ],
@@ -665,14 +669,15 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
   }
 
   Future<void> _createActivity() async {
+    final t = AppLocalizations.of(context).translate;
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
-      setState(() => _error = "Name is required.");
+      setState(() => _error = t("strava_name_required"));
       return;
     }
     final elapsedMinutes = int.tryParse(_elapsedMinutesCtrl.text.trim());
     if (elapsedMinutes == null || elapsedMinutes <= 0) {
-      setState(() => _error = "Elapsed minutes must be a positive number.");
+      setState(() => _error = t("strava_elapsed_positive"));
       return;
     }
 
@@ -681,7 +686,7 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
     if (distanceKmRaw.isNotEmpty) {
       final km = double.tryParse(distanceKmRaw);
       if (km == null || km < 0) {
-        setState(() => _error = "Distance must be a valid positive number.");
+        setState(() => _error = t("strava_distance_positive"));
         return;
       }
       distanceMeters = km * 1000.0;
@@ -722,34 +727,35 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
     if (activity == null || activity.isEmpty) {
       return const SizedBox.shrink();
     }
+    final t = AppLocalizations.of(context).translate;
     return CardContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle('Created Activity'),
+          _sectionTitle(t('strava_created_activity')),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              _metricChip(label: 'ID', value: _fmtInt(activity['id'])),
+              _metricChip(label: t('strava_id_label'), value: _fmtInt(activity['id'])),
               _metricChip(
-                label: 'Name',
+                label: t('strava_name_label'),
                 value: activity['name']?.toString() ?? '—',
               ),
               _metricChip(
-                label: 'Type',
+                label: t('strava_type_label'),
                 value:
                     activity['sport_type']?.toString() ??
                     activity['type']?.toString() ??
                     '—',
               ),
               _metricChip(
-                label: 'Distance',
+                label: t('fitbit_distance_label'),
                 value: _fmtDistanceMeters(activity['distance']),
               ),
               _metricChip(
-                label: 'Elapsed',
+                label: t('strava_elapsed_label'),
                 value: _fmtDurationSeconds(activity['elapsed_time']),
               ),
             ],
@@ -760,6 +766,7 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
   }
 
   Widget _buildCreateView() {
+    final t = AppLocalizations.of(context).translate;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -767,13 +774,13 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _sectionTitle("Create / Upload Activity"),
+              _sectionTitle(t("strava_create_upload_title")),
               const SizedBox(height: 12),
               TextField(
                 controller: _nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: "Name",
-                  labelStyle: TextStyle(color: Colors.white70),
+                decoration: InputDecoration(
+                  labelText: t("strava_name_label"),
+                  labelStyle: const TextStyle(color: Colors.white70),
                 ),
                 style: const TextStyle(color: Colors.white),
               ),
@@ -782,9 +789,9 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
                 initialValue: _selectedActivityType,
                 dropdownColor: const Color(0xFF1B1B1F),
                 style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: "Type",
-                  labelStyle: TextStyle(color: Colors.white70),
+                decoration: InputDecoration(
+                  labelText: t("strava_type_label"),
+                  labelStyle: const TextStyle(color: Colors.white70),
                 ),
                 items: _activityTypes
                     .map(
@@ -800,9 +807,9 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
               const SizedBox(height: 10),
               TextField(
                 controller: _startDateLocalCtrl,
-                decoration: const InputDecoration(
-                  labelText: "Start Date Local (YYYY-MM-DDTHH:MM:SS)",
-                  labelStyle: TextStyle(color: Colors.white70),
+                decoration: InputDecoration(
+                  labelText: t("strava_start_date_label"),
+                  labelStyle: const TextStyle(color: Colors.white70),
                 ),
                 style: const TextStyle(color: Colors.white),
               ),
@@ -810,9 +817,9 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
               TextField(
                 controller: _elapsedMinutesCtrl,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: "Elapsed Time (minutes)",
-                  labelStyle: TextStyle(color: Colors.white70),
+                decoration: InputDecoration(
+                  labelText: t("strava_elapsed_minutes_label"),
+                  labelStyle: const TextStyle(color: Colors.white70),
                 ),
                 style: const TextStyle(color: Colors.white),
               ),
@@ -822,9 +829,9 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
-                decoration: const InputDecoration(
-                  labelText: "Distance (km, optional)",
-                  labelStyle: TextStyle(color: Colors.white70),
+                decoration: InputDecoration(
+                  labelText: t("strava_distance_km_optional"),
+                  labelStyle: const TextStyle(color: Colors.white70),
                 ),
                 style: const TextStyle(color: Colors.white),
               ),
@@ -832,9 +839,9 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
               TextField(
                 controller: _descriptionCtrl,
                 maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: "Description (optional)",
-                  labelStyle: TextStyle(color: Colors.white70),
+                decoration: InputDecoration(
+                  labelText: t("strava_description_optional"),
+                  labelStyle: const TextStyle(color: Colors.white70),
                 ),
                 style: const TextStyle(color: Colors.white),
               ),
@@ -847,7 +854,7 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
                     backgroundColor: const Color(0xFFFC4C02),
                     foregroundColor: Colors.white,
                   ),
-                  child: Text(_creating ? "Creating..." : "Create Activity"),
+                  child: Text(_creating ? t("strava_creating") : t("strava_create_activity_btn")),
                 ),
               ),
             ],
@@ -879,7 +886,7 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
                 onPressed: widget.kind == StravaDetailKind.create
                     ? null
                     : _load,
-                child: const Text("Retry"),
+                child: Text(AppLocalizations.of(context).translate("common_retry")),
               ),
             ],
           ),
@@ -901,7 +908,7 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_title),
+        title: Text(_pageTitle(context)),
         backgroundColor: const Color(0xFF111217),
       ),
       backgroundColor: const Color(0xFF111217),

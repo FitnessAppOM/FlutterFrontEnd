@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../styles/taqa_ui_styles.dart';
 import 'taqa_weekday_dot.dart';
+import '../../localization/app_localizations.dart';
 
 class TaqaWeekdaysRow extends StatefulWidget {
   const TaqaWeekdaysRow({
@@ -20,15 +21,6 @@ class TaqaWeekdaysRow extends StatefulWidget {
   final int maxPastWeeks;
   final ValueChanged<DateTime>? onDateTap;
 
-  static const List<String> _labels = [
-    'MON',
-    'TUES',
-    'WED',
-    'THURS',
-    'FRI',
-    'SAT',
-    'SUN',
-  ];
 
   @override
   State<TaqaWeekdaysRow> createState() => _TaqaWeekdaysRowState();
@@ -99,6 +91,17 @@ class _TaqaWeekdaysRowState extends State<TaqaWeekdaysRow> {
     final selected = _dayKey(widget.selectedDate);
     final today = _dayKey(widget.todayReference);
 
+    final t = AppLocalizations.of(context).translate;
+    final labels = [
+      t('weekday_mon'),
+      t('weekday_tue'),
+      t('weekday_wed'),
+      t('weekday_thu'),
+      t('weekday_fri'),
+      t('weekday_sat'),
+      t('weekday_sun'),
+    ];
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final resolvedDotSize = widget.dotSize ?? TaqaUiStyles.weekdayDotSize;
@@ -126,7 +129,7 @@ class _TaqaWeekdaysRowState extends State<TaqaWeekdaysRow> {
                             ? TaqaWeekdayStatus.future
                             : TaqaWeekdayStatus.past);
                   final dot = TaqaWeekdayDot(
-                    label: TaqaWeekdaysRow._labels[dayDate.weekday - 1],
+                    label: labels[dayDate.weekday - 1],
                     status: status,
                     size: responsiveDotSize,
                     onTap: isFuture || widget.onDateTap == null

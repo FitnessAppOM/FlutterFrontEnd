@@ -30,9 +30,9 @@ class HealthRecoveryLoadCard extends StatelessWidget {
         : (loading
               ? "…"
               : (restingHr != null ? "$restingHr bpm" : "—"));
-    final rhrText = restingHr != null ? "RHR $restingHr bpm" : null;
+    final rhrText = restingHr != null ? "${t("health_rhr_label")} $restingHr bpm" : null;
     final hrvText = hrvMs != null
-        ? "HRV ${hrvMs!.toStringAsFixed(0)} ms"
+        ? "${t("health_hrv_label")} ${hrvMs!.toStringAsFixed(0)} ms"
         : null;
     final zonesText = zones != null
         ? "${t("common_zones_short")} ${zones!.outOfRangeMinutes}/${zones!.fatBurnMinutes}/${zones!.cardioMinutes}/${zones!.peakMinutes}"

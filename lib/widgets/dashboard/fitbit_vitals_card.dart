@@ -24,10 +24,10 @@ class FitbitVitalsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final value = _buildValue();
-    final subtitle = _buildSubtitle();
-
     final t = AppLocalizations.of(context).translate;
+    final value = _buildValue(t);
+    final subtitle = _buildSubtitle(t);
+
     return TaqaDashboardMetricCard(
       source: TaqaDashboardMetricSource.fitbit,
       title: t("fitbit_vitals_title"),
@@ -45,25 +45,25 @@ class FitbitVitalsCard extends StatelessWidget {
     );
   }
 
-  String _buildValue() {
+  String _buildValue(String Function(String) t) {
     if (loading) return "…";
-    if (spo2Percent != null) return "SpO₂ ${spo2Percent!.toStringAsFixed(0)}%";
-    if (breathingRate != null) return "BR ${breathingRate!.toStringAsFixed(1)}";
-    if (skinTempC != null) return "Temp ${_fmtTemp(skinTempC!)}";
-    if (ecgSummary != null) return "ECG ${ecgSummary!}";
+    if (spo2Percent != null) return "${t("fitbit_vitals_spo2_label")} ${spo2Percent!.toStringAsFixed(0)}%";
+    if (breathingRate != null) return "${t("fitbit_vitals_br_label")} ${breathingRate!.toStringAsFixed(1)}";
+    if (skinTempC != null) return "${t("fitbit_vitals_temp_label")} ${_fmtTemp(skinTempC!)}";
+    if (ecgSummary != null) return "${t("fitbit_vitals_ecg_label")} $ecgSummary";
     return "—";
   }
 
-  String? _buildSubtitle() {
+  String? _buildSubtitle(String Function(String) t) {
     if (loading) return null;
     final parts = <String>[];
-    if (skinTempC != null) parts.add("Temp ${_fmtTemp(skinTempC!)}");
+    if (skinTempC != null) parts.add("${t("fitbit_vitals_temp_label")} ${_fmtTemp(skinTempC!)}");
     if (breathingRate != null) {
-      parts.add("BR ${breathingRate!.toStringAsFixed(1)}");
+      parts.add("${t("fitbit_vitals_br_label")} ${breathingRate!.toStringAsFixed(1)}");
     }
     if (ecgSummary != null) {
       final hr = ecgAvgHr != null ? " $ecgAvgHr bpm" : "";
-      parts.add("ECG $ecgSummary$hr");
+      parts.add("${t("fitbit_vitals_ecg_label")} $ecgSummary$hr");
     }
     return parts.isEmpty ? null : parts.join(" • ");
   }

@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
+import '../../localization/app_localizations.dart';
 
 class WidgetLibraryOption {
   final String keyName;
@@ -34,6 +35,7 @@ class WidgetLibrarySheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final width = min(MediaQuery.of(context).size.width * 0.82, 360.0);
     final topInset = MediaQuery.of(context).padding.top;
     final bottomInset = MediaQuery.of(context).padding.bottom;
@@ -71,7 +73,7 @@ class WidgetLibrarySheet extends StatelessWidget {
               Row(
                 children: [
                   Text(
-                    "Widgets",
+                    t("widget_library_title"),
                     style: AppTextStyles.subtitle.copyWith(color: Colors.white),
                   ),
                   const Spacer(),
@@ -82,7 +84,7 @@ class WidgetLibrarySheet extends StatelessWidget {
                 ],
               ),
               Text(
-                "Available to add",
+                t("widget_library_available"),
                 style: AppTextStyles.small.copyWith(color: AppColors.textDim),
               ),
               const SizedBox(height: 12),
@@ -90,7 +92,7 @@ class WidgetLibrarySheet extends StatelessWidget {
                 Expanded(
                   child: Center(
                     child: Text(
-                      "All widgets are already on your dashboard.",
+                      t("widget_library_all_added"),
                       textAlign: TextAlign.center,
                       style: AppTextStyles.small.copyWith(color: AppColors.textDim),
                     ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../localization/app_localizations.dart';
 import '../widgets/dashboard/whoop_recovery_card.dart';
 import '../widgets/dashboard/whoop_cycle_card.dart';
 import '../widgets/dashboard/whoop_sleep_card.dart';
@@ -94,9 +95,10 @@ class _WhoopInsightsPageState extends State<WhoopInsightsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Whoop insights"),
+        title: Text(t("whoop_insights_title")),
         backgroundColor: AppColors.black,
       ),
       backgroundColor: AppColors.black,

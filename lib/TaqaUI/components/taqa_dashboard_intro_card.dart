@@ -8,6 +8,7 @@ import '../styles/taqa_ui_styles.dart';
 import 'taqa_intro_actions_row.dart';
 import 'taqa_profile_avatar.dart';
 import 'taqa_weekdays_row.dart';
+import '../../localization/app_localizations.dart';
 
 class TaqaDashboardIntroCard extends StatelessWidget {
   const TaqaDashboardIntroCard({
@@ -20,8 +21,7 @@ class TaqaDashboardIntroCard extends StatelessWidget {
     this.onTrainingTap,
     this.onDietTap,
     this.onAvatarTap,
-    this.message =
-        'Get ready and start logging your workouts and caloric intake for the week',
+    this.message,
   });
 
   final String userName;
@@ -32,13 +32,15 @@ class TaqaDashboardIntroCard extends StatelessWidget {
   final VoidCallback? onTrainingTap;
   final VoidCallback? onDietTap;
   final VoidCallback? onAvatarTap;
-  final String message;
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final cleanName = userName.trim().isEmpty
-        ? 'Athlete'
+        ? t('dash_athlete')
         : _capitalizeWords(userName.trim());
+    final resolvedMessage = message ?? t('dash_intro_message');
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -126,7 +128,7 @@ class TaqaDashboardIntroCard extends StatelessWidget {
                     ),
                     height: descriptionHeight,
                     child: Text(
-                      message,
+                      resolvedMessage,
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: TaqaUiStyles.subtitle.copyWith(

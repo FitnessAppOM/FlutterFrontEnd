@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../styles/taqa_ui_styles.dart';
 import 'taqa_intro_action_button.dart';
+import '../../localization/app_localizations.dart';
 
 class TaqaIntroActionsRow extends StatelessWidget {
   const TaqaIntroActionsRow({
@@ -18,6 +19,7 @@ class TaqaIntroActionsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final resolvedButtonHeight = buttonHeight ?? TaqaUiStyles.actionButtonHeight;
     final buttonGap = TaqaUiScale.w(15);
     return LayoutBuilder(
@@ -28,13 +30,13 @@ class TaqaIntroActionsRow extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               TaqaIntroActionButton(
-                label: 'GO TO TRAINING',
+                label: t('dash_go_to_training'),
                 onTap: onTrainingTap,
                 width: TaqaUiStyles.actionButtonWidth,
                 height: resolvedButtonHeight,
               ),
               TaqaIntroActionButton(
-                label: 'GO TO DIET',
+                label: t('dash_go_to_diet'),
                 onTap: onDietTap,
                 width: TaqaUiStyles.actionButtonWidth,
                 height: resolvedButtonHeight,
@@ -49,7 +51,7 @@ class TaqaIntroActionsRow extends StatelessWidget {
           children: [
             Expanded(
               child: TaqaIntroActionButton(
-                label: 'GO TO TRAINING',
+                label: t('dash_go_to_training'),
                 onTap: onTrainingTap,
                 width: compactButtonWidth,
                 height: resolvedButtonHeight,
@@ -58,7 +60,7 @@ class TaqaIntroActionsRow extends StatelessWidget {
             SizedBox(width: buttonGap),
             Expanded(
               child: TaqaIntroActionButton(
-                label: 'GO TO DIET',
+                label: t('dash_go_to_diet'),
                 onTap: onDietTap,
                 width: compactButtonWidth,
                 height: resolvedButtonHeight,

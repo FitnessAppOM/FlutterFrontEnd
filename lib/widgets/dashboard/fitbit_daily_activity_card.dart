@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../TaqaUI/components/taqa_dashboard_metric_card.dart';
+import '../../localization/app_localizations.dart';
 
 class FitbitDailyActivityCard extends StatelessWidget {
   final bool loading;
@@ -27,6 +28,8 @@ class FitbitDailyActivityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
+
     // Main metric: prefer active minutes, fall back to steps, then calories.
     final String? mainLabel;
     final num? mainValue;
@@ -52,8 +55,8 @@ class FitbitDailyActivityCard extends StatelessWidget {
     final value = mainValue == null
         ? (loading ? "…" : "—")
         : mainLabel == "min"
-            ? "${mainValue}m"
-            : "$mainValue $mainLabel";
+            ? "$mainValue${t("fitbit_unit_min")}"
+            : "$mainValue ${t(mainLabel == "steps" ? "fitbit_unit_steps" : "fitbit_unit_cal")}";
 
     // Single subtitle field below the arc, in priority order, skipping
     // whichever metric is already shown as the main value.
@@ -61,11 +64,11 @@ class FitbitDailyActivityCard extends StatelessWidget {
     if (mainLabel != "distance" && distanceKm != null) {
       subtitle = "${distanceKm!.toStringAsFixed(1)} km";
     } else if (mainLabel != "steps" && steps != null) {
-      subtitle = "$steps steps";
+      subtitle = "$steps ${t("fitbit_unit_steps")}";
     } else if (mainLabel != "cal" && calories != null) {
-      subtitle = "$calories cal";
+      subtitle = "$calories ${t("fitbit_unit_cal")}";
     }
-    subtitle ??= loading ? "Loading" : "—";
+    subtitle ??= loading ? t("common_loading") : "—";
 
     final showArc = mainValue != null && mainGoal != null && mainGoal > 0;
     final progress =
@@ -73,7 +76,7 @@ class FitbitDailyActivityCard extends StatelessWidget {
 
     return TaqaDashboardMetricCard(
       source: TaqaDashboardMetricSource.fitbit,
-      title: "Fitbit activity",
+      title: t("fitbit_activity_card_title"),
       valueText: value,
       goalText: subtitle,
       progress: progress,
