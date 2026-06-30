@@ -368,7 +368,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   alignment: Alignment.center,
                   children: [
                     Align(
-                      alignment: Alignment.centerLeft,
+                      alignment: AlignmentDirectional.centerStart,
                       child: TaqaBackButton(
                         color: TaqaUiColors.unnamedColor1c1d17,
                       ),

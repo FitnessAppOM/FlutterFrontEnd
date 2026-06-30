@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
+import '../../localization/app_localizations.dart';
 
 class FitbitExtrasCard extends StatelessWidget {
   const FitbitExtrasCard({super.key, this.onTap});
@@ -8,6 +9,7 @@ class FitbitExtrasCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     const fitbitDark = Color(0xFF0C6A73);
     return Material(
       color: Colors.transparent,
@@ -29,7 +31,7 @@ class FitbitExtrasCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Fitbit insights",
+                    t("fitbit_insights_title"),
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w800,
@@ -37,7 +39,7 @@ class FitbitExtrasCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    "Check your Fitbit stats",
+                    t("fitbit_extras_subtitle"),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Colors.white60,
                           fontWeight: FontWeight.w600,

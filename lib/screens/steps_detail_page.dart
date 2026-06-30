@@ -74,7 +74,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
     if (!_canManualEdit) return;
     final res = await showTaqaValueDialog(
       context: context,
-      title: "Edit goal",
+      title: AppLocalizations.of(context).translate("common_edit_goal_title"),
       initialValue: (_goal ?? 10000).toString(),
     );
     if (res != null) {
@@ -262,7 +262,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                   width: TaqaUiScale.w(147),
                   height: TaqaUiScale.h(30),
                   child: Text(
-                    "Goal: ${(_goal ?? 10000)}",
+                    t("steps_goal_btn").replaceAll("{value}", "${_goal ?? 10000}"),
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(25),
@@ -277,7 +277,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                 if (_canManualEdit) ...[
                   TaqaTagButton(
                     icon: Icons.edit_outlined,
-                    label: "EDIT GOAL",
+                    label: t("common_edit_goal_button"),
                     onTap: _editGoal,
                   ),
                 ],
@@ -285,7 +285,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                   SizedBox(width: TaqaUiScale.w(8)),
                   TaqaTagButton(
                     icon: Icons.add,
-                    label: "ADD",
+                    label: t("common_add_button"),
                     onTap: _promptManualEntry,
                   ),
                 ],
@@ -298,9 +298,9 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                       child: CircularProgressIndicator(color: AppColors.accent),
                     )
                   : !_daily.values.any((v) => v > 0)
-                  ? const TaqaEmptyCard(
-                      title: "No steps data",
-                      subtitle: "No records in this range",
+                  ? TaqaEmptyCard(
+                      title: t("dash_no_steps_data"),
+                      subtitle: t("common_no_records_in_range"),
                       icon: Icons.directions_walk_outlined,
                     )
                   : bars,
@@ -328,9 +328,9 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
     int total,
   ) {
     if (!_daily.values.any((v) => v > 0)) {
-      return const TaqaEmptyCard(
-        title: "No steps data",
-        subtitle: "No records in this range",
+      return TaqaEmptyCard(
+        title: t("dash_no_steps_data"),
+        subtitle: t("common_no_records_in_range"),
         icon: Icons.directions_walk_outlined,
       );
     }
@@ -369,7 +369,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                _range == 'weekly' ? 'Last 7 days' : _rangeLabel(t),
+                _range == 'weekly' ? t("range_last7") : _rangeLabel(t),
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(15),
@@ -382,7 +382,9 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
               Text(
                 _loading
                     ? t("dash_loading")
-                    : 'Avg: ${avg.toStringAsFixed(0)} | Total: $total',
+                    : t("common_avg_total")
+                        .replaceAll("{avg}", avg.toStringAsFixed(0))
+                        .replaceAll("{total}", "$total"),
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(10),
@@ -561,7 +563,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
       case 'monthly':
         final ref = _rangeStart ?? _anchorDate;
         final days = DateTime(ref.year, ref.month + 1, 0).day;
-        return "Last $days days";
+        return t("range_last_n_days").replaceAll("{n}", "$days");
       case 'yearly':
         return t("range_last_year");
       case 'weekly':
@@ -628,7 +630,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
     if (!_canManualEdit) return;
     final result = await showTaqaValueDialog(
       context: context,
-      title: "Add steps",
+      title: AppLocalizations.of(context).translate("steps_add_dialog_title"),
       initialValue: _todaySteps() > 0 ? _todaySteps().toString() : '',
     );
     if (result != null) {

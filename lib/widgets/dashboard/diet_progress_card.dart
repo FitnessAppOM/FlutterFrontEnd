@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../Main/card_container.dart';
+import '../../localization/app_localizations.dart';
 
 class DietProgressCard extends StatelessWidget {
   const DietProgressCard({
@@ -18,6 +19,7 @@ class DietProgressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final total = targetCalories ?? 0;
     final consumed = consumedCalories ?? 0;
     final ratio =
@@ -25,8 +27,8 @@ class DietProgressCard extends StatelessWidget {
     final percent = (ratio * 100).round();
     final subtitle = total > 0
         ? "$consumed / $total kcal"
-        : "No target available";
-    final dayLabel = _dayTypeLabel(dayType);
+        : t("diet_progress_no_target");
+    final dayLabel = _dayTypeLabel(dayType, t);
 
     return CardContainer(
       child: Padding(
@@ -37,7 +39,7 @@ class DietProgressCard extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  "Diet progress",
+                  t("diet_progress_title"),
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
@@ -111,11 +113,11 @@ class DietProgressCard extends StatelessWidget {
     );
   }
 
-  String? _dayTypeLabel(String? raw) {
+  String? _dayTypeLabel(String? raw, String Function(String) t) {
     if (raw == null) return null;
     final v = raw.toLowerCase().trim();
-    if (v == "training") return "Training day";
-    if (v == "rest") return "Rest day";
+    if (v == "training") return t("diet_progress_training_day");
+    if (v == "rest") return t("diet_progress_rest_day");
     return null;
   }
 }

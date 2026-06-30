@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../TaqaUI/components/taqa_dashboard_metric_card.dart';
+import '../../localization/app_localizations.dart';
 
 class FitbitBodyCard extends StatelessWidget {
   final bool loading;
@@ -21,11 +22,12 @@ class FitbitBodyCard extends StatelessWidget {
         ? "${weightKg!.toStringAsFixed(1)} kg"
         : "—";
 
+    final t = AppLocalizations.of(context).translate;
     return TaqaDashboardMetricCard(
       source: TaqaDashboardMetricSource.fitbit,
-      title: "Fitbit body",
+      title: t("fitbit_body_title"),
       valueText: value,
-      goalText: "Current weight",
+      goalText: t("fitbit_body_current_weight"),
       progress: 0.0,
       showArc: false,
       loading: loading && weightKg == null,

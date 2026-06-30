@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../localization/app_localizations.dart';
 import '../services/fitbit/fitbit_activity_service.dart';
 import '../services/fitbit/fitbit_heart_service.dart';
 import '../services/fitbit/fitbit_sleep_service.dart';
@@ -249,7 +250,7 @@ class _FitbitInsightsPageState extends State<FitbitInsightsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Fitbit insights"),
+        title: Text(AppLocalizations.of(context).translate("fitbit_insights_title")),
         backgroundColor: AppColors.black,
       ),
       backgroundColor: AppColors.black,

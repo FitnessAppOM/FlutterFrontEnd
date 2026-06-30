@@ -63,7 +63,7 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
     if (!_canManualEdit) return;
     final text = await showTaqaTextValueDialog(
       context: context,
-      title: "Edit goal",
+      title: AppLocalizations.of(context).translate("common_edit_goal_title"),
       initialValue: (_goal ?? 2.5).toStringAsFixed(1),
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
     );
@@ -166,7 +166,7 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
     if (!mounted) return;
     final text = await showTaqaTextValueDialog(
       context: context,
-      title: "Add water (L)",
+      title: AppLocalizations.of(context).translate("water_add_dialog_title"),
       initialValue: current > 0 ? current.toStringAsFixed(1) : '',
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
     );
@@ -256,7 +256,7 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
                   width: TaqaUiScale.w(147),
                   height: TaqaUiScale.h(30),
                   child: Text(
-                    "Goal: ${(_goal ?? 2.5).toStringAsFixed(1)} ${t("dash_unit_l")}",
+                    "${t("water_goal_btn").replaceAll("{value}", (_goal ?? 2.5).toStringAsFixed(1))} ${t("dash_unit_l")}",
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(25),
@@ -271,13 +271,13 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
                 if (_canManualEdit) ...[
                   TaqaTagButton(
                     icon: Icons.edit_outlined,
-                    label: "EDIT GOAL",
+                    label: t("common_edit_goal_button"),
                     onTap: _editGoal,
                   ),
                   SizedBox(width: TaqaUiScale.w(8)),
                   TaqaTagButton(
                     icon: Icons.add,
-                    label: "ADD",
+                    label: t("common_add_button"),
                     onTap: _promptManualEntry,
                   ),
                 ],
@@ -290,7 +290,7 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    "History",
+                    t("common_history"),
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(10),
@@ -324,9 +324,9 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
     final nonZero = logs.where((e) => e.value > 0).toList();
 
     if (nonZero.isEmpty) {
-      return const TaqaEmptyCard(
-        title: "No water data",
-        subtitle: "No records in this range",
+      return TaqaEmptyCard(
+        title: t("dash_no_water_data"),
+        subtitle: t("common_no_records_in_range"),
         icon: Icons.water_drop_outlined,
       );
     }

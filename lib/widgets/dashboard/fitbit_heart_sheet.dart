@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
+import '../../localization/app_localizations.dart';
 
 class FitbitHeartSheet extends StatelessWidget {
   final int? restingHr;
@@ -19,6 +20,7 @@ class FitbitHeartSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final bottomInset = MediaQuery.of(context).padding.bottom;
     return Container(
       padding: EdgeInsets.fromLTRB(20, 16, 20, 16 + bottomInset),
@@ -45,7 +47,7 @@ class FitbitHeartSheet extends StatelessWidget {
           ),
           Row(
             children: [
-              Text("Heart & cardio",
+              Text(t("fitbit_heart_title"),
                   style: AppTextStyles.subtitle.copyWith(color: Colors.white)),
               const Spacer(),
               IconButton(
@@ -56,15 +58,15 @@ class FitbitHeartSheet extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _MetricRow(
-            label: "Resting heart rate",
+            label: t("fitbit_heart_resting_hr"),
             value: restingHr == null ? "—" : "${restingHr} bpm",
           ),
           _MetricRow(
-            label: "HRV (RMSSD)",
+            label: t("fitbit_heart_hrv_rmssd"),
             value: hrvRmssd == null ? "—" : "${hrvRmssd!.toStringAsFixed(0)} ms",
           ),
           _MetricRow(
-            label: "Cardio fitness (VO₂ max)",
+            label: t("fitbit_heart_vo2max"),
             value: vo2Max == null || vo2Max!.isEmpty ? "—" : vo2Max!,
           ),
           if (zones.isNotEmpty) ...[
@@ -72,7 +74,7 @@ class FitbitHeartSheet extends StatelessWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                "Heart rate zones",
+                t("fitbit_heart_zones_title"),
                 style: AppTextStyles.small.copyWith(color: Colors.white70),
               ),
             ),
@@ -130,7 +132,7 @@ class _ZoneRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    String name = "Zone";
+    String name = AppLocalizations.of(context).translate("common_zone");
     String range = "—";
     String minutes = "—";
     if (zone is Map) {

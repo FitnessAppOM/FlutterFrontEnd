@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../services/fitbit/fitbit_sleep_service.dart';
+import '../../localization/app_localizations.dart';
 
 class FitbitSleepSheet extends StatelessWidget {
   final FitbitSleepSummary? summary;
@@ -16,6 +17,7 @@ class FitbitSleepSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final logs = summary?.logs ?? const [];
     final stageEntries = _orderedStages(summary?.stageMinutes ?? const {});
@@ -45,7 +47,7 @@ class FitbitSleepSheet extends StatelessWidget {
           Row(
             children: [
               Text(
-                "Fitbit sleep",
+                t("fitbit_sleep_title"),
                 style: AppTextStyles.subtitle.copyWith(color: Colors.white),
               ),
               const Spacer(),
@@ -57,25 +59,25 @@ class FitbitSleepSheet extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _MetricRow(
-            label: "Total sleep",
+            label: t("sleep_total_sleep_title"),
             value: summary?.totalMinutesAsleep == null
                 ? "—"
                 : _fmtMinutes(summary!.totalMinutesAsleep!),
           ),
           _MetricRow(
-            label: "Time in bed",
+            label: t("sleep_time_in_bed_title"),
             value: summary?.totalTimeInBed == null
                 ? "—"
                 : _fmtMinutes(summary!.totalTimeInBed!),
           ),
           _MetricRow(
-            label: "Sleep goal",
+            label: t("fitbit_sleep_goal"),
             value: summary?.sleepGoalMinutes == null
                 ? "—"
                 : _fmtMinutes(summary!.sleepGoalMinutes!),
           ),
           _MetricRow(
-            label: "Sleep score",
+            label: t("fitbit_sleep_score"),
             value: sleepScore == null ? "—" : "${sleepScore.toString()}%",
           ),
           if (stageEntries.isNotEmpty) ...[
@@ -83,14 +85,14 @@ class FitbitSleepSheet extends StatelessWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                "Sleep stages",
+                t("fitbit_sleep_stages_title"),
                 style: AppTextStyles.small.copyWith(color: Colors.white70),
               ),
             ),
             const SizedBox(height: 8),
             for (final entry in stageEntries)
               _MetricRow(
-                label: _stageLabel(entry.key),
+                label: _stageLabel(entry.key, t),
                 value: _fmtMinutes(entry.value),
               ),
           ],
@@ -99,7 +101,7 @@ class FitbitSleepSheet extends StatelessWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                "Sleep logs",
+                t("fitbit_sleep_logs_title"),
                 style: AppTextStyles.small.copyWith(color: Colors.white70),
               ),
             ),
@@ -140,24 +142,24 @@ class FitbitSleepSheet extends StatelessWidget {
     return entries;
   }
 
-  String _stageLabel(String raw) {
+  String _stageLabel(String raw, String Function(String) t) {
     final key = raw.toLowerCase();
     switch (key) {
       case "rem":
-        return "REM";
+        return t("sleep_stage_rem");
       case "wake":
       case "awake":
-        return "Awake";
+        return t("sleep_stage_awake");
       case "light":
-        return "Light";
+        return t("sleep_stage_light");
       case "deep":
-        return "Deep";
+        return t("sleep_stage_deep");
       case "restless":
-        return "Restless";
+        return t("sleep_stage_restless");
       case "asleep":
-        return "Asleep";
+        return t("sleep_stage_asleep");
       default:
-        if (raw.isEmpty) return "Stage";
+        if (raw.isEmpty) return t("sleep_stage_generic");
         return "${raw[0].toUpperCase()}${raw.substring(1)}";
     }
   }
@@ -204,6 +206,7 @@ class _LogRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final start = log.start?.toLocal();
     final end = log.end?.toLocal();
     final startLabel = start == null
@@ -215,7 +218,9 @@ class _LogRow extends StatelessWidget {
     final duration = log.minutesAsleep == null
         ? "—"
         : "${log.minutesAsleep} min";
-    final main = log.isMainSleep == true ? "Main sleep" : "Nap/other";
+    final main = log.isMainSleep == true
+        ? t("fitbit_sleep_log_main_sleep")
+        : t("fitbit_sleep_log_nap_other");
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),

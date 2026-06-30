@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../TaqaUI/components/taqa_progress_widget_card.dart';
 import '../../services/health/health_recovery_load_service.dart';
+import '../../localization/app_localizations.dart';
 
 class HealthRecoveryLoadCard extends StatelessWidget {
   const HealthRecoveryLoadCard({
@@ -23,6 +24,7 @@ class HealthRecoveryLoadCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final value = activeMinutes != null
         ? "${activeMinutes}m"
         : (loading
@@ -33,7 +35,7 @@ class HealthRecoveryLoadCard extends StatelessWidget {
         ? "HRV ${hrvMs!.toStringAsFixed(0)} ms"
         : null;
     final zonesText = zones != null
-        ? "Zones ${zones!.outOfRangeMinutes}/${zones!.fatBurnMinutes}/${zones!.cardioMinutes}/${zones!.peakMinutes}"
+        ? "${t("common_zones_short")} ${zones!.outOfRangeMinutes}/${zones!.fatBurnMinutes}/${zones!.cardioMinutes}/${zones!.peakMinutes}"
         : null;
     final subtitleParts = [
       rhrText,
@@ -41,11 +43,11 @@ class HealthRecoveryLoadCard extends StatelessWidget {
       zonesText,
     ].whereType<String>().toList();
     final subtitle = subtitleParts.isEmpty
-        ? (loading ? "Loading" : "No health data")
+        ? (loading ? t("dash_loading") : t("health_recovery_no_data"))
         : subtitleParts.join(" | ");
 
     return TaqaProgressWidgetCard(
-      title: "Recovery & load",
+      title: t("health_recovery_title"),
       valueText: value,
       goalText: subtitle,
       progress: 0.0,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../TaqaUI/components/taqa_dashboard_metric_card.dart';
+import '../../localization/app_localizations.dart';
 
 class FitbitStepsCard extends StatelessWidget {
   final bool loading;
@@ -25,7 +26,7 @@ class FitbitStepsCard extends StatelessWidget {
       onLongPress: onLongPress,
       child: TaqaDashboardMetricCard(
         source: TaqaDashboardMetricSource.fitbit,
-        title: "Fitbit steps",
+        title: AppLocalizations.of(context).translate("fitbit_steps_title"),
         valueText: value,
         goalText: subtitle,
         progress: 0.0,

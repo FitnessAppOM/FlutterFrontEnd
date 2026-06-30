@@ -1257,11 +1257,13 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   ),
                   Align(
-                    alignment: Alignment.centerLeft,
+                    alignment: AlignmentDirectional.centerStart,
                     child: IconButton(
                       onPressed: () => Navigator.of(context).pop(),
                       icon: Icon(
-                        Icons.arrow_back_ios_new,
+                        Directionality.of(context) == TextDirection.rtl
+                            ? Icons.arrow_forward_ios
+                            : Icons.arrow_back_ios_new,
                         size: TaqaUiScale.w(18),
                         color: TaqaUiColors.unnamedColor1c1d17,
                       ),

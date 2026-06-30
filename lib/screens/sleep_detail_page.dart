@@ -139,7 +139,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     if (!_canManualEdit) return;
     final text = await showTaqaTextValueDialog(
       context: context,
-      title: "Edit goal",
+      title: AppLocalizations.of(context).translate("common_edit_goal_title"),
       initialValue: (_goal ?? 8.0).toStringAsFixed(1),
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
     );
@@ -582,7 +582,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                 SizedBox(
                   width: TaqaUiScale.w(171),
                   child: TaqaRangeTab(
-                    label: "Sleep trend",
+                    label: t("sleep_trend_tab"),
                     selected: _topTabIndex == 0,
                     onTap: () {
                       if (_topTabIndex == 0) return;
@@ -594,7 +594,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                 SizedBox(
                   width: TaqaUiScale.w(171),
                   child: TaqaRangeTab(
-                    label: "Sleep metrics",
+                    label: t("sleep_metrics_tab"),
                     selected: _topTabIndex == 1,
                     onTap: () {
                       if (_topTabIndex == 1) return;
@@ -662,7 +662,10 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
           children: [
             Expanded(
               child: Text(
-                "Goal: ${(_goal ?? 8.0).toStringAsFixed(1)}h",
+                t("sleep_goal_btn").replaceAll(
+                  "{value}",
+                  (_goal ?? 8.0).toStringAsFixed(1),
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -678,7 +681,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
             if (_canManualEdit) ...[
               TaqaTagButton(
                 icon: Icons.edit_outlined,
-                label: "EDIT GOAL",
+                label: t("common_edit_goal_button"),
                 onTap: _editGoal,
               ),
             ],
@@ -686,7 +689,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
               SizedBox(width: TaqaUiScale.w(8)),
               TaqaTagButton(
                 icon: Icons.add,
-                label: "ADD",
+                label: t("common_add_button"),
                 onTap: _promptManualEntry,
               ),
             ],
@@ -700,8 +703,8 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                 )
               : _daily.isEmpty || !_daily.values.any((v) => v > 0)
               ? TaqaEmptyCard(
-                  title: "No sleep data",
-                  subtitle: "No records in this range",
+                  title: t("dash_no_sleep_data"),
+                  subtitle: t("common_no_records_in_range"),
                   icon: Icons.bedtime_outlined,
                 )
               : bars,
@@ -711,6 +714,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
   }
 
   void _showRangeDetailsDialog() {
+    final t = AppLocalizations.of(context).translate;
     final start = _rangeStart;
     final end = _rangeEnd;
     if (start == null || end == null) return;
@@ -765,16 +769,16 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: AppColors.cardDark,
-          title: const Text(
-            "Sleep details",
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          title: Text(
+            t("sleep_details_dialog_title"),
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
           ),
           content: SizedBox(
             width: double.maxFinite,
             child: rows.isEmpty
-                ? const Text(
-                    "No tracked sleep days in this range.",
-                    style: TextStyle(color: Colors.white70),
+                ? Text(
+                    t("sleep_no_tracked_days"),
+                    style: const TextStyle(color: Colors.white70),
                   )
                 : ListView.separated(
                     shrinkWrap: true,
@@ -814,7 +818,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
             ),
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text("Close"),
+              child: Text(t("common_close")),
             ),
           ],
         );
@@ -823,10 +827,11 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
   }
 
   Widget _buildMetricsTab(ThemeData theme) {
+    final t = AppLocalizations.of(context).translate;
     if (!widget.useWhoop) {
       return Center(
         child: Text(
-          "Metrics are available for Whoop sleep only.",
+          t("sleep_metrics_whoop_only"),
           style: theme.textTheme.bodyMedium?.copyWith(
             color: Colors.white60,
             fontWeight: FontWeight.w600,
@@ -847,7 +852,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
             _metricsDateHeader(),
             SizedBox(height: TaqaUiScale.h(12)),
             TaqaEmptyCard(
-              title: "No sleep metrics",
+              title: t("sleep_no_metrics_title"),
               subtitle: "${_monthName(_metricsDate.month)} ${_metricsDate.day}",
               icon: Icons.bedtime_outlined,
             ),
@@ -874,11 +879,11 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
             children: [
               Expanded(
                 child: _buildArcSleepMetricCard(
-                  title: "Total sleep",
+                  title: t("sleep_total_sleep_title"),
                   valueText: (isLoading || !hasMetrics)
                       ? "0.0"
                       : _formatHours(sleepHours),
-                  subtitle: "Light + Deep + REM",
+                  subtitle: t("sleep_light_deep_rem_subtitle"),
                   progress: sleepProgress,
                   loading: isLoading,
                 ),
@@ -886,11 +891,11 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
               SizedBox(width: TaqaUiScale.w(12)),
               Expanded(
                 child: _buildArcSleepMetricCard(
-                  title: "Time in bed",
+                  title: t("sleep_time_in_bed_title"),
                   valueText: (isLoading || !hasMetrics)
                       ? "0.0"
                       : _formatHours(bedHours),
-                  subtitle: "Total in bed",
+                  subtitle: t("sleep_total_in_bed_subtitle"),
                   progress: bedProgress,
                   loading: isLoading,
                 ),
@@ -909,11 +914,11 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                 width: TaqaUiScale.w(109),
                 height: TaqaUiScale.h(109),
                 child: _buildCompactSleepStatCard(
-                  title: "Disturbances",
+                  title: t("sleep_disturbances_title"),
                   valueText: (isLoading || !hasMetrics)
                       ? "0"
                       : m.disturbances.toString(),
-                  subtitle: "Night disruptions",
+                  subtitle: t("sleep_night_disruptions_subtitle"),
                 ),
               ),
               SizedBox(width: TaqaUiScale.w(12)),
@@ -921,11 +926,11 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                 width: TaqaUiScale.w(109),
                 height: TaqaUiScale.h(109),
                 child: _buildCompactSleepStatCard(
-                  title: "Sleep cycles",
+                  title: t("sleep_cycles_title"),
                   valueText: (isLoading || !hasMetrics)
                       ? "0"
                       : m.cycles.toString(),
-                  subtitle: "Completed cycles",
+                  subtitle: t("sleep_completed_cycles_subtitle"),
                 ),
               ),
               SizedBox(width: TaqaUiScale.w(12)),
@@ -933,23 +938,26 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                 width: TaqaUiScale.w(109),
                 height: TaqaUiScale.h(109),
                 child: _buildCompactSleepStatCard(
-                  title: "Naps",
+                  title: t("sleep_naps_title"),
                   valueText: (isLoading || !hasMetrics)
                       ? "0"
                       : (napCount == null ? "0" : napCount.toString()),
                   subtitle: isLoading
-                      ? "Total 0.0"
+                      ? t("sleep_naps_total_subtitle").replaceAll("{hours}", "0.0")
                       : (napHours == null
-                            ? "Total 0.0"
-                            : "Total ${_formatHours(napHours)}"),
+                            ? t("sleep_naps_total_subtitle").replaceAll("{hours}", "0.0")
+                            : t("sleep_naps_total_subtitle").replaceAll(
+                                "{hours}",
+                                _formatHours(napHours),
+                              )),
                 ),
               ),
             ],
           ),
           SizedBox(height: TaqaUiScale.h(12)),
           TaqaSleepStagesWideCard(
-            title: "Total sleep",
-            centerLabel: "Stages",
+            title: t("sleep_total_sleep_title"),
+            centerLabel: t("sleep_stages_label"),
             lightPct: (isLoading || !hasMetrics) ? 0 : (stage["light"] ?? 0),
             deepPct: (isLoading || !hasMetrics) ? 0 : (stage["slow_wave"] ?? 0),
             remPct: (isLoading || !hasMetrics) ? 0 : (stage["rem"] ?? 0),
@@ -961,6 +969,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
   }
 
   Widget _buildNativeMetricsTab(ThemeData theme) {
+    final t = AppLocalizations.of(context).translate;
     final entry = _nativeMetricsEntry;
     final isLoading = _nativeMetricsLoading;
     final hasData = _nativeMetricsHasData && entry != null;
@@ -972,7 +981,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
             _nativeMetricsDateHeader(),
             SizedBox(height: TaqaUiScale.h(12)),
             TaqaEmptyCard(
-              title: "No sleep metrics",
+              title: t("sleep_no_metrics_title"),
               subtitle: "${_monthName(_metricsDate.month)} ${_metricsDate.day}",
               icon: Icons.bedtime_outlined,
             ),
@@ -1030,11 +1039,11 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
             children: [
               Expanded(
                 child: _buildArcSleepMetricCard(
-                  title: "Total sleep",
+                  title: t("sleep_total_sleep_title"),
                   valueText: (isLoading || !hasData || sleepHours == null)
                       ? "0.0"
                       : _formatHours(sleepHours),
-                  subtitle: "Saved daily metrics",
+                  subtitle: t("sleep_saved_daily_metrics_subtitle"),
                   progress: sleepProgress,
                   loading: isLoading,
                 ),
@@ -1042,11 +1051,11 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
               SizedBox(width: TaqaUiScale.w(12)),
               Expanded(
                 child: _buildArcSleepMetricCard(
-                  title: "Time in bed",
+                  title: t("sleep_time_in_bed_title"),
                   valueText: (isLoading || !hasData || inBedHours == null)
                       ? "0.0"
                       : _formatHours(inBedHours),
-                  subtitle: "In-bed duration",
+                  subtitle: t("sleep_in_bed_duration_subtitle"),
                   progress: inBedProgress,
                   loading: isLoading,
                 ),
@@ -1062,11 +1071,11 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
           ),
           SizedBox(height: TaqaUiScale.h(12)),
           TaqaLinearMetricCard(
-            title: "Awake time",
+            title: t("sleep_awake_time_title"),
             valueText: (isLoading || !hasData || awakeHours == null)
                 ? "0.0"
                 : _formatHours(awakeHours),
-            subtitle: "Awake during sleep window",
+            subtitle: t("sleep_awake_during_window_subtitle"),
             progress: 0.0,
             loading: isLoading,
             lightSurface: true,
@@ -1075,8 +1084,8 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
           ),
           SizedBox(height: TaqaUiScale.h(12)),
           TaqaSleepStagesWideCard(
-            title: "Total sleep",
-            centerLabel: "Stages",
+            title: t("sleep_total_sleep_title"),
+            centerLabel: t("sleep_stages_label"),
             lightPct: (isLoading || !hasStages) ? 0 : lightPct,
             deepPct: (isLoading || !hasStages) ? 0 : deepPct,
             remPct: (isLoading || !hasStages) ? 0 : remPct,
@@ -1246,9 +1255,11 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
   }) {
     final clampedEfficiency = loading ? 0.0 : efficiency.clamp(0.0, 1.0);
     return TaqaLinearMetricCard(
-      title: "Sleep efficiency",
+      title: AppLocalizations.of(context).translate("sleep_efficiency_title"),
       valueText: "${(clampedEfficiency * 100).toStringAsFixed(0)}%",
-      subtitle: "Sleep time / time in bed",
+      subtitle: AppLocalizations.of(
+        context,
+      ).translate("sleep_efficiency_subtitle"),
       progress: clampedEfficiency,
       loading: loading,
       lightSurface: true,
@@ -1338,9 +1349,10 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     final hasData = _daily.isNotEmpty && _daily.values.any((v) => v > 0);
 
     if (!hasData) {
+      final t = AppLocalizations.of(context).translate;
       return TaqaEmptyCard(
-        title: "No sleep data",
-        subtitle: "No records in this range",
+        title: t("dash_no_sleep_data"),
+        subtitle: t("common_no_records_in_range"),
         icon: Icons.bedtime_outlined,
       );
     }
@@ -1380,9 +1392,9 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
             children: [
               Text(
                 _range == 'weekly'
-                    ? 'Last 7 days'
+                    ? AppLocalizations.of(context).translate("range_last7")
                     : _range == 'yearly'
-                    ? 'Last year'
+                    ? AppLocalizations.of(context).translate("range_last_year")
                     : _rangeLabel(AppLocalizations.of(context).translate),
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
@@ -1394,7 +1406,10 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
               ),
               SizedBox(height: TaqaUiScale.h(5)),
               Text(
-                'Avg: ${avg.toStringAsFixed(1)} h | Total: ${total.toStringAsFixed(1)} h',
+                AppLocalizations.of(context)
+                    .translate("sleep_avg_total")
+                    .replaceAll("{avg}", avg.toStringAsFixed(1))
+                    .replaceAll("{total}", total.toStringAsFixed(1)),
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(10),
@@ -1479,7 +1494,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       case 'monthly':
         final ref = _rangeStart ?? _anchorDate;
         final days = DateTime(ref.year, ref.month + 1, 0).day;
-        return short ? "${days}d" : "Last $days days";
+        return short ? "${days}d" : t("range_last_n_days").replaceAll("{n}", "$days");
       case 'yearly':
         return short ? "1y" : t("range_last_year");
       case 'weekly':
@@ -1657,7 +1672,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     if (!_canManualEdit) return;
     final text = await showTaqaTextValueDialog(
       context: context,
-      title: "Add sleep hours",
+      title: AppLocalizations.of(context).translate("sleep_add_dialog_title"),
       initialValue: _todaySleepHours() > 0
           ? _todaySleepHours().toStringAsFixed(1)
           : '',

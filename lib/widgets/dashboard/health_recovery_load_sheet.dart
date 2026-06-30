@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/health/health_recovery_load_service.dart';
 import '../../theme/app_theme.dart';
+import '../../localization/app_localizations.dart';
 
 class HealthRecoveryLoadSheet extends StatelessWidget {
   const HealthRecoveryLoadSheet({
@@ -15,6 +16,7 @@ class HealthRecoveryLoadSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final zones = summary?.zones;
     return Container(
@@ -43,7 +45,7 @@ class HealthRecoveryLoadSheet extends StatelessWidget {
           Row(
             children: [
               Text(
-                "Recovery & load",
+                t("health_recovery_title"),
                 style: AppTextStyles.subtitle.copyWith(color: Colors.white),
               ),
               const Spacer(),
@@ -55,19 +57,19 @@ class HealthRecoveryLoadSheet extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _MetricRow(
-            label: "Resting heart rate",
+            label: t("fitbit_heart_resting_hr"),
             value: summary?.restingHeartRate == null
                 ? "—"
                 : "${summary!.restingHeartRate} bpm",
           ),
           _MetricRow(
-            label: "HRV",
+            label: t("health_recovery_hrv"),
             value: summary?.hrvMs == null
                 ? "—"
                 : "${summary!.hrvMs!.toStringAsFixed(0)} ms",
           ),
           _MetricRow(
-            label: "Active minutes",
+            label: t("health_recovery_active_minutes"),
             value: summary?.activeMinutes == null
                 ? "—"
                 : "${summary!.activeMinutes} min",
@@ -77,25 +79,34 @@ class HealthRecoveryLoadSheet extends StatelessWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                "Heart rate zones (minutes)",
+                t("health_recovery_zones_title"),
                 style: AppTextStyles.small.copyWith(color: Colors.white70),
               ),
             ),
             const SizedBox(height: 8),
             _MetricRow(
-              label: "Out of range",
+              label: t("health_recovery_zone_out_of_range"),
               value: "${zones.outOfRangeMinutes} min",
             ),
-            _MetricRow(label: "Fat burn", value: "${zones.fatBurnMinutes} min"),
-            _MetricRow(label: "Cardio", value: "${zones.cardioMinutes} min"),
-            _MetricRow(label: "Peak", value: "${zones.peakMinutes} min"),
+            _MetricRow(
+              label: t("health_recovery_zone_fat_burn"),
+              value: "${zones.fatBurnMinutes} min",
+            ),
+            _MetricRow(
+              label: t("health_recovery_zone_cardio"),
+              value: "${zones.cardioMinutes} min",
+            ),
+            _MetricRow(
+              label: t("health_recovery_zone_peak"),
+              value: "${zones.peakMinutes} min",
+            ),
           ],
           if (summary == null || !summary!.hasAnyData) ...[
             const SizedBox(height: 4),
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                "No data available for this day from HealthKit/Health Connect.",
+                t("health_recovery_no_healthkit_data"),
                 style: AppTextStyles.small.copyWith(color: Colors.white60),
               ),
             ),

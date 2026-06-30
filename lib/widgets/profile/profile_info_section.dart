@@ -71,10 +71,10 @@ class ProfileInfoRow extends StatelessWidget {
           Text(label, style: style),
           Expanded(
             child: Align(
-              alignment: Alignment.centerRight,
+              alignment: AlignmentDirectional.centerEnd,
               child: Text(
                 value,
-                textAlign: TextAlign.right,
+                textAlign: TextAlign.end,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: style,

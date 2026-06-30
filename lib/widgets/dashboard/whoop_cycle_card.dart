@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../TaqaUI/components/taqa_dashboard_metric_card.dart';
+import '../../localization/app_localizations.dart';
 
 class WhoopCycleCard extends StatelessWidget {
   const WhoopCycleCard({
@@ -17,18 +18,21 @@ class WhoopCycleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final progress = linked && strain != null
         ? (strain! / 21.0).clamp(0.0, 1.0)
         : 0.0;
     final value = linked
         ? (strain != null ? _fmt(strain) : (loading ? "…" : "—"))
-        : "Not connected";
+        : t("whoop_not_connected");
     final subtitle = linked
-        ? (strain != null ? "Out of 21" : "No cycle data yet")
-        : "Connect Whoop";
+        ? (strain != null
+              ? t("whoop_cycle_out_of_21")
+              : t("whoop_cycle_no_data"))
+        : t("whoop_connect_title");
     return TaqaDashboardMetricCard(
       source: TaqaDashboardMetricSource.whoop,
-      title: "Whoop Daily Strain",
+      title: t("whoop_daily_strain_title"),
       valueText: value,
       goalText: subtitle,
       progress: progress,

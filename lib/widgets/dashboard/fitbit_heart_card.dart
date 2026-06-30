@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../TaqaUI/components/taqa_dashboard_metric_card.dart';
+import '../../localization/app_localizations.dart';
 
 class FitbitHeartCard extends StatelessWidget {
   final bool loading;
@@ -26,11 +27,12 @@ class FitbitHeartCard extends StatelessWidget {
     final vo2 = vo2Max != null && vo2Max!.isNotEmpty ? "VO₂ ${vo2Max!}" : null;
     final subtitle = [hrv, vo2].whereType<String>().join(" • ");
 
+    final t = AppLocalizations.of(context).translate;
     return TaqaDashboardMetricCard(
       source: TaqaDashboardMetricSource.fitbit,
-      title: "Heart & cardio",
+      title: t("fitbit_heart_title"),
       valueText: value,
-      goalText: subtitle.isEmpty ? "No heart details" : subtitle,
+      goalText: subtitle.isEmpty ? t("fitbit_heart_no_details") : subtitle,
       progress: 0.0,
       showArc: false,
       loading:

@@ -25,11 +25,12 @@ class TaqaBackButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
     return IconButton(
       onPressed: onPressed ?? () => Navigator.of(context).maybePop(),
       splashRadius: TaqaUiScale.w(splashRadius),
       icon: Icon(
-        Icons.arrow_back_ios_new,
+        isRtl ? Icons.arrow_forward_ios : Icons.arrow_back_ios_new,
         color: color,
         size: TaqaUiScale.w(iconSize),
       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../services/fitbit/fitbit_body_service.dart';
+import '../../localization/app_localizations.dart';
 
 class FitbitBodySheet extends StatelessWidget {
   final FitbitBodySummary? summary;
@@ -12,6 +13,7 @@ class FitbitBodySheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final bottomInset = MediaQuery.of(context).padding.bottom;
     return Container(
       padding: EdgeInsets.fromLTRB(20, 16, 20, 16 + bottomInset),
@@ -38,7 +40,7 @@ class FitbitBodySheet extends StatelessWidget {
           ),
           Row(
             children: [
-              Text("Fitbit body",
+              Text(t("fitbit_body_title"),
                   style: AppTextStyles.subtitle.copyWith(color: Colors.white)),
               const Spacer(),
               IconButton(
@@ -49,7 +51,7 @@ class FitbitBodySheet extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _MetricRow(
-            label: "Weight",
+            label: t("weight"),
             value: summary?.weightKg == null
                 ? "—"
                 : "${summary!.weightKg!.toStringAsFixed(1)} kg",

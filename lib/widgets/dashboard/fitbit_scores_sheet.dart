@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/fitbit/fitbit_scores_service.dart';
 import '../../theme/app_theme.dart';
+import '../../localization/app_localizations.dart';
 
 class FitbitScoresSheet extends StatelessWidget {
   final FitbitScoresSummary? summary;
@@ -10,6 +11,7 @@ class FitbitScoresSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final bottomInset = MediaQuery.of(context).padding.bottom;
     return Container(
       padding: EdgeInsets.fromLTRB(20, 16, 20, 16 + bottomInset),
@@ -37,7 +39,7 @@ class FitbitScoresSheet extends StatelessWidget {
           Row(
             children: [
               Text(
-                "Fitbit scores",
+                t("fitbit_scores_title"),
                 style: AppTextStyles.subtitle.copyWith(color: Colors.white),
               ),
               const Spacer(),
@@ -49,11 +51,11 @@ class FitbitScoresSheet extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _MetricRow(
-            label: "Readiness score",
+            label: t("fitbit_scores_readiness"),
             value: _fmtScore(summary?.readinessScore),
           ),
           _MetricRow(
-            label: "Stress management",
+            label: t("fitbit_scores_stress"),
             value: _fmtScore(summary?.stressManagementScore),
           ),
           const SizedBox(height: 6),

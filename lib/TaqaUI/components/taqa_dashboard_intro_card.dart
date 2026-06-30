@@ -111,6 +111,7 @@ class TaqaDashboardIntroCard extends StatelessWidget {
                           '$cleanName,',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
+                          textDirection: TextDirection.ltr,
                           style: TaqaUiStyles.userName,
                         ),
                       ),

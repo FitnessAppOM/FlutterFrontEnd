@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../services/fitbit/fitbit_vitals_service.dart';
+import '../../localization/app_localizations.dart';
 
 class FitbitVitalsSheet extends StatelessWidget {
   final FitbitVitalsSummary? summary;
@@ -12,6 +13,7 @@ class FitbitVitalsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final bottomInset = MediaQuery.of(context).padding.bottom;
     return Container(
       padding: EdgeInsets.fromLTRB(20, 16, 20, 16 + bottomInset),
@@ -38,7 +40,7 @@ class FitbitVitalsSheet extends StatelessWidget {
           ),
           Row(
             children: [
-              Text("Fitbit health",
+              Text(t("fitbit_vitals_title"),
                   style: AppTextStyles.subtitle.copyWith(color: Colors.white)),
               const Spacer(),
               IconButton(
@@ -49,31 +51,31 @@ class FitbitVitalsSheet extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _MetricRow(
-            label: "SpO₂ avg",
+            label: t("fitbit_vitals_spo2_avg"),
             value: summary?.spo2Percent == null
                 ? "—"
                 : "${summary!.spo2Percent!.toStringAsFixed(0)}%",
           ),
           _MetricRow(
-            label: "SpO₂ min/max",
+            label: t("fitbit_vitals_spo2_minmax"),
             value: (summary?.spo2Min == null && summary?.spo2Max == null)
                 ? "—"
                 : "${summary?.spo2Min?.toStringAsFixed(0) ?? "—"} / ${summary?.spo2Max?.toStringAsFixed(0) ?? "—"}",
           ),
           _MetricRow(
-            label: "Skin temp Δ",
+            label: t("fitbit_vitals_skin_temp_delta"),
             value: summary?.skinTempC == null
                 ? "—"
                 : _fmtTemp(summary!.skinTempC!),
           ),
           _MetricRow(
-            label: "Breathing rate",
+            label: t("fitbit_vitals_breathing_rate"),
             value: summary?.breathingRate == null
                 ? "—"
                 : "${summary!.breathingRate!.toStringAsFixed(1)}",
           ),
           _MetricRow(
-            label: "ECG",
+            label: t("fitbit_vitals_ecg"),
             value: summary?.ecgSummary == null
                 ? "—"
                 : _fmtEcg(summary!.ecgSummary!, summary?.ecgAvgHr),

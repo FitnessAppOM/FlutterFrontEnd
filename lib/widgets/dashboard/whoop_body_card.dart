@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../TaqaUI/components/taqa_dashboard_metric_card.dart';
+import '../../localization/app_localizations.dart';
 
 class WhoopBodyCard extends StatelessWidget {
   const WhoopBodyCard({
@@ -17,15 +18,18 @@ class WhoopBodyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final value = linked
         ? (weightKg != null
               ? "${weightKg!.toStringAsFixed(1)} kg"
               : (loading ? "…" : "—"))
-        : "Not connected";
-    final subtitle = linked ? "Current weight" : "Connect Whoop";
+        : t("whoop_not_connected");
+    final subtitle = linked
+        ? t("fitbit_body_current_weight")
+        : t("whoop_connect_title");
     return TaqaDashboardMetricCard(
       source: TaqaDashboardMetricSource.whoop,
-      title: "Whoop Body",
+      title: t("whoop_body_title"),
       valueText: value,
       goalText: subtitle,
       progress: 0.0,

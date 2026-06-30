@@ -7,8 +7,9 @@ class AppBarBackButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
     return IconButton(
-      icon: const Icon(Icons.arrow_back),
+      icon: Icon(isRtl ? Icons.arrow_forward : Icons.arrow_back),
       onPressed: onTap,
     );
   }

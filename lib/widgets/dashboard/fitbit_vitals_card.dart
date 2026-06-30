@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../TaqaUI/components/taqa_dashboard_metric_card.dart';
+import '../../localization/app_localizations.dart';
 
 class FitbitVitalsCard extends StatelessWidget {
   final bool loading;
@@ -26,11 +27,12 @@ class FitbitVitalsCard extends StatelessWidget {
     final value = _buildValue();
     final subtitle = _buildSubtitle();
 
+    final t = AppLocalizations.of(context).translate;
     return TaqaDashboardMetricCard(
       source: TaqaDashboardMetricSource.fitbit,
-      title: "Fitbit health",
+      title: t("fitbit_vitals_title"),
       valueText: value,
-      goalText: subtitle ?? "No vitals data",
+      goalText: subtitle ?? t("fitbit_vitals_no_data"),
       progress: 0.0,
       showArc: false,
       loading:
