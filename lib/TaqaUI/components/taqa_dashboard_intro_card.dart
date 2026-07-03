@@ -7,6 +7,7 @@ import '../styles/taqa_ui_scale.dart';
 import '../styles/taqa_ui_styles.dart';
 import 'taqa_intro_actions_row.dart';
 import 'taqa_profile_avatar.dart';
+import 'taqa_streak_tag.dart';
 import 'taqa_weekdays_row.dart';
 import '../../localization/app_localizations.dart';
 
@@ -22,6 +23,7 @@ class TaqaDashboardIntroCard extends StatelessWidget {
     this.onDietTap,
     this.onAvatarTap,
     this.message,
+    this.streakDays,
   });
 
   final String userName;
@@ -33,6 +35,7 @@ class TaqaDashboardIntroCard extends StatelessWidget {
   final VoidCallback? onDietTap;
   final VoidCallback? onAvatarTap;
   final String? message;
+  final int? streakDays;
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +78,7 @@ class TaqaDashboardIntroCard extends StatelessWidget {
         final buttonsTop = TaqaUiScale.h(172) * layoutScale;
         final buttonRowWidth = TaqaUiScale.w(329) * layoutScale;
         final buttonHeight = TaqaUiStyles.actionButtonHeight * layoutScale;
+        final streakTagGap = TaqaUiScale.w(8) * layoutScale;
 
         return Align(
           alignment: Alignment.centerLeft,
@@ -107,15 +111,25 @@ class TaqaDashboardIntroCard extends StatelessWidget {
                     child: GestureDetector(
                       onTap: onAvatarTap,
                       behavior: HitTestBehavior.opaque,
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          '$cleanName,',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textDirection: TextDirection.ltr,
-                          style: TaqaUiStyles.userName,
-                        ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                '$cleanName,',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textDirection: TextDirection.ltr,
+                                style: TaqaUiStyles.userName,
+                              ),
+                            ),
+                          ),
+                          if (streakDays != null) ...[
+                            SizedBox(width: streakTagGap),
+                            TaqaStreakTag(days: streakDays!),
+                          ],
+                        ],
                       ),
                     ),
                   ),

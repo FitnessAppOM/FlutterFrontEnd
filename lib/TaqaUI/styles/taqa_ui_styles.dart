@@ -26,7 +26,30 @@ class TaqaUiStyles {
   static double get dailyOutlookContentWidth => TaqaUiScale.w(329);
   static double get scoreCardTitleWidth => TaqaUiScale.w(130);
   static double get scoreCardMetaWidth => TaqaUiScale.w(78);
+  static double get streakTagWidth => TaqaUiScale.w(48);
+  static double get streakTagHeight => TaqaUiScale.h(20);
+  static double get recordDotSize => TaqaUiScale.w(6);
+  static double get communityHeroCardWidth => TaqaUiScale.w(357);
+  static double get communityHeroCardHeight => TaqaUiScale.h(274);
+  static double get communityStatBoxWidth => TaqaUiScale.w(157);
+  static double get communityStatBoxHeight => TaqaUiScale.h(75);
+  static double get communityStatIconWidth => TaqaUiScale.w(16);
+  static double get communityStatIconHeight => TaqaUiScale.h(21);
+  static double get communityActionButtonWidth => TaqaUiScale.w(109);
+  static double get communityActionRowWidth => TaqaUiScale.w(357);
+  static double get communitySectionTagWidth => TaqaUiScale.w(58);
+  static double get communityGroupCardWidth => TaqaUiScale.w(171);
+  static double get communityGroupCardHeight => TaqaUiScale.h(171);
+  static double get communityChallengeCardWidth => TaqaUiScale.w(357);
+  static double get communityChallengeCardHeight => TaqaUiScale.h(98);
+  static double get communityChallengeBarWidth => TaqaUiScale.w(250);
+  static double get communityChallengeBarHeight => TaqaUiScale.h(17);
   static BorderRadius get actionButtonRadius => TaqaUiScale.radius(5);
+  static BorderRadius get streakTagRadius => TaqaUiScale.radius(5);
+  static BorderRadius get communityHeroCardRadius => TaqaUiScale.radius(15);
+  static BorderRadius get communityStatBoxRadius => TaqaUiScale.radius(5);
+  static BorderRadius get communityGroupCardRadius => TaqaUiScale.radius(5);
+  static BorderRadius get communityChallengeBarRadius => TaqaUiScale.radius(9);
 
   static BorderRadius get cardRadius => TaqaUiScale.radius(28);
   static BorderRadius get introCardRadius => TaqaUiScale.radius(15);
@@ -165,6 +188,15 @@ class TaqaUiStyles {
     height: 1,
   );
 
+  static TextStyle get streakTag => TextStyle(
+    fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+    fontSize: TaqaUiScale.sp(8),
+    fontWeight: FontWeight.w400,
+    color: TaqaUiColors.charcoal,
+    letterSpacing: 0,
+    height: 10 / 8,
+  );
+
   static TextStyle get scoreCardTag => TextStyle(
     fontFamily: TaqaUiFontFamilies.interTight,
     fontSize: TaqaUiScale.sp(8),
@@ -172,5 +204,59 @@ class TaqaUiStyles {
     color: TaqaUiColors.charcoal,
     letterSpacing: 0,
     height: 10 / 8,
+  );
+
+  static TextStyle get communityActionButtonLabel => TextStyle(
+    fontFamily: TaqaUiFontFamilies.interTight,
+    fontSize: TaqaUiScale.sp(10),
+    fontWeight: FontWeight.w600,
+    color: TaqaUiColors.white,
+    letterSpacing: 0,
+    height: 12 / 10,
+  );
+
+  static TextStyle get communityGroupCardName => TextStyle(
+    fontFamily: TaqaUiFontFamilies.interTight,
+    fontSize: TaqaUiScale.sp(15),
+    fontWeight: FontWeight.w700,
+    color: TaqaUiColors.charcoal,
+    letterSpacing: 0,
+    height: 20 / 15,
+  );
+
+  static TextStyle get communityGroupCardDescription => TextStyle(
+    fontFamily: TaqaUiFontFamilies.interTight,
+    fontSize: TaqaUiScale.sp(10),
+    fontWeight: FontWeight.w400,
+    color: TaqaUiColors.charcoal,
+    letterSpacing: 0,
+    height: 12 / 10,
+  );
+
+  static TextStyle get communityGroupCardMembers => TextStyle(
+    fontFamily: TaqaUiFontFamilies.interTight,
+    fontSize: TaqaUiScale.sp(10),
+    fontWeight: FontWeight.w300,
+    color: TaqaUiColors.charcoal,
+    letterSpacing: 0,
+    height: 12 / 10,
+  );
+
+  static TextStyle get communityChallengeName => TextStyle(
+    fontFamily: TaqaUiFontFamilies.interTight,
+    fontSize: TaqaUiScale.sp(15),
+    fontWeight: FontWeight.w700,
+    color: TaqaUiColors.charcoal,
+    letterSpacing: 0,
+    height: 25 / 15,
+  );
+
+  static TextStyle get communityPageTitle => TextStyle(
+    fontFamily: TaqaUiFontFamilies.interTight,
+    fontSize: TaqaUiScale.sp(15),
+    fontWeight: FontWeight.w400,
+    color: TaqaUiColors.charcoal,
+    letterSpacing: 0,
+    height: 18 / 15,
   );
 }

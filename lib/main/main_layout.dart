@@ -57,8 +57,7 @@ class _MainLayoutState extends State<MainLayout> {
 
   @override
   Widget build(BuildContext context) {
-    final isDarkPage =
-        _index == MainLayout._dietTab || _index == MainLayout._communityTab;
+    final isDarkPage = _index == MainLayout._dietTab;
     return Scaffold(
       backgroundColor: isDarkPage
           ? const Color(0xFF121212)

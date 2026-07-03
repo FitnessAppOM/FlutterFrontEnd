@@ -8,9 +8,18 @@ import '../../services/community/community_models.dart';
 import '../../services/community/community_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/Main/card_container.dart';
-import '../../widgets/Main/section_header.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/confirm_dialog.dart';
+import '../../TaqaUI/components/taqa_community_hero_card.dart';
+import '../../TaqaUI/components/taqa_community_action_row.dart';
+import '../../TaqaUI/components/taqa_community_section_header.dart';
+import '../../TaqaUI/components/taqa_community_group_card.dart';
+import '../../TaqaUI/components/taqa_community_challenge_card.dart';
+import '../../TaqaUI/components/taqa_community_feed_card.dart';
+import '../../TaqaUI/styles/taqa_ui_scale.dart';
+import '../../TaqaUI/styles/taqa_ui_styles.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
+import '../../TaqaUI/components/taqa_steps_ui.dart' show TaqaRangeTab;
 
 class CommunityPage extends StatefulWidget {
   const CommunityPage({super.key});
@@ -303,8 +312,6 @@ class _CommunityPageState extends State<CommunityPage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
           children: [
-            const SectionHeader(title: 'Community'),
-            const SizedBox(height: 16),
             _buildHeroCard(),
             const SizedBox(height: 18),
             _buildQuickActions(),
@@ -359,178 +366,27 @@ class _CommunityPageState extends State<CommunityPage> {
 
   Widget _buildHeroCard() {
     final bootstrap = _bootstrap;
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF10274B),
-            const Color(0xFF07111E),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: AppColors.accent.withValues(alpha: 0.18),
-                backgroundImage: bootstrap?.currentUser.avatarUrl != null
-                    ? NetworkImage(bootstrap!.currentUser.avatarUrl!)
-                    : null,
-                child: bootstrap?.currentUser.avatarUrl == null
-                    ? const Icon(Icons.people_alt_outlined, color: Colors.white)
-                    : null,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Auto-generated community',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.72),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      bootstrap == null
-                          ? 'Loading your groups and activity'
-                          : 'Welcome back, ${bootstrap.currentUser.primaryLabel}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          if (bootstrap != null && _myEarnedBadges.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            Text(
-              'Your badges',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.72),
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.2,
-              ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 44,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: _myEarnedBadges.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (context, index) {
-                  final badge = _myEarnedBadges[index];
-                  return Tooltip(
-                    message: badge.name,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: _openBadges,
-                        borderRadius: BorderRadius.circular(14),
-                        child: Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFD4AF37).withValues(alpha: 0.16),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: const Color(0xFFD4AF37).withValues(alpha: 0.42),
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.workspace_premium,
-                            color: Color(0xFFD4AF37),
-                            size: 24,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _HeroMetric(
-                label: 'Joined groups',
-                value: '${bootstrap?.joinedGroups.length ?? 0}',
-              ),
-              _HeroMetric(
-                label: 'Active challenges',
-                value: '${bootstrap?.activeChallenges.length ?? 0}',
-              ),
-              _HeroMetric(
-                label: 'Open reports',
-                value: '${bootstrap?.unreadModerationReportNoticesCount ?? 0}',
-                accent: (bootstrap?.unreadModerationReportNoticesCount ?? 0) > 0,
-              ),
-            ],
-          ),
-        ],
-      ),
+    return TaqaCommunityHeroCard(
+      title: 'Auto-generated community',
+      welcomeText: bootstrap == null
+          ? 'Loading your groups'
+          : 'Welcome back, ${bootstrap.currentUser.primaryLabel}',
+      badgeCount: _myEarnedBadges.length,
+      groupCount: bootstrap?.joinedGroups.length ?? 0,
+      challengeCount: bootstrap?.activeChallenges.length ?? 0,
+      reportCount: bootstrap?.unreadModerationReportNoticesCount ?? 0,
+      onBadgesTap: _openBadges,
+      onGroupsTap: _openDiscover,
+      onChallengesTap: _openChallenges,
+      onReportsTap: _openAdminReports,
     );
   }
 
   Widget _buildQuickActions() {
-    final canAdminManage = _bootstrap?.hasAdminAccess ?? false;
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: [
-        _ActionPill(
-          label: 'Discover',
-          icon: Icons.travel_explore_outlined,
-          onTap: _openDiscover,
-        ),
-        _ActionPill(
-          label: 'Join by Code',
-          icon: Icons.password_outlined,
-          onTap: _joinByCode,
-        ),
-        _ActionPill(
-          label: 'Create Group',
-          icon: Icons.add_circle_outline,
-          onTap: _createGroup,
-        ),
-        _ActionPill(
-          label: 'Challenges',
-          icon: Icons.emoji_events_outlined,
-          onTap: _openChallenges,
-        ),
-        _ActionPill(
-          label: 'Badges',
-          icon: Icons.workspace_premium_outlined,
-          onTap: _openBadges,
-        ),
-        if ((_bootstrap?.unreadModerationReportNoticesCount ?? 0) > 0 || canAdminManage)
-          _ActionPill(
-            label: 'Reports',
-            icon: Icons.flag_outlined,
-            onTap: _openAdminReports,
-            accent: true,
-          ),
-      ],
+    return TaqaCommunityActionRow(
+      onDiscoverTap: _openDiscover,
+      onJoinByCodeTap: _joinByCode,
+      onCreateGroupTap: _createGroup,
     );
   }
 
@@ -539,10 +395,10 @@ class _CommunityPageState extends State<CommunityPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _InlineSectionHeader(
-          title: 'Your groups',
+        TaqaCommunitySectionHeader(
+          title: 'Your Groups',
           actionLabel: 'Discover',
-          onTap: _openDiscover,
+          onActionTap: _openDiscover,
         ),
         const SizedBox(height: 12),
         if (groups.isEmpty)
@@ -552,14 +408,18 @@ class _CommunityPageState extends State<CommunityPage> {
           )
         else
           SizedBox(
-            height: 152,
+            height: TaqaUiStyles.communityGroupCardHeight,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: groups.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              separatorBuilder: (_, __) => SizedBox(width: TaqaUiScale.w(15)),
               itemBuilder: (context, index) {
                 final group = groups[index];
-                return GestureDetector(
+                return TaqaCommunityGroupCard(
+                  tag: group.groupKind ?? group.visibility ?? 'Group',
+                  name: group.name,
+                  description: group.description ?? 'No description yet.',
+                  memberCount: group.memberCount,
                   onTap: () async {
                     await Navigator.push(
                       context,
@@ -569,69 +429,6 @@ class _CommunityPageState extends State<CommunityPage> {
                     );
                     await _refreshFeed();
                   },
-                  child: SizedBox(
-                    width: 220,
-                    child: CardContainer(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              _GroupBadge(group: group),
-                              const Spacer(),
-                              if (group.isAdmin)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFD4AF37).withValues(alpha: 0.16),
-                                    borderRadius: BorderRadius.circular(999),
-                                  ),
-                                  child: const Text(
-                                    'Admin',
-                                    style: TextStyle(
-                                      color: Color(0xFFD4AF37),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            group.name,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            group.description ?? 'No description yet.',
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.68),
-                              fontSize: 12,
-                              height: 1.35,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            '${group.memberCount} members',
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
                 );
               },
             ),
@@ -645,12 +442,12 @@ class _CommunityPageState extends State<CommunityPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _InlineSectionHeader(
-          title: 'Active challenges',
+        TaqaCommunitySectionHeader(
+          title: 'Active Challenges',
           actionLabel: 'Open all',
-          onTap: _openChallenges,
+          onActionTap: _openChallenges,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 24),
         if (challenges.isEmpty)
           const _CommunityEmptyCard(
             title: 'No active challenges',
@@ -659,9 +456,11 @@ class _CommunityPageState extends State<CommunityPage> {
         else
           ...challenges.take(3).map(
             (challenge) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _ChallengeCard(
-                challenge: challenge,
+              padding: EdgeInsets.only(bottom: TaqaUiScale.h(15)),
+              child: TaqaCommunityChallengeCard(
+                tag: challenge.challengeType.replaceAll('_', ' '),
+                name: challenge.name,
+                progress: challenge.progressPercent / 100,
                 onTap: _openChallenges,
               ),
             ),
@@ -672,45 +471,40 @@ class _CommunityPageState extends State<CommunityPage> {
 
   Widget _buildFeedFilterBar() {
     final groups = _bootstrap?.joinedGroups ?? const <CommunityGroupSummary>[];
+    final tabs = <Widget>[
+      TaqaRangeTab(
+        label: 'All groups',
+        selected: _selectedGroupId == null,
+        onTap: () async {
+          setState(() => _selectedGroupId = null);
+          await _refreshFeed();
+        },
+      ),
+      ...groups.map(
+        (group) => TaqaRangeTab(
+          label: group.name,
+          selected: _selectedGroupId == group.id,
+          onTap: () async {
+            setState(() => _selectedGroupId = group.id);
+            await _refreshFeed();
+          },
+        ),
+      ),
+    ];
+    final gap = TaqaUiScale.w(15);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Feed',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 12),
+        const TaqaCommunitySectionHeader(title: 'Feed'),
+        const SizedBox(height: 24),
         SizedBox(
-          height: 40,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
+          height: TaqaUiStyles.actionButtonHeight,
+          child: Row(
             children: [
-              _FeedFilterChip(
-                label: 'All groups',
-                selected: _selectedGroupId == null,
-                onTap: () async {
-                  setState(() => _selectedGroupId = null);
-                  await _refreshFeed();
-                },
-              ),
-              const SizedBox(width: 8),
-              ...groups.map(
-                (group) => Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: _FeedFilterChip(
-                    label: group.name,
-                    selected: _selectedGroupId == group.id,
-                    onTap: () async {
-                      setState(() => _selectedGroupId = group.id);
-                      await _refreshFeed();
-                    },
-                  ),
-                ),
-              ),
+              for (var i = 0; i < tabs.length; i++) ...[
+                if (i > 0) SizedBox(width: gap),
+                Expanded(child: tabs[i]),
+              ],
             ],
           ),
         ),
@@ -721,124 +515,55 @@ class _CommunityPageState extends State<CommunityPage> {
   Widget _buildFeedCard(CommunityFeedItem item) {
     final isAdmin = _isAdminForGroup(item.group.id);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: CardContainer(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _Avatar(url: item.actor.avatarUrl, label: item.actor.primaryLabel),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.actor.primaryLabel,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: [
-                          _MiniChip(label: item.group.name),
-                          _MiniChip(label: item.event.type.replaceAll('_', ' ')),
-                          if (item.event.occurredAt != null)
-                            _MiniChip(label: _formatDate(item.event.occurredAt)),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_horiz, color: Colors.white70),
-                  color: const Color(0xFF151515),
-                  onSelected: (value) async {
-                    if (value == 'report') {
-                      await _showReportSheet(
-                        targetType: 'feed_item',
-                        targetId: item.feedItemId,
-                      );
-                    } else if (value == 'hide') {
-                      await _hideFeedItem(item);
-                    }
-                  },
-                  itemBuilder: (_) => [
-                    const PopupMenuItem<String>(
-                      value: 'report',
-                      child: Text('Report'),
-                    ),
-                    if (isAdmin)
-                      const PopupMenuItem<String>(
-                        value: 'hide',
-                        child: Text('Hide from group'),
-                      ),
-                  ],
-                ),
-              ],
+      padding: EdgeInsets.only(bottom: TaqaUiScale.h(15)),
+      child: TaqaCommunityFeedCard(
+        actorLabel: item.actor.primaryLabel,
+        actorAvatarUrl: item.actor.avatarUrl,
+        chips: [
+          item.group.name,
+          item.event.type.replaceAll('_', ' '),
+          if (item.event.occurredAt != null) _formatDate(item.event.occurredAt),
+        ],
+        title: item.event.title,
+        subtitle: item.event.subtitle,
+        payloadEntries: _buildPayloadEntries(item.event.payload),
+        liked: item.currentUserLiked,
+        likeCount: item.likeCount,
+        commentCount: item.commentCount,
+        canComment: item.canComment,
+        onLikeTap: () => _toggleLike(item),
+        onCommentTap: () => _openComments(item),
+        trailing: PopupMenuButton<String>(
+          icon: const Icon(Icons.more_horiz, color: TaqaUiColors.charcoal),
+          color: TaqaUiColors.white,
+          onSelected: (value) async {
+            if (value == 'report') {
+              await _showReportSheet(
+                targetType: 'feed_item',
+                targetId: item.feedItemId,
+              );
+            } else if (value == 'hide') {
+              await _hideFeedItem(item);
+            }
+          },
+          itemBuilder: (_) => [
+            const PopupMenuItem<String>(
+              value: 'report',
+              child: Text('Report'),
             ),
-            const SizedBox(height: 16),
-            Text(
-              item.event.title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                height: 1.25,
+            if (isAdmin)
+              const PopupMenuItem<String>(
+                value: 'hide',
+                child: Text('Hide from group'),
               ),
-            ),
-            if ((item.event.subtitle ?? '').trim().isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                item.event.subtitle!,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.72),
-                  fontSize: 13,
-                  height: 1.4,
-                ),
-              ),
-            ],
-            if (item.event.payload.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _buildPayloadChips(item.event.payload),
-              ),
-            ],
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                _FeedActionButton(
-                  icon: item.currentUserLiked ? Icons.favorite : Icons.favorite_border,
-                  label: '${item.likeCount}',
-                  accent: item.currentUserLiked,
-                  onTap: () => _toggleLike(item),
-                ),
-                const SizedBox(width: 10),
-                _FeedActionButton(
-                  icon: Icons.chat_bubble_outline,
-                  label: '${item.commentCount}',
-                  enabled: item.canComment,
-                  onTap: item.canComment ? () => _openComments(item) : null,
-                ),
-              ],
-            ),
           ],
         ),
       ),
     );
   }
 
-  List<Widget> _buildPayloadChips(Map<String, dynamic> payload) {
-    final entries = <Widget>[];
+  List<MapEntry<String, String>> _buildPayloadEntries(Map<String, dynamic> payload) {
+    final entries = <MapEntry<String, String>>[];
     const preferredKeys = [
       'score_current',
       'score_delta',
@@ -856,12 +581,7 @@ class _CommunityPageState extends State<CommunityPage> {
       if (!payload.containsKey(key)) continue;
       final value = payload[key];
       if (value == null) continue;
-      entries.add(
-        _PayloadChip(
-          label: key.replaceAll('_', ' '),
-          value: value.toString(),
-        ),
-      );
+      entries.add(MapEntry(key.replaceAll('_', ' '), value.toString()));
     }
     return entries;
   }
@@ -3390,52 +3110,6 @@ class _HeroMetric extends StatelessWidget {
   }
 }
 
-class _ActionPill extends StatelessWidget {
-  const _ActionPill({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-    this.accent = false,
-  });
-
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: accent
-              ? AppColors.accent.withValues(alpha: 0.16)
-              : Colors.white.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: accent ? AppColors.accent : Colors.white, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: accent ? AppColors.accent : Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _GroupBadge extends StatelessWidget {
   const _GroupBadge({required this.group});
 
@@ -3517,53 +3191,6 @@ class _FeedFilterChip extends StatelessWidget {
   }
 }
 
-class _FeedActionButton extends StatelessWidget {
-  const _FeedActionButton({
-    required this.icon,
-    required this.label,
-    this.onTap,
-    this.accent = false,
-    this.enabled = true,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-  final bool accent;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final activeColor = accent ? Colors.pinkAccent : Colors.white;
-    return InkWell(
-      onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(999),
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: enabled
-              ? Colors.white.withValues(alpha: 0.06)
-              : Colors.white.withValues(alpha: 0.02),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: enabled ? activeColor : Colors.white24),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: enabled ? activeColor : Colors.white24,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _MiniChip extends StatelessWidget {
   const _MiniChip({required this.label});
 
@@ -3583,50 +3210,6 @@ class _MiniChip extends StatelessWidget {
           color: Colors.white70,
           fontSize: 11,
           fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class _PayloadChip extends StatelessWidget {
-  const _PayloadChip({
-    required this.label,
-    required this.value,
-  });
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: RichText(
-        text: TextSpan(
-          style: const TextStyle(fontFamily: 'inherit'),
-          children: [
-            TextSpan(
-              text: '$label: ',
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            TextSpan(
-              text: value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
         ),
       ),
     );

@@ -5279,6 +5279,7 @@ class DashboardPageState extends State<DashboardPage>
           onTrainingTap: _wiggling ? null : _openTrainingPage,
           onDietTap: _wiggling ? null : _openDietPage,
           onAvatarTap: _wiggling ? null : _openProfilePage,
+          streakDays: _streakCount,
         ),
         const SizedBox(height: 16),
         if (_loading)

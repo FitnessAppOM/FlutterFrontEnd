@@ -25,6 +25,7 @@ import '../../TaqaUI/components/taqa_value_dialog.dart';
 import '../../TaqaUI/components/taqa_steps_ui.dart'
     show TaqaTagButton, TaqaRangeTab;
 import '../../TaqaUI/components/taqa_progress_widget_card.dart';
+import '../../TaqaUI/components/taqa_record_dot.dart';
 
 class DietPage extends StatefulWidget {
   const DietPage({super.key});
@@ -900,6 +901,7 @@ class DietPageState extends State<DietPage> {
     required int target,
     required String unit,
     required bool dark,
+    bool showRecordDot = false,
   }) {
     final progress = target > 0 ? (value / target).clamp(0.0, 1.0) : 0.0;
     final goalText = target > 0 ? "$target $unit" : "--";
@@ -909,7 +911,7 @@ class DietPageState extends State<DietPage> {
       goalText: goalText,
       progress: progress,
       lightSurface: !dark,
-      topRight: const SizedBox.shrink(),
+      topRight: showRecordDot ? const TaqaRecordDot() : const SizedBox.shrink(),
     );
   }
 
@@ -2811,6 +2813,7 @@ class DietPageState extends State<DietPage> {
                       target: caloriesTarget,
                       unit: t.translate("diet_kcal_unit"),
                       dark: true,
+                      showRecordDot: true,
                     ),
                   ),
                   SizedBox(width: TaqaUiScale.w(15)),
