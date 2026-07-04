@@ -25,20 +25,20 @@ import '../../widgets/dashboard/whoop_body_card.dart';
 import '../../widgets/dashboard/body_measurements_card.dart';
 import '../../widgets/dashboard/body_measurements_sheet.dart';
 import '../../widgets/dashboard/fitbit_daily_activity_card.dart';
-import '../../widgets/dashboard/fitbit_daily_activity_sheet.dart';
+import '../../screens/fitbit_daily_activity_detail_page.dart';
 import '../../widgets/dashboard/fitbit_heart_card.dart';
-import '../../widgets/dashboard/fitbit_heart_sheet.dart';
+import '../../screens/fitbit_heart_detail_page.dart';
 import '../../widgets/dashboard/fitbit_sleep_card.dart';
-import '../../widgets/dashboard/fitbit_sleep_sheet.dart';
+import '../../screens/fitbit_sleep_detail_page.dart';
 import '../../widgets/dashboard/fitbit_scores_card.dart';
-import '../../widgets/dashboard/fitbit_scores_sheet.dart';
+import '../../screens/fitbit_scores_detail_page.dart';
 import '../../widgets/dashboard/fitbit_vitals_card.dart';
-import '../../widgets/dashboard/fitbit_vitals_sheet.dart';
+import '../../screens/fitbit_vitals_detail_page.dart';
 import '../../widgets/dashboard/fitbit_body_card.dart';
-import '../../widgets/dashboard/fitbit_body_sheet.dart';
+import '../../screens/fitbit_body_detail_page.dart';
 import '../../widgets/dashboard/fitbit_extras_card.dart';
 import '../../widgets/dashboard/health_recovery_load_card.dart';
-import '../../widgets/dashboard/health_recovery_load_sheet.dart';
+import '../../screens/health_recovery_load_detail_page.dart';
 import '../../TaqaUI/components/taqa_daily_outlook_card.dart';
 import '../../TaqaUI/components/taqa_score_widget.dart';
 import '../../TaqaUI/components/taqa_diet_progress_widget.dart';
@@ -930,11 +930,13 @@ class DashboardPageState extends State<DashboardPage>
       final sleep = _fitbitSleepLoading
           ? (_fitbitSleepLast ?? _fitbitSleep)
           : _fitbitSleep;
-      await showModalBottomSheet(
-        context: context,
-        backgroundColor: Colors.transparent,
-        isScrollControlled: true,
-        builder: (_) => FitbitSleepSheet(summary: sleep, date: _selectedDate),
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => FitbitSleepDetailPage(
+            summary: sleep,
+            date: _selectedDate,
+          ),
+        ),
       );
       return;
     }
@@ -5594,13 +5596,12 @@ class DashboardPageState extends State<DashboardPage>
                       activeMinutes: recoveryLoad?.activeMinutes,
                       zones: recoveryLoad?.zones,
                       onTap: () async {
-                        await showModalBottomSheet(
-                          context: context,
-                          backgroundColor: Colors.transparent,
-                          isScrollControlled: true,
-                          builder: (_) => HealthRecoveryLoadSheet(
-                            summary: recoveryLoad,
-                            date: _selectedDate,
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => HealthRecoveryLoadDetailPage(
+                              summary: recoveryLoad,
+                              date: _selectedDate,
+                            ),
                           ),
                         );
                       },
@@ -5622,13 +5623,12 @@ class DashboardPageState extends State<DashboardPage>
                       onTap: summary == null
                           ? null
                           : () async {
-                              await showModalBottomSheet(
-                                context: context,
-                                backgroundColor: Colors.transparent,
-                                isScrollControlled: true,
-                                builder: (_) => FitbitDailyActivitySheet(
-                                  summary: summary,
-                                  date: _selectedDate,
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => FitbitDailyActivityDetailPage(
+                                    summary: summary,
+                                    date: _selectedDate,
+                                  ),
                                 ),
                               );
                             },
@@ -5644,16 +5644,15 @@ class DashboardPageState extends State<DashboardPage>
                       hrvRmssd: heart?.hrvRmssd,
                       vo2Max: heart?.vo2Max,
                       onTap: () async {
-                        await showModalBottomSheet(
-                          context: context,
-                          backgroundColor: Colors.transparent,
-                          isScrollControlled: true,
-                          builder: (_) => FitbitHeartSheet(
-                            restingHr: heart?.restingHr,
-                            hrvRmssd: heart?.hrvRmssd,
-                            vo2Max: heart?.vo2Max,
-                            zones: heart?.zones ?? const [],
-                            date: _selectedDate,
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => FitbitHeartDetailPage(
+                              restingHr: heart?.restingHr,
+                              hrvRmssd: heart?.hrvRmssd,
+                              vo2Max: heart?.vo2Max,
+                              zones: heart?.zones ?? const [],
+                              date: _selectedDate,
+                            ),
                           ),
                         );
                       },
@@ -5671,14 +5670,13 @@ class DashboardPageState extends State<DashboardPage>
                       sleepScore: sleep?.sleepScore,
                       stageMinutes: sleep?.stageMinutes ?? const {},
                       onTap: () async {
-                        await showModalBottomSheet(
-                          context: context,
-                          backgroundColor: Colors.transparent,
-                          isScrollControlled: true,
-                          builder: (_) => FitbitSleepSheet(
-                            summary: sleep,
-                            sleepScore: sleep?.sleepScore,
-                            date: _selectedDate,
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => FitbitSleepDetailPage(
+                              summary: sleep,
+                              sleepScore: sleep?.sleepScore,
+                              date: _selectedDate,
+                            ),
                           ),
                         );
                       },
@@ -5693,11 +5691,11 @@ class DashboardPageState extends State<DashboardPage>
                       readinessScore: scores?.readinessScore,
                       stressManagementScore: scores?.stressManagementScore,
                       onTap: () async {
-                        await showModalBottomSheet(
-                          context: context,
-                          backgroundColor: Colors.transparent,
-                          isScrollControlled: true,
-                          builder: (_) => FitbitScoresSheet(summary: scores),
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                FitbitScoresDetailPage(summary: scores),
+                          ),
                         );
                       },
                     );
@@ -5714,11 +5712,11 @@ class DashboardPageState extends State<DashboardPage>
                       ecgSummary: vitals?.ecgSummary,
                       ecgAvgHr: vitals?.ecgAvgHr,
                       onTap: () async {
-                        await showModalBottomSheet(
-                          context: context,
-                          backgroundColor: Colors.transparent,
-                          isScrollControlled: true,
-                          builder: (_) => FitbitVitalsSheet(summary: vitals),
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                FitbitVitalsDetailPage(summary: vitals),
+                          ),
                         );
                       },
                     );
@@ -5731,11 +5729,11 @@ class DashboardPageState extends State<DashboardPage>
                       loading: loading,
                       weightKg: body?.weightKg,
                       onTap: () async {
-                        await showModalBottomSheet(
-                          context: context,
-                          backgroundColor: Colors.transparent,
-                          isScrollControlled: true,
-                          builder: (_) => FitbitBodySheet(summary: body),
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                FitbitBodyDetailPage(summary: body),
+                          ),
                         );
                       },
                     );
@@ -5789,6 +5787,7 @@ class DashboardPageState extends State<DashboardPage>
               return SizedBox(
                 height: height,
                 child: Stack(
+                  clipBehavior: Clip.none,
                   children: [
                     for (int i = 0; i < _statOrder.length; i++)
                       AnimatedPositioned(
