@@ -245,18 +245,26 @@ class TaqaProgressWidgetCard extends StatelessWidget {
                               Transform.translate(
                                 offset: Offset(0, -goalOverlap),
                                 child: Center(
-                                  child: Text(
-                                    goalText,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontFamily:
-                                          TaqaUiFontFamilies.interTight,
-                                      fontSize: goalFontSize,
-                                      fontWeight: FontWeight.w300,
-                                      color: textColor,
-                                      height: 1.1,
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: TaqaUiScale.w(8) * safeScale,
+                                    ),
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        goalText,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontFamily:
+                                              TaqaUiFontFamilies.interTight,
+                                          fontSize: goalFontSize,
+                                          fontWeight: FontWeight.w300,
+                                          color: textColor,
+                                          height: 1.1,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),

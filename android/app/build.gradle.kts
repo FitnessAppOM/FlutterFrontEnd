@@ -92,6 +92,12 @@ android {
             isShrinkResources = false
         }
     }
+
+    packaging {
+        jniLibs {
+            pickFirsts.add("**/libc++_shared.so")
+        }
+    }
 }
 
 flutter {
