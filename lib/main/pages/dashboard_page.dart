@@ -88,7 +88,7 @@ import '../../screens/water_intake_detail_page.dart';
 import '../../screens/daily_journal.dart';
 import '../../screens/taqa_score_detail_page.dart';
 import '../../localization/app_localizations.dart';
-import '../../widgets/app_toast.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
 import '../../core/user_friendly_error.dart';
 import '../../TaqaUI/components/taqa_value_dialog.dart';
 import '../../services/training/training_service.dart';

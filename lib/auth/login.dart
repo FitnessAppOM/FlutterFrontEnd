@@ -6,9 +6,11 @@ import 'package:http/http.dart' as http;
 import '../config/base_url.dart';
 import '../core/account_storage.dart';
 import '../services/auth/auth_service.dart';
-import '../theme/spacing.dart';
-import '../theme/app_theme.dart';
-import '../widgets/primary_button.dart';
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/components/taqa_filled_button.dart';
+import '../TaqaUI/components/taqa_text_field.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 import '../widgets/social_button.dart';
 import '../widgets/divider_with_label.dart';
 import '../widgets/saved_account_tile.dart';
@@ -23,7 +25,7 @@ import 'email_verification_page.dart';
 import '../services/auth/profile_service.dart';
 import 'questionnaire.dart';
 import 'expert_questionnaire.dart';
-import '../widgets/app_toast.dart';
+import '../TaqaUI/components/taqa_toast.dart';
 import '../services/core/notification_service.dart';
 import '../services/core/navigation_service.dart';
 import '../services/core/daily_provider_push_service.dart';
@@ -512,110 +514,123 @@ class _LoginPageState extends State<LoginPage> {
         !loading && email.text.trim().isNotEmpty && password.text.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: AppColors.black,
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       appBar: AppBar(
-        backgroundColor: AppColors.black,
-        title: Text(t.translate("login_title")),
+        centerTitle: true,
+        title: Text(
+          t.translate("login_title"),
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(15),
+            fontWeight: FontWeight.w700,
+            height: 25 / 15,
+            letterSpacing: 0,
+            color: TaqaUiColors.unnamedColor1c1d17,
+          ),
+        ),
+        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            TextField(
-              controller: email,
-              keyboardType: TextInputType.emailAddress,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                labelText: t.translate("email"),
-                hintText: t.translate("email_hint"),
-              ),
-            ),
-            Gaps.h12,
-            TextField(
-              controller: password,
-              obscureText: true,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                labelText: t.translate("password"),
-                hintText: t.translate("password_hint"),
-              ),
-            ),
-
-            if (lastAuthProvider != "google" && lastAuthProvider != "apple")
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => ForgotPasswordPage()),
-                    );
-                  },
-                  child: Text(t.translate("forgot_password")),
+        padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TaqaTextField(
+                  controller: email,
+                  label: t.translate("email"),
+                  hint: t.translate("email_hint"),
+                  keyboardType: TextInputType.emailAddress,
+                  onChanged: (_) => setState(() {}),
                 ),
-              ),
+                SizedBox(height: TaqaUiScale.h(12)),
+                TaqaTextField(
+                  controller: password,
+                  label: t.translate("password"),
+                  hint: t.translate("password_hint"),
+                  obscureText: true,
+                  onChanged: (_) => setState(() {}),
+                ),
 
-            SizedBox(
-              width: double.infinity,
-              child: PrimaryWhiteButton(
-                onPressed: canSubmit ? login : null,
-                child: loading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.black,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : Text(t.translate("login_btn")),
-              ),
-            ),
-
-            Gaps.h20,
-            DividerWithLabel(label: t.translate("or")),
-            Gaps.h12,
-
-            if (Platform.isIOS) ...[
-              SocialButton.apple(
-                icon: Icons.apple,
-                text: t.translate("apple_login"),
-                onPressed: handleAppleLogin,
-              ),
-
-              Gaps.h12,
-            ],
-
-            SocialButton.dark(
-              icon: Icons.g_mobiledata,
-              text: t.translate("google_login"),
-              onPressed: handleGoogleLogin,
-            ),
-
-            Gaps.h20,
-
-            if (lastVerified &&
-                (lastEmail ?? '').isNotEmpty &&
-                (lastAuthProvider == "google" || lastAuthProvider == "apple")) ...[
-              DividerWithLabel(label: t.translate("saved_accounts")),
-              Gaps.h12,
-              SavedAccountTile(
-                title:
-                    "${t.translate("login_as")} ${lastName ?? lastEmail!.split('@').first}",
-                onTap: loading
-                    ? null
-                    : () {
-                        if (lastAuthProvider == "apple") {
-                          handleAppleLogin();
-                          return;
-                        }
-                        handleGoogleLogin();
+                if (lastAuthProvider != "google" && lastAuthProvider != "apple")
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => ForgotPasswordPage()),
+                        );
                       },
-                onMenu: () {},
-              ),
-            ],
-          ],
+                      child: Text(
+                        t.translate("forgot_password"),
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          fontSize: TaqaUiScale.sp(12),
+                          fontWeight: FontWeight.w600,
+                          color: TaqaUiColors.unnamedColor1c1d17,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                SizedBox(height: TaqaUiScale.h(8)),
+                TaqaFilledButton(
+                  label: t.translate("login_btn"),
+                  loading: loading,
+                  onTap: canSubmit ? login : null,
+                ),
+
+                SizedBox(height: TaqaUiScale.h(20)),
+                DividerWithLabel(label: t.translate("or")),
+                SizedBox(height: TaqaUiScale.h(12)),
+
+                if (Platform.isIOS) ...[
+                  SocialButton.apple(
+                    icon: Icons.apple,
+                    text: t.translate("apple_login"),
+                    onPressed: handleAppleLogin,
+                  ),
+
+                  SizedBox(height: TaqaUiScale.h(12)),
+                ],
+
+                SocialButton.dark(
+                  icon: Icons.g_mobiledata,
+                  text: t.translate("google_login"),
+                  onPressed: handleGoogleLogin,
+                ),
+
+                SizedBox(height: TaqaUiScale.h(20)),
+
+                if (lastVerified &&
+                    (lastEmail ?? '').isNotEmpty &&
+                    (lastAuthProvider == "google" ||
+                        lastAuthProvider == "apple")) ...[
+                  DividerWithLabel(label: t.translate("saved_accounts")),
+                  SizedBox(height: TaqaUiScale.h(12)),
+                  SavedAccountTile(
+                    title:
+                        "${t.translate("login_as")} ${lastName ?? lastEmail!.split('@').first}",
+                    onTap: loading
+                        ? null
+                        : () {
+                            if (lastAuthProvider == "apple") {
+                              handleAppleLogin();
+                              return;
+                            }
+                            handleGoogleLogin();
+                          },
+                    onMenu: () {},
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );

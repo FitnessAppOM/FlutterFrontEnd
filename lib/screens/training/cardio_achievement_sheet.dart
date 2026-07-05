@@ -7,7 +7,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../core/account_storage.dart';
 import '../../services/share/cardio_share_service.dart';
 import '../../services/strava/strava_service.dart';
-import '../../widgets/app_toast.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
 import '../../widgets/cardio/cardio_exercise_utils.dart';
 
 import '../../widgets/cardio/cardio_map.dart';

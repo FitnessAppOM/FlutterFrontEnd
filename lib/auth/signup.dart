@@ -7,14 +7,16 @@ import '../config/base_url.dart';
 import '../services/auth/auth_service.dart';
 import '../services/auth/profile_service.dart';
 import '../main/main_layout.dart';
-import '../theme/app_theme.dart';
-import '../theme/spacing.dart';
-import '../widgets/primary_button.dart';
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/components/taqa_filled_button.dart';
+import '../TaqaUI/components/taqa_text_field.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 import '../widgets/social_button.dart';
 import '../widgets/divider_with_label.dart';
 import '../localization/app_localizations.dart'; //  ADDED
 import 'email_verification_page.dart';
-import '../widgets/app_toast.dart';
+import '../TaqaUI/components/taqa_toast.dart';
 import '../core/account_storage.dart';
 import 'questionnaire.dart';
 import 'expert_questionnaire.dart';
@@ -461,24 +463,29 @@ class _SignupPageState extends State<SignupPage> {
 
     final card = Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(top: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      margin: EdgeInsets.only(top: TaqaUiScale.h(12)),
+      padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: AppColors.surfaceDark,
-        borderRadius: BorderRadius.circular(AppRadii.tile),
-        border: Border.all(color: AppColors.dividerDark),
+        color: TaqaUiColors.white,
+        borderRadius: TaqaUiScale.radius(15),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             t.translate("signup_password_requirements_title"),
-            style: AppTextStyles.small,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+              fontSize: TaqaUiScale.sp(8),
+              fontWeight: FontWeight.w400,
+              letterSpacing: 0.4,
+              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+            ),
           ),
-          Gaps.h8,
+          SizedBox(height: TaqaUiScale.h(8)),
           for (final rule in rules) ...[
             _buildRuleRow(t.translate(rule.key), rule.value),
-            if (rule != rules.last) Gaps.h6,
+            if (rule != rules.last) SizedBox(height: TaqaUiScale.h(6)),
           ],
         ],
       ),
@@ -498,23 +505,28 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Widget _buildRuleRow(String label, bool satisfied) {
-    final color = satisfied ? AppColors.successGreen : AppColors.textDim;
+    final color = satisfied
+        ? TaqaUiColors.unnamedColor1c1d17
+        : TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.35);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(
           satisfied ? Icons.check_circle : Icons.radio_button_unchecked,
-          size: 16,
-          color: color,
+          size: TaqaUiScale.w(16),
+          color: satisfied
+              ? TaqaUiColors.unnamedColorE4e93b
+              : TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.25),
         ),
-        Gaps.w8,
+        SizedBox(width: TaqaUiScale.w(8)),
         Expanded(
           child: Text(
             label,
             style: TextStyle(
-              color: color,
-              fontSize: 13,
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(12),
               fontWeight: satisfied ? FontWeight.w600 : FontWeight.w400,
+              color: color,
             ),
           ),
         ),
@@ -537,153 +549,162 @@ class _SignupPageState extends State<SignupPage> {
         password.text.trim().isNotEmpty;
 
     return Scaffold(
-      backgroundColor: AppColors.black,
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       appBar: AppBar(
-        backgroundColor: AppColors.black,
-        title: Text(t.translate(titleKey)),
+        centerTitle: true,
+        title: Text(
+          t.translate(titleKey),
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(15),
+            fontWeight: FontWeight.w700,
+            height: 25 / 15,
+            letterSpacing: 0,
+            color: TaqaUiColors.unnamedColor1c1d17,
+          ),
+        ),
+        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            if (widget.isExpert) ...[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      Icons.workspace_premium,
-                      color: AppColors.accent,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        t.translate("signup_expert_note"),
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.white,
-                        ),
+        padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (widget.isExpert) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: TaqaUiScale.insetsLTRB(12, 12, 12, 12),
+                    margin: EdgeInsets.only(bottom: TaqaUiScale.h(16)),
+                    decoration: BoxDecoration(
+                      color: TaqaUiColors.unnamedColorE4e93b.withValues(
+                        alpha: 0.25,
                       ),
+                      borderRadius: TaqaUiScale.radius(10),
                     ),
-                  ],
-                ),
-              ),
-            ],
-
-            // Username
-            TextField(
-              controller: username,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                labelText: t.translate("signup_username"),
-                hintText: t.translate("signup_username_hint"),
-              ),
-            ),
-            Gaps.h12,
-
-            // Email
-            TextField(
-              controller: email,
-              keyboardType: TextInputType.emailAddress,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                labelText: t.translate("email"),
-                hintText: t.translate("email_hint"),
-              ),
-            ),
-            Gaps.h12,
-
-            // First name
-            TextField(
-              controller: firstName,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                labelText: t.translate("signup_first_name"),
-                hintText: t.translate("signup_first_name_hint"),
-              ),
-            ),
-            Gaps.h12,
-
-            // Last name
-            TextField(
-              controller: lastName,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                labelText: t.translate("signup_last_name"),
-                hintText: t.translate("signup_last_name_hint"),
-              ),
-            ),
-            Gaps.h12,
-
-            // Password
-            TextField(
-              controller: password,
-              obscureText: !passwordVisible,
-              onChanged: (_) => _onPasswordChanged(),
-              decoration: InputDecoration(
-                labelText: t.translate("password"),
-                hintText: t.translate("password_hint"),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    passwordVisible ? Icons.visibility_off : Icons.visibility,
-                  ),
-                  onPressed: () =>
-                      setState(() => passwordVisible = !passwordVisible),
-                ),
-              ),
-            ),
-
-            // Password requirements checklist (blends with dark theme)
-            _buildPasswordRequirements(t),
-
-            // Signup button
-            Gaps.h20,
-            SizedBox(
-              width: double.infinity,
-              child: PrimaryWhiteButton(
-                onPressed: canSubmit ? signup : null,
-                child: loading
-                    ? const SizedBox(
-                        height: 22,
-                        width: 22,
-                        child: CircularProgressIndicator(
-                          color: Colors.black,
-                          strokeWidth: 2,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.workspace_premium,
+                          color: TaqaUiColors.unnamedColor1c1d17,
+                          size: TaqaUiScale.w(20),
                         ),
-                      )
-                    : Text(t.translate(buttonKey)),
-              ),
+                        SizedBox(width: TaqaUiScale.w(10)),
+                        Expanded(
+                          child: Text(
+                            t.translate("signup_expert_note"),
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: TaqaUiScale.sp(12),
+                              fontWeight: FontWeight.w400,
+                              color: TaqaUiColors.unnamedColor1c1d17,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // Username
+                TaqaTextField(
+                  controller: username,
+                  label: t.translate("signup_username"),
+                  hint: t.translate("signup_username_hint"),
+                  onChanged: (_) => setState(() {}),
+                ),
+                SizedBox(height: TaqaUiScale.h(12)),
+
+                // Email
+                TaqaTextField(
+                  controller: email,
+                  label: t.translate("email"),
+                  hint: t.translate("email_hint"),
+                  keyboardType: TextInputType.emailAddress,
+                  onChanged: (_) => setState(() {}),
+                ),
+                SizedBox(height: TaqaUiScale.h(12)),
+
+                // First name
+                TaqaTextField(
+                  controller: firstName,
+                  label: t.translate("signup_first_name"),
+                  hint: t.translate("signup_first_name_hint"),
+                  onChanged: (_) => setState(() {}),
+                ),
+                SizedBox(height: TaqaUiScale.h(12)),
+
+                // Last name
+                TaqaTextField(
+                  controller: lastName,
+                  label: t.translate("signup_last_name"),
+                  hint: t.translate("signup_last_name_hint"),
+                  onChanged: (_) => setState(() {}),
+                ),
+                SizedBox(height: TaqaUiScale.h(12)),
+
+                // Password
+                TaqaTextField(
+                  controller: password,
+                  label: t.translate("password"),
+                  hint: t.translate("password_hint"),
+                  obscureText: !passwordVisible,
+                  onChanged: (_) => _onPasswordChanged(),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      passwordVisible
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                        alpha: 0.6,
+                      ),
+                      size: TaqaUiScale.w(20),
+                    ),
+                    onPressed: () =>
+                        setState(() => passwordVisible = !passwordVisible),
+                  ),
+                ),
+
+                // Password requirements checklist
+                _buildPasswordRequirements(t),
+
+                // Signup button
+                SizedBox(height: TaqaUiScale.h(20)),
+                TaqaFilledButton(
+                  label: t.translate(buttonKey),
+                  loading: loading,
+                  onTap: canSubmit ? signup : null,
+                ),
+
+                // OR divider
+                SizedBox(height: TaqaUiScale.h(20)),
+                DividerWithLabel(label: t.translate("or")),
+                SizedBox(height: TaqaUiScale.h(12)),
+
+                // Apple
+                if (Platform.isIOS) ...[
+                  SocialButton.apple(
+                    icon: Icons.apple,
+                    text: t.translate("apple_login"),
+                    onPressed: handleAppleSignup,
+                  ),
+                  SizedBox(height: TaqaUiScale.h(12)),
+                ],
+
+                // Google
+                SocialButton.dark(
+                  icon: Icons.g_mobiledata,
+                  text: t.translate("google_signup"),
+                  onPressed: handleGoogleSignup,
+                ),
+              ],
             ),
-
-            // OR divider
-            Gaps.h20,
-            DividerWithLabel(label: t.translate("or")),
-            Gaps.h12,
-
-            // Apple
-            if (Platform.isIOS) ...[
-              SocialButton.apple(
-                icon: Icons.apple,
-                text: t.translate("apple_login"),
-                onPressed: handleAppleSignup,
-              ),
-              Gaps.h12,
-            ],
-
-            // Google
-            SocialButton.dark(
-              icon: Icons.g_mobiledata,
-              text: t.translate("google_signup"),
-              onPressed: handleGoogleSignup,
-            ),
-          ],
+          ),
         ),
       ),
     );

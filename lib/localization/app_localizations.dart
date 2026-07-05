@@ -117,7 +117,7 @@ class AppLocalizations {
       "expert_placeholder_block_title": "Coming soon",
       "expert_placeholder_block_desc":
           "Detailed expertise questions will appear here.",
-      "expert_submission_title": "Application submitted",
+      "expert_submission_title": "Thank You!",
       "expert_submission_headline": "Thank you for your expertise",
       "expert_submission_body":
           "Your expert application was submitted successfully. Please allow 24–48 hours while we review your details.",
@@ -1442,7 +1442,7 @@ class AppLocalizations {
           "نعمل على تدفق من 27 سؤالاً مخصصاً. يمكنك الإرسال الآن للمتابعة.",
       "expert_placeholder_block_title": "قريباً",
       "expert_placeholder_block_desc": "ستظهر هنا أسئلة تفصيلية عن خبرتك.",
-      "expert_submission_title": "تم إرسال طلبك",
+      "expert_submission_title": "شكراً لك!",
       "expert_submission_headline": "شكراً لمشاركتك خبرتك",
       "expert_submission_body":
           "تم إرسال طلبك كخبير بنجاح. يرجى السماح بـ 24–48 ساعة لمراجعة بياناتك.",

@@ -12,7 +12,7 @@ import '../../core/account_storage.dart';
 import '../../services/health/workout_health_sync_service.dart';
 import '../../services/training/training_reset_coordinator.dart';
 import '../../services/training/training_service.dart';
-import '../../widgets/app_toast.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
 import '../../widgets/training/training_history_health_push_dialog.dart';
 import 'training_history_day_detail_page.dart';
 

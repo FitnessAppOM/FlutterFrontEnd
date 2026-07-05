@@ -4,7 +4,7 @@ import '../../screens/article_page.dart';
 import '../../models/news_item.dart';
 import '../../auth/expert_questionnaire.dart';
 import '../../core/account_storage.dart';
-import '../../widgets/app_toast.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
 import '../../localization/app_localizations.dart';
 import '../auth/profile_service.dart';
 

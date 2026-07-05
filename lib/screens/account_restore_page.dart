@@ -6,7 +6,7 @@ import '../localization/app_localizations.dart';
 import '../main/main_layout.dart';
 import '../services/auth/profile_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/app_toast.dart';
+import '../TaqaUI/components/taqa_toast.dart';
 import '../auth/questionnaire.dart';
 import '../auth/expert_questionnaire.dart';
 import '../screens/daily_journal.dart';

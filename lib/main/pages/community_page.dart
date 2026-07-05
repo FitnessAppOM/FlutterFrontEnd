@@ -8,7 +8,7 @@ import '../../services/community/community_models.dart';
 import '../../services/community/community_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/Main/card_container.dart';
-import '../../widgets/app_toast.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../TaqaUI/components/taqa_community_hero_card.dart';
 import '../../TaqaUI/components/taqa_community_action_row.dart';

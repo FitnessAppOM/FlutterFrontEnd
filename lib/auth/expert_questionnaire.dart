@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 import '../localization/app_localizations.dart';
-import '../widgets/primary_button.dart';
-import '../widgets/questionnaire/questionnaire_info_chip.dart';
-import '../widgets/questionnaire/questionnaire_section_row.dart';
 import '../widgets/questionnaire/expert_questionnaire_form.dart';
 import '../core/account_storage.dart';
-import '../widgets/app_toast.dart';
+import '../TaqaUI/components/taqa_toast.dart';
 import 'expert_submission_success.dart';
 import '../services/core/expert_questionnaire_service.dart';
 
@@ -25,121 +25,109 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: Text(_t("expert_questionnaire_title")),
         centerTitle: true,
+        title: Text(
+          _t("expert_questionnaire_title"),
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(15),
+            fontWeight: FontWeight.w700,
+            height: 25 / 15,
+            letterSpacing: 0,
+            color: TaqaUiColors.unnamedColor1c1d17,
+          ),
+        ),
+        backgroundColor: TaqaUiColors.white,
+        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
+        elevation: 0,
       ),
-      backgroundColor: Colors.black,
+      backgroundColor: TaqaUiColors.white,
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
         child: _started
             ? Padding(
-                padding: const EdgeInsets.all(20),
+                padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
                 child: ExpertQuestionnaireForm(
                   onSubmit: _submitting ? null : _submit,
                   submitting: _submitting,
                 ),
               )
-            : _buildIntro(theme, cs),
+            : Column(
+                children: [
+                  Expanded(child: _buildIntro()),
+                  _buildFooterButtons(),
+                ],
+              ),
       ),
     );
   }
 
-  Widget _buildIntro(ThemeData theme, ColorScheme cs) {
+  Widget _buildIntro() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _t("expert_questionnaire_intro_title"),
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
             _t("expert_questionnaire_intro_text"),
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: cs.onSurface.withValues(alpha: 0.7),
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(13),
+              fontWeight: FontWeight.w400,
+              height: 18 / 13,
+              letterSpacing: 0,
+              color: TaqaUiColors.unnamedColor1c1d17,
             ),
           ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              QuestionnaireInfoChip(
-                icon: Icons.format_list_numbered,
-                label: _t("expert_questionnaire_chip_count"),
-              ),
-              QuestionnaireInfoChip(
-                icon: Icons.timer_outlined,
-                label: _t("expert_questionnaire_chip_time"),
-              ),
-              QuestionnaireInfoChip(
-                icon: Icons.verified_user_outlined,
-                label: _t("expert_questionnaire_chip_quality"),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Card(
-            elevation: 1,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  QuestionnaireSectionRow(
-                    icon: Icons.school_outlined,
-                    title: _t("expert_section_experience"),
-                    subtitle: _t("expert_section_experience_sub"),
-                  ),
-                  const SizedBox(height: 8),
-                  QuestionnaireSectionRow(
-                    icon: Icons.stacked_line_chart_outlined,
-                    title: _t("expert_section_specialty"),
-                    subtitle: _t("expert_section_specialty_sub"),
-                  ),
-                  const SizedBox(height: 8),
-                  QuestionnaireSectionRow(
-                    icon: Icons.groups_outlined,
-                    title: _t("expert_section_clients"),
-                    subtitle: _t("expert_section_clients_sub"),
-                  ),
-                ],
-              ),
+          SizedBox(height: TaqaUiScale.h(24)),
+          Text(
+            _t("expert_questionnaire_intro_title"),
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(20),
+              fontWeight: FontWeight.w700,
+              height: 26 / 20,
+              letterSpacing: 0,
+              color: TaqaUiColors.unnamedColor1c1d17,
             ),
           ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: PrimaryWhiteButton(
-              onPressed: () => setState(() => _started = true),
-              child: Text(_t("start_questionnaire")),
-            ),
+          SizedBox(height: TaqaUiScale.h(20)),
+          _ExpertSection(
+            title: _t("expert_section_experience"),
+            subtitle: _t("expert_section_experience_sub"),
           ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
-                side: BorderSide(color: cs.outlineVariant),
-                foregroundColor: cs.onSurface.withValues(alpha: 0.8),
-              ),
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(_t("cancel")),
-            ),
+          SizedBox(height: TaqaUiScale.h(16)),
+          _ExpertSection(
+            title: _t("expert_section_specialty"),
+            subtitle: _t("expert_section_specialty_sub"),
+          ),
+          SizedBox(height: TaqaUiScale.h(16)),
+          _ExpertSection(
+            title: _t("expert_section_clients"),
+            subtitle: _t("expert_section_clients_sub"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooterButtons() {
+    return Padding(
+      padding: TaqaUiScale.insetsLTRB(16, 0, 16, 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _FilledActionButton(
+            label: _t("start_questionnaire"),
+            onTap: () => setState(() => _started = true),
+          ),
+          SizedBox(height: TaqaUiScale.h(10)),
+          _OutlineActionButton(
+            label: _t("cancel"),
+            onTap: () => Navigator.of(context).pop(),
           ),
         ],
       ),
@@ -176,5 +164,114 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+}
+
+class _ExpertSection extends StatelessWidget {
+  const _ExpertSection({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(10),
+            fontWeight: FontWeight.w700,
+            height: 12 / 10,
+            letterSpacing: 0,
+            color: TaqaUiColors.unnamedColor1c1d17,
+          ),
+        ),
+        SizedBox(height: TaqaUiScale.h(2)),
+        Text(
+          subtitle,
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(10),
+            fontWeight: FontWeight.w400,
+            height: 12 / 10,
+            letterSpacing: 0,
+            color: TaqaUiColors.unnamedColor1c1d17,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FilledActionButton extends StatelessWidget {
+  const _FilledActionButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: TaqaUiColors.unnamedColorE4e93b,
+      borderRadius: TaqaUiScale.radius(5),
+      child: InkWell(
+        borderRadius: TaqaUiScale.radius(5),
+        onTap: onTap,
+        child: SizedBox(
+          width: double.infinity,
+          height: TaqaUiScale.h(45),
+          child: Center(
+            child: Text(
+              label.toUpperCase(),
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(10),
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0,
+                height: 12 / 10,
+                color: TaqaUiColors.unnamedColor1c1d17,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OutlineActionButton extends StatelessWidget {
+  const _OutlineActionButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: double.infinity,
+          height: TaqaUiScale.h(45),
+          child: Center(
+            child: Text(
+              label.toUpperCase(),
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(10),
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0,
+                height: 12 / 10,
+                color: TaqaUiColors.unnamedColor1c1d17,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 
 class DividerWithLabel extends StatelessWidget {
   final String label;
@@ -7,14 +10,24 @@ class DividerWithLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lineColor = TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.15);
     return Row(
       children: [
-        const Expanded(child: Divider(thickness: 1, color: AppColors.dividerDark)),
+        Expanded(child: Divider(thickness: 1, color: lineColor)),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Text(label, style: const TextStyle(color: Colors.white70)),
+          padding: TaqaUiScale.symmetric(horizontal: 10),
+          child: Text(
+            label.toUpperCase(),
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+              fontSize: TaqaUiScale.sp(8),
+              fontWeight: FontWeight.w400,
+              letterSpacing: 0.4,
+              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.5),
+            ),
+          ),
         ),
-        const Expanded(child: Divider(thickness: 1, color: AppColors.dividerDark)),
+        Expanded(child: Divider(thickness: 1, color: lineColor)),
       ],
     );
   }

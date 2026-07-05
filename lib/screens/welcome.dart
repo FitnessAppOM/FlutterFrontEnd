@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import '../widgets/lang_button.dart';
 
 import '../auth/login.dart';
 import '../auth/signup.dart';
 import '../core/account_storage.dart';
-import '../theme/app_theme.dart';
-import '../theme/spacing.dart';
-import '../widgets/primary_button.dart';
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/components/taqa_filled_button.dart';
+import '../TaqaUI/components/taqa_steps_ui.dart' show TaqaRangeTab;
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 import '../widgets/divider_with_label.dart';
 import '../widgets/saved_account_tile.dart';
 import '../localization/app_localizations.dart';
@@ -18,7 +19,7 @@ import '../config/base_url.dart';
 import '../services/auth/profile_service.dart';
 import '../auth/questionnaire.dart';
 import '../auth/expert_questionnaire.dart';
-import '../widgets/app_toast.dart';
+import '../TaqaUI/components/taqa_toast.dart';
 import '../services/core/navigation_service.dart';
 import '../services/core/notification_service.dart';
 import '../services/core/daily_provider_push_service.dart';
@@ -458,7 +459,6 @@ class _WelcomePageState extends State<WelcomePage> {
   // -----------------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final t = AppLocalizations.of(context);
 
     final hasAccount = (lastEmail != null && lastEmail!.isNotEmpty);
@@ -470,51 +470,100 @@ class _WelcomePageState extends State<WelcomePage> {
         : (lastEmail?.split('@').first.trim() ?? '');
 
     return Scaffold(
-      backgroundColor: AppColors.black,
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+          padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // LANG BUTTONS
+              // LANGUAGE SWITCH (same TaqaRangeTab used in Settings)
               Row(
-                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  LangButton(
-                    label: "EN",
-                    flag: "🇬🇧",
-                    selected:
-                        Localizations.localeOf(context).languageCode == "en",
-                    onTap: () => _changeLanguage(const Locale('en')),
+                  Expanded(
+                    child: TaqaRangeTab(
+                      label: "English",
+                      selected:
+                          Localizations.localeOf(context).languageCode == "en",
+                      onTap: () => _changeLanguage(const Locale('en')),
+                    ),
                   ),
-                  LangButton(
-                    label: "AR",
-                    flag: "🇸🇦",
-                    selected:
-                        Localizations.localeOf(context).languageCode == "ar",
-                    onTap: () => _changeLanguage(const Locale('ar')),
+                  SizedBox(width: TaqaUiScale.w(15)),
+                  Expanded(
+                    child: TaqaRangeTab(
+                      label: "Arabic",
+                      selected:
+                          Localizations.localeOf(context).languageCode == "ar",
+                      onTap: () => _changeLanguage(const Locale('ar')),
+                    ),
                   ),
                 ],
               ),
 
+              SizedBox(height: TaqaUiScale.h(16)),
+
               Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: TaqaUiColors.unnamedColor1c1d17,
+                    borderRadius: TaqaUiScale.radius(20),
+                  ),
                   child: Stack(
-                    fit: StackFit.expand,
+                    alignment: Alignment.center,
                     children: [
-                      Image.asset(
-                        'assets/images/BGWELC.jpg',
-                        fit: BoxFit.cover,
+                      Positioned(
+                        top: TaqaUiScale.h(-50),
+                        right: TaqaUiScale.w(-60),
+                        child: Opacity(
+                          opacity: 0.12,
+                          child: Transform.rotate(
+                            angle: 0.5,
+                            child: Image.asset(
+                              'lib/TaqaUI/Assets/Taqa_Fitness_Favicon.png',
+                              width: TaqaUiScale.w(240),
+                            ),
+                          ),
+                        ),
                       ),
-                      Container(color: Colors.black.withValues(alpha: 0.25)),
+                      Positioned(
+                        bottom: TaqaUiScale.h(-60),
+                        left: TaqaUiScale.w(-70),
+                        child: Opacity(
+                          opacity: 0.10,
+                          child: Transform.rotate(
+                            angle: -0.4,
+                            child: Image.asset(
+                              'lib/TaqaUI/Assets/Taqa_Fitness_Favicon.png',
+                              width: TaqaUiScale.w(200),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: TaqaUiScale.radius(28),
+                          boxShadow: [
+                            BoxShadow(
+                              color: TaqaUiColors.unnamedColorE4e93b
+                                  .withValues(alpha: 0.35),
+                              blurRadius: 40,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: Image.asset(
+                          'lib/TaqaUI/Assets/Taqa_Fitness_Favicon.png',
+                          width: TaqaUiScale.w(140),
+                          height: TaqaUiScale.w(140),
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ),
 
-              Gaps.h24,
+              SizedBox(height: TaqaUiScale.h(24)),
 
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -522,17 +571,20 @@ class _WelcomePageState extends State<WelcomePage> {
                   Text(
                     t.translate("welcome_tagline"),
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      color: AppColors.white,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(20),
                       fontWeight: FontWeight.w700,
+                      height: 26 / 20,
+                      color: TaqaUiColors.unnamedColor1c1d17,
                     ),
                   ),
 
-                  Gaps.h24,
+                  SizedBox(height: TaqaUiScale.h(24)),
 
                   if (hasVerifiedAccount) ...[
                     DividerWithLabel(label: t.translate("saved_accounts")),
-                    Gaps.h12,
+                    SizedBox(height: TaqaUiScale.h(12)),
 
                     SavedAccountTile(
                       title: "${t.translate("login_as")} $displayName",
@@ -556,36 +608,35 @@ class _WelcomePageState extends State<WelcomePage> {
                       onMenu: () {},
                     ),
 
-                    Gaps.h20,
+                    SizedBox(height: TaqaUiScale.h(20)),
                   ],
 
-                  PrimaryWhiteButton(
-                    onPressed: () {
+                  TaqaFilledButton(
+                    label: hasVerifiedAccount
+                        ? t.translate("login_with_another")
+                        : t.translate("login"),
+                    onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => const LoginPage()),
                       );
                     },
-                    child: Text(
-                      hasVerifiedAccount
-                          ? t.translate("login_with_another")
-                          : t.translate("login"),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
-                      ),
-                    ),
                   ),
 
-                  Gaps.h20,
+                  SizedBox(height: TaqaUiScale.h(20)),
 
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         t.translate("new_to_taqa"),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textDim,
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          fontSize: TaqaUiScale.sp(13),
+                          fontWeight: FontWeight.w400,
+                          color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                            alpha: 0.6,
+                          ),
                         ),
                       ),
                       TextButton(
@@ -597,11 +648,13 @@ class _WelcomePageState extends State<WelcomePage> {
                         },
                         child: Text(
                           t.translate("signup"),
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: AppColors.accent,
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(13),
                             fontWeight: FontWeight.w700,
                             decoration: TextDecoration.underline,
-                            decorationColor: AppColors.accent,
+                            decorationColor: TaqaUiColors.unnamedColor1c1d17,
+                            color: TaqaUiColors.unnamedColor1c1d17,
                           ),
                         ),
                       ),

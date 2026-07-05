@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/components/taqa_filled_button.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 import '../localization/app_localizations.dart';
 
 class ExpertSubmissionSuccessPage extends StatelessWidget {
@@ -9,108 +13,82 @@ class ExpertSubmissionSuccessPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     return Scaffold(
-      backgroundColor: AppColors.black,
+      backgroundColor: TaqaUiColors.white,
       appBar: AppBar(
-        backgroundColor: AppColors.black,
-        elevation: 0,
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
+          icon: Icon(Icons.close, color: TaqaUiColors.unnamedColor1c1d17),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           t.translate("expert_submission_title"),
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(15),
+            fontWeight: FontWeight.w700,
+            height: 25 / 15,
+            letterSpacing: 0,
+            color: TaqaUiColors.unnamedColor1c1d17,
+          ),
         ),
-        centerTitle: true,
+        backgroundColor: TaqaUiColors.white,
+        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
+        elevation: 0,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white12),
-              ),
-              child: Row(
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const CircleAvatar(
-                    radius: 26,
-                    backgroundColor: AppColors.accent,
-                    child: Icon(Icons.check, color: Colors.black, size: 28),
+                  Text(
+                    t.translate("expert_submission_body"),
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(10),
+                      fontWeight: FontWeight.w400,
+                      height: 12 / 10,
+                      letterSpacing: 0,
+                      color: TaqaUiColors.unnamedColor1c1d17,
+                    ),
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          t.translate("expert_submission_headline"),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          t.translate("expert_submission_body"),
-                          style: const TextStyle(color: Colors.white70),
-                        ),
-                      ],
+                  SizedBox(height: TaqaUiScale.h(25)),
+                  Text(
+                    t.translate("expert_submission_next_steps"),
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(15),
+                      fontWeight: FontWeight.w700,
+                      height: 25 / 15,
+                      letterSpacing: 0,
+                      color: TaqaUiColors.unnamedColor1c1d17,
+                    ),
+                  ),
+                  SizedBox(height: TaqaUiScale.h(11)),
+                  Text(
+                    "+ ${t.translate("expert_submission_step_review")}\n"
+                    "+ ${t.translate("expert_submission_step_notify")}\n"
+                    "+ ${t.translate("expert_submission_step_dashboard")}",
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(15),
+                      fontWeight: FontWeight.w400,
+                      height: 20 / 15,
+                      letterSpacing: 0,
+                      color: TaqaUiColors.unnamedColor1c1d17,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-            Text(
-              t.translate("expert_submission_next_steps"),
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 15,
-              ),
-            ),
-            const SizedBox(height: 10),
-            _bullet(t.translate("expert_submission_step_review")),
-            _bullet(t.translate("expert_submission_step_notify")),
-            _bullet(t.translate("expert_submission_step_dashboard")),
-            const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: const BorderSide(color: AppColors.accent),
-                  minimumSize: const Size.fromHeight(48),
-                ),
-                onPressed: () {
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                },
-                child: Text(t.translate("close")),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _bullet(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text("• ", style: TextStyle(color: Colors.white70)),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(color: Colors.white70),
+          ),
+          Padding(
+            padding: TaqaUiScale.insetsLTRB(16, 0, 16, 20),
+            child: TaqaFilledButton(
+              label: t.translate("close"),
+              onTap: () => Navigator.of(context).popUntil((route) => route.isFirst),
             ),
           ),
         ],

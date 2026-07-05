@@ -8,7 +8,7 @@ import '../../widgets/appbar_back_button.dart';
 import '../../auth/login.dart';
 import '../../screens/welcome.dart';
 import '../../localization/app_localizations.dart';
-import '../../widgets/app_toast.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
 
 class ResetPasswordPage extends StatefulWidget {
   final String email;

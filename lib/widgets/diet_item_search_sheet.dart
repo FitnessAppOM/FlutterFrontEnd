@@ -5,6 +5,7 @@ import '../services/diet/diet_service.dart';
 import '../services/diet/nutrition_search_service.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_steps_ui.dart' show TaqaRangeTab;
+import '../TaqaUI/components/taqa_toast.dart';
 import '../TaqaUI/components/taqa_value_dialog.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
@@ -313,10 +314,10 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
       } catch (e) {
         if (!mounted) return;
         if (widget.rootContext.mounted) {
-          ScaffoldMessenger.of(widget.rootContext).showSnackBar(
-            SnackBar(
-              content: Text("${t.translate("diet_failed_to_add_item")}: $e"),
-            ),
+          AppToast.show(
+            widget.rootContext,
+            "${t.translate("diet_failed_to_add_item")}: $e",
+            type: AppToastType.error,
           );
         }
         return;
@@ -365,17 +366,19 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
       await action();
       if (!mounted) return;
       if (widget.rootContext.mounted) {
-        ScaffoldMessenger.of(
+        AppToast.show(
           widget.rootContext,
-        ).showSnackBar(SnackBar(content: Text(successToast)));
+          successToast,
+          type: AppToastType.success,
+        );
       }
     } catch (e) {
       if (!mounted) return;
       if (widget.rootContext.mounted) {
-        ScaffoldMessenger.of(widget.rootContext).showSnackBar(
-          SnackBar(
-            content: Text("${t.translate("diet_failed_to_add_item")}: $e"),
-          ),
+        AppToast.show(
+          widget.rootContext,
+          "${t.translate("diet_failed_to_add_item")}: $e",
+          type: AppToastType.error,
         );
       }
       rethrow;

@@ -8,7 +8,7 @@ import 'verify_reset_code_page.dart';
 import '../../widgets/appbar_back_button.dart';
 import 'package:http/http.dart' as http;
 import '../../localization/app_localizations.dart';
-import '../../widgets/app_toast.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   final String? lockedEmail;

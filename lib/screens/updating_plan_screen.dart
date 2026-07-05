@@ -9,7 +9,7 @@ import '../services/diet/diet_service.dart';
 import '../services/diet/diet_targets_storage.dart';
 import '../services/training/training_service.dart';
 import '../services/training/training_progress_storage.dart';
-import '../widgets/app_toast.dart';
+import '../TaqaUI/components/taqa_toast.dart';
 import '../widgets/training_loading_indicator.dart';
 
 /// Shown after editing profile when training days change.

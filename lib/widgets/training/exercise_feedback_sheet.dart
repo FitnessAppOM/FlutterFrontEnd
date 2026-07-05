@@ -5,7 +5,7 @@ import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/training/training_service.dart';
 import '../../services/training/exercise_action_queue.dart';
-import '../../widgets/app_toast.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
 import '../../services/core/feedback_questions_storage.dart';
 
 class ExerciseFeedbackSheet extends StatefulWidget {

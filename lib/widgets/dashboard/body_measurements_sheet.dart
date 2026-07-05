@@ -11,7 +11,7 @@ import '../../services/auth/profile_service.dart';
 import '../../services/diet/diet_targets_storage.dart';
 import '../../theme/app_theme.dart';
 import '../../localization/app_localizations.dart';
-import '../app_toast.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
 
 class BodyMeasurementsSheet extends StatefulWidget {
   final double? initialHeightCm;

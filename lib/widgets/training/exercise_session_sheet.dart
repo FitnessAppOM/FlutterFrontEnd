@@ -11,7 +11,7 @@ import '../../services/training/training_network_resilience.dart';
 import '../../services/training/cardio_session_queue.dart';
 import 'exercise_feedback_sheet.dart';
 import 'exercise_instruction_dialog.dart';
-import '../../widgets/app_toast.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
 import '../../services/training/exercise_action_queue.dart';
 import '../../services/training/training_completion_storage.dart';
 import '../../services/training/training_progress_storage.dart';

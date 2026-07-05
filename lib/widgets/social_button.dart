@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
-import '../theme/app_theme.dart';
+
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 
 class SocialButton extends StatelessWidget {
   final String text;
@@ -56,42 +59,54 @@ class SocialButton extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final content = Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (iconAsset != null)
-          Padding(
-            padding: const EdgeInsets.only(right: 10),
-            child: Image.asset(iconAsset!, width: 20, height: 20),
-          )
-        else if (icon != null)
-          Padding(
-            padding: const EdgeInsets.only(right: 10),
-            child: Icon(icon, size: 20, color: Colors.white),
-          ),
-        Text(
-          text,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-      ],
-    );
-
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        style: ButtonStyle(
-          backgroundColor: WidgetStateProperty.all(AppColors.surfaceDark),
-          foregroundColor: WidgetStateProperty.all(Colors.white),
-          padding: WidgetStateProperty.all(const EdgeInsets.symmetric(vertical: 14)),
-          shape: WidgetStateProperty.all(
-            RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
+    return Material(
+      color: TaqaUiColors.white,
+      borderRadius: TaqaUiScale.radius(5),
+      child: InkWell(
+        borderRadius: TaqaUiScale.radius(5),
+        onTap: onPressed,
+        child: Container(
+          width: double.infinity,
+          height: TaqaUiScale.h(48),
+          decoration: BoxDecoration(
+            borderRadius: TaqaUiScale.radius(5),
+            border: Border.all(
+              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.15),
             ),
           ),
-          elevation: WidgetStateProperty.all(0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (iconAsset != null)
+                Padding(
+                  padding: EdgeInsets.only(right: TaqaUiScale.w(10)),
+                  child: Image.asset(
+                    iconAsset!,
+                    width: TaqaUiScale.w(20),
+                    height: TaqaUiScale.h(20),
+                  ),
+                )
+              else if (icon != null)
+                Padding(
+                  padding: EdgeInsets.only(right: TaqaUiScale.w(10)),
+                  child: Icon(
+                    icon,
+                    size: TaqaUiScale.w(20),
+                    color: TaqaUiColors.unnamedColor1c1d17,
+                  ),
+                ),
+              Text(
+                text,
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(13),
+                  fontWeight: FontWeight.w600,
+                  color: TaqaUiColors.unnamedColor1c1d17,
+                ),
+              ),
+            ],
+          ),
         ),
-        onPressed: onPressed,
-        child: content,
       ),
     );
   }

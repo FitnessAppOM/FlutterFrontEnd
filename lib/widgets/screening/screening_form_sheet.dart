@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../../TaqaUI/styles/taqa_ui_scale.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../core/account_storage.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/screenings/screening_service.dart';
-import '../../theme/app_theme.dart';
-import '../app_toast.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
 
 /// Full-screen modal that collects 7 screening questions
 /// (EQ-5D-3L + PHQ-2) and submits them.
@@ -102,131 +104,151 @@ class _ScreeningFormSheetState extends State<ScreeningFormSheet> {
     final days = widget.pending.daysRemaining;
 
     return Scaffold(
-      backgroundColor: AppColors.black,
       appBar: AppBar(
-        backgroundColor: AppColors.black,
-        title: Text(t("screening_title"),
-            style: const TextStyle(fontWeight: FontWeight.w700)),
-        leading: const CloseButton(color: Colors.white),
+        centerTitle: true,
+        title: Text(
+          t("screening_title"),
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(15),
+            fontWeight: FontWeight.w700,
+            height: 25 / 15,
+            letterSpacing: 0,
+            color: TaqaUiColors.unnamedColor1c1d17,
+          ),
+        ),
+        leading: CloseButton(color: TaqaUiColors.unnamedColor1c1d17),
+        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
         elevation: 0,
       ),
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          children: [
-            Text(t("screening_subtitle"),
-                style: AppTextStyles.small),
-            if (days != null) ...[
-              const SizedBox(height: 8),
-              _DaysRemainingChip(days: days),
-            ],
-            const SizedBox(height: 20),
+        child: SingleChildScrollView(
+          padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    t("screening_subtitle"),
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(12),
+                      fontWeight: FontWeight.w400,
+                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                        alpha: 0.6,
+                      ),
+                    ),
+                  ),
+                  if (days != null) ...[
+                    SizedBox(height: TaqaUiScale.h(10)),
+                    _DaysRemainingChip(days: days),
+                  ],
+                  SizedBox(height: TaqaUiScale.h(20)),
 
-            // ── EQ-5D-3L ──
-            _SectionLabel(label: t("screening_eq5d_section")),
-            const SizedBox(height: 12),
+                  // ── EQ-5D-3L ──
+                  _SectionLabel(label: t("screening_eq5d_section")),
+                  SizedBox(height: TaqaUiScale.h(12)),
 
-            _Eq5dQuestion(
-              title: t("screening_q_mobility"),
-              options: [
-                t("screening_q_mobility_1"),
-                t("screening_q_mobility_2"),
-                t("screening_q_mobility_3"),
-              ],
-              value: _mobility,
-              onChanged: (v) => setState(() => _mobility = v),
-            ),
-            const SizedBox(height: 16),
-            _Eq5dQuestion(
-              title: t("screening_q_self_care"),
-              options: [
-                t("screening_q_self_care_1"),
-                t("screening_q_self_care_2"),
-                t("screening_q_self_care_3"),
-              ],
-              value: _selfCare,
-              onChanged: (v) => setState(() => _selfCare = v),
-            ),
-            const SizedBox(height: 16),
-            _Eq5dQuestion(
-              title: t("screening_q_usual_activities"),
-              options: [
-                t("screening_q_usual_activities_1"),
-                t("screening_q_usual_activities_2"),
-                t("screening_q_usual_activities_3"),
-              ],
-              value: _usualActivities,
-              onChanged: (v) => setState(() => _usualActivities = v),
-            ),
-            const SizedBox(height: 16),
-            _Eq5dQuestion(
-              title: t("screening_q_pain"),
-              options: [
-                t("screening_q_pain_1"),
-                t("screening_q_pain_2"),
-                t("screening_q_pain_3"),
-              ],
-              value: _painDiscomfort,
-              onChanged: (v) => setState(() => _painDiscomfort = v),
-            ),
-            const SizedBox(height: 16),
-            _Eq5dQuestion(
-              title: t("screening_q_anxiety"),
-              options: [
-                t("screening_q_anxiety_1"),
-                t("screening_q_anxiety_2"),
-                t("screening_q_anxiety_3"),
-              ],
-              value: _anxietyDepression,
-              onChanged: (v) => setState(() => _anxietyDepression = v),
-            ),
+                  _Eq5dQuestion(
+                    title: t("screening_q_mobility"),
+                    options: [
+                      t("screening_q_mobility_1"),
+                      t("screening_q_mobility_2"),
+                      t("screening_q_mobility_3"),
+                    ],
+                    value: _mobility,
+                    onChanged: (v) => setState(() => _mobility = v),
+                  ),
+                  SizedBox(height: TaqaUiScale.h(12)),
+                  _Eq5dQuestion(
+                    title: t("screening_q_self_care"),
+                    options: [
+                      t("screening_q_self_care_1"),
+                      t("screening_q_self_care_2"),
+                      t("screening_q_self_care_3"),
+                    ],
+                    value: _selfCare,
+                    onChanged: (v) => setState(() => _selfCare = v),
+                  ),
+                  SizedBox(height: TaqaUiScale.h(12)),
+                  _Eq5dQuestion(
+                    title: t("screening_q_usual_activities"),
+                    options: [
+                      t("screening_q_usual_activities_1"),
+                      t("screening_q_usual_activities_2"),
+                      t("screening_q_usual_activities_3"),
+                    ],
+                    value: _usualActivities,
+                    onChanged: (v) => setState(() => _usualActivities = v),
+                  ),
+                  SizedBox(height: TaqaUiScale.h(12)),
+                  _Eq5dQuestion(
+                    title: t("screening_q_pain"),
+                    options: [
+                      t("screening_q_pain_1"),
+                      t("screening_q_pain_2"),
+                      t("screening_q_pain_3"),
+                    ],
+                    value: _painDiscomfort,
+                    onChanged: (v) => setState(() => _painDiscomfort = v),
+                  ),
+                  SizedBox(height: TaqaUiScale.h(12)),
+                  _Eq5dQuestion(
+                    title: t("screening_q_anxiety"),
+                    options: [
+                      t("screening_q_anxiety_1"),
+                      t("screening_q_anxiety_2"),
+                      t("screening_q_anxiety_3"),
+                    ],
+                    value: _anxietyDepression,
+                    onChanged: (v) => setState(() => _anxietyDepression = v),
+                  ),
 
-            const SizedBox(height: 28),
+                  SizedBox(height: TaqaUiScale.h(24)),
 
-            // ── PHQ-2 ──
-            _SectionLabel(label: t("screening_phq2_section")),
-            const SizedBox(height: 12),
+                  // ── PHQ-2 ──
+                  _SectionLabel(label: t("screening_phq2_section")),
+                  SizedBox(height: TaqaUiScale.h(12)),
 
-            _Phq2Question(
-              title: t("screening_q_interest"),
-              options: [
-                t("screening_phq_0"),
-                t("screening_phq_1"),
-                t("screening_phq_2"),
-                t("screening_phq_3"),
-              ],
-              value: _q1Interest,
-              onChanged: (v) => setState(() => _q1Interest = v),
-            ),
-            const SizedBox(height: 16),
-            _Phq2Question(
-              title: t("screening_q_mood"),
-              options: [
-                t("screening_phq_0"),
-                t("screening_phq_1"),
-                t("screening_phq_2"),
-                t("screening_phq_3"),
-              ],
-              value: _q2Mood,
-              onChanged: (v) => setState(() => _q2Mood = v),
-            ),
+                  _Phq2Question(
+                    title: t("screening_q_interest"),
+                    options: [
+                      t("screening_phq_0"),
+                      t("screening_phq_1"),
+                      t("screening_phq_2"),
+                      t("screening_phq_3"),
+                    ],
+                    value: _q1Interest,
+                    onChanged: (v) => setState(() => _q1Interest = v),
+                  ),
+                  SizedBox(height: TaqaUiScale.h(12)),
+                  _Phq2Question(
+                    title: t("screening_q_mood"),
+                    options: [
+                      t("screening_phq_0"),
+                      t("screening_phq_1"),
+                      t("screening_phq_2"),
+                      t("screening_phq_3"),
+                    ],
+                    value: _q2Mood,
+                    onChanged: (v) => setState(() => _q2Mood = v),
+                  ),
 
-            const SizedBox(height: 28),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _allAnswered && !_submitting ? _submit : null,
-                child: _submitting
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(t("screening_submit")),
+                  SizedBox(height: TaqaUiScale.h(24)),
+                  _SubmitButton(
+                    loading: _submitting,
+                    label: t("screening_submit"),
+                    onTap: (_allAnswered && !_submitting) ? _submit : null,
+                  ),
+                  SizedBox(height: TaqaUiScale.h(40)),
+                ],
               ),
             ),
-            const SizedBox(height: 40),
-          ],
+          ),
         ),
       ),
     );
@@ -245,17 +267,18 @@ class _DaysRemainingChip extends StatelessWidget {
     return Align(
       alignment: AlignmentDirectional.centerStart,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding: TaqaUiScale.insetsLTRB(10, 4, 10, 4),
         decoration: BoxDecoration(
-          color: AppColors.accent.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(10),
+          color: TaqaUiColors.unnamedColorE4e93b.withValues(alpha: 0.25),
+          borderRadius: TaqaUiScale.radius(10),
         ),
         child: Text(
           t("screening_days_remaining").replaceAll("{days}", "$days"),
-          style: const TextStyle(
-            color: AppColors.accent,
-            fontSize: 12,
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(11),
             fontWeight: FontWeight.w600,
+            color: TaqaUiColors.unnamedColor1c1d17,
           ),
         ),
       ),
@@ -271,11 +294,12 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label,
-      style: const TextStyle(
-        color: Colors.white70,
-        fontSize: 13,
-        fontWeight: FontWeight.w700,
+      style: TextStyle(
+        fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+        fontSize: TaqaUiScale.sp(10),
+        fontWeight: FontWeight.w400,
         letterSpacing: 0.8,
+        color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
       ),
     );
   }
@@ -352,17 +376,24 @@ class _QuestionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: TaqaUiScale.insetsLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
-        color: AppColors.surfaceDark,
-        borderRadius: BorderRadius.circular(AppRadii.tile),
-        border: Border.all(color: AppColors.dividerDark),
+        color: TaqaUiColors.white,
+        borderRadius: TaqaUiScale.radius(15),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: AppTextStyles.subtitle),
-          const SizedBox(height: 10),
+          Text(
+            title,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(13),
+              fontWeight: FontWeight.w700,
+              color: TaqaUiColors.unnamedColor1c1d17,
+            ),
+          ),
+          SizedBox(height: TaqaUiScale.h(10)),
           child,
         ],
       ),
@@ -385,29 +416,88 @@ class _RadioTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: TaqaUiScale.radius(8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
+        padding: EdgeInsets.symmetric(vertical: TaqaUiScale.h(6)),
         child: Row(
           children: [
             Icon(
               selected
                   ? Icons.radio_button_checked
                   : Icons.radio_button_unchecked,
-              size: 20,
-              color: selected ? AppColors.accent : Colors.white38,
+              size: TaqaUiScale.w(20),
+              color: selected
+                  ? TaqaUiColors.unnamedColor1c1d17
+                  : TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.3),
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: TaqaUiScale.w(10)),
             Expanded(
               child: Text(
                 label,
                 style: TextStyle(
-                  color: selected ? Colors.white : Colors.white70,
-                  fontSize: 14,
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(13),
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  color: selected
+                      ? TaqaUiColors.unnamedColor1c1d17
+                      : TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.7),
                 ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SubmitButton extends StatelessWidget {
+  const _SubmitButton({
+    required this.loading,
+    required this.label,
+    required this.onTap,
+  });
+
+  final bool loading;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = onTap == null;
+    return Material(
+      color: disabled
+          ? TaqaUiColors.unnamedColorE4e93b.withValues(alpha: 0.4)
+          : TaqaUiColors.unnamedColorE4e93b,
+      borderRadius: TaqaUiScale.radius(5),
+      child: InkWell(
+        borderRadius: TaqaUiScale.radius(5),
+        onTap: onTap,
+        child: SizedBox(
+          width: double.infinity,
+          height: TaqaUiScale.h(45),
+          child: Center(
+            child: loading
+                ? SizedBox(
+                    width: TaqaUiScale.w(18),
+                    height: TaqaUiScale.h(18),
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: TaqaUiColors.unnamedColor1c1d17,
+                    ),
+                  )
+                : Text(
+                    label.toUpperCase(),
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(10),
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0,
+                      height: 12 / 10,
+                      color: TaqaUiColors.unnamedColor1c1d17,
+                    ),
+                  ),
+          ),
         ),
       ),
     );

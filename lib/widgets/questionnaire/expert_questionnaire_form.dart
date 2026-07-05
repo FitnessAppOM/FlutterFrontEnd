@@ -6,12 +6,15 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../localization/app_localizations.dart';
 import '../../services/auth/affiliation_service.dart';
-import '../../theme/app_theme.dart';
-import '../primary_button.dart';
+import '../../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../../TaqaUI/components/taqa_filled_button.dart';
+import '../../TaqaUI/components/taqa_underline_field.dart';
+import '../../TaqaUI/styles/taqa_ui_scale.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../consents/consent_manager.dart';
 import '../../services/core/expert_questionnaire_service.dart';
-import '../app_toast.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class ExpertQuestionnaireForm extends StatefulWidget {
@@ -338,97 +341,160 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _sectionTitle(t.translate("section_basics_title")),
-            _textField(_c("full_name"), "Full name"),
-            _dobField(),
-            _dropdown("Gender", _gender, _genderOpts, (v) => setState(() => _gender = v)),
-            _dropdown("Nationality", _nationality, _countryOpts,
-                (v) => setState(() => _nationality = v)),
-            _dropdown("Country of residence", _residence, _countryOpts,
-                (v) => setState(() => _residence = v)),
-            _textField(_c("city_of_residence"), "City of residence"),
-            _textField(_c("primary_phone_number"), "Phone number"),
-            _textField(_c("email_address"), "Email"),
-            const SizedBox(height: 16),
-
-            _sectionTitle("Professional Role"),
-            _dropdown("Role", _role, _roleOpts, (v) {
-              setState(() {
-                _role = v;
-                if (v != "Other") _c("professional_role_other").clear();
-              });
-            }),
-            if (_role == "Other") _textField(_c("professional_role_other"), "Specify role"),
-            const SizedBox(height: 16),
-
-            _sectionTitle("Affiliation"),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                children: [
-                  ChoiceChip(
-                    label: const Text("Affiliated"),
-                    selected: _isAffiliated,
-                    onSelected: (v) {
-                      setState(() {
-                        _isAffiliated = true;
-                      });
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  ChoiceChip(
-                    label: const Text("Not affiliated"),
-                    selected: !_isAffiliated,
-                    onSelected: (v) {
-                      setState(() {
-                        _isAffiliated = false;
-                        _affiliationId = null;
-                        _affiliationOtherText = "";
-                        _affiliationName = null;
-                      });
-                    },
-                  ),
-                ],
+            Text(
+              "Form description: ${t.translate("expert_questionnaire_intro_text")}",
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(12),
+                fontWeight: FontWeight.w400,
+                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
               ),
             ),
+            SizedBox(height: TaqaUiScale.h(24)),
+
+            const TaqaSectionHeading(title: "Affiliation"),
+            Row(
+              children: [
+                TaqaPillChoice(
+                  label: "Affiliated",
+                  selected: _isAffiliated,
+                  onTap: () => setState(() => _isAffiliated = true),
+                ),
+                SizedBox(width: TaqaUiScale.w(10)),
+                TaqaPillChoice(
+                  label: "Not affiliated",
+                  selected: !_isAffiliated,
+                  onTap: () {
+                    setState(() {
+                      _isAffiliated = false;
+                      _affiliationId = null;
+                      _affiliationOtherText = "";
+                      _affiliationName = null;
+                    });
+                  },
+                ),
+              ],
+            ),
+            const TaqaSectionDivider(),
+
+            const TaqaSectionHeading(title: "Certification & Files"),
             _affiliationSummary(),
-            const SizedBox(height: 16),
-
-            _sectionTitle("Certifications & Files"),
+            SizedBox(height: TaqaUiScale.h(12)),
             _certificateSummary(),
-            _uploadField("Government ID", _c("government_id_file_url"), "gov"),
-            _uploadField("Selfie", _c("selfie_file_url"), "selfie"),
-            const SizedBox(height: 16),
+            SizedBox(height: TaqaUiScale.h(16)),
+            Text(
+              "Government Id",
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(15),
+                fontWeight: FontWeight.w700,
+                color: TaqaUiColors.unnamedColor1c1d17,
+              ),
+            ),
+            SizedBox(height: TaqaUiScale.h(8)),
+            TaqaUploadRow(
+              display: _c("government_id_file_url").text.isEmpty
+                  ? "No file uploaded"
+                  : _c("government_id_file_url").text,
+              actionLabel: "Upload",
+              onTap: () => _pickAndUpload("gov", _c("government_id_file_url")),
+            ),
+            SizedBox(height: TaqaUiScale.h(16)),
+            Text(
+              "Selfie",
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(15),
+                fontWeight: FontWeight.w700,
+                color: TaqaUiColors.unnamedColor1c1d17,
+              ),
+            ),
+            SizedBox(height: TaqaUiScale.h(8)),
+            TaqaUploadRow(
+              display: _c("selfie_file_url").text.isEmpty
+                  ? "No file uploaded"
+                  : _c("selfie_file_url").text,
+              actionLabel: "Upload",
+              onTap: () => _captureSelfie(_c("selfie_file_url")),
+            ),
+            const TaqaSectionDivider(),
 
-            _sectionTitle("Experience"),
-            _dropdown("Years of experience", _yearsExperience, _yearsOpts,
-                (v) => setState(() => _yearsExperience = v)),
+            const TaqaSectionHeading(title: "Experience"),
+            TaqaUnderlineDropdown(
+              label: "Years of experience",
+              value: _yearsExperience,
+              options: _yearsOpts,
+              onChanged: (v) => setState(() => _yearsExperience = v),
+              validator: (val) => (val == null || val.isEmpty) ? "Required" : null,
+            ),
+            SizedBox(height: TaqaUiScale.h(16)),
             _multiChoiceWithOther(
-              label: "Core specialties",
+              label: "Core Specialties",
               options: _coreOpts,
               target: _coreSpecialties,
               otherCtrl: _coreOtherCtrl,
             ),
+            SizedBox(height: TaqaUiScale.h(16)),
             _multiChoice("Preferred client types", _preferredOpts, _preferredClients),
+            SizedBox(height: TaqaUiScale.h(16)),
             _multiChoice("Services to offer", _servicesOpts, _servicesOffer),
-            const SizedBox(height: 16),
+            const TaqaSectionDivider(),
 
-            _sectionTitle("Expectations & Preferences"),
-            _dropdown("Expected response time", _responseTime, _responseOpts,
-                (v) => setState(() => _responseTime = v)),
+            const TaqaSectionHeading(title: "Languages"),
             _multiChoiceWithOther(
               label: "Languages",
               options: _languageOpts,
               target: _languages,
               otherCtrl: _languageOtherCtrl,
+              showLabel: false,
             ),
+            const TaqaSectionDivider(),
+
+            const TaqaSectionHeading(title: "Professional Role"),
+            TaqaUnderlineDropdown(
+              label: "Role",
+              value: _role,
+              options: _roleOpts,
+              onChanged: (v) {
+                setState(() {
+                  _role = v;
+                  if (v != "Other") _c("professional_role_other").clear();
+                });
+              },
+              validator: (val) => (val == null || val.isEmpty) ? "Required" : null,
+            ),
+            if (_role == "Other") ...[
+              SizedBox(height: TaqaUiScale.h(12)),
+              TaqaUnderlineTextField(
+                controller: _c("professional_role_other"),
+                label: "Specify role",
+                validator: (val) =>
+                    (val == null || val.trim().isEmpty) ? "Required" : null,
+              ),
+            ],
+            const TaqaSectionDivider(),
+
+            const TaqaSectionHeading(title: "Expectations & Preferences"),
+            TaqaUnderlineDropdown(
+              label: "Expected response time",
+              value: _responseTime,
+              options: _responseOpts,
+              onChanged: (v) => setState(() => _responseTime = v),
+              validator: (val) => (val == null || val.isEmpty) ? "Required" : null,
+            ),
+            SizedBox(height: TaqaUiScale.h(16)),
             _multiChoiceWithOther(
               label: "Previous work settings",
               options: _workSettingOpts,
               target: _workSettings,
               otherCtrl: _workOtherCtrl,
             ),
-            _textField(_c("social_links"), "Professional social links", required: false),
+            SizedBox(height: TaqaUiScale.h(16)),
+            TaqaUnderlineTextField(
+              controller: _c("social_links"),
+              label: "Professional social links",
+            ),
+            SizedBox(height: TaqaUiScale.h(16)),
             _dropdownWithOther(
               label: "How did you hear about Taqa Fitness?",
               value: _heardAbout,
@@ -436,6 +502,7 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
               otherCtrl: _heardOtherCtrl,
               onChanged: (v) => setState(() => _heardAbout = v),
             ),
+            SizedBox(height: TaqaUiScale.h(16)),
             _dropdownWithOther(
               label: "Why do you want to join Taqa Fitness?",
               value: _joinReason,
@@ -443,58 +510,167 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
               otherCtrl: _joinOtherCtrl,
               onChanged: (v) => setState(() => _joinReason = v),
             ),
-            _dropdown("Onboarding call availability", _onboarding, _onboardingOpts,
-                (v) => setState(() => _onboarding = v)),
-            _dropdown("Be referred clients automatically?", _referAsCoach, ["Yes", "No"],
-                (v) => setState(() => _referAsCoach = v)),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: PrimaryWhiteButton(
-                onPressed: widget.submitting ? null : _submit,
-                child: widget.submitting
-                    ? const SizedBox(
-                        height: 22,
-                        width: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.black,
-                        ),
-                      )
-                    : Text(t.translate("expert_questionnaire_submit")),
+            SizedBox(height: TaqaUiScale.h(16)),
+            TaqaUnderlineDropdown(
+              label: "Onboarding call availability",
+              value: _onboarding,
+              options: _onboardingOpts,
+              onChanged: (v) => setState(() => _onboarding = v),
+              validator: (val) => (val == null || val.isEmpty) ? "Required" : null,
+            ),
+            SizedBox(height: TaqaUiScale.h(16)),
+            TaqaUnderlineDropdown(
+              label: "Be referred clients automatically?",
+              value: _referAsCoach,
+              options: const ["Yes", "No"],
+              onChanged: (v) => setState(() => _referAsCoach = v),
+              validator: (val) => (val == null || val.isEmpty) ? "Required" : null,
+            ),
+            const TaqaSectionDivider(),
+
+            const TaqaSectionHeading(title: "Basics"),
+            Text(
+              "Full Name",
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(11),
+                fontWeight: FontWeight.w400,
+                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.55),
               ),
             ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white70,
-                  side: const BorderSide(color: Colors.white24),
-                  minimumSize: const Size.fromHeight(50),
+            SizedBox(height: TaqaUiScale.h(4)),
+            Row(
+              children: [
+                Expanded(
+                  child: TaqaUnderlineTextField(
+                    controller: _c("first_name"),
+                    hint: "First Name",
+                    validator: (val) =>
+                        (val == null || val.trim().isEmpty) ? "Required" : null,
+                    onChanged: (_) => _syncFullName(),
+                  ),
                 ),
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(t.translate("cancel")),
+                SizedBox(width: TaqaUiScale.w(14)),
+                Expanded(
+                  child: TaqaUnderlineTextField(
+                    controller: _c("last_name"),
+                    hint: "Last Name",
+                    validator: (val) =>
+                        (val == null || val.trim().isEmpty) ? "Required" : null,
+                    onChanged: (_) => _syncFullName(),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: TaqaUiScale.h(16)),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _dobField()),
+                SizedBox(width: TaqaUiScale.w(14)),
+                Expanded(
+                  child: TaqaUnderlineDropdown(
+                    label: "Gender",
+                    value: _gender,
+                    options: _genderOpts,
+                    onChanged: (v) => setState(() => _gender = v),
+                    validator: (val) =>
+                        (val == null || val.isEmpty) ? "Required" : null,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: TaqaUiScale.h(16)),
+            TaqaUnderlineDropdown(
+              label: "Nationality",
+              value: _nationality,
+              options: _countryOpts,
+              onChanged: (v) => setState(() => _nationality = v),
+              validator: (val) => (val == null || val.isEmpty) ? "Required" : null,
+            ),
+            SizedBox(height: TaqaUiScale.h(16)),
+            TaqaUnderlineDropdown(
+              label: "Country Of Residence",
+              value: _residence,
+              options: _countryOpts,
+              onChanged: (v) => setState(() => _residence = v),
+              validator: (val) => (val == null || val.isEmpty) ? "Required" : null,
+            ),
+            SizedBox(height: TaqaUiScale.h(16)),
+            TaqaUnderlineTextField(
+              controller: _c("city_of_residence"),
+              label: "City",
+              hint: "City",
+              validator: (val) =>
+                  (val == null || val.trim().isEmpty) ? "Required" : null,
+            ),
+            SizedBox(height: TaqaUiScale.h(16)),
+            Text(
+              "Phone Number",
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(11),
+                fontWeight: FontWeight.w400,
+                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.55),
               ),
             ),
+            SizedBox(height: TaqaUiScale.h(4)),
+            TaqaUnderlineTextField(
+              controller: _c("primary_phone_number"),
+              hint: "Number",
+              keyboardType: TextInputType.phone,
+              validator: (val) =>
+                  (val == null || val.trim().isEmpty) ? "Required" : null,
+            ),
+            SizedBox(height: TaqaUiScale.h(16)),
+            TaqaUnderlineTextField(
+              controller: _c("email_address"),
+              label: "Email",
+              hint: "example@email.com",
+              keyboardType: TextInputType.emailAddress,
+              validator: (val) =>
+                  (val == null || val.trim().isEmpty) ? "Required" : null,
+            ),
+            SizedBox(height: TaqaUiScale.h(28)),
+            TaqaFilledButton(
+              label: t.translate("expert_questionnaire_submit"),
+              loading: widget.submitting,
+              onTap: widget.submitting ? null : _submit,
+            ),
+            SizedBox(height: TaqaUiScale.h(12)),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => Navigator.of(context).pop(),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: TaqaUiScale.h(44),
+                  child: Center(
+                    child: Text(
+                      t.translate("cancel").toUpperCase(),
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(10),
+                        fontWeight: FontWeight.w600,
+                        color:
+                            TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(height: TaqaUiScale.h(12)),
           ],
         ),
       ),
     );
   }
 
-  Widget _sectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        title,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w700,
-          fontSize: 16,
-        ),
-      ),
-    );
+  void _syncFullName() {
+    final first = _c("first_name").text.trim();
+    final last = _c("last_name").text.trim();
+    _c("full_name").text = [first, last].where((s) => s.isNotEmpty).join(" ");
   }
 
   Widget _affiliationSummary() {
@@ -504,40 +680,9 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
             (_affiliationOtherText?.isNotEmpty == true
                 ? _affiliationOtherText
                 : "Not set");
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white12),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Affiliation",
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  label ?? "Not set",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: _isAffiliated ? _openAffiliationSelector : null,
-            child: const Text("Set"),
-          ),
-        ],
-      ),
+    return TaqaSummaryRow(
+      value: label ?? "Not set",
+      onTap: _isAffiliated ? _openAffiliationSelector : null,
     );
   }
 
@@ -546,41 +691,10 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
     final detail = _hasCertification == "Yes"
         ? (_certType ?? "Select type")
         : (_hasCertification == "No" ? "No certification" : "Not set");
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white12),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Certification",
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  "$status • $detail",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: _openCertificateSelector,
-            child: const Text("Set"),
-          ),
-        ],
-      ),
+    final label = _hasCertification == null ? "Not set" : "$status • $detail";
+    return TaqaSummaryRow(
+      value: label,
+      onTap: _openCertificateSelector,
     );
   }
 
@@ -627,122 +741,58 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
 
   Widget _dobField() {
     final display = _selectedDob != null
-        ? DateFormat("yyyy-MM-dd").format(_selectedDob!)
+        ? DateFormat("dd/MM/yyyy").format(_selectedDob!)
         : "";
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: () async {
-          final now = DateTime.now();
-          final picked = await showDatePicker(
-            context: context,
-            initialDate: _selectedDob ?? DateTime(now.year - 20, now.month, now.day),
-            firstDate: DateTime(1900, 1, 1),
-            lastDate: DateTime(now.year, now.month, now.day),
-          );
-          if (picked != null) {
-            setState(() {
-              _selectedDob = picked;
-            });
-          }
-        },
-        child: InputDecorator(
-          decoration: const InputDecoration(
-            labelText: "Date of birth",
-            border: OutlineInputBorder(),
-          ),
-          child: Text(
-            display.isEmpty ? "Tap to pick" : display,
-            style: const TextStyle(color: Colors.white),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _textField(TextEditingController controller, String label,
-      {bool required = true}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextFormField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
-        style: const TextStyle(color: Colors.white),
-        validator: (val) {
-          if (required && (val == null || val.trim().isEmpty)) {
-            return "Required";
-          }
-          return null;
-        },
-      ),
-    );
-  }
-
-  Widget _dropdown(
-      String label, String? value, List<String> options, ValueChanged<String?> onChanged) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: DropdownButtonFormField<String>(
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
-        initialValue: value,
-        dropdownColor: AppColors.black,
-        style: const TextStyle(color: Colors.white),
-        items: options
-            .map((o) => DropdownMenuItem(value: o, child: Text(o)))
-            .toList(),
-        validator: (val) {
-          if (val == null || val.isEmpty) return "Required";
-          return null;
-        },
-        onChanged: onChanged,
-      ),
+    _c("date_of_birth_display").text = display;
+    return TaqaUnderlineTextField(
+      controller: _c("date_of_birth_display"),
+      label: "Date Of Birth",
+      hint: "DD/MM/YYYY",
+      readOnly: true,
+      onTap: () async {
+        final now = DateTime.now();
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: _selectedDob ?? DateTime(now.year - 20, now.month, now.day),
+          firstDate: DateTime(1900, 1, 1),
+          lastDate: DateTime(now.year, now.month, now.day),
+        );
+        if (picked != null) {
+          setState(() {
+            _selectedDob = picked;
+          });
+        }
+      },
+      validator: (_) => _selectedDob == null ? "Required" : null,
     );
   }
 
   Widget _multiChoice(String label, List<String> options, Set<String> target) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.white)),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            children: options.map((o) {
-              final selected = target.contains(o);
-              return FilterChip(
-                label: Text(o),
-                selected: selected,
-                onSelected: (v) {
-                  setState(() {
-                    if (v) {
-                      target.add(o);
-                    } else {
-                      target.remove(o);
-                    }
-                  });
-                },
-              );
-            }).toList(),
-          ),
-          if (target.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 4),
-              child: Text(
-                "Select at least one",
-                style: TextStyle(color: Colors.redAccent, fontSize: 12),
-              ),
-            ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: TaqaUiScale.w(10),
+          runSpacing: TaqaUiScale.h(10),
+          children: options.map((o) {
+            final selected = target.contains(o);
+            return TaqaPillChoice(
+              label: o,
+              selected: selected,
+              onTap: () {
+                setState(() {
+                  if (selected) {
+                    target.remove(o);
+                  } else {
+                    target.add(o);
+                  }
+                });
+              },
+            );
+          }).toList(),
+        ),
+        if (target.isEmpty) const TaqaRequiredHint(text: "Select at least one"),
+      ],
     );
   }
 
@@ -751,64 +801,50 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
     required List<String> options,
     required Set<String> target,
     required TextEditingController otherCtrl,
+    bool showLabel = true,
   }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.white)),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            children: options.map((o) {
-              final selected = target.contains(o);
-              return FilterChip(
-                label: Text(o),
-                selected: selected,
-                onSelected: (v) {
-                  setState(() {
-                    if (v) {
-                      target.add(o);
-                    } else {
-                      target.remove(o);
-                      if (o == "Other") {
-                        otherCtrl.clear();
-                      }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: TaqaUiScale.w(10),
+          runSpacing: TaqaUiScale.h(10),
+          children: options.map((o) {
+            final selected = target.contains(o);
+            return TaqaPillChoice(
+              label: o,
+              selected: selected,
+              onTap: () {
+                setState(() {
+                  if (selected) {
+                    target.remove(o);
+                    if (o == "Other") {
+                      otherCtrl.clear();
                     }
-                  });
-                },
-              );
-            }).toList(),
-          ),
-          if (target.contains("Other")) ...[
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: otherCtrl,
-              decoration: const InputDecoration(
-                labelText: "Other",
-                border: OutlineInputBorder(),
-              ),
-              validator: (val) {
-                if (target.contains("Other") &&
-                    (val == null || val.trim().isEmpty)) {
-                  return "Required";
-                }
-                return null;
+                  } else {
+                    target.add(o);
+                  }
+                });
               },
-            ),
-          ],
-          if (target.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 4),
-              child: Text(
-                "Select at least one",
-                style: TextStyle(color: Colors.redAccent, fontSize: 12),
-              ),
-            ),
+            );
+          }).toList(),
+        ),
+        if (target.contains("Other")) ...[
+          SizedBox(height: TaqaUiScale.h(12)),
+          TaqaUnderlineTextField(
+            controller: otherCtrl,
+            label: "Other",
+            validator: (val) {
+              if (target.contains("Other") &&
+                  (val == null || val.trim().isEmpty)) {
+                return "Required";
+              }
+              return null;
+            },
+          ),
         ],
-      ),
+        if (target.isEmpty) const TaqaRequiredHint(text: "Select at least one"),
+      ],
     );
   }
 
@@ -820,101 +856,41 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
     required ValueChanged<String?> onChanged,
   }) {
     final hasOther = options.contains("Other");
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          DropdownButtonFormField<String>(
-            decoration: InputDecoration(
-              labelText: label,
-              border: const OutlineInputBorder(),
-            ),
-            initialValue: value,
-            dropdownColor: AppColors.black,
-            style: const TextStyle(color: Colors.white),
-            items: options
-                .map((o) => DropdownMenuItem(value: o, child: Text(o)))
-                .toList(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TaqaUnderlineDropdown(
+          label: label,
+          value: value,
+          options: options,
+          validator: (val) {
+            if (val == null || val.isEmpty) return "Required";
+            if (val == "Other" && otherCtrl.text.trim().isEmpty) {
+              return "Required";
+            }
+            return null;
+          },
+          onChanged: (val) {
+            onChanged(val);
+            if (val != "Other") {
+              otherCtrl.clear();
+            }
+          },
+        ),
+        if (hasOther && value == "Other") ...[
+          SizedBox(height: TaqaUiScale.h(12)),
+          TaqaUnderlineTextField(
+            controller: otherCtrl,
+            label: "Other",
             validator: (val) {
-              if (val == null || val.isEmpty) return "Required";
-              if (val == "Other" && otherCtrl.text.trim().isEmpty) {
+              if (value == "Other" && (val == null || val.trim().isEmpty)) {
                 return "Required";
               }
               return null;
             },
-            onChanged: (val) {
-              onChanged(val);
-              if (val != "Other") {
-                otherCtrl.clear();
-              }
-            },
-          ),
-          if (hasOther && value == "Other") ...[
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: otherCtrl,
-              decoration: const InputDecoration(
-                labelText: "Other",
-                border: OutlineInputBorder(),
-              ),
-              validator: (val) {
-                if (value == "Other" && (val == null || val.trim().isEmpty)) {
-                  return "Required";
-                }
-                return null;
-              },
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _uploadField(String label, TextEditingController controller, String kind) {
-    final isSelfie = kind == "selfie";
-    final display = controller.text.isEmpty ? "No file uploaded" : controller.text;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.white)),
-          const SizedBox(height: 6),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.white12),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    display,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white70),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                OutlinedButton(
-                  onPressed: isSelfie
-                      ? () => _captureSelfie(controller)
-                      : () => _pickAndUpload(kind, controller),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.accent),
-                    foregroundColor: Colors.white,
-                  ),
-                  child: Text(isSelfie ? "Capture" : "Upload"),
-                ),
-              ],
-            ),
           ),
         ],
-      ),
+      ],
     );
   }
 
@@ -1123,23 +1099,31 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       appBar: AppBar(
-        title: const Text("Affiliation"),
+        centerTitle: true,
+        title: Text(
+          "Affiliation",
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(15),
+            fontWeight: FontWeight.w700,
+            color: TaqaUiColors.unnamedColor1c1d17,
+          ),
+        ),
+        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
+        elevation: 0,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      body: SingleChildScrollView(
+        padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(
-                labelText: "Category",
-                border: OutlineInputBorder(),
-              ),
-              initialValue: _selectedCategory,
-              items: _categories
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                  .toList(),
+            TaqaUnderlineDropdown(
+              label: "Category",
+              value: _selectedCategory,
+              options: _categories,
               onChanged: (val) {
                 setState(() {
                   _selectedCategory = val;
@@ -1149,21 +1133,12 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
                 }
               },
             ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              decoration: InputDecoration(
-                labelText: _loading ? "Loading..." : "Affiliation",
-                border: const OutlineInputBorder(),
-              ),
-              initialValue: _selectedAffId,
-              isExpanded: true,
-              items: _affiliations
-                  .map(
-                    (item) => DropdownMenuItem<String>(
-                      value: item["id"].toString(),
-                      child: Text(item["name"]?.toString() ?? ""),
-                    ),
-                  )
+            SizedBox(height: TaqaUiScale.h(16)),
+            TaqaUnderlineDropdown(
+              label: _loading ? "Loading..." : "Affiliation",
+              value: _selectedAffId,
+              options: _affiliations
+                  .map((item) => item["id"].toString())
                   .toList(),
               onChanged: _loading
                   ? null
@@ -1177,26 +1152,34 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
                       });
                     },
             ),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _useCustomAffiliation = true;
-                  _selectedAffId = null;
-                  _selectedAffName = null;
-                });
-              },
-              child: const Text("Can’t find your affiliation?"),
+            SizedBox(height: TaqaUiScale.h(12)),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  setState(() {
+                    _useCustomAffiliation = true;
+                    _selectedAffId = null;
+                    _selectedAffName = null;
+                  });
+                },
+                child: Text(
+                  "Can't find your affiliation?",
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: TaqaUiScale.sp(12),
+                    fontWeight: FontWeight.w600,
+                    color: TaqaUiColors.unnamedColor1c1d17,
+                  ),
+                ),
+              ),
             ),
 
             if (_useCustomAffiliation) ...[
-              const SizedBox(height: 8),
-              TextFormField(
+              SizedBox(height: TaqaUiScale.h(12)),
+              TaqaUnderlineTextField(
                 controller: _otherCtrl,
-                decoration: const InputDecoration(
-                  labelText: "Type your affiliation",
-                  border: OutlineInputBorder(),
-                ),
+                label: "Type your affiliation",
                 onChanged: (_) {
                   setState(() {
                     _selectedAffId = null;
@@ -1207,17 +1190,18 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
             ],
 
             if (_error != null) ...[
-              const SizedBox(height: 8),
-              Text(_error!, style: const TextStyle(color: Colors.redAccent)),
-            ],
-            const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              child: PrimaryWhiteButton(
-                onPressed: _submit,
-                child: const Text("Save"),
+              SizedBox(height: TaqaUiScale.h(8)),
+              Text(
+                _error!,
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(12),
+                  color: TaqaUiColors.unnamedColorE93b3b,
+                ),
               ),
-            ),
+            ],
+            SizedBox(height: TaqaUiScale.h(28)),
+            TaqaFilledButton(label: "Save", onTap: _submit),
           ],
         ),
       ),
@@ -1298,22 +1282,31 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Certification")),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      appBar: AppBar(
+        centerTitle: true,
+        title: Text(
+          "Certification",
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(15),
+            fontWeight: FontWeight.w700,
+            color: TaqaUiColors.unnamedColor1c1d17,
+          ),
+        ),
+        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(
-                labelText: "Do you have a certification?",
-                border: OutlineInputBorder(),
-              ),
-              initialValue: _hasCert,
-              items: const [
-                DropdownMenuItem(value: "Yes", child: Text("Yes")),
-                DropdownMenuItem(value: "No", child: Text("No")),
-              ],
+            TaqaUnderlineDropdown(
+              label: "Do you have a certification?",
+              value: _hasCert,
+              options: const ["Yes", "No"],
               onChanged: (val) {
                 setState(() {
                   _hasCert = val;
@@ -1326,16 +1319,11 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
               },
             ),
             if (_hasCert == "Yes") ...[
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                  labelText: "Certification type",
-                  border: OutlineInputBorder(),
-                ),
-                initialValue: _certType,
-                items: widget.certOpts
-                    .map((o) => DropdownMenuItem(value: o, child: Text(o)))
-                    .toList(),
+              SizedBox(height: TaqaUiScale.h(16)),
+              TaqaUnderlineDropdown(
+                label: "Certification type",
+                value: _certType,
+                options: widget.certOpts,
                 onChanged: (val) {
                   setState(() {
                     _certType = val;
@@ -1344,44 +1332,23 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
                 },
               ),
               if (_certType == "Other") ...[
-                const SizedBox(height: 12),
-                TextFormField(
+                SizedBox(height: TaqaUiScale.h(16)),
+                TaqaUnderlineTextField(
                   controller: _otherCtrl,
-                  decoration: const InputDecoration(
-                    labelText: "Other certification",
-                    border: OutlineInputBorder(),
-                  ),
+                  label: "Other certification",
                 ),
               ],
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _fileCtrl,
-                      readOnly: true,
-                      decoration: const InputDecoration(
-                        labelText: "Certification file",
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  OutlinedButton(
-                    onPressed: () => _pickAndUpload("cert"),
-                    child: const Text("Upload"),
-                  ),
-                ],
+              SizedBox(height: TaqaUiScale.h(16)),
+              TaqaUploadRow(
+                display: _fileCtrl.text.isEmpty
+                    ? "No file uploaded"
+                    : _fileCtrl.text,
+                actionLabel: "Upload",
+                onTap: () => _pickAndUpload("cert"),
               ),
             ],
-            const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              child: PrimaryWhiteButton(
-                onPressed: _save,
-                child: const Text("Save"),
-              ),
-            ),
+            SizedBox(height: TaqaUiScale.h(28)),
+            TaqaFilledButton(label: "Save", onTap: _save),
           ],
         ),
       ),

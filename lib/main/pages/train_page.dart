@@ -20,7 +20,7 @@ import '../../localization/app_localizations.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/training/training_service.dart';
 import '../../widgets/training/replace_exercise_sheet.dart';
-import '../../widgets/app_toast.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
 import '../../services/training/exercise_action_queue.dart';
 import '../../consents/consent_manager.dart';
 import '../../screens/training/training_history_page.dart';

@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+
+import '../Typography/taqa_ui_typography.dart';
+import '../styles/taqa_ui_scale.dart';
+import '../taqa_ui_colors.dart';
 
 enum AppToastType { info, success, error }
 
@@ -17,15 +20,20 @@ class AppToast {
   }) {
     final overlay = Overlay.of(context, rootOverlay: rootOverlay);
 
-    final color = switch (type) {
-      AppToastType.success => AppColors.accent,
-      AppToastType.error => Colors.redAccent,
-      _ => Colors.white70,
+    final accentColor = switch (type) {
+      AppToastType.success => TaqaUiColors.unnamedColorE4e93b,
+      AppToastType.error => TaqaUiColors.unnamedColorE93b3b,
+      _ => TaqaUiColors.unnamedColor1c1d17,
+    };
+
+    final iconColor = switch (type) {
+      AppToastType.success => TaqaUiColors.unnamedColor1c1d17,
+      _ => TaqaUiColors.white,
     };
 
     final icon = switch (type) {
-      AppToastType.success => Icons.check_circle,
-      AppToastType.error => Icons.error_outline,
+      AppToastType.success => Icons.check_rounded,
+      AppToastType.error => Icons.priority_high_rounded,
       _ => Icons.info_outline,
     };
 
@@ -33,7 +41,8 @@ class AppToast {
     entry = OverlayEntry(
       builder: (ctx) => _ToastOverlay(
         message: message,
-        color: color,
+        accentColor: accentColor,
+        iconColor: iconColor,
         icon: icon,
         position: position,
         duration: duration,
@@ -52,7 +61,8 @@ class AppToast {
 class _ToastOverlay extends StatefulWidget {
   const _ToastOverlay({
     required this.message,
-    required this.color,
+    required this.accentColor,
+    required this.iconColor,
     required this.icon,
     required this.position,
     required this.duration,
@@ -60,7 +70,8 @@ class _ToastOverlay extends StatefulWidget {
   });
 
   final String message;
-  final Color color;
+  final Color accentColor;
+  final Color iconColor;
   final IconData icon;
   final AppToastPosition position;
   final Duration duration;
@@ -90,7 +101,7 @@ class _ToastOverlayState extends State<_ToastOverlay>
       curve: Curves.easeOutCubic,
     );
     _offset = Tween<Offset>(
-      begin: const Offset(0, 0.16),
+      begin: Offset(0, widget.position == AppToastPosition.top ? -0.16 : 0.16),
       end: Offset.zero,
     ).animate(curve);
     _opacity = Tween<double>(begin: 0, end: 1).animate(curve);
@@ -113,11 +124,11 @@ class _ToastOverlayState extends State<_ToastOverlay>
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
-    final topInset = mediaQuery.padding.top + 16;
-    final bottomInset = mediaQuery.padding.bottom + 16;
+    final topInset = mediaQuery.padding.top + TaqaUiScale.h(16);
+    final bottomInset = mediaQuery.padding.bottom + TaqaUiScale.h(16);
     return Positioned(
-      left: 16,
-      right: 16,
+      left: TaqaUiScale.w(16),
+      right: TaqaUiScale.w(16),
       top: widget.position == AppToastPosition.top ? topInset : null,
       bottom: widget.position == AppToastPosition.bottom ? bottomInset : null,
       child: SlideTransition(
@@ -127,15 +138,14 @@ class _ToastOverlayState extends State<_ToastOverlay>
           child: Material(
             color: Colors.transparent,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
               decoration: BoxDecoration(
-                color: const Color(0xFF1E1E1E).withValues(alpha: 0.95),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: widget.color.withValues(alpha: 0.6)),
+                color: TaqaUiColors.white,
+                borderRadius: TaqaUiScale.radius(15),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.35),
-                    blurRadius: 12,
+                    color: Colors.black.withValues(alpha: 0.12),
+                    blurRadius: 16,
                     offset: const Offset(0, 6),
                   ),
                 ],
@@ -143,15 +153,31 @@ class _ToastOverlayState extends State<_ToastOverlay>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(widget.icon, color: widget.color, size: 20),
-                  const SizedBox(width: 10),
+                  Container(
+                    width: TaqaUiScale.w(24),
+                    height: TaqaUiScale.h(24),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: widget.accentColor,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      widget.icon,
+                      color: widget.iconColor,
+                      size: TaqaUiScale.w(14),
+                    ),
+                  ),
+                  SizedBox(width: TaqaUiScale.w(10)),
                   Expanded(
                     child: Text(
                       widget.message,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(13),
                         fontWeight: FontWeight.w600,
+                        height: 18 / 13,
+                        letterSpacing: 0,
+                        color: TaqaUiColors.unnamedColor1c1d17,
                       ),
                     ),
                   ),

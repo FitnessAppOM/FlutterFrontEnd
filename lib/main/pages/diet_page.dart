@@ -21,6 +21,7 @@ import '../../widgets/diet_recommendation_dialog.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
 import '../../TaqaUI/components/taqa_value_dialog.dart';
 import '../../TaqaUI/components/taqa_steps_ui.dart'
     show TaqaTagButton, TaqaRangeTab;
@@ -138,8 +139,10 @@ class DietPageState extends State<DietPage> {
       }
 
       if (rest == null && trainingDays.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("No target changes detected.")),
+        AppToast.show(
+          context,
+          "No target changes detected.",
+          type: AppToastType.info,
         );
         return false;
       }
@@ -158,14 +161,18 @@ class DietPageState extends State<DietPage> {
       // Also refresh day summary / remaining via bootstrap or day-summary
       await _loadMeals(clearExisting: true);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.translate("diet_edit_targets_save"))),
+      AppToast.show(
+        context,
+        t.translate("diet_edit_targets_save"),
+        type: AppToastType.success,
       );
       return true;
     } catch (e) {
       if (!mounted) return false;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst("Exception: ", ""))),
+      AppToast.show(
+        context,
+        e.toString().replaceFirst("Exception: ", ""),
+        type: AppToastType.error,
       );
       return false;
     }
@@ -1325,16 +1332,18 @@ class DietPageState extends State<DietPage> {
         ingredients: ingredients,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.translate("diet_ingredient_added"))),
+      AppToast.show(
+        context,
+        t.translate("diet_ingredient_added"),
+        type: AppToastType.success,
       );
       await _loadMeals();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("${t.translate("diet_ingredient_add_failed")}: $e"),
-        ),
+      AppToast.show(
+        context,
+        "${t.translate("diet_ingredient_add_failed")}: $e",
+        type: AppToastType.error,
       );
     } finally {
       nameCtrl.dispose();
@@ -1584,8 +1593,10 @@ class DietPageState extends State<DietPage> {
 
     final items = _mealItems(meal);
     if (items.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.translate("diet_favorites_empty_meal"))),
+      AppToast.show(
+        context,
+        t.translate("diet_favorites_empty_meal"),
+        type: AppToastType.info,
       );
       return;
     }
@@ -1647,16 +1658,18 @@ class DietPageState extends State<DietPage> {
 
       if (!mounted) return;
       setState(() {});
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.translate("diet_favorites_saved"))),
+      AppToast.show(
+        context,
+        t.translate("diet_favorites_saved"),
+        type: AppToastType.success,
       );
       await _loadMeals();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("${t.translate("diet_favorites_save_failed")}: $e"),
-        ),
+      AppToast.show(
+        context,
+        "${t.translate("diet_favorites_save_failed")}: $e",
+        type: AppToastType.error,
       );
     } finally {
       nameCtrl.dispose();
@@ -1687,8 +1700,10 @@ class DietPageState extends State<DietPage> {
         date: _mealDate,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.translate("diet_add_meal_success"))),
+      AppToast.show(
+        context,
+        t.translate("diet_add_meal_success"),
+        type: AppToastType.success,
       );
 
       setState(() {
@@ -1703,8 +1718,10 @@ class DietPageState extends State<DietPage> {
       final msg = e is Exception
           ? e.toString().replaceFirst('Exception: ', '')
           : e.toString();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("${t.translate("diet_add_meal_failed")}: $msg")),
+      AppToast.show(
+        context,
+        "${t.translate("diet_add_meal_failed")}: $msg",
+        type: AppToastType.error,
       );
     } finally {
       _manualMealDialogOpen = false;
@@ -1753,15 +1770,17 @@ class DietPageState extends State<DietPage> {
           };
         });
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.translate("diet_delete_meal_success"))),
+      AppToast.show(
+        context,
+        t.translate("diet_delete_meal_success"),
+        type: AppToastType.success,
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("${t.translate("diet_delete_meal_failed")}: $e"),
-        ),
+      AppToast.show(
+        context,
+        "${t.translate("diet_delete_meal_failed")}: $e",
+        type: AppToastType.error,
       );
     }
   }
@@ -1787,16 +1806,18 @@ class DietPageState extends State<DietPage> {
       if (userId == null) return;
       await DietService.deleteMealItem(userId: userId, mealItemId: mealItemId);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.translate("diet_delete_item_success"))),
+      AppToast.show(
+        context,
+        t.translate("diet_delete_item_success"),
+        type: AppToastType.success,
       );
       await _loadMeals();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("${t.translate("diet_delete_item_failed")}: $e"),
-        ),
+      AppToast.show(
+        context,
+        "${t.translate("diet_delete_item_failed")}: $e",
+        type: AppToastType.error,
       );
     }
   }
@@ -1827,14 +1848,18 @@ class DietPageState extends State<DietPage> {
         await DietService.deleteMealItem(userId: userId, mealItemId: itemId);
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.translate("diet_clear_meal_success"))),
+      AppToast.show(
+        context,
+        t.translate("diet_clear_meal_success"),
+        type: AppToastType.success,
       );
       await _loadMeals();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("${t.translate("diet_clear_meal_failed")}: $e")),
+      AppToast.show(
+        context,
+        "${t.translate("diet_clear_meal_failed")}: $e",
+        type: AppToastType.error,
       );
     }
   }
@@ -1855,8 +1880,10 @@ class DietPageState extends State<DietPage> {
     if (newTitle == null) return;
     if (newTitle.length > 120) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.translate("diet_add_meal_name_too_long"))),
+      AppToast.show(
+        context,
+        t.translate("diet_add_meal_name_too_long"),
+        type: AppToastType.info,
       );
       return;
     }
@@ -1884,16 +1911,18 @@ class DietPageState extends State<DietPage> {
         setState(() {});
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.translate("diet_rename_meal_success"))),
+      AppToast.show(
+        context,
+        t.translate("diet_rename_meal_success"),
+        type: AppToastType.success,
       );
       await _loadMeals();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("${t.translate("diet_rename_meal_failed")}: $e"),
-        ),
+      AppToast.show(
+        context,
+        "${t.translate("diet_rename_meal_failed")}: $e",
+        type: AppToastType.error,
       );
     }
   }
@@ -1907,14 +1936,18 @@ class DietPageState extends State<DietPage> {
     try {
       await DietService.captureDaySummary(userId, date: _mealDate);
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      AppToast.show(
         context,
-      ).showSnackBar(SnackBar(content: Text(t.translate("diet_day_frozen"))));
+        t.translate("diet_day_frozen"),
+        type: AppToastType.success,
+      );
       await _loadMeals();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("${t.translate("diet_freeze_failed")}: $e")),
+      AppToast.show(
+        context,
+        "${t.translate("diet_freeze_failed")}: $e",
+        type: AppToastType.error,
       );
     } finally {
       if (mounted) setState(() => _freezing = false);
@@ -2063,8 +2096,10 @@ class DietPageState extends State<DietPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      AppToast.show(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
       );
     } finally {
       if (mounted) {
@@ -2562,8 +2597,10 @@ class DietPageState extends State<DietPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      AppToast.show(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
       );
     } finally {
       if (mounted) {

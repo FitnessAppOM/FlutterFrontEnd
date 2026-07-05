@@ -99,6 +99,14 @@ class DailyJournalEntry {
 }
 
 class DailyJournalApi {
+  static final Map<String, DailyJournalEntry?> _cache = {};
+  static final Map<String, Future<DailyJournalEntry?>> _inFlight = {};
+
+  static void clearCache() {
+    _cache.clear();
+    _inFlight.clear();
+  }
+
   static Future<DailyJournalEntry?> fetchLatest(int userId) async {
     final url = Uri.parse("${ApiConfig.baseUrl}/daily-journal/$userId/latest");
     final res = await http.get(url);
@@ -120,21 +128,41 @@ class DailyJournalApi {
     DateTime date,
   ) async {
     final dateStr = date.toIso8601String().split("T").first;
+    final todayStr = DateTime.now().toIso8601String().split("T").first;
+    final cacheKey = "$userId-$dateStr";
+
+    // Past-day entries never change from outside this page, so serve them
+    // from cache when switching between dates — only a fresh pull-to-refresh
+    // or a save for that date should hit the network again.
+    if (dateStr != todayStr && _cache.containsKey(cacheKey)) {
+      return _cache[cacheKey];
+    }
+    if (_inFlight.containsKey(cacheKey)) {
+      return _inFlight[cacheKey];
+    }
+
     final url = Uri.parse(
       "${ApiConfig.baseUrl}/daily-journal/$userId/date/$dateStr",
     );
-    final res = await http.get(url);
+    final future = http.get(url).then((res) {
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        return DailyJournalEntry.fromJson(data);
+      }
+      if (res.statusCode == 404) return null;
+      throw Exception("Failed to fetch daily journal for $dateStr: ${res.body}");
+    });
 
-    if (res.statusCode == 200) {
-      final data = jsonDecode(res.body) as Map<String, dynamic>;
-      return DailyJournalEntry.fromJson(data);
+    _inFlight[cacheKey] = future;
+    try {
+      final result = await future;
+      if (dateStr != todayStr) {
+        _cache[cacheKey] = result;
+      }
+      return result;
+    } finally {
+      _inFlight.remove(cacheKey);
     }
-
-    if (res.statusCode == 404) {
-      return null;
-    }
-
-    throw Exception("Failed to fetch daily journal for $dateStr: ${res.body}");
   }
 
   static Future<void> upsert({
@@ -191,7 +219,11 @@ class DailyJournalApi {
     final res = await http.post(url, headers: headers, body: jsonEncode(body));
 
     await AccountStorage.handle401(res.statusCode);
-    if (res.statusCode == 200) return;
+    if (res.statusCode == 200) {
+      final dateStr = effectiveEntryDate.toIso8601String().split("T").first;
+      _cache.remove("$userId-$dateStr");
+      return;
+    }
     if (res.statusCode == 409) {
       throw Exception("already_submitted");
     }

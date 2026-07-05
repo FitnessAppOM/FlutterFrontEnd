@@ -10,7 +10,7 @@ import '../../services/auth/affiliation_service.dart';
 import '../../services/core/university_service.dart';
 import '../../services/diet/diet_targets_storage.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_toast.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
 import '../../widgets/primary_button.dart';
 import 'updating_diet_screen.dart';
 import 'updating_plan_screen.dart';

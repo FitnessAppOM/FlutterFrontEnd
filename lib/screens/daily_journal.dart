@@ -1,4 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/components/taqa_empty_card.dart';
+import '../TaqaUI/components/taqa_steps_ui.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 import '../core/account_storage.dart';
 import '../core/date_utils.dart';
 import '../main/main_layout.dart';
@@ -11,11 +18,9 @@ import '../services/health/water_service.dart';
 import '../services/screenings/screening_service.dart';
 import '../services/whoop/whoop_sleep_service.dart';
 import '../services/fitbit/fitbit_sleep_service.dart';
-import '../theme/app_theme.dart';
-import '../widgets/app_toast.dart';
+import '../TaqaUI/components/taqa_toast.dart';
 import '../widgets/screening/screening_form_sheet.dart';
 import '../localization/app_localizations.dart';
-import '../widgets/common/date_header.dart';
 
 class DailyJournalPage extends StatefulWidget {
   const DailyJournalPage({super.key});
@@ -79,6 +84,9 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
   }
 
   Future<void> _refresh() async {
+    // Explicit refresh (initial load / pull-to-refresh) should always hit the
+    // network; switching between dates via _changeDay reuses the cache.
+    DailyJournalApi.clearCache();
     final future = _loadForSelectedDate();
     setState(() {
       // Reset seed guards so a manual refresh re-applies the device-sleep
@@ -392,8 +400,19 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
     final t = AppLocalizations.of(context).translate;
     return Scaffold(
       appBar: AppBar(
-        title: Text(t("journal_title")),
+        centerTitle: true,
         automaticallyImplyLeading: true,
+        title: Text(
+          t("journal_title"),
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(15),
+            fontWeight: FontWeight.w700,
+            height: 25 / 15,
+            letterSpacing: 0,
+            color: TaqaUiColors.unnamedColor1c1d17,
+          ),
+        ),
         leading: _fromNotification
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
@@ -405,32 +424,36 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
                 },
               )
             : null,
-        backgroundColor: AppColors.black,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _refresh,
-            tooltip: t("daily_journal_refresh"),
-          ),
-        ],
+        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
+        elevation: 0,
       ),
-      backgroundColor: AppColors.black,
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       body: FutureBuilder<DailyJournalEntry?>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(
+                color: TaqaUiColors.unnamedColor1c1d17,
+              ),
+            );
           }
           if (snapshot.hasError) {
             final isMissingUser = snapshot.error.toString().contains('NO_USER');
-            return _CenteredState(
-              icon: Icons.lock_outline,
-              title: isMissingUser
-                  ? t("daily_journal_sign_in_view")
-                  : t("daily_journal_unable_load"),
-              subtitle: isMissingUser
-                  ? t("daily_journal_login_prompt")
-                  : t("daily_journal_retry"),
+            return Center(
+              child: Padding(
+                padding: TaqaUiScale.insetsLTRB(24, 0, 24, 0),
+                child: TaqaEmptyCard(
+                  icon: Icons.lock_outline,
+                  title: isMissingUser
+                      ? t("daily_journal_sign_in_view")
+                      : t("daily_journal_unable_load"),
+                  subtitle: isMissingUser
+                      ? t("daily_journal_login_prompt")
+                      : t("daily_journal_retry"),
+                ),
+              ),
             );
           }
 
@@ -458,361 +481,376 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
               (entry != null && _isSameDay(entry.entryDate, _selectedDate));
 
           return RefreshIndicator(
+            color: TaqaUiColors.unnamedColor1c1d17,
+            backgroundColor: TaqaUiColors.white,
             onRefresh: _refresh,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  DateHeader(
-                    selectedDate: _selectedDate,
-                    onPrev: () => _changeDay(-1),
-                    onNext: () => _changeDay(1),
-                    canGoNext: !_isYesterdaySelected,
-                    label: hasEntry
-                        ? t("daily_journal_entry_for")
-                        : t("daily_journal_no_entry_for"),
-                  ),
-                  if (_screeningPending != null &&
-                      _screeningPending!.isDue) ...[
-                    const SizedBox(height: 10),
-                    _ScreeningDueBanner(
-                      pending: _screeningPending!,
-                      onTap: () async {
-                        final submitted = await ScreeningFormSheet.show(
-                          context,
-                          _screeningPending!,
-                        );
-                        if (submitted == true && mounted) {
-                          setState(() => _screeningPending = null);
-                        }
-                      },
-                    ),
-                  ],
-                  if (!hasEntry) ...[
-                    const SizedBox(height: 10),
-                    _InlineBanner(
-                      title: _isYesterdaySelected
-                          ? t("daily_journal_no_entry_today")
-                          : t("daily_journal_no_entry_date"),
-                      message: _isYesterdaySelected
-                          ? t("daily_journal_prompt_today")
-                          : t("daily_journal_prompt_other"),
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 260),
-                    transitionBuilder: (child, animation) => SizeTransition(
-                      sizeFactor: CurvedAnimation(
-                        parent: animation,
-                        curve: Curves.easeOutCubic,
+              padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 560),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _JournalDateCard(
+                        selectedDate: _selectedDate,
+                        onPrev: () => _changeDay(-1),
+                        onNext: () => _changeDay(1),
+                        canGoNext: !_isYesterdaySelected,
+                        label: hasEntry
+                            ? t("daily_journal_entry_for")
+                            : t("daily_journal_no_entry_for"),
                       ),
-                      axisAlignment: -1,
-                      child: FadeTransition(opacity: animation, child: child),
-                    ),
-                    child: hideForm
-                        ? const SizedBox.shrink(key: ValueKey("form-hidden"))
-                        : Column(
-                            key: const ValueKey("form-visible"),
-                            children: [
-                              _InputCard(
-                                title: t("daily_journal_record_today"),
-                                child: Column(
-                                  children: [
-                                    _NumberField(
-                                      controller: _sleepHoursCtrl,
-                                      label: t(
-                                        "daily_journal_sleep_hours_label",
-                                      ),
-                                      hint: t("daily_journal_sleep_hours_hint"),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    _ScorePicker(
-                                      label: t(
-                                        "daily_journal_sleep_quality_label",
-                                      ),
-                                      value: _sleepQuality,
-                                      onChanged: (v) =>
-                                          setState(() => _sleepQuality = v),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    _BooleanRow(
-                                      label: t("daily_journal_caffeine_label"),
-                                      value: _caffeineYes,
-                                      onChanged: (v) =>
-                                          setState(() => _caffeineYes = v),
-                                      yesLabel: t("daily_journal_yes"),
-                                      noLabel: t("daily_journal_no"),
-                                      trailing: _CompactNumberField(
-                                        controller: _caffeineCupsCtrl,
-                                        label: t("daily_journal_caffeine_cups"),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    _BooleanRow(
-                                      label: t("daily_journal_alcohol_label"),
-                                      value: _alcoholYes,
-                                      onChanged: (v) =>
-                                          setState(() => _alcoholYes = v),
-                                      yesLabel: t("daily_journal_yes"),
-                                      noLabel: t("daily_journal_no"),
-                                      trailing: _CompactNumberField(
-                                        controller: _alcoholDrinksCtrl,
-                                        label: t(
-                                          "daily_journal_alcohol_drinks",
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    _NumberField(
-                                      controller: _hydrationCtrl,
-                                      label: t("daily_journal_hydration_label"),
-                                      hint: t("daily_journal_hydration_hint"),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    _ScorePicker(
-                                      label: t(
-                                        "daily_journal_soreness_level_label",
-                                      ),
-                                      value: _sorenessLevel,
-                                      onChanged: (v) =>
-                                          setState(() => _sorenessLevel = v),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    _NumberField(
-                                      controller: _wakeUpCountCtrl,
-                                      label: t(
-                                        "daily_journal_wake_up_count_label",
-                                      ),
-                                      hint: t(
-                                        "daily_journal_wake_up_count_hint",
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    _ScorePicker(
-                                      label: t("daily_journal_stress_label"),
-                                      value: _stressLevel,
-                                      onChanged: (v) =>
-                                          setState(() => _stressLevel = v),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    _ScorePicker(
-                                      label: t("daily_journal_mood_label"),
-                                      value: _moodUponWaking,
-                                      onChanged: (v) =>
-                                          setState(() => _moodUponWaking = v),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    _BooleanRow(
-                                      label: t(
-                                        "daily_journal_sexual_activity_label",
-                                      ),
-                                      value: _sexualActivity,
-                                      onChanged: (v) =>
-                                          setState(() => _sexualActivity = v),
-                                      yesLabel: t("daily_journal_yes"),
-                                      noLabel: t("daily_journal_no"),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    _BooleanRow(
-                                      label: t(
-                                        "daily_journal_screen_time_label",
-                                      ),
-                                      value: _screenTimeBeforeBed,
-                                      onChanged: (v) => setState(
-                                        () => _screenTimeBeforeBed = v,
-                                      ),
-                                      yesLabel: t("daily_journal_yes"),
-                                      noLabel: t("daily_journal_no"),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    _ScorePicker(
-                                      label: t(
-                                        "daily_journal_productivity_label",
-                                      ),
-                                      value: _productivityFocus,
-                                      onChanged: (v) => setState(
-                                        () => _productivityFocus = v,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    _ScorePicker(
-                                      label: t(
-                                        "daily_journal_energy_level_label",
-                                      ),
-                                      value: _motivationToTrain,
-                                      onChanged: (v) => setState(
-                                        () => _motivationToTrain = v,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    _BooleanRow(
-                                      label: t(
-                                        "daily_journal_supplements_label",
-                                      ),
-                                      value: _tookSupplements,
-                                      onChanged: (v) =>
-                                          setState(() => _tookSupplements = v),
-                                      yesLabel: t("daily_journal_yes"),
-                                      noLabel: t("daily_journal_no"),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: TextButton.icon(
-                                        onPressed: _isSubmitting
-                                            ? null
-                                            : _fillFromLastEntry,
-                                        icon: const Icon(Icons.replay),
-                                        label: Text(
-                                          t("daily_journal_copy_last"),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    SizedBox(
-                                      width: double.infinity,
-                                      child: ElevatedButton(
-                                        onPressed: _isSubmitting
-                                            ? null
-                                            : _submit,
-                                        child: _isSubmitting
-                                            ? const SizedBox(
-                                                width: 18,
-                                                height: 18,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                    ),
-                                              )
-                                            : Text(
-                                                t("daily_journal_save_entry"),
-                                              ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                      if (_screeningPending != null &&
+                          _screeningPending!.isDue) ...[
+                        SizedBox(height: TaqaUiScale.h(10)),
+                        _ScreeningDueBanner(
+                          pending: _screeningPending!,
+                          onTap: () async {
+                            final submitted = await ScreeningFormSheet.show(
+                              context,
+                              _screeningPending!,
+                            );
+                            if (submitted == true && mounted) {
+                              setState(() => _screeningPending = null);
+                            }
+                          },
+                        ),
+                      ],
+                      if (!hasEntry) ...[
+                        SizedBox(height: TaqaUiScale.h(10)),
+                        _InlineBanner(
+                          title: _isYesterdaySelected
+                              ? t("daily_journal_no_entry_today")
+                              : t("daily_journal_no_entry_date"),
+                          message: _isYesterdaySelected
+                              ? t("daily_journal_prompt_today")
+                              : t("daily_journal_prompt_other"),
+                        ),
+                      ],
+                      SizedBox(height: TaqaUiScale.h(16)),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 260),
+                        transitionBuilder: (child, animation) =>
+                            SizeTransition(
+                              sizeFactor: CurvedAnimation(
+                                parent: animation,
+                                curve: Curves.easeOutCubic,
                               ),
-                              const SizedBox(height: 16),
-                            ],
-                          ),
+                              axisAlignment: -1,
+                              child: FadeTransition(
+                                opacity: animation,
+                                child: child,
+                              ),
+                            ),
+                        child: hideForm
+                            ? const SizedBox.shrink(key: ValueKey("form-hidden"))
+                            : Column(
+                                key: const ValueKey("form-visible"),
+                                children: [
+                                  _InputCard(
+                                    title: t("daily_journal_record_today"),
+                                    action: TaqaTagButton(
+                                      icon: Icons.replay,
+                                      label: t("daily_journal_copy_last"),
+                                      onTap: _isSubmitting
+                                          ? () {}
+                                          : _fillFromLastEntry,
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        _NumberField(
+                                          controller: _sleepHoursCtrl,
+                                          label: t(
+                                            "daily_journal_sleep_hours_label",
+                                          ),
+                                          hint: t(
+                                            "daily_journal_sleep_hours_hint",
+                                          ),
+                                        ),
+                                        SizedBox(height: TaqaUiScale.h(12)),
+                                        _ScorePicker(
+                                          label: t(
+                                            "daily_journal_sleep_quality_label",
+                                          ),
+                                          value: _sleepQuality,
+                                          onChanged: (v) => setState(
+                                            () => _sleepQuality = v,
+                                          ),
+                                        ),
+                                        SizedBox(height: TaqaUiScale.h(12)),
+                                        _BooleanRow(
+                                          label: t(
+                                            "daily_journal_caffeine_label",
+                                          ),
+                                          value: _caffeineYes,
+                                          onChanged: (v) =>
+                                              setState(() => _caffeineYes = v),
+                                          yesLabel: t("daily_journal_yes"),
+                                          noLabel: t("daily_journal_no"),
+                                          trailing: _CompactNumberField(
+                                            controller: _caffeineCupsCtrl,
+                                            label: t(
+                                              "daily_journal_caffeine_cups",
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(height: TaqaUiScale.h(12)),
+                                        _BooleanRow(
+                                          label: t(
+                                            "daily_journal_alcohol_label",
+                                          ),
+                                          value: _alcoholYes,
+                                          onChanged: (v) =>
+                                              setState(() => _alcoholYes = v),
+                                          yesLabel: t("daily_journal_yes"),
+                                          noLabel: t("daily_journal_no"),
+                                          trailing: _CompactNumberField(
+                                            controller: _alcoholDrinksCtrl,
+                                            label: t(
+                                              "daily_journal_alcohol_drinks",
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(height: TaqaUiScale.h(12)),
+                                        _NumberField(
+                                          controller: _hydrationCtrl,
+                                          label: t(
+                                            "daily_journal_hydration_label",
+                                          ),
+                                          hint: t(
+                                            "daily_journal_hydration_hint",
+                                          ),
+                                        ),
+                                        SizedBox(height: TaqaUiScale.h(12)),
+                                        _ScorePicker(
+                                          label: t(
+                                            "daily_journal_soreness_level_label",
+                                          ),
+                                          value: _sorenessLevel,
+                                          onChanged: (v) => setState(
+                                            () => _sorenessLevel = v,
+                                          ),
+                                        ),
+                                        SizedBox(height: TaqaUiScale.h(12)),
+                                        _NumberField(
+                                          controller: _wakeUpCountCtrl,
+                                          label: t(
+                                            "daily_journal_wake_up_count_label",
+                                          ),
+                                          hint: t(
+                                            "daily_journal_wake_up_count_hint",
+                                          ),
+                                        ),
+                                        SizedBox(height: TaqaUiScale.h(12)),
+                                        _ScorePicker(
+                                          label: t(
+                                            "daily_journal_stress_label",
+                                          ),
+                                          value: _stressLevel,
+                                          onChanged: (v) => setState(
+                                            () => _stressLevel = v,
+                                          ),
+                                        ),
+                                        SizedBox(height: TaqaUiScale.h(12)),
+                                        _ScorePicker(
+                                          label: t("daily_journal_mood_label"),
+                                          value: _moodUponWaking,
+                                          onChanged: (v) => setState(
+                                            () => _moodUponWaking = v,
+                                          ),
+                                        ),
+                                        SizedBox(height: TaqaUiScale.h(12)),
+                                        _BooleanRow(
+                                          label: t(
+                                            "daily_journal_sexual_activity_label",
+                                          ),
+                                          value: _sexualActivity,
+                                          onChanged: (v) => setState(
+                                            () => _sexualActivity = v,
+                                          ),
+                                          yesLabel: t("daily_journal_yes"),
+                                          noLabel: t("daily_journal_no"),
+                                        ),
+                                        SizedBox(height: TaqaUiScale.h(12)),
+                                        _BooleanRow(
+                                          label: t(
+                                            "daily_journal_screen_time_label",
+                                          ),
+                                          value: _screenTimeBeforeBed,
+                                          onChanged: (v) => setState(
+                                            () => _screenTimeBeforeBed = v,
+                                          ),
+                                          yesLabel: t("daily_journal_yes"),
+                                          noLabel: t("daily_journal_no"),
+                                        ),
+                                        SizedBox(height: TaqaUiScale.h(12)),
+                                        _ScorePicker(
+                                          label: t(
+                                            "daily_journal_productivity_label",
+                                          ),
+                                          value: _productivityFocus,
+                                          onChanged: (v) => setState(
+                                            () => _productivityFocus = v,
+                                          ),
+                                        ),
+                                        SizedBox(height: TaqaUiScale.h(12)),
+                                        _ScorePicker(
+                                          label: t(
+                                            "daily_journal_energy_level_label",
+                                          ),
+                                          value: _motivationToTrain,
+                                          onChanged: (v) => setState(
+                                            () => _motivationToTrain = v,
+                                          ),
+                                        ),
+                                        SizedBox(height: TaqaUiScale.h(12)),
+                                        _BooleanRow(
+                                          label: t(
+                                            "daily_journal_supplements_label",
+                                          ),
+                                          value: _tookSupplements,
+                                          onChanged: (v) => setState(
+                                            () => _tookSupplements = v,
+                                          ),
+                                          yesLabel: t("daily_journal_yes"),
+                                          noLabel: t("daily_journal_no"),
+                                        ),
+                                        SizedBox(height: TaqaUiScale.h(16)),
+                                        _SaveButton(
+                                          loading: _isSubmitting,
+                                          label: t(
+                                            "daily_journal_save_entry",
+                                          ),
+                                          onTap: _isSubmitting
+                                              ? null
+                                              : _submit,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  SizedBox(height: TaqaUiScale.h(16)),
+                                ],
+                              ),
+                      ),
+                      if (hasEntry) ...[
+                        SizedBox(height: TaqaUiScale.h(4)),
+                        _JournalSection(
+                          title: t("daily_journal_section_sleep"),
+                          icon: Icons.nightlight_round,
+                          rows: [
+                            _JournalRow(
+                              t("daily_journal_sleep_hours_row"),
+                              _formatNumber(
+                                displayEntry.sleepHours,
+                                suffix: t("daily_journal_hours_suffix"),
+                              ),
+                            ),
+                            _JournalRow(
+                              t("daily_journal_sleep_quality_row"),
+                              _formatScore(displayEntry.sleepQuality),
+                            ),
+                            _JournalRow(
+                              t("daily_journal_mood_row"),
+                              _formatScore(displayEntry.moodUponWaking),
+                            ),
+                            _JournalRow(
+                              t("daily_journal_soreness_level_row"),
+                              _formatScore(displayEntry.sorenessLevel),
+                            ),
+                            _JournalRow(
+                              t("daily_journal_wake_up_count_row"),
+                              displayEntry.wakeUpCount == null
+                                  ? "—"
+                                  : "${displayEntry.wakeUpCount}",
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: TaqaUiScale.h(12)),
+                        _JournalSection(
+                          title: t("daily_journal_section_hydration"),
+                          icon: Icons.local_drink,
+                          rows: [
+                            _JournalRow(
+                              t("daily_journal_hydration_row"),
+                              _formatNumber(
+                                displayEntry.hydrationLiters,
+                                suffix: t("dash_unit_l"),
+                              ),
+                            ),
+                            _JournalRow(
+                              t("daily_journal_caffeine_row"),
+                              _formatBool(
+                                displayEntry.caffeineYes,
+                                suffix: _formatCount(
+                                  displayEntry.caffeineCups,
+                                  singular: t("daily_journal_cup_single"),
+                                  plural: t("daily_journal_cup_plural"),
+                                ),
+                                yesLabel: t("daily_journal_yes"),
+                                noLabel: t("daily_journal_no"),
+                              ),
+                            ),
+                            _JournalRow(
+                              t("daily_journal_alcohol_row"),
+                              _formatBool(
+                                displayEntry.alcoholYes,
+                                suffix: _formatCount(
+                                  displayEntry.alcoholDrinks,
+                                  singular: t("daily_journal_drink_single"),
+                                  plural: t("daily_journal_drink_plural"),
+                                ),
+                                yesLabel: t("daily_journal_yes"),
+                                noLabel: t("daily_journal_no"),
+                              ),
+                            ),
+                            _JournalRow(
+                              t("daily_journal_supplements_row"),
+                              _formatBool(
+                                displayEntry.tookSupplementsOrMedications,
+                                yesLabel: t("daily_journal_yes"),
+                                noLabel: t("daily_journal_no"),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: TaqaUiScale.h(12)),
+                        _JournalSection(
+                          title: t("daily_journal_section_focus"),
+                          icon: Icons.fitness_center,
+                          rows: [
+                            _JournalRow(
+                              t("daily_journal_productivity_row"),
+                              _formatScore(displayEntry.productivityFocus),
+                            ),
+                            _JournalRow(
+                              t("daily_journal_energy_level_row"),
+                              _formatScore(displayEntry.motivationToTrain),
+                            ),
+                            _JournalRow(
+                              t("daily_journal_sexual_row"),
+                              _formatBool(
+                                displayEntry.sexualActivity,
+                                yesLabel: t("daily_journal_yes"),
+                                noLabel: t("daily_journal_no"),
+                              ),
+                            ),
+                            _JournalRow(
+                              t("daily_journal_screen_row"),
+                              _formatBool(
+                                displayEntry.screenTimeBeforeBed,
+                                yesLabel: t("daily_journal_yes"),
+                                noLabel: t("daily_journal_no"),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      SizedBox(height: TaqaUiScale.h(24)),
+                    ],
                   ),
-                  if (hasEntry) ...[
-                    const SizedBox(height: 16),
-                    _JournalSection(
-                      title: t("daily_journal_section_sleep"),
-                      icon: Icons.nightlight_round,
-                      rows: [
-                        _JournalRow(
-                          t("daily_journal_sleep_hours_row"),
-                          _formatNumber(
-                            displayEntry.sleepHours,
-                            suffix: t("daily_journal_hours_suffix"),
-                          ),
-                        ),
-                        _JournalRow(
-                          t("daily_journal_sleep_quality_row"),
-                          _formatScore(displayEntry.sleepQuality),
-                        ),
-                        _JournalRow(
-                          t("daily_journal_mood_row"),
-                          _formatScore(displayEntry.moodUponWaking),
-                        ),
-                        _JournalRow(
-                          t("daily_journal_soreness_level_row"),
-                          _formatScore(displayEntry.sorenessLevel),
-                        ),
-                        _JournalRow(
-                          t("daily_journal_wake_up_count_row"),
-                          displayEntry.wakeUpCount == null
-                              ? "—"
-                              : "${displayEntry.wakeUpCount}",
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    _JournalSection(
-                      title: t("daily_journal_section_hydration"),
-                      icon: Icons.local_drink,
-                      rows: [
-                        _JournalRow(
-                          t("daily_journal_hydration_row"),
-                          _formatNumber(
-                            displayEntry.hydrationLiters,
-                            suffix: t("dash_unit_l"),
-                          ),
-                        ),
-                        _JournalRow(
-                          t("daily_journal_caffeine_row"),
-                          _formatBool(
-                            displayEntry.caffeineYes,
-                            suffix: _formatCount(
-                              displayEntry.caffeineCups,
-                              singular: t("daily_journal_cup_single"),
-                              plural: t("daily_journal_cup_plural"),
-                            ),
-                            yesLabel: t("daily_journal_yes"),
-                            noLabel: t("daily_journal_no"),
-                          ),
-                        ),
-                        _JournalRow(
-                          t("daily_journal_alcohol_row"),
-                          _formatBool(
-                            displayEntry.alcoholYes,
-                            suffix: _formatCount(
-                              displayEntry.alcoholDrinks,
-                              singular: t("daily_journal_drink_single"),
-                              plural: t("daily_journal_drink_plural"),
-                            ),
-                            yesLabel: t("daily_journal_yes"),
-                            noLabel: t("daily_journal_no"),
-                          ),
-                        ),
-                        _JournalRow(
-                          t("daily_journal_supplements_row"),
-                          _formatBool(
-                            displayEntry.tookSupplementsOrMedications,
-                            yesLabel: t("daily_journal_yes"),
-                            noLabel: t("daily_journal_no"),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    _JournalSection(
-                      title: t("daily_journal_section_focus"),
-                      icon: Icons.fitness_center,
-                      rows: [
-                        _JournalRow(
-                          t("daily_journal_productivity_row"),
-                          _formatScore(displayEntry.productivityFocus),
-                        ),
-                        _JournalRow(
-                          t("daily_journal_energy_level_row"),
-                          _formatScore(displayEntry.motivationToTrain),
-                        ),
-                        _JournalRow(
-                          t("daily_journal_sexual_row"),
-                          _formatBool(
-                            displayEntry.sexualActivity,
-                            yesLabel: t("daily_journal_yes"),
-                            noLabel: t("daily_journal_no"),
-                          ),
-                        ),
-                        _JournalRow(
-                          t("daily_journal_screen_row"),
-                          _formatBool(
-                            displayEntry.screenTimeBeforeBed,
-                            yesLabel: t("daily_journal_yes"),
-                            noLabel: t("daily_journal_no"),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
+                ),
               ),
             ),
           );
@@ -820,6 +858,171 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
       ),
     );
   }
+}
+
+class _JournalDateCard extends StatelessWidget {
+  const _JournalDateCard({
+    required this.selectedDate,
+    required this.onPrev,
+    required this.onNext,
+    required this.canGoNext,
+    required this.label,
+  });
+
+  final DateTime selectedDate;
+  final VoidCallback onPrev;
+  final VoidCallback onNext;
+  final bool canGoNext;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
+    final locale = AppLocalizations.of(context).locale.languageCode;
+    final dateLabel = DateFormat('EEEE, MMM d', locale).format(selectedDate);
+    final today = DateTime.now();
+    final reference = DateTime(today.year, today.month, today.day);
+    final isToday = _dateOnly(selectedDate) == reference;
+    final isYesterday =
+        _dateOnly(selectedDate) == reference.subtract(const Duration(days: 1));
+    final relative = isToday
+        ? t("date_today")
+        : isYesterday
+        ? t("date_yesterday")
+        : DateFormat('MMM d, y', locale).format(selectedDate);
+
+    return Container(
+      padding: TaqaUiScale.insetsLTRB(10, 10, 10, 10),
+      decoration: BoxDecoration(
+        color: TaqaUiColors.white,
+        borderRadius: TaqaUiScale.radius(15),
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onPrev,
+            child: Padding(
+              padding: TaqaUiScale.insetsLTRB(6, 6, 6, 6),
+              child: Icon(
+                Icons.chevron_left,
+                color: TaqaUiColors.unnamedColor1c1d17,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  padding: TaqaUiScale.insetsLTRB(10, 8, 10, 8),
+                  decoration: BoxDecoration(
+                    color: TaqaUiColors.unnamedColor1c1d17,
+                    borderRadius: TaqaUiScale.radius(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        DateFormat('d', locale).format(selectedDate),
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          fontSize: TaqaUiScale.sp(18),
+                          fontWeight: FontWeight.w700,
+                          height: 1,
+                          color: TaqaUiColors.white,
+                        ),
+                      ),
+                      SizedBox(height: TaqaUiScale.h(2)),
+                      Text(
+                        DateFormat('MMM', locale)
+                            .format(selectedDate)
+                            .toUpperCase(),
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+                          fontSize: TaqaUiScale.sp(8),
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 0.4,
+                          color: TaqaUiColors.unnamedColorE4e93b,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: TaqaUiScale.w(12)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+                          fontSize: TaqaUiScale.sp(8),
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 0,
+                          color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                            alpha: 0.5,
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: TaqaUiScale.h(4)),
+                      Text(
+                        dateLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          fontSize: TaqaUiScale.sp(13),
+                          fontWeight: FontWeight.w700,
+                          color: TaqaUiColors.unnamedColor1c1d17,
+                        ),
+                      ),
+                      SizedBox(height: TaqaUiScale.h(4)),
+                      Container(
+                        padding: TaqaUiScale.insetsLTRB(8, 3, 8, 3),
+                        decoration: BoxDecoration(
+                          color: TaqaUiColors.unnamedColorE4e93b.withValues(
+                            alpha: 0.25,
+                          ),
+                          borderRadius: TaqaUiScale.radius(30),
+                        ),
+                        child: Text(
+                          relative,
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(8),
+                            fontWeight: FontWeight.w600,
+                            color: TaqaUiColors.unnamedColor1c1d17,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: canGoNext ? onNext : null,
+            child: Padding(
+              padding: TaqaUiScale.insetsLTRB(6, 6, 6, 6),
+              child: Icon(
+                Icons.chevron_right,
+                color: canGoNext
+                    ? TaqaUiColors.unnamedColor1c1d17
+                    : TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.25),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  DateTime _dateOnly(DateTime date) =>
+      DateTime(date.year, date.month, date.day);
 }
 
 class _JournalSection extends StatelessWidget {
@@ -836,24 +1039,37 @@ class _JournalSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: TaqaUiScale.insetsLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
-        color: AppColors.surfaceDark,
-        borderRadius: BorderRadius.circular(AppRadii.tile),
-        border: Border.all(color: AppColors.dividerDark),
+        color: TaqaUiColors.white,
+        borderRadius: TaqaUiScale.radius(15),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, color: AppColors.textDim, size: 20),
-              const SizedBox(width: 8),
-              Text(title, style: AppTextStyles.subtitle),
+              Icon(
+                icon,
+                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+                size: TaqaUiScale.w(18),
+              ),
+              SizedBox(width: TaqaUiScale.w(8)),
+              Text(
+                title,
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(13),
+                  fontWeight: FontWeight.w700,
+                  color: TaqaUiColors.unnamedColor1c1d17,
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 12),
-          ...rows.expand((row) => [row, const SizedBox(height: 10)]).toList()
+          SizedBox(height: TaqaUiScale.h(12)),
+          ...rows
+              .expand((row) => [row, SizedBox(height: TaqaUiScale.h(10))])
+              .toList()
             ..removeLast(),
         ],
       ),
@@ -875,12 +1091,22 @@ class _JournalRow extends StatelessWidget {
         Expanded(
           child: Text(
             label,
-            style: AppTextStyles.body.copyWith(color: AppColors.textDim),
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(12),
+              fontWeight: FontWeight.w400,
+              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.55),
+            ),
           ),
         ),
         Text(
           value,
-          style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(12),
+            fontWeight: FontWeight.w700,
+            color: TaqaUiColors.unnamedColor1c1d17,
+          ),
         ),
       ],
     );
@@ -897,18 +1123,33 @@ class _InlineBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(AppRadii.tile),
-        border: Border.all(color: AppColors.dividerDark),
+        color: TaqaUiColors.white,
+        borderRadius: TaqaUiScale.radius(15),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: AppTextStyles.subtitle),
-          const SizedBox(height: 4),
-          Text(message, style: AppTextStyles.small),
+          Text(
+            title,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(13),
+              fontWeight: FontWeight.w700,
+              color: TaqaUiColors.unnamedColor1c1d17,
+            ),
+          ),
+          SizedBox(height: TaqaUiScale.h(4)),
+          Text(
+            message,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(11),
+              fontWeight: FontWeight.w400,
+              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+            ),
+          ),
         ],
       ),
     );
@@ -930,20 +1171,22 @@ class _ScreeningDueBanner extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(12),
+        padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
         decoration: BoxDecoration(
-          color: AppColors.accent.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(AppRadii.tile),
-          border: Border.all(color: AppColors.accent.withValues(alpha: 0.30)),
+          color: TaqaUiColors.unnamedColorE4e93b.withValues(alpha: 0.18),
+          borderRadius: TaqaUiScale.radius(15),
+          border: Border.all(
+            color: TaqaUiColors.unnamedColorE4e93b.withValues(alpha: 0.5),
+          ),
         ),
         child: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.assignment_outlined,
-              color: AppColors.accent,
-              size: 22,
+              color: TaqaUiColors.unnamedColor1c1d17,
+              size: TaqaUiScale.w(22),
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: TaqaUiScale.w(10)),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -952,59 +1195,36 @@ class _ScreeningDueBanner extends StatelessWidget {
                     isFirst
                         ? t("screening_first_time_banner")
                         : t("screening_cycle_banner"),
-                    style: AppTextStyles.subtitle,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(13),
+                      fontWeight: FontWeight.w700,
+                      color: TaqaUiColors.unnamedColor1c1d17,
+                    ),
                   ),
                   if (days != null) ...[
-                    const SizedBox(height: 2),
+                    SizedBox(height: TaqaUiScale.h(2)),
                     Text(
                       t(
                         "screening_days_remaining",
                       ).replaceAll("{days}", "$days"),
-                      style: AppTextStyles.small,
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(11),
+                        fontWeight: FontWeight.w400,
+                        color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                          alpha: 0.6,
+                        ),
+                      ),
                     ),
                   ],
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: Colors.white38, size: 20),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CenteredState extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  const _CenteredState({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 64, color: AppColors.textDim),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: AppTextStyles.subtitle,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              style: AppTextStyles.small,
-              textAlign: TextAlign.center,
+            Icon(
+              Icons.chevron_right,
+              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.4),
+              size: TaqaUiScale.w(20),
             ),
           ],
         ),
@@ -1051,24 +1271,60 @@ bool _isSameDay(DateTime a, DateTime b) =>
 class _InputCard extends StatelessWidget {
   final String title;
   final Widget child;
-  const _InputCard({required this.title, required this.child});
+  final Widget? action;
+  const _InputCard({required this.title, required this.child, this.action});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: TaqaUiScale.insetsLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
-        color: AppColors.surfaceDark,
-        borderRadius: BorderRadius.circular(AppRadii.tile),
-        border: Border.all(color: AppColors.dividerDark),
+        color: TaqaUiColors.white,
+        borderRadius: TaqaUiScale.radius(15),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: AppTextStyles.subtitle),
-          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: TaqaUiScale.sp(15),
+                    fontWeight: FontWeight.w700,
+                    color: TaqaUiColors.unnamedColor1c1d17,
+                  ),
+                ),
+              ),
+              if (action != null) action!,
+            ],
+          ),
+          SizedBox(height: TaqaUiScale.h(14)),
           child,
         ],
+      ),
+    );
+  }
+}
+
+class _FieldLabel extends StatelessWidget {
+  final String label;
+  const _FieldLabel({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: TaqaUiScale.h(6)),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontFamily: TaqaUiFontFamilies.interTight,
+          fontSize: TaqaUiScale.sp(12),
+          fontWeight: FontWeight.w400,
+          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+        ),
       ),
     );
   }
@@ -1087,11 +1343,39 @@ class _NumberField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      style: AppTextStyles.body,
-      decoration: InputDecoration(labelText: label, hintText: hint),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _FieldLabel(label: label),
+        Container(
+          decoration: BoxDecoration(
+            color: TaqaUiColors.unnamedColorE3e3e3,
+            borderRadius: TaqaUiScale.radius(10),
+          ),
+          padding: TaqaUiScale.insetsLTRB(12, 4, 12, 4),
+          child: TextField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(13),
+              fontWeight: FontWeight.w600,
+              color: TaqaUiColors.unnamedColor1c1d17,
+            ),
+            decoration: InputDecoration(
+              isDense: true,
+              border: InputBorder.none,
+              hintText: hint,
+              hintStyle: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(13),
+                fontWeight: FontWeight.w400,
+                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.35),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1105,12 +1389,34 @@ class _CompactNumberField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 90,
-      child: TextField(
-        controller: controller,
-        keyboardType: TextInputType.number,
-        style: AppTextStyles.body,
-        decoration: InputDecoration(labelText: label),
+      width: TaqaUiScale.w(90),
+      child: Container(
+        decoration: BoxDecoration(
+          color: TaqaUiColors.unnamedColorE3e3e3,
+          borderRadius: TaqaUiScale.radius(10),
+        ),
+        padding: TaqaUiScale.insetsLTRB(10, 4, 10, 4),
+        child: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(13),
+            fontWeight: FontWeight.w600,
+            color: TaqaUiColors.unnamedColor1c1d17,
+          ),
+          decoration: InputDecoration(
+            isDense: true,
+            border: InputBorder.none,
+            hintText: label,
+            hintStyle: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(11),
+              fontWeight: FontWeight.w400,
+              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.35),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1129,24 +1435,47 @@ class _ScorePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Text(
-            label,
-            style: AppTextStyles.body.copyWith(color: AppColors.textDim),
-          ),
-        ),
-        DropdownButton<int>(
-          value: value,
-          hint: const Text("—"),
-          dropdownColor: AppColors.cardDark,
-          underline: const SizedBox.shrink(),
-          items: List.generate(
-            5,
-            (i) => DropdownMenuItem<int>(value: i + 1, child: Text("${i + 1}")),
-          ),
-          onChanged: onChanged,
+        _FieldLabel(label: label),
+        Row(
+          children: List.generate(5, (i) {
+            final option = i + 1;
+            final selected = value == option;
+            return Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  right: i == 4 ? 0 : TaqaUiScale.w(8),
+                ),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onChanged(selected ? null : option),
+                  child: Container(
+                    height: TaqaUiScale.h(34),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? TaqaUiColors.unnamedColor1c1d17
+                          : TaqaUiColors.unnamedColorE3e3e3,
+                      borderRadius: TaqaUiScale.radius(8),
+                    ),
+                    child: Text(
+                      "$option",
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(13),
+                        fontWeight: FontWeight.w700,
+                        color: selected
+                            ? TaqaUiColors.white
+                            : TaqaUiColors.unnamedColor1c1d17,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
         ),
       ],
     );
@@ -1172,37 +1501,88 @@ class _BooleanRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: AppTextStyles.body),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  ChoiceChip(
-                    label: Text(yesLabel),
-                    selected: value == true,
-                    onSelected: (_) => onChanged(true),
-                  ),
-                  const SizedBox(width: 8),
-                  ChoiceChip(
-                    label: Text(noLabel),
-                    selected: value == false,
-                    onSelected: (_) => onChanged(false),
-                  ),
-                  if (trailing != null) ...[
-                    const SizedBox(width: 12),
-                    trailing!,
-                  ],
-                ],
+        _FieldLabel(label: label),
+        Row(
+          children: [
+            SizedBox(
+              width: TaqaUiScale.w(90),
+              height: TaqaUiScale.h(34),
+              child: TaqaRangeTab(
+                label: yesLabel,
+                selected: value == true,
+                onTap: () => onChanged(value == true ? null : true),
               ),
+            ),
+            SizedBox(width: TaqaUiScale.w(8)),
+            SizedBox(
+              width: TaqaUiScale.w(90),
+              height: TaqaUiScale.h(34),
+              child: TaqaRangeTab(
+                label: noLabel,
+                selected: value == false,
+                onTap: () => onChanged(value == false ? null : false),
+              ),
+            ),
+            if (trailing != null) ...[
+              SizedBox(width: TaqaUiScale.w(12)),
+              Expanded(child: trailing!),
             ],
-          ),
+          ],
         ),
       ],
+    );
+  }
+}
+
+class _SaveButton extends StatelessWidget {
+  final bool loading;
+  final String label;
+  final VoidCallback? onTap;
+
+  const _SaveButton({
+    required this.loading,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: TaqaUiColors.unnamedColorE4e93b,
+      borderRadius: TaqaUiScale.radius(5),
+      child: InkWell(
+        borderRadius: TaqaUiScale.radius(5),
+        onTap: onTap,
+        child: SizedBox(
+          width: double.infinity,
+          height: TaqaUiScale.h(45),
+          child: Center(
+            child: loading
+                ? SizedBox(
+                    width: TaqaUiScale.w(18),
+                    height: TaqaUiScale.h(18),
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: TaqaUiColors.unnamedColor1c1d17,
+                    ),
+                  )
+                : Text(
+                    label.toUpperCase(),
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(10),
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0,
+                      height: 12 / 10,
+                      color: TaqaUiColors.unnamedColor1c1d17,
+                    ),
+                  ),
+          ),
+        ),
+      ),
     );
   }
 }

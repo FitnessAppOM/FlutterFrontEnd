@@ -13,7 +13,7 @@ import '../services/coach/progression_review_service.dart';
 import '../services/core/navigation_service.dart';
 import '../services/training/training_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/app_toast.dart';
+import '../TaqaUI/components/taqa_toast.dart';
 import '../widgets/training/exercise_picker_sheet.dart';
 import 'expert_client_detail_page.dart';
 import 'expert_connection_requests_page.dart';

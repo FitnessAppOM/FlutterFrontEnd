@@ -9,7 +9,7 @@ import '../../widgets/appbar_back_button.dart';
 import '../../screens/welcome.dart';
 import '../../localization/app_localizations.dart';
 import 'reset_password_page.dart';
-import '../../widgets/app_toast.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
 
 class VerifyResetCodePage extends StatefulWidget {
   final String email;

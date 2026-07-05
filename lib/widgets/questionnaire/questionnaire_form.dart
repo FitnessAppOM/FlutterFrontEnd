@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../primary_button.dart';
 import '../../localization/app_localizations.dart';
 import 'cupertino_picker_field.dart';
-import '../app_toast.dart';
+import '../../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../../TaqaUI/components/taqa_filled_button.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
+import '../../TaqaUI/components/taqa_underline_field.dart';
+import '../../TaqaUI/styles/taqa_ui_scale.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../services/auth/affiliation_service.dart';
 import '../../services/core/university_service.dart';
 
@@ -498,9 +502,6 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
     // Layout: the question fields scroll inside Expanded, while the Back/Next
     // bar is pinned at the bottom (outside the scroll view). This guarantees the
     // navigation buttons stay reachable on every screen size, font/display scale,
@@ -511,6 +512,11 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _StepProgressBar(
+            current: _currentSection,
+            total: _totalSections,
+          ),
+          SizedBox(height: TaqaUiScale.h(16)),
           Expanded(
             child: SingleChildScrollView(
               child: Column(
@@ -518,28 +524,29 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                 children: [
                   Text(
                     _sectionTitle,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(20),
+                      fontWeight: FontWeight.w700,
+                      height: 26 / 20,
+                      color: TaqaUiColors.unnamedColor1c1d17,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: TaqaUiScale.h(4)),
                   Text(
                     _sectionSubtitle,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: cs.onSurface.withValues(alpha: 0.7),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ..._buildCurrentSectionFields(),
-                  const SizedBox(height: 16),
-                  Center(
-                    child: Text(
-                      "${_t("step")} ${_currentSection + 1} ${_t("of")} $_totalSections",
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurface.withValues(alpha: 0.6),
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(13),
+                      fontWeight: FontWeight.w400,
+                      height: 18 / 13,
+                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                        alpha: 0.6,
                       ),
                     ),
                   ),
+                  SizedBox(height: TaqaUiScale.h(20)),
+                  ..._buildCurrentSectionFields(),
                 ],
               ),
             ),
@@ -548,25 +555,41 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
           SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.only(top: 8),
+              padding: EdgeInsets.only(top: TaqaUiScale.h(12)),
               child: Row(
                 children: [
                   if (_currentSection > 0)
                     Expanded(
-                      child: TextButton(
-                        onPressed: _back,
-                        child: Text(_t("back")),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _back,
+                          child: SizedBox(
+                            height: TaqaUiScale.h(48),
+                            child: Center(
+                              child: Text(
+                                _t("back").toUpperCase(),
+                                style: TextStyle(
+                                  fontFamily: TaqaUiFontFamilies.interTight,
+                                  fontSize: TaqaUiScale.sp(11),
+                                  fontWeight: FontWeight.w700,
+                                  color: TaqaUiColors.unnamedColor1c1d17
+                                      .withValues(alpha: 0.6),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  if (_currentSection > 0) const SizedBox(width: 8),
+                  if (_currentSection > 0) SizedBox(width: TaqaUiScale.w(12)),
                   Expanded(
-                    child: PrimaryWhiteButton(
-                      onPressed: _next,
-                      child: Text(
-                        _currentSection == _totalSections - 1
-                            ? _t("finish")
-                            : _t("next"),
-                      ),
+                    flex: 2,
+                    child: TaqaFilledButton(
+                      label: _currentSection == _totalSections - 1
+                          ? _t("finish")
+                          : _t("next"),
+                      onTap: _next,
                     ),
                   ),
                 ],
@@ -680,7 +703,14 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         options: [_t("yes"), _t("no")],
       ),
       if ((_values["event_deadline"] ?? "") == _t("yes")) ...[
-        GestureDetector(
+        TaqaUnderlineTextField(
+          controller: _otherControllerFor("deadline_date_display")
+            ..text = (_values["deadline_date"] ?? "").isNotEmpty
+                ? _values["deadline_date"]!
+                : "",
+          label: _t("deadline_date"),
+          hint: _t("select_date"),
+          readOnly: true,
           onTap: () async {
             final now = DateTime.now();
             final picked = await showDatePicker(
@@ -695,14 +725,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
               setState(() => _values["deadline_date"] = formatted);
             }
           },
-          child: _simpleFieldRow(
-            _t("deadline_date"),
-            (_values["deadline_date"] ?? "").isNotEmpty
-                ? _values["deadline_date"]!
-                : _t("select_date"),
-          ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: TaqaUiScale.h(12)),
       ],
     ];
   }
@@ -897,8 +921,6 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
   }
 
   Widget _buildAffiliationFields() {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     final selectedAffiliationId =
         (_values["affiliation_id"]?.isNotEmpty ?? false)
         ? _values["affiliation_id"]
@@ -911,6 +933,15 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       _affiliationOtherCtrl.text = _values["affiliation_other_text"]!;
     }
 
+    final universityIdToName = {
+      for (final u in _universities) u["id"].toString(): u["name"].toString(),
+    };
+    final affiliationIdToName = {
+      for (final item in _affiliations)
+        item["id"].toString(): item["name"]?.toString() ?? "",
+      "custom": _t("didnt_find_affiliation"),
+    };
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -920,25 +951,12 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
           options: [_t("yes"), _t("no")],
         ),
         if (_isUniversityStudent == true) ...[
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            isExpanded: true, //  FIX 1
-            decoration: InputDecoration(
-              labelText: _t("select_university"),
-              border: const OutlineInputBorder(),
-            ),
-            initialValue: _selectedUniversityId,
-            items: _universities
-                .map(
-                  (u) => DropdownMenuItem<String>(
-                    value: u["id"].toString(),
-                    child: Text(
-                      u["name"],
-                      overflow: TextOverflow.ellipsis, //  FIX 2
-                    ),
-                  ),
-                )
-                .toList(),
+          SizedBox(height: TaqaUiScale.h(12)),
+          TaqaUnderlineDropdown(
+            label: _t("select_university"),
+            value: _selectedUniversityId,
+            options: universityIdToName.keys.toList(),
+            itemLabelBuilder: (id) => universityIdToName[id] ?? id,
             validator: (val) {
               if (_isUniversityStudent == true &&
                   (val == null || val.isEmpty)) {
@@ -956,26 +974,22 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                   },
           ),
         ],
-        const SizedBox(height: 16),
-        Divider(thickness: 1),
-        const SizedBox(height: 16),
+        SizedBox(height: TaqaUiScale.h(16)),
+        TaqaSectionDivider(),
         Text(
           _t("affiliation_heading"),
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(15),
+            fontWeight: FontWeight.w700,
+            color: TaqaUiColors.unnamedColor1c1d17,
           ),
         ),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          key: const ValueKey("affiliation_choice"),
-          decoration: InputDecoration(
-            labelText: _t("affiliation_prompt"),
-            border: const OutlineInputBorder(),
-          ),
-          initialValue: affiliationChoice,
-          items: [_t("yes"), _t("no")]
-              .map((c) => DropdownMenuItem<String>(value: c, child: Text(c)))
-              .toList(),
+        SizedBox(height: TaqaUiScale.h(8)),
+        TaqaUnderlineDropdown(
+          label: _t("affiliation_prompt"),
+          value: affiliationChoice,
+          options: [_t("yes"), _t("no")],
           validator: (val) {
             if (val == null || val.isEmpty) {
               return _t("select_option");
@@ -994,20 +1008,13 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
               }
             });
           },
-          onSaved: (val) => _saveField("affiliation_choice", val),
         ),
         if (affiliationChoice == _t("yes")) ...[
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            key: const ValueKey("affiliation_category"),
-            decoration: InputDecoration(
-              labelText: _t("affiliation_category"),
-              border: const OutlineInputBorder(),
-            ),
-            initialValue: _selectedAffiliationCategory,
-            items: _affiliationCategories
-                .map((c) => DropdownMenuItem<String>(value: c, child: Text(c)))
-                .toList(),
+          SizedBox(height: TaqaUiScale.h(12)),
+          TaqaUnderlineDropdown(
+            label: _t("affiliation_category"),
+            value: _selectedAffiliationCategory,
+            options: _affiliationCategories,
             validator: (val) {
               if (affiliationChoice == _t("yes") &&
                   (_affiliationOtherCtrl.text.trim().isEmpty) &&
@@ -1030,29 +1037,14 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                     }
                   },
           ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            key: const ValueKey("affiliation_id"),
-            decoration: InputDecoration(
-              labelText: _affiliationsLoading
-                  ? _t("affiliation_loading")
-                  : _t("affiliation_select"),
-              border: const OutlineInputBorder(),
-            ),
-            initialValue: selectedAffiliationId,
-            isExpanded: true,
-            items: [
-              ..._affiliations.map(
-                (item) => DropdownMenuItem<String>(
-                  value: item["id"].toString(),
-                  child: Text(item["name"]?.toString() ?? ""),
-                ),
-              ),
-              DropdownMenuItem<String>(
-                value: "custom",
-                child: Text(_t("didnt_find_affiliation")),
-              ),
-            ],
+          SizedBox(height: TaqaUiScale.h(12)),
+          TaqaUnderlineDropdown(
+            label: _affiliationsLoading
+                ? _t("affiliation_loading")
+                : _t("affiliation_select"),
+            value: selectedAffiliationId,
+            options: affiliationIdToName.keys.toList(),
+            itemLabelBuilder: (id) => affiliationIdToName[id] ?? id,
             validator: (val) {
               if (affiliationChoice == _t("yes") &&
                   (_affiliationOtherCtrl.text.trim().isEmpty) &&
@@ -1077,23 +1069,23 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                   },
           ),
           if (_affiliationError != null) ...[
-            const SizedBox(height: 6),
+            SizedBox(height: TaqaUiScale.h(6)),
             Text(
               _affiliationError!,
-              style: theme.textTheme.bodySmall?.copyWith(color: cs.error),
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(12),
+                color: TaqaUiColors.unnamedColorE93b3b,
+              ),
             ),
           ],
 
           if ((_values["affiliation_id"] ?? "") == "custom") ...[
-            const SizedBox(height: 12),
-            TextFormField(
-              key: const ValueKey("affiliation_other_text"),
+            SizedBox(height: TaqaUiScale.h(12)),
+            TaqaUnderlineTextField(
               controller: _affiliationOtherCtrl,
-              decoration: InputDecoration(
-                labelText: _t("affiliation_other"),
-                hintText: _t("affiliation_other_hint"),
-                border: const OutlineInputBorder(),
-              ),
+              label: _t("affiliation_other"),
+              hint: _t("affiliation_other_hint"),
               onChanged: (val) => _saveField("affiliation_other_text", val),
               validator: (val) {
                 if ((_values["affiliation_id"] ?? "") == "custom" &&
@@ -1103,24 +1095,24 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                 return null;
               },
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: TaqaUiScale.h(6)),
             Text(
               _t("affiliation_help"),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: cs.onSurface.withValues(alpha: 0.7),
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(11),
+                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
               ),
             ),
           ],
 
-          const SizedBox(height: 16),
+          SizedBox(height: TaqaUiScale.h(16)),
         ],
       ],
     );
   }
 
   Widget _buildChronicConditionsField() {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     final choice = _values["chronic_choice"];
     final yesLabel = _t("yes");
     final noLabel = _t("no");
@@ -1134,17 +1126,11 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        DropdownButtonFormField<String>(
+        TaqaUnderlineDropdown(
           key: const ValueKey("chronic_choice"),
-          decoration: InputDecoration(
-            labelText: _t("chronic_prompt"),
-            border: const OutlineInputBorder(),
-          ),
-          initialValue: choice,
-          items: [
-            DropdownMenuItem(value: yesLabel, child: Text(yesLabel)),
-            DropdownMenuItem(value: noLabel, child: Text(noLabel)),
-          ],
+          label: _t("chronic_prompt"),
+          value: choice,
+          options: [yesLabel, noLabel],
           validator: (val) {
             if (val == null || val.isEmpty) {
               return _t("select_option");
@@ -1162,19 +1148,14 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
               }
             });
           },
-          onSaved: (val) => _saveField("chronic_choice", val),
         ),
         if (choice == yesLabel) ...[
-          const SizedBox(height: 12),
-          TextFormField(
+          SizedBox(height: TaqaUiScale.h(12)),
+          TaqaUnderlineTextField(
             key: const ValueKey("chronic_conditions_text"),
             controller: _chronicCtrl,
-            decoration: InputDecoration(
-              labelText: _t("chronic_conditions"),
-              border: const OutlineInputBorder(),
-            ),
+            label: _t("chronic_conditions"),
             onChanged: (val) => _saveField("chronic_conditions", val),
-            onSaved: (val) => _saveField("chronic_conditions", val),
             validator: (val) {
               if (choice == yesLabel && (val == null || val.trim().isEmpty)) {
                 return _t("required");
@@ -1182,26 +1163,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
               return null;
             },
           ),
-        ] else
-          ...[],
-      ],
-    );
-  }
-
-  Widget _simpleFieldRow(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade400),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
         ],
-      ),
+      ],
     );
   }
 
@@ -1212,17 +1175,16 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     int? minValue,
     int? maxValue,
   }) {
-    final theme = Theme.of(context);
-
+    final ctrl = _otherControllerFor(keyName);
+    if (ctrl.text != (_values[keyName] ?? "")) {
+      ctrl.text = _values[keyName] ?? "";
+    }
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: TextFormField(
+      padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
+      child: TaqaUnderlineTextField(
         key: ValueKey(keyName),
-        initialValue: _values[keyName],
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
+        controller: ctrl,
+        label: label,
         keyboardType: keyboardType,
         inputFormatters: keyboardType == TextInputType.number
             ? [FilteringTextInputFormatter.digitsOnly]
@@ -1246,8 +1208,6 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
           return null;
         },
         onChanged: (val) => _saveField(keyName, val),
-        onSaved: (val) => _saveField(keyName, val),
-        style: theme.textTheme.bodyMedium,
       ),
     );
   }
@@ -1259,7 +1219,6 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     bool requiredField = true,
     String? subtitle,
   }) {
-    final theme = Theme.of(context);
     final currentStored = _values[keyName];
     final otherLabel = _t("other");
     final hasOther = options.contains(otherLabel);
@@ -1275,11 +1234,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       }
     }
 
-    final showOtherField = hasOther && initialValue == otherLabel;
-    final isOtherSelected = showOtherField;
-
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
+      padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1288,36 +1244,29 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
             softWrap: true,
             maxLines: null,
             overflow: TextOverflow.visible,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w500,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(13),
+              fontWeight: FontWeight.w600,
+              color: TaqaUiColors.unnamedColor1c1d17,
             ),
           ),
           if (subtitle != null) ...[
-            const SizedBox(height: 4),
+            SizedBox(height: TaqaUiScale.h(4)),
             Text(
               subtitle,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(11),
+                fontWeight: FontWeight.w400,
+                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
               ),
             ),
           ],
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String?>(
+          SizedBox(height: TaqaUiScale.h(8)),
+          FormField<String?>(
             key: ValueKey(keyName),
-            decoration: InputDecoration(
-              labelText: null,
-              hintText: _t("select_option"),
-              border: const OutlineInputBorder(),
-            ),
-            value: initialValue,
-            items: options
-                .map(
-                  (o) => DropdownMenuItem<String?>(
-                    value: o,
-                    child: Text(o, style: theme.textTheme.bodyMedium),
-                  ),
-                )
-                .toList(),
+            initialValue: initialValue,
             validator: (value) {
               if (!requiredField && (value == null || value.isEmpty)) {
                 return null;
@@ -1330,17 +1279,6 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
               }
               return null;
             },
-            onChanged: (val) {
-              if (val == null) {
-                _saveField(keyName, null);
-              } else if (val != otherLabel) {
-                otherCtrl.clear();
-                _saveField(keyName, val);
-              } else {
-                _saveField(keyName, otherLabel);
-              }
-              setState(() {});
-            },
             onSaved: (val) => _saveField(
               keyName,
               val == null || val.isEmpty
@@ -1349,24 +1287,55 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                   ? otherCtrl.text
                   : val,
             ),
+            builder: (state) {
+              final value = state.value;
+              final showOtherField = hasOther && value == otherLabel;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: TaqaUiScale.w(10),
+                    runSpacing: TaqaUiScale.h(10),
+                    children: options.map((o) {
+                      return TaqaPillChoice(
+                        label: o,
+                        selected: value == o,
+                        onTap: () {
+                          setState(() {
+                            if (o != otherLabel) {
+                              otherCtrl.clear();
+                              _saveField(keyName, o);
+                            } else {
+                              _saveField(keyName, otherLabel);
+                            }
+                            state.didChange(o);
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  if (showOtherField) ...[
+                    SizedBox(height: TaqaUiScale.h(8)),
+                    TaqaUnderlineTextField(
+                      controller: otherCtrl,
+                      label: _t("other"),
+                      onChanged: (val) => _saveField(keyName, val),
+                      validator: (val) {
+                        if (showOtherField && val != null && val.trim().isEmpty) {
+                          return _t("required");
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                  if (state.hasError) ...[
+                    SizedBox(height: TaqaUiScale.h(4)),
+                    TaqaRequiredHint(text: state.errorText ?? ''),
+                  ],
+                ],
+              );
+            },
           ),
-          if (hasOther && (showOtherField || otherCtrl.text.isNotEmpty)) ...[
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: otherCtrl,
-              decoration: InputDecoration(
-                labelText: _t("other"),
-                border: const OutlineInputBorder(),
-              ),
-              onChanged: (val) => _saveField(keyName, val),
-              validator: (val) {
-                if (isOtherSelected && val != null && val.trim().isEmpty) {
-                  return _t("required");
-                }
-                return null;
-              },
-            ),
-          ],
         ],
       ),
     );
@@ -1378,7 +1347,6 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     required List<String> options,
     bool requiredField = true,
   }) {
-    final theme = Theme.of(context);
     final otherLabel = _t("other");
     final hasOther = options.contains(otherLabel);
     final otherCtrl = _otherControllerFor(keyName);
@@ -1442,24 +1410,33 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         }
 
         return Padding(
-          padding: const EdgeInsets.only(bottom: 12.0),
+          padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: theme.textTheme.bodyMedium),
-              const SizedBox(height: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(13),
+                  fontWeight: FontWeight.w600,
+                  color: TaqaUiColors.unnamedColor1c1d17,
+                ),
+              ),
+              SizedBox(height: TaqaUiScale.h(8)),
               Wrap(
-                spacing: 8,
-                runSpacing: 4,
+                spacing: TaqaUiScale.w(10),
+                runSpacing: TaqaUiScale.h(10),
                 children: options.map((o) {
                   final isSelected = o == otherLabel
                       ? otherSelected
                       : selected.contains(o);
-                  return FilterChip(
-                    label: Text(o),
+                  return TaqaPillChoice(
+                    label: o,
                     selected: isSelected,
-                    onSelected: (value) {
+                    onTap: () {
                       setState(() {
+                        final value = !isSelected;
                         if (o == otherLabel) {
                           otherSelected = value;
                           if (!value) {
@@ -1479,31 +1456,51 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                 }).toList(),
               ),
               if (hasOther && (otherSelected || otherCtrl.text.isNotEmpty)) ...[
-                const SizedBox(height: 8),
-                TextFormField(
+                SizedBox(height: TaqaUiScale.h(8)),
+                TaqaUnderlineTextField(
                   controller: otherCtrl,
-                  decoration: InputDecoration(
-                    labelText: _t("other"),
-                    border: const OutlineInputBorder(),
-                  ),
+                  label: _t("other"),
                   onChanged: (_) => updateValue(),
                 ),
               ],
               if (state.hasError)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    state.errorText ?? '',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
+                TaqaRequiredHint(text: state.errorText ?? ''),
             ],
           ),
         );
       },
+    );
+  }
+}
+
+/// Segmented progress bar showing which step of the wizard the user is on.
+class _StepProgressBar extends StatelessWidget {
+  const _StepProgressBar({required this.current, required this.total});
+
+  final int current;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(total, (i) {
+        final filled = i <= current;
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(right: i == total - 1 ? 0 : TaqaUiScale.w(6)),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              height: TaqaUiScale.h(4),
+              decoration: BoxDecoration(
+                color: filled
+                    ? TaqaUiColors.unnamedColorE4e93b
+                    : TaqaUiColors.unnamedColorE3e3e3,
+                borderRadius: TaqaUiScale.radius(2),
+              ),
+            ),
+          ),
+        );
+      }),
     );
   }
 }

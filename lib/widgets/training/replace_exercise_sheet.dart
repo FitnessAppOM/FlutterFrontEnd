@@ -6,7 +6,7 @@ import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 import '../../services/training/training_service.dart';
 import '../../services/training/exercise_action_queue.dart';
-import '../../widgets/app_toast.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
 import '../cardio/cardio_exercise_utils.dart';
 import '../../localization/app_localizations.dart';
 

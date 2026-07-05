@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 
 class SavedAccountTile extends StatelessWidget {
   final String title;
@@ -16,36 +19,47 @@ class SavedAccountTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.surfaceDark,
-      borderRadius: BorderRadius.circular(14),
+      color: TaqaUiColors.white,
+      borderRadius: TaqaUiScale.radius(15),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: TaqaUiScale.radius(15),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: TaqaUiScale.insetsLTRB(12, 10, 8, 10),
           child: Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: TaqaUiScale.w(36),
+                height: TaqaUiScale.h(36),
+                alignment: Alignment.center,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Color(0xFFCCCCCC),
+                  color: TaqaUiColors.unnamedColorE4e93b,
                 ),
-                child: const Icon(Icons.person, color: Colors.black87),
+                child: Icon(
+                  Icons.person,
+                  color: TaqaUiColors.unnamedColor1c1d17,
+                  size: TaqaUiScale.w(18),
+                ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: TaqaUiScale.w(12)),
               Expanded(
                 child: Text(
                   title,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: TaqaUiScale.sp(13),
                     fontWeight: FontWeight.w600,
+                    color: TaqaUiColors.unnamedColor1c1d17,
                   ),
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.more_vert, color: Colors.white70, size: 20),
+                icon: Icon(
+                  Icons.more_vert,
+                  color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.4),
+                  size: TaqaUiScale.w(20),
+                ),
                 onPressed: onMenu,
               ),
             ],

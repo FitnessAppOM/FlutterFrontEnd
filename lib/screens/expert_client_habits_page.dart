@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 import '../core/account_storage.dart';
 import '../services/coach/coach_habits_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/app_toast.dart';
+import '../TaqaUI/components/taqa_toast.dart';
 
 class ExpertClientHabitsPage extends StatefulWidget {
   const ExpertClientHabitsPage({

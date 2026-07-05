@@ -5,7 +5,7 @@ import '../core/user_friendly_error.dart';
 import '../localization/app_localizations.dart';
 import '../services/auth/profile_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/app_toast.dart';
+import '../TaqaUI/components/taqa_toast.dart';
 import '../widgets/coach/coach_chat_panel.dart';
 import '../widgets/coach/coach_feedback_panel.dart';
 import '../widgets/coach/coach_form_check_panel.dart';

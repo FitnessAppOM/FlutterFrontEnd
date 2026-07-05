@@ -9,7 +9,7 @@ import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 import '../../core/account_storage.dart';
 import '../../services/health/workout_health_sync_service.dart';
 import '../../services/training/training_service.dart';
-import '../../widgets/app_toast.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
 import '../../widgets/cardio/cardio_exercise_utils.dart';
 import 'cardio_history_detail_page.dart';
 

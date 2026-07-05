@@ -3,6 +3,7 @@ import '../localization/app_localizations.dart';
 import '../services/diet/diet_service.dart';
 import '../theme/app_theme.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/components/taqa_toast.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 
@@ -76,8 +77,10 @@ class _DietFavoritesSheetState extends State<DietFavoritesSheet> {
           : null;
       if (!mounted) return;
       if (widget.rootContext.mounted) {
-        ScaffoldMessenger.of(widget.rootContext).showSnackBar(
-          SnackBar(content: Text(t.translate("diet_favorites_log_success"))),
+        AppToast.show(
+          widget.rootContext,
+          t.translate("diet_favorites_log_success"),
+          type: AppToastType.success,
         );
       }
       final onLogged = widget.onLogged;
@@ -88,10 +91,10 @@ class _DietFavoritesSheetState extends State<DietFavoritesSheet> {
     } catch (e) {
       if (!mounted) return;
       if (widget.rootContext.mounted) {
-        ScaffoldMessenger.of(widget.rootContext).showSnackBar(
-          SnackBar(
-            content: Text("${t.translate("diet_favorites_log_failed")}: $e"),
-          ),
+        AppToast.show(
+          widget.rootContext,
+          "${t.translate("diet_favorites_log_failed")}: $e",
+          type: AppToastType.error,
         );
       }
     }

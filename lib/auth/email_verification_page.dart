@@ -9,7 +9,7 @@ import '../theme/spacing.dart';
 import '../widgets/primary_button.dart';
 import '../localization/app_localizations.dart'; // ADDED
 import 'verification_success_page.dart';
-import '../widgets/app_toast.dart';
+import '../TaqaUI/components/taqa_toast.dart';
 import '../services/core/notification_service.dart';
 import '../services/core/daily_provider_push_service.dart';
 

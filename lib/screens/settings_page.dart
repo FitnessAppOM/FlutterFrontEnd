@@ -10,8 +10,7 @@ import '../core/locale_controller.dart';
 import 'ForgetPassword/forgot_password_page.dart';
 import '../services/auth/profile_service.dart';
 import '../core/account_storage.dart';
-import '../widgets/app_toast.dart';
-import '../widgets/confirm_dialog.dart';
+import '../TaqaUI/components/taqa_toast.dart';
 import '../core/user_friendly_error.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -742,13 +741,13 @@ class _SettingsPageState extends State<SettingsPage> {
     final loc = AppLocalizations.of(context);
     final userId = await AccountStorage.getUserId();
     if (userId == null) return;
-    final ok = await showConfirmDialog(
+    final ok = await showTaqaConfirmDialog(
       context: context,
       title: loc.translate("fitbit_disconnect_title"),
       message: loc.translate("fitbit_disconnect_confirm"),
-      confirmText: loc.translate("common_disconnect"),
+      confirmLabel: loc.translate("common_disconnect"),
     );
-    if (ok != true) return;
+    if (!ok) return;
     setState(() => _fitbitLoading = true);
     try {
       final url = Uri.parse(
@@ -779,13 +778,13 @@ class _SettingsPageState extends State<SettingsPage> {
     final loc = AppLocalizations.of(context);
     final userId = await AccountStorage.getUserId();
     if (userId == null) return;
-    final ok = await showConfirmDialog(
+    final ok = await showTaqaConfirmDialog(
       context: context,
       title: loc.translate("strava_disconnect_title"),
       message: loc.translate("strava_disconnect_confirm"),
-      confirmText: loc.translate("common_disconnect"),
+      confirmLabel: loc.translate("common_disconnect"),
     );
-    if (ok != true) return;
+    if (!ok) return;
     setState(() => _stravaLoading = true);
     try {
       final url = Uri.parse(
@@ -838,13 +837,13 @@ class _SettingsPageState extends State<SettingsPage> {
       AppToast.show(context, loc.translate("please_login"), type: AppToastType.info);
       return;
     }
-    final ok = await showConfirmDialog(
+    final ok = await showTaqaConfirmDialog(
       context: context,
       title: loc.translate("whoop_disconnect_title"),
       message: loc.translate("whoop_disconnect_confirm"),
-      confirmText: loc.translate("common_disconnect"),
+      confirmLabel: loc.translate("common_disconnect"),
     );
-    if (ok != true) return;
+    if (!ok) return;
     setState(() => _whoopLoading = true);
     try {
       final url = Uri.parse(
@@ -1464,6 +1463,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       fit: BoxFit.contain,
                     ),
                   ),
+                  // Strava and wearable detection are disabled until further notice.
+                  /*
                   _SettingsTile(
                     title: _stravaLinked
                         ? t.translate("strava_connected_title")
@@ -1518,6 +1519,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ),
                   ),
+                  */
                   SizedBox(height: TaqaUiScale.h(24)),
                   _sectionTitle(t.translate("settings_support")),
                   SizedBox(height: TaqaUiScale.h(12)),

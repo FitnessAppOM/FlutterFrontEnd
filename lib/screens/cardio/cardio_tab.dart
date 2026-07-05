@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../consents/consent_manager.dart';
-import '../../widgets/app_toast.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
 import '../../widgets/training/exercise_card.dart';
 import '../../services/training/cardio_session_queue.dart';
 import '../../services/training/training_activity_service.dart';

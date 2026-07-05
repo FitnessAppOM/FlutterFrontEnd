@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import '../config/base_url.dart';
 import '../core/account_storage.dart';
 import '../theme/app_theme.dart';
-import '../widgets/app_toast.dart';
+import '../TaqaUI/components/taqa_toast.dart';
 import '../widgets/primary_button.dart';
 import '../services/whoop/whoop_latest_service.dart';
 

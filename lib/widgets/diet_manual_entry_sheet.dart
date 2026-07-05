@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../localization/app_localizations.dart';
 import '../services/diet/diet_service.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/components/taqa_toast.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import 'diet_item_search_sheet.dart';
@@ -166,11 +167,13 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
     final t = AppLocalizations.of(context);
     final ingredients = _buildIngredientsPayload();
     if (ingredients.isEmpty) {
-      ScaffoldMessenger.of(widget.rootContext).showSnackBar(
-        SnackBar(
-          content: Text(t.translate("diet_manual_at_least_one_ingredient")),
-        ),
-      );
+      if (widget.rootContext.mounted) {
+        AppToast.show(
+          widget.rootContext,
+          t.translate("diet_manual_at_least_one_ingredient"),
+          type: AppToastType.info,
+        );
+      }
       return;
     }
     if (!_formKey.currentState!.validate()) return;
@@ -192,9 +195,11 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
           : null;
 
       if (widget.rootContext.mounted) {
-        ScaffoldMessenger.of(
+        AppToast.show(
           widget.rootContext,
-        ).showSnackBar(SnackBar(content: Text(t.translate("diet_item_added"))));
+          t.translate("diet_item_added"),
+          type: AppToastType.success,
+        );
       }
 
       final onLogged = widget.onLogged;
@@ -206,10 +211,10 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
     } catch (e) {
       if (!mounted) return;
       if (widget.rootContext.mounted) {
-        ScaffoldMessenger.of(widget.rootContext).showSnackBar(
-          SnackBar(
-            content: Text("${t.translate("diet_failed_to_add_item")}: $e"),
-          ),
+        AppToast.show(
+          widget.rootContext,
+          "${t.translate("diet_failed_to_add_item")}: $e",
+          type: AppToastType.error,
         );
       }
     } finally {

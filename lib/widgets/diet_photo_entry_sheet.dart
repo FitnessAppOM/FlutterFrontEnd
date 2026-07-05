@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../localization/app_localizations.dart';
 import '../services/diet/diet_service.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/components/taqa_toast.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 
@@ -73,8 +74,10 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
       final ext = (dot >= 0 ? name.substring(dot + 1) : '').toLowerCase();
       if (ext.isEmpty || !_allowedExt.contains(ext)) {
         if (widget.rootContext.mounted) {
-          ScaffoldMessenger.of(widget.rootContext).showSnackBar(
-            SnackBar(content: Text(t.translate("diet_photo_invalid_type"))),
+          AppToast.show(
+            widget.rootContext,
+            t.translate("diet_photo_invalid_type"),
+            type: AppToastType.error,
           );
         }
         return;
@@ -85,8 +88,10 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
 
       if (bytes.isEmpty) {
         if (widget.rootContext.mounted) {
-          ScaffoldMessenger.of(widget.rootContext).showSnackBar(
-            SnackBar(content: Text(t.translate("diet_photo_empty"))),
+          AppToast.show(
+            widget.rootContext,
+            t.translate("diet_photo_empty"),
+            type: AppToastType.error,
           );
         }
         return;
@@ -94,8 +99,10 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
 
       if (bytes.length > _maxBytes) {
         if (widget.rootContext.mounted) {
-          ScaffoldMessenger.of(widget.rootContext).showSnackBar(
-            SnackBar(content: Text(t.translate("diet_photo_too_large"))),
+          AppToast.show(
+            widget.rootContext,
+            t.translate("diet_photo_too_large"),
+            type: AppToastType.error,
           );
         }
         return;
@@ -132,9 +139,11 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
           : null;
 
       if (widget.rootContext.mounted) {
-        ScaffoldMessenger.of(
+        AppToast.show(
           widget.rootContext,
-        ).showSnackBar(SnackBar(content: Text(t.translate("diet_item_added"))));
+          t.translate("diet_item_added"),
+          type: AppToastType.success,
+        );
       }
 
       // Capture before closing sheet so we don't use widget/context after pop
@@ -147,10 +156,10 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
     } catch (e) {
       if (!mounted) return;
       if (widget.rootContext.mounted) {
-        ScaffoldMessenger.of(widget.rootContext).showSnackBar(
-          SnackBar(
-            content: Text("${t.translate("diet_failed_to_add_item")}: $e"),
-          ),
+        AppToast.show(
+          widget.rootContext,
+          "${t.translate("diet_failed_to_add_item")}: $e",
+          type: AppToastType.error,
         );
       }
     } finally {
