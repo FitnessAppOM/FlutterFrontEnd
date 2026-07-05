@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -39,17 +40,43 @@ class _SignupPageState extends State<SignupPage> {
   bool loading = false;
   bool passwordVisible = false;
 
+  // Password guide is shown from the start and auto-hides a few seconds
+  // after every rule is satisfied.
+  bool _hidePasswordRules = false;
+  Timer? _passwordRulesHideTimer;
+
   final RegExp emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
   final RegExp usernameRegex = RegExp(r'^[A-Za-z0-9._-]+$');
 
   @override
   void dispose() {
+    _passwordRulesHideTimer?.cancel();
     username.dispose();
     email.dispose();
     firstName.dispose();
     lastName.dispose();
     password.dispose();
     super.dispose();
+  }
+
+  // Drives the live checklist and the delayed auto-hide when all rules pass.
+  void _onPasswordChanged() {
+    final allMet = _passwordMeetsAllRules(password.text);
+
+    if (allMet) {
+      // Schedule a graceful hide once everything is green.
+      _passwordRulesHideTimer ??= Timer(const Duration(seconds: 2), () {
+        if (!mounted) return;
+        setState(() => _hidePasswordRules = true);
+      });
+    } else {
+      // Any rule broke again: cancel the hide and bring the guide back.
+      _passwordRulesHideTimer?.cancel();
+      _passwordRulesHideTimer = null;
+      _hidePasswordRules = false;
+    }
+
+    setState(() {});
   }
 
   void _showSnack(String msg, {AppToastType type = AppToastType.error}) {
@@ -94,8 +121,28 @@ class _SignupPageState extends State<SignupPage> {
       _showSnack(t.translate("signup_password_short"));
       return false;
     }
+    // Mirror the backend policy so users are not rejected after submitting.
+    if (!_passwordMeetsAllRules(pass)) {
+      _showSnack(t.translate("signup_password_weak"));
+      return false;
+    }
     return true;
   }
+
+  // ---- Password rule checks (must match backend _validate_password_strong) ----
+  bool _hasMinLength(String p) => p.length >= 8;
+  bool _hasUppercase(String p) => RegExp(r'[A-Z]').hasMatch(p);
+  bool _hasLowercase(String p) => RegExp(r'[a-z]').hasMatch(p);
+  bool _hasDigit(String p) => RegExp(r'\d').hasMatch(p);
+  bool _hasSymbol(String p) =>
+      RegExp(r'''[!@#$%^&*()_+\-=\[\]{};':",.<>/?\\|`~]''').hasMatch(p);
+
+  bool _passwordMeetsAllRules(String p) =>
+      _hasMinLength(p) &&
+      _hasUppercase(p) &&
+      _hasLowercase(p) &&
+      _hasDigit(p) &&
+      _hasSymbol(p);
 
   Future<void> signup() async {
     final t = AppLocalizations.of(context);
@@ -401,6 +448,80 @@ class _SignupPageState extends State<SignupPage> {
     });
   }
 
+  Widget _buildPasswordRequirements(AppLocalizations t) {
+    final pass = password.text;
+
+    final rules = <MapEntry<String, bool>>[
+      MapEntry("signup_password_rule_length", _hasMinLength(pass)),
+      MapEntry("signup_password_rule_uppercase", _hasUppercase(pass)),
+      MapEntry("signup_password_rule_lowercase", _hasLowercase(pass)),
+      MapEntry("signup_password_rule_digit", _hasDigit(pass)),
+      MapEntry("signup_password_rule_symbol", _hasSymbol(pass)),
+    ];
+
+    final card = Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceDark,
+        borderRadius: BorderRadius.circular(AppRadii.tile),
+        border: Border.all(color: AppColors.dividerDark),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            t.translate("signup_password_requirements_title"),
+            style: AppTextStyles.small,
+          ),
+          Gaps.h8,
+          for (final rule in rules) ...[
+            _buildRuleRow(t.translate(rule.key), rule.value),
+            if (rule != rules.last) Gaps.h6,
+          ],
+        ],
+      ),
+    );
+
+    // Neatly collapse + fade the guide away once everything is green.
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      alignment: Alignment.topCenter,
+      child: AnimatedOpacity(
+        opacity: _hidePasswordRules ? 0.0 : 1.0,
+        duration: const Duration(milliseconds: 300),
+        child: _hidePasswordRules ? const SizedBox(width: double.infinity) : card,
+      ),
+    );
+  }
+
+  Widget _buildRuleRow(String label, bool satisfied) {
+    final color = satisfied ? AppColors.successGreen : AppColors.textDim;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          satisfied ? Icons.check_circle : Icons.radio_button_unchecked,
+          size: 16,
+          color: color,
+        ),
+        Gaps.w8,
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 13,
+              fontWeight: satisfied ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
@@ -505,7 +626,7 @@ class _SignupPageState extends State<SignupPage> {
             TextField(
               controller: password,
               obscureText: !passwordVisible,
-              onChanged: (_) => setState(() {}),
+              onChanged: (_) => _onPasswordChanged(),
               decoration: InputDecoration(
                 labelText: t.translate("password"),
                 hintText: t.translate("password_hint"),
@@ -518,6 +639,9 @@ class _SignupPageState extends State<SignupPage> {
                 ),
               ),
             ),
+
+            // Password requirements checklist (blends with dark theme)
+            _buildPasswordRequirements(t),
 
             // Signup button
             Gaps.h20,

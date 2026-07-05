@@ -12,7 +12,18 @@ class CardioExercisesStorage {
     final sp = await SharedPreferences.getInstance();
     final listKey = "${_key}_u$userId";
     final syncKey = "${_lastSyncKey}_u$userId";
-    await sp.setString(listKey, jsonEncode(items));
+    // Never persist the signed `animation_url`: it carries a GCS signature
+    // that expires, and a stale one causes GIFs to 403/"disappear" on the
+    // next app open. Persist only the stable identity of each exercise; the
+    // live URL is always resolved fresh from the network fetch (same pattern
+    // as the training section, which never persists its GIF URL).
+    final sanitized = items.map((item) {
+      final copy = Map<String, dynamic>.from(item);
+      copy.remove('animation_url');
+      copy.remove('animation_rel_path');
+      return copy;
+    }).toList();
+    await sp.setString(listKey, jsonEncode(sanitized));
     await sp.setString(syncKey, DateTime.now().toIso8601String());
   }
 

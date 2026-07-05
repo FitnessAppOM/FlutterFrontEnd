@@ -10,6 +10,7 @@ import '../services/health/sleep_service.dart';
 import '../services/health/water_service.dart';
 import '../services/screenings/screening_service.dart';
 import '../services/whoop/whoop_sleep_service.dart';
+import '../services/fitbit/fitbit_sleep_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/screening/screening_form_sheet.dart';
@@ -80,6 +81,11 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
   Future<void> _refresh() async {
     final future = _loadForSelectedDate();
     setState(() {
+      // Reset seed guards so a manual refresh re-applies the device-sleep
+      // override — lets a user who just synced their wearable pull down and
+      // pick up the newer value.
+      _seededFromRemote = false;
+      _seededFromWidgets = false;
       _future = future;
     });
     await future;
@@ -124,15 +130,11 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
     _tookSupplements = entry.tookSupplementsOrMedications;
   }
 
-  Future<void> _prefillFromWidgets() async {
-    if (_seededFromWidgets) return;
-    final sleepEmpty = _sleepHoursCtrl.text.trim().isEmpty;
-    final hydrationEmpty = _hydrationCtrl.text.trim().isEmpty;
-    if (!sleepEmpty && !hydrationEmpty) {
-      setState(() => _seededFromWidgets = true);
-      return;
-    }
-
+  /// Device sleep for the selected night, checking each wearable the app
+  /// supports: Whoop, then Apple Health / Health Connect (covers Apple Watch,
+  /// Samsung, and Fitbit when it syncs into Health), then Fitbit's own API.
+  /// Returns null when no wearable reported sleep for that day.
+  Future<double?> _fetchDeviceSleepHours() async {
     double? sleepHours;
     try {
       sleepHours = await WhoopSleepService().fetchSleepHoursForDay(
@@ -148,6 +150,42 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
         sleepHours = null;
       }
     }
+    if (sleepHours == null || sleepHours <= 0) {
+      try {
+        final summary = await FitbitSleepService().fetchSummary(_selectedDate);
+        final minutes = summary?.totalMinutesAsleep;
+        if (minutes != null && minutes > 0) {
+          sleepHours = minutes / 60.0;
+        }
+      } catch (_) {
+        // Fitbit not linked / no data for this day.
+      }
+    }
+    return (sleepHours != null && sleepHours > 0) ? sleepHours : null;
+  }
+
+  /// When a journal entry already exists, a wearable may have synced a fresher
+  /// sleep reading for that same night AFTER the entry was saved. Device data
+  /// takes priority for the same day, so silently override the prefilled sleep
+  /// field with the device value. Everything stays editable by the user.
+  Future<void> _overrideSleepWithDeviceIfNewer() async {
+    final deviceSleep = await _fetchDeviceSleepHours();
+    if (!mounted || deviceSleep == null) return;
+    final formatted = deviceSleep.toStringAsFixed(1);
+    if (_sleepHoursCtrl.text.trim() == formatted) return;
+    setState(() => _sleepHoursCtrl.text = formatted);
+  }
+
+  Future<void> _prefillFromWidgets() async {
+    if (_seededFromWidgets) return;
+    final sleepEmpty = _sleepHoursCtrl.text.trim().isEmpty;
+    final hydrationEmpty = _hydrationCtrl.text.trim().isEmpty;
+    if (!sleepEmpty && !hydrationEmpty) {
+      setState(() => _seededFromWidgets = true);
+      return;
+    }
+
+    double? sleepHours = await _fetchDeviceSleepHours();
 
     double? hydrationLiters;
     try {
@@ -401,9 +439,12 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
           final displayEntry =
               entry ?? DailyJournalEntry(entryDate: _selectedDate);
           if (entry != null && !_seededFromRemote && _isYesterdaySelected) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
+            WidgetsBinding.instance.addPostFrameCallback((_) async {
               _seedForm(entry);
               setState(() => _seededFromRemote = true);
+              // Same day: a wearable may have a newer sleep reading than the
+              // saved journal value, so let device data take priority.
+              await _overrideSleepWithDeviceIfNewer();
             });
           }
           if (entry == null && !_seededFromWidgets && _isYesterdaySelected) {

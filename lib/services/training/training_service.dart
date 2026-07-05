@@ -215,6 +215,25 @@ class TrainingService {
     _gifFrames[key] = info;
   }
 
+  /// Drop any memoized provider/frame for this url so the next request
+  /// rebuilds it and re-fetches. Without this, a single failed load (e.g. a
+  /// GCS signed URL that had expired) would be replayed from cache forever
+  /// even after a fresh, valid URL is available for the same blob, because
+  /// providers are keyed on the url with its signing query stripped.
+  static void evictGif(
+    String url, {
+    int? cacheWidth,
+    int? cacheHeight,
+  }) {
+    final key = _gifKey(url, cacheWidth, cacheHeight);
+    final provider = _gifProviders.remove(key);
+    _gifFrames.remove(key);
+    _gifEverLoaded.remove(url);
+    if (provider != null) {
+      provider.evict().catchError((_) => false);
+    }
+  }
+
   static Future<void> warmGif(
     BuildContext context,
     String url, {
@@ -226,7 +245,14 @@ class TrainingService {
       cacheWidth: cacheWidth,
       cacheHeight: cacheHeight,
     );
-    await precacheImage(provider, context);
+    try {
+      await precacheImage(provider, context);
+    } catch (_) {
+      // Evict so a subsequent fetch (with a freshly signed url) actually
+      // retries instead of serving the cached failure.
+      evictGif(url, cacheWidth: cacheWidth, cacheHeight: cacheHeight);
+      rethrow;
+    }
   }
 
   static String _dateParam(DateTime d) {

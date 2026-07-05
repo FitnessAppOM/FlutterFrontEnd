@@ -43,6 +43,7 @@ class DietItemSearchSheet extends StatefulWidget {
 
 class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
   final _qCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
   Timer? _debounce;
 
   bool _loading = false;
@@ -51,20 +52,40 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
   /// Set true before popping so we never rebuild the TextField with _qCtrl after dispose.
   bool _isPopping = false;
 
+  // Pagination: fetch a page at a time, append on scroll, stop at the end.
+  static const int _pageSize = 30;
+  int _offset = 0;
+  bool _hasMore = true;
+  bool _loadingMore = false;
+  /// Increments on every fresh search so stale in-flight pages are discarded.
+  int _searchToken = 0;
+
   List<Map<String, dynamic>> _results = [];
 
   @override
   void initState() {
     super.initState();
     _tabIndex = widget.initialTab;
+    _scrollCtrl.addListener(_onScroll);
     _searchNow();
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _scrollCtrl.removeListener(_onScroll);
+    _scrollCtrl.dispose();
     _qCtrl.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollCtrl.hasClients) return;
+    final pos = _scrollCtrl.position;
+    // Prefetch the next page when within 300px of the bottom.
+    if (pos.pixels >= pos.maxScrollExtent - 300) {
+      _loadMore();
+    }
   }
 
   void _scheduleSearch() {
@@ -73,9 +94,24 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
     _debounce = Timer(const Duration(milliseconds: 350), _searchNow);
   }
 
+  Future<List<Map<String, dynamic>>> _fetchPage(String q, int offset) {
+    return _tabIndex == 0
+        ? NutritionSearchService.searchFoods(
+            q: q,
+            limit: _pageSize,
+            offset: offset,
+          )
+        : NutritionSearchService.searchRestaurants(
+            q: q,
+            limit: _pageSize,
+            offset: offset,
+          );
+  }
+
   Future<void> _searchNow() async {
     if (_isPopping) return;
     final q = _qCtrl.text.trim();
+    final token = ++_searchToken;
     // Backend now accepts 1 character or empty string for foods search
     // For restaurants, searches both restaurant name and food name
     // Empty search returns all items (paginated), so we allow it
@@ -83,28 +119,48 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
     setState(() {
       _loading = true;
       _error = null;
+      _offset = 0;
+      _hasMore = true;
+      _loadingMore = false;
     });
 
     try {
-      final items = _tabIndex == 0
-          ? await NutritionSearchService.searchFoods(q: q, limit: 25, offset: 0)
-          : await NutritionSearchService.searchRestaurants(
-              q: q,
-              limit: 25,
-              offset: 0,
-            );
-      if (!mounted) return;
+      final items = await _fetchPage(q, 0);
+      if (!mounted || token != _searchToken) return;
       setState(() {
         _results = items;
+        _offset = items.length;
+        _hasMore = items.length >= _pageSize;
         _loading = false;
         _error = null;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || token != _searchToken) return;
       setState(() {
         _loading = false;
         _error = e.toString().replaceFirst('Exception: ', '');
       });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isPopping || _loadingMore || _loading || !_hasMore) return;
+    final q = _qCtrl.text.trim();
+    final token = _searchToken;
+    setState(() => _loadingMore = true);
+    try {
+      final items = await _fetchPage(q, _offset);
+      if (!mounted || token != _searchToken) return;
+      setState(() {
+        _results = [..._results, ...items];
+        _offset += items.length;
+        _hasMore = items.length >= _pageSize;
+        _loadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted || token != _searchToken) return;
+      // Keep existing results; just stop the spinner and allow retry on scroll.
+      setState(() => _loadingMore = false);
     }
   }
 
@@ -644,9 +700,23 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
     }
 
     return ListView.separated(
-      itemCount: _results.length,
+      controller: _scrollCtrl,
+      // +1 slot for the bottom "loading more" spinner when another page exists.
+      itemCount: _results.length + (_hasMore ? 1 : 0),
       separatorBuilder: (context, index) => SizedBox(height: TaqaUiScale.h(12)),
-      itemBuilder: (ctx, i) => _buildResultItem(_results[i]),
+      itemBuilder: (ctx, i) {
+        if (i >= _results.length) {
+          // Trailing loader row; also nudges a fetch if the list is short.
+          if (!_loadingMore) {
+            WidgetsBinding.instance.addPostFrameCallback((_) => _loadMore());
+          }
+          return Padding(
+            padding: EdgeInsets.symmetric(vertical: TaqaUiScale.h(12)),
+            child: const Center(child: CircularProgressIndicator()),
+          );
+        }
+        return _buildResultItem(_results[i]);
+      },
     );
   }
 

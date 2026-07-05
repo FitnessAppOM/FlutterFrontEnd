@@ -777,17 +777,29 @@ class _ExerciseGifThumbState extends State<_ExerciseGifThumb> {
   void _attachStream() {
     final stream = _provider.resolve(createLocalImageConfiguration(context));
     _stream = stream;
-    _listener = ImageStreamListener((info, _) {
-      TrainingService.cacheGifFrame(
-        widget.url,
-        info,
-        cacheWidth: widget.cacheWidth,
-        cacheHeight: widget.cacheHeight,
-      );
-      if (!_hasFrame && mounted) {
-        setState(() => _hasFrame = true);
-      }
-    });
+    _listener = ImageStreamListener(
+      (info, _) {
+        TrainingService.cacheGifFrame(
+          widget.url,
+          info,
+          cacheWidth: widget.cacheWidth,
+          cacheHeight: widget.cacheHeight,
+        );
+        if (!_hasFrame && mounted) {
+          setState(() => _hasFrame = true);
+        }
+      },
+      onError: (_, __) {
+        // A failed load (e.g. an expired GCS signed url) must not be pinned
+        // in cache: evict so the next resolve rebuilds the provider and
+        // re-fetches with the freshly signed url.
+        TrainingService.evictGif(
+          widget.url,
+          cacheWidth: widget.cacheWidth,
+          cacheHeight: widget.cacheHeight,
+        );
+      },
+    );
     stream.addListener(_listener!);
   }
 
