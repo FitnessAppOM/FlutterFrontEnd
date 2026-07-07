@@ -9,7 +9,7 @@ import '../taqa_ui_colors.dart';
 class TaqaCommunityHeroCard extends StatelessWidget {
   const TaqaCommunityHeroCard({
     super.key,
-    this.title = 'Community',
+    this.title,
     required this.welcomeText,
     required this.badgeCount,
     required this.groupCount,
@@ -21,7 +21,7 @@ class TaqaCommunityHeroCard extends StatelessWidget {
     this.onReportsTap,
   });
 
-  final String title;
+  final String? title;
   final String welcomeText;
   final int badgeCount;
   final int groupCount;
@@ -45,10 +45,11 @@ class TaqaCommunityHeroCard extends StatelessWidget {
           1.0,
           cardWidth / TaqaUiStyles.communityHeroCardWidth,
         );
+        final hasTitle = title != null && title!.isNotEmpty;
         final leftInset = TaqaUiScale.w(15) * layoutScale;
         final titleTop = TaqaUiScale.h(15) * layoutScale;
         final titleHeight = TaqaUiScale.h(18) * layoutScale;
-        final welcomeTop = TaqaUiScale.h(34) * layoutScale;
+        final welcomeTop = TaqaUiScale.h(hasTitle ? 34 : 15) * layoutScale;
         final welcomeWidth = TaqaUiScale.w(328) * layoutScale;
         final welcomeHeight = TaqaUiScale.h(30) * layoutScale;
         final boxesTop = TaqaUiScale.h(94) * layoutScale;
@@ -67,21 +68,22 @@ class TaqaCommunityHeroCard extends StatelessWidget {
             ),
             child: Stack(
               children: [
-                Positioned(
-                  left: leftInset,
-                  top: titleTop,
-                  width: math.min(welcomeWidth, cardWidth - (leftInset * 2)),
-                  height: titleHeight,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TaqaUiStyles.communityPageTitle,
+                if (hasTitle)
+                  Positioned(
+                    left: leftInset,
+                    top: titleTop,
+                    width: math.min(welcomeWidth, cardWidth - (leftInset * 2)),
+                    height: titleHeight,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        title!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TaqaUiStyles.communityPageTitle,
+                      ),
                     ),
                   ),
-                ),
                 Positioned(
                   left: leftInset,
                   top: welcomeTop,
@@ -166,7 +168,7 @@ class _TaqaCommunityStatGrid extends StatelessWidget {
               layoutScale: layoutScale,
               color: TaqaUiColors.lime,
               label: 'Badges',
-              icon: Icons.workspace_premium_rounded,
+              badgeCount: badgeCount,
               onTap: onBadgesTap,
             ),
             SizedBox(width: boxGap),
@@ -218,7 +220,7 @@ class _TaqaCommunityStatBox extends StatelessWidget {
     required this.color,
     required this.label,
     this.value,
-    this.icon,
+    this.badgeCount,
     this.onTap,
   });
 
@@ -228,7 +230,7 @@ class _TaqaCommunityStatBox extends StatelessWidget {
   final Color color;
   final String label;
   final int? value;
-  final IconData? icon;
+  final int? badgeCount;
   final VoidCallback? onTap;
 
   @override
@@ -265,23 +267,124 @@ class _TaqaCommunityStatBox extends StatelessWidget {
               Positioned(
                 left: contentLeft,
                 top: contentTop,
-                child: icon != null
-                    ? SizedBox(
-                        width: TaqaUiStyles.communityStatIconWidth * layoutScale,
-                        height: TaqaUiStyles.communityStatIconHeight * layoutScale,
-                        child: FittedBox(
-                          fit: BoxFit.contain,
-                          child: Icon(icon, color: TaqaUiColors.charcoal),
-                        ),
+                child: badgeCount != null
+                    ? _TaqaBadgeChipStack(
+                        count: badgeCount!,
+                        layoutScale: layoutScale,
                       )
-                    : Text(
-                        '${value ?? 0}',
-                        style: TaqaUiStyles.scoreCardValue,
-                      ),
+                    : Text('${value ?? 0}', style: TaqaUiStyles.scoreCardValue),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Overlapping stack of badge chips: up to 3 shown front-to-back, with a
+/// "+N" chip peeking out from behind the last one when there are more.
+class _TaqaBadgeChipStack extends StatelessWidget {
+  const _TaqaBadgeChipStack({required this.count, required this.layoutScale});
+
+  final int count;
+  final double layoutScale;
+
+  @override
+  Widget build(BuildContext context) {
+    final chipSize = TaqaUiStyles.communityBadgeChipSize * layoutScale;
+    final overlap = TaqaUiStyles.communityBadgeChipOverlap * layoutScale;
+
+    if (count <= 0) {
+      return SizedBox(
+        width: chipSize,
+        height: chipSize,
+        child: _badgeChip(chipSize, layoutScale, filled: false),
+      );
+    }
+
+    final visible = math.min(count, 3);
+    final overflow = count - visible;
+    final hasOverflow = overflow > 0;
+    final slots = visible + (hasOverflow ? 1 : 0);
+    final totalWidth = chipSize + (slots - 1) * overlap;
+
+    final children = <Widget>[];
+    if (hasOverflow) {
+      // `visible` is always 3 here. Paint the overflow chip before the
+      // last badge chip so the "+N" appears to sit behind it.
+      children.add(
+        Positioned(left: 0, child: _badgeChip(chipSize, layoutScale)),
+      );
+      children.add(
+        Positioned(left: overlap, child: _badgeChip(chipSize, layoutScale)),
+      );
+      children.add(
+        Positioned(left: overlap * 2, child: _overflowChip(chipSize, overflow)),
+      );
+      children.add(
+        Positioned(left: overlap * 3, child: _badgeChip(chipSize, layoutScale)),
+      );
+    } else {
+      for (var i = 0; i < visible; i++) {
+        children.add(
+          Positioned(
+            left: overlap * i,
+            child: _badgeChip(chipSize, layoutScale),
+          ),
+        );
+      }
+    }
+
+    return SizedBox(
+      width: totalWidth,
+      height: chipSize,
+      child: Stack(children: children),
+    );
+  }
+
+  Widget _badgeChip(double size, double layoutScale, {bool filled = true}) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: filled ? TaqaUiColors.white : Colors.transparent,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: TaqaUiColors.charcoal.withValues(alpha: filled ? 0.12 : 0.35),
+        ),
+      ),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Padding(
+          padding: EdgeInsets.all(
+            TaqaUiStyles.communityBadgeChipIconSize * layoutScale * 0.32,
+          ),
+          child: Icon(
+            filled
+                ? Icons.workspace_premium_rounded
+                : Icons.workspace_premium_outlined,
+            color: TaqaUiColors.charcoal.withValues(alpha: filled ? 1 : 0.35),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _overflowChip(double size, int overflow) {
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        color: TaqaUiColors.charcoal,
+        shape: BoxShape.circle,
+      ),
+      child: Text(
+        '+$overflow',
+        maxLines: 1,
+        overflow: TextOverflow.clip,
+        style: TaqaUiStyles.communityBadgeStackOverflow,
       ),
     );
   }

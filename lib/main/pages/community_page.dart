@@ -7,13 +7,17 @@ import '../../core/account_storage.dart';
 import '../../services/community/community_models.dart';
 import '../../services/community/community_service.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/Main/card_container.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../TaqaUI/components/taqa_community_hero_card.dart';
 import '../../TaqaUI/components/taqa_community_action_row.dart';
 import '../../TaqaUI/components/taqa_community_section_header.dart';
 import '../../TaqaUI/components/taqa_community_group_card.dart';
+import '../../TaqaUI/components/taqa_community_group_hero_card.dart';
+import '../../TaqaUI/components/taqa_mute_notifications_card.dart';
+import '../../TaqaUI/components/taqa_settings_row_card.dart';
+import '../../TaqaUI/components/taqa_leaderboard_card.dart';
+import '../../TaqaUI/components/taqa_value_dialog.dart';
 import '../../TaqaUI/components/taqa_community_challenge_card.dart';
 import '../../TaqaUI/components/taqa_community_feed_card.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
@@ -36,6 +40,7 @@ class _CommunityPageState extends State<CommunityPage> {
   bool _loadingMore = false;
   String? _error;
   int? _selectedGroupId;
+  int? _pickedGroupId;
   int? _nextCursor;
 
   @override
@@ -51,7 +56,9 @@ class _CommunityPageState extends State<CommunityPage> {
     });
     try {
       final bootstrap = await CommunityService.fetchBootstrap();
-      final feedPage = await CommunityService.fetchFeed(groupId: _selectedGroupId);
+      final feedPage = await CommunityService.fetchFeed(
+        groupId: _selectedGroupId,
+      );
       var earned = const <CommunityBadge>[];
       try {
         earned = await CommunityService.fetchEarnedBadges();
@@ -77,7 +84,9 @@ class _CommunityPageState extends State<CommunityPage> {
   Future<void> _refreshFeed() async {
     try {
       final bootstrap = await CommunityService.fetchBootstrap();
-      final feedPage = await CommunityService.fetchFeed(groupId: _selectedGroupId);
+      final feedPage = await CommunityService.fetchFeed(
+        groupId: _selectedGroupId,
+      );
       var earned = _myEarnedBadges;
       try {
         earned = await CommunityService.fetchEarnedBadges();
@@ -125,13 +134,13 @@ class _CommunityPageState extends State<CommunityPage> {
             currentUserLiked: false,
             likeCount: item.likeCount > 0 ? item.likeCount - 1 : 0,
           )
-        : item.copyWith(
-            currentUserLiked: true,
-            likeCount: item.likeCount + 1,
-          );
+        : item.copyWith(currentUserLiked: true, likeCount: item.likeCount + 1);
     setState(() {
       _feed = _feed
-          .map((feedItem) => feedItem.feedItemId == item.feedItemId ? updated : feedItem)
+          .map(
+            (feedItem) =>
+                feedItem.feedItemId == item.feedItemId ? updated : feedItem,
+          )
           .toList(growable: false);
     });
     try {
@@ -144,7 +153,10 @@ class _CommunityPageState extends State<CommunityPage> {
       if (!mounted) return;
       setState(() {
         _feed = _feed
-            .map((feedItem) => feedItem.feedItemId == item.feedItemId ? item : feedItem)
+            .map(
+              (feedItem) =>
+                  feedItem.feedItemId == item.feedItemId ? item : feedItem,
+            )
             .toList(growable: false);
       });
       AppToast.show(context, e.toString(), type: AppToastType.error);
@@ -164,7 +176,10 @@ class _CommunityPageState extends State<CommunityPage> {
   }
 
   bool _isAdminForGroup(int groupId) {
-    return _bootstrap?.joinedGroups.any((group) => group.id == groupId && group.isAdmin) == true;
+    return _bootstrap?.joinedGroups.any(
+          (group) => group.id == groupId && group.isAdmin,
+        ) ==
+        true;
   }
 
   Future<void> _showReportSheet({
@@ -196,7 +211,9 @@ class _CommunityPageState extends State<CommunityPage> {
       );
       if (!mounted) return;
       setState(() {
-        _feed = _feed.where((entry) => entry.feedItemId != item.feedItemId).toList(growable: false);
+        _feed = _feed
+            .where((entry) => entry.feedItemId != item.feedItemId)
+            .toList(growable: false);
       });
       AppToast.show(context, 'Feed item hidden.', type: AppToastType.success);
     } catch (e) {
@@ -248,7 +265,11 @@ class _CommunityPageState extends State<CommunityPage> {
     try {
       final group = await CommunityService.joinGroupByCode(code);
       if (!mounted) return;
-      AppToast.show(context, 'Joined ${group.name}.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        'Joined ${group.name}.',
+        type: AppToastType.success,
+      );
       await _loadInitial();
       if (!mounted) return;
       await Navigator.push(
@@ -272,6 +293,14 @@ class _CommunityPageState extends State<CommunityPage> {
     await _refreshFeed();
   }
 
+  Future<void> _openMyGroups(List<CommunityGroupSummary> groups) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => CommunityMyGroupsPage(groups: groups)),
+    );
+    await _refreshFeed();
+  }
+
   Future<void> _openChallenges() async {
     final canPlatformAdminManage = _bootstrap?.hasPlatformAdminAccess ?? false;
     await Navigator.push(
@@ -279,7 +308,8 @@ class _CommunityPageState extends State<CommunityPage> {
       MaterialPageRoute(
         builder: (_) => CommunityChallengesPage(
           title: 'Global Challenges',
-          emptyMessage: 'Global community challenges will appear here automatically when launched.',
+          emptyMessage:
+              'Global community challenges will appear here automatically when launched.',
           canManageGlobalChallenges: canPlatformAdminManage,
         ),
       ),
@@ -336,7 +366,8 @@ class _CommunityPageState extends State<CommunityPage> {
             else if (_feed.isEmpty)
               const _CommunityEmptyCard(
                 title: 'Your feed is quiet',
-                message: 'Join groups, share your data, and your real activity will start populating the feed.',
+                message:
+                    'Join groups, share your data, and your real activity will start populating the feed.',
               )
             else
               ..._feed.map(_buildFeedCard),
@@ -345,8 +376,10 @@ class _CommunityPageState extends State<CommunityPage> {
               OutlinedButton(
                 onPressed: _loadingMore ? null : _loadMore,
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
+                  foregroundColor: TaqaUiColors.charcoal,
+                  side: BorderSide(
+                    color: TaqaUiColors.charcoal.withValues(alpha: 0.18),
+                  ),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 child: _loadingMore
@@ -367,7 +400,6 @@ class _CommunityPageState extends State<CommunityPage> {
   Widget _buildHeroCard() {
     final bootstrap = _bootstrap;
     return TaqaCommunityHeroCard(
-      title: 'Auto-generated community',
       welcomeText: bootstrap == null
           ? 'Loading your groups'
           : 'Welcome back, ${bootstrap.currentUser.primaryLabel}',
@@ -397,8 +429,8 @@ class _CommunityPageState extends State<CommunityPage> {
       children: [
         TaqaCommunitySectionHeader(
           title: 'Your Groups',
-          actionLabel: 'Discover',
-          onActionTap: _openDiscover,
+          actionLabel: 'Open all',
+          onActionTap: () => _openMyGroups(groups),
         ),
         const SizedBox(height: 12),
         if (groups.isEmpty)
@@ -413,32 +445,35 @@ class _CommunityPageState extends State<CommunityPage> {
               scrollDirection: Axis.horizontal,
               itemCount: groups.length,
               separatorBuilder: (_, __) => SizedBox(width: TaqaUiScale.w(15)),
-              itemBuilder: (context, index) {
-                final group = groups[index];
-                return TaqaCommunityGroupCard(
-                  tag: group.groupKind ?? group.visibility ?? 'Group',
-                  name: group.name,
-                  description: group.description ?? 'No description yet.',
-                  memberCount: group.memberCount,
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => CommunityGroupDetailPage(groupId: group.id),
-                      ),
-                    );
-                    await _refreshFeed();
-                  },
-                );
-              },
+              itemBuilder: (context, index) =>
+                  _buildJoinedGroupCard(groups[index]),
             ),
           ),
       ],
     );
   }
 
+  Widget _buildJoinedGroupCard(CommunityGroupSummary group) {
+    return TaqaCommunityGroupCard(
+      tag: group.groupKind ?? group.visibility ?? 'Group',
+      name: group.name,
+      description: group.description ?? '',
+      memberCount: group.memberCount,
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CommunityGroupDetailPage(groupId: group.id),
+          ),
+        );
+        await _refreshFeed();
+      },
+    );
+  }
+
   Widget _buildChallengePreview() {
-    final challenges = _bootstrap?.activeChallenges ?? const <CommunityChallenge>[];
+    final challenges =
+        _bootstrap?.activeChallenges ?? const <CommunityChallenge>[];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -451,47 +486,38 @@ class _CommunityPageState extends State<CommunityPage> {
         if (challenges.isEmpty)
           const _CommunityEmptyCard(
             title: 'No active challenges',
-            message: 'Global community challenges will appear here when launched.',
+            message:
+                'Global community challenges will appear here when launched.',
           )
         else
-          ...challenges.take(3).map(
-            (challenge) => Padding(
-              padding: EdgeInsets.only(bottom: TaqaUiScale.h(15)),
-              child: TaqaCommunityChallengeCard(
-                tag: challenge.challengeType.replaceAll('_', ' '),
-                name: challenge.name,
-                progress: challenge.progressPercent / 100,
-                onTap: _openChallenges,
+          ...challenges
+              .take(3)
+              .map(
+                (challenge) => Padding(
+                  padding: EdgeInsets.only(bottom: TaqaUiScale.h(15)),
+                  child: TaqaCommunityChallengeCard(
+                    tag: challenge.challengeType.replaceAll('_', ' '),
+                    name: challenge.name,
+                    progress: challenge.progressPercent / 100,
+                    onTap: _openChallenges,
+                  ),
+                ),
               ),
-            ),
-          ),
       ],
     );
   }
 
   Widget _buildFeedFilterBar() {
     final groups = _bootstrap?.joinedGroups ?? const <CommunityGroupSummary>[];
-    final tabs = <Widget>[
-      TaqaRangeTab(
-        label: 'All groups',
-        selected: _selectedGroupId == null,
-        onTap: () async {
-          setState(() => _selectedGroupId = null);
-          await _refreshFeed();
-        },
-      ),
-      ...groups.map(
-        (group) => TaqaRangeTab(
-          label: group.name,
-          selected: _selectedGroupId == group.id,
-          onTap: () async {
-            setState(() => _selectedGroupId = group.id);
-            await _refreshFeed();
-          },
-        ),
-      ),
-    ];
     final gap = TaqaUiScale.w(15);
+    CommunityGroupSummary? pickedGroup;
+    if (groups.isNotEmpty) {
+      pickedGroup = groups.firstWhere(
+        (group) => group.id == _pickedGroupId,
+        orElse: () => groups.first,
+      );
+    }
+    final target = pickedGroup;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -501,15 +527,51 @@ class _CommunityPageState extends State<CommunityPage> {
           height: TaqaUiStyles.actionButtonHeight,
           child: Row(
             children: [
-              for (var i = 0; i < tabs.length; i++) ...[
-                if (i > 0) SizedBox(width: gap),
-                Expanded(child: tabs[i]),
+              Expanded(
+                child: TaqaRangeTab(
+                  label: 'All groups',
+                  selected: _selectedGroupId == null,
+                  onTap: () async {
+                    setState(() => _selectedGroupId = null);
+                    await _refreshFeed();
+                  },
+                ),
+              ),
+              if (target != null) ...[
+                SizedBox(width: gap),
+                Expanded(
+                  child: _GroupPickerTab(
+                    label: target.name,
+                    selected: _selectedGroupId == target.id,
+                    onSelect: () async {
+                      setState(() {
+                        _pickedGroupId = target.id;
+                        _selectedGroupId = target.id;
+                      });
+                      await _refreshFeed();
+                    },
+                    onPick: () => _pickFeedGroup(groups, target.id),
+                  ),
+                ),
               ],
             ],
           ),
         ),
       ],
     );
+  }
+
+  Future<void> _pickFeedGroup(
+    List<CommunityGroupSummary> groups,
+    int current,
+  ) async {
+    final picked = await _showGroupPicker(context, groups, current);
+    if (picked == null) return;
+    setState(() {
+      _pickedGroupId = picked;
+      _selectedGroupId = picked;
+    });
+    await _refreshFeed();
   }
 
   Widget _buildFeedCard(CommunityFeedItem item) {
@@ -547,10 +609,7 @@ class _CommunityPageState extends State<CommunityPage> {
             }
           },
           itemBuilder: (_) => [
-            const PopupMenuItem<String>(
-              value: 'report',
-              child: Text('Report'),
-            ),
+            const PopupMenuItem<String>(value: 'report', child: Text('Report')),
             if (isAdmin)
               const PopupMenuItem<String>(
                 value: 'hide',
@@ -562,7 +621,9 @@ class _CommunityPageState extends State<CommunityPage> {
     );
   }
 
-  List<MapEntry<String, String>> _buildPayloadEntries(Map<String, dynamic> payload) {
+  List<MapEntry<String, String>> _buildPayloadEntries(
+    Map<String, dynamic> payload,
+  ) {
     final entries = <MapEntry<String, String>>[];
     const preferredKeys = [
       'score_current',
@@ -690,10 +751,11 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
   @override
   Widget build(BuildContext context) {
     final scaffold = Scaffold(
-      backgroundColor: AppColors.black,
+      backgroundColor: AppColors.appBackground,
       appBar: AppBar(
-        backgroundColor: AppColors.black,
+        backgroundColor: AppColors.appBackground,
         elevation: 0,
+        foregroundColor: TaqaUiColors.charcoal,
         title: const Text('Discover Communities'),
       ),
       body: RefreshIndicator(
@@ -704,12 +766,12 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
           children: [
             TextField(
               controller: _searchController,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: TaqaUiColors.charcoal),
               decoration: InputDecoration(
                 hintText: 'Search by name or description',
                 suffixIcon: IconButton(
                   onPressed: () => _load(),
-                  icon: const Icon(Icons.search),
+                  icon: const Icon(Icons.search, color: TaqaUiColors.charcoal),
                 ),
               ),
               onChanged: _onSearchChanged,
@@ -753,7 +815,8 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
             else if (_groups.isEmpty)
               const _CommunityEmptyCard(
                 title: 'No public groups found',
-                message: 'Try a broader search or create your own private community.',
+                message:
+                    'Try a broader search or create your own private community.',
               )
             else
               ..._groups.map(
@@ -761,7 +824,7 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
                   padding: const EdgeInsets.only(bottom: 12),
                   child: GestureDetector(
                     onTap: () => _openGroup(group),
-                    child: CardContainer(
+                    child: _LightCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -771,9 +834,14 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
                               const Spacer(),
                               if (group.isJoined)
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: AppColors.accent.withValues(alpha: 0.16),
+                                    color: AppColors.accent.withValues(
+                                      alpha: 0.16,
+                                    ),
                                     borderRadius: BorderRadius.circular(999),
                                   ),
                                   child: const Text(
@@ -791,24 +859,34 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
                           Text(
                             group.name,
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: TaqaUiColors.charcoal,
                               fontWeight: FontWeight.w800,
                               fontSize: 16,
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            group.description ?? 'No description available.',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.72),
-                              fontSize: 13,
-                              height: 1.4,
+                          if (group.description != null &&
+                              group.description!.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              group.description!,
+                              style: TextStyle(
+                                color: TaqaUiColors.charcoal.withValues(
+                                  alpha: 0.72,
+                                ),
+                                fontSize: 13,
+                                height: 1.4,
+                              ),
                             ),
-                          ),
+                          ],
                           const SizedBox(height: 12),
                           Text(
                             '${group.memberCount} members',
-                            style: const TextStyle(color: Colors.white70, fontSize: 12),
+                            style: TextStyle(
+                              color: TaqaUiColors.charcoal.withValues(
+                                alpha: 0.7,
+                              ),
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
@@ -832,15 +910,13 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
 }
 
 class CommunityGroupDetailPage extends StatefulWidget {
-  const CommunityGroupDetailPage({
-    super.key,
-    required this.groupId,
-  });
+  const CommunityGroupDetailPage({super.key, required this.groupId});
 
   final int groupId;
 
   @override
-  State<CommunityGroupDetailPage> createState() => _CommunityGroupDetailPageState();
+  State<CommunityGroupDetailPage> createState() =>
+      _CommunityGroupDetailPageState();
 }
 
 class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
@@ -897,7 +973,8 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
   }
 
   Future<void> _toggleShareSetting({
-    required CommunityShareSettings Function(CommunityShareSettings settings) nextSettings,
+    required CommunityShareSettings Function(CommunityShareSettings settings)
+    nextSettings,
   }) async {
     final detail = _detail;
     final current = detail?.shareSettings;
@@ -927,7 +1004,10 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       );
     });
     try {
-      final updated = await CommunityService.updateShareSettings(widget.groupId, optimistic);
+      final updated = await CommunityService.updateShareSettings(
+        widget.groupId,
+        optimistic,
+      );
       if (!mounted) return;
       setState(() {
         final active = _detail!;
@@ -961,14 +1041,14 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
   }
 
   Future<void> _leaveGroup() async {
-    final confirm = await showConfirmDialog(
+    final confirm = await showTaqaConfirmDialog(
       context: context,
       title: 'Leave group',
-      message: 'You can rejoin later if the group is public or if you still have the private code.',
-      confirmText: 'Leave',
-      borderColor: Colors.redAccent,
+      message:
+          'You can rejoin later if the group is public or if you still have the private code.',
+      confirmLabel: 'Leave',
     );
-    if (confirm != true) return;
+    if (!confirm) return;
     try {
       await CommunityService.leaveGroup(widget.groupId);
       if (!mounted) return;
@@ -998,7 +1078,11 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
     try {
       final group = await CommunityService.joinPublicGroup(widget.groupId);
       if (!mounted) return;
-      AppToast.show(context, 'Joined ${group.name}.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        'Joined ${group.name}.',
+        type: AppToastType.success,
+      );
       await _load();
     } catch (e) {
       if (!mounted) return;
@@ -1044,7 +1128,10 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
         context: context,
         builder: (context) => AlertDialog(
           backgroundColor: AppColors.cardDark,
-          title: const Text('New group code', style: TextStyle(color: Colors.white)),
+          title: const Text(
+            'New group code',
+            style: TextStyle(color: Colors.white),
+          ),
           content: Text(
             newCode,
             style: const TextStyle(
@@ -1087,17 +1174,41 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
   Future<void> _changeLeaderboardMetric() async {
     final detail = _detail;
     if (detail == null) return;
-    final metric = await _showMetricPicker(context, detail.leaderboardMetric ?? 'workout_streak');
+    final metric = await _showMetricPicker(
+      context,
+      detail.leaderboardMetric ?? 'workout_streak',
+    );
     if (metric == null) return;
     try {
       await CommunityService.updateLeaderboardMetric(widget.groupId, metric);
       if (!mounted) return;
-      AppToast.show(context, 'Leaderboard metric updated.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        'Leaderboard metric updated.',
+        type: AppToastType.success,
+      );
       await _load();
     } catch (e) {
       if (!mounted) return;
       AppToast.show(context, e.toString(), type: AppToastType.error);
     }
+  }
+
+  Future<void> _openLeaderboard() async {
+    final detail = _detail;
+    if (detail == null) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CommunityLeaderboardPage(
+          groupId: detail.id,
+          isAdmin: detail.isAdmin,
+          initialSummary: detail.leaderboardSummary,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    await _load();
   }
 
   Future<void> _openGroupChallenges() async {
@@ -1109,7 +1220,8 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
         builder: (_) => CommunityChallengesPage(
           groupId: detail.id,
           title: '${detail.name} Challenges',
-          emptyMessage: 'Group challenges will appear here when created by this group admin.',
+          emptyMessage:
+              'Group challenges will appear here when created by this group admin.',
           canManageGroupChallenges: detail.isAdmin,
         ),
       ),
@@ -1118,58 +1230,21 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
     await _load();
   }
 
-  Future<void> _createOrEditPin([CommunityPin? existing]) async {
-    final result = await _showPinEditor(context, existing);
-    if (result == null) return;
-    try {
-      if (existing == null) {
-        await CommunityService.createPin(
-          widget.groupId,
-          pinType: result.pinType,
-          title: result.title,
-          body: result.body,
-          sortOrder: result.sortOrder,
-        );
-      } else {
-        await CommunityService.updatePin(
-          widget.groupId,
-          existing.pinId,
-          title: result.title,
-          body: result.body,
-          sortOrder: result.sortOrder,
-        );
-      }
-      if (!mounted) return;
-      AppToast.show(
-        context,
-        existing == null ? 'Pin created.' : 'Pin updated.',
-        type: AppToastType.success,
-      );
-      await _load();
-    } catch (e) {
-      if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
-    }
-  }
-
-  Future<void> _deletePin(CommunityPin pin) async {
-    final confirm = await showConfirmDialog(
-      context: context,
-      title: 'Delete pin',
-      message: 'This will remove the pinned item from the group.',
-      confirmText: 'Delete',
-      borderColor: Colors.redAccent,
+  Future<void> _openPinnedItems() async {
+    final detail = _detail;
+    if (detail == null) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CommunityPinnedItemsPage(
+          groupId: detail.id,
+          isAdmin: detail.isAdmin,
+          initialPins: detail.pinnedItems,
+        ),
+      ),
     );
-    if (confirm != true) return;
-    try {
-      await CommunityService.deletePin(widget.groupId, pin.pinId);
-      if (!mounted) return;
-      AppToast.show(context, 'Pin deleted.', type: AppToastType.success);
-      await _load();
-    } catch (e) {
-      if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
-    }
+    if (!mounted) return;
+    await _load();
   }
 
   Future<void> _openMembers() async {
@@ -1198,7 +1273,11 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       );
       if (!mounted) return;
       setState(() => _groupNotificationsMuted = value);
-      AppToast.show(context, 'Notification preference saved.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        'Notification preference saved.',
+        type: AppToastType.success,
+      );
     } catch (e) {
       if (!mounted) return;
       AppToast.show(context, e.toString(), type: AppToastType.error);
@@ -1209,10 +1288,11 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
   Widget build(BuildContext context) {
     final detail = _detail;
     final scaffold = Scaffold(
-      backgroundColor: AppColors.black,
+      backgroundColor: AppColors.appBackground,
       appBar: AppBar(
-        backgroundColor: AppColors.black,
+        backgroundColor: AppColors.appBackground,
         elevation: 0,
+        foregroundColor: TaqaUiColors.charcoal,
         title: Text(detail?.name ?? 'Community'),
         actions: [
           if (detail?.isAdmin == true)
@@ -1233,7 +1313,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
                 } else if (value == 'challenges') {
                   await _openGroupChallenges();
                 } else if (value == 'pin') {
-                  await _createOrEditPin();
+                  await _openPinnedItems();
                 } else if (value == 'reports') {
                   await _openGroupReports();
                 } else if (value == 'archive') {
@@ -1242,13 +1322,22 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
               },
               itemBuilder: (_) => const [
                 PopupMenuItem(value: 'edit', child: Text('Edit group')),
-                PopupMenuItem(value: 'view_code', child: Text('View join code')),
+                PopupMenuItem(
+                  value: 'view_code',
+                  child: Text('View join code'),
+                ),
                 PopupMenuItem(value: 'code', child: Text('Reset join code')),
                 PopupMenuItem(value: 'members', child: Text('Manage members')),
                 PopupMenuItem(value: 'reports', child: Text('Reports')),
-                PopupMenuItem(value: 'metric', child: Text('Leaderboard metric')),
-                PopupMenuItem(value: 'challenges', child: Text('Group challenges')),
-                PopupMenuItem(value: 'pin', child: Text('Add pin')),
+                PopupMenuItem(
+                  value: 'metric',
+                  child: Text('Leaderboard metric'),
+                ),
+                PopupMenuItem(
+                  value: 'challenges',
+                  child: Text('Group challenges'),
+                ),
+                PopupMenuItem(value: 'pin', child: Text('Pinned items')),
                 PopupMenuItem(value: 'archive', child: Text('Archive group')),
               ],
             ),
@@ -1270,419 +1359,80 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
                 onPressed: () => _load(),
               )
             else if (detail != null) ...[
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(22),
-                  gradient: LinearGradient(
-                    colors: detail.isPrivate
-                        ? [const Color(0xFF3B1B4A), const Color(0xFF15111C)]
-                        : [const Color(0xFF133A33), const Color(0xFF0D1715)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        _GroupBadge(
-                          group: CommunityGroupSummary(
-                            id: detail.id,
-                            name: detail.name,
-                            memberCount: detail.memberCount,
-                            isJoined: detail.isJoined,
-                            isDiscoverable: detail.isDiscoverable,
-                            isReadOnly: detail.isReadOnly,
-                            visibility: detail.visibility,
-                            groupKind: detail.groupKind,
-                            currentMemberRole: detail.currentMemberRole,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            detail.name,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      detail.description ?? 'No description available.',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.76),
-                        fontSize: 13,
-                        height: 1.45,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        _HeroMetric(label: 'Members', value: '${detail.memberCount}'),
-                        _HeroMetric(label: 'Leaderboard', value: detail.leaderboardMetric ?? '-'),
-                        if (detail.currentMemberRole != null)
-                          _HeroMetric(label: 'Role', value: detail.currentMemberRole!),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: detail.isJoined ? _openMembers : null,
-                            icon: const Icon(Icons.groups_2_outlined),
-                            label: const Text('Members'),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: detail.isJoined
-                                ? _leaveGroup
-                                : (detail.isPrivate ? _joinPrivateGroup : _joinPublicGroup),
-                            icon: Icon(
-                              detail.isJoined
-                                  ? Icons.exit_to_app
-                                  : (detail.isPrivate ? Icons.lock_open_outlined : Icons.group_add_outlined),
-                            ),
-                            label: Text(
-                              detail.isJoined
-                                  ? 'Leave group'
-                                  : (detail.isPrivate ? 'Join by code' : 'Join group'),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+              TaqaCommunityGroupHeroCard(
+                tag: detail.groupKind ?? detail.visibility ?? 'Group',
+                name: detail.name,
+                description: detail.description ?? '',
+                membersValue: '${detail.memberCount}',
+                leaderboardValue: detail.leaderboardMetric ?? '-',
+                onMembersTap: detail.isJoined ? _openMembers : null,
+                actionIcon: detail.isJoined
+                    ? Icons.exit_to_app
+                    : (detail.isPrivate
+                          ? Icons.lock_open_outlined
+                          : Icons.group_add_outlined),
+                onActionTap: detail.isJoined
+                    ? _leaveGroup
+                    : (detail.isPrivate ? _joinPrivateGroup : _joinPublicGroup),
               ),
               const SizedBox(height: 16),
-              CardContainer(
-                child: Column(
-                  children: [
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      activeThumbColor: AppColors.accent,
-                      title: const Text(
-                        'Mute notifications',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-                      ),
-                      subtitle: Text(
-                        'Stay in the group without community alerts.',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.64)),
-                      ),
-                      value: _groupNotificationsMuted,
-                      onChanged: detail.isJoined ? _toggleNotifications : null,
-                    ),
-                  ],
-                ),
+              TaqaMuteNotificationsCard(
+                value: _groupNotificationsMuted,
+                onChanged: detail.isJoined ? _toggleNotifications : null,
               ),
               const SizedBox(height: 16),
               if (detail.shareSettings != null)
-                CardContainer(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Shared metrics',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
+                TaqaSettingsRowCard(
+                  title: 'Shared Metrics',
+                  description:
+                      'Choose exactly what this group can see from your real activity.',
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CommunitySharedMetricsPage(
+                          initialSettings: detail.shareSettings!,
+                          onToggle: (next) =>
+                              _toggleShareSetting(nextSettings: next),
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Choose exactly what this group can see from your real activity.',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.64)),
-                      ),
-                      const SizedBox(height: 12),
-                      _ShareToggleTile(
-                        title: 'Training progress',
-                        value: detail.shareSettings!.shareTrainingProgress,
-                        onChanged: (value) => _toggleShareSetting(
-                          nextSettings: (settings) => settings.copyWith(shareTrainingProgress: value),
-                        ),
-                      ),
-                      _ShareToggleTile(
-                        title: 'TAQA Fitness Score',
-                        value: detail.shareSettings!.shareTaqaScore,
-                        onChanged: (value) => _toggleShareSetting(
-                          nextSettings: (settings) => settings.copyWith(shareTaqaScore: value),
-                        ),
-                      ),
-                      _ShareToggleTile(
-                        title: 'Daily movement',
-                        value: detail.shareSettings!.shareDailyMovement,
-                        onChanged: (value) => _toggleShareSetting(
-                          nextSettings: (settings) => settings.copyWith(shareDailyMovement: value),
-                        ),
-                      ),
-                      _ShareToggleTile(
-                        title: 'Wearable data',
-                        value: detail.shareSettings!.shareWearableData,
-                        onChanged: (value) => _toggleShareSetting(
-                          nextSettings: (settings) => settings.copyWith(shareWearableData: value),
-                        ),
-                      ),
-                      _ShareToggleTile(
-                        title: 'Wellness',
-                        value: detail.shareSettings!.shareWellness,
-                        onChanged: (value) => _toggleShareSetting(
-                          nextSettings: (settings) => settings.copyWith(shareWellness: value),
-                        ),
-                      ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               if (detail.shareSettings != null) const SizedBox(height: 16),
-              CardContainer(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Pinned items',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        if (detail.isAdmin)
-                          TextButton(
-                            onPressed: () => _createOrEditPin(),
-                            child: const Text('Add'),
-                          ),
-                      ],
-                    ),
-                    if (detail.pinnedItems.isEmpty)
-                      const Text(
-                        'No pins yet.',
-                        style: TextStyle(color: Colors.white70),
-                      )
-                    else
-                      ...detail.pinnedItems.map(
-                        (pin) => Padding(
-                          padding: const EdgeInsets.only(top: 12),
-                          child: Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.04),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    _MiniChip(label: pin.pinType.replaceAll('_', ' ')),
-                                    const Spacer(),
-                                    if (detail.isAdmin)
-                                      PopupMenuButton<String>(
-                                        icon: const Icon(Icons.more_horiz, color: Colors.white70),
-                                        color: const Color(0xFF141414),
-                                        onSelected: (value) async {
-                                          if (value == 'edit') {
-                                            await _createOrEditPin(pin);
-                                          } else if (value == 'delete') {
-                                            await _deletePin(pin);
-                                          }
-                                        },
-                                        itemBuilder: (_) => const [
-                                          PopupMenuItem(value: 'edit', child: Text('Edit')),
-                                          PopupMenuItem(value: 'delete', child: Text('Delete')),
-                                        ],
-                                      ),
-                                  ],
-                                ),
-                                const SizedBox(height: 10),
-                                Text(
-                                  pin.title,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  pin.body,
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.74),
-                                    height: 1.4,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+              TaqaSettingsRowCard(
+                title: 'Pinned Items',
+                description: detail.pinnedItems.isEmpty
+                    ? 'No pins yet.'
+                    : '${detail.pinnedItems.length} pinned item${detail.pinnedItems.length == 1 ? '' : 's'}.',
+                onTap: _openPinnedItems,
+              ),
+              const SizedBox(height: 15),
+              TaqaSettingsRowCard(
+                title: 'Challenges',
+                description: !detail.isJoined
+                    ? 'Join this group to view its group-specific challenges.'
+                    : _groupChallenges.isEmpty
+                    ? 'No group challenges yet.'
+                    : '${_groupChallenges.length} active challenge${_groupChallenges.length == 1 ? '' : 's'}.',
+                onTap: detail.isJoined ? _openGroupChallenges : null,
               ),
               const SizedBox(height: 16),
-              CardContainer(
-                child: Row(
-                  children: [
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Challenges',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          SizedBox(height: 6),
-                          Text(
-                            'Track challenges scoped to this community only.',
-                            style: TextStyle(color: Colors.white70),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    OutlinedButton(
-                      onPressed: detail.isJoined ? _openGroupChallenges : null,
-                      child: const Text('Open'),
-                    ),
-                  ],
+              TaqaLeaderboardCard(
+                metricLabel: detail.leaderboardSummary.metric.replaceAll(
+                  '_',
+                  ' ',
                 ),
-              ),
-              const SizedBox(height: 16),
-              CardContainer(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Challenge Preview',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        if (detail.isJoined)
-                          TextButton(
-                            onPressed: _openGroupChallenges,
-                            child: const Text('See all'),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    if (!detail.isJoined)
-                      const Text(
-                        'Join this group to view its group-specific challenges.',
-                        style: TextStyle(color: Colors.white70),
-                      )
-                    else if (_groupChallenges.isEmpty)
-                      const Text(
-                        'No group challenges yet.',
-                        style: TextStyle(color: Colors.white70),
-                      )
-                    else
-                      ..._groupChallenges.take(2).map(
-                        (challenge) => Padding(
-                          padding: const EdgeInsets.only(top: 10),
-                          child: _ChallengeCard(
-                            challenge: challenge,
-                            onTap: _openGroupChallenges,
-                          ),
-                        ),
+                topEntries: detail.leaderboardSummary.items
+                    .take(3)
+                    .map(
+                      (entry) => TaqaLeaderboardEntry(
+                        rank: entry.rankPosition,
+                        name: entry.displayName,
                       ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              CardContainer(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Leaderboard',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        if (detail.isAdmin)
-                          TextButton(
-                            onPressed: _changeLeaderboardMetric,
-                            child: const Text('Change metric'),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Metric: ${detail.leaderboardSummary.metric}',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-                    ),
-                    const SizedBox(height: 12),
-                    if (detail.leaderboardSummary.items.isEmpty)
-                      const Text(
-                        'No leaderboard data yet.',
-                        style: TextStyle(color: Colors.white70),
-                      )
-                    else
-                      ...detail.leaderboardSummary.items.take(5).map(
-                        (entry) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                width: 28,
-                                child: Text(
-                                  '#${entry.rankPosition}',
-                                  style: TextStyle(
-                                    color: entry.isCurrentUser ? AppColors.accent : Colors.white,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  entry.displayName,
-                                  style: const TextStyle(color: Colors.white),
-                                ),
-                              ),
-                              Text(
-                                entry.scoreLabel,
-                                style: TextStyle(color: Colors.white.withValues(alpha: 0.72)),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+                    )
+                    .toList(growable: false),
+                onTap: _openLeaderboard,
               ),
               const SizedBox(height: 16),
               _InlineSectionHeader(
@@ -1694,7 +1444,8 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
               if (_feed.isEmpty)
                 const _CommunityEmptyCard(
                   title: 'No activity yet',
-                  message: 'This group feed will populate from real workouts, badges, score improvements, movement, and challenges.',
+                  message:
+                      'This group feed will populate from real workouts, badges, score improvements, movement, and challenges.',
                 )
               else
                 ..._feed.map(
@@ -1776,7 +1527,8 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
     final confirm = await showConfirmDialog(
       context: context,
       title: 'Archive group',
-      message: 'This will archive the group and remove it from normal community use.',
+      message:
+          'This will archive the group and remove it from normal community use.',
       confirmText: 'Archive',
       borderColor: Colors.redAccent,
     );
@@ -1790,6 +1542,62 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       if (!mounted) return;
       AppToast.show(context, e.toString(), type: AppToastType.error);
     }
+  }
+}
+
+class CommunityMyGroupsPage extends StatelessWidget {
+  const CommunityMyGroupsPage({super.key, required this.groups});
+
+  final List<CommunityGroupSummary> groups;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.appBackground,
+      appBar: AppBar(
+        backgroundColor: AppColors.appBackground,
+        elevation: 0,
+        foregroundColor: TaqaUiColors.charcoal,
+        title: const Text('Your Groups'),
+      ),
+      body: SafeArea(
+        child: groups.isEmpty
+            ? const Padding(
+                padding: EdgeInsets.all(20),
+                child: _CommunityEmptyCard(
+                  title: 'No groups yet',
+                  message:
+                      'Create a private group or discover a public community.',
+                ),
+              )
+            : ListView.separated(
+                padding: EdgeInsets.all(TaqaUiScale.w(20)),
+                itemCount: groups.length,
+                separatorBuilder: (_, __) =>
+                    SizedBox(height: TaqaUiScale.h(15)),
+                itemBuilder: (context, index) {
+                  final group = groups[index];
+                  return TaqaCommunityGroupHeroCard(
+                    tag: group.groupKind ?? group.visibility ?? 'Group',
+                    name: group.name,
+                    description: group.description ?? '',
+                    membersValue: '${group.memberCount}',
+                    leaderboardValue: group.leaderboardMetric ?? '-',
+                    onTap: () => _openGroupDetail(context, group),
+                  );
+                },
+              ),
+      ),
+    );
+  }
+
+  void _openGroupDetail(BuildContext context, CommunityGroupSummary group) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CommunityGroupDetailPage(groupId: group.id),
+      ),
+    );
   }
 }
 
@@ -1810,10 +1618,12 @@ class CommunityChallengesPage extends StatefulWidget {
   final bool canManageGroupChallenges;
 
   bool get isGroupScoped => groupId != null;
-  bool get canCreate => isGroupScoped ? canManageGroupChallenges : canManageGlobalChallenges;
+  bool get canCreate =>
+      isGroupScoped ? canManageGroupChallenges : canManageGlobalChallenges;
 
   @override
-  State<CommunityChallengesPage> createState() => _CommunityChallengesPageState();
+  State<CommunityChallengesPage> createState() =>
+      _CommunityChallengesPageState();
 }
 
 class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
@@ -1824,8 +1634,9 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
   int _selectedTabIndex = 0;
 
   bool get _isGroupTab => widget.isGroupScoped && _selectedTabIndex == 1;
-  bool get _canCreateForCurrentTab =>
-      _isGroupTab ? widget.canManageGroupChallenges : widget.canManageGlobalChallenges;
+  bool get _canCreateForCurrentTab => _isGroupTab
+      ? widget.canManageGroupChallenges
+      : widget.canManageGlobalChallenges;
   List<CommunityChallenge> get _visibleChallenges =>
       _isGroupTab ? _groupChallenges : _globalChallenges;
   String get _currentEmptyMessage {
@@ -1875,10 +1686,18 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
       if (!mounted) return;
       setState(() {
         _globalChallenges = _globalChallenges
-            .map((item) => item.challengeId == challenge.challengeId ? item.copyWith(mutedNotifications: muted) : item)
+            .map(
+              (item) => item.challengeId == challenge.challengeId
+                  ? item.copyWith(mutedNotifications: muted)
+                  : item,
+            )
             .toList(growable: false);
         _groupChallenges = _groupChallenges
-            .map((item) => item.challengeId == challenge.challengeId ? item.copyWith(mutedNotifications: muted) : item)
+            .map(
+              (item) => item.challengeId == challenge.challengeId
+                  ? item.copyWith(mutedNotifications: muted)
+                  : item,
+            )
             .toList(growable: false);
       });
     } catch (e) {
@@ -1956,7 +1775,8 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
     final confirm = await showConfirmDialog(
       context: context,
       title: 'Delete challenge',
-      message: 'This will permanently remove the challenge and its progress records.',
+      message:
+          'This will permanently remove the challenge and its progress records.',
       confirmText: 'Delete',
       borderColor: Colors.redAccent,
     );
@@ -1975,10 +1795,11 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
   @override
   Widget build(BuildContext context) {
     final scaffold = Scaffold(
-      backgroundColor: AppColors.black,
+      backgroundColor: AppColors.appBackground,
       appBar: AppBar(
-        backgroundColor: AppColors.black,
+        backgroundColor: AppColors.appBackground,
         elevation: 0,
+        foregroundColor: TaqaUiColors.charcoal,
         title: Text(widget.title),
         actions: [
           if (_canCreateForCurrentTab)
@@ -1990,6 +1811,10 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
         bottom: widget.isGroupScoped
             ? TabBar(
                 onTap: (index) => setState(() => _selectedTabIndex = index),
+                labelColor: TaqaUiColors.charcoal,
+                unselectedLabelColor: TaqaUiColors.charcoal.withValues(
+                  alpha: 0.6,
+                ),
                 tabs: const [
                   Tab(text: 'Global'),
                   Tab(text: 'Group'),
@@ -2021,19 +1846,33 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
               ..._visibleChallenges.map(
                 (challenge) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: CardContainer(
+                  child: _LightCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            _MiniChip(label: challenge.challengeType.replaceAll('_', ' ')),
+                            _MiniChip(
+                              label: challenge.challengeType.replaceAll(
+                                '_',
+                                ' ',
+                              ),
+                            ),
                             const SizedBox(width: 8),
-                            _MiniChip(label: challenge.isGroupScoped ? 'group' : 'global'),
+                            _MiniChip(
+                              label: challenge.isGroupScoped
+                                  ? 'group'
+                                  : 'global',
+                            ),
                             const Spacer(),
                             if (_canManageChallenge(challenge))
                               PopupMenuButton<String>(
-                                icon: const Icon(Icons.more_horiz, color: Colors.white70),
+                                icon: Icon(
+                                  Icons.more_horiz,
+                                  color: TaqaUiColors.charcoal.withValues(
+                                    alpha: 0.7,
+                                  ),
+                                ),
                                 color: const Color(0xFF141414),
                                 onSelected: (value) async {
                                   if (value == 'edit') {
@@ -2043,8 +1882,14 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
                                   }
                                 },
                                 itemBuilder: (_) => const [
-                                  PopupMenuItem(value: 'edit', child: Text('Edit')),
-                                  PopupMenuItem(value: 'delete', child: Text('Delete')),
+                                  PopupMenuItem(
+                                    value: 'edit',
+                                    child: Text('Edit'),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'delete',
+                                    child: Text('Delete'),
+                                  ),
                                 ],
                               ),
                           ],
@@ -2052,7 +1897,7 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
                         Text(
                           challenge.name,
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: TaqaUiColors.charcoal,
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
                           ),
@@ -2061,15 +1906,23 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
                           const SizedBox(height: 8),
                           Text(
                             challenge.description!,
-                            style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                            style: TextStyle(
+                              color: TaqaUiColors.charcoal.withValues(
+                                alpha: 0.7,
+                              ),
+                            ),
                           ),
                         ],
                         const SizedBox(height: 12),
                         LinearProgressIndicator(
                           value: (challenge.progressPercent / 100).clamp(0, 1),
-                          backgroundColor: Colors.white.withValues(alpha: 0.08),
+                          backgroundColor: TaqaUiColors.charcoal.withValues(
+                            alpha: 0.08,
+                          ),
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            challenge.isCompleted ? Colors.greenAccent : AppColors.accent,
+                            challenge.isCompleted
+                                ? Colors.greenAccent
+                                : AppColors.accent,
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -2078,20 +1931,30 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
                             Expanded(
                               child: Text(
                                 '${challenge.progressPercent.toStringAsFixed(0)}% complete',
-                                style: const TextStyle(color: Colors.white70),
+                                style: TextStyle(
+                                  color: TaqaUiColors.charcoal.withValues(
+                                    alpha: 0.7,
+                                  ),
+                                ),
                               ),
                             ),
                             Switch.adaptive(
                               activeColor: AppColors.accent,
                               value: challenge.mutedNotifications,
-                              onChanged: (value) => _toggleMute(challenge, value),
+                              onChanged: (value) =>
+                                  _toggleMute(challenge, value),
                             ),
                           ],
                         ),
-                        if (challenge.startAt != null || challenge.endAt != null)
+                        if (challenge.startAt != null ||
+                            challenge.endAt != null)
                           Text(
                             '${challenge.startAt != null ? _formatDate(challenge.startAt) : '-'} -> ${challenge.endAt != null ? _formatDate(challenge.endAt) : '-'}',
-                            style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+                            style: TextStyle(
+                              color: TaqaUiColors.charcoal.withValues(
+                                alpha: 0.6,
+                              ),
+                            ),
                           ),
                       ],
                     ),
@@ -2105,10 +1968,7 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
     if (!widget.isGroupScoped) {
       return scaffold;
     }
-    return DefaultTabController(
-      length: 2,
-      child: scaffold,
-    );
+    return DefaultTabController(length: 2, child: scaffold);
   }
 }
 
@@ -2159,10 +2019,11 @@ class _CommunityBadgesPageState extends State<CommunityBadgesPage> {
   Widget build(BuildContext context) {
     final items = _showEarnedOnly ? _earnedBadges : _allBadges;
     return Scaffold(
-      backgroundColor: AppColors.black,
+      backgroundColor: AppColors.appBackground,
       appBar: AppBar(
-        backgroundColor: AppColors.black,
+        backgroundColor: AppColors.appBackground,
         elevation: 0,
+        foregroundColor: TaqaUiColors.charcoal,
         title: const Text('Badges'),
       ),
       body: RefreshIndicator(
@@ -2199,13 +2060,14 @@ class _CommunityBadgesPageState extends State<CommunityBadgesPage> {
             else if (items.isEmpty)
               const _CommunityEmptyCard(
                 title: 'No badges yet',
-                message: 'Your earned community milestones will appear here automatically.',
+                message:
+                    'Your earned community milestones will appear here automatically.',
               )
             else
               ...items.map(
                 (badge) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: CardContainer(
+                  child: _LightCard(
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -2214,13 +2076,19 @@ class _CommunityBadgesPageState extends State<CommunityBadgesPage> {
                           height: 48,
                           decoration: BoxDecoration(
                             color: badge.isEarned
-                                ? const Color(0xFFD4AF37).withValues(alpha: 0.18)
-                                : Colors.white.withValues(alpha: 0.06),
+                                ? const Color(
+                                    0xFFD4AF37,
+                                  ).withValues(alpha: 0.18)
+                                : TaqaUiColors.charcoal.withValues(alpha: 0.06),
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Icon(
-                            badge.isEarned ? Icons.workspace_premium : Icons.workspace_premium_outlined,
-                            color: badge.isEarned ? const Color(0xFFD4AF37) : Colors.white54,
+                            badge.isEarned
+                                ? Icons.workspace_premium
+                                : Icons.workspace_premium_outlined,
+                            color: badge.isEarned
+                                ? const Color(0xFFD4AF37)
+                                : TaqaUiColors.charcoal.withValues(alpha: 0.54),
                           ),
                         ),
                         const SizedBox(width: 14),
@@ -2234,7 +2102,7 @@ class _CommunityBadgesPageState extends State<CommunityBadgesPage> {
                                     child: Text(
                                       badge.name,
                                       style: const TextStyle(
-                                        color: Colors.white,
+                                        color: TaqaUiColors.charcoal,
                                         fontSize: 16,
                                         fontWeight: FontWeight.w800,
                                       ),
@@ -2247,7 +2115,9 @@ class _CommunityBadgesPageState extends State<CommunityBadgesPage> {
                               Text(
                                 badge.description,
                                 style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.72),
+                                  color: TaqaUiColors.charcoal.withValues(
+                                    alpha: 0.72,
+                                  ),
                                   height: 1.4,
                                 ),
                               ),
@@ -2255,7 +2125,12 @@ class _CommunityBadgesPageState extends State<CommunityBadgesPage> {
                                 const SizedBox(height: 10),
                                 Text(
                                   'Earned ${_formatDate(badge.awardedAt)}',
-                                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                  style: TextStyle(
+                                    color: TaqaUiColors.charcoal.withValues(
+                                      alpha: 0.7,
+                                    ),
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ],
                             ],
@@ -2284,7 +2159,8 @@ class CommunityAdminReportsPage extends StatefulWidget {
   final String title;
 
   @override
-  State<CommunityAdminReportsPage> createState() => _CommunityAdminReportsPageState();
+  State<CommunityAdminReportsPage> createState() =>
+      _CommunityAdminReportsPageState();
 }
 
 class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
@@ -2307,7 +2183,10 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
     try {
       final reports = widget.groupId == null
           ? await CommunityService.fetchAdminReports(status: _status)
-          : await CommunityService.fetchGroupReports(widget.groupId!, status: _status);
+          : await CommunityService.fetchGroupReports(
+              widget.groupId!,
+              status: _status,
+            );
       if (!mounted) return;
       setState(() {
         _reports = reports;
@@ -2337,12 +2216,22 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
   Future<void> _moderate(CommunityReport report, String action) async {
     try {
       if (report.targetType == 'feed_item') {
-        await CommunityService.setFeedItemVisibility(report.targetId, isHidden: true);
+        await CommunityService.setFeedItemVisibility(
+          report.targetId,
+          isHidden: true,
+        );
       } else {
-        await CommunityService.setCommentStatus(report.targetId, status: action);
+        await CommunityService.setCommentStatus(
+          report.targetId,
+          status: action,
+        );
       }
       if (!mounted) return;
-      AppToast.show(context, 'Moderation action applied.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        'Moderation action applied.',
+        type: AppToastType.success,
+      );
       await _load();
     } catch (e) {
       if (!mounted) return;
@@ -2353,10 +2242,11 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.black,
+      backgroundColor: AppColors.appBackground,
       appBar: AppBar(
-        backgroundColor: AppColors.black,
+        backgroundColor: AppColors.appBackground,
         elevation: 0,
+        foregroundColor: TaqaUiColors.charcoal,
         title: Text(widget.title),
       ),
       body: RefreshIndicator(
@@ -2408,7 +2298,7 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
               ..._reports.map(
                 (report) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: CardContainer(
+                  child: _LightCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -2425,7 +2315,7 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
                         Text(
                           'Target #${report.targetId}',
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: TaqaUiColors.charcoal,
                             fontWeight: FontWeight.w800,
                             fontSize: 15,
                           ),
@@ -2435,7 +2325,9 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
                           Text(
                             report.details!,
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.72),
+                              color: TaqaUiColors.charcoal.withValues(
+                                alpha: 0.72,
+                              ),
                               height: 1.4,
                             ),
                           ),
@@ -2514,7 +2406,9 @@ class _CommentsSheetState extends State<_CommentsSheet> {
       _error = null;
     });
     try {
-      final page = await CommunityService.fetchComments(widget.feedItem.feedItemId);
+      final page = await CommunityService.fetchComments(
+        widget.feedItem.feedItemId,
+      );
       if (!mounted) return;
       setState(() {
         _comments = page.items;
@@ -2534,7 +2428,10 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     if (text.isEmpty || _submitting) return;
     setState(() => _submitting = true);
     try {
-      final comment = await CommunityService.createComment(widget.feedItem.feedItemId, text);
+      final comment = await CommunityService.createComment(
+        widget.feedItem.feedItemId,
+        text,
+      );
       if (!mounted) return;
       _controller.clear();
       setState(() {
@@ -2602,88 +2499,103 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                 const SizedBox(height: 16),
                 const Text(
                   'Comments',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Expanded(
                   child: _loading
                       ? const Center(child: CircularProgressIndicator())
                       : _error != null
-                          ? Center(
-                              child: Padding(
-                                padding: const EdgeInsets.all(24),
-                                child: Text(
-                                  _error!,
-                                  style: const TextStyle(color: Colors.white70),
-                                  textAlign: TextAlign.center,
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                              _error!,
+                              style: const TextStyle(color: Colors.white70),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          controller: scrollController,
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                          itemCount: _comments.length,
+                          itemBuilder: (context, index) {
+                            final comment = _comments[index];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.05),
+                                  borderRadius: BorderRadius.circular(16),
                                 ),
-                              ),
-                            )
-                          : ListView.builder(
-                              controller: scrollController,
-                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                              itemCount: _comments.length,
-                              itemBuilder: (context, index) {
-                                final comment = _comments[index];
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(14),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.05),
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
                                       children: [
-                                        Row(
-                                          children: [
-                                            _Avatar(
-                                              url: comment.author.avatarUrl,
-                                              label: comment.author.primaryLabel,
-                                              radius: 16,
-                                            ),
-                                            const SizedBox(width: 10),
-                                            Expanded(
-                                              child: Text(
-                                                comment.author.primaryLabel,
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                            ),
-                                            Text(
-                                              _formatDate(comment.createdAt),
-                                              style: const TextStyle(color: Colors.white54, fontSize: 11),
-                                            ),
-                                            IconButton(
-                                              onPressed: () => _reportComment(comment),
-                                              icon: const Icon(Icons.flag_outlined, color: Colors.white54),
-                                            ),
-                                          ],
+                                        _Avatar(
+                                          url: comment.author.avatarUrl,
+                                          label: comment.author.primaryLabel,
+                                          radius: 16,
                                         ),
-                                        const SizedBox(height: 8),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            comment.author.primaryLabel,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
                                         Text(
-                                          comment.commentText,
-                                          style: TextStyle(
-                                            color: Colors.white.withValues(alpha: 0.8),
-                                            height: 1.45,
+                                          _formatDate(comment.createdAt),
+                                          style: const TextStyle(
+                                            color: Colors.white54,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                        IconButton(
+                                          onPressed: () =>
+                                              _reportComment(comment),
+                                          icon: const Icon(
+                                            Icons.flag_outlined,
+                                            color: Colors.white54,
                                           ),
                                         ),
                                       ],
                                     ),
-                                  ),
-                                );
-                              },
-                            ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      comment.commentText,
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.8,
+                                        ),
+                                        height: 1.45,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                 ),
                 Container(
                   padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.02),
                     border: Border(
-                      top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+                      top: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
                     ),
                   ),
                   child: Row(
@@ -2706,7 +2618,9 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                             ? const SizedBox(
                                 height: 16,
                                 width: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Text('Send'),
                       ),
@@ -2866,7 +2780,11 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
               const SizedBox(height: 14),
               Text(
                 widget.groupName,
-                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
@@ -2878,86 +2796,106 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
                 child: _loading
                     ? const Center(child: CircularProgressIndicator())
                     : _error != null
-                        ? Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Text(
-                                _error!,
-                                style: const TextStyle(color: Colors.white70),
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(
+                            _error!,
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: scrollController,
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                        itemCount: _members.length,
+                        itemBuilder: (context, index) {
+                          final member = _members[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Row(
+                                children: [
+                                  _Avatar(
+                                    url: member.avatarUrl,
+                                    label: member.displayName,
+                                    radius: 18,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          member.displayName,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${member.role} · ${member.status}',
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (widget.canAdminManage &&
+                                      member.status == 'active')
+                                    PopupMenuButton<String>(
+                                      icon: const Icon(
+                                        Icons.more_horiz,
+                                        color: Colors.white70,
+                                      ),
+                                      color: const Color(0xFF141414),
+                                      onSelected: (value) async {
+                                        if (value == 'promote') {
+                                          await _setRole(member, 'admin');
+                                        } else if (value == 'demote') {
+                                          await _setRole(member, 'member');
+                                        } else if (value == 'transfer') {
+                                          await _transferAdmin(member);
+                                        } else if (value == 'remove') {
+                                          await _remove(member);
+                                        }
+                                      },
+                                      itemBuilder: (_) => [
+                                        if (member.role != 'admin')
+                                          const PopupMenuItem(
+                                            value: 'promote',
+                                            child: Text('Make admin'),
+                                          ),
+                                        if (member.role == 'admin')
+                                          const PopupMenuItem(
+                                            value: 'demote',
+                                            child: Text('Make member'),
+                                          ),
+                                        const PopupMenuItem(
+                                          value: 'transfer',
+                                          child: Text('Transfer admin'),
+                                        ),
+                                        const PopupMenuItem(
+                                          value: 'remove',
+                                          child: Text('Remove member'),
+                                        ),
+                                      ],
+                                    ),
+                                ],
                               ),
                             ),
-                          )
-                        : ListView.builder(
-                            controller: scrollController,
-                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                            itemCount: _members.length,
-                            itemBuilder: (context, index) {
-                              final member = _members[index];
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 10),
-                                child: Container(
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.05),
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      _Avatar(
-                                        url: member.avatarUrl,
-                                        label: member.displayName,
-                                        radius: 18,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              member.displayName,
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              '${member.role} · ${member.status}',
-                                              style: const TextStyle(color: Colors.white70, fontSize: 12),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      if (widget.canAdminManage && member.status == 'active')
-                                        PopupMenuButton<String>(
-                                          icon: const Icon(Icons.more_horiz, color: Colors.white70),
-                                          color: const Color(0xFF141414),
-                                          onSelected: (value) async {
-                                            if (value == 'promote') {
-                                              await _setRole(member, 'admin');
-                                            } else if (value == 'demote') {
-                                              await _setRole(member, 'member');
-                                            } else if (value == 'transfer') {
-                                              await _transferAdmin(member);
-                                            } else if (value == 'remove') {
-                                              await _remove(member);
-                                            }
-                                          },
-                                          itemBuilder: (_) => [
-                                            if (member.role != 'admin')
-                                              const PopupMenuItem(value: 'promote', child: Text('Make admin')),
-                                            if (member.role == 'admin')
-                                              const PopupMenuItem(value: 'demote', child: Text('Make member')),
-                                            const PopupMenuItem(value: 'transfer', child: Text('Transfer admin')),
-                                            const PopupMenuItem(value: 'remove', child: Text('Remove member')),
-                                          ],
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
+                          );
+                        },
+                      ),
               ),
             ],
           ),
@@ -2984,22 +2922,31 @@ class _GroupFeedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CardContainer(
+    return _LightCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              _Avatar(url: item.actor.avatarUrl, label: item.actor.primaryLabel),
+              _Avatar(
+                url: item.actor.avatarUrl,
+                label: item.actor.primaryLabel,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   item.actor.primaryLabel,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    color: TaqaUiColors.charcoal,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
               PopupMenuButton<String>(
-                icon: const Icon(Icons.more_horiz, color: Colors.white70),
+                icon: Icon(
+                  Icons.more_horiz,
+                  color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+                ),
                 color: const Color(0xFF141414),
                 onSelected: (value) {
                   if (value == 'report') {
@@ -3019,21 +2966,36 @@ class _GroupFeedCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             item.event.title,
-            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800),
+            style: const TextStyle(
+              color: TaqaUiColors.charcoal,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           if ((item.event.subtitle ?? '').isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
               item.event.subtitle!,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.72)),
+              style: TextStyle(
+                color: TaqaUiColors.charcoal.withValues(alpha: 0.72),
+              ),
             ),
           ],
           const SizedBox(height: 14),
           Row(
             children: [
-              const Icon(Icons.favorite_border, color: Colors.white54, size: 18),
+              Icon(
+                Icons.favorite_border,
+                color: TaqaUiColors.charcoal.withValues(alpha: 0.54),
+                size: 18,
+              ),
               const SizedBox(width: 6),
-              Text('${item.likeCount}', style: const TextStyle(color: Colors.white70)),
+              Text(
+                '${item.likeCount}',
+                style: TextStyle(
+                  color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+                ),
+              ),
               const SizedBox(width: 18),
               InkWell(
                 onTap: onCommentsTap,
@@ -3041,68 +3003,24 @@ class _GroupFeedCard extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.chat_bubble_outline,
-                      color: item.canComment ? Colors.white54 : Colors.white24,
+                      color: item.canComment
+                          ? TaqaUiColors.charcoal.withValues(alpha: 0.54)
+                          : TaqaUiColors.charcoal.withValues(alpha: 0.24),
                       size: 18,
                     ),
                     const SizedBox(width: 6),
                     Text(
                       '${item.commentCount}',
                       style: TextStyle(
-                        color: item.canComment ? Colors.white70 : Colors.white24,
+                        color: item.canComment
+                            ? TaqaUiColors.charcoal.withValues(alpha: 0.7)
+                            : TaqaUiColors.charcoal.withValues(alpha: 0.24),
                       ),
                     ),
                   ],
                 ),
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeroMetric extends StatelessWidget {
-  const _HeroMetric({
-    required this.label,
-    required this.value,
-    this.accent = false,
-  });
-
-  final String label;
-  final String value;
-  final bool accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minWidth: 92),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: accent
-            ? AppColors.accent.withValues(alpha: 0.16)
-            : Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              color: accent ? AppColors.accent : Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.68),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
           ),
         ],
       ),
@@ -3132,18 +3050,89 @@ class _GroupBadge extends StatelessWidget {
           Icon(
             isPrivate ? Icons.lock_outline : Icons.public_outlined,
             size: 16,
-            color: isPrivate ? const Color(0xFFC4B5FD) : const Color(0xFF5EEAD4),
+            color: isPrivate
+                ? const Color(0xFFC4B5FD)
+                : const Color(0xFF5EEAD4),
           ),
           const SizedBox(width: 6),
           Text(
             group.groupKind ?? group.visibility ?? 'group',
             style: TextStyle(
-              color: isPrivate ? const Color(0xFFE9D5FF) : const Color(0xFF99F6E4),
+              color: isPrivate
+                  ? const Color(0xFFE9D5FF)
+                  : const Color(0xFF99F6E4),
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A [TaqaRangeTab]-styled split button: tapping the label switches the
+/// feed to [label]'s group, tapping the list icon opens a picker to change
+/// which group this slot is bound to.
+class _GroupPickerTab extends StatelessWidget {
+  const _GroupPickerTab({
+    required this.label,
+    required this.selected,
+    required this.onSelect,
+    required this.onPick,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onSelect;
+  final VoidCallback onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = TaqaUiColors.charcoal.withValues(alpha: 0.12);
+    return Material(
+      color: selected ? TaqaUiColors.lime : TaqaUiColors.white,
+      borderRadius: TaqaUiScale.radius(5),
+      child: Container(
+        height: TaqaUiScale.h(45),
+        decoration: BoxDecoration(
+          borderRadius: TaqaUiScale.radius(5),
+          border: selected ? null : Border.all(color: borderColor),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                onTap: onSelect,
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: TaqaUiScale.w(4)),
+                    child: Text(
+                      label.toUpperCase(),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TaqaUiStyles.dailyOutlookButton,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Container(width: 1, height: TaqaUiScale.h(24), color: borderColor),
+            InkWell(
+              onTap: onPick,
+              child: SizedBox(
+                width: TaqaUiScale.w(36),
+                child: Icon(
+                  Icons.list_rounded,
+                  size: TaqaUiScale.w(18),
+                  color: TaqaUiColors.charcoal,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -3170,18 +3159,20 @@ class _FeedFilterChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected
               ? AppColors.accent.withValues(alpha: 0.18)
-              : Colors.white.withValues(alpha: 0.04),
+              : TaqaUiColors.charcoal.withValues(alpha: 0.04),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
                 ? AppColors.accent.withValues(alpha: 0.42)
-                : Colors.white.withValues(alpha: 0.08),
+                : TaqaUiColors.charcoal.withValues(alpha: 0.08),
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? AppColors.accent : Colors.white70,
+            color: selected
+                ? AppColors.accent
+                : TaqaUiColors.charcoal.withValues(alpha: 0.7),
             fontWeight: FontWeight.w700,
             fontSize: 12,
           ),
@@ -3201,13 +3192,13 @@ class _MiniChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: TaqaUiColors.charcoal.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          color: Colors.white70,
+        style: TextStyle(
+          color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
@@ -3217,11 +3208,7 @@ class _MiniChip extends StatelessWidget {
 }
 
 class _Avatar extends StatelessWidget {
-  const _Avatar({
-    required this.url,
-    required this.label,
-    this.radius = 20,
-  });
+  const _Avatar({required this.url, required this.label, this.radius = 20});
 
   final String? url;
   final String label;
@@ -3231,75 +3218,17 @@ class _Avatar extends StatelessWidget {
   Widget build(BuildContext context) {
     return CircleAvatar(
       radius: radius,
-      backgroundColor: Colors.white.withValues(alpha: 0.08),
+      backgroundColor: TaqaUiColors.charcoal.withValues(alpha: 0.08),
       backgroundImage: url != null ? NetworkImage(url!) : null,
       child: url == null
           ? Text(
               label.isNotEmpty ? label.substring(0, 1).toUpperCase() : '?',
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
-            )
-          : null,
-    );
-  }
-}
-
-class _ChallengeCard extends StatelessWidget {
-  const _ChallengeCard({
-    required this.challenge,
-    this.onTap,
-  });
-
-  final CommunityChallenge challenge;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Ink(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                _MiniChip(label: challenge.challengeType.replaceAll('_', ' ')),
-                const Spacer(),
-                if (challenge.isCompleted)
-                  const Icon(Icons.check_circle, color: Colors.greenAccent),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              challenge.name,
               style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
+                color: TaqaUiColors.charcoal,
                 fontWeight: FontWeight.w800,
               ),
-            ),
-            const SizedBox(height: 10),
-            LinearProgressIndicator(
-              value: (challenge.progressPercent / 100).clamp(0, 1),
-              backgroundColor: Colors.white.withValues(alpha: 0.08),
-              valueColor: AlwaysStoppedAnimation<Color>(
-                challenge.isCompleted ? Colors.greenAccent : AppColors.accent,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '${challenge.progressPercent.toStringAsFixed(0)}% complete',
-              style: const TextStyle(color: Colors.white70),
-            ),
-          ],
-        ),
-      ),
+            )
+          : null,
     );
   }
 }
@@ -3323,18 +3252,36 @@ class _InlineSectionHeader extends StatelessWidget {
           child: Text(
             title,
             style: const TextStyle(
-              color: Colors.white,
+              color: TaqaUiColors.charcoal,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
           ),
         ),
         if (actionLabel != null && onTap != null)
-          TextButton(
-            onPressed: onTap,
-            child: Text(actionLabel!),
-          ),
+          TextButton(onPressed: onTap, child: Text(actionLabel!)),
       ],
+    );
+  }
+}
+
+class _LightCard extends StatelessWidget {
+  const _LightCard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: TaqaUiColors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: TaqaUiColors.charcoal.withValues(alpha: 0.08),
+        ),
+      ),
+      child: child,
     );
   }
 }
@@ -3344,15 +3291,17 @@ class _CommunityLoadingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CardContainer(
+    return _LightCard(
       child: Column(
-        children: const [
-          SizedBox(height: 8),
-          CircularProgressIndicator(),
-          SizedBox(height: 12),
+        children: [
+          const SizedBox(height: 8),
+          const CircularProgressIndicator(),
+          const SizedBox(height: 12),
           Text(
             'Loading community...',
-            style: TextStyle(color: Colors.white70),
+            style: TextStyle(
+              color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+            ),
           ),
         ],
       ),
@@ -3375,15 +3324,19 @@ class _CommunityEmptyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CardContainer(
+    return _LightCard(
       child: Column(
         children: [
-          const Icon(Icons.groups_2_outlined, size: 32, color: Colors.white54),
+          Icon(
+            Icons.groups_2_outlined,
+            size: 32,
+            color: TaqaUiColors.charcoal.withValues(alpha: 0.54),
+          ),
           const SizedBox(height: 12),
           Text(
             title,
             style: const TextStyle(
-              color: Colors.white,
+              color: TaqaUiColors.charcoal,
               fontSize: 16,
               fontWeight: FontWeight.w800,
             ),
@@ -3393,17 +3346,14 @@ class _CommunityEmptyCard extends StatelessWidget {
           Text(
             message,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.68),
+              color: TaqaUiColors.charcoal.withValues(alpha: 0.68),
               height: 1.45,
             ),
             textAlign: TextAlign.center,
           ),
           if (actionLabel != null && onPressed != null) ...[
             const SizedBox(height: 14),
-            ElevatedButton(
-              onPressed: onPressed,
-              child: Text(actionLabel!),
-            ),
+            ElevatedButton(onPressed: onPressed, child: Text(actionLabel!)),
           ],
         ],
       ),
@@ -3411,28 +3361,448 @@ class _CommunityEmptyCard extends StatelessWidget {
   }
 }
 
-class _ShareToggleTile extends StatelessWidget {
-  const _ShareToggleTile({
-    required this.title,
-    required this.value,
-    required this.onChanged,
+class CommunityLeaderboardPage extends StatefulWidget {
+  const CommunityLeaderboardPage({
+    super.key,
+    required this.groupId,
+    required this.isAdmin,
+    required this.initialSummary,
   });
 
-  final String title;
-  final bool value;
-  final ValueChanged<bool> onChanged;
+  final int groupId;
+  final bool isAdmin;
+  final CommunityLeaderboard initialSummary;
+
+  @override
+  State<CommunityLeaderboardPage> createState() =>
+      _CommunityLeaderboardPageState();
+}
+
+class _CommunityLeaderboardPageState extends State<CommunityLeaderboardPage> {
+  late CommunityLeaderboard _summary;
+
+  @override
+  void initState() {
+    super.initState();
+    _summary = widget.initialSummary;
+  }
+
+  Future<void> _refresh() async {
+    try {
+      final detail = await CommunityService.fetchGroupDetail(widget.groupId);
+      if (!mounted) return;
+      setState(() => _summary = detail.leaderboardSummary);
+    } catch (_) {}
+  }
+
+  Future<void> _changeMetric() async {
+    final metric = await _showMetricPicker(context, _summary.metric);
+    if (metric == null) return;
+    try {
+      await CommunityService.updateLeaderboardMetric(widget.groupId, metric);
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        'Leaderboard metric updated.',
+        type: AppToastType.success,
+      );
+      await _refresh();
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, e.toString(), type: AppToastType.error);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return SwitchListTile.adaptive(
-      contentPadding: EdgeInsets.zero,
-      activeThumbColor: AppColors.accent,
-      title: Text(
-        title,
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+    return Scaffold(
+      backgroundColor: AppColors.appBackground,
+      appBar: AppBar(
+        backgroundColor: AppColors.appBackground,
+        elevation: 0,
+        foregroundColor: TaqaUiColors.charcoal,
+        title: const Text('Leaderboard'),
+        actions: [
+          if (widget.isAdmin)
+            TextButton(
+              onPressed: _changeMetric,
+              child: const Text('Change metric'),
+            ),
+        ],
       ),
-      value: value,
-      onChanged: onChanged,
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            Text(
+              'Metric: ${_summary.metric.replaceAll('_', ' ')}',
+              style: TextStyle(
+                color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (_summary.items.isEmpty)
+              const _CommunityEmptyCard(
+                title: 'No leaderboard data yet',
+                message: 'Rankings will appear here once activity is recorded.',
+              )
+            else
+              _LightCard(
+                child: Column(
+                  children: _summary.items
+                      .map(
+                        (entry) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 28,
+                                child: Text(
+                                  '#${entry.rankPosition}',
+                                  style: TextStyle(
+                                    color: entry.isCurrentUser
+                                        ? AppColors.accent
+                                        : TaqaUiColors.charcoal,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  entry.displayName,
+                                  style: const TextStyle(
+                                    color: TaqaUiColors.charcoal,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                entry.scoreLabel,
+                                style: TextStyle(
+                                  color: TaqaUiColors.charcoal.withValues(
+                                    alpha: 0.72,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                      .toList(growable: false),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class CommunityPinnedItemsPage extends StatefulWidget {
+  const CommunityPinnedItemsPage({
+    super.key,
+    required this.groupId,
+    required this.isAdmin,
+    required this.initialPins,
+  });
+
+  final int groupId;
+  final bool isAdmin;
+  final List<CommunityPin> initialPins;
+
+  @override
+  State<CommunityPinnedItemsPage> createState() =>
+      _CommunityPinnedItemsPageState();
+}
+
+class _CommunityPinnedItemsPageState extends State<CommunityPinnedItemsPage> {
+  late List<CommunityPin> _pins;
+
+  @override
+  void initState() {
+    super.initState();
+    _pins = widget.initialPins;
+  }
+
+  Future<void> _refresh() async {
+    try {
+      final detail = await CommunityService.fetchGroupDetail(widget.groupId);
+      if (!mounted) return;
+      setState(() => _pins = detail.pinnedItems);
+    } catch (_) {}
+  }
+
+  Future<void> _createOrEditPin([CommunityPin? existing]) async {
+    final result = await _showPinEditor(context, existing);
+    if (result == null) return;
+    try {
+      if (existing == null) {
+        await CommunityService.createPin(
+          widget.groupId,
+          pinType: result.pinType,
+          title: result.title,
+          body: result.body,
+          sortOrder: result.sortOrder,
+        );
+      } else {
+        await CommunityService.updatePin(
+          widget.groupId,
+          existing.pinId,
+          title: result.title,
+          body: result.body,
+          sortOrder: result.sortOrder,
+        );
+      }
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        existing == null ? 'Pin created.' : 'Pin updated.',
+        type: AppToastType.success,
+      );
+      await _refresh();
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, e.toString(), type: AppToastType.error);
+    }
+  }
+
+  Future<void> _deletePin(CommunityPin pin) async {
+    final confirm = await showTaqaConfirmDialog(
+      context: context,
+      title: 'Delete pin',
+      message: 'This will remove the pinned item from the group.',
+      confirmLabel: 'Delete',
+    );
+    if (!confirm) return;
+    try {
+      await CommunityService.deletePin(widget.groupId, pin.pinId);
+      if (!mounted) return;
+      AppToast.show(context, 'Pin deleted.', type: AppToastType.success);
+      await _refresh();
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, e.toString(), type: AppToastType.error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.appBackground,
+      appBar: AppBar(
+        backgroundColor: AppColors.appBackground,
+        elevation: 0,
+        foregroundColor: TaqaUiColors.charcoal,
+        title: const Text('Pinned Items'),
+        actions: [
+          if (widget.isAdmin)
+            IconButton(
+              onPressed: () => _createOrEditPin(),
+              icon: const Icon(Icons.add),
+            ),
+        ],
+      ),
+      body: SafeArea(
+        child: _pins.isEmpty
+            ? const Padding(
+                padding: EdgeInsets.all(20),
+                child: _CommunityEmptyCard(
+                  title: 'No pins yet',
+                  message:
+                      'Pinned announcements and resources will appear here.',
+                ),
+              )
+            : ListView.separated(
+                padding: const EdgeInsets.all(20),
+                itemCount: _pins.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final pin = _pins[index];
+                  return _PinCard(
+                    pin: pin,
+                    isAdmin: widget.isAdmin,
+                    onEdit: () => _createOrEditPin(pin),
+                    onDelete: () => _deletePin(pin),
+                  );
+                },
+              ),
+      ),
+    );
+  }
+}
+
+class _PinCard extends StatelessWidget {
+  const _PinCard({
+    required this.pin,
+    required this.isAdmin,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final CommunityPin pin;
+  final bool isAdmin;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: TaqaUiColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: TaqaUiColors.charcoal.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _MiniChip(label: pin.pinType.replaceAll('_', ' ')),
+              const Spacer(),
+              if (isAdmin)
+                PopupMenuButton<String>(
+                  icon: Icon(
+                    Icons.more_horiz,
+                    color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+                  ),
+                  color: const Color(0xFF141414),
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      onEdit();
+                    } else if (value == 'delete') {
+                      onDelete();
+                    }
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  ],
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            pin.title,
+            style: const TextStyle(
+              color: TaqaUiColors.charcoal,
+              fontWeight: FontWeight.w800,
+              fontSize: 15,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            pin.body,
+            style: TextStyle(
+              color: TaqaUiColors.charcoal.withValues(alpha: 0.74),
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class CommunitySharedMetricsPage extends StatefulWidget {
+  const CommunitySharedMetricsPage({
+    super.key,
+    required this.initialSettings,
+    required this.onToggle,
+  });
+
+  final CommunityShareSettings initialSettings;
+  final Future<void> Function(
+    CommunityShareSettings Function(CommunityShareSettings settings)
+    nextSettings,
+  )
+  onToggle;
+
+  @override
+  State<CommunitySharedMetricsPage> createState() =>
+      _CommunitySharedMetricsPageState();
+}
+
+class _CommunitySharedMetricsPageState
+    extends State<CommunitySharedMetricsPage> {
+  late CommunityShareSettings _settings;
+
+  @override
+  void initState() {
+    super.initState();
+    _settings = widget.initialSettings;
+  }
+
+  Future<void> _toggle(
+    CommunityShareSettings Function(CommunityShareSettings settings)
+    nextSettings,
+  ) async {
+    setState(() => _settings = nextSettings(_settings));
+    await widget.onToggle(nextSettings);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.appBackground,
+      appBar: AppBar(
+        backgroundColor: AppColors.appBackground,
+        elevation: 0,
+        foregroundColor: TaqaUiColors.charcoal,
+        title: const Text('Shared Metrics'),
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            TaqaMuteNotificationsCard(
+              title: 'Training Progress',
+              description: 'Share your training progress with this group.',
+              value: _settings.shareTrainingProgress,
+              onChanged: (value) => _toggle(
+                (settings) => settings.copyWith(shareTrainingProgress: value),
+              ),
+            ),
+            const SizedBox(height: 15),
+            TaqaMuteNotificationsCard(
+              title: 'TAQA Fitness Score',
+              description: 'Share your TAQA Fitness Score with this group.',
+              value: _settings.shareTaqaScore,
+              onChanged: (value) => _toggle(
+                (settings) => settings.copyWith(shareTaqaScore: value),
+              ),
+            ),
+            const SizedBox(height: 15),
+            TaqaMuteNotificationsCard(
+              title: 'Daily Movement',
+              description: 'Share your daily movement with this group.',
+              value: _settings.shareDailyMovement,
+              onChanged: (value) => _toggle(
+                (settings) => settings.copyWith(shareDailyMovement: value),
+              ),
+            ),
+            const SizedBox(height: 15),
+            TaqaMuteNotificationsCard(
+              title: 'Wearable Data',
+              description: 'Share your wearable data with this group.',
+              value: _settings.shareWearableData,
+              onChanged: (value) => _toggle(
+                (settings) => settings.copyWith(shareWearableData: value),
+              ),
+            ),
+            const SizedBox(height: 15),
+            TaqaMuteNotificationsCard(
+              title: 'Wellness',
+              description: 'Share your wellness data with this group.',
+              value: _settings.shareWellness,
+              onChanged: (value) => _toggle(
+                (settings) => settings.copyWith(shareWellness: value),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -3566,7 +3936,9 @@ Future<void> _showGroupCodeDialog(
   );
 }
 
-Future<_CreateGroupPayload?> _showCreateGroupDialog(BuildContext context) async {
+Future<_CreateGroupPayload?> _showCreateGroupDialog(
+  BuildContext context,
+) async {
   final nameController = TextEditingController();
   final descriptionController = TextEditingController();
   String visibility = 'private';
@@ -3579,7 +3951,10 @@ Future<_CreateGroupPayload?> _showCreateGroupDialog(BuildContext context) async 
         builder: (context, setState) {
           return AlertDialog(
             backgroundColor: AppColors.cardDark,
-            title: const Text('Create community', style: TextStyle(color: Colors.white)),
+            title: const Text(
+              'Create community',
+              style: TextStyle(color: Colors.white),
+            ),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -3602,7 +3977,10 @@ Future<_CreateGroupPayload?> _showCreateGroupDialog(BuildContext context) async 
                     dropdownColor: AppColors.cardDark,
                     style: const TextStyle(color: Colors.white),
                     items: const [
-                      DropdownMenuItem(value: 'private', child: Text('Private')),
+                      DropdownMenuItem(
+                        value: 'private',
+                        child: Text('Private'),
+                      ),
                       DropdownMenuItem(value: 'public', child: Text('Public')),
                     ],
                     onChanged: (value) {
@@ -3616,11 +3994,17 @@ Future<_CreateGroupPayload?> _showCreateGroupDialog(BuildContext context) async 
                     dropdownColor: AppColors.cardDark,
                     style: const TextStyle(color: Colors.white),
                     items: const [
-                      DropdownMenuItem(value: 'general', child: Text('General')),
+                      DropdownMenuItem(
+                        value: 'general',
+                        child: Text('General'),
+                      ),
                       DropdownMenuItem(value: 'gym', child: Text('Gym')),
                       DropdownMenuItem(value: 'coach', child: Text('Coach')),
                       DropdownMenuItem(value: 'city', child: Text('City')),
-                      DropdownMenuItem(value: 'country', child: Text('Country')),
+                      DropdownMenuItem(
+                        value: 'country',
+                        child: Text('Country'),
+                      ),
                       DropdownMenuItem(value: 'sport', child: Text('Sport')),
                     ],
                     onChanged: (value) {
@@ -3633,7 +4017,10 @@ Future<_CreateGroupPayload?> _showCreateGroupDialog(BuildContext context) async 
                     contentPadding: EdgeInsets.zero,
                     title: const Text(
                       'Discoverable',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     value: visibility == 'public' ? discoverable : false,
                     onChanged: visibility == 'public'
@@ -3661,7 +4048,9 @@ Future<_CreateGroupPayload?> _showCreateGroupDialog(BuildContext context) async 
                           : descriptionController.text.trim(),
                       visibility: visibility,
                       groupKind: kind,
-                      isDiscoverable: visibility == 'public' ? discoverable : false,
+                      isDiscoverable: visibility == 'public'
+                          ? discoverable
+                          : false,
                     ),
                   );
                 },
@@ -3683,7 +4072,9 @@ Future<_CreateGroupPayload?> _showEditGroupDialog(
   CommunityGroupDetail detail,
 ) async {
   final nameController = TextEditingController(text: detail.name);
-  final descriptionController = TextEditingController(text: detail.description ?? '');
+  final descriptionController = TextEditingController(
+    text: detail.description ?? '',
+  );
   String visibility = detail.visibility ?? 'private';
   String kind = detail.groupKind ?? 'general';
   bool discoverable = detail.isDiscoverable;
@@ -3694,7 +4085,10 @@ Future<_CreateGroupPayload?> _showEditGroupDialog(
         builder: (context, setState) {
           return AlertDialog(
             backgroundColor: AppColors.cardDark,
-            title: const Text('Edit group', style: TextStyle(color: Colors.white)),
+            title: const Text(
+              'Edit group',
+              style: TextStyle(color: Colors.white),
+            ),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -3717,7 +4111,10 @@ Future<_CreateGroupPayload?> _showEditGroupDialog(
                     dropdownColor: AppColors.cardDark,
                     style: const TextStyle(color: Colors.white),
                     items: const [
-                      DropdownMenuItem(value: 'private', child: Text('Private')),
+                      DropdownMenuItem(
+                        value: 'private',
+                        child: Text('Private'),
+                      ),
                       DropdownMenuItem(value: 'public', child: Text('Public')),
                     ],
                     onChanged: (value) {
@@ -3731,11 +4128,17 @@ Future<_CreateGroupPayload?> _showEditGroupDialog(
                     dropdownColor: AppColors.cardDark,
                     style: const TextStyle(color: Colors.white),
                     items: const [
-                      DropdownMenuItem(value: 'general', child: Text('General')),
+                      DropdownMenuItem(
+                        value: 'general',
+                        child: Text('General'),
+                      ),
                       DropdownMenuItem(value: 'gym', child: Text('Gym')),
                       DropdownMenuItem(value: 'coach', child: Text('Coach')),
                       DropdownMenuItem(value: 'city', child: Text('City')),
-                      DropdownMenuItem(value: 'country', child: Text('Country')),
+                      DropdownMenuItem(
+                        value: 'country',
+                        child: Text('Country'),
+                      ),
                       DropdownMenuItem(value: 'sport', child: Text('Sport')),
                     ],
                     onChanged: (value) {
@@ -3748,7 +4151,10 @@ Future<_CreateGroupPayload?> _showEditGroupDialog(
                     contentPadding: EdgeInsets.zero,
                     title: const Text(
                       'Discoverable',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     value: visibility == 'public' ? discoverable : false,
                     onChanged: visibility == 'public'
@@ -3776,7 +4182,9 @@ Future<_CreateGroupPayload?> _showEditGroupDialog(
                           : descriptionController.text.trim(),
                       visibility: visibility,
                       groupKind: kind,
-                      isDiscoverable: visibility == 'public' ? discoverable : false,
+                      isDiscoverable: visibility == 'public'
+                          ? discoverable
+                          : false,
                     ),
                   );
                 },
@@ -3803,7 +4211,10 @@ Future<Map<String, String?>?> _showReportDialog(BuildContext context) async {
         builder: (context, setState) {
           return AlertDialog(
             backgroundColor: AppColors.cardDark,
-            title: const Text('Report content', style: TextStyle(color: Colors.white)),
+            title: const Text(
+              'Report content',
+              style: TextStyle(color: Colors.white),
+            ),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -3813,9 +4224,15 @@ Future<Map<String, String?>?> _showReportDialog(BuildContext context) async {
                     dropdownColor: AppColors.cardDark,
                     style: const TextStyle(color: Colors.white),
                     items: const [
-                      DropdownMenuItem(value: 'harassment', child: Text('Harassment')),
+                      DropdownMenuItem(
+                        value: 'harassment',
+                        child: Text('Harassment'),
+                      ),
                       DropdownMenuItem(value: 'spam', child: Text('Spam')),
-                      DropdownMenuItem(value: 'contact_info', child: Text('Contact info')),
+                      DropdownMenuItem(
+                        value: 'contact_info',
+                        child: Text('Contact info'),
+                      ),
                       DropdownMenuItem(value: 'abuse', child: Text('Abuse')),
                       DropdownMenuItem(value: 'other', child: Text('Other')),
                     ],
@@ -3842,15 +4259,12 @@ Future<Map<String, String?>?> _showReportDialog(BuildContext context) async {
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
-                onPressed: () => Navigator.pop(
-                  context,
-                  {
-                    'reason': reason,
-                    'details': detailsController.text.trim().isEmpty
-                        ? null
-                        : detailsController.text.trim(),
-                  },
-                ),
+                onPressed: () => Navigator.pop(context, {
+                  'reason': reason,
+                  'details': detailsController.text.trim().isEmpty
+                      ? null
+                      : detailsController.text.trim(),
+                }),
                 child: const Text('Submit'),
               ),
             ],
@@ -3861,6 +4275,46 @@ Future<Map<String, String?>?> _showReportDialog(BuildContext context) async {
   );
   detailsController.dispose();
   return result;
+}
+
+Future<int?> _showGroupPicker(
+  BuildContext context,
+  List<CommunityGroupSummary> groups,
+  int current,
+) {
+  return showModalBottomSheet<int>(
+    context: context,
+    backgroundColor: const Color(0xFF111111),
+    builder: (_) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          const Text(
+            'Choose a group',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...groups.map(
+            (group) => ListTile(
+              title: Text(
+                group.name,
+                style: const TextStyle(color: Colors.white),
+              ),
+              trailing: group.id == current
+                  ? const Icon(Icons.check, color: AppColors.accent)
+                  : null,
+              onTap: () => Navigator.pop(context, group.id),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 Future<String?> _showMetricPicker(BuildContext context, String current) async {
@@ -3882,7 +4336,11 @@ Future<String?> _showMetricPicker(BuildContext context, String current) async {
           const SizedBox(height: 12),
           const Text(
             'Choose leaderboard metric',
-            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const SizedBox(height: 8),
           ...metrics.map(
@@ -3933,8 +4391,14 @@ Future<_PinEditorResult?> _showPinEditor(
                     dropdownColor: AppColors.cardDark,
                     style: const TextStyle(color: Colors.white),
                     items: const [
-                      DropdownMenuItem(value: 'expert_tip', child: Text('Expert tip')),
-                      DropdownMenuItem(value: 'challenge_rule', child: Text('Challenge rule')),
+                      DropdownMenuItem(
+                        value: 'expert_tip',
+                        child: Text('Expert tip'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'challenge_rule',
+                        child: Text('Challenge rule'),
+                      ),
                     ],
                     onChanged: (value) {
                       if (value == null) return;
@@ -3952,7 +4416,9 @@ Future<_PinEditorResult?> _showPinEditor(
                     controller: bodyController,
                     style: const TextStyle(color: Colors.white),
                     maxLines: 4,
-                    decoration: const InputDecoration(hintText: 'Pinned content'),
+                    decoration: const InputDecoration(
+                      hintText: 'Pinned content',
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -3980,7 +4446,8 @@ Future<_PinEditorResult?> _showPinEditor(
                       pinType: pinType,
                       title: title,
                       body: body,
-                      sortOrder: int.tryParse(sortOrderController.text.trim()) ?? 0,
+                      sortOrder:
+                          int.tryParse(sortOrderController.text.trim()) ?? 0,
                     ),
                   );
                 },
@@ -4003,15 +4470,20 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
   CommunityChallenge? existing,
 ) async {
   final nameController = TextEditingController(text: existing?.name ?? '');
-  final descriptionController = TextEditingController(text: existing?.description ?? '');
+  final descriptionController = TextEditingController(
+    text: existing?.description ?? '',
+  );
   final goalController = TextEditingController(
     text: existing?.goalValue?.toStringAsFixed(0) ?? '',
   );
-  final unitController = TextEditingController(text: existing?.progressUnit ?? '');
+  final unitController = TextEditingController(
+    text: existing?.progressUnit ?? '',
+  );
   String type = existing?.challengeType ?? 'workout_days';
   bool isActive = existing?.isActive ?? true;
   DateTime startDate = existing?.startAt ?? DateTime.now();
-  DateTime endDate = existing?.endAt ?? DateTime.now().add(const Duration(days: 30));
+  DateTime endDate =
+      existing?.endAt ?? DateTime.now().add(const Duration(days: 30));
   final result = await showDialog<_ChallengeEditorResult>(
     context: context,
     builder: (context) {
@@ -4054,7 +4526,9 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                   TextField(
                     controller: nameController,
                     style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(hintText: 'Challenge name'),
+                    decoration: const InputDecoration(
+                      hintText: 'Challenge name',
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -4069,10 +4543,22 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                     dropdownColor: AppColors.cardDark,
                     style: const TextStyle(color: Colors.white),
                     items: const [
-                      DropdownMenuItem(value: 'workout_days', child: Text('Workout days')),
-                      DropdownMenuItem(value: 'movement_total', child: Text('Movement total')),
-                      DropdownMenuItem(value: 'cardio_sessions', child: Text('Cardio sessions')),
-                      DropdownMenuItem(value: 'score_threshold_days', child: Text('Score threshold days')),
+                      DropdownMenuItem(
+                        value: 'workout_days',
+                        child: Text('Workout days'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'movement_total',
+                        child: Text('Movement total'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'cardio_sessions',
+                        child: Text('Cardio sessions'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'score_threshold_days',
+                        child: Text('Score threshold days'),
+                      ),
                       DropdownMenuItem(value: 'custom', child: Text('Custom')),
                     ],
                     onChanged: (value) {
@@ -4086,14 +4572,18 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                       Expanded(
                         child: OutlinedButton(
                           onPressed: pickStart,
-                          child: Text('Start ${DateFormat('MMM d').format(startDate)}'),
+                          child: Text(
+                            'Start ${DateFormat('MMM d').format(startDate)}',
+                          ),
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: OutlinedButton(
                           onPressed: pickEnd,
-                          child: Text('End ${DateFormat('MMM d').format(endDate)}'),
+                          child: Text(
+                            'End ${DateFormat('MMM d').format(endDate)}',
+                          ),
                         ),
                       ),
                     ],
@@ -4101,7 +4591,9 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                   const SizedBox(height: 12),
                   TextField(
                     controller: goalController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     style: const TextStyle(color: Colors.white),
                     decoration: const InputDecoration(hintText: 'Goal value'),
                   ),
@@ -4109,14 +4601,19 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                   TextField(
                     controller: unitController,
                     style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(hintText: 'Progress unit'),
+                    decoration: const InputDecoration(
+                      hintText: 'Progress unit',
+                    ),
                   ),
                   const SizedBox(height: 8),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     title: const Text(
                       'Active',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     value: isActive,
                     onChanged: (value) => setState(() => isActive = value),

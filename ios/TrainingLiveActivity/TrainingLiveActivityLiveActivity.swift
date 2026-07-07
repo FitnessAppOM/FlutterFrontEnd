@@ -139,19 +139,7 @@ struct TrainingLiveActivityWidget: Widget {
                     timerText
                 }
             } minimal: {
-                TimelineView(.periodic(from: Date(), by: 1)) { timeline in
-                    let elapsed = elapsedSeconds(from: context.state.startMs, now: timeline.date, fallback: context.state.seconds)
-                    let startDate = startDateFromMs(context.state.startMs, fallbackSeconds: elapsed, now: timeline.date, paused: context.state.paused)
-                    let timerText = timerView(
-                        elapsed: elapsed,
-                        startDate: startDate,
-                        paused: context.state.paused,
-                        short: true,
-                        width: 44,
-                        font: .caption2
-                    )
-                    timerText
-                }
+                Image(systemName: "figure.strengthtraining.traditional")
             }
         }
     }

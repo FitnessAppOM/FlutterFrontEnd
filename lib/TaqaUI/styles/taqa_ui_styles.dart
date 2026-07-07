@@ -33,13 +33,20 @@ class TaqaUiStyles {
   static double get communityHeroCardHeight => TaqaUiScale.h(274);
   static double get communityStatBoxWidth => TaqaUiScale.w(157);
   static double get communityStatBoxHeight => TaqaUiScale.h(75);
-  static double get communityStatIconWidth => TaqaUiScale.w(16);
-  static double get communityStatIconHeight => TaqaUiScale.h(21);
+  static double get communityBadgeChipSize => TaqaUiScale.w(21);
+  static double get communityBadgeChipOverlap => TaqaUiScale.w(11);
+  static double get communityBadgeChipIconSize => TaqaUiScale.w(12);
   static double get communityActionButtonWidth => TaqaUiScale.w(109);
   static double get communityActionRowWidth => TaqaUiScale.w(357);
   static double get communitySectionTagWidth => TaqaUiScale.w(58);
   static double get communityGroupCardWidth => TaqaUiScale.w(171);
   static double get communityGroupCardHeight => TaqaUiScale.h(171);
+  static double get communityGroupHeroCardWidth => TaqaUiScale.w(357);
+  static double get communityGroupHeroCardHeight => TaqaUiScale.h(197);
+  static double get communityMuteCardWidth => TaqaUiScale.w(357);
+  static double get communityMuteCardHeight => TaqaUiScale.h(65);
+  static double get communityLeaderboardCardWidth => TaqaUiScale.w(357);
+  static double get communityLeaderboardCardHeight => TaqaUiScale.h(113);
   static double get communityChallengeCardWidth => TaqaUiScale.w(357);
   static double get communityChallengeCardHeight => TaqaUiScale.h(98);
   static double get communityChallengeBarWidth => TaqaUiScale.w(250);
@@ -233,6 +240,15 @@ class TaqaUiStyles {
     height: 12 / 10,
   );
 
+  static TextStyle get communityLeaderboardNames => TextStyle(
+    fontFamily: TaqaUiFontFamilies.interTight,
+    fontSize: TaqaUiScale.sp(10),
+    fontWeight: FontWeight.w700,
+    color: TaqaUiColors.charcoal,
+    letterSpacing: 0,
+    height: 12 / 10,
+  );
+
   static TextStyle get communityGroupCardMembers => TextStyle(
     fontFamily: TaqaUiFontFamilies.interTight,
     fontSize: TaqaUiScale.sp(10),
@@ -240,6 +256,33 @@ class TaqaUiStyles {
     color: TaqaUiColors.charcoal,
     letterSpacing: 0,
     height: 12 / 10,
+  );
+
+  static TextStyle get communityBadgeStackOverflow => TextStyle(
+    fontFamily: TaqaUiFontFamilies.interTight,
+    fontSize: TaqaUiScale.sp(9),
+    fontWeight: FontWeight.w700,
+    color: TaqaUiColors.white,
+    letterSpacing: 0,
+    height: 1,
+  );
+
+  static TextStyle get communityGroupHeroName => TextStyle(
+    fontFamily: TaqaUiFontFamilies.interTight,
+    fontSize: TaqaUiScale.sp(25),
+    fontWeight: FontWeight.w700,
+    color: TaqaUiColors.charcoal,
+    letterSpacing: 0,
+    height: 20 / 25,
+  );
+
+  static TextStyle get communityGroupStatValueText => TextStyle(
+    fontFamily: TaqaUiFontFamilies.interTight,
+    fontSize: TaqaUiScale.sp(15),
+    fontWeight: FontWeight.w700,
+    color: TaqaUiColors.charcoal,
+    letterSpacing: 0,
+    height: 25 / 15,
   );
 
   static TextStyle get communityChallengeName => TextStyle(
