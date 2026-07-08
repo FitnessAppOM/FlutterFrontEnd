@@ -1165,7 +1165,7 @@ class TrainingService {
     return json.decode(response.body);
   }
 
-  static Future<void> replaceExercise({
+  static Future<Map<String, dynamic>> replaceExercise({
     required int userId,
     required int programExerciseId,
     required int newExerciseId,
@@ -1197,5 +1197,13 @@ class TrainingService {
           : "Replace failed";
       throw TrainingApiException(response.statusCode, detail);
     }
+
+    // Return the new exercise details (exercise_id, exercise_name,
+    // instructions, animation_url, ...) so callers can update the UI
+    // immediately instead of waiting for a full program reload.
+    final decoded = response.body.isNotEmpty ? json.decode(response.body) : {};
+    return decoded is Map<String, dynamic>
+        ? decoded
+        : <String, dynamic>{};
   }
 }

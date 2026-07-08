@@ -212,7 +212,7 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
 
     try {
       // Try to replace immediately
-      await TrainingService.replaceExercise(
+      final result = await TrainingService.replaceExercise(
         userId: widget.userId,
         programExerciseId: programExerciseId,
         newExerciseId: newExerciseId,
@@ -228,7 +228,14 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
         }
       }
 
-      if (mounted) Navigator.pop(context, true);
+      // Pass the new exercise details back so the training page can update the
+      // replaced card immediately (no need to leave/re-enter to see the swap).
+      if (mounted) {
+        Navigator.pop(context, {
+          ...result,
+          'program_exercise_id': programExerciseId,
+        });
+      }
     } catch (e) {
       // Don't queue if server rejected (e.g., already started/completed)
       if (e is TrainingApiException && !e.isRetryable) {
@@ -262,7 +269,14 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
           type: AppToastType.info,
         );
 
-        Navigator.pop(context, true); // Close sheet even when offline
+        // Close sheet even when offline. Pass what we know so the page can
+        // optimistically show the new name; the queued action reconciles the
+        // rest (instructions/animation) once it syncs online.
+        Navigator.pop(context, {
+          'program_exercise_id': programExerciseId,
+          'exercise_name': newExerciseName ?? '',
+          'queued': true,
+        });
       } catch (queueError) {
         // Queue failed too
         if (!mounted) return;

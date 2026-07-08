@@ -3861,7 +3861,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     final userId = _userId;
     if (userId == null) return;
 
-    final changed = await showModalBottomSheet<bool>(
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -3870,7 +3870,12 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       builder: (_) => ReplaceExerciseSheet(userId: userId, programExercise: ex),
     );
 
-    if (changed == true) {
+    if (result != null) {
+      // Optimistically reflect the swap in the current program map so the card
+      // updates immediately, without waiting for (or depending on the timing
+      // of) the full program reload below.
+      _applyReplacedExerciseToProgram(result);
+
       // Try to sync queued actions (in case replace was queued)
       try {
         await ExerciseActionQueue.syncQueue();
@@ -3879,6 +3884,55 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       }
       await _loadProgram();
     }
+  }
+
+  /// Update the in-memory [program] so a just-replaced exercise shows its new
+  /// name/instructions/animation immediately. Matches the target row by
+  /// program_exercise_id and merges the fields returned by the replace call.
+  void _applyReplacedExerciseToProgram(Map<String, dynamic> replaced) {
+    final data = program;
+    if (data == null) return;
+    final targetId = _asIntOrNull(replaced['program_exercise_id']);
+    if (targetId == null) return;
+
+    final newName = (replaced['exercise_name'] ?? '').toString().trim();
+    final days = data['days'];
+    if (days is! List) return;
+
+    var didUpdate = false;
+    for (final day in days) {
+      if (day is! Map) continue;
+      final exercises = day['exercises'];
+      if (exercises is! List) continue;
+      for (final ex in exercises) {
+        if (ex is! Map) continue;
+        if (_asIntOrNull(ex['program_exercise_id']) != targetId) continue;
+        if (newName.isNotEmpty) ex['exercise_name'] = newName;
+        if (replaced.containsKey('instructions')) {
+          ex['instructions'] = replaced['instructions'];
+        }
+        if (replaced.containsKey('animation_url')) {
+          ex['animation_url'] = replaced['animation_url'];
+        }
+        // Note: completion state is intentionally left as-is. The backend keeps
+        // the exercise's logged history attached to this program_exercise_id, so
+        // the upcoming reload will report the same completion; changing it here
+        // would only cause a flicker before the server value wins.
+        didUpdate = true;
+      }
+    }
+
+    if (didUpdate && mounted) {
+      setState(() {
+        _rebuildExerciseLists();
+      });
+    }
+  }
+
+  int? _asIntOrNull(dynamic v) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return int.tryParse(v?.toString() ?? '');
   }
 
   String _titleCase(String input) {

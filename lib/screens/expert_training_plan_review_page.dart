@@ -333,6 +333,20 @@ class _ExpertTrainingPlanReviewPageState
 
   Future<void> _confirmChanges() async {
     if (_saving || !_draftIsValid() || !_isDirty()) return;
+    // Guard: the payload sends numeric exercise ids resolved from the loaded
+    // library. If the library is still loading or failed to load, ids may be
+    // unresolved/stale and the save would fail on the backend. Block instead of
+    // sending a bad plan.
+    if (_loadingExercises || _exerciseLoadError != null || _exerciseLibrary.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Exercise list is still loading. Please wait a moment and try again.',
+          ),
+        ),
+      );
+      return;
+    }
     setState(() => _saving = true);
     try {
       final payloadDays = <Map<String, dynamic>>[];
@@ -671,7 +685,10 @@ class _ExpertTrainingPlanReviewPageState
     final validDraft = _draftIsValid();
     final needsVerification = _needsVerification();
     final canVerifyOnly = needsVerification && !dirty && !_saving && !_verifying;
-    final canConfirm = dirty && validDraft && !_saving && !_verifying;
+    final libraryReady =
+        !_loadingExercises && _exerciseLoadError == null && _exerciseLibrary.isNotEmpty;
+    final canConfirm =
+        dirty && validDraft && libraryReady && !_saving && !_verifying;
 
     return PopScope<Map<String, dynamic>?>(
       canPop: false,

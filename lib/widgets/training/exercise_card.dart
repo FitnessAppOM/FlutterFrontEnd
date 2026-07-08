@@ -607,10 +607,13 @@ class ExerciseCard extends StatelessWidget {
                                             if (resumeChip != null)
                                               SizedBox(width: TaqaUiScale.w(8)),
                                             if (resumeChip != null) resumeChip,
-                                            if (!completed && showReplace)
+                                            // Replace is allowed even after the
+                                            // exercise is completed (past logged
+                                            // history is kept; the swap applies
+                                            // going forward).
+                                            if (showReplace)
                                               SizedBox(width: TaqaUiScale.w(8)),
-                                            if (!completed && showReplace)
-                                              replaceChip,
+                                            if (showReplace) replaceChip,
                                           ],
                                         ),
                                     ],
