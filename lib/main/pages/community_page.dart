@@ -20,6 +20,9 @@ import '../../TaqaUI/components/taqa_leaderboard_card.dart';
 import '../../TaqaUI/components/taqa_value_dialog.dart';
 import '../../TaqaUI/components/taqa_community_challenge_card.dart';
 import '../../TaqaUI/components/taqa_community_feed_card.dart';
+import '../../TaqaUI/components/taqa_community_filter_chip.dart';
+import '../../TaqaUI/components/taqa_community_group_list_card.dart';
+import '../../TaqaUI/components/taqa_search_field.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/styles/taqa_ui_styles.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
@@ -665,6 +668,16 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
   String? _groupKind;
   int? _nextCursor;
 
+  static const List<String?> _groupKindOptions = [
+    null,
+    'general',
+    'gym',
+    'coach',
+    'city',
+    'country',
+    'sport',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -764,43 +777,28 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            TextField(
+            TaqaSearchField(
               controller: _searchController,
-              style: const TextStyle(color: TaqaUiColors.charcoal),
-              decoration: InputDecoration(
-                hintText: 'Search by name or description',
-                suffixIcon: IconButton(
-                  onPressed: () => _load(),
-                  icon: const Icon(Icons.search, color: TaqaUiColors.charcoal),
-                ),
-              ),
+              hint: 'Search by name or description',
               onChanged: _onSearchChanged,
               onSubmitted: (_) => _load(),
             ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _FeedFilterChip(
-                  label: 'All kinds',
-                  selected: _groupKind == null,
-                  onTap: () async {
-                    setState(() => _groupKind = null);
-                    await _load();
-                  },
-                ),
-                ...['general', 'gym', 'coach', 'city', 'country', 'sport'].map(
-                  (kind) => _FeedFilterChip(
-                    label: kind,
-                    selected: _groupKind == kind,
-                    onTap: () async {
-                      setState(() => _groupKind = kind);
-                      await _load();
-                    },
-                  ),
-                ),
+            SizedBox(height: TaqaUiScale.h(15)),
+            TaqaCommunityFilterGrid(
+              labels: const [
+                'All kinds',
+                'General',
+                'Gym',
+                'Coach',
+                'City',
+                'Country',
+                'Sport',
               ],
+              selectedIndex: _groupKindOptions.indexOf(_groupKind),
+              onSelected: (index) async {
+                setState(() => _groupKind = _groupKindOptions[index]);
+                await _load();
+              },
             ),
             const SizedBox(height: 16),
             if (_loading)
@@ -821,76 +819,35 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
             else
               ..._groups.map(
                 (group) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: GestureDetector(
-                    onTap: () => _openGroup(group),
-                    child: _LightCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              _GroupBadge(group: group),
-                              const Spacer(),
-                              if (group.isJoined)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.accent.withValues(
-                                      alpha: 0.16,
-                                    ),
-                                    borderRadius: BorderRadius.circular(999),
-                                  ),
-                                  child: const Text(
-                                    'Joined',
-                                    style: TextStyle(
-                                      color: AppColors.accent,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            group.name,
-                            style: const TextStyle(
-                              color: TaqaUiColors.charcoal,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 16,
+                  padding: EdgeInsets.only(bottom: TaqaUiScale.h(15)),
+                  child: TaqaCommunityGroupListCard(
+                    tag: group.groupKind ?? group.visibility ?? 'Group',
+                    name: group.name,
+                    description: group.description ?? '',
+                    memberCount: group.memberCount,
+                    trailing: group.isJoined
+                        ? Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
                             ),
-                          ),
-                          if (group.description != null &&
-                              group.description!.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              group.description!,
-                              style: TextStyle(
-                                color: TaqaUiColors.charcoal.withValues(
-                                  alpha: 0.72,
-                                ),
-                                fontSize: 13,
-                                height: 1.4,
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 12),
-                          Text(
-                            '${group.memberCount} members',
-                            style: TextStyle(
+                            decoration: BoxDecoration(
                               color: TaqaUiColors.charcoal.withValues(
-                                alpha: 0.7,
+                                alpha: 0.08,
                               ),
-                              fontSize: 12,
+                              borderRadius: BorderRadius.circular(999),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
+                            child: const Text(
+                              'Joined',
+                              style: TextStyle(
+                                color: TaqaUiColors.charcoal,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          )
+                        : null,
+                    onTap: () => _openGroup(group),
                   ),
                 ),
               ),
@@ -3021,49 +2978,6 @@ class _GroupFeedCard extends StatelessWidget {
                 ),
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GroupBadge extends StatelessWidget {
-  const _GroupBadge({required this.group});
-
-  final CommunityGroupSummary group;
-
-  @override
-  Widget build(BuildContext context) {
-    final isPrivate = group.isPrivate;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: isPrivate
-            ? const Color(0xFF7C3AED).withValues(alpha: 0.18)
-            : const Color(0xFF0EA5A4).withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            isPrivate ? Icons.lock_outline : Icons.public_outlined,
-            size: 16,
-            color: isPrivate
-                ? const Color(0xFFC4B5FD)
-                : const Color(0xFF5EEAD4),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            group.groupKind ?? group.visibility ?? 'group',
-            style: TextStyle(
-              color: isPrivate
-                  ? const Color(0xFFE9D5FF)
-                  : const Color(0xFF99F6E4),
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
           ),
         ],
       ),

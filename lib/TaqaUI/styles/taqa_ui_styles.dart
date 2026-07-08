@@ -41,6 +41,8 @@ class TaqaUiStyles {
   static double get communitySectionTagWidth => TaqaUiScale.w(58);
   static double get communityGroupCardWidth => TaqaUiScale.w(171);
   static double get communityGroupCardHeight => TaqaUiScale.h(171);
+  static double get communityGroupListCardWidth => TaqaUiScale.w(357);
+  static double get communityGroupListCardHeight => TaqaUiScale.h(110);
   static double get communityGroupHeroCardWidth => TaqaUiScale.w(357);
   static double get communityGroupHeroCardHeight => TaqaUiScale.h(197);
   static double get communityMuteCardWidth => TaqaUiScale.w(357);
@@ -218,6 +220,15 @@ class TaqaUiStyles {
     fontSize: TaqaUiScale.sp(10),
     fontWeight: FontWeight.w600,
     color: TaqaUiColors.white,
+    letterSpacing: 0,
+    height: 12 / 10,
+  );
+
+  static TextStyle get communityFilterChipLabel => TextStyle(
+    fontFamily: TaqaUiFontFamilies.interTight,
+    fontSize: TaqaUiScale.sp(10),
+    fontWeight: FontWeight.w600,
+    color: TaqaUiColors.charcoal,
     letterSpacing: 0,
     height: 12 / 10,
   );
