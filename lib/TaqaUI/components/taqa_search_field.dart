@@ -22,11 +22,14 @@ class TaqaSearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: TaqaUiScale.w(357),
+      height: TaqaUiScale.h(39),
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: TaqaUiColors.white,
-        borderRadius: TaqaUiScale.radius(10),
+        borderRadius: TaqaUiScale.radius(15),
       ),
-      padding: TaqaUiScale.insetsLTRB(14, 2, 10, 2),
+      padding: TaqaUiScale.insetsLTRB(14, 0, 10, 0),
       child: TextField(
         controller: controller,
         onChanged: onChanged,
@@ -40,6 +43,7 @@ class TaqaSearchField extends StatelessWidget {
         ),
         decoration: InputDecoration(
           isDense: true,
+          isCollapsed: true,
           filled: false,
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
@@ -59,9 +63,14 @@ class TaqaSearchField extends StatelessWidget {
             size: TaqaUiScale.sp(18),
             color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.5),
           ),
+          prefixIconConstraints: BoxConstraints(
+            minWidth: TaqaUiScale.w(24),
+            minHeight: TaqaUiScale.h(18),
+          ),
           suffixIcon: controller.text.isEmpty
               ? null
               : IconButton(
+                  padding: EdgeInsets.zero,
                   icon: Icon(
                     Icons.close,
                     size: TaqaUiScale.sp(16),
@@ -74,6 +83,10 @@ class TaqaSearchField extends StatelessWidget {
                     onChanged?.call('');
                   },
                 ),
+          suffixIconConstraints: BoxConstraints(
+            minWidth: TaqaUiScale.w(24),
+            minHeight: TaqaUiScale.h(24),
+          ),
         ),
       ),
     );

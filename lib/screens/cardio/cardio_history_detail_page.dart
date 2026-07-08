@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_back_button.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_page_app_bar.dart';
 
 import '../../core/account_storage.dart';
 import '../../services/training/training_service.dart';
@@ -19,7 +21,8 @@ class CardioHistoryDetailPage extends StatefulWidget {
   final Map<String, dynamic> initialItem;
 
   @override
-  State<CardioHistoryDetailPage> createState() => _CardioHistoryDetailPageState();
+  State<CardioHistoryDetailPage> createState() =>
+      _CardioHistoryDetailPageState();
 }
 
 class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
@@ -79,46 +82,42 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
     final showIncline = isTreadmillExerciseName(name) && inclinePercent > 0;
     final isMapless = isIndoorCardioExerciseName(name);
 
-    final snapshotUrl = _buildSnapshotUrl(
-      route: route,
-    );
+    final snapshotUrl = _buildSnapshotUrl(route: route);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F1014),
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
+        title: name,
         backgroundColor: const Color(0xFF0F1014),
-        elevation: 0,
-        title: Text(name),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.ios_share),
-            onPressed: () async {
-              final speedKmh = pace > 0.01 ? 60.0 / pace : 0.0;
-              final sessionDate = _parseDate(entryDate);
-              final userName = await AccountStorage.getName();
-              await showModalBottomSheet(
-                context: context,
-                isDismissible: true,
-                enableDrag: true,
-                isScrollControlled: true,
-                useRootNavigator: true,
-                backgroundColor: Colors.transparent,
-                builder: (_) => CardioAchievementSheet(
-                  durationSeconds: duration,
-                  distanceKm: distanceKm,
-                  avgSpeedKmh: speedKmh,
-                  steps: steps,
-                  route: route,
-                  exerciseName: name,
-                  userName: userName,
-                  snapshotUrl: snapshotUrl,
-                  sessionDate: sessionDate,
-                  inclinePercent: inclinePercent,
-                ),
-              );
-            },
-          ),
-        ],
+        leading: const TaqaBackButton(color: Colors.white),
+        trailing: IconButton(
+          icon: const Icon(Icons.ios_share, color: Colors.white),
+          onPressed: () async {
+            final speedKmh = pace > 0.01 ? 60.0 / pace : 0.0;
+            final sessionDate = _parseDate(entryDate);
+            final userName = await AccountStorage.getName();
+            await showModalBottomSheet(
+              context: context,
+              isDismissible: true,
+              enableDrag: true,
+              isScrollControlled: true,
+              useRootNavigator: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => CardioAchievementSheet(
+                durationSeconds: duration,
+                distanceKm: distanceKm,
+                avgSpeedKmh: speedKmh,
+                steps: steps,
+                route: route,
+                exerciseName: name,
+                userName: userName,
+                snapshotUrl: snapshotUrl,
+                sessionDate: sessionDate,
+                inclinePercent: inclinePercent,
+              ),
+            );
+          },
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
@@ -126,16 +125,16 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
           Text(
             _formatDate(entryDate),
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white.withOpacity(0.6),
-                ),
+              color: Colors.white.withOpacity(0.6),
+            ),
           ),
           const SizedBox(height: 16),
           if (_error != null)
             Text(
               _error!,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.redAccent,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.redAccent),
             ),
           if (_loading)
             const Padding(
@@ -153,11 +152,7 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
             ),
             const SizedBox(height: 10),
           ],
-          _buildMetricsRow(
-            context,
-            label: "Pace",
-            value: _formatPace(pace),
-          ),
+          _buildMetricsRow(context, label: "Pace", value: _formatPace(pace)),
           const SizedBox(height: 10),
           _buildMetricsRow(
             context,
@@ -166,11 +161,7 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
           ),
           if (steps > 0) ...[
             const SizedBox(height: 10),
-            _buildMetricsRow(
-              context,
-              label: "Steps",
-              value: steps.toString(),
-            ),
+            _buildMetricsRow(context, label: "Steps", value: steps.toString()),
           ],
           if (showIncline) ...[
             const SizedBox(height: 10),
@@ -198,8 +189,8 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
           child: Text(
             "Route not available",
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white.withOpacity(0.7),
-                ),
+              color: Colors.white.withOpacity(0.7),
+            ),
           ),
         ),
       );
@@ -222,8 +213,8 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
                     child: Text(
                       "Map unavailable",
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.white.withOpacity(0.7),
-                          ),
+                        color: Colors.white.withOpacity(0.7),
+                      ),
                     ),
                   ),
                 );
@@ -252,30 +243,25 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
           Text(
             label,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white.withOpacity(0.6),
-                ),
+              color: Colors.white.withOpacity(0.6),
+            ),
           ),
           const Spacer(),
           Text(
             value,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                ),
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
     );
   }
 
-  String _buildSnapshotUrl({
-    required List<CardioPoint> route,
-  }) {
+  String _buildSnapshotUrl({required List<CardioPoint> route}) {
     final token = dotenv.maybeGet('MAPBOX_PUBLIC_KEY') ?? '';
-    return buildCardioSnapshotUrlMaster(
-      token: token,
-      route: route,
-    );
+    return buildCardioSnapshotUrlMaster(token: token, route: route);
   }
 
   List<CardioPoint> _parseRoute(dynamic raw) {
@@ -378,5 +364,3 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
     return int.tryParse(v?.toString() ?? '') ?? 0;
   }
 }
-
- 

@@ -33,8 +33,13 @@ class TaqaCommunityGroupListCard extends StatelessWidget {
     final contentWidth = cardWidth - (contentLeft * 2);
     final tagTop = TaqaUiScale.h(14);
     final nameTop = TaqaUiScale.h(43);
-    final descriptionTop = TaqaUiScale.h(59);
-    final membersTop = TaqaUiScale.h(83);
+    // The design spec's 16px gap (59 - 43) is measured against the title's
+    // nominal 15px box, but its 20/15 line-height renders taller than that,
+    // which crowded the description right underneath it. Pad the gap out to
+    // clear the title's actual line box, then keep the description->members
+    // spacing from the original spec (24px).
+    final descriptionTop = TaqaUiScale.h(66);
+    final membersTop = TaqaUiScale.h(66 + 24);
 
     return Material(
       color: Colors.transparent,

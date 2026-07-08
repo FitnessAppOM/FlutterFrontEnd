@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_empty_card.dart';
 import '../TaqaUI/components/taqa_linear_metric_card.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_progress_widget_card.dart';
 import '../TaqaUI/components/taqa_sleep_stages_wide_card.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
-import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../localization/app_localizations.dart';
 import '../services/fitbit/fitbit_sleep_service.dart';
 
@@ -33,26 +34,14 @@ class FitbitSleepDetailPage extends StatelessWidget {
     final progress = (asleep != null && goal != null && goal > 0)
         ? (asleep / goal).clamp(0.0, 1.0)
         : 0.0;
-    final hasData = summary != null &&
+    final hasData =
+        summary != null &&
         (asleep != null || inBed != null || sleepScore != null);
 
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        title: Text(
-          t("fitbit_sleep_title"),
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: TaqaUiScale.sp(15),
-            fontWeight: FontWeight.w700,
-            height: 25 / 15,
-            letterSpacing: 0,
-            color: TaqaUiColors.unnamedColor1c1d17,
-          ),
-        ),
+      appBar: TaqaPageAppBar(
+        title: t("fitbit_sleep_title"),
         backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-        elevation: 0,
       ),
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       body: SingleChildScrollView(
@@ -80,10 +69,9 @@ class FitbitSleepDetailPage extends StatelessWidget {
                           valueText: asleep == null ? "—" : _fmtMinutes(asleep),
                           goalText: goal == null
                               ? "—"
-                              : t("common_goal_value").replaceAll(
-                                  "{value}",
-                                  _fmtMinutes(goal),
-                                ),
+                              : t(
+                                  "common_goal_value",
+                                ).replaceAll("{value}", _fmtMinutes(goal)),
                           progress: progress,
                         ),
                       ),
@@ -197,7 +185,9 @@ class _LogTile extends StatelessWidget {
     final endLabel = end == null
         ? "—"
         : "${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}";
-    final duration = log.minutesAsleep == null ? "—" : "${log.minutesAsleep} min";
+    final duration = log.minutesAsleep == null
+        ? "—"
+        : "${log.minutesAsleep} min";
     final main = log.isMainSleep == true
         ? t("fitbit_sleep_log_main_sleep")
         : t("fitbit_sleep_log_nap_other");
@@ -271,22 +261,40 @@ class _DateLabel extends StatelessWidget {
 
   String _monthShort(int m) {
     const names = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ];
     return names[m - 1];
   }
 
   String _weekdayShort(int weekday) {
     switch (weekday) {
-      case DateTime.monday: return "Mon";
-      case DateTime.tuesday: return "Tue";
-      case DateTime.wednesday: return "Wed";
-      case DateTime.thursday: return "Thu";
-      case DateTime.friday: return "Fri";
-      case DateTime.saturday: return "Sat";
-      case DateTime.sunday: return "Sun";
-      default: return "";
+      case DateTime.monday:
+        return "Mon";
+      case DateTime.tuesday:
+        return "Tue";
+      case DateTime.wednesday:
+        return "Wed";
+      case DateTime.thursday:
+        return "Thu";
+      case DateTime.friday:
+        return "Fri";
+      case DateTime.saturday:
+        return "Sat";
+      case DateTime.sunday:
+        return "Sun";
+      default:
+        return "";
     }
   }
 }

@@ -10,6 +10,7 @@ import '../../theme/app_theme.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../TaqaUI/components/taqa_community_hero_card.dart';
+import '../../TaqaUI/components/taqa_back_button.dart';
 import '../../TaqaUI/components/taqa_community_action_row.dart';
 import '../../TaqaUI/components/taqa_community_section_header.dart';
 import '../../TaqaUI/components/taqa_community_group_card.dart';
@@ -22,7 +23,10 @@ import '../../TaqaUI/components/taqa_community_challenge_card.dart';
 import '../../TaqaUI/components/taqa_community_feed_card.dart';
 import '../../TaqaUI/components/taqa_community_filter_chip.dart';
 import '../../TaqaUI/components/taqa_community_group_list_card.dart';
+import '../../TaqaUI/components/taqa_empty_card.dart';
+import '../../TaqaUI/components/taqa_outline_tag_button.dart';
 import '../../TaqaUI/components/taqa_search_field.dart';
+import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/styles/taqa_ui_styles.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
@@ -345,6 +349,21 @@ class _CommunityPageState extends State<CommunityPage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
           children: [
+            Align(
+              alignment: Alignment.center,
+              child: Text(
+                'Community',
+                style: const TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  height: 2.5,
+                  letterSpacing: 0,
+                  color: TaqaUiColors.unnamedColor1c1d17,
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
             _buildHeroCard(),
             const SizedBox(height: 18),
             _buildQuickActions(),
@@ -663,13 +682,10 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
   final List<CommunityGroupSummary> _groups = [];
   Timer? _searchDebounce;
   bool _loading = true;
-  bool _loadingMore = false;
   String? _error;
-  String? _groupKind;
-  int? _nextCursor;
+  final Set<String> _selectedKinds = {};
 
-  static const List<String?> _groupKindOptions = [
-    null,
+  static const List<String> _groupKindOptions = [
     'general',
     'gym',
     'coach',
@@ -684,6 +700,19 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
     _load();
   }
 
+  /// Groups discoverable by more than one kind at a time. The backend only
+  /// filters by a single `group_kind`, so with 0 or 1 kind selected we let
+  /// it filter; with several selected we fetch unfiltered and narrow down
+  /// client-side to the chosen mix.
+  List<CommunityGroupSummary> _applyKindFilter(
+    List<CommunityGroupSummary> items,
+  ) {
+    if (_selectedKinds.length <= 1) return items;
+    return items
+        .where((group) => _selectedKinds.contains(group.groupKind))
+        .toList(growable: false);
+  }
+
   Future<void> _load({bool reset = true}) async {
     if (reset) {
       setState(() {
@@ -694,14 +723,13 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
     try {
       final page = await CommunityService.discoverGroups(
         query: _searchController.text.trim(),
-        groupKind: _groupKind,
+        groupKind: _selectedKinds.length == 1 ? _selectedKinds.first : null,
       );
       if (!mounted) return;
       setState(() {
         _groups
           ..clear()
-          ..addAll(page.items);
-        _nextCursor = page.nextCursor;
+          ..addAll(_applyKindFilter(page.items));
         _loading = false;
       });
     } catch (e) {
@@ -710,28 +738,6 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
         _error = e.toString();
         _loading = false;
       });
-    }
-  }
-
-  Future<void> _loadMore() async {
-    if (_loadingMore || _nextCursor == null) return;
-    setState(() => _loadingMore = true);
-    try {
-      final page = await CommunityService.discoverGroups(
-        query: _searchController.text.trim(),
-        groupKind: _groupKind,
-        cursor: _nextCursor,
-      );
-      if (!mounted) return;
-      setState(() {
-        _groups.addAll(page.items);
-        _nextCursor = page.nextCursor;
-        _loadingMore = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _loadingMore = false);
-      AppToast.show(context, e.toString(), type: AppToastType.error);
     }
   }
 
@@ -765,99 +771,134 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
   Widget build(BuildContext context) {
     final scaffold = Scaffold(
       backgroundColor: AppColors.appBackground,
-      appBar: AppBar(
-        backgroundColor: AppColors.appBackground,
-        elevation: 0,
-        foregroundColor: TaqaUiColors.charcoal,
-        title: const Text('Discover Communities'),
-      ),
-      body: RefreshIndicator(
-        color: AppColors.accent,
-        onRefresh: () => _load(),
-        child: ListView(
-          padding: const EdgeInsets.all(20),
+      body: SafeArea(
+        child: Stack(
           children: [
-            TaqaSearchField(
-              controller: _searchController,
-              hint: 'Search by name or description',
-              onChanged: _onSearchChanged,
-              onSubmitted: (_) => _load(),
+            Padding(
+              padding: EdgeInsets.only(top: TaqaUiScale.h(94)),
+              child: RefreshIndicator(
+                color: AppColors.accent,
+                onRefresh: () => _load(),
+                child: ListView(
+                  padding: EdgeInsets.fromLTRB(
+                    TaqaUiScale.w(16),
+                    0,
+                    TaqaUiScale.w(16),
+                    TaqaUiScale.h(20),
+                  ),
+                  children: [
+                    TaqaSearchField(
+                      controller: _searchController,
+                      onChanged: _onSearchChanged,
+                      onSubmitted: (_) => _load(),
+                    ),
+                    SizedBox(height: TaqaUiScale.h(15)),
+                    TaqaCommunityFilterGrid(
+                      labels: const [
+                        'General',
+                        'Gym',
+                        'Coach',
+                        'City',
+                        'Country',
+                        'Sport',
+                      ],
+                      selectedIndexes: {
+                        for (var i = 0; i < _groupKindOptions.length; i++)
+                          if (_selectedKinds.contains(_groupKindOptions[i])) i,
+                      },
+                      onToggle: (index) async {
+                        final kind = _groupKindOptions[index];
+                        setState(() {
+                          if (!_selectedKinds.remove(kind)) {
+                            _selectedKinds.add(kind);
+                          }
+                        });
+                        await _load();
+                      },
+                    ),
+                    SizedBox(height: TaqaUiScale.h(16)),
+                    if (_loading)
+                      const TaqaEmptyCard(
+                        title: 'Loading communities...',
+                        loading: true,
+                      )
+                    else if (_error != null) ...[
+                      TaqaEmptyCard(
+                        title: 'Could not load public groups',
+                        subtitle: _error,
+                      ),
+                      SizedBox(height: TaqaUiScale.h(12)),
+                      OutlinedButton(
+                        onPressed: () => _load(),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: TaqaUiColors.charcoal,
+                          side: BorderSide(
+                            color: TaqaUiColors.charcoal.withValues(
+                              alpha: 0.18,
+                            ),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text('Retry'),
+                      ),
+                    ] else if (_groups.isEmpty)
+                      const TaqaEmptyCard(
+                        title: 'No public groups found',
+                        subtitle:
+                            'Try a broader search or create your own community',
+                      )
+                    else
+                      ..._groups.map(
+                        (group) => Padding(
+                          padding: EdgeInsets.only(bottom: TaqaUiScale.h(15)),
+                          child: TaqaCommunityGroupListCard(
+                            tag: group.groupKind ?? group.visibility ?? 'Group',
+                            name: group.name,
+                            description: group.description ?? '',
+                            memberCount: group.memberCount,
+                            trailing: group.isJoined
+                                ? TaqaOutlineTagButton(
+                                    label: 'Joined',
+                                    width:
+                                        TaqaUiStyles.communitySectionTagWidth,
+                                  )
+                                : null,
+                            onTap: () => _openGroup(group),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ),
-            SizedBox(height: TaqaUiScale.h(15)),
-            TaqaCommunityFilterGrid(
-              labels: const [
-                'All kinds',
-                'General',
-                'Gym',
-                'Coach',
-                'City',
-                'Country',
-                'Sport',
-              ],
-              selectedIndex: _groupKindOptions.indexOf(_groupKind),
-              onSelected: (index) async {
-                setState(() => _groupKind = _groupKindOptions[index]);
-                await _load();
-              },
-            ),
-            const SizedBox(height: 16),
-            if (_loading)
-              const _CommunityLoadingCard()
-            else if (_error != null)
-              _CommunityEmptyCard(
-                title: 'Could not load public groups',
-                message: _error!,
-                actionLabel: 'Retry',
-                onPressed: () => _load(),
-              )
-            else if (_groups.isEmpty)
-              const _CommunityEmptyCard(
-                title: 'No public groups found',
-                message:
-                    'Try a broader search or create your own private community.',
-              )
-            else
-              ..._groups.map(
-                (group) => Padding(
-                  padding: EdgeInsets.only(bottom: TaqaUiScale.h(15)),
-                  child: TaqaCommunityGroupListCard(
-                    tag: group.groupKind ?? group.visibility ?? 'Group',
-                    name: group.name,
-                    description: group.description ?? '',
-                    memberCount: group.memberCount,
-                    trailing: group.isJoined
-                        ? Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: TaqaUiColors.charcoal.withValues(
-                                alpha: 0.08,
-                              ),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: const Text(
-                              'Joined',
-                              style: TextStyle(
-                                color: TaqaUiColors.charcoal,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          )
-                        : null,
-                    onTap: () => _openGroup(group),
+            Positioned(
+              top: TaqaUiScale.h(43),
+              left: TaqaUiScale.w(114),
+              width: TaqaUiScale.w(162),
+              height: TaqaUiScale.h(15),
+              child: Align(
+                alignment: Alignment.center,
+                child: Text(
+                  'Discover Communities',
+                  maxLines: 1,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.visible,
+                  style: const TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    height: 2.5,
+                    letterSpacing: 0,
+                    color: TaqaUiColors.unnamedColor1c1d17,
                   ),
                 ),
               ),
-            if (_nextCursor != null) ...[
-              const SizedBox(height: 10),
-              OutlinedButton(
-                onPressed: _loadingMore ? null : _loadMore,
-                child: Text(_loadingMore ? 'Loading...' : 'Load more'),
-              ),
-            ],
+            ),
+            Positioned(
+              top: TaqaUiScale.h(39),
+              left: TaqaUiScale.w(8),
+              child: const TaqaBackButton(),
+            ),
           ],
         ),
       ),

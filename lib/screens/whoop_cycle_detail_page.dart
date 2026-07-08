@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../core/account_storage.dart';
 import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
@@ -101,8 +102,10 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
     final bool isPastDay = _isPastDay(dayKey);
     final metrics = _daily[dayKey] ?? _dailyCache[dayKey];
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context).translate("whoop_daily_cycle_title")),
+      appBar: TaqaPageAppBar(
+        title: AppLocalizations.of(
+          context,
+        ).translate("whoop_daily_cycle_title"),
         backgroundColor: AppColors.black,
       ),
       backgroundColor: AppColors.black,
@@ -352,7 +355,9 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
     final t = AppLocalizations.of(context).translate;
     final text = up
         ? t("whoop_avg_hr_up").replaceAll("{delta}", delta.toStringAsFixed(1))
-        : t("whoop_avg_hr_down").replaceAll("{delta}", delta.abs().toStringAsFixed(1));
+        : t(
+            "whoop_avg_hr_down",
+          ).replaceAll("{delta}", delta.abs().toStringAsFixed(1));
     return Center(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

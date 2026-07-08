@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
 import '../services/fitbit/fitbit_activity_service.dart';
@@ -249,8 +250,8 @@ class _FitbitInsightsPageState extends State<FitbitInsightsPage> {
     final bodyBusy = _bodyLoading && bodySummary == null;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context).translate("fitbit_insights_title")),
+      appBar: TaqaPageAppBar(
+        title: AppLocalizations.of(context).translate("fitbit_insights_title"),
         backgroundColor: AppColors.black,
       ),
       backgroundColor: AppColors.black,

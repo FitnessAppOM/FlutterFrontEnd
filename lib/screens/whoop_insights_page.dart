@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
 import '../widgets/dashboard/whoop_recovery_card.dart';
@@ -79,7 +80,9 @@ class _WhoopInsightsPageState extends State<WhoopInsightsPage> {
     }
     setState(() => _hydrateLoading = true);
     try {
-      final snapshot = await WhoopWidgetDataService().fetchForDate(DateTime.now());
+      final snapshot = await WhoopWidgetDataService().fetchForDate(
+        DateTime.now(),
+      );
       if (!mounted) return;
       _sleepHours ??= snapshot.sleepHours;
       _sleepScore ??= snapshot.sleepScore;
@@ -97,8 +100,8 @@ class _WhoopInsightsPageState extends State<WhoopInsightsPage> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context).translate;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(t("whoop_insights_title")),
+      appBar: TaqaPageAppBar(
+        title: t("whoop_insights_title"),
         backgroundColor: AppColors.black,
       ),
       backgroundColor: AppColors.black,
@@ -116,7 +119,9 @@ class _WhoopInsightsPageState extends State<WhoopInsightsPage> {
                 normalSleepGoalHours: (widget.sleepGoal ?? 8.0),
                 onTap: () async {
                   await Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SleepDetailPage(useWhoop: true)),
+                    MaterialPageRoute(
+                      builder: (_) => const SleepDetailPage(useWhoop: true),
+                    ),
                   );
                 },
               ),
@@ -131,7 +136,9 @@ class _WhoopInsightsPageState extends State<WhoopInsightsPage> {
                   score: _recoveryScore ?? widget.recoveryScore,
                   onTap: () async {
                     await Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const WhoopRecoveryDetailPage()),
+                      MaterialPageRoute(
+                        builder: (_) => const WhoopRecoveryDetailPage(),
+                      ),
                     );
                   },
                 ),
@@ -145,7 +152,9 @@ class _WhoopInsightsPageState extends State<WhoopInsightsPage> {
                 strain: _lastStrain,
                 onTap: () async {
                   await Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const WhoopCycleDetailPage()),
+                    MaterialPageRoute(
+                      builder: (_) => const WhoopCycleDetailPage(),
+                    ),
                   );
                 },
               ),
@@ -158,7 +167,9 @@ class _WhoopInsightsPageState extends State<WhoopInsightsPage> {
                 weightKg: _weightKg ?? widget.weightKg,
                 onTap: () async {
                   await Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const WhoopBodyDetailPage()),
+                    MaterialPageRoute(
+                      builder: (_) => const WhoopBodyDetailPage(),
+                    ),
                   );
                 },
               ),

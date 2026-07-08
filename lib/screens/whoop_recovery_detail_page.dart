@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../core/account_storage.dart';
 import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
@@ -98,8 +99,8 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
     final headerDate = dayKey;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context).translate("whoop_recovery_title")),
+      appBar: TaqaPageAppBar(
+        title: AppLocalizations.of(context).translate("whoop_recovery_title"),
         backgroundColor: AppColors.black,
       ),
       backgroundColor: AppColors.black,
@@ -119,7 +120,13 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
             ],
             const SizedBox(height: 16),
             if (metrics.recoveryScore != null || hasAnyData || _loading) ...[
-              Center(child: _sectionTitle(AppLocalizations.of(context).translate("whoop_recovery_trend"))),
+              Center(
+                child: _sectionTitle(
+                  AppLocalizations.of(
+                    context,
+                  ).translate("whoop_recovery_trend"),
+                ),
+              ),
               const SizedBox(height: 8),
               _loading && !hasAnyData
                   ? const Center(
@@ -270,7 +277,9 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
           children: [
             Expanded(
               child: RecoveryMetricCard(
-                title: AppLocalizations.of(context).translate("fitbit_heart_resting_hr"),
+                title: AppLocalizations.of(
+                  context,
+                ).translate("fitbit_heart_resting_hr"),
                 value: _fmt(metrics.rhr),
                 unit: "bpm",
                 icon: Icons.favorite,
@@ -280,7 +289,9 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
             const SizedBox(width: 12),
             Expanded(
               child: RecoveryMetricCard(
-                title: AppLocalizations.of(context).translate("fitbit_heart_hrv_rmssd"),
+                title: AppLocalizations.of(
+                  context,
+                ).translate("fitbit_heart_hrv_rmssd"),
                 value: _fmt(metrics.hrv),
                 unit: "ms",
                 icon: Icons.show_chart,
@@ -294,7 +305,9 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
           children: [
             Expanded(
               child: RecoveryMetricCard(
-                title: AppLocalizations.of(context).translate("whoop_spo2_level"),
+                title: AppLocalizations.of(
+                  context,
+                ).translate("whoop_spo2_level"),
                 value: _fmt(metrics.spo2),
                 unit: "%",
                 icon: Icons.water_drop,
@@ -304,7 +317,9 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
             const SizedBox(width: 12),
             Expanded(
               child: RecoveryMetricCard(
-                title: AppLocalizations.of(context).translate("whoop_skin_temp"),
+                title: AppLocalizations.of(
+                  context,
+                ).translate("whoop_skin_temp"),
                 value: _fmt(metrics.skinTemp),
                 unit: "°C",
                 icon: Icons.thermostat,

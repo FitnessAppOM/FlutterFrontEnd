@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_back_button.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_page_app_bar.dart';
 
 import 'dart:convert';
 
@@ -20,10 +22,10 @@ class TrainingHistoryDayDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0F1014),
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
+        title: dayLabel,
         backgroundColor: const Color(0xFF0F1014),
-        elevation: 0,
-        title: Text(dayLabel),
+        leading: const TaqaBackButton(color: Colors.white),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
@@ -36,12 +38,15 @@ class TrainingHistoryDayDetailPage extends StatelessWidget {
                       ? "Completed exercises"
                       : "Completed exercises • $weekLabel",
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.6),
-                      ),
+                    color: Colors.white.withOpacity(0.6),
+                  ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(12),
@@ -50,9 +55,9 @@ class TrainingHistoryDayDetailPage extends StatelessWidget {
                 child: Text(
                   statusText,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -62,8 +67,8 @@ class TrainingHistoryDayDetailPage extends StatelessWidget {
             Text(
               "No completed exercises.",
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withOpacity(0.7),
-                  ),
+                color: Colors.white.withOpacity(0.7),
+              ),
             )
           else
             ...completedExercises.map((ex) {
@@ -123,25 +128,25 @@ class _HistoryExerciseCard extends StatelessWidget {
     final name = _lower(exercise['exercise_name']);
     final isCardio =
         [category, exType, animName, name].any((v) => v.contains('cardio')) ||
-            animName.startsWith('cardio -');
+        animName.startsWith('cardio -');
 
     final compliance =
         _extractCompliance(exercise['program_compliance']) ??
-            _extractCompliance(exercise['compliance']);
+        _extractCompliance(exercise['compliance']);
 
-    final performedSets =
-        _valueAsText(compliance?['performed_sets'] ?? exercise['performed_sets']);
-    final performedReps =
-        _valueAsText(compliance?['performed_reps'] ?? exercise['performed_reps']);
-    final performedRir =
-        _valueAsText(compliance?['performed_rir'] ?? exercise['performed_rir']);
+    final performedSets = _valueAsText(
+      compliance?['performed_sets'] ?? exercise['performed_sets'],
+    );
+    final performedReps = _valueAsText(
+      compliance?['performed_reps'] ?? exercise['performed_reps'],
+    );
+    final performedRir = _valueAsText(
+      compliance?['performed_rir'] ?? exercise['performed_rir'],
+    );
 
-    final setsLabel =
-        performedSets ?? _valueAsText(exercise['sets']) ?? '-';
-    final repsLabel =
-        performedReps ?? _valueAsText(exercise['reps']) ?? '-';
-    final rirLabel =
-        performedRir ?? _valueAsText(exercise['rir']) ?? '-';
+    final setsLabel = performedSets ?? _valueAsText(exercise['sets']) ?? '-';
+    final repsLabel = performedReps ?? _valueAsText(exercise['reps']) ?? '-';
+    final rirLabel = performedRir ?? _valueAsText(exercise['rir']) ?? '-';
 
     final title = exercise['exercise_name']?.toString() ?? '';
     final muscles = (exercise['primary_muscles'] ?? '').toString();
@@ -164,11 +169,7 @@ class _HistoryExerciseCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: Colors.greenAccent.withOpacity(0.6)),
             ),
-            child: const Icon(
-              Icons.check,
-              size: 18,
-              color: Colors.greenAccent,
-            ),
+            child: const Icon(Icons.check, size: 18, color: Colors.greenAccent),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -184,9 +185,9 @@ class _HistoryExerciseCard extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                            ),
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -235,9 +236,9 @@ class _HistoryExerciseCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.white70,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ],
@@ -250,10 +251,7 @@ class _HistoryExerciseCard extends StatelessWidget {
 }
 
 class _HistoryStatChip extends StatelessWidget {
-  const _HistoryStatChip({
-    required this.icon,
-    required this.label,
-  });
+  const _HistoryStatChip({required this.icon, required this.label});
 
   final IconData icon;
   final String label;
@@ -275,9 +273,9 @@ class _HistoryStatChip extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.white70,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: Colors.white70,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),

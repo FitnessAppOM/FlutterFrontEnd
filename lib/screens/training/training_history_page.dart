@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_page_app_bar.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_log_entry_card.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_steps_ui.dart';
 import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
@@ -920,7 +921,9 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
       final type = (change['type'] ?? '').toString().trim();
       if (type == 'added') {
         final to = change['to'];
-        final name = to is Map ? (to['exercise_name'] ?? '').toString().trim() : '';
+        final name = to is Map
+            ? (to['exercise_name'] ?? '').toString().trim()
+            : '';
         if (name.isNotEmpty) addedNames.add(name);
       } else if (type == 'removed') {
         final from = change['from'];
@@ -1094,22 +1097,9 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
     final groupedEntries = _groupEntriesByPlan(_entries);
     return Scaffold(
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-      appBar: AppBar(
+      appBar: const TaqaPageAppBar(
+        title: "Training History",
         backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-        elevation: 0,
-        centerTitle: true,
-        title: Text(
-          "Training History",
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: TaqaUiScale.sp(15),
-            fontWeight: FontWeight.w700,
-            height: 2.5,
-            letterSpacing: 0,
-            color: TaqaUiColors.unnamedColor1c1d17,
-          ),
-        ),
       ),
       body: Column(
         children: [

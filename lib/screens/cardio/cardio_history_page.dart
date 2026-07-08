@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_log_entry_card.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_page_app_bar.dart';
 import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 
@@ -171,22 +172,9 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-      appBar: AppBar(
+      appBar: const TaqaPageAppBar(
+        title: "Cardio History",
         backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-        centerTitle: true,
-        elevation: 0,
-        title: Text(
-          "Cardio History",
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: TaqaUiScale.sp(15),
-            fontWeight: FontWeight.w700,
-            height: 2.5,
-            letterSpacing: 0,
-            color: TaqaUiColors.unnamedColor1c1d17,
-          ),
-        ),
       ),
       body: RefreshIndicator(
         onRefresh: _load,

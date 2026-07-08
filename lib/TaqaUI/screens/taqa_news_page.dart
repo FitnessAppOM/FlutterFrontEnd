@@ -7,6 +7,7 @@ import '../taqa_ui_colors.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../styles/taqa_ui_styles.dart';
 import '../components/taqa_back_button.dart';
+import '../components/taqa_page_header.dart';
 import '../../../localization/app_localizations.dart';
 import '../../../models/news_item.dart';
 import '../../../services/news/news_tag_actions.dart';
@@ -16,17 +17,13 @@ class TaqaNewsPage extends StatelessWidget {
 
   final List<NewsItem> items;
 
-  static const double _cardsTop = 94;
+  static const double _cardsTop = 149;
 
   @override
   Widget build(BuildContext context) {
     final locale = AppLocalizations.of(context).locale.languageCode;
     final t = AppLocalizations.of(context).translate;
     final list = items;
-
-    final titleStyle = TaqaUiStyles.pageTitle.copyWith(
-      color: TaqaUiColors.charcoal,
-    );
 
     return Scaffold(
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
@@ -43,8 +40,7 @@ class TaqaNewsPage extends StatelessWidget {
                   TaqaUiScale.h(24),
                 ),
                 itemCount: list.isEmpty ? 1 : list.length,
-                separatorBuilder: (_, _) =>
-                    SizedBox(height: TaqaUiScale.h(12)),
+                separatorBuilder: (_, _) => SizedBox(height: TaqaUiScale.h(12)),
                 itemBuilder: (context, index) {
                   if (list.isEmpty) {
                     return SizedBox(
@@ -66,18 +62,11 @@ class TaqaNewsPage extends StatelessWidget {
               ),
             ),
             Positioned(
-              top: 24,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Text(t("dash_news_tag"), style: titleStyle),
-              ),
+              top: TaqaUiScale.h(94),
+              left: TaqaUiScale.w(16),
+              child: TaqaPageHeader(title: t("dash_news_tag")),
             ),
-            const Positioned(
-              top: 20,
-              left: 8,
-              child: TaqaBackButton(),
-            ),
+            const Positioned(top: 20, left: 8, child: TaqaBackButton()),
           ],
         ),
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../core/account_storage.dart';
 import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
@@ -55,8 +56,10 @@ class _WhoopBodyDetailPageState extends State<WhoopBodyDetailPage> {
   Widget build(BuildContext context) {
     final metrics = _metrics;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context).translate("whoop_body_insights_title")),
+      appBar: TaqaPageAppBar(
+        title: AppLocalizations.of(
+          context,
+        ).translate("whoop_body_insights_title"),
         backgroundColor: AppColors.black,
       ),
       backgroundColor: AppColors.black,
@@ -68,33 +71,35 @@ class _WhoopBodyDetailPageState extends State<WhoopBodyDetailPage> {
               )
             : (metrics == null || !_hasAny(metrics))
             ? _emptyCard()
-            : Builder(builder: (context) {
-                final t = AppLocalizations.of(context).translate;
-                return Column(
-                  children: [
-                    _metricCard(
-                      title: t("body_height_label"),
-                      value: _fmtMeters(metrics.heightMeters),
-                      icon: Icons.height,
-                      accent: const Color(0xFF2D7CFF),
-                    ),
-                    const SizedBox(height: 12),
-                    _metricCard(
-                      title: t("body_weight_label"),
-                      value: _fmtKg(metrics.weightKg, t("unit_kg")),
-                      icon: Icons.monitor_weight,
-                      accent: const Color(0xFF00BFA6),
-                    ),
-                    const SizedBox(height: 12),
-                    _metricCard(
-                      title: t("whoop_max_hr_label"),
-                      value: _fmtBpm(metrics.maxHr),
-                      icon: Icons.favorite,
-                      accent: const Color(0xFFFF8A00),
-                    ),
-                  ],
-                );
-              }),
+            : Builder(
+                builder: (context) {
+                  final t = AppLocalizations.of(context).translate;
+                  return Column(
+                    children: [
+                      _metricCard(
+                        title: t("body_height_label"),
+                        value: _fmtMeters(metrics.heightMeters),
+                        icon: Icons.height,
+                        accent: const Color(0xFF2D7CFF),
+                      ),
+                      const SizedBox(height: 12),
+                      _metricCard(
+                        title: t("body_weight_label"),
+                        value: _fmtKg(metrics.weightKg, t("unit_kg")),
+                        icon: Icons.monitor_weight,
+                        accent: const Color(0xFF00BFA6),
+                      ),
+                      const SizedBox(height: 12),
+                      _metricCard(
+                        title: t("whoop_max_hr_label"),
+                        value: _fmtBpm(metrics.maxHr),
+                        icon: Icons.favorite,
+                        accent: const Color(0xFFFF8A00),
+                      ),
+                    ],
+                  );
+                },
+              ),
       ),
     );
   }
@@ -129,7 +134,9 @@ class _WhoopBodyDetailPageState extends State<WhoopBodyDetailPage> {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              AppLocalizations.of(context).translate("whoop_no_body_measurements"),
+              AppLocalizations.of(
+                context,
+              ).translate("whoop_no_body_measurements"),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Colors.white60,
                 fontWeight: FontWeight.w600,

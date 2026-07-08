@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../TaqaUI/components/taqa_empty_card.dart';
@@ -54,7 +55,8 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
     return requested.isAfter(today) ? today : requested;
   }
 
-  bool get _isCurrentDayView => _dateOnly(_anchorDate) == _dateOnly(DateTime.now());
+  bool get _isCurrentDayView =>
+      _dateOnly(_anchorDate) == _dateOnly(DateTime.now());
   bool get _canManualEdit => _isCurrentDayView && _range == 'weekly';
 
   @override
@@ -201,22 +203,9 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        centerTitle: true,
-        title: Text(
-          t("steps_title"),
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: TaqaUiScale.sp(15),
-            fontWeight: FontWeight.w700,
-            height: 25 / 15,
-            letterSpacing: 0,
-            color: TaqaUiColors.unnamedColor1c1d17,
-          ),
-        ),
+      appBar: TaqaPageAppBar(
+        title: t("steps_title"),
         backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-        elevation: 0,
       ),
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       body: Padding(
@@ -262,7 +251,9 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                   width: TaqaUiScale.w(147),
                   height: TaqaUiScale.h(30),
                   child: Text(
-                    t("steps_goal_btn").replaceAll("{value}", "${_goal ?? 10000}"),
+                    t(
+                      "steps_goal_btn",
+                    ).replaceAll("{value}", "${_goal ?? 10000}"),
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(25),
@@ -383,8 +374,8 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                 _loading
                     ? t("dash_loading")
                     : t("common_avg_total")
-                        .replaceAll("{avg}", avg.toStringAsFixed(0))
-                        .replaceAll("{total}", "$total"),
+                          .replaceAll("{avg}", avg.toStringAsFixed(0))
+                          .replaceAll("{total}", "$total"),
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(10),
@@ -411,7 +402,9 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                               color: TaqaUiColors.charcoal,
                               borderRadius: TaqaUiScale.radius(10),
                               border: Border.all(
-                                color: TaqaUiColors.lime.withValues(alpha: 0.45),
+                                color: TaqaUiColors.lime.withValues(
+                                  alpha: 0.45,
+                                ),
                                 width: 0.5,
                               ),
                             ),
@@ -438,10 +431,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                   maxValue: actualMax,
                   midValue: midVal,
                   formatValue: _formatStepsAxis,
-                  gradient: const [
-                    Color(0xFF404040),
-                    Color(0xFF1C1D17),
-                  ],
+                  gradient: const [Color(0xFF404040), Color(0xFF1C1D17)],
                   selectedGradient: const [
                     Color(0xFFE4E93B),
                     Color(0xFFC9CF36),
@@ -642,7 +632,6 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
       }
     }
   }
-
 }
 
 class _StepsBarEntry {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../../widgets/Main/section_header.dart';
 import '../../widgets/Main/card_container.dart';
 import '../../models/news_item.dart';
@@ -6,10 +7,7 @@ import '../../services/news/news_tag_actions.dart';
 import '../../localization/app_localizations.dart';
 
 class AnnouncementsPage extends StatelessWidget {
-  const AnnouncementsPage({
-    super.key,
-    required this.items,
-  });
+  const AnnouncementsPage({super.key, required this.items});
 
   final List<NewsItem> items;
 
@@ -21,9 +19,9 @@ class AnnouncementsPage extends StatelessWidget {
     final announcements = items;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(t("announcements_title")),
-        centerTitle: true,
+      appBar: TaqaPageAppBar(
+        title: t("announcements_title"),
+        backgroundColor: cs.surface,
       ),
       body: SafeArea(
         child: ListView(
@@ -48,7 +46,11 @@ class AnnouncementsPage extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(12),
-                  onTap: () => NewsTagActions.handleTagTap(context, item.tag, item: item),
+                  onTap: () => NewsTagActions.handleTagTap(
+                    context,
+                    item.tag,
+                    item: item,
+                  ),
                   child: CardContainer(
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
