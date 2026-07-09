@@ -3832,6 +3832,7 @@ Widget _taqaDialogField({
   required TextEditingController controller,
   required String hint,
   int maxLines = 1,
+  String? errorText,
 }) {
   return Container(
     width: double.infinity,
@@ -3860,6 +3861,13 @@ Widget _taqaDialogField({
         errorBorder: InputBorder.none,
         focusedErrorBorder: InputBorder.none,
         hintText: hint,
+        errorText: errorText,
+        errorStyle: TextStyle(
+          fontFamily: TaqaUiFontFamilies.interTight,
+          fontSize: TaqaUiScale.sp(12),
+          fontWeight: FontWeight.w400,
+          color: TaqaUiColors.unnamedColorE93b3b,
+        ),
         hintStyle: TextStyle(
           fontFamily: TaqaUiFontFamilies.interTight,
           fontSize: TaqaUiScale.sp(16),
@@ -3979,6 +3987,7 @@ Future<_CreateGroupPayload?> _showGroupFormDialog(
   String visibility = initialVisibility;
   String kind = initialKind;
   bool discoverable = initialDiscoverable;
+  String? nameError;
 
   final result = await showDialog<_CreateGroupPayload>(
     context: context,
@@ -4022,6 +4031,7 @@ Future<_CreateGroupPayload?> _showGroupFormDialog(
                           _taqaDialogField(
                             controller: nameController,
                             hint: 'Group Name',
+                            errorText: nameError,
                           ),
                           SizedBox(height: TaqaUiScale.h(20)),
                           _taqaDialogField(
@@ -4148,7 +4158,16 @@ Future<_CreateGroupPayload?> _showGroupFormDialog(
                                     borderRadius: TaqaUiScale.radius(14),
                                     onTap: () {
                                       final name = nameController.text.trim();
-                                      if (name.length < 3) return;
+                                      if (name.length < 3) {
+                                        setLocalState(() {
+                                          nameError =
+                                              'Group name must be at least 3 characters.';
+                                        });
+                                        return;
+                                      }
+                                      if (nameError != null) {
+                                        setLocalState(() => nameError = null);
+                                      }
                                       Navigator.pop(
                                         ctx,
                                         _CreateGroupPayload(
