@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../core/account_storage.dart';
 import '../services/coach/coach_habits_service.dart';
 import '../theme/app_theme.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 
 class ExpertClientHabitsPage extends StatefulWidget {
@@ -465,7 +466,9 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
                 onSelected: !canManage
                     ? null
                     : (_) {
-                        setState(() => _newHabitType = CoachHabitItem.weeklyType);
+                        setState(
+                          () => _newHabitType = CoachHabitItem.weeklyType,
+                        );
                       },
               ),
               ChoiceChip(
@@ -474,7 +477,9 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
                 onSelected: !canManage
                     ? null
                     : (_) {
-                        setState(() => _newHabitType = CoachHabitItem.dailyType);
+                        setState(
+                          () => _newHabitType = CoachHabitItem.dailyType,
+                        );
                       },
               ),
             ],
@@ -626,16 +631,15 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
 
     return Scaffold(
       backgroundColor: AppColors.black,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
         backgroundColor: AppColors.black,
-        title: const Text('Client Habits'),
-        actions: [
-          IconButton(
-            onPressed: _loading ? null : _load,
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
+        titleColor: Colors.white,
+        title: 'Client Habits',
+        trailing: IconButton(
+          onPressed: _loading ? null : _load,
+          tooltip: 'Refresh',
+          icon: const Icon(Icons.refresh),
+        ),
       ),
       body: Stack(
         children: [

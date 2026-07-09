@@ -4,6 +4,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../TaqaUI/components/taqa_back_button.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../services/coach/progression_review_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/charts/ranged_bar_chart.dart';
@@ -646,7 +648,9 @@ class _ExpertWeeklyMetricsDetailPageState
       growable: true,
     );
     if (days.isEmpty) return const [];
-    days.sort((a, b) => _toInt(a['day_index']).compareTo(_toInt(b['day_index'])));
+    days.sort(
+      (a, b) => _toInt(a['day_index']).compareTo(_toInt(b['day_index'])),
+    );
     return days;
   }
 
@@ -768,7 +772,11 @@ class _ExpertWeeklyMetricsDetailPageState
           ),
           child: Row(
             children: [
-              const Icon(Icons.checklist_rounded, color: Colors.white70, size: 18),
+              const Icon(
+                Icons.checklist_rounded,
+                color: Colors.white70,
+                size: 18,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -783,18 +791,29 @@ class _ExpertWeeklyMetricsDetailPageState
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(previewText, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                    Text(
+                      previewText,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
               ),
               if (days.isNotEmpty)
                 Container(
                   margin: const EdgeInsets.only(left: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: stateColor.withValues(alpha: 0.16),
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: stateColor.withValues(alpha: 0.5)),
+                    border: Border.all(
+                      color: stateColor.withValues(alpha: 0.5),
+                    ),
                   ),
                   child: Text(
                     _planStateLabel(),
@@ -945,7 +964,9 @@ class _ExpertWeeklyMetricsDetailPageState
           (dayVolumeByKey[trainingDayKey] ?? 0) + dayVolume;
     }
 
-    final plannedDaysFromProgram = _toInt(_activeProgram['training_days_per_week']);
+    final plannedDaysFromProgram = _toInt(
+      _activeProgram['training_days_per_week'],
+    );
     final plannedTrainingDays = plannedDaysFromProgram > 0
         ? plannedDaysFromProgram
         : (_toInt(training['plan_days_per_week']) > 0
@@ -1488,9 +1509,11 @@ class _ExpertWeeklyMetricsDetailPageState
       MaterialPageRoute<void>(
         builder: (_) => Scaffold(
           backgroundColor: AppColors.black,
-          appBar: AppBar(
+          appBar: TaqaPageAppBar(
+            title: 'All Exercises Done',
             backgroundColor: AppColors.black,
-            title: const Text('All Exercises Done'),
+            titleColor: Colors.white,
+            leading: const TaqaBackButton(color: Colors.white),
           ),
           body: ListView(
             padding: const EdgeInsets.all(18),
@@ -2012,7 +2035,12 @@ class _ExpertWeeklyMetricsDetailPageState
 
     return Scaffold(
       backgroundColor: AppColors.black,
-      appBar: AppBar(backgroundColor: AppColors.black, title: Text(title)),
+      appBar: TaqaPageAppBar(
+        title: title,
+        backgroundColor: AppColors.black,
+        titleColor: Colors.white,
+        leading: const TaqaBackButton(color: Colors.white),
+      ),
       body: Column(
         children: [
           Container(

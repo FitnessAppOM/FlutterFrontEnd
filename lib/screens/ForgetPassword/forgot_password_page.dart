@@ -9,12 +9,17 @@ import '../../widgets/appbar_back_button.dart';
 import 'package:http/http.dart' as http;
 import '../../localization/app_localizations.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
+import '../../TaqaUI/components/taqa_page_app_bar.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   final String? lockedEmail;
   final bool lockEmailField;
 
-  const ForgotPasswordPage({super.key, this.lockedEmail, this.lockEmailField = false});
+  const ForgotPasswordPage({
+    super.key,
+    this.lockedEmail,
+    this.lockEmailField = false,
+  });
 
   @override
   State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
@@ -63,9 +68,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       if (response.statusCode == 200) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (_) => VerifyResetCodePage(email: email),
-          ),
+          MaterialPageRoute(builder: (_) => VerifyResetCodePage(email: email)),
         );
       } else {
         final data = jsonDecode(response.body);
@@ -94,9 +97,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     return Scaffold(
       backgroundColor: AppColors.black,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
+        title: t.translate("forgot_password"),
         backgroundColor: AppColors.black,
-        title: Text(t.translate("forgot_password")),
+        titleColor: Colors.white,
         leading: AppBarBackButton(
           onTap: () {
             if (Navigator.canPop(context)) {

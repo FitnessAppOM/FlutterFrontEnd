@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../TaqaUI/components/taqa_empty_card.dart';
 import '../TaqaUI/components/taqa_linear_metric_card.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
@@ -25,22 +26,10 @@ class HealthRecoveryLoadDetailPage extends StatelessWidget {
     final hasData = summary != null && summary!.hasAnyData;
 
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        title: Text(
-          t("health_recovery_title"),
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: TaqaUiScale.sp(15),
-            fontWeight: FontWeight.w700,
-            height: 25 / 15,
-            letterSpacing: 0,
-            color: TaqaUiColors.unnamedColor1c1d17,
-          ),
-        ),
+      appBar: TaqaPageAppBar(
+        title: t("health_recovery_title"),
         backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-        elevation: 0,
+        titleColor: TaqaUiColors.unnamedColor1c1d17,
       ),
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       body: SingleChildScrollView(
@@ -193,22 +182,40 @@ class HealthRecoveryLoadDetailPage extends StatelessWidget {
 
   String _monthShort(int m) {
     const names = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ];
     return names[m - 1];
   }
 
   String _weekdayShort(int weekday) {
     switch (weekday) {
-      case DateTime.monday: return "Mon";
-      case DateTime.tuesday: return "Tue";
-      case DateTime.wednesday: return "Wed";
-      case DateTime.thursday: return "Thu";
-      case DateTime.friday: return "Fri";
-      case DateTime.saturday: return "Sat";
-      case DateTime.sunday: return "Sun";
-      default: return "";
+      case DateTime.monday:
+        return "Mon";
+      case DateTime.tuesday:
+        return "Tue";
+      case DateTime.wednesday:
+        return "Wed";
+      case DateTime.thursday:
+        return "Thu";
+      case DateTime.friday:
+        return "Fri";
+      case DateTime.saturday:
+        return "Sat";
+      case DateTime.sunday:
+        return "Sun";
+      default:
+        return "";
     }
   }
 }

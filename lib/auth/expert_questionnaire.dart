@@ -6,6 +6,7 @@ import '../localization/app_localizations.dart';
 import '../widgets/questionnaire/expert_questionnaire_form.dart';
 import '../core/account_storage.dart';
 import '../TaqaUI/components/taqa_toast.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import 'expert_submission_success.dart';
 import '../services/core/expert_questionnaire_service.dart';
 
@@ -26,23 +27,10 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        centerTitle: true,
-        title: Text(
-          _t("expert_questionnaire_title"),
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: TaqaUiScale.sp(15),
-            fontWeight: FontWeight.w700,
-            height: 25 / 15,
-            letterSpacing: 0,
-            color: TaqaUiColors.unnamedColor1c1d17,
-          ),
-        ),
+      appBar: TaqaPageAppBar(
+        title: _t("expert_questionnaire_title"),
         backgroundColor: TaqaUiColors.white,
-        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-        elevation: 0,
+        showBackButton: false,
       ),
       backgroundColor: TaqaUiColors.white,
       body: AnimatedSwitcher(

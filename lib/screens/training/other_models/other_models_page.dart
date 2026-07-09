@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import '../../../services/share/cardio_share_service.dart';
 import '../../../widgets/cardio/cardio_map.dart';
 import '../../../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../../../TaqaUI/components/taqa_page_app_bar.dart';
 import '../../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../../TaqaUI/taqa_ui_colors.dart';
 import 'model_a_page.dart';
@@ -201,18 +202,10 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
     final bool mapReadyForCurrent = _index != 0 || _mapReady;
     return Scaffold(
       backgroundColor: const Color(0xFF0B0F1A),
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
+        title: 'Models',
         backgroundColor: const Color(0xFF0B0F1A),
-        elevation: 0,
-        title: Text(
-          'Models',
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: TaqaUiScale.sp(15),
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-        ),
+        titleColor: Colors.white,
       ),
       body: Column(
         children: [

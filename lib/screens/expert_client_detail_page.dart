@@ -25,6 +25,7 @@ import 'expert_client_habits_page.dart';
 import 'expert_progression_review_page.dart';
 import 'expert_training_plan_review_page.dart';
 import '../widgets/coach/chat_video_player_page.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 
 String _aiUpdateGenerationMessage(Map<String, dynamic> result) {
   final reason = (result['reason'] ?? '').toString().trim();
@@ -217,11 +218,14 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       final rawActivity = analytics['activity'];
       if (rawActivity is Map) {
         final activityMap = Map<String, dynamic>.from(rawActivity);
-        final statusRaw = (activityMap['activity_status'] ?? '').toString().trim();
+        final statusRaw = (activityMap['activity_status'] ?? '')
+            .toString()
+            .trim();
         if (statusRaw.isNotEmpty) {
           activityStatus = statusRaw;
         }
-        inactiveDays = _parseNullableInt(activityMap['inactive_days']) ?? inactiveDays;
+        inactiveDays =
+            _parseNullableInt(activityMap['inactive_days']) ?? inactiveDays;
       }
     } catch (_) {
       // Keep previous status if analytics cannot be loaded.
@@ -506,10 +510,9 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   }
 
   String _activityLabel() {
-    final status =
-        (_activityStatus ?? widget.client.activityStatus ?? '')
-            .trim()
-            .toLowerCase();
+    final status = (_activityStatus ?? widget.client.activityStatus ?? '')
+        .trim()
+        .toLowerCase();
     final inactiveDays = _inactiveDays ?? widget.client.inactiveDays;
     if (status == 'green') return 'Active';
     if (status == 'yellow') {
@@ -2677,7 +2680,9 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
               Align(
                 alignment: Alignment.centerRight,
                 child: OutlinedButton.icon(
-                  onPressed: _openingTrainingPlan ? null : _openTrainingPlanPage,
+                  onPressed: _openingTrainingPlan
+                      ? null
+                      : _openTrainingPlanPage,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
                     side: const BorderSide(color: Colors.white24),
@@ -2693,7 +2698,9 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                     ),
                   ),
                   icon: const Icon(Icons.checklist_rounded, size: 16),
-                  label: Text(_openingTrainingPlan ? 'Opening...' : 'Open Plan'),
+                  label: Text(
+                    _openingTrainingPlan ? 'Opening...' : 'Open Plan',
+                  ),
                 ),
               ),
             ],
@@ -3201,44 +3208,48 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
 
     return Scaffold(
       backgroundColor: AppColors.black,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
         backgroundColor: AppColors.black,
-        title: const Text('Client View'),
-        actions: [
-          IconButton(
-            onPressed: (_loading || _detachingClient || _reportingClient)
-                ? null
-                : _reportClient,
-            icon: _reportingClient
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.flag_outlined),
-            tooltip: 'Report client',
-            color: Colors.orangeAccent,
-          ),
-          IconButton(
-            onPressed: (_loading || _detachingClient || _reportingClient)
-                ? null
-                : _detachClient,
-            icon: _detachingClient
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.person_remove_alt_1_outlined),
-            tooltip: 'Detach client',
-            color: Colors.redAccent,
-          ),
-          IconButton(
-            onPressed: _loading ? null : () => _load(),
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
-          ),
-        ],
+        titleColor: Colors.white,
+        title: 'Client View',
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              onPressed: (_loading || _detachingClient || _reportingClient)
+                  ? null
+                  : _reportClient,
+              icon: _reportingClient
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.flag_outlined),
+              tooltip: 'Report client',
+              color: Colors.orangeAccent,
+            ),
+            IconButton(
+              onPressed: (_loading || _detachingClient || _reportingClient)
+                  ? null
+                  : _detachClient,
+              icon: _detachingClient
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.person_remove_alt_1_outlined),
+              tooltip: 'Detach client',
+              color: Colors.redAccent,
+            ),
+            IconButton(
+              onPressed: _loading ? null : () => _load(),
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh',
+            ),
+          ],
+        ),
       ),
       body: Stack(
         children: [
@@ -3682,9 +3693,10 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
       length: 2,
       child: Scaffold(
         backgroundColor: AppColors.black,
-        appBar: AppBar(
+        appBar: TaqaPageAppBar(
           backgroundColor: AppColors.black,
-          title: const Text('AI Updates'),
+          titleColor: Colors.white,
+          title: 'AI Updates',
           bottom: const TabBar(
             dividerColor: Colors.transparent,
             tabs: [

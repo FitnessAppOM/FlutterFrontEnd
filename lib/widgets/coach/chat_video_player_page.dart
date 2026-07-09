@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../theme/app_theme.dart';
+import '../../TaqaUI/components/taqa_page_app_bar.dart';
 
 class ChatVideoPlayerPage extends StatefulWidget {
   const ChatVideoPlayerPage({super.key, required this.videoPath, this.title});
@@ -60,9 +61,10 @@ class _ChatVideoPlayerPageState extends State<ChatVideoPlayerPage> {
 
     return Scaffold(
       backgroundColor: AppColors.black,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
+        title: title.isEmpty ? 'Video' : title,
         backgroundColor: AppColors.black,
-        title: Text(title.isEmpty ? 'Video' : title),
+        titleColor: Colors.white,
       ),
       body: Center(
         child: _loading

@@ -8,8 +8,8 @@ import '../widgets/questionnaire/questionnaire_form.dart';
 import '../services/core/questionnaire_service.dart';
 import '../core/account_storage.dart';
 import '../TaqaUI/components/taqa_toast.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../screens/generating_training_screen.dart';
-
 
 class QuestionnairePage extends StatefulWidget {
   const QuestionnairePage({super.key});
@@ -26,23 +26,10 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
     final t = AppLocalizations.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        centerTitle: true,
-        title: Text(
-          t.translate("questionnaire_title"),
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: TaqaUiScale.sp(15),
-            fontWeight: FontWeight.w700,
-            height: 25 / 15,
-            letterSpacing: 0,
-            color: TaqaUiColors.unnamedColor1c1d17,
-          ),
-        ),
+      appBar: TaqaPageAppBar(
+        title: t.translate("questionnaire_title"),
         backgroundColor: TaqaUiColors.white,
-        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-        elevation: 0,
+        showBackButton: false,
       ),
       backgroundColor: TaqaUiColors.white,
       body: AnimatedSwitcher(
@@ -170,26 +157,31 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
         try {
           final userId = await AccountStorage.getUserId();
           if (userId == null) {
-            AppToast.show(context, t.translate("user_missing"), type: AppToastType.error);
+            AppToast.show(
+              context,
+              t.translate("user_missing"),
+              type: AppToastType.error,
+            );
             return;
           }
 
-          final payload = {
-            "user_id": userId.toString(),
-            ...values,
-          };
+          final payload = {"user_id": userId.toString(), ...values};
 
           await QuestionnaireApi.submitQuestionnaire(payload);
 
           if (!mounted) return;
-          AppToast.show(context, t.translate("save_success"), type: AppToastType.success);
+          AppToast.show(
+            context,
+            t.translate("save_success"),
+            type: AppToastType.success,
+          );
           await AccountStorage.setQuestionnaireDone(true);
           if (!mounted) return;
 
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (_) => const GeneratingTrainingScreen()),
-                (route) => false,
+            (route) => false,
           );
         } catch (e) {
           if (!mounted) return;

@@ -4,6 +4,7 @@ import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../localization/app_localizations.dart';
 
 class ExpertSubmissionSuccessPage extends StatelessWidget {
@@ -14,26 +15,13 @@ class ExpertSubmissionSuccessPage extends StatelessWidget {
     final t = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: TaqaUiColors.white,
-      appBar: AppBar(
-        centerTitle: true,
+      appBar: TaqaPageAppBar(
+        title: t.translate("expert_submission_title"),
+        backgroundColor: TaqaUiColors.white,
         leading: IconButton(
           icon: Icon(Icons.close, color: TaqaUiColors.unnamedColor1c1d17),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(
-          t.translate("expert_submission_title"),
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: TaqaUiScale.sp(15),
-            fontWeight: FontWeight.w700,
-            height: 25 / 15,
-            letterSpacing: 0,
-            color: TaqaUiColors.unnamedColor1c1d17,
-          ),
-        ),
-        backgroundColor: TaqaUiColors.white,
-        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-        elevation: 0,
       ),
       body: Column(
         children: [
@@ -88,7 +76,8 @@ class ExpertSubmissionSuccessPage extends StatelessWidget {
             padding: TaqaUiScale.insetsLTRB(16, 0, 16, 20),
             child: TaqaFilledButton(
               label: t.translate("close"),
-              onTap: () => Navigator.of(context).popUntil((route) => route.isFirst),
+              onTap: () =>
+                  Navigator.of(context).popUntil((route) => route.isFirst),
             ),
           ),
         ],

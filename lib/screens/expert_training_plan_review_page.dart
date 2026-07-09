@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../services/coach/progression_review_service.dart';
 import '../services/training/training_service.dart';
 import '../theme/app_theme.dart';
@@ -77,51 +78,60 @@ class _ExpertTrainingPlanReviewPageState
     days.sort(
       (a, b) => _toInt(a['day_index']).compareTo(_toInt(b['day_index'])),
     );
-    return days.asMap().entries.map((entry) {
-      final index = entry.key + 1;
-      final dayMap = entry.value;
-      final rawLabel = (dayMap['day_label'] ?? '').toString().trim();
-      final label = rawLabel.isEmpty ? 'Day $index' : rawLabel;
-      final rawExercises = _mapList(dayMap['exercises']);
-      final exercises = rawExercises.map((exercise) {
-        final exerciseName = (exercise['exercise_name'] ?? '')
-            .toString()
-            .trim();
-        final weightKg = _toNullableDouble(exercise['weight_kg']);
-        return _PlanExerciseDraft(
-          exerciseId: _toInt(exercise['exercise_id'], fallback: 0),
-          exerciseName: exerciseName,
-          sets: _toInt(exercise['sets'], fallback: 3).clamp(1, 20),
-          reps: _toInt(exercise['reps'], fallback: 10).clamp(1, 200),
-          rir: exercise['rir'] == null
-              ? null
-              : _toInt(exercise['rir']).clamp(0, 6),
-          weightKg: (weightKg != null && weightKg >= 0) ? weightKg : null,
-        );
-      }).toList(growable: true);
-      return _PlanDayDraft(
-        dayLabel: label,
-        exercises: exercises,
-      );
-    }).toList(growable: true);
+    return days
+        .asMap()
+        .entries
+        .map((entry) {
+          final index = entry.key + 1;
+          final dayMap = entry.value;
+          final rawLabel = (dayMap['day_label'] ?? '').toString().trim();
+          final label = rawLabel.isEmpty ? 'Day $index' : rawLabel;
+          final rawExercises = _mapList(dayMap['exercises']);
+          final exercises = rawExercises
+              .map((exercise) {
+                final exerciseName = (exercise['exercise_name'] ?? '')
+                    .toString()
+                    .trim();
+                final weightKg = _toNullableDouble(exercise['weight_kg']);
+                return _PlanExerciseDraft(
+                  exerciseId: _toInt(exercise['exercise_id'], fallback: 0),
+                  exerciseName: exerciseName,
+                  sets: _toInt(exercise['sets'], fallback: 3).clamp(1, 20),
+                  reps: _toInt(exercise['reps'], fallback: 10).clamp(1, 200),
+                  rir: exercise['rir'] == null
+                      ? null
+                      : _toInt(exercise['rir']).clamp(0, 6),
+                  weightKg: (weightKg != null && weightKg >= 0)
+                      ? weightKg
+                      : null,
+                );
+              })
+              .toList(growable: true);
+          return _PlanDayDraft(dayLabel: label, exercises: exercises);
+        })
+        .toList(growable: true);
   }
 
   List<_PlanDayDraft> _cloneDays(List<_PlanDayDraft> source) {
-    return source.map((day) {
-      return _PlanDayDraft(
-        dayLabel: day.dayLabel,
-        exercises: day.exercises.map((exercise) {
-          return _PlanExerciseDraft(
-            exerciseId: exercise.exerciseId,
-            exerciseName: exercise.exerciseName,
-            sets: exercise.sets,
-            reps: exercise.reps,
-            rir: exercise.rir,
-            weightKg: exercise.weightKg,
+    return source
+        .map((day) {
+          return _PlanDayDraft(
+            dayLabel: day.dayLabel,
+            exercises: day.exercises
+                .map((exercise) {
+                  return _PlanExerciseDraft(
+                    exerciseId: exercise.exerciseId,
+                    exerciseName: exercise.exerciseName,
+                    sets: exercise.sets,
+                    reps: exercise.reps,
+                    rir: exercise.rir,
+                    weightKg: exercise.weightKg,
+                  );
+                })
+                .toList(growable: true),
           );
-        }).toList(growable: true),
-      );
-    }).toList(growable: true);
+        })
+        .toList(growable: true);
   }
 
   String _daysSignature(List<_PlanDayDraft> days) {
@@ -144,10 +154,7 @@ class _ExpertTrainingPlanReviewPageState
 
   Map<String, dynamic>? _navigationResult() {
     if (!_didCheckPlan) return null;
-    return {
-      'activeProgram': _activeProgram,
-      'didCheck': true,
-    };
+    return {'activeProgram': _activeProgram, 'didCheck': true};
   }
 
   Future<void> _closePage() async {
@@ -231,7 +238,10 @@ class _ExpertTrainingPlanReviewPageState
       _exerciseLoadError = null;
     });
     try {
-      final raw = await TrainingService.fetchAllExercises(limit: 1500, offset: 0);
+      final raw = await TrainingService.fetchAllExercises(
+        limit: 1500,
+        offset: 0,
+      );
       final options = <ExercisePickerItem>[];
       for (final item in raw) {
         if (item is! Map) continue;
@@ -240,7 +250,9 @@ class _ExpertTrainingPlanReviewPageState
         if (id <= 0 || name.isEmpty) continue;
         options.add(ExercisePickerItem(id: id, name: name));
       }
-      options.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      options.sort(
+        (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+      );
       _exerciseIdByName
         ..clear()
         ..addEntries(
@@ -250,7 +262,8 @@ class _ExpertTrainingPlanReviewPageState
       for (final day in _draftDays) {
         for (final exercise in day.exercises) {
           if (exercise.exerciseId > 0) continue;
-          final mappedId = _exerciseIdByName[_normalizeName(exercise.exerciseName)];
+          final mappedId =
+              _exerciseIdByName[_normalizeName(exercise.exerciseName)];
           if (mappedId != null && mappedId > 0) {
             exercise.exerciseId = mappedId;
           }
@@ -259,7 +272,8 @@ class _ExpertTrainingPlanReviewPageState
       for (final day in _originalDays) {
         for (final exercise in day.exercises) {
           if (exercise.exerciseId > 0) continue;
-          final mappedId = _exerciseIdByName[_normalizeName(exercise.exerciseName)];
+          final mappedId =
+              _exerciseIdByName[_normalizeName(exercise.exerciseName)];
           if (mappedId != null && mappedId > 0) {
             exercise.exerciseId = mappedId;
           }
@@ -318,16 +332,16 @@ class _ExpertTrainingPlanReviewPageState
           'plan_state': 'verified',
         };
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Plan verified.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Plan verified.')));
     } catch (e) {
       if (!mounted) return;
       setState(() => _verifying = false);
       final msg = e.toString().replaceFirst('Exception: ', '');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(msg.isEmpty ? 'Failed to verify plan.' : msg)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg.isEmpty ? 'Failed to verify plan.' : msg)),
+      );
     }
   }
 
@@ -337,7 +351,9 @@ class _ExpertTrainingPlanReviewPageState
     // library. If the library is still loading or failed to load, ids may be
     // unresolved/stale and the save would fail on the backend. Block instead of
     // sending a bad plan.
-    if (_loadingExercises || _exerciseLoadError != null || _exerciseLibrary.isEmpty) {
+    if (_loadingExercises ||
+        _exerciseLoadError != null ||
+        _exerciseLibrary.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -356,15 +372,17 @@ class _ExpertTrainingPlanReviewPageState
           'day_label': day.dayLabel.trim().isEmpty
               ? 'Day ${dayIndex + 1}'
               : day.dayLabel.trim(),
-          'exercises': day.exercises.map((exercise) {
-            return {
-              'exercise_id': exercise.exerciseId,
-              'sets': exercise.sets,
-              'reps': exercise.reps,
-              'rir': exercise.rir,
-              'weight_kg': exercise.weightKg,
-            };
-          }).toList(growable: false),
+          'exercises': day.exercises
+              .map((exercise) {
+                return {
+                  'exercise_id': exercise.exerciseId,
+                  'sets': exercise.sets,
+                  'reps': exercise.reps,
+                  'rir': exercise.rir,
+                  'weight_kg': exercise.weightKg,
+                };
+              })
+              .toList(growable: false),
         });
       }
       await ProgressionReviewService.createClientTrainingPlan(
@@ -373,33 +391,41 @@ class _ExpertTrainingPlanReviewPageState
         archiveExisting: true,
       );
       if (!mounted) return;
-      final syncedDays = _draftDays.asMap().entries.map((entry) {
-        final dayIdx = entry.key + 1;
-        final day = entry.value;
-        return {
-          'day_index': dayIdx,
-          'day_label': day.dayLabel.trim().isEmpty ? 'Day $dayIdx' : day.dayLabel.trim(),
-          'exercises': day.exercises.map((exercise) {
-            final name = _exerciseLibrary
-                .firstWhere(
-                  (item) => item.id == exercise.exerciseId,
-                  orElse: () => ExercisePickerItem(
-                    id: exercise.exerciseId,
-                    name: exercise.exerciseName,
-                  ),
-                )
-                .name;
+      final syncedDays = _draftDays
+          .asMap()
+          .entries
+          .map((entry) {
+            final dayIdx = entry.key + 1;
+            final day = entry.value;
             return {
-              'exercise_id': exercise.exerciseId,
-              'exercise_name': name,
-              'sets': exercise.sets,
-              'reps': exercise.reps,
-              'rir': exercise.rir,
-              'weight_kg': exercise.weightKg,
+              'day_index': dayIdx,
+              'day_label': day.dayLabel.trim().isEmpty
+                  ? 'Day $dayIdx'
+                  : day.dayLabel.trim(),
+              'exercises': day.exercises
+                  .map((exercise) {
+                    final name = _exerciseLibrary
+                        .firstWhere(
+                          (item) => item.id == exercise.exerciseId,
+                          orElse: () => ExercisePickerItem(
+                            id: exercise.exerciseId,
+                            name: exercise.exerciseName,
+                          ),
+                        )
+                        .name;
+                    return {
+                      'exercise_id': exercise.exerciseId,
+                      'exercise_name': name,
+                      'sets': exercise.sets,
+                      'reps': exercise.reps,
+                      'rir': exercise.rir,
+                      'weight_kg': exercise.weightKg,
+                    };
+                  })
+                  .toList(growable: false),
             };
-          }).toList(growable: false),
-        };
-      }).toList(growable: false);
+          })
+          .toList(growable: false);
 
       final updatedProgram = <String, dynamic>{
         ..._activeProgram,
@@ -422,23 +448,25 @@ class _ExpertTrainingPlanReviewPageState
         _plannedDaysPerWeek = _draftDays.length;
         _originalDays = _cloneDays(_draftDays);
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Changes saved.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Changes saved.')));
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
       final msg = e.toString().replaceFirst('Exception: ', '');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(msg.isEmpty ? 'Failed to save changes.' : msg)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg.isEmpty ? 'Failed to save changes.' : msg)),
+      );
       return;
     }
   }
 
   void _addDay() {
     if (_draftDays.length >= 7) return;
-    final fallback = _exerciseLibrary.isNotEmpty ? _exerciseLibrary.first : null;
+    final fallback = _exerciseLibrary.isNotEmpty
+        ? _exerciseLibrary.first
+        : null;
     setState(() {
       final index = _draftDays.length + 1;
       _draftDays.add(
@@ -482,7 +510,9 @@ class _ExpertTrainingPlanReviewPageState
               final picked = await showExercisePickerSheet(
                 context: context,
                 options: _exerciseLibrary,
-                selectedId: exercise.exerciseId > 0 ? exercise.exerciseId : null,
+                selectedId: exercise.exerciseId > 0
+                    ? exercise.exerciseId
+                    : null,
               );
               if (picked == null || !mounted) return;
               setState(() {
@@ -629,7 +659,8 @@ class _ExpertTrainingPlanReviewPageState
                       ),
                       const SizedBox(width: 6),
                       IconButton(
-                        onPressed: (_saving || _verifying || day.exercises.length <= 1)
+                        onPressed:
+                            (_saving || _verifying || day.exercises.length <= 1)
                             ? null
                             : () {
                                 setState(() => day.exercises.removeAt(exIndex));
@@ -684,9 +715,12 @@ class _ExpertTrainingPlanReviewPageState
     final dirty = _isDirty();
     final validDraft = _draftIsValid();
     final needsVerification = _needsVerification();
-    final canVerifyOnly = needsVerification && !dirty && !_saving && !_verifying;
+    final canVerifyOnly =
+        needsVerification && !dirty && !_saving && !_verifying;
     final libraryReady =
-        !_loadingExercises && _exerciseLoadError == null && _exerciseLibrary.isNotEmpty;
+        !_loadingExercises &&
+        _exerciseLoadError == null &&
+        _exerciseLibrary.isNotEmpty;
     final canConfirm =
         dirty && validDraft && libraryReady && !_saving && !_verifying;
 
@@ -698,12 +732,12 @@ class _ExpertTrainingPlanReviewPageState
       },
       child: Scaffold(
         backgroundColor: AppColors.black,
-        appBar: AppBar(
+        appBar: TaqaPageAppBar(
+          title: 'Client Training Plan',
           backgroundColor: AppColors.black,
-          surfaceTintColor: Colors.transparent,
-          title: const Text('Client Training Plan'),
+          titleColor: Colors.white,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
             onPressed: _closePage,
           ),
         ),
@@ -714,177 +748,195 @@ class _ExpertTrainingPlanReviewPageState
                 onTap: () => FocusScope.of(context).unfocus(),
                 child: SafeArea(
                   child: Column(
-                children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                      keyboardDismissBehavior:
-                          ScrollViewKeyboardDismissBehavior.onDrag,
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.cardDark,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.white10),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.cardDark,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.white10),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Expanded(
-                                      child: Text(
-                                        widget.clientName,
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            widget.clientName,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                        ),
+                                        _buildStateBadge(),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Days/week: ${_plannedDaysPerWeek > 0 ? _plannedDaysPerWeek : _draftDays.length}',
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                    if (_exerciseLoadError != null &&
+                                        _exerciseLoadError!.isNotEmpty) ...[
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        _exerciseLoadError!,
                                         style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 16,
+                                          color: Colors.orangeAccent,
+                                          fontSize: 12,
                                         ),
                                       ),
-                                    ),
-                                    _buildStateBadge(),
+                                    ],
+                                    if (_draftDays.isEmpty) ...[
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        widget.trainingPlanError ??
+                                            'No active training plan yet.',
+                                        style: const TextStyle(
+                                          color: Colors.white60,
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Days/week: ${_plannedDaysPerWeek > 0 ? _plannedDaysPerWeek : _draftDays.length}',
-                                  style: const TextStyle(color: Colors.white70),
+                              ),
+                              const SizedBox(height: 12),
+                              if (_draftDays.isNotEmpty) ...[
+                                ...List.generate(
+                                  _draftDays.length,
+                                  _buildDayCard,
                                 ),
-                                if (_exerciseLoadError != null &&
-                                    _exerciseLoadError!.isNotEmpty) ...[
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    _exerciseLoadError!,
-                                    style: const TextStyle(
-                                      color: Colors.orangeAccent,
-                                      fontSize: 12,
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: OutlinedButton.icon(
+                                    onPressed:
+                                        (_saving ||
+                                            _verifying ||
+                                            _draftDays.length >= 7)
+                                        ? null
+                                        : _addDay,
+                                    icon: const Icon(
+                                      Icons.calendar_view_day_rounded,
+                                    ),
+                                    label: const Text('Add day'),
+                                  ),
+                                ),
+                              ],
+                              if (needsVerification && dirty) ...[
+                                const SizedBox(height: 10),
+                                const Text(
+                                  'Reset edits to verify the AI plan only.',
+                                  style: TextStyle(
+                                    color: Color(0xFF5FD8FF),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                        decoration: const BoxDecoration(
+                          color: AppColors.black,
+                          border: Border(
+                            top: BorderSide(color: Colors.white12),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: SizedBox(
+                                height: 46,
+                                child: OutlinedButton(
+                                  style: OutlinedButton.styleFrom(
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    side: const BorderSide(
+                                      color: Colors.white24,
+                                    ),
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  onPressed: (!_saving && !_verifying && dirty)
+                                      ? _resetDraft
+                                      : null,
+                                  child: const Text('Reset'),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: SizedBox(
+                                height: 46,
+                                child: FilledButton(
+                                  style: FilledButton.styleFrom(
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                ],
-                                if (_draftDays.isEmpty) ...[
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    widget.trainingPlanError ??
-                                        'No active training plan yet.',
-                                    style: const TextStyle(color: Colors.white60),
+                                  onPressed: canVerifyOnly ? _verifyOnly : null,
+                                  child: _verifying
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Text('Verify'),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: SizedBox(
+                                height: 46,
+                                child: FilledButton(
+                                  style: FilledButton.styleFrom(
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    backgroundColor: AppColors.accent,
+                                    foregroundColor: Colors.black,
                                   ),
-                                ],
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          if (_draftDays.isNotEmpty) ...[
-                            ...List.generate(_draftDays.length, _buildDayCard),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: OutlinedButton.icon(
-                                onPressed: (_saving || _verifying || _draftDays.length >= 7)
-                                    ? null
-                                    : _addDay,
-                                icon: const Icon(Icons.calendar_view_day_rounded),
-                                label: const Text('Add day'),
+                                  onPressed: canConfirm
+                                      ? _confirmChanges
+                                      : null,
+                                  child: _saving
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Text('Confirm'),
+                                ),
                               ),
                             ),
                           ],
-                          if (needsVerification && dirty) ...[
-                            const SizedBox(height: 10),
-                            const Text(
-                              'Reset edits to verify the AI plan only.',
-                              style: TextStyle(
-                                color: Color(0xFF5FD8FF),
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                    decoration: const BoxDecoration(
-                      color: AppColors.black,
-                      border: Border(top: BorderSide(color: Colors.white12)),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: SizedBox(
-                            height: 46,
-                            child: OutlinedButton(
-                              style: OutlinedButton.styleFrom(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                side: const BorderSide(color: Colors.white24),
-                                foregroundColor: Colors.white,
-                              ),
-                              onPressed: (!_saving && !_verifying && dirty)
-                                  ? _resetDraft
-                                  : null,
-                              child: const Text('Reset'),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: SizedBox(
-                            height: 46,
-                            child: FilledButton(
-                              style: FilledButton.styleFrom(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              onPressed: canVerifyOnly ? _verifyOnly : null,
-                              child: _verifying
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Text('Verify'),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: SizedBox(
-                            height: 46,
-                            child: FilledButton(
-                              style: FilledButton.styleFrom(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                backgroundColor: AppColors.accent,
-                                foregroundColor: Colors.black,
-                              ),
-                              onPressed: canConfirm ? _confirmChanges : null,
-                              child: _saving
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Text('Confirm'),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  ],
                 ),
               ),
-            ),
       ),
     );
   }
@@ -953,7 +1005,9 @@ class _NumberFieldState extends State<_NumberField> {
   void didUpdateWidget(covariant _NumberField oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialValue != widget.initialValue) {
-      _controller.text = widget.initialValue == null ? '' : '${widget.initialValue}';
+      _controller.text = widget.initialValue == null
+          ? ''
+          : '${widget.initialValue}';
     }
   }
 
@@ -989,10 +1043,7 @@ class _NumberFieldState extends State<_NumberField> {
       keyboardType: TextInputType.number,
       textInputAction: TextInputAction.done,
       style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        labelText: widget.label,
-        isDense: true,
-      ),
+      decoration: InputDecoration(labelText: widget.label, isDense: true),
       onChanged: _handleChange,
       onFieldSubmitted: (_) => FocusScope.of(context).unfocus(),
     );

@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
-import '../TaqaUI/styles/taqa_ui_styles.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../localization/app_localizations.dart';
 import '../models/news_item.dart';
 import 'pdf_viewer_page.dart';
@@ -21,26 +21,20 @@ class ArticlePage extends StatelessWidget {
     final paragraphs = bodyText.isEmpty
         ? const <String>[]
         : bodyText
-            .split(RegExp(r'\n\s*\n'))
-            .map((p) => p.trim())
-            .where((p) => p.isNotEmpty)
-            .toList();
+              .split(RegExp(r'\n\s*\n'))
+              .map((p) => p.trim())
+              .where((p) => p.isNotEmpty)
+              .toList();
     final dateLabel = item.createdAt == null
         ? ''
         : DateFormat('EEE, MMMM d', locale).format(item.createdAt!.toLocal());
 
     return Scaffold(
       backgroundColor: TaqaUiColors.unnamedColor1c1d17,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
+        title: "News",
         backgroundColor: TaqaUiColors.unnamedColor1c1d17,
-        surfaceTintColor: Colors.transparent,
-        centerTitle: true,
-        title: Text(
-          "News",
-          style: TaqaUiStyles.pageTitle.copyWith(
-            color: TaqaUiColors.white,
-          ),
-        ),
+        titleColor: TaqaUiColors.white,
       ),
       body: SafeArea(
         child: Column(
@@ -68,7 +62,8 @@ class ArticlePage extends StatelessWidget {
                               height: 10 / 8,
                             ),
                           ),
-                        if (dateLabel.isNotEmpty) SizedBox(height: TaqaUiScale.h(21)),
+                        if (dateLabel.isNotEmpty)
+                          SizedBox(height: TaqaUiScale.h(21)),
                         Text(
                           item.title,
                           textAlign: TextAlign.left,
@@ -109,7 +104,9 @@ class ArticlePage extends StatelessWidget {
                         else
                           ...paragraphs.map(
                             (p) => Padding(
-                              padding: EdgeInsets.only(bottom: TaqaUiScale.h(14)),
+                              padding: EdgeInsets.only(
+                                bottom: TaqaUiScale.h(14),
+                              ),
                               child: Text(
                                 p,
                                 textAlign: TextAlign.left,
@@ -139,7 +136,6 @@ class ArticlePage extends StatelessWidget {
       ),
     );
   }
-
 }
 
 class _PdfButton extends StatelessWidget {

@@ -5,6 +5,7 @@ import '../core/user_friendly_error.dart';
 import '../localization/app_localizations.dart';
 import '../services/auth/profile_service.dart';
 import '../theme/app_theme.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../widgets/coach/coach_chat_panel.dart';
 import '../widgets/coach/coach_feedback_panel.dart';
@@ -670,19 +671,14 @@ class _CoachPageState extends State<CoachPage> {
           : 0,
       child: Scaffold(
         backgroundColor: AppColors.black,
-        appBar: AppBar(
+        appBar: TaqaPageAppBar(
+          title: _coachPageTitle(),
           backgroundColor: AppColors.black,
-          actions: [
-            IconButton(
-              tooltip: 'My Coaches',
-              onPressed: _openCoachesSheet,
-              icon: const Icon(Icons.groups_2_outlined),
-            ),
-          ],
-          title: Text(
-            _coachPageTitle(),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          titleColor: Colors.white,
+          trailing: IconButton(
+            tooltip: 'My Coaches',
+            onPressed: _openCoachesSheet,
+            icon: const Icon(Icons.groups_2_outlined),
           ),
           bottom: TabBar(
             indicatorColor: AppColors.accent,

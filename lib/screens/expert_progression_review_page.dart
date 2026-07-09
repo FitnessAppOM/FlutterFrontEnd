@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../services/coach/progression_review_service.dart';
 import '../theme/app_theme.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 
 class ExpertProgressionReviewPage extends StatefulWidget {
-  const ExpertProgressionReviewPage({
-    super.key,
-    required this.reviewId,
-  });
+  const ExpertProgressionReviewPage({super.key, required this.reviewId});
 
   final int reviewId;
 
@@ -33,8 +31,9 @@ class _ExpertProgressionReviewPageState
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final review =
-          await ProgressionReviewService.fetchReviewDetail(widget.reviewId);
+      final review = await ProgressionReviewService.fetchReviewDetail(
+        widget.reviewId,
+      );
       if (!mounted) return;
       setState(() {
         _review = review;
@@ -42,11 +41,7 @@ class _ExpertProgressionReviewPageState
       });
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(
-        context,
-        e.toString(),
-        type: AppToastType.error,
-      );
+      AppToast.show(context, e.toString(), type: AppToastType.error);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -68,7 +63,9 @@ class _ExpertProgressionReviewPageState
     if (_saving) return;
     setState(() => _saving = true);
     try {
-      final updated = await ProgressionReviewService.applyReview(widget.reviewId);
+      final updated = await ProgressionReviewService.applyReview(
+        widget.reviewId,
+      );
       if (!mounted) return;
       setState(() {
         _review = updated;
@@ -221,74 +218,75 @@ class _ExpertProgressionReviewPageState
   @override
   Widget build(BuildContext context) {
     final review = _review;
-    final groupedDays = review == null ? const <_DayGroup>[] : _groupedDays(review);
-    final canApply = review != null &&
+    final groupedDays = review == null
+        ? const <_DayGroup>[]
+        : _groupedDays(review);
+    final canApply =
+        review != null &&
         !review.isApplied &&
         review.items.any((item) => item.isApprovedLike);
 
     return Scaffold(
       backgroundColor: AppColors.black,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
         backgroundColor: AppColors.black,
-        title: Text(
-          review == null
-              ? 'AI Update Review'
-              : 'Review - ${review.weekStart ?? ''}',
-        ),
-        actions: [
-          if (canApply)
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: Center(
-                child: ElevatedButton(
-                  onPressed: _saving ? null : _applyReview,
-                  child: Text(_saving ? 'Applying...' : 'Apply'),
+        titleColor: Colors.white,
+        title: review == null
+            ? 'AI Update Review'
+            : 'Review - ${review.weekStart ?? ''}',
+        trailing: canApply
+            ? Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Center(
+                  child: ElevatedButton(
+                    onPressed: _saving ? null : _applyReview,
+                    child: Text(_saving ? 'Applying...' : 'Apply'),
+                  ),
                 ),
-              ),
-            ),
-        ],
+              )
+            : null,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : review == null
-              ? const Center(
-                  child: Text(
-                    'Review unavailable.',
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      _ReviewHeaderCard(review: review),
-                      const SizedBox(height: 16),
-                      ...groupedDays.map(
-                        (group) => Padding(
-                          padding: const EdgeInsets.only(bottom: 14),
-                          child: _DaySectionCard(
-                            group: group,
-                            expanded: _expandedDayKeys.contains(group.key),
-                            busy: _saving,
-                            onToggle: () {
-                              setState(() {
-                                if (_expandedDayKeys.contains(group.key)) {
-                                  _expandedDayKeys.remove(group.key);
-                                } else {
-                                  _expandedDayKeys.add(group.key);
-                                }
-                              });
-                            },
-                            onApprove: _approveItem,
-                            onReject: _rejectItem,
-                            onEdit: _editItem,
-                          ),
-                        ),
+          ? const Center(
+              child: Text(
+                'Review unavailable.',
+                style: TextStyle(color: Colors.white70),
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  _ReviewHeaderCard(review: review),
+                  const SizedBox(height: 16),
+                  ...groupedDays.map(
+                    (group) => Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: _DaySectionCard(
+                        group: group,
+                        expanded: _expandedDayKeys.contains(group.key),
+                        busy: _saving,
+                        onToggle: () {
+                          setState(() {
+                            if (_expandedDayKeys.contains(group.key)) {
+                              _expandedDayKeys.remove(group.key);
+                            } else {
+                              _expandedDayKeys.add(group.key);
+                            }
+                          });
+                        },
+                        onApprove: _approveItem,
+                        onReject: _rejectItem,
+                        onEdit: _editItem,
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                ],
+              ),
+            ),
     );
   }
 }
@@ -336,8 +334,10 @@ class _ReviewHeaderCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: _statusColor().withOpacity(0.15),
                   borderRadius: BorderRadius.circular(999),
@@ -591,16 +591,10 @@ class _ReviewItemCard extends StatelessWidget {
         children: [
           SizedBox(
             width: 86,
-            child: Text(
-              label,
-              style: const TextStyle(color: Colors.white60),
-            ),
+            child: Text(label, style: const TextStyle(color: Colors.white60)),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(color: Colors.white),
-            ),
+            child: Text(value, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -636,8 +630,7 @@ class _ReviewItemCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                 decoration: BoxDecoration(
                   color: Colors.white10,
                   borderRadius: BorderRadius.circular(999),
@@ -671,10 +664,7 @@ class _ReviewItemCard extends StatelessWidget {
           ),
           if ((item.aiReason ?? '').trim().isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text(
-              item.aiReason!,
-              style: const TextStyle(color: Colors.white70),
-            ),
+            Text(item.aiReason!, style: const TextStyle(color: Colors.white70)),
           ],
           if ((item.expertNote ?? '').trim().isNotEmpty) ...[
             const SizedBox(height: 8),
@@ -739,9 +729,7 @@ class _DialogField extends StatelessWidget {
       controller: controller,
       keyboardType: keyboardType,
       style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        labelText: label,
-      ),
+      decoration: InputDecoration(labelText: label),
     );
   }
 }

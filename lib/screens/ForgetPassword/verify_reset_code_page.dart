@@ -10,6 +10,7 @@ import '../../screens/welcome.dart';
 import '../../localization/app_localizations.dart';
 import 'reset_password_page.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
+import '../../TaqaUI/components/taqa_page_app_bar.dart';
 
 class VerifyResetCodePage extends StatefulWidget {
   final String email;
@@ -159,10 +160,7 @@ class _VerifyResetCodePageState extends State<VerifyResetCodePage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ResetPasswordPage(
-              email: widget.email,
-              code: code,
-            ),
+            builder: (_) => ResetPasswordPage(email: widget.email, code: code),
           ),
         );
       } else {
@@ -192,9 +190,10 @@ class _VerifyResetCodePageState extends State<VerifyResetCodePage> {
 
     return Scaffold(
       backgroundColor: AppColors.black,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
+        title: t.translate("verify_reset_code"),
         backgroundColor: AppColors.black,
-        title: Text(t.translate("verify_reset_code")),
+        titleColor: Colors.white,
         leading: AppBarBackButton(
           onTap: () {
             Navigator.pushAndRemoveUntil(
@@ -246,7 +245,12 @@ class _VerifyResetCodePageState extends State<VerifyResetCodePage> {
                 onPressed: resendCooldown ? null : resendCode,
                 child: resendCooldown
                     ? Text(
-                        t.translate("resend_wait").replaceAll("{seconds}", cooldownSeconds.toString()),
+                        t
+                            .translate("resend_wait")
+                            .replaceAll(
+                              "{seconds}",
+                              cooldownSeconds.toString(),
+                            ),
                         style: const TextStyle(color: Colors.grey),
                       )
                     : Text(

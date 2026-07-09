@@ -10,7 +10,6 @@ import '../../theme/app_theme.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../TaqaUI/components/taqa_community_hero_card.dart';
-import '../../TaqaUI/components/taqa_back_button.dart';
 import '../../TaqaUI/components/taqa_community_action_row.dart';
 import '../../TaqaUI/components/taqa_community_section_header.dart';
 import '../../TaqaUI/components/taqa_community_group_card.dart';
@@ -25,7 +24,10 @@ import '../../TaqaUI/components/taqa_community_filter_chip.dart';
 import '../../TaqaUI/components/taqa_community_group_list_card.dart';
 import '../../TaqaUI/components/taqa_empty_card.dart';
 import '../../TaqaUI/components/taqa_outline_tag_button.dart';
+import '../../TaqaUI/components/taqa_page_app_bar.dart';
+import '../../TaqaUI/components/taqa_page_header.dart';
 import '../../TaqaUI/components/taqa_search_field.dart';
+import '../../TaqaUI/components/taqa_switch.dart';
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/styles/taqa_ui_styles.dart';
@@ -343,78 +345,75 @@ class _CommunityPageState extends State<CommunityPage> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: RefreshIndicator(
-        color: AppColors.accent,
-        onRefresh: _refreshFeed,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-          children: [
-            Align(
-              alignment: Alignment.center,
-              child: Text(
-                'Community',
-                style: const TextStyle(
-                  fontFamily: TaqaUiFontFamilies.interTight,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  height: 2.5,
-                  letterSpacing: 0,
-                  color: TaqaUiColors.unnamedColor1c1d17,
-                ),
+      child: Stack(
+        children: [
+          Padding(
+            padding: EdgeInsets.only(top: TaqaUiScale.h(60)),
+            child: RefreshIndicator(
+              color: AppColors.accent,
+              onRefresh: _refreshFeed,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                children: [
+                  _buildHeroCard(),
+                  const SizedBox(height: 18),
+                  _buildQuickActions(),
+                  const SizedBox(height: 18),
+                  if (_bootstrap != null) ...[
+                    _buildJoinedGroupsSection(),
+                    const SizedBox(height: 18),
+                    _buildChallengePreview(),
+                    const SizedBox(height: 18),
+                  ],
+                  _buildFeedFilterBar(),
+                  const SizedBox(height: 14),
+                  if (_loading)
+                    const _CommunityLoadingCard()
+                  else if (_error != null)
+                    _CommunityEmptyCard(
+                      title: 'Community unavailable',
+                      message: _error!,
+                      actionLabel: 'Retry',
+                      onPressed: _loadInitial,
+                    )
+                  else if (_feed.isEmpty)
+                    const _CommunityEmptyCard(
+                      title: 'Your feed is quiet',
+                      message:
+                          'Join groups, share your data, and your real activity will start populating the feed.',
+                    )
+                  else
+                    ..._feed.map(_buildFeedCard),
+                  if (_nextCursor != null) ...[
+                    const SizedBox(height: 14),
+                    OutlinedButton(
+                      onPressed: _loadingMore ? null : _loadMore,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: TaqaUiColors.charcoal,
+                        side: BorderSide(
+                          color: TaqaUiColors.charcoal.withValues(alpha: 0.18),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: _loadingMore
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Load more'),
+                    ),
+                  ],
+                ],
               ),
             ),
-            const SizedBox(height: 18),
-            _buildHeroCard(),
-            const SizedBox(height: 18),
-            _buildQuickActions(),
-            const SizedBox(height: 18),
-            if (_bootstrap != null) ...[
-              _buildJoinedGroupsSection(),
-              const SizedBox(height: 18),
-              _buildChallengePreview(),
-              const SizedBox(height: 18),
-            ],
-            _buildFeedFilterBar(),
-            const SizedBox(height: 14),
-            if (_loading)
-              const _CommunityLoadingCard()
-            else if (_error != null)
-              _CommunityEmptyCard(
-                title: 'Community unavailable',
-                message: _error!,
-                actionLabel: 'Retry',
-                onPressed: _loadInitial,
-              )
-            else if (_feed.isEmpty)
-              const _CommunityEmptyCard(
-                title: 'Your feed is quiet',
-                message:
-                    'Join groups, share your data, and your real activity will start populating the feed.',
-              )
-            else
-              ..._feed.map(_buildFeedCard),
-            if (_nextCursor != null) ...[
-              const SizedBox(height: 14),
-              OutlinedButton(
-                onPressed: _loadingMore ? null : _loadMore,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: TaqaUiColors.charcoal,
-                  side: BorderSide(
-                    color: TaqaUiColors.charcoal.withValues(alpha: 0.18),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                child: _loadingMore
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Load more'),
-              ),
-            ],
-          ],
-        ),
+          ),
+          Positioned(
+            top: TaqaUiScale.h(12),
+            left: TaqaUiScale.w(16),
+            child: const TaqaPageHeader(title: 'Community'),
+          ),
+        ],
       ),
     );
   }
@@ -771,135 +770,101 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
   Widget build(BuildContext context) {
     final scaffold = Scaffold(
       backgroundColor: AppColors.appBackground,
+      appBar: const TaqaPageAppBar(
+        title: 'Discover Communities',
+        backgroundColor: AppColors.appBackground,
+      ),
       body: SafeArea(
-        child: Stack(
-          children: [
-            Padding(
-              padding: EdgeInsets.only(top: TaqaUiScale.h(94)),
-              child: RefreshIndicator(
-                color: AppColors.accent,
-                onRefresh: () => _load(),
-                child: ListView(
-                  padding: EdgeInsets.fromLTRB(
-                    TaqaUiScale.w(16),
-                    0,
-                    TaqaUiScale.w(16),
-                    TaqaUiScale.h(20),
-                  ),
-                  children: [
-                    TaqaSearchField(
-                      controller: _searchController,
-                      onChanged: _onSearchChanged,
-                      onSubmitted: (_) => _load(),
-                    ),
-                    SizedBox(height: TaqaUiScale.h(15)),
-                    TaqaCommunityFilterGrid(
-                      labels: const [
-                        'General',
-                        'Gym',
-                        'Coach',
-                        'City',
-                        'Country',
-                        'Sport',
-                      ],
-                      selectedIndexes: {
-                        for (var i = 0; i < _groupKindOptions.length; i++)
-                          if (_selectedKinds.contains(_groupKindOptions[i])) i,
-                      },
-                      onToggle: (index) async {
-                        final kind = _groupKindOptions[index];
-                        setState(() {
-                          if (!_selectedKinds.remove(kind)) {
-                            _selectedKinds.add(kind);
-                          }
-                        });
-                        await _load();
-                      },
-                    ),
-                    SizedBox(height: TaqaUiScale.h(16)),
-                    if (_loading)
-                      const TaqaEmptyCard(
-                        title: 'Loading communities...',
-                        loading: true,
-                      )
-                    else if (_error != null) ...[
-                      TaqaEmptyCard(
-                        title: 'Could not load public groups',
-                        subtitle: _error,
-                      ),
-                      SizedBox(height: TaqaUiScale.h(12)),
-                      OutlinedButton(
-                        onPressed: () => _load(),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: TaqaUiColors.charcoal,
-                          side: BorderSide(
-                            color: TaqaUiColors.charcoal.withValues(
-                              alpha: 0.18,
-                            ),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        child: const Text('Retry'),
-                      ),
-                    ] else if (_groups.isEmpty)
-                      const TaqaEmptyCard(
-                        title: 'No public groups found',
-                        subtitle:
-                            'Try a broader search or create your own community',
-                      )
-                    else
-                      ..._groups.map(
-                        (group) => Padding(
-                          padding: EdgeInsets.only(bottom: TaqaUiScale.h(15)),
-                          child: TaqaCommunityGroupListCard(
-                            tag: group.groupKind ?? group.visibility ?? 'Group',
-                            name: group.name,
-                            description: group.description ?? '',
-                            memberCount: group.memberCount,
-                            trailing: group.isJoined
-                                ? TaqaOutlineTagButton(
-                                    label: 'Joined',
-                                    width:
-                                        TaqaUiStyles.communitySectionTagWidth,
-                                  )
-                                : null,
-                            onTap: () => _openGroup(group),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
+        top: false,
+        child: RefreshIndicator(
+          color: AppColors.accent,
+          onRefresh: () => _load(),
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(
+              TaqaUiScale.w(16),
+              TaqaUiScale.h(8),
+              TaqaUiScale.w(16),
+              TaqaUiScale.h(20),
             ),
-            Positioned(
-              top: TaqaUiScale.h(43),
-              left: TaqaUiScale.w(114),
-              width: TaqaUiScale.w(162),
-              height: TaqaUiScale.h(15),
-              child: Align(
-                alignment: Alignment.center,
-                child: Text(
-                  'Discover Communities',
-                  maxLines: 1,
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.visible,
-                  style: const TextStyle(
-                    fontFamily: TaqaUiFontFamilies.interTight,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    height: 2.5,
-                    letterSpacing: 0,
-                    color: TaqaUiColors.unnamedColor1c1d17,
+            children: [
+              TaqaSearchField(
+                controller: _searchController,
+                onChanged: _onSearchChanged,
+                onSubmitted: (_) => _load(),
+              ),
+              SizedBox(height: TaqaUiScale.h(15)),
+              TaqaCommunityFilterGrid(
+                labels: const [
+                  'General',
+                  'Gym',
+                  'Coach',
+                  'City',
+                  'Country',
+                  'Sport',
+                ],
+                selectedIndexes: {
+                  for (var i = 0; i < _groupKindOptions.length; i++)
+                    if (_selectedKinds.contains(_groupKindOptions[i])) i,
+                },
+                onToggle: (index) async {
+                  final kind = _groupKindOptions[index];
+                  setState(() {
+                    if (!_selectedKinds.remove(kind)) {
+                      _selectedKinds.add(kind);
+                    }
+                  });
+                  await _load();
+                },
+              ),
+              SizedBox(height: TaqaUiScale.h(16)),
+              if (_loading)
+                const TaqaEmptyCard(
+                  title: 'Loading communities...',
+                  loading: true,
+                )
+              else if (_error != null) ...[
+                TaqaEmptyCard(
+                  title: 'Could not load public groups',
+                  subtitle: _error,
+                ),
+                SizedBox(height: TaqaUiScale.h(12)),
+                OutlinedButton(
+                  onPressed: () => _load(),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: TaqaUiColors.charcoal,
+                    side: BorderSide(
+                      color: TaqaUiColors.charcoal.withValues(alpha: 0.18),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: const Text('Retry'),
+                ),
+              ] else if (_groups.isEmpty)
+                const TaqaEmptyCard(
+                  title: 'No public groups found',
+                  subtitle: 'Try a broader search or create your own community',
+                )
+              else
+                ..._groups.map(
+                  (group) => Padding(
+                    padding: EdgeInsets.only(bottom: TaqaUiScale.h(15)),
+                    child: TaqaCommunityGroupListCard(
+                      tag: group.groupKind ?? group.visibility ?? 'Group',
+                      name: group.name,
+                      description: group.description ?? '',
+                      memberCount: group.memberCount,
+                      trailing: group.isJoined
+                          ? TaqaOutlineTagButton(
+                              label: 'Joined',
+                              width: TaqaUiStyles.communitySectionTagWidth,
+                            )
+                          : null,
+                      onTap: () => _openGroup(group),
+                    ),
                   ),
                 ),
-              ),
-            ),
-            Positioned(
-              top: TaqaUiScale.h(39),
-              left: TaqaUiScale.w(8),
-              child: const TaqaBackButton(),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1287,59 +1252,59 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
     final detail = _detail;
     final scaffold = Scaffold(
       backgroundColor: AppColors.appBackground,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
         backgroundColor: AppColors.appBackground,
-        elevation: 0,
-        foregroundColor: TaqaUiColors.charcoal,
-        title: Text(detail?.name ?? 'Community'),
-        actions: [
-          if (detail?.isAdmin == true)
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.settings_outlined),
-              color: const Color(0xFF141414),
-              onSelected: (value) async {
-                if (value == 'edit') {
-                  await _editGroup();
-                } else if (value == 'view_code') {
-                  await _viewCode();
-                } else if (value == 'code') {
-                  await _resetCode();
-                } else if (value == 'members') {
-                  await _openMembers();
-                } else if (value == 'metric') {
-                  await _changeLeaderboardMetric();
-                } else if (value == 'challenges') {
-                  await _openGroupChallenges();
-                } else if (value == 'pin') {
-                  await _openPinnedItems();
-                } else if (value == 'reports') {
-                  await _openGroupReports();
-                } else if (value == 'archive') {
-                  await _archiveGroup();
-                }
-              },
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'edit', child: Text('Edit group')),
-                PopupMenuItem(
-                  value: 'view_code',
-                  child: Text('View join code'),
-                ),
-                PopupMenuItem(value: 'code', child: Text('Reset join code')),
-                PopupMenuItem(value: 'members', child: Text('Manage members')),
-                PopupMenuItem(value: 'reports', child: Text('Reports')),
-                PopupMenuItem(
-                  value: 'metric',
-                  child: Text('Leaderboard metric'),
-                ),
-                PopupMenuItem(
-                  value: 'challenges',
-                  child: Text('Group challenges'),
-                ),
-                PopupMenuItem(value: 'pin', child: Text('Pinned items')),
-                PopupMenuItem(value: 'archive', child: Text('Archive group')),
-              ],
-            ),
-        ],
+        title: detail?.name ?? 'Community',
+        trailing: detail?.isAdmin == true
+            ? PopupMenuButton<String>(
+                icon: const Icon(Icons.settings_outlined),
+                color: const Color(0xFF141414),
+                onSelected: (value) async {
+                  if (value == 'edit') {
+                    await _editGroup();
+                  } else if (value == 'view_code') {
+                    await _viewCode();
+                  } else if (value == 'code') {
+                    await _resetCode();
+                  } else if (value == 'members') {
+                    await _openMembers();
+                  } else if (value == 'metric') {
+                    await _changeLeaderboardMetric();
+                  } else if (value == 'challenges') {
+                    await _openGroupChallenges();
+                  } else if (value == 'pin') {
+                    await _openPinnedItems();
+                  } else if (value == 'reports') {
+                    await _openGroupReports();
+                  } else if (value == 'archive') {
+                    await _archiveGroup();
+                  }
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'edit', child: Text('Edit group')),
+                  PopupMenuItem(
+                    value: 'view_code',
+                    child: Text('View join code'),
+                  ),
+                  PopupMenuItem(value: 'code', child: Text('Reset join code')),
+                  PopupMenuItem(
+                    value: 'members',
+                    child: Text('Manage members'),
+                  ),
+                  PopupMenuItem(value: 'reports', child: Text('Reports')),
+                  PopupMenuItem(
+                    value: 'metric',
+                    child: Text('Leaderboard metric'),
+                  ),
+                  PopupMenuItem(
+                    value: 'challenges',
+                    child: Text('Group challenges'),
+                  ),
+                  PopupMenuItem(value: 'pin', child: Text('Pinned items')),
+                  PopupMenuItem(value: 'archive', child: Text('Archive group')),
+                ],
+              )
+            : null,
       ),
       body: RefreshIndicator(
         color: AppColors.accent,
@@ -1552,11 +1517,9 @@ class CommunityMyGroupsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.appBackground,
-      appBar: AppBar(
+      appBar: const TaqaPageAppBar(
         backgroundColor: AppColors.appBackground,
-        elevation: 0,
-        foregroundColor: TaqaUiColors.charcoal,
-        title: const Text('Your Groups'),
+        title: 'Your Groups',
       ),
       body: SafeArea(
         child: groups.isEmpty
@@ -1741,6 +1704,34 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
     }
   }
 
+  Future<void> _openChallengeActions(CommunityChallenge challenge) async {
+    final canManage = _canManageChallenge(challenge);
+    final action = await showTaqaOptionDialog<String>(
+      context: context,
+      title: challenge.name,
+      options: [
+        TaqaDialogOption(
+          value: 'mute',
+          title: challenge.mutedNotifications
+              ? 'Unmute notifications'
+              : 'Mute notifications',
+        ),
+        if (canManage)
+          const TaqaDialogOption(value: 'edit', title: 'Edit challenge'),
+        if (canManage)
+          const TaqaDialogOption(value: 'delete', title: 'Delete challenge'),
+      ],
+    );
+    if (action == null) return;
+    if (action == 'mute') {
+      await _toggleMute(challenge, !challenge.mutedNotifications);
+    } else if (action == 'edit') {
+      await _editChallenge(challenge);
+    } else if (action == 'delete') {
+      await _deleteChallenge(challenge);
+    }
+  }
+
   bool _canManageChallenge(CommunityChallenge challenge) {
     if (challenge.isGroupScoped) return widget.canManageGroupChallenges;
     return widget.canManageGlobalChallenges;
@@ -1794,18 +1785,18 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
   Widget build(BuildContext context) {
     final scaffold = Scaffold(
       backgroundColor: AppColors.appBackground,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
         backgroundColor: AppColors.appBackground,
-        elevation: 0,
-        foregroundColor: TaqaUiColors.charcoal,
-        title: Text(widget.title),
-        actions: [
-          if (_canCreateForCurrentTab)
-            IconButton(
-              onPressed: _createChallenge,
-              icon: const Icon(Icons.add_circle_outline),
-            ),
-        ],
+        title: widget.title,
+        trailing: _canCreateForCurrentTab
+            ? IconButton(
+                onPressed: _createChallenge,
+                icon: const Icon(
+                  Icons.add_circle_outline,
+                  color: TaqaUiColors.unnamedColor1c1d17,
+                ),
+              )
+            : null,
         bottom: widget.isGroupScoped
             ? TabBar(
                 onTap: (index) => setState(() => _selectedTabIndex = index),
@@ -1843,119 +1834,12 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
             else
               ..._visibleChallenges.map(
                 (challenge) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _LightCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            _MiniChip(
-                              label: challenge.challengeType.replaceAll(
-                                '_',
-                                ' ',
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            _MiniChip(
-                              label: challenge.isGroupScoped
-                                  ? 'group'
-                                  : 'global',
-                            ),
-                            const Spacer(),
-                            if (_canManageChallenge(challenge))
-                              PopupMenuButton<String>(
-                                icon: Icon(
-                                  Icons.more_horiz,
-                                  color: TaqaUiColors.charcoal.withValues(
-                                    alpha: 0.7,
-                                  ),
-                                ),
-                                color: const Color(0xFF141414),
-                                onSelected: (value) async {
-                                  if (value == 'edit') {
-                                    await _editChallenge(challenge);
-                                  } else if (value == 'delete') {
-                                    await _deleteChallenge(challenge);
-                                  }
-                                },
-                                itemBuilder: (_) => const [
-                                  PopupMenuItem(
-                                    value: 'edit',
-                                    child: Text('Edit'),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'delete',
-                                    child: Text('Delete'),
-                                  ),
-                                ],
-                              ),
-                          ],
-                        ),
-                        Text(
-                          challenge.name,
-                          style: const TextStyle(
-                            color: TaqaUiColors.charcoal,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        if ((challenge.description ?? '').isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            challenge.description!,
-                            style: TextStyle(
-                              color: TaqaUiColors.charcoal.withValues(
-                                alpha: 0.7,
-                              ),
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 12),
-                        LinearProgressIndicator(
-                          value: (challenge.progressPercent / 100).clamp(0, 1),
-                          backgroundColor: TaqaUiColors.charcoal.withValues(
-                            alpha: 0.08,
-                          ),
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            challenge.isCompleted
-                                ? Colors.greenAccent
-                                : AppColors.accent,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                '${challenge.progressPercent.toStringAsFixed(0)}% complete',
-                                style: TextStyle(
-                                  color: TaqaUiColors.charcoal.withValues(
-                                    alpha: 0.7,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Switch.adaptive(
-                              activeColor: AppColors.accent,
-                              value: challenge.mutedNotifications,
-                              onChanged: (value) =>
-                                  _toggleMute(challenge, value),
-                            ),
-                          ],
-                        ),
-                        if (challenge.startAt != null ||
-                            challenge.endAt != null)
-                          Text(
-                            '${challenge.startAt != null ? _formatDate(challenge.startAt) : '-'} -> ${challenge.endAt != null ? _formatDate(challenge.endAt) : '-'}',
-                            style: TextStyle(
-                              color: TaqaUiColors.charcoal.withValues(
-                                alpha: 0.6,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
+                  padding: EdgeInsets.only(bottom: TaqaUiScale.h(15)),
+                  child: TaqaCommunityChallengeCard(
+                    tag: challenge.challengeType.replaceAll('_', ' '),
+                    name: challenge.name,
+                    progress: challenge.progressPercent / 100,
+                    onTap: () => _openChallengeActions(challenge),
                   ),
                 ),
               ),
@@ -2018,30 +1902,32 @@ class _CommunityBadgesPageState extends State<CommunityBadgesPage> {
     final items = _showEarnedOnly ? _earnedBadges : _allBadges;
     return Scaffold(
       backgroundColor: AppColors.appBackground,
-      appBar: AppBar(
+      appBar: const TaqaPageAppBar(
         backgroundColor: AppColors.appBackground,
-        elevation: 0,
-        foregroundColor: TaqaUiColors.charcoal,
-        title: const Text('Badges'),
+        title: 'Badges',
       ),
       body: RefreshIndicator(
         color: AppColors.accent,
         onRefresh: () => _load(),
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
           children: [
             Row(
               children: [
-                _FeedFilterChip(
-                  label: 'All badges',
-                  selected: !_showEarnedOnly,
-                  onTap: () => setState(() => _showEarnedOnly = false),
+                Expanded(
+                  child: TaqaRangeTab(
+                    label: 'All badges',
+                    selected: !_showEarnedOnly,
+                    onTap: () => setState(() => _showEarnedOnly = false),
+                  ),
                 ),
                 const SizedBox(width: 8),
-                _FeedFilterChip(
-                  label: 'Earned',
-                  selected: _showEarnedOnly,
-                  onTap: () => setState(() => _showEarnedOnly = true),
+                Expanded(
+                  child: TaqaRangeTab(
+                    label: 'Earned badges',
+                    selected: _showEarnedOnly,
+                    onTap: () => setState(() => _showEarnedOnly = true),
+                  ),
                 ),
               ],
             ),
@@ -2065,82 +1951,101 @@ class _CommunityBadgesPageState extends State<CommunityBadgesPage> {
               ...items.map(
                 (badge) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: _LightCard(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: badge.isEarned
-                                ? const Color(
-                                    0xFFD4AF37,
-                                  ).withValues(alpha: 0.18)
-                                : TaqaUiColors.charcoal.withValues(alpha: 0.06),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Icon(
-                            badge.isEarned
-                                ? Icons.workspace_premium
-                                : Icons.workspace_premium_outlined,
-                            color: badge.isEarned
-                                ? const Color(0xFFD4AF37)
-                                : TaqaUiColors.charcoal.withValues(alpha: 0.54),
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      badge.name,
-                                      style: const TextStyle(
-                                        color: TaqaUiColors.charcoal,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ),
-                                  _MiniChip(label: badge.category),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                badge.description,
-                                style: TextStyle(
-                                  color: TaqaUiColors.charcoal.withValues(
-                                    alpha: 0.72,
-                                  ),
-                                  height: 1.4,
-                                ),
-                              ),
-                              if (badge.awardedAt != null) ...[
-                                const SizedBox(height: 10),
-                                Text(
-                                  'Earned ${_formatDate(badge.awardedAt)}',
-                                  style: TextStyle(
-                                    color: TaqaUiColors.charcoal.withValues(
-                                      alpha: 0.7,
-                                    ),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  child: _CommunityBadgeCard(badge: badge),
                 ),
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _CommunityBadgeCard extends StatelessWidget {
+  const _CommunityBadgeCard({required this.badge});
+
+  final CommunityBadge badge;
+
+  @override
+  Widget build(BuildContext context) {
+    final tagWidth = ((badge.category.length * 7) + 10)
+        .clamp(34, 112)
+        .toDouble();
+    return Container(
+      width: TaqaUiStyles.communityChallengeCardWidth,
+      constraints: BoxConstraints(minHeight: TaqaUiScale.h(98)),
+      padding: EdgeInsets.fromLTRB(
+        TaqaUiScale.w(14),
+        TaqaUiScale.h(14),
+        TaqaUiScale.w(14),
+        TaqaUiScale.h(14),
+      ),
+      decoration: BoxDecoration(
+        color: badge.isEarned
+            ? TaqaUiColors.unnamedColorE4e93b
+            : TaqaUiColors.white,
+        borderRadius: TaqaUiScale.radius(15),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.only(top: TaqaUiScale.h(2)),
+            child: Icon(
+              Icons.workspace_premium_outlined,
+              size: TaqaUiScale.w(21),
+              color: TaqaUiColors.unnamedColor1c1d17,
+            ),
+          ),
+          SizedBox(width: TaqaUiScale.w(10)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(top: TaqaUiScale.h(2)),
+                        child: Text(
+                          badge.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(15),
+                            fontWeight: FontWeight.w700,
+                            height: 21 / 15,
+                            color: TaqaUiColors.unnamedColor1c1d17,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: TaqaUiScale.w(8)),
+                    TaqaOutlineTagButton(
+                      label: badge.category,
+                      width: TaqaUiScale.w(tagWidth),
+                    ),
+                  ],
+                ),
+                SizedBox(height: TaqaUiScale.h(10)),
+                Text(
+                  badge.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: TaqaUiScale.sp(15),
+                    fontWeight: FontWeight.w400,
+                    height: 21 / 15,
+                    color: TaqaUiColors.unnamedColor1c1d17,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2241,11 +2146,9 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.appBackground,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
         backgroundColor: AppColors.appBackground,
-        elevation: 0,
-        foregroundColor: TaqaUiColors.charcoal,
-        title: Text(widget.title),
+        title: widget.title,
       ),
       body: RefreshIndicator(
         color: AppColors.accent,
@@ -3372,18 +3275,15 @@ class _CommunityLeaderboardPageState extends State<CommunityLeaderboardPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.appBackground,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
         backgroundColor: AppColors.appBackground,
-        elevation: 0,
-        foregroundColor: TaqaUiColors.charcoal,
-        title: const Text('Leaderboard'),
-        actions: [
-          if (widget.isAdmin)
-            TextButton(
-              onPressed: _changeMetric,
-              child: const Text('Change metric'),
-            ),
-        ],
+        title: 'Leaderboard',
+        trailing: widget.isAdmin
+            ? TextButton(
+                onPressed: _changeMetric,
+                child: const Text('Change metric'),
+              )
+            : null,
       ),
       body: SafeArea(
         child: ListView(
@@ -3543,18 +3443,15 @@ class _CommunityPinnedItemsPageState extends State<CommunityPinnedItemsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.appBackground,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
         backgroundColor: AppColors.appBackground,
-        elevation: 0,
-        foregroundColor: TaqaUiColors.charcoal,
-        title: const Text('Pinned Items'),
-        actions: [
-          if (widget.isAdmin)
-            IconButton(
-              onPressed: () => _createOrEditPin(),
-              icon: const Icon(Icons.add),
-            ),
-        ],
+        title: 'Pinned Items',
+        trailing: widget.isAdmin
+            ? IconButton(
+                onPressed: () => _createOrEditPin(),
+                icon: const Icon(Icons.add),
+              )
+            : null,
       ),
       body: SafeArea(
         child: _pins.isEmpty
@@ -3701,11 +3598,9 @@ class _CommunitySharedMetricsPageState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.appBackground,
-      appBar: AppBar(
+      appBar: const TaqaPageAppBar(
         backgroundColor: AppColors.appBackground,
-        elevation: 0,
-        foregroundColor: TaqaUiColors.charcoal,
-        title: const Text('Shared Metrics'),
+        title: 'Shared Metrics',
       ),
       body: SafeArea(
         child: ListView(
@@ -3815,37 +3710,18 @@ class _ChallengeEditorResult {
 }
 
 Future<String?> _showJoinCodeDialog(BuildContext context) async {
-  final controller = TextEditingController();
-  final result = await showDialog<String>(
+  final result = await showTaqaTextValueDialog(
     context: context,
-    builder: (context) => AlertDialog(
-      backgroundColor: AppColors.cardDark,
-      title: const Text('Join by code', style: TextStyle(color: Colors.white)),
-      content: TextField(
-        controller: controller,
-        keyboardType: TextInputType.number,
-        maxLength: 6,
-        style: const TextStyle(color: Colors.white),
-        decoration: const InputDecoration(
-          hintText: '6-digit code',
-          counterText: '',
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: () => Navigator.pop(context, controller.text.trim()),
-          child: const Text('Join'),
-        ),
-      ],
-    ),
+    title: 'Join by code',
+    initialValue: '',
+    keyboardType: TextInputType.number,
+    confirmLabel: 'Join',
+    hintText: '6-Digit Code',
+    maxLength: 6,
   );
-  controller.dispose();
-  if (result == null || result.length != 6) return null;
-  return result;
+  final trimmed = result?.trim();
+  if (trimmed == null || trimmed.length != 6) return null;
+  return trimmed;
 }
 
 Future<void> _showGroupCodeDialog(
@@ -3856,304 +3732,504 @@ Future<void> _showGroupCodeDialog(
 }) async {
   await showDialog<void>(
     context: context,
-    builder: (context) => AlertDialog(
-      backgroundColor: AppColors.cardDark,
-      title: Text(title, style: const TextStyle(color: Colors.white)),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (message != null && message.trim().isNotEmpty) ...[
-            Text(
-              message,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.74)),
-            ),
-            const SizedBox(height: 16),
-          ],
-          Text(
-            code,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 32,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 6,
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Close'),
-        ),
-      ],
-    ),
-  );
-}
-
-Future<_CreateGroupPayload?> _showCreateGroupDialog(
-  BuildContext context,
-) async {
-  final nameController = TextEditingController();
-  final descriptionController = TextEditingController();
-  String visibility = 'private';
-  String kind = 'general';
-  bool discoverable = true;
-  final result = await showDialog<_CreateGroupPayload>(
-    context: context,
-    builder: (context) {
-      return StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            backgroundColor: AppColors.cardDark,
-            title: const Text(
-              'Create community',
-              style: TextStyle(color: Colors.white),
-            ),
-            content: SingleChildScrollView(
+    barrierColor: const Color(0x66000000),
+    builder: (ctx) {
+      return Align(
+        alignment: Alignment.center,
+        child: Padding(
+          padding: TaqaUiScale.symmetric(horizontal: 17),
+          child: Material(
+            color: Colors.transparent,
+            clipBehavior: Clip.none,
+            child: Container(
+              constraints: BoxConstraints(maxWidth: TaqaUiScale.w(356)),
+              padding: TaqaUiScale.insetsLTRB(17, 15, 17, 15),
+              decoration: BoxDecoration(
+                color: TaqaUiColors.white,
+                borderRadius: TaqaUiScale.radius(15),
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  TextField(
-                    controller: nameController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(hintText: 'Group name'),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(15),
+                      fontWeight: FontWeight.w700,
+                      height: 25 / 15,
+                      letterSpacing: 0,
+                      color: TaqaUiColors.unnamedColor1c1d17,
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: descriptionController,
-                    style: const TextStyle(color: Colors.white),
-                    maxLines: 3,
-                    decoration: const InputDecoration(hintText: 'Description'),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: visibility,
-                    dropdownColor: AppColors.cardDark,
-                    style: const TextStyle(color: Colors.white),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'private',
-                        child: Text('Private'),
-                      ),
-                      DropdownMenuItem(value: 'public', child: Text('Public')),
-                    ],
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setState(() => visibility = value);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: kind,
-                    dropdownColor: AppColors.cardDark,
-                    style: const TextStyle(color: Colors.white),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'general',
-                        child: Text('General'),
-                      ),
-                      DropdownMenuItem(value: 'gym', child: Text('Gym')),
-                      DropdownMenuItem(value: 'coach', child: Text('Coach')),
-                      DropdownMenuItem(value: 'city', child: Text('City')),
-                      DropdownMenuItem(
-                        value: 'country',
-                        child: Text('Country'),
-                      ),
-                      DropdownMenuItem(value: 'sport', child: Text('Sport')),
-                    ],
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setState(() => kind = value);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text(
-                      'Discoverable',
+                  if (message != null && message.trim().isNotEmpty) ...[
+                    SizedBox(height: TaqaUiScale.h(12)),
+                    Text(
+                      message,
+                      textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(13),
+                        fontWeight: FontWeight.w400,
+                        height: 18 / 13,
+                        letterSpacing: 0,
+                        color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                          alpha: 0.6,
+                        ),
                       ),
                     ),
-                    value: visibility == 'public' ? discoverable : false,
-                    onChanged: visibility == 'public'
-                        ? (value) => setState(() => discoverable = value)
-                        : null,
+                  ],
+                  SizedBox(height: TaqaUiScale.h(24)),
+                  Text(
+                    code,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(32),
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 6,
+                      color: TaqaUiColors.unnamedColor1c1d17,
+                    ),
+                  ),
+                  SizedBox(height: TaqaUiScale.h(24)),
+                  Material(
+                    color: TaqaUiColors.unnamedColorE4e93b,
+                    borderRadius: TaqaUiScale.radius(5),
+                    child: InkWell(
+                      borderRadius: TaqaUiScale.radius(5),
+                      onTap: () => Navigator.pop(ctx),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: TaqaUiScale.h(45),
+                        child: Center(
+                          child: Text(
+                            "CLOSE",
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: TaqaUiScale.sp(10),
+                              fontWeight: FontWeight.w700,
+                              height: 12 / 10,
+                              letterSpacing: 0,
+                              color: TaqaUiColors.unnamedColor1c1d17,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  final name = nameController.text.trim();
-                  if (name.length < 3) return;
-                  Navigator.pop(
-                    context,
-                    _CreateGroupPayload(
-                      name: name,
-                      description: descriptionController.text.trim().isEmpty
-                          ? null
-                          : descriptionController.text.trim(),
-                      visibility: visibility,
-                      groupKind: kind,
-                      isDiscoverable: visibility == 'public'
-                          ? discoverable
-                          : false,
+          ),
+        ),
+      );
+    },
+  );
+}
+
+Widget _taqaDialogField({
+  required TextEditingController controller,
+  required String hint,
+  int maxLines = 1,
+}) {
+  return Container(
+    width: double.infinity,
+    padding: TaqaUiScale.insetsLTRB(0, 8, 0, 8),
+    decoration: const BoxDecoration(
+      border: Border(
+        bottom: BorderSide(color: TaqaUiColors.unnamedColorE3e3e3),
+      ),
+    ),
+    child: TextField(
+      controller: controller,
+      maxLines: maxLines,
+      style: TextStyle(
+        fontFamily: TaqaUiFontFamilies.interTight,
+        fontSize: TaqaUiScale.sp(16),
+        fontWeight: FontWeight.w500,
+        color: TaqaUiColors.unnamedColor1c1d17,
+      ),
+      decoration: InputDecoration(
+        isDense: true,
+        filled: false,
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        disabledBorder: InputBorder.none,
+        errorBorder: InputBorder.none,
+        focusedErrorBorder: InputBorder.none,
+        hintText: hint,
+        hintStyle: TextStyle(
+          fontFamily: TaqaUiFontFamilies.interTight,
+          fontSize: TaqaUiScale.sp(16),
+          fontWeight: FontWeight.w400,
+          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.3),
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _taqaDialogDropdown<T>({
+  required T value,
+  required List<DropdownMenuItem<T>> items,
+  required ValueChanged<T?> onChanged,
+}) {
+  return Container(
+    width: double.infinity,
+    padding: TaqaUiScale.insetsLTRB(0, 4, 0, 4),
+    decoration: const BoxDecoration(
+      border: Border(
+        bottom: BorderSide(color: TaqaUiColors.unnamedColorE3e3e3),
+      ),
+    ),
+    child: DropdownButtonHideUnderline(
+      child: DropdownButton<T>(
+        value: value,
+        isExpanded: true,
+        dropdownColor: TaqaUiColors.white,
+        borderRadius: TaqaUiScale.radius(12),
+        icon: Icon(
+          Icons.keyboard_arrow_down,
+          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.35),
+        ),
+        items: items,
+        style: TextStyle(
+          fontFamily: TaqaUiFontFamilies.interTight,
+          fontSize: TaqaUiScale.sp(16),
+          fontWeight: FontWeight.w500,
+          color: TaqaUiColors.unnamedColor1c1d17,
+        ),
+        onChanged: onChanged,
+      ),
+    ),
+  );
+}
+
+Widget _taqaDialogDateField({
+  required String label,
+  required String value,
+  required VoidCallback onTap,
+}) {
+  return GestureDetector(
+    onTap: onTap,
+    behavior: HitTestBehavior.opaque,
+    child: Container(
+      width: double.infinity,
+      padding: TaqaUiScale.insetsLTRB(0, 8, 0, 8),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: TaqaUiColors.unnamedColorE3e3e3),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: TaqaUiScale.sp(11),
+                    fontWeight: FontWeight.w400,
+                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                      alpha: 0.4,
                     ),
-                  );
-                },
-                child: const Text('Create'),
+                  ),
+                ),
+                SizedBox(height: TaqaUiScale.h(2)),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: TaqaUiScale.sp(16),
+                    fontWeight: FontWeight.w500,
+                    color: TaqaUiColors.unnamedColor1c1d17,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            Icons.calendar_today_outlined,
+            size: TaqaUiScale.w(16),
+            color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.35),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Future<_CreateGroupPayload?> _showGroupFormDialog(
+  BuildContext context, {
+  required String title,
+  required String confirmLabel,
+  String initialName = '',
+  String initialDescription = '',
+  String initialVisibility = 'private',
+  String initialKind = 'general',
+  bool initialDiscoverable = true,
+}) async {
+  final nameController = TextEditingController(text: initialName);
+  final descriptionController = TextEditingController(text: initialDescription);
+  String visibility = initialVisibility;
+  String kind = initialKind;
+  bool discoverable = initialDiscoverable;
+
+  final result = await showDialog<_CreateGroupPayload>(
+    context: context,
+    barrierColor: const Color(0x66000000),
+    builder: (ctx) {
+      return GestureDetector(
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: StatefulBuilder(
+          builder: (ctx, setLocalState) {
+            return Align(
+              alignment: Alignment.center,
+              child: Padding(
+                padding: TaqaUiScale.symmetric(horizontal: 17),
+                child: Material(
+                  color: Colors.transparent,
+                  clipBehavior: Clip.none,
+                  child: Container(
+                    constraints: BoxConstraints(maxWidth: TaqaUiScale.w(356)),
+                    padding: TaqaUiScale.insetsLTRB(20, 24, 20, 20),
+                    decoration: BoxDecoration(
+                      color: TaqaUiColors.white,
+                      borderRadius: TaqaUiScale.radius(24),
+                    ),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            title,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: TaqaUiScale.sp(22),
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0,
+                              color: TaqaUiColors.unnamedColor1c1d17,
+                            ),
+                          ),
+                          SizedBox(height: TaqaUiScale.h(28)),
+                          _taqaDialogField(
+                            controller: nameController,
+                            hint: 'Group Name',
+                          ),
+                          SizedBox(height: TaqaUiScale.h(20)),
+                          _taqaDialogField(
+                            controller: descriptionController,
+                            hint: 'Description',
+                            maxLines: 3,
+                          ),
+                          SizedBox(height: TaqaUiScale.h(20)),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: _taqaDialogDropdown<String>(
+                                  value: visibility,
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'private',
+                                      child: Text('Private'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'public',
+                                      child: Text('Public'),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    setLocalState(() => visibility = value);
+                                  },
+                                ),
+                              ),
+                              SizedBox(width: TaqaUiScale.w(20)),
+                              Expanded(
+                                child: _taqaDialogDropdown<String>(
+                                  value: kind,
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'general',
+                                      child: Text('General'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'gym',
+                                      child: Text('Gym'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'coach',
+                                      child: Text('Coach'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'city',
+                                      child: Text('City'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'country',
+                                      child: Text('Country'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'sport',
+                                      child: Text('Sport'),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    setLocalState(() => kind = value);
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: TaqaUiScale.h(24)),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Discoverable',
+                                  style: TextStyle(
+                                    fontFamily: TaqaUiFontFamilies.interTight,
+                                    fontSize: TaqaUiScale.sp(16),
+                                    fontWeight: FontWeight.w500,
+                                    color: TaqaUiColors.unnamedColor1c1d17,
+                                  ),
+                                ),
+                              ),
+                              TaqaSwitch(
+                                value: visibility == 'public'
+                                    ? discoverable
+                                    : false,
+                                onChanged: visibility == 'public'
+                                    ? (value) => setLocalState(
+                                        () => discoverable = value,
+                                      )
+                                    : null,
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: TaqaUiScale.h(28)),
+                          SizedBox(
+                            height: TaqaUiScale.h(50),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () => Navigator.pop(ctx),
+                                    child: Center(
+                                      child: Text(
+                                        "CANCEL",
+                                        style: TextStyle(
+                                          fontFamily:
+                                              TaqaUiFontFamilies.interTight,
+                                          fontSize: TaqaUiScale.sp(13),
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 0,
+                                          color:
+                                              TaqaUiColors.unnamedColor1c1d17,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Material(
+                                  color: TaqaUiColors.unnamedColorE4e93b,
+                                  borderRadius: TaqaUiScale.radius(14),
+                                  child: InkWell(
+                                    borderRadius: TaqaUiScale.radius(14),
+                                    onTap: () {
+                                      final name = nameController.text.trim();
+                                      if (name.length < 3) return;
+                                      Navigator.pop(
+                                        ctx,
+                                        _CreateGroupPayload(
+                                          name: name,
+                                          description:
+                                              descriptionController.text
+                                                  .trim()
+                                                  .isEmpty
+                                              ? null
+                                              : descriptionController.text
+                                                    .trim(),
+                                          visibility: visibility,
+                                          groupKind: kind,
+                                          isDiscoverable: visibility == 'public'
+                                              ? discoverable
+                                              : false,
+                                        ),
+                                      );
+                                    },
+                                    child: SizedBox(
+                                      width: TaqaUiScale.w(170),
+                                      height: TaqaUiScale.h(50),
+                                      child: Center(
+                                        child: Text(
+                                          confirmLabel.toUpperCase(),
+                                          style: TextStyle(
+                                            fontFamily:
+                                                TaqaUiFontFamilies.interTight,
+                                            fontSize: TaqaUiScale.sp(13),
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 0,
+                                            color:
+                                                TaqaUiColors.unnamedColor1c1d17,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ],
-          );
-        },
+            );
+          },
+        ),
       );
     },
   );
   nameController.dispose();
   descriptionController.dispose();
   return result;
+}
+
+Future<_CreateGroupPayload?> _showCreateGroupDialog(BuildContext context) {
+  return _showGroupFormDialog(
+    context,
+    title: 'Create community',
+    confirmLabel: 'Create',
+  );
 }
 
 Future<_CreateGroupPayload?> _showEditGroupDialog(
   BuildContext context,
   CommunityGroupDetail detail,
-) async {
-  final nameController = TextEditingController(text: detail.name);
-  final descriptionController = TextEditingController(
-    text: detail.description ?? '',
+) {
+  return _showGroupFormDialog(
+    context,
+    title: 'Edit group',
+    confirmLabel: 'Save',
+    initialName: detail.name,
+    initialDescription: detail.description ?? '',
+    initialVisibility: detail.visibility ?? 'private',
+    initialKind: detail.groupKind ?? 'general',
+    initialDiscoverable: detail.isDiscoverable,
   );
-  String visibility = detail.visibility ?? 'private';
-  String kind = detail.groupKind ?? 'general';
-  bool discoverable = detail.isDiscoverable;
-  final result = await showDialog<_CreateGroupPayload>(
-    context: context,
-    builder: (context) {
-      return StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            backgroundColor: AppColors.cardDark,
-            title: const Text(
-              'Edit group',
-              style: TextStyle(color: Colors.white),
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(hintText: 'Group name'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: descriptionController,
-                    style: const TextStyle(color: Colors.white),
-                    maxLines: 3,
-                    decoration: const InputDecoration(hintText: 'Description'),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: visibility,
-                    dropdownColor: AppColors.cardDark,
-                    style: const TextStyle(color: Colors.white),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'private',
-                        child: Text('Private'),
-                      ),
-                      DropdownMenuItem(value: 'public', child: Text('Public')),
-                    ],
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setState(() => visibility = value);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: kind,
-                    dropdownColor: AppColors.cardDark,
-                    style: const TextStyle(color: Colors.white),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'general',
-                        child: Text('General'),
-                      ),
-                      DropdownMenuItem(value: 'gym', child: Text('Gym')),
-                      DropdownMenuItem(value: 'coach', child: Text('Coach')),
-                      DropdownMenuItem(value: 'city', child: Text('City')),
-                      DropdownMenuItem(
-                        value: 'country',
-                        child: Text('Country'),
-                      ),
-                      DropdownMenuItem(value: 'sport', child: Text('Sport')),
-                    ],
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setState(() => kind = value);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text(
-                      'Discoverable',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    value: visibility == 'public' ? discoverable : false,
-                    onChanged: visibility == 'public'
-                        ? (value) => setState(() => discoverable = value)
-                        : null,
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  final name = nameController.text.trim();
-                  if (name.length < 3) return;
-                  Navigator.pop(
-                    context,
-                    _CreateGroupPayload(
-                      name: name,
-                      description: descriptionController.text.trim().isEmpty
-                          ? null
-                          : descriptionController.text.trim(),
-                      visibility: visibility,
-                      groupKind: kind,
-                      isDiscoverable: visibility == 'public'
-                          ? discoverable
-                          : false,
-                    ),
-                  );
-                },
-                child: const Text('Save'),
-              ),
-            ],
-          );
-        },
-      );
-    },
-  );
-  nameController.dispose();
-  descriptionController.dispose();
-  return result;
 }
 
 Future<Map<String, String?>?> _showReportDialog(BuildContext context) async {
@@ -4441,173 +4517,251 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
       existing?.endAt ?? DateTime.now().add(const Duration(days: 30));
   final result = await showDialog<_ChallengeEditorResult>(
     context: context,
-    builder: (context) {
-      return StatefulBuilder(
-        builder: (context, setState) {
-          Future<void> pickStart() async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: startDate,
-              firstDate: DateTime(2025),
-              lastDate: DateTime(2035),
-            );
-            if (picked != null) {
-              setState(() => startDate = picked);
+    barrierColor: const Color(0x66000000),
+    builder: (ctx) {
+      return GestureDetector(
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: StatefulBuilder(
+          builder: (ctx, setLocalState) {
+            Future<void> pickStart() async {
+              final picked = await showDatePicker(
+                context: ctx,
+                initialDate: startDate,
+                firstDate: DateTime(2025),
+                lastDate: DateTime(2035),
+              );
+              if (picked != null) {
+                setLocalState(() => startDate = picked);
+              }
             }
-          }
 
-          Future<void> pickEnd() async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: endDate,
-              firstDate: DateTime(2025),
-              lastDate: DateTime(2035),
-            );
-            if (picked != null) {
-              setState(() => endDate = picked);
+            Future<void> pickEnd() async {
+              final picked = await showDatePicker(
+                context: ctx,
+                initialDate: endDate,
+                firstDate: DateTime(2025),
+                lastDate: DateTime(2035),
+              );
+              if (picked != null) {
+                setLocalState(() => endDate = picked);
+              }
             }
-          }
 
-          return AlertDialog(
-            backgroundColor: AppColors.cardDark,
-            title: Text(
-              existing == null ? 'Create challenge' : 'Edit challenge',
-              style: const TextStyle(color: Colors.white),
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      hintText: 'Challenge name',
+            return Align(
+              alignment: Alignment.center,
+              child: Padding(
+                padding: TaqaUiScale.symmetric(horizontal: 17),
+                child: Material(
+                  color: Colors.transparent,
+                  clipBehavior: Clip.none,
+                  child: Container(
+                    constraints: BoxConstraints(maxWidth: TaqaUiScale.w(356)),
+                    padding: TaqaUiScale.insetsLTRB(20, 24, 20, 20),
+                    decoration: BoxDecoration(
+                      color: TaqaUiColors.white,
+                      borderRadius: TaqaUiScale.radius(24),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: descriptionController,
-                    style: const TextStyle(color: Colors.white),
-                    maxLines: 3,
-                    decoration: const InputDecoration(hintText: 'Description'),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: type,
-                    dropdownColor: AppColors.cardDark,
-                    style: const TextStyle(color: Colors.white),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'workout_days',
-                        child: Text('Workout days'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'movement_total',
-                        child: Text('Movement total'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'cardio_sessions',
-                        child: Text('Cardio sessions'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'score_threshold_days',
-                        child: Text('Score threshold days'),
-                      ),
-                      DropdownMenuItem(value: 'custom', child: Text('Custom')),
-                    ],
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setState(() => type = value);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: pickStart,
-                          child: Text(
-                            'Start ${DateFormat('MMM d').format(startDate)}',
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            existing == null
+                                ? 'Create Challenge'
+                                : 'Edit Challenge',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: TaqaUiScale.sp(22),
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0,
+                              color: TaqaUiColors.unnamedColor1c1d17,
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: pickEnd,
-                          child: Text(
-                            'End ${DateFormat('MMM d').format(endDate)}',
+                          SizedBox(height: TaqaUiScale.h(28)),
+                          _taqaDialogField(
+                            controller: nameController,
+                            hint: 'Challenge Name',
                           ),
-                        ),
+                          SizedBox(height: TaqaUiScale.h(20)),
+                          _taqaDialogField(
+                            controller: descriptionController,
+                            hint: 'Description',
+                            maxLines: 3,
+                          ),
+                          SizedBox(height: TaqaUiScale.h(20)),
+                          _taqaDialogDropdown<String>(
+                            value: type,
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'workout_days',
+                                child: Text('Workout days'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'movement_total',
+                                child: Text('Movement total'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'cardio_sessions',
+                                child: Text('Cardio sessions'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'score_threshold_days',
+                                child: Text('Score threshold days'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'custom',
+                                child: Text('Custom'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              if (value == null) return;
+                              setLocalState(() => type = value);
+                            },
+                          ),
+                          SizedBox(height: TaqaUiScale.h(20)),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: _taqaDialogDateField(
+                                  label: 'Start',
+                                  value: DateFormat('MMM d').format(startDate),
+                                  onTap: pickStart,
+                                ),
+                              ),
+                              SizedBox(width: TaqaUiScale.w(20)),
+                              Expanded(
+                                child: _taqaDialogDateField(
+                                  label: 'End',
+                                  value: DateFormat('MMM d').format(endDate),
+                                  onTap: pickEnd,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: TaqaUiScale.h(20)),
+                          _taqaDialogField(
+                            controller: goalController,
+                            hint: 'Goal Value',
+                          ),
+                          SizedBox(height: TaqaUiScale.h(20)),
+                          _taqaDialogField(
+                            controller: unitController,
+                            hint: 'Progress Unit',
+                          ),
+                          SizedBox(height: TaqaUiScale.h(24)),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Active',
+                                  style: TextStyle(
+                                    fontFamily: TaqaUiFontFamilies.interTight,
+                                    fontSize: TaqaUiScale.sp(16),
+                                    fontWeight: FontWeight.w500,
+                                    color: TaqaUiColors.unnamedColor1c1d17,
+                                  ),
+                                ),
+                              ),
+                              TaqaSwitch(
+                                value: isActive,
+                                onChanged: (value) =>
+                                    setLocalState(() => isActive = value),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: TaqaUiScale.h(28)),
+                          SizedBox(
+                            height: TaqaUiScale.h(50),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () => Navigator.pop(ctx),
+                                    child: Center(
+                                      child: Text(
+                                        'CANCEL',
+                                        style: TextStyle(
+                                          fontFamily:
+                                              TaqaUiFontFamilies.interTight,
+                                          fontSize: TaqaUiScale.sp(13),
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 0,
+                                          color:
+                                              TaqaUiColors.unnamedColor1c1d17,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Material(
+                                  color: TaqaUiColors.unnamedColorE4e93b,
+                                  borderRadius: TaqaUiScale.radius(14),
+                                  child: InkWell(
+                                    borderRadius: TaqaUiScale.radius(14),
+                                    onTap: () {
+                                      final name = nameController.text.trim();
+                                      if (name.length < 3) return;
+                                      Navigator.pop(
+                                        ctx,
+                                        _ChallengeEditorResult(
+                                          name: name,
+                                          description:
+                                              descriptionController.text
+                                                  .trim()
+                                                  .isEmpty
+                                              ? null
+                                              : descriptionController.text
+                                                    .trim(),
+                                          challengeType: type,
+                                          startAtIso: _startOfDayIso(startDate),
+                                          endAtIso: _endOfDayIso(endDate),
+                                          goalValue: double.tryParse(
+                                            goalController.text.trim(),
+                                          ),
+                                          progressUnit:
+                                              unitController.text.trim().isEmpty
+                                              ? null
+                                              : unitController.text.trim(),
+                                          isActive: isActive,
+                                        ),
+                                      );
+                                    },
+                                    child: SizedBox(
+                                      width: TaqaUiScale.w(170),
+                                      height: TaqaUiScale.h(50),
+                                      child: Center(
+                                        child: Text(
+                                          existing == null ? 'CREATE' : 'SAVE',
+                                          style: TextStyle(
+                                            fontFamily:
+                                                TaqaUiFontFamilies.interTight,
+                                            fontSize: TaqaUiScale.sp(13),
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 0,
+                                            color:
+                                                TaqaUiColors.unnamedColor1c1d17,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: goalController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(hintText: 'Goal value'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: unitController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      hintText: 'Progress unit',
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text(
-                      'Active',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    value: isActive,
-                    onChanged: (value) => setState(() => isActive = value),
-                  ),
-                ],
+                ),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  final name = nameController.text.trim();
-                  if (name.length < 3) return;
-                  Navigator.pop(
-                    context,
-                    _ChallengeEditorResult(
-                      name: name,
-                      description: descriptionController.text.trim().isEmpty
-                          ? null
-                          : descriptionController.text.trim(),
-                      challengeType: type,
-                      startAtIso: _startOfDayIso(startDate),
-                      endAtIso: _endOfDayIso(endDate),
-                      goalValue: double.tryParse(goalController.text.trim()),
-                      progressUnit: unitController.text.trim().isEmpty
-                          ? null
-                          : unitController.text.trim(),
-                      isActive: isActive,
-                    ),
-                  );
-                },
-                child: const Text('Save'),
-              ),
-            ],
-          );
-        },
+            );
+          },
+        ),
       );
     },
   );

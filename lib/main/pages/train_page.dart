@@ -20,6 +20,8 @@ import '../../localization/app_localizations.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/training/training_service.dart';
 import '../../widgets/training/replace_exercise_sheet.dart';
+import '../../TaqaUI/components/taqa_page_app_bar.dart';
+import '../../TaqaUI/components/taqa_page_header.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
 import '../../services/training/exercise_action_queue.dart';
 import '../../consents/consent_manager.dart';
@@ -217,22 +219,9 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
         );
       },
       child: Scaffold(
-        appBar: AppBar(
-          centerTitle: true,
-          title: Text(
-            widget.dayLabel,
-            style: const TextStyle(
-              fontFamily: TaqaUiFontFamilies.interTight,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              height: 2.5,
-              letterSpacing: 0,
-              color: TaqaUiColors.unnamedColor1c1d17,
-            ),
-          ),
+        appBar: TaqaPageAppBar(
+          title: widget.dayLabel,
           backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-          foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-          elevation: 0,
         ),
         backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
         body: ListView(
@@ -727,27 +716,15 @@ class _WorkoutLauncherPageState extends State<_WorkoutLauncherPage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF11130F),
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
+      appBar: TaqaPageAppBar(
         backgroundColor: const Color(0xFF11130F),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        title: Text(
-          widget.dayLabel,
-          style: const TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0,
-          ),
+        titleColor: Colors.white,
+        title: widget.dayLabel,
+        showBackButton: false,
+        trailing: IconButton(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.close, color: Colors.white),
         ),
-        actions: [
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close, color: Colors.white),
-          ),
-        ],
       ),
       body: Stack(
         children: [
@@ -5114,482 +5091,512 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     return Container(
       color: TaqaUiColors.unnamedColorE3e3e3,
       child: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (isOffline)
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.orange),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.cloud_off,
-                            color: Colors.orange,
-                            size: 20,
+            Column(
+              children: [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(20, TaqaUiScale.h(60), 20, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (isOffline)
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.orange),
                           ),
-                          const SizedBox(width: 8),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.cloud_off,
+                                color: Colors.orange,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  t.translate("offline_mode") ?? "Offline Mode",
+                                  style: const TextStyle(color: Colors.orange),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (_isDeactivated)
+                        Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: Colors.orange.withValues(alpha: 0.4),
+                            ),
+                          ),
+                          child: const Text(
+                            "Account is deactivated. Training actions are disabled until you reactivate.",
+                            style: TextStyle(
+                              color: TaqaUiColors.unnamedColor1c1d17,
+                            ),
+                          ),
+                        ),
+                      if (_resumableSession != null)
+                        _buildResumeWorkoutBanner(),
+                      Row(
+                        children: [
                           Expanded(
-                            child: Text(
-                              t.translate("offline_mode") ?? "Offline Mode",
-                              style: const TextStyle(color: Colors.orange),
+                            child: TaqaRangeTab(
+                              label: "Train",
+                              selected: _tabIndex == 0,
+                              onTap: _openTrainTab,
+                            ),
+                          ),
+                          SizedBox(width: TaqaUiScale.w(15)),
+                          Expanded(
+                            child: TaqaRangeTab(
+                              label: "Cardio",
+                              selected: _tabIndex == 1,
+                              onTap: _openCardioTab,
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  if (_isDeactivated)
-                    Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: Colors.orange.withValues(alpha: 0.4),
-                        ),
-                      ),
-                      child: const Text(
-                        "Account is deactivated. Training actions are disabled until you reactivate.",
-                        style: TextStyle(
-                          color: TaqaUiColors.unnamedColor1c1d17,
-                        ),
-                      ),
-                    ),
-                  if (_resumableSession != null) _buildResumeWorkoutBanner(),
-                  Center(
-                    child: Text(
-                      _titleCase(t.translate("training")),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontFamily: TaqaUiFontFamilies.interTight,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        height: 2.5,
-                        letterSpacing: 0,
-                        color: TaqaUiColors.unnamedColor1c1d17,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TaqaRangeTab(
-                          label: "Train",
-                          selected: _tabIndex == 0,
-                          onTap: _openTrainTab,
-                        ),
-                      ),
-                      SizedBox(width: TaqaUiScale.w(15)),
-                      Expanded(
-                        child: TaqaRangeTab(
-                          label: "Cardio",
-                          selected: _tabIndex == 1,
-                          onTap: _openCardioTab,
-                        ),
-                      ),
+                      const SizedBox(height: 16),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                ],
-              ),
-            ),
-            Expanded(
-              child: IndexedStack(
-                index: _tabIndex,
-                children: [
-                  RefreshIndicator(
-                    color: Colors.blueAccent,
-                    backgroundColor: Colors.white,
-                    onRefresh: _refreshLightTrainState,
-                    child: ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                      children: [
-                        Row(
+                ),
+                Expanded(
+                  child: IndexedStack(
+                    index: _tabIndex,
+                    children: [
+                      RefreshIndicator(
+                        color: Colors.blueAccent,
+                        backgroundColor: Colors.white,
+                        onRefresh: _refreshLightTrainState,
+                        child: ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                           children: [
-                            Expanded(
-                              child: Text(
-                                "Workout List",
-                                style: TextStyle(
-                                  fontFamily: TaqaUiFontFamilies.interTight,
-                                  fontSize: TaqaUiScale.sp(25),
-                                  fontWeight: FontWeight.w700,
-                                  height: 1,
-                                  letterSpacing: 0,
-                                  color: TaqaUiColors.unnamedColor1c1d17,
-                                ),
-                              ),
-                            ),
-                            TaqaTagButton(
-                              onTap: () async {
-                                final currentProgram = program;
-                                if (currentProgram == null) return;
-                                await Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => TrainingHistoryPage(
-                                      program: currentProgram,
-                                      initialTabIndex:
-                                          _unseenPlanChangeCount > 0 ? 1 : 0,
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    "Workout List",
+                                    style: TextStyle(
+                                      fontFamily: TaqaUiFontFamilies.interTight,
+                                      fontSize: TaqaUiScale.sp(25),
+                                      fontWeight: FontWeight.w700,
+                                      height: 1,
+                                      letterSpacing: 0,
+                                      color: TaqaUiColors.unnamedColor1c1d17,
                                     ),
                                   ),
-                                );
-                                if (!mounted) return;
-                                await _refreshTrainingPlanChangeState();
-                              },
-                              icon: Icons.history,
-                              label: _unseenPlanChangeCount > 0
-                                  ? "HISTORY ${_unseenPlanChangeCount}"
-                                  : "HISTORY",
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: TaqaUiScale.h(5)),
-                        Text(
-                          "Follow the sets & reps shown for each exercise",
-                          style: TextStyle(
-                            fontFamily: TaqaUiFontFamilies.interTight,
-                            fontSize: TaqaUiScale.sp(15),
-                            fontWeight: FontWeight.w400,
-                            height: 18 / 15,
-                            letterSpacing: 0,
-                            color: TaqaUiColors.unnamedColor1c1d17,
-                          ),
-                        ),
-                        SizedBox(height: TaqaUiScale.h(30)),
-                        ...dayOrder.asMap().entries.map((entry) {
-                          final displayIndex = entry.key;
-                          final dayIndex = entry.value;
-                          final rawDay = days[dayIndex];
-                          Map<String, dynamic>? dayMap;
-                          if (rawDay is Map<String, dynamic>) {
-                            dayMap = rawDay;
-                          } else if (rawDay is Map) {
-                            dayMap = Map<String, dynamic>.from(rawDay);
-                          }
-                          final dayLabel =
-                              (dayMap?['day_label'] ??
-                                      dayMap?['label'] ??
-                                      'Day ${dayIndex + 1}')
-                                  .toString();
-                          final dayNote = displayIndex < notesInOrder.length
-                              ? notesInOrder[displayIndex]
-                              : null;
-                          final isCompleted =
-                              displayIndex < completedInOrder.length
-                              ? completedInOrder[displayIndex]
-                              : false;
-                          final isWorked = displayIndex < workedInOrder.length
-                              ? workedInOrder[displayIndex]
-                              : false;
-                          final dayExercises = _trainingExercisesForDay(
-                            days: days,
-                            dayIndex: dayIndex,
-                            dayLabel: dayLabel,
-                          );
-                          final exerciseNames = dayExercises
-                              .map(
-                                (ex) => _titleCase(
-                                  (ex['exercise_name'] ?? '').toString().trim(),
                                 ),
-                              )
-                              .where((name) => name.isNotEmpty)
-                              .toList();
-                          final exercisePreview = exerciseNames.isEmpty
-                              ? "No Exercises"
-                              : exerciseNames.join(", ");
-
-                          final isLockedOut =
-                              workoutLockDayIndex != null &&
-                              dayIndex != workoutLockDayIndex;
-
-                          return Padding(
-                            padding: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
-                            child: Opacity(
-                              opacity: isLockedOut ? 0.5 : 1,
-                              child: InkWell(
-                                borderRadius: TaqaUiScale.radius(15),
-                                onTap: () {
-                                  if (isLockedOut) {
-                                    AppToast.show(
-                                      context,
-                                      "Finish your in-progress workout before viewing other days.",
-                                      type: AppToastType.info,
+                                TaqaTagButton(
+                                  onTap: () async {
+                                    final currentProgram = program;
+                                    if (currentProgram == null) return;
+                                    await Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => TrainingHistoryPage(
+                                          program: currentProgram,
+                                          initialTabIndex:
+                                              _unseenPlanChangeCount > 0
+                                              ? 1
+                                              : 0,
+                                        ),
+                                      ),
                                     );
-                                    return;
-                                  }
-                                  unawaited(
-                                    _openTrainingDayExercisesPage(
-                                      days: days,
-                                      dayIndex: dayIndex,
-                                      dayLabel: dayLabel,
-                                    ),
-                                  );
-                                },
-                                child: Container(
-                                  padding: TaqaUiScale.insetsLTRB(
-                                    14,
-                                    10,
-                                    14,
-                                    10,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: TaqaUiScale.radius(15),
-                                    border: Border.all(
-                                      color: TaqaUiColors.unnamedColor1c1d17
-                                          .withOpacity(0.1),
-                                      width: 1.0,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              _titleCase(dayLabel),
-                                              style: TextStyle(
-                                                fontFamily: TaqaUiFontFamilies
-                                                    .interTight,
-                                                fontSize: TaqaUiScale.sp(15),
-                                                fontWeight: FontWeight.w700,
-                                                height: 25 / 15,
-                                                letterSpacing: 0,
-                                                color: TaqaUiColors
-                                                    .unnamedColor1c1d17,
-                                              ),
-                                            ),
-                                            SizedBox(height: TaqaUiScale.h(19)),
-                                            Text(
-                                              exercisePreview,
-                                              style: TextStyle(
-                                                fontFamily: TaqaUiFontFamilies
-                                                    .interTight,
-                                                fontSize: TaqaUiScale.sp(15),
-                                                fontWeight: FontWeight.w400,
-                                                height: 21 / 15,
-                                                letterSpacing: 0,
-                                                color: TaqaUiColors
-                                                    .unnamedColor1c1d17,
-                                              ),
-                                            ),
-                                            if (dayNote != null &&
-                                                dayNote.trim().isNotEmpty)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                  top: 4,
-                                                ),
-                                                child: Text(
-                                                  dayNote,
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .bodySmall
-                                                      ?.copyWith(
-                                                        color: TaqaUiColors
-                                                            .unnamedColor1c1d17
-                                                            .withOpacity(0.6),
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                      ),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                      if (isCompleted || isWorked)
-                                        const Padding(
-                                          padding: EdgeInsets.only(right: 6),
-                                          child: Icon(
-                                            Icons.check_circle,
-                                            size: 16,
-                                            color: Color(0xFF2ECC71),
-                                          ),
-                                        ),
-                                      Icon(
-                                        Icons.chevron_right,
-                                        size: 18,
-                                        color: TaqaUiColors.unnamedColor1c1d17
-                                            .withOpacity(0.6),
-                                      ),
-                                    ],
-                                  ),
+                                    if (!mounted) return;
+                                    await _refreshTrainingPlanChangeState();
+                                  },
+                                  icon: Icons.history,
+                                  label: "HISTORY",
                                 ),
+                              ],
+                            ),
+                            SizedBox(height: TaqaUiScale.h(5)),
+                            Text(
+                              "Follow the sets & reps shown for each exercise",
+                              style: TextStyle(
+                                fontFamily: TaqaUiFontFamilies.interTight,
+                                fontSize: TaqaUiScale.sp(15),
+                                fontWeight: FontWeight.w400,
+                                height: 18 / 15,
+                                letterSpacing: 0,
+                                color: TaqaUiColors.unnamedColor1c1d17,
                               ),
                             ),
-                          );
-                        }),
-                      ],
-                    ),
-                  ),
-                  RefreshIndicator(
-                    color: Colors.blueAccent,
-                    backgroundColor: Colors.white,
-                    onRefresh: _refreshLightTrainState,
-                    child: _cardioBuilt
-                        ? ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      "Cardio List",
-                                      style: const TextStyle(
-                                        fontFamily:
-                                            TaqaUiFontFamilies.interTight,
-                                        fontSize: 25,
-                                        fontWeight: FontWeight.w700,
-                                        color: TaqaUiColors.unnamedColor1c1d17,
-                                      ),
+                            SizedBox(height: TaqaUiScale.h(30)),
+                            ...dayOrder.asMap().entries.map((entry) {
+                              final displayIndex = entry.key;
+                              final dayIndex = entry.value;
+                              final rawDay = days[dayIndex];
+                              Map<String, dynamic>? dayMap;
+                              if (rawDay is Map<String, dynamic>) {
+                                dayMap = rawDay;
+                              } else if (rawDay is Map) {
+                                dayMap = Map<String, dynamic>.from(rawDay);
+                              }
+                              final dayLabel =
+                                  (dayMap?['day_label'] ??
+                                          dayMap?['label'] ??
+                                          'Day ${dayIndex + 1}')
+                                      .toString();
+                              final dayNote = displayIndex < notesInOrder.length
+                                  ? notesInOrder[displayIndex]
+                                  : null;
+                              final isCompleted =
+                                  displayIndex < completedInOrder.length
+                                  ? completedInOrder[displayIndex]
+                                  : false;
+                              final isWorked =
+                                  displayIndex < workedInOrder.length
+                                  ? workedInOrder[displayIndex]
+                                  : false;
+                              final dayExercises = _trainingExercisesForDay(
+                                days: days,
+                                dayIndex: dayIndex,
+                                dayLabel: dayLabel,
+                              );
+                              final exerciseNames = dayExercises
+                                  .map(
+                                    (ex) => _titleCase(
+                                      (ex['exercise_name'] ?? '')
+                                          .toString()
+                                          .trim(),
                                     ),
-                                  ),
-                                  TaqaTagButton(
-                                    onTap: () async {
-                                      await Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              const CardioHistoryPage(),
+                                  )
+                                  .where((name) => name.isNotEmpty)
+                                  .toList();
+                              final exercisePreview = exerciseNames.isEmpty
+                                  ? "No Exercises"
+                                  : exerciseNames.join(", ");
+
+                              final isLockedOut =
+                                  workoutLockDayIndex != null &&
+                                  dayIndex != workoutLockDayIndex;
+
+                              return Padding(
+                                padding: EdgeInsets.only(
+                                  bottom: TaqaUiScale.h(10),
+                                ),
+                                child: Opacity(
+                                  opacity: isLockedOut ? 0.5 : 1,
+                                  child: InkWell(
+                                    borderRadius: TaqaUiScale.radius(15),
+                                    onTap: () {
+                                      if (isLockedOut) {
+                                        AppToast.show(
+                                          context,
+                                          "Finish your in-progress workout before viewing other days.",
+                                          type: AppToastType.info,
+                                        );
+                                        return;
+                                      }
+                                      unawaited(
+                                        _openTrainingDayExercisesPage(
+                                          days: days,
+                                          dayIndex: dayIndex,
+                                          dayLabel: dayLabel,
                                         ),
                                       );
                                     },
-                                    icon: Icons.history,
-                                    label: "HISTORY",
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              const Text(
-                                "Follow the plan shown for each cardio exercise",
-                                style: TextStyle(
-                                  fontFamily: TaqaUiFontFamilies.interTight,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w400,
-                                  color: TaqaUiColors.unnamedColor1c1d17,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              ...(() {
-                                final plannedCardio =
-                                    _allCardioExercisesForProgram(days);
-                                final cardioExercises = plannedCardio.isNotEmpty
-                                    ? plannedCardio
-                                    : (_cardioLibrary.isNotEmpty
-                                          ? _cardioLibrary
-                                          : _fallbackCardioLibrary);
-                                final widgets = <Widget>[];
-                                if (_hasCardioSession) {
-                                  widgets.add(
-                                    CardioResumeBanner(
-                                      paused: _cardioSessionPaused,
-                                      exerciseName: _sessionExerciseName,
-                                      onContinue: () => _continueCardioSession(
-                                        cardioExercises,
+                                    child: Container(
+                                      padding: TaqaUiScale.insetsLTRB(
+                                        14,
+                                        10,
+                                        14,
+                                        10,
                                       ),
-                                      onCancel: () => unawaited(
-                                        _cancelPausedCardioSession(),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: TaqaUiScale.radius(15),
+                                        border: Border.all(
+                                          color: TaqaUiColors.unnamedColor1c1d17
+                                              .withOpacity(0.1),
+                                          width: 1.0,
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                }
-                                if (cardioExercises.isEmpty) {
-                                  widgets.add(
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 20),
-                                      child: Text(
-                                        t.translate("rest_day"),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleMedium
-                                            ?.copyWith(
-                                              color: TaqaUiColors
-                                                  .unnamedColor1c1d17,
-                                              fontWeight: FontWeight.w700,
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  _titleCase(dayLabel),
+                                                  style: TextStyle(
+                                                    fontFamily:
+                                                        TaqaUiFontFamilies
+                                                            .interTight,
+                                                    fontSize: TaqaUiScale.sp(
+                                                      15,
+                                                    ),
+                                                    fontWeight: FontWeight.w700,
+                                                    height: 25 / 15,
+                                                    letterSpacing: 0,
+                                                    color: TaqaUiColors
+                                                        .unnamedColor1c1d17,
+                                                  ),
+                                                ),
+                                                SizedBox(
+                                                  height: TaqaUiScale.h(19),
+                                                ),
+                                                Text(
+                                                  exercisePreview,
+                                                  style: TextStyle(
+                                                    fontFamily:
+                                                        TaqaUiFontFamilies
+                                                            .interTight,
+                                                    fontSize: TaqaUiScale.sp(
+                                                      15,
+                                                    ),
+                                                    fontWeight: FontWeight.w400,
+                                                    height: 21 / 15,
+                                                    letterSpacing: 0,
+                                                    color: TaqaUiColors
+                                                        .unnamedColor1c1d17,
+                                                  ),
+                                                ),
+                                                if (dayNote != null &&
+                                                    dayNote.trim().isNotEmpty)
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                          top: 4,
+                                                        ),
+                                                    child: Text(
+                                                      dayNote,
+                                                      style: Theme.of(context)
+                                                          .textTheme
+                                                          .bodySmall
+                                                          ?.copyWith(
+                                                            color: TaqaUiColors
+                                                                .unnamedColor1c1d17
+                                                                .withOpacity(
+                                                                  0.6,
+                                                                ),
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                          ),
+                                                    ),
+                                                  ),
+                                              ],
                                             ),
+                                          ),
+                                          if (isCompleted || isWorked)
+                                            const Padding(
+                                              padding: EdgeInsets.only(
+                                                right: 6,
+                                              ),
+                                              child: Icon(
+                                                Icons.check_circle,
+                                                size: 16,
+                                                color: Color(0xFF2ECC71),
+                                              ),
+                                            ),
+                                          Icon(
+                                            Icons.chevron_right,
+                                            size: 18,
+                                            color: TaqaUiColors
+                                                .unnamedColor1c1d17
+                                                .withOpacity(0.6),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  );
-                                  return widgets;
-                                }
-                                final workoutLockDayIndex =
-                                    (_workoutStartMs != null &&
-                                        _workoutDayIndex != null)
-                                    ? _workoutDayIndex
-                                    : null;
-                                widgets.addAll(
-                                  cardioExercises.asMap().entries.map((entry) {
-                                    final ex = entry.value;
-                                    final rawId =
-                                        ex['program_exercise_id'] ??
-                                        ex['exercise_id'] ??
-                                        ex['exercise_name'] ??
-                                        entry.key;
-                                    final normalizedName =
-                                        _normalizeExerciseName(
-                                          ex['exercise_name'],
-                                        );
-                                    final locallyCompleted =
-                                        normalizedName.isNotEmpty &&
-                                        _sessionCompletedExerciseNames.contains(
-                                          normalizedName,
-                                        );
-                                    final rawDayIndex =
-                                        ex['training_day_index'];
-                                    final dayIndex = rawDayIndex is int
-                                        ? rawDayIndex
-                                        : (rawDayIndex is num
-                                              ? rawDayIndex.toInt()
-                                              : int.tryParse(
-                                                  rawDayIndex?.toString() ?? '',
-                                                ));
-                                    final cardDisabled =
-                                        _isDeactivated ||
-                                        (workoutLockDayIndex != null &&
-                                            dayIndex != null &&
-                                            dayIndex != workoutLockDayIndex);
-                                    final exKey = ValueKey("cardio_ex_$rawId");
-                                    return Padding(
-                                      key: exKey,
-                                      padding: const EdgeInsets.only(
-                                        bottom: 14,
+                                  ),
+                                ),
+                              );
+                            }),
+                          ],
+                        ),
+                      ),
+                      RefreshIndicator(
+                        color: Colors.blueAccent,
+                        backgroundColor: Colors.white,
+                        onRefresh: _refreshLightTrainState,
+                        child: _cardioBuilt
+                            ? ListView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                padding: const EdgeInsets.fromLTRB(
+                                  20,
+                                  0,
+                                  20,
+                                  20,
+                                ),
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          "Cardio List",
+                                          style: const TextStyle(
+                                            fontFamily:
+                                                TaqaUiFontFamilies.interTight,
+                                            fontSize: 25,
+                                            fontWeight: FontWeight.w700,
+                                            color:
+                                                TaqaUiColors.unnamedColor1c1d17,
+                                          ),
+                                        ),
                                       ),
-                                      child: ExerciseCard(
-                                        exercise: ex,
-                                        onTap: () {
-                                          unawaited(
-                                            _openCardioExerciseSession(ex),
+                                      TaqaTagButton(
+                                        onTap: () async {
+                                          await Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  const CardioHistoryPage(),
+                                            ),
                                           );
                                         },
-                                        onReplace: () => _openReplaceSheet(ex),
-                                        disabled: cardDisabled,
-                                        forceCompleted: locallyCompleted,
-                                        inProgress: false,
+                                        icon: Icons.history,
+                                        label: "HISTORY",
                                       ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  const Text(
+                                    "Follow the plan shown for each cardio exercise",
+                                    style: TextStyle(
+                                      fontFamily: TaqaUiFontFamilies.interTight,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w400,
+                                      color: TaqaUiColors.unnamedColor1c1d17,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  ...(() {
+                                    final plannedCardio =
+                                        _allCardioExercisesForProgram(days);
+                                    final cardioExercises =
+                                        plannedCardio.isNotEmpty
+                                        ? plannedCardio
+                                        : (_cardioLibrary.isNotEmpty
+                                              ? _cardioLibrary
+                                              : _fallbackCardioLibrary);
+                                    final widgets = <Widget>[];
+                                    if (_hasCardioSession) {
+                                      widgets.add(
+                                        CardioResumeBanner(
+                                          paused: _cardioSessionPaused,
+                                          exerciseName: _sessionExerciseName,
+                                          onContinue: () =>
+                                              _continueCardioSession(
+                                                cardioExercises,
+                                              ),
+                                          onCancel: () => unawaited(
+                                            _cancelPausedCardioSession(),
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                    if (cardioExercises.isEmpty) {
+                                      widgets.add(
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 20,
+                                          ),
+                                          child: Text(
+                                            t.translate("rest_day"),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleMedium
+                                                ?.copyWith(
+                                                  color: TaqaUiColors
+                                                      .unnamedColor1c1d17,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                          ),
+                                        ),
+                                      );
+                                      return widgets;
+                                    }
+                                    final workoutLockDayIndex =
+                                        (_workoutStartMs != null &&
+                                            _workoutDayIndex != null)
+                                        ? _workoutDayIndex
+                                        : null;
+                                    widgets.addAll(
+                                      cardioExercises.asMap().entries.map((
+                                        entry,
+                                      ) {
+                                        final ex = entry.value;
+                                        final rawId =
+                                            ex['program_exercise_id'] ??
+                                            ex['exercise_id'] ??
+                                            ex['exercise_name'] ??
+                                            entry.key;
+                                        final normalizedName =
+                                            _normalizeExerciseName(
+                                              ex['exercise_name'],
+                                            );
+                                        final locallyCompleted =
+                                            normalizedName.isNotEmpty &&
+                                            _sessionCompletedExerciseNames
+                                                .contains(normalizedName);
+                                        final rawDayIndex =
+                                            ex['training_day_index'];
+                                        final dayIndex = rawDayIndex is int
+                                            ? rawDayIndex
+                                            : (rawDayIndex is num
+                                                  ? rawDayIndex.toInt()
+                                                  : int.tryParse(
+                                                      rawDayIndex?.toString() ??
+                                                          '',
+                                                    ));
+                                        final cardDisabled =
+                                            _isDeactivated ||
+                                            (workoutLockDayIndex != null &&
+                                                dayIndex != null &&
+                                                dayIndex !=
+                                                    workoutLockDayIndex);
+                                        final exKey = ValueKey(
+                                          "cardio_ex_$rawId",
+                                        );
+                                        return Padding(
+                                          key: exKey,
+                                          padding: const EdgeInsets.only(
+                                            bottom: 14,
+                                          ),
+                                          child: ExerciseCard(
+                                            exercise: ex,
+                                            onTap: () {
+                                              unawaited(
+                                                _openCardioExerciseSession(ex),
+                                              );
+                                            },
+                                            onReplace: () =>
+                                                _openReplaceSheet(ex),
+                                            disabled: cardDisabled,
+                                            forceCompleted: locallyCompleted,
+                                            inProgress: false,
+                                          ),
+                                        );
+                                      }).toList(),
                                     );
-                                  }).toList(),
-                                );
-                                return widgets;
-                              })(),
-                            ],
-                          )
-                        : const SizedBox.shrink(),
+                                    return widgets;
+                                  })(),
+                                ],
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
+            ),
+            Positioned(
+              top: TaqaUiScale.h(12),
+              left: TaqaUiScale.w(16),
+              child: TaqaPageHeader(title: _titleCase(t.translate("training"))),
             ),
           ],
         ),
@@ -5637,58 +5644,55 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     return Container(
       color: TaqaUiColors.unnamedColorE3e3e3,
       child: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    t.translate("training"),
-                    style: const TextStyle(
-                      fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      height: 2.5,
-                      letterSpacing: 0,
-                      color: TaqaUiColors.unnamedColor1c1d17,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  skeletonLine(width: 140, height: 16),
-                  const SizedBox(height: 12),
-                  Row(
+            Column(
+              children: [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(20, TaqaUiScale.h(60), 20, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      skeletonPill(width: 120),
-                      const SizedBox(width: 10),
-                      skeletonPill(width: 120),
+                      skeletonLine(width: 140, height: 16),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          skeletonPill(width: 120),
+                          const SizedBox(width: 10),
+                          skeletonPill(width: 120),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                children: [
-                  Container(
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                ),
+                Expanded(
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    children: [
+                      Container(
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      skeletonLine(width: 180, height: 14),
+                      const SizedBox(height: 6),
+                      skeletonLine(width: 240, height: 12),
+                      const SizedBox(height: 16),
+                      for (int i = 0; i < 4; i++) skeletonCard(),
+                    ],
                   ),
-                  const SizedBox(height: 24),
-                  skeletonLine(width: 180, height: 14),
-                  const SizedBox(height: 6),
-                  skeletonLine(width: 240, height: 12),
-                  const SizedBox(height: 16),
-                  for (int i = 0; i < 4; i++) skeletonCard(),
-                ],
-              ),
+                ),
+              ],
+            ),
+            Positioned(
+              top: TaqaUiScale.h(12),
+              left: TaqaUiScale.w(16),
+              child: TaqaPageHeader(title: _titleCase(t.translate("training"))),
             ),
           ],
         ),

@@ -9,16 +9,13 @@ import '../../auth/login.dart';
 import '../../screens/welcome.dart';
 import '../../localization/app_localizations.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
+import '../../TaqaUI/components/taqa_page_app_bar.dart';
 
 class ResetPasswordPage extends StatefulWidget {
   final String email;
   final String code;
 
-  const ResetPasswordPage({
-    super.key,
-    required this.email,
-    required this.code,
-  });
+  const ResetPasswordPage({super.key, required this.email, required this.code});
 
   @override
   State<ResetPasswordPage> createState() => _ResetPasswordPageState();
@@ -115,9 +112,10 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
     return Scaffold(
       backgroundColor: AppColors.black,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
+        title: t.translate("reset_password"),
         backgroundColor: AppColors.black,
-        title: Text(t.translate("reset_password")),
+        titleColor: Colors.white,
         leading: AppBarBackButton(
           onTap: () {
             Navigator.pushAndRemoveUntil(

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../TaqaUI/components/taqa_back_button.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../core/account_storage.dart';
 import '../localization/app_localizations.dart';
 import '../services/strava/strava_service.dart';
@@ -133,7 +135,9 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
     final lower = raw.toLowerCase();
     if (lower.contains("activity:write_permission") ||
         lower.contains("activity:write")) {
-      return AppLocalizations.of(context).translate("strava_missing_permission");
+      return AppLocalizations.of(
+        context,
+      ).translate("strava_missing_permission");
     }
     return raw;
   }
@@ -493,7 +497,8 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
     final activities = _asMapList(data['activities']);
     final selected = _asMap(data['selected']);
     final details = _asMap(selected['details']);
-    final selectedName = details['name']?.toString() ?? t('strava_untitled_activity');
+    final selectedName =
+        details['name']?.toString() ?? t('strava_untitled_activity');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -526,7 +531,10 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
                   const SizedBox(width: 8),
                   _sectionTitle(t('strava_your_activities')),
                   const Spacer(),
-                  _metricChip(label: t('strava_count_label'), value: '${activities.length}'),
+                  _metricChip(
+                    label: t('strava_count_label'),
+                    value: '${activities.length}',
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -552,7 +560,8 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
               else
                 ...activities.take(20).map((item) {
                   final id = _asInt(item['id']);
-                  final name = item['name']?.toString() ?? t('strava_untitled_activity');
+                  final name =
+                      item['name']?.toString() ?? t('strava_untitled_activity');
                   final type =
                       item['sport_type']?.toString() ??
                       item['type']?.toString() ??
@@ -562,7 +571,8 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
                   final selectedItem = id != null && id == _selectedActivityId;
                   return _buildActivityListItem(
                     title: name,
-                    subtitle: '$type\n${t("fitbit_distance_label")}: $distance\n${t("strava_moving_time")}: $moving',
+                    subtitle:
+                        '$type\n${t("fitbit_distance_label")}: $distance\n${t("strava_moving_time")}: $moving',
                     selected: selectedItem,
                     onTap: id == null ? null : () => _load(activityId: id),
                   );
@@ -738,7 +748,10 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _metricChip(label: t('strava_id_label'), value: _fmtInt(activity['id'])),
+              _metricChip(
+                label: t('strava_id_label'),
+                value: _fmtInt(activity['id']),
+              ),
               _metricChip(
                 label: t('strava_name_label'),
                 value: activity['name']?.toString() ?? '—',
@@ -854,7 +867,11 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
                     backgroundColor: const Color(0xFFFC4C02),
                     foregroundColor: Colors.white,
                   ),
-                  child: Text(_creating ? t("strava_creating") : t("strava_create_activity_btn")),
+                  child: Text(
+                    _creating
+                        ? t("strava_creating")
+                        : t("strava_create_activity_btn"),
+                  ),
                 ),
               ),
             ],
@@ -886,7 +903,9 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
                 onPressed: widget.kind == StravaDetailKind.create
                     ? null
                     : _load,
-                child: Text(AppLocalizations.of(context).translate("common_retry")),
+                child: Text(
+                  AppLocalizations.of(context).translate("common_retry"),
+                ),
               ),
             ],
           ),
@@ -907,9 +926,11 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_pageTitle(context)),
+      appBar: TaqaPageAppBar(
+        title: _pageTitle(context),
         backgroundColor: const Color(0xFF111217),
+        titleColor: Colors.white,
+        leading: const TaqaBackButton(color: Colors.white),
       ),
       backgroundColor: const Color(0xFF111217),
       body: ListView(

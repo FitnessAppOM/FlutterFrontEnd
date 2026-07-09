@@ -10,6 +10,7 @@ import '../widgets/primary_button.dart';
 import '../localization/app_localizations.dart'; // ADDED
 import 'verification_success_page.dart';
 import '../TaqaUI/components/taqa_toast.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../services/core/notification_service.dart';
 import '../services/core/daily_provider_push_service.dart';
 
@@ -203,10 +204,10 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
 
     return Scaffold(
       backgroundColor: AppColors.black,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
+        title: t.translate("verification_title"),
         backgroundColor: AppColors.black,
-        title: Text(t.translate("verification_title")),
-        elevation: 0,
+        titleColor: Colors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),

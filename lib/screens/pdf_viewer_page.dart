@@ -7,8 +7,9 @@ import 'package:path_provider/path_provider.dart';
 
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/components/taqa_back_button.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
-import '../TaqaUI/styles/taqa_ui_styles.dart';
 
 class PdfViewerPage extends StatefulWidget {
   const PdfViewerPage({super.key, required this.url, this.title = 'Document'});
@@ -52,14 +53,11 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TaqaUiColors.unnamedColor1c1d17,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
+        title: widget.title,
         backgroundColor: TaqaUiColors.unnamedColor1c1d17,
-        surfaceTintColor: Colors.transparent,
-        centerTitle: true,
-        title: Text(
-          widget.title,
-          style: TaqaUiStyles.pageTitle.copyWith(color: TaqaUiColors.white),
-        ),
+        titleColor: TaqaUiColors.white,
+        leading: const TaqaBackButton(color: TaqaUiColors.white),
       ),
       body: SafeArea(child: _buildBody()),
     );

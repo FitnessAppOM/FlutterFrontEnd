@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../TaqaUI/components/taqa_empty_card.dart';
 import '../TaqaUI/components/taqa_linear_metric_card.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_progress_widget_card.dart';
 import '../TaqaUI/components/taqa_sleep_stages_wide_card.dart';
 import '../TaqaUI/components/taqa_steps_ui.dart';
@@ -553,22 +554,10 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     final bars = _buildBars(theme);
 
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        title: Text(
-          t("sleep_title"),
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: TaqaUiScale.sp(15),
-            fontWeight: FontWeight.w700,
-            height: 25 / 15,
-            letterSpacing: 0,
-            color: TaqaUiColors.unnamedColor1c1d17,
-          ),
-        ),
+      appBar: TaqaPageAppBar(
+        title: t("sleep_title"),
         backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-        elevation: 0,
+        titleColor: TaqaUiColors.unnamedColor1c1d17,
       ),
       resizeToAvoidBottomInset: false,
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
@@ -662,10 +651,9 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
           children: [
             Expanded(
               child: Text(
-                t("sleep_goal_btn").replaceAll(
-                  "{value}",
-                  (_goal ?? 8.0).toStringAsFixed(1),
-                ),
+                t(
+                  "sleep_goal_btn",
+                ).replaceAll("{value}", (_goal ?? 8.0).toStringAsFixed(1)),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -771,7 +759,10 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
           backgroundColor: AppColors.cardDark,
           title: Text(
             t("sleep_details_dialog_title"),
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           content: SizedBox(
             width: double.maxFinite,
@@ -943,13 +934,16 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                       ? "0"
                       : (napCount == null ? "0" : napCount.toString()),
                   subtitle: isLoading
-                      ? t("sleep_naps_total_subtitle").replaceAll("{hours}", "0.0")
+                      ? t(
+                          "sleep_naps_total_subtitle",
+                        ).replaceAll("{hours}", "0.0")
                       : (napHours == null
-                            ? t("sleep_naps_total_subtitle").replaceAll("{hours}", "0.0")
-                            : t("sleep_naps_total_subtitle").replaceAll(
-                                "{hours}",
-                                _formatHours(napHours),
-                              )),
+                            ? t(
+                                "sleep_naps_total_subtitle",
+                              ).replaceAll("{hours}", "0.0")
+                            : t(
+                                "sleep_naps_total_subtitle",
+                              ).replaceAll("{hours}", _formatHours(napHours))),
                 ),
               ),
             ],
@@ -962,7 +956,6 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
             deepPct: (isLoading || !hasMetrics) ? 0 : (stage["slow_wave"] ?? 0),
             remPct: (isLoading || !hasMetrics) ? 0 : (stage["rem"] ?? 0),
           ),
-
         ],
       ),
     );
@@ -1436,7 +1429,9 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                               color: TaqaUiColors.charcoal,
                               borderRadius: TaqaUiScale.radius(10),
                               border: Border.all(
-                                color: TaqaUiColors.lime.withValues(alpha: 0.45),
+                                color: TaqaUiColors.lime.withValues(
+                                  alpha: 0.45,
+                                ),
                                 width: 0.5,
                               ),
                             ),
@@ -1494,7 +1489,9 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       case 'monthly':
         final ref = _rangeStart ?? _anchorDate;
         final days = DateTime(ref.year, ref.month + 1, 0).day;
-        return short ? "${days}d" : t("range_last_n_days").replaceAll("{n}", "$days");
+        return short
+            ? "${days}d"
+            : t("range_last_n_days").replaceAll("{n}", "$days");
       case 'yearly':
         return short ? "1y" : t("range_last_year");
       case 'weekly':

@@ -10,6 +10,7 @@ import '../main/main_layout.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
 import '../TaqaUI/components/taqa_text_field.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../widgets/social_button.dart';
@@ -499,7 +500,9 @@ class _SignupPageState extends State<SignupPage> {
       child: AnimatedOpacity(
         opacity: _hidePasswordRules ? 0.0 : 1.0,
         duration: const Duration(milliseconds: 300),
-        child: _hidePasswordRules ? const SizedBox(width: double.infinity) : card,
+        child: _hidePasswordRules
+            ? const SizedBox(width: double.infinity)
+            : card,
       ),
     );
   }
@@ -550,22 +553,9 @@ class _SignupPageState extends State<SignupPage> {
 
     return Scaffold(
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-      appBar: AppBar(
-        centerTitle: true,
-        title: Text(
-          t.translate(titleKey),
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: TaqaUiScale.sp(15),
-            fontWeight: FontWeight.w700,
-            height: 25 / 15,
-            letterSpacing: 0,
-            color: TaqaUiColors.unnamedColor1c1d17,
-          ),
-        ),
+      appBar: TaqaPageAppBar(
+        title: t.translate(titleKey),
         backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-        elevation: 0,
       ),
       body: SingleChildScrollView(
         padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
@@ -657,9 +647,7 @@ class _SignupPageState extends State<SignupPage> {
                   onChanged: (_) => _onPasswordChanged(),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      passwordVisible
-                          ? Icons.visibility_off
-                          : Icons.visibility,
+                      passwordVisible ? Icons.visibility_off : Icons.visibility,
                       color: TaqaUiColors.unnamedColor1c1d17.withValues(
                         alpha: 0.6,
                       ),

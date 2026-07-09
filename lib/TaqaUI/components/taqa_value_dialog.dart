@@ -376,6 +376,8 @@ Future<String?> showTaqaTextValueDialog({
   TextInputType keyboardType = TextInputType.number,
   String? unit,
   String confirmLabel = "SAVE",
+  String hintText = "0",
+  int? maxLength,
 }) {
   return _showTaqaInputDialog(
     context: context,
@@ -384,6 +386,8 @@ Future<String?> showTaqaTextValueDialog({
     keyboardType: keyboardType,
     unit: unit,
     confirmLabel: confirmLabel,
+    hintText: hintText,
+    maxLength: maxLength,
   );
 }
 
@@ -394,6 +398,8 @@ Future<String?> _showTaqaInputDialog({
   required TextInputType keyboardType,
   String? unit,
   String confirmLabel = "SAVE",
+  String hintText = "0",
+  int? maxLength,
 }) async {
   final controller = TextEditingController(text: initialValue);
   final focusNode = FocusNode();
@@ -413,148 +419,133 @@ Future<String?> _showTaqaInputDialog({
                 child: Material(
                   color: Colors.transparent,
                   clipBehavior: Clip.none,
-                  child: Container(
-                    constraints: BoxConstraints(maxWidth: TaqaUiScale.w(356)),
-                    padding: TaqaUiScale.insetsLTRB(17, 15, 17, 15),
-                    decoration: BoxDecoration(
-                      color: TaqaUiColors.white,
-                      borderRadius: TaqaUiScale.radius(15),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(
-                          title,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontFamily: TaqaUiFontFamilies.interTight,
-                            fontSize: TaqaUiScale.sp(15),
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0,
-                            color: TaqaUiColors.unnamedColor1c1d17,
+                  child: GestureDetector(
+                    onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+                    child: Container(
+                      constraints: BoxConstraints(maxWidth: TaqaUiScale.w(356)),
+                      padding: TaqaUiScale.insetsLTRB(17, 15, 17, 15),
+                      decoration: BoxDecoration(
+                        color: TaqaUiColors.white,
+                        borderRadius: TaqaUiScale.radius(15),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            title,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: TaqaUiScale.sp(15),
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0,
+                              color: TaqaUiColors.unnamedColor1c1d17,
+                            ),
                           ),
-                        ),
-                        SizedBox(height: TaqaUiScale.h(33)),
-                        SizedBox(
-                          height: TaqaUiScale.h(30),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              IntrinsicWidth(
-                                child: TextField(
-                                  controller: controller,
-                                  focusNode: focusNode,
-                                  keyboardType: keyboardType,
-                                  autofocus: true,
-                                  textAlign: TextAlign.center,
-                                  onTap: () {
-                                    controller.selection = TextSelection(
-                                      baseOffset: 0,
-                                      extentOffset: controller.text.length,
-                                    );
-                                    if (!hasEdited) {
-                                      setLocalState(() => hasEdited = true);
-                                    }
-                                  },
-                                  onChanged: (_) {
-                                    if (!hasEdited) {
-                                      setLocalState(() => hasEdited = true);
-                                    }
-                                  },
-                                  style: TextStyle(
-                                    fontFamily: TaqaUiFontFamilies.interTight,
-                                    fontSize: TaqaUiScale.sp(25),
-                                    fontWeight: FontWeight.w400,
-                                    height: 1,
-                                    letterSpacing: 0,
-                                    color: hasEdited
-                                        ? TaqaUiColors.unnamedColor1c1d17
-                                        : TaqaUiColors.unnamedColorE3e3e3,
-                                  ),
-                                  decoration: const InputDecoration(
-                                    isDense: true,
-                                    filled: false,
-                                    border: InputBorder.none,
-                                    enabledBorder: InputBorder.none,
-                                    focusedBorder: InputBorder.none,
-                                    disabledBorder: InputBorder.none,
-                                    errorBorder: InputBorder.none,
-                                    focusedErrorBorder: InputBorder.none,
-                                    contentPadding: EdgeInsets.zero,
-                                    hintText: "0",
-                                  ),
-                                ),
-                              ),
-                              if (unit != null && unit.trim().isNotEmpty) ...[
-                                SizedBox(width: TaqaUiScale.w(4)),
-                                Padding(
-                                  padding: EdgeInsets.only(
-                                    bottom: TaqaUiScale.h(6),
-                                  ),
-                                  child: Text(
-                                    unit,
+                          SizedBox(height: TaqaUiScale.h(33)),
+                          SizedBox(
+                            height: TaqaUiScale.h(30),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                IntrinsicWidth(
+                                  child: TextField(
+                                    controller: controller,
+                                    focusNode: focusNode,
+                                    keyboardType: keyboardType,
+                                    maxLength: maxLength,
+                                    autofocus: true,
+                                    textAlign: TextAlign.center,
+                                    onTap: () {
+                                      controller.selection = TextSelection(
+                                        baseOffset: 0,
+                                        extentOffset: controller.text.length,
+                                      );
+                                      if (!hasEdited) {
+                                        setLocalState(() => hasEdited = true);
+                                      }
+                                    },
+                                    onChanged: (_) {
+                                      if (!hasEdited) {
+                                        setLocalState(() => hasEdited = true);
+                                      }
+                                    },
                                     style: TextStyle(
-                                      fontFamily:
-                                          TaqaUiFontFamilies.interTight,
-                                      fontSize: TaqaUiScale.sp(15),
+                                      fontFamily: TaqaUiFontFamilies.interTight,
+                                      fontSize: TaqaUiScale.sp(25),
                                       fontWeight: FontWeight.w400,
+                                      height: 1,
                                       letterSpacing: 0,
-                                      color: TaqaUiColors.unnamedColor1c1d17
-                                          .withValues(alpha: 0.5),
+                                      color: hasEdited
+                                          ? TaqaUiColors.unnamedColor1c1d17
+                                          : TaqaUiColors.unnamedColorE3e3e3,
                                     ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        SizedBox(height: TaqaUiScale.h(33)),
-                        SizedBox(
-                          height: TaqaUiScale.h(45),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () => Navigator.pop(ctx),
-                                  child: Center(
-                                    child: Text(
-                                      "CANCEL",
-                                      style: TextStyle(
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      filled: false,
+                                      border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      disabledBorder: InputBorder.none,
+                                      errorBorder: InputBorder.none,
+                                      focusedErrorBorder: InputBorder.none,
+                                      contentPadding: EdgeInsets.zero,
+                                      counterText: "",
+                                      hintText: hintText,
+                                      hintStyle: TextStyle(
                                         fontFamily:
                                             TaqaUiFontFamilies.interTight,
-                                        fontSize: TaqaUiScale.sp(10),
-                                        fontWeight: FontWeight.w600,
-                                        height: 12 / 10,
+                                        fontSize: TaqaUiScale.sp(25),
+                                        fontWeight: FontWeight.w400,
+                                        height: 1,
                                         letterSpacing: 0,
-                                        color: TaqaUiColors.unnamedColor1c1d17,
+                                        color: TaqaUiColors.unnamedColorE3e3e3,
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              Material(
-                                color: TaqaUiColors.unnamedColorE4e93b,
-                                borderRadius: TaqaUiScale.radius(5),
-                                child: InkWell(
-                                  borderRadius: TaqaUiScale.radius(5),
-                                  onTap: () => Navigator.pop(
-                                    ctx,
-                                    controller.text.trim(),
+                                if (unit != null && unit.trim().isNotEmpty) ...[
+                                  SizedBox(width: TaqaUiScale.w(4)),
+                                  Padding(
+                                    padding: EdgeInsets.only(
+                                      bottom: TaqaUiScale.h(6),
+                                    ),
+                                    child: Text(
+                                      unit,
+                                      style: TextStyle(
+                                        fontFamily:
+                                            TaqaUiFontFamilies.interTight,
+                                        fontSize: TaqaUiScale.sp(15),
+                                        fontWeight: FontWeight.w400,
+                                        letterSpacing: 0,
+                                        color: TaqaUiColors.unnamedColor1c1d17
+                                            .withValues(alpha: 0.5),
+                                      ),
+                                    ),
                                   ),
-                                  child: SizedBox(
-                                    width: TaqaUiScale.w(159),
-                                    height: TaqaUiScale.h(45),
+                                ],
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: TaqaUiScale.h(33)),
+                          SizedBox(
+                            height: TaqaUiScale.h(45),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () => Navigator.pop(ctx),
                                     child: Center(
                                       child: Text(
-                                        confirmLabel,
+                                        "CANCEL",
                                         style: TextStyle(
                                           fontFamily:
                                               TaqaUiFontFamilies.interTight,
                                           fontSize: TaqaUiScale.sp(10),
-                                          fontWeight: FontWeight.w700,
+                                          fontWeight: FontWeight.w600,
                                           height: 12 / 10,
                                           letterSpacing: 0,
                                           color:
@@ -564,11 +555,41 @@ Future<String?> _showTaqaInputDialog({
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
+                                Material(
+                                  color: TaqaUiColors.unnamedColorE4e93b,
+                                  borderRadius: TaqaUiScale.radius(5),
+                                  child: InkWell(
+                                    borderRadius: TaqaUiScale.radius(5),
+                                    onTap: () => Navigator.pop(
+                                      ctx,
+                                      controller.text.trim(),
+                                    ),
+                                    child: SizedBox(
+                                      width: TaqaUiScale.w(159),
+                                      height: TaqaUiScale.h(45),
+                                      child: Center(
+                                        child: Text(
+                                          confirmLabel,
+                                          style: TextStyle(
+                                            fontFamily:
+                                                TaqaUiFontFamilies.interTight,
+                                            fontSize: TaqaUiScale.sp(10),
+                                            fontWeight: FontWeight.w700,
+                                            height: 12 / 10,
+                                            letterSpacing: 0,
+                                            color:
+                                                TaqaUiColors.unnamedColor1c1d17,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),

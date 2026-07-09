@@ -9,6 +9,7 @@ import '../services/auth/auth_service.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
 import '../TaqaUI/components/taqa_text_field.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../widgets/social_button.dart';
@@ -17,7 +18,7 @@ import '../widgets/saved_account_tile.dart';
 
 import '../localization/app_localizations.dart';
 import '../screens/ForgetPassword/forgot_password_page.dart';
-import '../main/main_layout.dart';           // <-- MAIN PAGE
+import '../main/main_layout.dart'; // <-- MAIN PAGE
 import '../screens/daily_journal.dart';
 import '../screens/account_restore_page.dart';
 import '../screens/expert_dashboard_page.dart';
@@ -80,7 +81,10 @@ class _LoginPageState extends State<LoginPage> {
     final userId = await AccountStorage.getUserId();
     final token = await AccountStorage.getAccessToken();
     final validSession =
-        userId != null && userId > 0 && token != null && token.trim().isNotEmpty;
+        userId != null &&
+        userId > 0 &&
+        token != null &&
+        token.trim().isNotEmpty;
 
     if (!mounted) return;
     setState(() {
@@ -94,9 +98,7 @@ class _LoginPageState extends State<LoginPage> {
     });
   }
 
-  Future<void> _navigatePostAuth({
-    required int userId,
-  }) async {
+  Future<void> _navigatePostAuth({required int userId}) async {
     try {
       final lang = AppLocalizations.of(context).locale.languageCode;
       final profile = await ProfileApi.fetchProfile(userId, lang: lang);
@@ -120,14 +122,15 @@ class _LoginPageState extends State<LoginPage> {
         }
         final directNotificationTarget =
             await NavigationService.consumeDirectNotificationTarget();
-        final target = directNotificationTarget ??
+        final target =
+            directNotificationTarget ??
             (NavigationService.journalNotificationPending
-            ? const DailyJournalPage()
-            : (NavigationService.dietNotificationPending
-                ? const MainLayout(initialIndex: 0)
-                : (expertAiPending
-                    ? const ExpertDashboardPage()
-                    : const MainLayout())));
+                ? const DailyJournalPage()
+                : (NavigationService.dietNotificationPending
+                      ? const MainLayout(initialIndex: 0)
+                      : (expertAiPending
+                            ? const ExpertDashboardPage()
+                            : const MainLayout())));
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => target),
@@ -208,11 +211,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final response = await http
-          .post(
-            url,
-            headers: {"Content-Type": "application/json"},
-            body: body,
-          )
+          .post(url, headers: {"Content-Type": "application/json"}, body: body)
           .timeout(const Duration(seconds: 12));
 
       Map<String, dynamic>? data;
@@ -224,14 +223,16 @@ class _LoginPageState extends State<LoginPage> {
 
       if (response.statusCode == 200) {
         final rawId = data?['user_id'] ?? data?['id'];
-        final int userId =
-            rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
-        final token = (data?['access_token'] ??
-                data?['accessToken'] ??
-                data?['jwt'] ??
-                data?['token'])
-            ?.toString()
-            ?.trim();
+        final int userId = rawId is int
+            ? rawId
+            : int.tryParse(rawId?.toString() ?? '') ?? 0;
+        final token =
+            (data?['access_token'] ??
+                    data?['accessToken'] ??
+                    data?['jwt'] ??
+                    data?['token'])
+                ?.toString()
+                ?.trim();
 
         // Backend must return user_id and access_token; otherwise do not overwrite storage
         if (userId <= 0 || token == null || token.isEmpty) {
@@ -245,10 +246,11 @@ class _LoginPageState extends State<LoginPage> {
         }
 
         final emailFromApi = (data?['email'] ?? mail).toString();
-        final name = (data?['username'] ??
-                data?['full_name'] ??
-                emailFromApi.split('@').first)
-            .toString();
+        final name =
+            (data?['username'] ??
+                    data?['full_name'] ??
+                    emailFromApi.split('@').first)
+                .toString();
         await AccountStorage.saveUserSession(
           userId: userId,
           email: emailFromApi,
@@ -264,7 +266,10 @@ class _LoginPageState extends State<LoginPage> {
         // Verify session was stored (avoids "user id missing" if storage failed)
         final savedId = await AccountStorage.getUserId();
         final savedToken = await AccountStorage.getAccessToken();
-        if (savedId == null || savedId <= 0 || savedToken == null || savedToken.isEmpty) {
+        if (savedId == null ||
+            savedId <= 0 ||
+            savedToken == null ||
+            savedToken.isEmpty) {
           if (!mounted) return;
           AppToast.show(
             context,
@@ -276,9 +281,7 @@ class _LoginPageState extends State<LoginPage> {
 
         if (!mounted) return;
 
-        await _navigatePostAuth(
-          userId: userId,
-        );
+        await _navigatePostAuth(userId: userId);
 
         // Fire-and-forget: do not block navigation if these fail.
         NotificationService.refreshDailyJournalRemindersForCurrentUser();
@@ -304,7 +307,8 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      final deactivated = response.statusCode == 403 &&
+      final deactivated =
+          response.statusCode == 403 &&
           (detail.toLowerCase().contains('deactivated') ||
               detail.toLowerCase().contains('reactivate'));
       if (deactivated) {
@@ -312,10 +316,8 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
-            builder: (_) => AccountRestorePage(
-              initialPayload: data,
-              prefilledEmail: mail,
-            ),
+            builder: (_) =>
+                AccountRestorePage(initialPayload: data, prefilledEmail: mail),
           ),
           (_) => false,
         );
@@ -357,14 +359,16 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     final rawId = result["user_id"] ?? result["id"];
-    final int userId =
-        rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
-    final accessToken = (result["access_token"] ??
-            result["accessToken"] ??
-            result["jwt"] ??
-            result["token"])
-        ?.toString()
-        ?.trim();
+    final int userId = rawId is int
+        ? rawId
+        : int.tryParse(rawId?.toString() ?? '') ?? 0;
+    final accessToken =
+        (result["access_token"] ??
+                result["accessToken"] ??
+                result["jwt"] ??
+                result["token"])
+            ?.toString()
+            ?.trim();
 
     if (userId <= 0 || accessToken == null || accessToken.isEmpty) {
       if (!mounted) return;
@@ -393,7 +397,10 @@ class _LoginPageState extends State<LoginPage> {
 
     final savedId = await AccountStorage.getUserId();
     final savedToken = await AccountStorage.getAccessToken();
-    if (savedId == null || savedId <= 0 || savedToken == null || savedToken.isEmpty) {
+    if (savedId == null ||
+        savedId <= 0 ||
+        savedToken == null ||
+        savedToken.isEmpty) {
       if (!mounted) return;
       AppToast.show(
         context,
@@ -411,9 +418,7 @@ class _LoginPageState extends State<LoginPage> {
       type: AppToastType.success,
     );
 
-    await _navigatePostAuth(
-      userId: userId,
-    );
+    await _navigatePostAuth(userId: userId);
 
     // Fire-and-forget: do not block navigation if these fail.
     NotificationService.refreshDailyJournalRemindersForCurrentUser();
@@ -441,14 +446,16 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     final rawId = result["user_id"] ?? result["id"];
-    final int userId =
-        rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
-    final accessToken = (result["access_token"] ??
-            result["accessToken"] ??
-            result["jwt"] ??
-            result["token"])
-        ?.toString()
-        ?.trim();
+    final int userId = rawId is int
+        ? rawId
+        : int.tryParse(rawId?.toString() ?? '') ?? 0;
+    final accessToken =
+        (result["access_token"] ??
+                result["accessToken"] ??
+                result["jwt"] ??
+                result["token"])
+            ?.toString()
+            ?.trim();
 
     if (userId <= 0 || accessToken == null || accessToken.isEmpty) {
       if (!mounted) return;
@@ -477,7 +484,10 @@ class _LoginPageState extends State<LoginPage> {
 
     final savedId = await AccountStorage.getUserId();
     final savedToken = await AccountStorage.getAccessToken();
-    if (savedId == null || savedId <= 0 || savedToken == null || savedToken.isEmpty) {
+    if (savedId == null ||
+        savedId <= 0 ||
+        savedToken == null ||
+        savedToken.isEmpty) {
       if (!mounted) return;
       AppToast.show(
         context,
@@ -495,17 +505,12 @@ class _LoginPageState extends State<LoginPage> {
       type: AppToastType.success,
     );
 
-    await _navigatePostAuth(
-      userId: userId,
-    );
+    await _navigatePostAuth(userId: userId);
 
     // Fire-and-forget: do not block navigation if these fail.
     NotificationService.refreshDailyJournalRemindersForCurrentUser();
     DailyProviderPushService().pushIfAfterOneAmLocal().catchError((_) {});
   }
-
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -515,22 +520,9 @@ class _LoginPageState extends State<LoginPage> {
 
     return Scaffold(
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-      appBar: AppBar(
-        centerTitle: true,
-        title: Text(
-          t.translate("login_title"),
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: TaqaUiScale.sp(15),
-            fontWeight: FontWeight.w700,
-            height: 25 / 15,
-            letterSpacing: 0,
-            color: TaqaUiColors.unnamedColor1c1d17,
-          ),
-        ),
+      appBar: TaqaPageAppBar(
+        title: t.translate("login_title"),
         backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-        elevation: 0,
       ),
       body: SingleChildScrollView(
         padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
@@ -563,7 +555,9 @@ class _LoginPageState extends State<LoginPage> {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => ForgotPasswordPage()),
+                          MaterialPageRoute(
+                            builder: (_) => ForgotPasswordPage(),
+                          ),
                         );
                       },
                       child: Text(

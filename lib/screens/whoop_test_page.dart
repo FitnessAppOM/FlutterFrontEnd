@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../config/base_url.dart';
 import '../core/account_storage.dart';
 import '../theme/app_theme.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../widgets/primary_button.dart';
 import '../services/whoop/whoop_latest_service.dart';
@@ -93,14 +94,17 @@ class _WhoopTestPageState extends State<WhoopTestPage> {
         callbackUrlScheme: 'taqa',
       );
       final uri = Uri.tryParse(result);
-      final ok = uri != null &&
+      final ok =
+          uri != null &&
           uri.scheme == 'taqa' &&
           uri.host == 'whoop' &&
           uri.path == '/success';
       if (!mounted) return;
       setState(() {
         _statusOk = ok;
-        _statusMessage = ok ? "Whoop connected successfully." : "Whoop connect failed.";
+        _statusMessage = ok
+            ? "Whoop connected successfully."
+            : "Whoop connect failed.";
       });
       if (ok) {
         await _loadWhoopStatus();
@@ -193,10 +197,10 @@ class _WhoopTestPageState extends State<WhoopTestPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.black,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
+        title: "Whoop Test",
         backgroundColor: AppColors.black,
-        title: const Text("Whoop Test"),
-        elevation: 0,
+        titleColor: Colors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -210,8 +214,8 @@ class _WhoopTestPageState extends State<WhoopTestPage> {
                     _loading
                         ? "Loading user..."
                         : _userId == null
-                            ? "No user found"
-                            : "User id: $_userId",
+                        ? "No user found"
+                        : "User id: $_userId",
                     style: const TextStyle(color: Colors.white70),
                   ),
                   const SizedBox(height: 16),
@@ -226,7 +230,9 @@ class _WhoopTestPageState extends State<WhoopTestPage> {
                   SizedBox(
                     width: double.infinity,
                     child: PrimaryWhiteButton(
-                      onPressed: (!_statusOk || _profileLoading) ? null : _loadWhoopData,
+                      onPressed: (!_statusOk || _profileLoading)
+                          ? null
+                          : _loadWhoopData,
                       child: _profileLoading
                           ? const SizedBox(
                               height: 18,
@@ -241,7 +247,9 @@ class _WhoopTestPageState extends State<WhoopTestPage> {
                     Text(
                       _statusMessage!,
                       style: TextStyle(
-                        color: _statusOk ? Colors.greenAccent : Colors.redAccent,
+                        color: _statusOk
+                            ? Colors.greenAccent
+                            : Colors.redAccent,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -268,7 +276,10 @@ class _WhoopTestPageState extends State<WhoopTestPage> {
                         children: [
                           _buildDataSection("Profile", _whoopData!["profile"]),
                           const SizedBox(height: 12),
-                          _buildDataSection("Recovery", _whoopData!["recovery"]),
+                          _buildDataSection(
+                            "Recovery",
+                            _whoopData!["recovery"],
+                          ),
                           const SizedBox(height: 12),
                           _buildDataSection("Cycles", _whoopData!["cycles"]),
                           const SizedBox(height: 12),
@@ -276,7 +287,10 @@ class _WhoopTestPageState extends State<WhoopTestPage> {
                           const SizedBox(height: 12),
                           _buildDataSection("Workout", _whoopData!["workout"]),
                           const SizedBox(height: 12),
-                          _buildDataSection("Body Measurement", _whoopData!["body_measurement"]),
+                          _buildDataSection(
+                            "Body Measurement",
+                            _whoopData!["body_measurement"],
+                          ),
                         ],
                       ),
                     ),

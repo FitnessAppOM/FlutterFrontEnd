@@ -15,6 +15,7 @@ import '../services/core/notification_service.dart';
 import '../services/core/daily_provider_push_service.dart';
 import '../screens/welcome.dart';
 import 'expert_dashboard_page.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 
 class AccountRestorePage extends StatefulWidget {
   const AccountRestorePage({
@@ -289,14 +290,15 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
         }
         final directNotificationTarget =
             await NavigationService.consumeDirectNotificationTarget();
-        final target = directNotificationTarget ??
+        final target =
+            directNotificationTarget ??
             (NavigationService.journalNotificationPending
-            ? const DailyJournalPage()
-            : (NavigationService.dietNotificationPending
-                  ? const MainLayout(initialIndex: 0)
-                  : (expertAiPending
-                      ? const ExpertDashboardPage()
-                      : const MainLayout())));
+                ? const DailyJournalPage()
+                : (NavigationService.dietNotificationPending
+                      ? const MainLayout(initialIndex: 0)
+                      : (expertAiPending
+                            ? const ExpertDashboardPage()
+                            : const MainLayout())));
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => target),
@@ -351,15 +353,14 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
 
     return Scaffold(
       backgroundColor: AppColors.black,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
+        title: t.translate("account_restore_title"),
         backgroundColor: AppColors.black,
-        title: Text(t.translate("account_restore_title")),
-        actions: [
-          TextButton(
-            onPressed: _closeRestorePrompt,
-            child: Text(t.translate("account_restore_not_now")),
-          ),
-        ],
+        titleColor: Colors.white,
+        trailing: TextButton(
+          onPressed: _closeRestorePrompt,
+          child: Text(t.translate("account_restore_not_now")),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),

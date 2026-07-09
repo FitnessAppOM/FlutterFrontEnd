@@ -12,6 +12,7 @@ import 'package:record/record.dart';
 import '../services/coach/progression_review_service.dart';
 import '../services/coach/voice_note_audio_service.dart';
 import '../theme/app_theme.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 
 class ExpertClientDietReviewPage extends StatefulWidget {
@@ -2051,29 +2052,27 @@ class _ExpertClientDietReviewPageState
 
     return Scaffold(
       backgroundColor: AppColors.black,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
         backgroundColor: AppColors.black,
-        title: Text('${widget.clientName} • Diet Review'),
-        actions: [
-          TextButton.icon(
-            onPressed: _uploadingDietDocument ? null : _uploadDietDocument,
-            icon: _uploadingDietDocument
-                ? const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.upload_file),
-            label: Text(
-              _uploadingDietDocument ? 'Uploading...' : 'Upload a plan',
-            ),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.white,
-              textStyle: const TextStyle(fontWeight: FontWeight.w700),
-            ),
+        titleColor: Colors.white,
+        title: '${widget.clientName} • Diet Review',
+        trailing: TextButton.icon(
+          onPressed: _uploadingDietDocument ? null : _uploadDietDocument,
+          icon: _uploadingDietDocument
+              ? const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.upload_file),
+          label: Text(
+            _uploadingDietDocument ? 'Uploading...' : 'Upload a plan',
           ),
-          const SizedBox(width: 8),
-        ],
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.white,
+            textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: () => _loadAll(forceRefresh: true),

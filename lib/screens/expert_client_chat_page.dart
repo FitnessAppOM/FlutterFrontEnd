@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../config/base_url.dart';
 import '../core/account_storage.dart';
 import '../main/main_layout.dart';
@@ -1348,8 +1349,7 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
                           minLines: 1,
                           maxLines: 5,
                           textInputAction: TextInputAction.newline,
-                          onTapOutside: (_) =>
-                              FocusScope.of(context).unfocus(),
+                          onTapOutside: (_) => FocusScope.of(context).unfocus(),
                           onChanged: (_) => setState(() {}),
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
@@ -1435,21 +1435,20 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
     final canPop = Navigator.of(context).canPop();
     return Scaffold(
       backgroundColor: AppColors.black,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
+        title: 'Support Chat',
         backgroundColor: AppColors.black,
+        titleColor: Colors.white,
         leading: IconButton(
           onPressed: _handleBackPressed,
           icon: Icon(canPop ? Icons.arrow_back : Icons.close),
           tooltip: canPop ? 'Back' : 'Close',
         ),
-        title: const Text('Support Chat'),
-        actions: [
-          IconButton(
-            onPressed: _loading ? null : _loadChat,
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
-          ),
-        ],
+        trailing: IconButton(
+          onPressed: _loading ? null : _loadChat,
+          icon: const Icon(Icons.refresh),
+          tooltip: 'Refresh',
+        ),
       ),
       body: GestureDetector(
         behavior: HitTestBehavior.translucent,
@@ -1457,7 +1456,10 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
         child: Column(
           children: [
             Expanded(
-              child: RefreshIndicator(onRefresh: _loadChat, child: _buildBody()),
+              child: RefreshIndicator(
+                onRefresh: _loadChat,
+                child: _buildBody(),
+              ),
             ),
             _buildComposer(),
           ],

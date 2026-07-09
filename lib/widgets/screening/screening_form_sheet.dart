@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../../TaqaUI/components/taqa_page_app_bar.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../core/account_storage.dart';
@@ -11,10 +12,7 @@ import '../../TaqaUI/components/taqa_toast.dart';
 /// Full-screen modal that collects 7 screening questions
 /// (EQ-5D-3L + PHQ-2) and submits them.
 class ScreeningFormSheet extends StatefulWidget {
-  const ScreeningFormSheet({
-    super.key,
-    required this.pending,
-  });
+  const ScreeningFormSheet({super.key, required this.pending});
 
   final ScreeningPendingResult pending;
 
@@ -76,14 +74,20 @@ class _ScreeningFormSheetState extends State<ScreeningFormSheet> {
         q2Mood: _q2Mood!,
       );
       if (mounted) {
-        AppToast.show(context, t("screening_submitted"),
-            type: AppToastType.success);
+        AppToast.show(
+          context,
+          t("screening_submitted"),
+          type: AppToastType.success,
+        );
         Navigator.of(context).pop(true);
       }
     } on ScreeningConflictException {
       if (mounted) {
-        AppToast.show(context, t("screening_already_submitted"),
-            type: AppToastType.info);
+        AppToast.show(
+          context,
+          t("screening_already_submitted"),
+          type: AppToastType.info,
+        );
         Navigator.of(context).pop(true);
       }
     } catch (e) {
@@ -104,23 +108,9 @@ class _ScreeningFormSheetState extends State<ScreeningFormSheet> {
     final days = widget.pending.daysRemaining;
 
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        title: Text(
-          t("screening_title"),
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: TaqaUiScale.sp(15),
-            fontWeight: FontWeight.w700,
-            height: 25 / 15,
-            letterSpacing: 0,
-            color: TaqaUiColors.unnamedColor1c1d17,
-          ),
-        ),
+      appBar: TaqaPageAppBar(
+        title: t("screening_title"),
         leading: CloseButton(color: TaqaUiColors.unnamedColor1c1d17),
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-        elevation: 0,
       ),
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       body: SafeArea(

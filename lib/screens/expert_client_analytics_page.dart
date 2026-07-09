@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../services/coach/progression_review_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/charts/simple_line_chart.dart';
@@ -66,8 +67,8 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
       try {
         activeProgram =
             await ProgressionReviewService.fetchClientActiveTrainingProgram(
-          widget.client.userId,
-        );
+              widget.client.userId,
+            );
       } catch (e) {
         final normalized = _normalizeError(e);
         if (normalized.toLowerCase().contains(
@@ -218,7 +219,8 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
         ),
       ),
     );
-    if (!mounted || type != ExpertWeeklyMetricsDetailType.trainingCardio) return;
+    if (!mounted || type != ExpertWeeklyMetricsDetailType.trainingCardio)
+      return;
     try {
       final latestProgram =
           await ProgressionReviewService.fetchClientActiveTrainingProgram(
@@ -624,7 +626,11 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
                         ),
                       ),
                     ),
-                  const Icon(Icons.chevron_right, color: Colors.white54, size: 20),
+                  const Icon(
+                    Icons.chevron_right,
+                    color: Colors.white54,
+                    size: 20,
+                  ),
                 ],
               ),
               if (hasUncheckedPlan) ...[
@@ -785,10 +791,10 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
     if (_loading && !hasLoadedContent) {
       return Scaffold(
         backgroundColor: AppColors.black,
-        appBar: AppBar(
+        appBar: const TaqaPageAppBar(
+          title: 'Client Analytics',
           backgroundColor: AppColors.black,
-          surfaceTintColor: Colors.transparent,
-          title: const Text('Client Analytics'),
+          titleColor: Colors.white,
         ),
         body: const ColoredBox(
           color: AppColors.black,
@@ -837,17 +843,15 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
 
     return Scaffold(
       backgroundColor: AppColors.black,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
+        title: 'Client Analytics',
         backgroundColor: AppColors.black,
-        surfaceTintColor: Colors.transparent,
-        title: const Text('Client Analytics'),
-        actions: [
-          IconButton(
-            onPressed: _loading ? null : _load,
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
+        titleColor: Colors.white,
+        trailing: IconButton(
+          onPressed: _loading ? null : _load,
+          tooltip: 'Refresh',
+          icon: const Icon(Icons.refresh),
+        ),
       ),
       body: Stack(
         children: [

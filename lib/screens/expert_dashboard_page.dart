@@ -13,6 +13,7 @@ import '../services/coach/progression_review_service.dart';
 import '../services/core/navigation_service.dart';
 import '../services/training/training_service.dart';
 import '../theme/app_theme.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../widgets/training/exercise_picker_sheet.dart';
 import 'expert_client_detail_page.dart';
@@ -108,9 +109,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
         final exerciseId = int.tryParse((item['exercise_id'] ?? '').toString());
         final name = (item['exercise_name'] ?? '').toString().trim();
         if (exerciseId == null || exerciseId <= 0 || name.isEmpty) continue;
-        libraryExercises.add(
-          ExercisePickerItem(id: exerciseId, name: name),
-        );
+        libraryExercises.add(ExercisePickerItem(id: exerciseId, name: name));
       }
       libraryExercises.sort(
         (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
@@ -365,8 +364,9 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                                   exIndex,
                                 ) {
                                   final ex = day.exercises[exIndex];
-                                  final selectedExerciseName =
-                                      exerciseNameById(ex.exerciseId);
+                                  final selectedExerciseName = exerciseNameById(
+                                    ex.exerciseId,
+                                  );
                                   return Padding(
                                     padding: const EdgeInsets.only(bottom: 8),
                                     child: Container(
@@ -399,9 +399,8 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                                                         );
                                                     if (picked == null) return;
                                                     setModalState(
-                                                      () =>
-                                                          ex.exerciseId =
-                                                              picked.id,
+                                                      () => ex.exerciseId =
+                                                          picked.id,
                                                     );
                                                   },
                                             child: InputDecorator(
@@ -418,7 +417,8 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: TextStyle(
-                                                  color: selectedExerciseName
+                                                  color:
+                                                      selectedExerciseName
                                                           .isEmpty
                                                       ? Colors.white54
                                                       : Colors.white,
@@ -2758,98 +2758,102 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
 
     return Scaffold(
       backgroundColor: AppColors.black,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
         backgroundColor: AppColors.black,
-        title: Text(_appBarTitle(t)),
-        actions: [
-          if (showRequestsButton)
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: Center(
-                child: Material(
-                  color: AppColors.cardDark,
-                  borderRadius: BorderRadius.circular(10),
-                  child: InkWell(
-                    onTap: _openConnectionRequests,
+        titleColor: Colors.white,
+        title: _appBarTitle(t),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (showRequestsButton)
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Center(
+                  child: Material(
+                    color: AppColors.cardDark,
                     borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.18),
+                    child: InkWell(
+                      onTap: _openConnectionRequests,
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
                         ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.how_to_reg_rounded,
-                            size: 14,
-                            color: _newPendingConnectionRequestCount > 0
-                                ? const Color(0xFF4ADE80)
-                                : Colors.white70,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.18),
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Inbox',
-                            style: TextStyle(
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.how_to_reg_rounded,
+                              size: 14,
                               color: _newPendingConnectionRequestCount > 0
-                                  ? const Color(0xFFA7F3D0)
-                                  : Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.1,
+                                  ? const Color(0xFF4ADE80)
+                                  : Colors.white70,
                             ),
-                          ),
-                          if (_newPendingConnectionRequestCount > 0) ...[
                             const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 1,
+                            Text(
+                              'Inbox',
+                              style: TextStyle(
+                                color: _newPendingConnectionRequestCount > 0
+                                    ? const Color(0xFFA7F3D0)
+                                    : Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.1,
                               ),
-                              decoration: BoxDecoration(
-                                color: const Color(
-                                  0xFF1F9D63,
-                                ).withValues(alpha: 0.22),
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Text(
-                                _newPendingConnectionRequestCount > 99
-                                    ? '99+'
-                                    : '$_newPendingConnectionRequestCount',
-                                style: const TextStyle(
-                                  color: Color(0xFFA7F3D0),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
+                            ),
+                            if (_newPendingConnectionRequestCount > 0) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFF1F9D63,
+                                  ).withValues(alpha: 0.22),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  _newPendingConnectionRequestCount > 99
+                                      ? '99+'
+                                      : '$_newPendingConnectionRequestCount',
+                                  style: const TextStyle(
+                                    color: Color(0xFFA7F3D0),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
+            IconButton(
+              tooltip: 'Settings',
+              onPressed: _tabIndex == _tabSettings
+                  ? null
+                  : () => _selectTab(_tabSettings),
+              icon: Icon(
+                Icons.settings_outlined,
+                color: _tabIndex == _tabSettings
+                    ? AppColors.accent
+                    : Colors.white70,
+              ),
             ),
-          IconButton(
-            tooltip: 'Settings',
-            onPressed: _tabIndex == _tabSettings
-                ? null
-                : () => _selectTab(_tabSettings),
-            icon: Icon(
-              Icons.settings_outlined,
-              color: _tabIndex == _tabSettings
-                  ? AppColors.accent
-                  : Colors.white70,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
       body: IndexedStack(
         index: _tabIndex,

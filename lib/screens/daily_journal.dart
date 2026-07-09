@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_empty_card.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_steps_ui.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
@@ -399,20 +400,8 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context).translate;
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        automaticallyImplyLeading: true,
-        title: Text(
-          t("journal_title"),
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: TaqaUiScale.sp(15),
-            fontWeight: FontWeight.w700,
-            height: 25 / 15,
-            letterSpacing: 0,
-            color: TaqaUiColors.unnamedColor1c1d17,
-          ),
-        ),
+      appBar: TaqaPageAppBar(
+        title: t("journal_title"),
         leading: _fromNotification
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
@@ -424,9 +413,6 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
                 },
               )
             : null,
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-        elevation: 0,
       ),
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       body: FutureBuilder<DailyJournalEntry?>(
@@ -532,20 +518,21 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
                       SizedBox(height: TaqaUiScale.h(16)),
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 260),
-                        transitionBuilder: (child, animation) =>
-                            SizeTransition(
-                              sizeFactor: CurvedAnimation(
-                                parent: animation,
-                                curve: Curves.easeOutCubic,
-                              ),
-                              axisAlignment: -1,
-                              child: FadeTransition(
-                                opacity: animation,
-                                child: child,
-                              ),
-                            ),
+                        transitionBuilder: (child, animation) => SizeTransition(
+                          sizeFactor: CurvedAnimation(
+                            parent: animation,
+                            curve: Curves.easeOutCubic,
+                          ),
+                          axisAlignment: -1,
+                          child: FadeTransition(
+                            opacity: animation,
+                            child: child,
+                          ),
+                        ),
                         child: hideForm
-                            ? const SizedBox.shrink(key: ValueKey("form-hidden"))
+                            ? const SizedBox.shrink(
+                                key: ValueKey("form-hidden"),
+                              )
                             : Column(
                                 key: const ValueKey("form-visible"),
                                 children: [
@@ -575,9 +562,8 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
                                             "daily_journal_sleep_quality_label",
                                           ),
                                           value: _sleepQuality,
-                                          onChanged: (v) => setState(
-                                            () => _sleepQuality = v,
-                                          ),
+                                          onChanged: (v) =>
+                                              setState(() => _sleepQuality = v),
                                         ),
                                         SizedBox(height: TaqaUiScale.h(12)),
                                         _BooleanRow(
@@ -649,9 +635,8 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
                                             "daily_journal_stress_label",
                                           ),
                                           value: _stressLevel,
-                                          onChanged: (v) => setState(
-                                            () => _stressLevel = v,
-                                          ),
+                                          onChanged: (v) =>
+                                              setState(() => _stressLevel = v),
                                         ),
                                         SizedBox(height: TaqaUiScale.h(12)),
                                         _ScorePicker(
@@ -720,12 +705,8 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
                                         SizedBox(height: TaqaUiScale.h(16)),
                                         _SaveButton(
                                           loading: _isSubmitting,
-                                          label: t(
-                                            "daily_journal_save_entry",
-                                          ),
-                                          onTap: _isSubmitting
-                                              ? null
-                                              : _submit,
+                                          label: t("daily_journal_save_entry"),
+                                          onTap: _isSubmitting ? null : _submit,
                                         ),
                                       ],
                                     ),
@@ -933,9 +914,10 @@ class _JournalDateCard extends StatelessWidget {
                       ),
                       SizedBox(height: TaqaUiScale.h(2)),
                       Text(
-                        DateFormat('MMM', locale)
-                            .format(selectedDate)
-                            .toUpperCase(),
+                        DateFormat(
+                          'MMM',
+                          locale,
+                        ).format(selectedDate).toUpperCase(),
                         style: TextStyle(
                           fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                           fontSize: TaqaUiScale.sp(8),
@@ -1445,9 +1427,7 @@ class _ScorePicker extends StatelessWidget {
             final selected = value == option;
             return Expanded(
               child: Padding(
-                padding: EdgeInsets.only(
-                  right: i == 4 ? 0 : TaqaUiScale.w(8),
-                ),
+                padding: EdgeInsets.only(right: i == 4 ? 0 : TaqaUiScale.w(8)),
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () => onChanged(selected ? null : option),

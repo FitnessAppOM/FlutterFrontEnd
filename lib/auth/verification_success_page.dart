@@ -5,6 +5,7 @@ import '../widgets/primary_button.dart';
 import '../auth/questionnaire.dart';
 import '../auth/expert_questionnaire.dart';
 import '../auth/login.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 
 class VerificationSuccessPage extends StatelessWidget {
   final String email;
@@ -35,9 +36,7 @@ class VerificationSuccessPage extends StatelessWidget {
     // If we don't have a token, ask the user to log in to continue.
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(
-        builder: (_) => LoginPage(prefilledEmail: email),
-      ),
+      MaterialPageRoute(builder: (_) => LoginPage(prefilledEmail: email)),
       (_) => false,
     );
   }
@@ -47,11 +46,11 @@ class VerificationSuccessPage extends StatelessWidget {
     final t = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: AppColors.black,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
+        title: t.translate("verification_title"),
         backgroundColor: AppColors.black,
-        title: Text(t.translate("verification_title")),
-        elevation: 0,
-        automaticallyImplyLeading: false,
+        titleColor: Colors.white,
+        showBackButton: false,
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),

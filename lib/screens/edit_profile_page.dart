@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../TaqaUI/components/taqa_back_button.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../../core/account_storage.dart';
 import '../../core/diet_regeneration_flag.dart';
@@ -50,6 +51,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   String? _trainingLocation;
   String? _fitnessExperience;
   String? _dailyActivity;
+
   /// Diet preferences (multi-choice, same as questionnaire); "other" uses _dietOtherCtrl
   Set<String> _dietSelected = {};
   String? _trainingStyle;
@@ -95,30 +97,45 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _ageCtrl.text = _str(p["age"]);
     _heightCtrl.text = _str(p["height_cm"]);
     _weightCtrl.text = _str(p["weight_kg"]);
-    _pastInjuriesCtrl.text =
-        _localizeInjury(_str(p["previous_injuries"]), t);
+    _pastInjuriesCtrl.text = _localizeInjury(_str(p["previous_injuries"]), t);
 
     _sex = _mapOptionKey(_str(p["sex"]), _sexOptions());
     // main_goal / fitness_goal: same 3 options as questionnaire
     final goalRaw = _str(p["fitness_goal"] ?? p["main_goal"]);
-    _mainGoal = _mapOptionKey(goalRaw, _goalOptions()) ??
-        _mapLegacyGoal(goalRaw);
+    _mainGoal =
+        _mapOptionKey(goalRaw, _goalOptions()) ?? _mapLegacyGoal(goalRaw);
     _trainingDays = _matchOption(p["training_days"], _trainingDaysOptions());
-    _trainingLocation = _matchOption(p["training_location"], _trainingLocationOptions());
+    _trainingLocation = _matchOption(
+      p["training_location"],
+      _trainingLocationOptions(),
+    );
     _fitnessExperience =
-        _mapOptionKey(_str(p["fitness_experience"]), _fitnessExperienceOptions()) ??
-            _matchOption(p["fitness_experience"], _fitnessExperienceOptions());
-    _dailyActivity = _mapOptionKey(_str(p["occupation"]), _dailyActivityOptions());
+        _mapOptionKey(
+          _str(p["fitness_experience"]),
+          _fitnessExperienceOptions(),
+        ) ??
+        _matchOption(p["fitness_experience"], _fitnessExperienceOptions());
+    _dailyActivity = _mapOptionKey(
+      _str(p["occupation"]),
+      _dailyActivityOptions(),
+    );
 
     // Diet: API may return array (JSONB) or string; multi-choice same as questionnaire
     final dietRaw = p["diet_type"];
     List<String> dietParts = [];
     if (dietRaw is List) {
-      dietParts = dietRaw.map((e) => _str(e)).where((s) => s.isNotEmpty).toList();
+      dietParts = dietRaw
+          .map((e) => _str(e))
+          .where((s) => s.isNotEmpty)
+          .toList();
     } else {
       final s = _str(dietRaw);
       if (s.isNotEmpty) {
-        dietParts = s.split(RegExp(r',\s*')).map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+        dietParts = s
+            .split(RegExp(r',\s*'))
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .toList();
       }
     }
     for (final part in dietParts) {
@@ -163,7 +180,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     } else {
       final flagStr = _str(uniFlagRaw).toLowerCase();
       if (flagStr.isNotEmpty) {
-        _isUniversityStudent = flagStr == "true" || flagStr == _t("yes").toLowerCase();
+        _isUniversityStudent =
+            flagStr == "true" || flagStr == _t("yes").toLowerCase();
       }
     }
     final uniIdStr = _str(p["university_id"]);
@@ -210,38 +228,49 @@ class _EditProfilePageState extends State<EditProfilePage> {
   List<String> _sexOptions() => ["male", "female", "prefer_not"];
   // Main goal: same 3 options as questionnaire (Lose weight, Gain weight, Maintain weight)
   List<String> _goalOptions() => [
-        "lose_weight",
-        "gain_weight",
-        "maintain_weight",
-      ];
+    "lose_weight",
+    "gain_weight",
+    "maintain_weight",
+  ];
   List<String> _trainingDaysOptions() =>
       List<String>.generate(6, (i) => "${i + 1}");
   List<String> _trainingLocationOptions() => ["home", "gym"];
-  List<String> _fitnessExperienceOptions() =>
-      ["beginner", "intermediate", "advanced"];
-  List<String> _dailyActivityOptions() =>
-      ["sedentary", "moderate", "active", "highly_active"];
+  List<String> _fitnessExperienceOptions() => [
+    "beginner",
+    "intermediate",
+    "advanced",
+  ];
+  List<String> _dailyActivityOptions() => [
+    "sedentary",
+    "moderate",
+    "active",
+    "highly_active",
+  ];
   // Match questionnaire diet_type options (multi-choice); "other" for backward compat
   List<String> _dietOptions() => [
-        "no_pref",
-        "high_protein",
-        "low_carb",
-        "vegetarian",
-        "vegan",
-        _otherKey,
-      ];
+    "no_pref",
+    "high_protein",
+    "low_carb",
+    "vegetarian",
+    "vegan",
+    _otherKey,
+  ];
   List<String> _trainingStyleOptions() => [
-        "strength",
-        "hypertrophy",
-        "functional",
-        "endurance",
-        "hiit",
-        "mobility",
-        _otherKey,
-      ];
+    "strength",
+    "hypertrophy",
+    "functional",
+    "endurance",
+    "hiit",
+    "mobility",
+    _otherKey,
+  ];
 
-  String _norm(String v) =>
-      v.toLowerCase().replaceAll('_', ' ').replaceAll('-', ' ').replaceAll('–', ' ').trim();
+  String _norm(String v) => v
+      .toLowerCase()
+      .replaceAll('_', ' ')
+      .replaceAll('-', ' ')
+      .replaceAll('–', ' ')
+      .trim();
 
   String? _mapOptionKey(String raw, List<String> keys) {
     final normalized = _norm(raw);
@@ -256,9 +285,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
   /// Map legacy/API goal values to current options (lose_weight, gain_weight, maintain_weight)
   String? _mapLegacyGoal(String raw) {
     final n = _norm(raw);
-    if (n == _norm("lose_fat") || n == _norm("lose_weight") || n == _norm(_t("lose_weight"))) return "lose_weight";
-    if (n == _norm("build_muscle") || n == _norm("gain_muscle") || n == _norm("gain_weight") || n == _norm(_t("gain_muscle")) || n == _norm(_t("gain_weight"))) return "gain_weight";
-    if (n == _norm("maintain") || n == _norm("maintain_weight") || n == _norm(_t("maintain_weight"))) return "maintain_weight";
+    if (n == _norm("lose_fat") ||
+        n == _norm("lose_weight") ||
+        n == _norm(_t("lose_weight")))
+      return "lose_weight";
+    if (n == _norm("build_muscle") ||
+        n == _norm("gain_muscle") ||
+        n == _norm("gain_weight") ||
+        n == _norm(_t("gain_muscle")) ||
+        n == _norm(_t("gain_weight")))
+      return "gain_weight";
+    if (n == _norm("maintain") ||
+        n == _norm("maintain_weight") ||
+        n == _norm(_t("maintain_weight")))
+      return "maintain_weight";
     return null;
   }
 
@@ -324,7 +364,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       return;
     }
 
-    final persistedBlockedUntil = await AccountStorage.getProfileEditBlockedUntil();
+    final persistedBlockedUntil =
+        await AccountStorage.getProfileEditBlockedUntil();
     if (persistedBlockedUntil != null) {
       if (_profileEditBlockedUntil == null ||
           persistedBlockedUntil.isAfter(_profileEditBlockedUntil!)) {
@@ -354,27 +395,52 @@ class _EditProfilePageState extends State<EditProfilePage> {
       final parsed = int.tryParse(trimmed);
       if (parsed == null) {
         _hasValidationError = true;
-        AppToast.show(context, "$label: ${_t("invalid_number")}",
-            type: AppToastType.error);
+        AppToast.show(
+          context,
+          "$label: ${_t("invalid_number")}",
+          type: AppToastType.error,
+        );
       }
       return parsed;
     }
 
     String initialStr(String key) => _str(_initial[key]);
 
-    final ageVal = parseInt(_t("age"), _ageCtrl.text, fallback: initialStr("age"));
-    final heightVal = parseInt(_t("height"), _heightCtrl.text, fallback: initialStr("height_cm"));
-    final weightVal = parseInt(_t("weight"), _weightCtrl.text, fallback: initialStr("weight_kg"));
+    final ageVal = parseInt(
+      _t("age"),
+      _ageCtrl.text,
+      fallback: initialStr("age"),
+    );
+    final heightVal = parseInt(
+      _t("height"),
+      _heightCtrl.text,
+      fallback: initialStr("height_cm"),
+    );
+    final weightVal = parseInt(
+      _t("weight"),
+      _weightCtrl.text,
+      fallback: initialStr("weight_kg"),
+    );
 
     final mainGoalKey =
-        _mainGoal ?? _mapOptionKey(initialStr("fitness_goal"), _goalOptions()) ?? "";
+        _mainGoal ??
+        _mapOptionKey(initialStr("fitness_goal"), _goalOptions()) ??
+        "";
     final trainingDaysKey =
-        _trainingDays ?? _mapOptionKey(initialStr("training_days"), _trainingDaysOptions()) ?? "";
-    final fitnessExpKey = _fitnessExperience ??
-        _mapOptionKey(initialStr("fitness_experience"), _fitnessExperienceOptions()) ??
+        _trainingDays ??
+        _mapOptionKey(initialStr("training_days"), _trainingDaysOptions()) ??
+        "";
+    final fitnessExpKey =
+        _fitnessExperience ??
+        _mapOptionKey(
+          initialStr("fitness_experience"),
+          _fitnessExperienceOptions(),
+        ) ??
         "";
     final activityKey =
-        _dailyActivity ?? _mapOptionKey(initialStr("occupation"), _dailyActivityOptions()) ?? "";
+        _dailyActivity ??
+        _mapOptionKey(initialStr("occupation"), _dailyActivityOptions()) ??
+        "";
 
     // Diet: multi-choice → array (Profile Update API recommended format, same as questionnaire)
     final dietParts = _dietSelected
@@ -386,9 +452,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
         ? initialStr("diet_type")
         : dietParts.join(", ");
     String? resolvedTrainingKey =
-        _trainingStyle ?? _mapOptionKey(initialStr("training_style"), _trainingStyleOptions());
+        _trainingStyle ??
+        _mapOptionKey(initialStr("training_style"), _trainingStyleOptions());
     if (resolvedTrainingKey == null && _trainingStyleCtrl.text.trim().isEmpty) {
-      resolvedTrainingKey = initialStr("training_style").isNotEmpty ? _otherKey : null;
+      resolvedTrainingKey = initialStr("training_style").isNotEmpty
+          ? _otherKey
+          : null;
     }
 
     final pastInjuriesVal = _pastInjuriesCtrl.text.trim().isNotEmpty
@@ -398,8 +467,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final chronicValueRaw = _chronicChoice == _t("no")
         ? "none"
         : (_chronicCtrl.text.trim().isNotEmpty
-            ? _chronicCtrl.text.trim()
-            : initialStr("pain"));
+              ? _chronicCtrl.text.trim()
+              : initialStr("pain"));
     final chronicValue = _isNone(chronicValueRaw) ? "none" : chronicValueRaw;
 
     final isStudent = _isUniversityStudent;
@@ -407,19 +476,28 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (isStudent == true) {
       if (_universityId == null || _universityId!.isEmpty) {
         _hasValidationError = true;
-        AppToast.show(context, _t("select_university"), type: AppToastType.error);
+        AppToast.show(
+          context,
+          _t("select_university"),
+          type: AppToastType.error,
+        );
       } else {
         universityIdVal = int.tryParse(_universityId!);
         if (universityIdVal == null || universityIdVal <= 0) {
           _hasValidationError = true;
-          AppToast.show(context, _t("select_university"), type: AppToastType.error);
+          AppToast.show(
+            context,
+            _t("select_university"),
+            type: AppToastType.error,
+          );
         }
       }
     }
 
     if (_hasValidationError) return;
 
-    final sexVal = (_sex ?? _mapOptionKey(initialStr("sex"), _sexOptions()) ?? "").trim();
+    final sexVal =
+        (_sex ?? _mapOptionKey(initialStr("sex"), _sexOptions()) ?? "").trim();
     payload.addAll({
       "age": ageVal,
       "sex": sexVal.isEmpty ? null : sexVal,
@@ -430,8 +508,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
       "fitness_experience": fitnessExpKey.isEmpty ? null : fitnessExpKey,
       "daily_activity": activityKey.isEmpty ? null : activityKey,
       "diet_type": resolvedDietValue,
-      "training_style":
-          resolvedTrainingKey == _otherKey ? _trainingStyleCtrl.text.trim() : resolvedTrainingKey,
+      "training_style": resolvedTrainingKey == _otherKey
+          ? _trainingStyleCtrl.text.trim()
+          : resolvedTrainingKey,
       "past_injuries": pastInjuriesVal,
       "chronic_conditions": chronicValue,
     });
@@ -447,20 +526,29 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     final affIdStr = _affiliationId?.trim() ?? "";
     final affOtherStr = _affiliationOther?.trim() ?? "";
-    payload["affiliation_id"] = affIdStr.isEmpty ? null : int.tryParse(affIdStr);
+    payload["affiliation_id"] = affIdStr.isEmpty
+        ? null
+        : int.tryParse(affIdStr);
     payload["affiliation_other_text"] = affOtherStr;
 
     // Check if training days changed
-    final initialTrainingDays = _mapOptionKey(initialStr("training_days"), _trainingDaysOptions()) ?? "";
+    final initialTrainingDays =
+        _mapOptionKey(initialStr("training_days"), _trainingDaysOptions()) ??
+        "";
     final newTrainingDays = trainingDaysKey;
     final trainingDaysChanged = initialTrainingDays != newTrainingDays;
 
     // Check if training location changed — only send the field if it was modified
     final initialTrainingLocation =
-        _matchOption(_str(_initial["training_location"]), _trainingLocationOptions()) ?? "";
+        _matchOption(
+          _str(_initial["training_location"]),
+          _trainingLocationOptions(),
+        ) ??
+        "";
     final newTrainingLocation = _trainingLocation ?? initialTrainingLocation;
     final trainingLocationChanged =
-        newTrainingLocation.isNotEmpty && initialTrainingLocation != newTrainingLocation;
+        newTrainingLocation.isNotEmpty &&
+        initialTrainingLocation != newTrainingLocation;
     if (trainingLocationChanged) {
       payload["training_location"] = newTrainingLocation;
     }
@@ -469,15 +557,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final rawInitialGoal = (initialStr("fitness_goal").trim().isNotEmpty
         ? initialStr("fitness_goal")
         : initialStr("main_goal"));
-    final initialMainGoal = _mapOptionKey(rawInitialGoal, _goalOptions()) ??
+    final initialMainGoal =
+        _mapOptionKey(rawInitialGoal, _goalOptions()) ??
         _mapLegacyGoal(rawInitialGoal) ??
         rawInitialGoal.trim();
     final initialDiet = (initialStr("diet_type")).trim();
     // initialDiet may be stored as string or array; compare with normalized diet selection
     final initialDietNorm = (_initial["diet_type"] is List)
-        ? (_initial["diet_type"] as List).map((e) => _str(e)).where((s) => s.isNotEmpty).join(", ")
+        ? (_initial["diet_type"] as List)
+              .map((e) => _str(e))
+              .where((s) => s.isNotEmpty)
+              .join(", ")
         : initialDiet;
-    final mainGoalOrDietChanged = (initialMainGoal != mainGoalKey) ||
+    final mainGoalOrDietChanged =
+        (initialMainGoal != mainGoalKey) ||
         (initialDietNorm != resolvedDietForCompare);
 
     setState(() => _saving = true);
@@ -503,12 +596,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(false),
-                child: Text(t.translate("common_cancel"), style: const TextStyle(color: Colors.white70)),
+                child: Text(
+                  t.translate("common_cancel"),
+                  style: const TextStyle(color: Colors.white70),
+                ),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
-                child: Text(t.translate("common_confirm"), style: const TextStyle(color: Colors.black)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                ),
+                child: Text(
+                  t.translate("common_confirm"),
+                  style: const TextStyle(color: Colors.black),
+                ),
               ),
             ],
           );
@@ -521,7 +622,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
       }
       await Navigator.push<bool>(
         context,
-        MaterialPageRoute(builder: (_) => UpdatingPlanScreen(profilePayload: payload)),
+        MaterialPageRoute(
+          builder: (_) => UpdatingPlanScreen(profilePayload: payload),
+        ),
       );
       if (mounted) setState(() => _saving = false);
       return;
@@ -548,12 +651,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(false),
-                child: Text(t.translate("common_cancel"), style: const TextStyle(color: Colors.white70)),
+                child: Text(
+                  t.translate("common_cancel"),
+                  style: const TextStyle(color: Colors.white70),
+                ),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
-                child: Text(t.translate("common_confirm"), style: const TextStyle(color: Colors.black)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                ),
+                child: Text(
+                  t.translate("common_confirm"),
+                  style: const TextStyle(color: Colors.black),
+                ),
               ),
             ],
           );
@@ -566,12 +677,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
       }
       final result = await Navigator.push<bool>(
         context,
-        MaterialPageRoute(builder: (_) => UpdatingDietScreen(profilePayload: payload)),
+        MaterialPageRoute(
+          builder: (_) => UpdatingDietScreen(profilePayload: payload),
+        ),
       );
       if (!mounted) return;
       setState(() => _saving = false);
       if (result == true) {
-        AppToast.show(context, _t("profile_update_success"), type: AppToastType.success);
+        AppToast.show(
+          context,
+          _t("profile_update_success"),
+          type: AppToastType.success,
+        );
         Navigator.of(context).pop(true);
       }
       return;
@@ -583,7 +700,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       await AccountStorage.clearProfileEditBlockedUntil();
       _profileEditBlockedUntil = null;
 
-      final dietPending = response['diet_pending'] == true ||
+      final dietPending =
+          response['diet_pending'] == true ||
           response['diet_needs_regeneration'] == true;
       if (dietPending) {
         DietRegenerationFlag.setRegenerating();
@@ -632,13 +750,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
       canPop: !_saving,
       child: Scaffold(
         backgroundColor: AppColors.black,
-        appBar: AppBar(
-          title: Text(t.translate("edit_profile")),
+        appBar: TaqaPageAppBar(
+          title: t.translate("edit_profile"),
           backgroundColor: AppColors.black,
-          automaticallyImplyLeading: false,
-          leading: _saving
-              ? null
-              : TaqaBackButton(color: TaqaUiColors.white),
+          titleColor: Colors.white,
+          showBackButton: !_saving,
+          leading: _saving ? null : TaqaBackButton(color: TaqaUiColors.white),
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -647,120 +764,130 @@ class _EditProfilePageState extends State<EditProfilePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-              _sectionTitle(t.translate("section_basics_title")),
-              Row(
-                children: [
-                  Expanded(child: _numberField(_ageCtrl, t.translate("age"))),
-                  const SizedBox(width: 12),
-                  Expanded(child: _numberField(_heightCtrl, t.translate("height"))),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(child: _numberField(_weightCtrl, t.translate("weight"))),
-                  const SizedBox(width: 12),
-                  Expanded(child: _dropdownField(
-                    label: t.translate("sex"),
-                    value: _sex,
-                    options: _sexOptions(),
-                    translateOptions: true,
-                    onChanged: (v) => setState(() => _sex = v),
-                  )),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _universitySection(),
-              const SizedBox(height: 12),
-              _sectionTitle(t.translate("affiliation")),
-              _affiliationBlock(),
-              const SizedBox(height: 20),
-              _sectionTitle(t.translate("section_goals_title")),
-              _dropdownField(
-                label: t.translate("goal_main"),
-                value: _mainGoal,
-                options: _goalOptions(),
-                translateOptions: true,
-                onChanged: (v) => setState(() => _mainGoal = v),
-              ),
-              _dropdownField(
-                label: t.translate("training_days"),
-                value: _trainingDays,
-                options: _trainingDaysOptions(),
-                onChanged: (v) => setState(() => _trainingDays = v),
-              ),
-              _dropdownField(
-                label: t.translate("fitness_experience"),
-                value: _fitnessExperience,
-                options: _fitnessExperienceOptions(),
-                translateOptions: true,
-                onChanged: (v) => setState(() => _fitnessExperience = v),
-              ),
-              _dropdownField(
-                label: t.translate("daily_activity"),
-                value: _dailyActivity,
-                options: _dailyActivityOptions(),
-                translateOptions: true,
-                onChanged: (v) => setState(() => _dailyActivity = v),
-              ),
-              const SizedBox(height: 12),
-              _sectionTitle(t.translate("section_nutrition_title")),
-              _dietMultiChoiceField(),
-              const SizedBox(height: 12),
-              _sectionTitle(t.translate("section_training_title")),
-              _trainingLocationToggle(),
-              _dropdownField(
-                label: t.translate("training_style"),
-                value: _trainingStyle,
-                options: _trainingStyleOptions(),
-                translateOptions: true,
-                onChanged: (v) {
-                  setState(() {
-                    _trainingStyle = v;
-                    if (v != _otherKey) _trainingStyleCtrl.clear();
-                  });
-                },
-              ),
-              if (_trainingStyle == _otherKey)
-                _textField(_trainingStyleCtrl, t.translate("other")),
-              _textField(
-                _pastInjuriesCtrl,
-                t.translate("past_injuries"),
-                hint: t.translate("past_injuries"),
-                required: false,
-              ),
-              const SizedBox(height: 12),
-              _sectionTitle(t.translate("sec_health_title")),
-              _chronicChoiceField(),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: PrimaryWhiteButton(
-                      onPressed: _saving ? null : _submit,
-                      child: _saving
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Text(t.translate("common_save")),
+                _sectionTitle(t.translate("section_basics_title")),
+                Row(
+                  children: [
+                    Expanded(child: _numberField(_ageCtrl, t.translate("age"))),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _numberField(_heightCtrl, t.translate("height")),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _saving ? null : () => Navigator.of(context).pop(false),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: AppColors.greyDark),
-                        minimumSize: const Size.fromHeight(48),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _numberField(_weightCtrl, t.translate("weight")),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _dropdownField(
+                        label: t.translate("sex"),
+                        value: _sex,
+                        options: _sexOptions(),
+                        translateOptions: true,
+                        onChanged: (v) => setState(() => _sex = v),
                       ),
-                      child: Text(t.translate("common_cancel")),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _universitySection(),
+                const SizedBox(height: 12),
+                _sectionTitle(t.translate("affiliation")),
+                _affiliationBlock(),
+                const SizedBox(height: 20),
+                _sectionTitle(t.translate("section_goals_title")),
+                _dropdownField(
+                  label: t.translate("goal_main"),
+                  value: _mainGoal,
+                  options: _goalOptions(),
+                  translateOptions: true,
+                  onChanged: (v) => setState(() => _mainGoal = v),
+                ),
+                _dropdownField(
+                  label: t.translate("training_days"),
+                  value: _trainingDays,
+                  options: _trainingDaysOptions(),
+                  onChanged: (v) => setState(() => _trainingDays = v),
+                ),
+                _dropdownField(
+                  label: t.translate("fitness_experience"),
+                  value: _fitnessExperience,
+                  options: _fitnessExperienceOptions(),
+                  translateOptions: true,
+                  onChanged: (v) => setState(() => _fitnessExperience = v),
+                ),
+                _dropdownField(
+                  label: t.translate("daily_activity"),
+                  value: _dailyActivity,
+                  options: _dailyActivityOptions(),
+                  translateOptions: true,
+                  onChanged: (v) => setState(() => _dailyActivity = v),
+                ),
+                const SizedBox(height: 12),
+                _sectionTitle(t.translate("section_nutrition_title")),
+                _dietMultiChoiceField(),
+                const SizedBox(height: 12),
+                _sectionTitle(t.translate("section_training_title")),
+                _trainingLocationToggle(),
+                _dropdownField(
+                  label: t.translate("training_style"),
+                  value: _trainingStyle,
+                  options: _trainingStyleOptions(),
+                  translateOptions: true,
+                  onChanged: (v) {
+                    setState(() {
+                      _trainingStyle = v;
+                      if (v != _otherKey) _trainingStyleCtrl.clear();
+                    });
+                  },
+                ),
+                if (_trainingStyle == _otherKey)
+                  _textField(_trainingStyleCtrl, t.translate("other")),
+                _textField(
+                  _pastInjuriesCtrl,
+                  t.translate("past_injuries"),
+                  hint: t.translate("past_injuries"),
+                  required: false,
+                ),
+                const SizedBox(height: 12),
+                _sectionTitle(t.translate("sec_health_title")),
+                _chronicChoiceField(),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: PrimaryWhiteButton(
+                        onPressed: _saving ? null : _submit,
+                        child: _saving
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Text(t.translate("common_save")),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _saving
+                            ? null
+                            : () => Navigator.of(context).pop(false),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: AppColors.greyDark),
+                          minimumSize: const Size.fromHeight(48),
+                        ),
+                        child: Text(t.translate("common_cancel")),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -874,8 +1001,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     String subtitle = (_affiliationName != null && _affiliationName!.isNotEmpty)
         ? _affiliationName!
         : (_affiliationOther != null && _affiliationOther!.isNotEmpty)
-            ? _affiliationOther!
-            : "";
+        ? _affiliationOther!
+        : "";
     if (subtitle.trim().isEmpty || subtitle.trim().toLowerCase() == "none") {
       subtitle = t.translate("not_set");
     }
@@ -899,24 +1026,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(color: Colors.white70),
-                  ),
+                  Text(subtitle, style: const TextStyle(color: Colors.white70)),
                 ],
               ),
             ),
             OutlinedButton(
               onPressed: () async {
-                final result = await Navigator.of(context).push<Map<String, String?>>(
-                  MaterialPageRoute(
-                    builder: (_) => _AffiliationSelectionPage(
-                      initialId: _affiliationId,
-                      initialOther: _affiliationOther,
-                      initialName: _affiliationName,
-                    ),
-                  ),
-                );
+                final result = await Navigator.of(context)
+                    .push<Map<String, String?>>(
+                      MaterialPageRoute(
+                        builder: (_) => _AffiliationSelectionPage(
+                          initialId: _affiliationId,
+                          initialOther: _affiliationOther,
+                          initialName: _affiliationName,
+                        ),
+                      ),
+                    );
                 if (result != null && mounted) {
                   setState(() {
                     _affiliationId = result["id"];
@@ -1002,10 +1127,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
         style: const TextStyle(color: Colors.white),
         dropdownColor: AppColors.black,
         items: options
-            .map((o) => DropdownMenuItem(
-                  value: o,
-                  child: Text(translateOptions ? _t(o) : o),
-                ))
+            .map(
+              (o) => DropdownMenuItem(
+                value: o,
+                child: Text(translateOptions ? _t(o) : o),
+              ),
+            )
             .toList(),
         validator: (_) => null,
         onChanged: onChanged,
@@ -1024,10 +1151,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         children: [
           Text(
             t.translate("diet_type"),
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
-            ),
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -1087,9 +1211,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       duration: const Duration(milliseconds: 150),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       decoration: BoxDecoration(
-                        color: isSelected ? AppColors.accent : Colors.transparent,
+                        color: isSelected
+                            ? AppColors.accent
+                            : Colors.transparent,
                         border: Border.all(
-                          color: isSelected ? AppColors.accent : AppColors.greyDark,
+                          color: isSelected
+                              ? AppColors.accent
+                              : AppColors.greyDark,
                         ),
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -1098,7 +1226,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: isSelected ? Colors.black : Colors.white70,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.normal,
                         ),
                       ),
                     ),
@@ -1146,10 +1276,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
           },
         ),
         if (_chronicChoice == yes)
-          _textField(
-            _chronicCtrl,
-            _t("chronic_conditions"),
-          ),
+          _textField(_chronicCtrl, _t("chronic_conditions")),
       ],
     );
   }
@@ -1161,8 +1288,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   String? _resolveUniversityName(String? id) {
     if (id == null) return null;
-    final match = _universities
-        .firstWhere((u) => u["id"].toString() == id, orElse: () => {});
+    final match = _universities.firstWhere(
+      (u) => u["id"].toString() == id,
+      orElse: () => {},
+    );
     final name = match["name"];
     return name?.toString();
   }
@@ -1180,7 +1309,8 @@ class _AffiliationSelectionPage extends StatefulWidget {
   final String? initialName;
 
   @override
-  State<_AffiliationSelectionPage> createState() => _AffiliationSelectionPageState();
+  State<_AffiliationSelectionPage> createState() =>
+      _AffiliationSelectionPageState();
 }
 
 class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
@@ -1261,9 +1391,7 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(t.translate("affiliation")),
-      ),
+      appBar: TaqaPageAppBar(title: t.translate("affiliation")),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -1307,8 +1435,10 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
                   : (val) {
                       setState(() {
                         _selectedAffId = val;
-                        final match = _affiliations
-                            .firstWhere((e) => e["id"].toString() == val, orElse: () => {});
+                        final match = _affiliations.firstWhere(
+                          (e) => e["id"].toString() == val,
+                          orElse: () => {},
+                        );
                         _selectedAffName = match["name"]?.toString();
                         _otherCtrl.clear();
                       });

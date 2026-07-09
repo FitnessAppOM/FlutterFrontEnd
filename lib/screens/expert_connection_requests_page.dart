@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/coach/coach_support_chat_service.dart';
 import '../services/coach/progression_review_service.dart';
 import '../theme/app_theme.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 
 class ExpertConnectionRequestsPage extends StatefulWidget {
@@ -243,91 +244,90 @@ class _ExpertConnectionRequestsPageState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.black,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
         backgroundColor: AppColors.black,
-        title: const Text('Inbox'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: Center(
-              child: Material(
-                color: AppColors.cardDark,
+        titleColor: Colors.white,
+        title: 'Inbox',
+        trailing: Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: Center(
+            child: Material(
+              color: AppColors.cardDark,
+              borderRadius: BorderRadius.circular(10),
+              child: InkWell(
+                onTap: _sendingBulkMessageToRed
+                    ? null
+                    : _sendBulkMessageToRedClients,
                 borderRadius: BorderRadius.circular(10),
-                child: InkWell(
-                  onTap: _sendingBulkMessageToRed
-                      ? null
-                      : _sendBulkMessageToRedClients,
-                  borderRadius: BorderRadius.circular(10),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: Colors.redAccent.withValues(alpha: 0.45),
                     ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: Colors.redAccent.withValues(alpha: 0.45),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (_sendingBulkMessageToRed)
-                          const SizedBox(
-                            width: 12,
-                            height: 12,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.redAccent,
-                            ),
-                          )
-                        else
-                          const Icon(
-                            Icons.campaign_outlined,
-                            size: 14,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_sendingBulkMessageToRed)
+                        const SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
                             color: Colors.redAccent,
                           ),
+                        )
+                      else
+                        const Icon(
+                          Icons.campaign_outlined,
+                          size: 14,
+                          color: Colors.redAccent,
+                        ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Bulk Message',
+                        style: TextStyle(
+                          color: Colors.redAccent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.1,
+                        ),
+                      ),
+                      if (_redStatusClientCount > 0) ...[
                         const SizedBox(width: 6),
-                        const Text(
-                          'Bulk Message',
-                          style: TextStyle(
-                            color: Colors.redAccent,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.1,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            _redStatusClientCount > 99
+                                ? '99+'
+                                : '$_redStatusClientCount',
+                            style: const TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
-                        if (_redStatusClientCount > 0) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 1,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.redAccent.withValues(alpha: 0.16),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              _redStatusClientCount > 99
-                                  ? '99+'
-                                  : '$_redStatusClientCount',
-                              style: const TextStyle(
-                                color: Colors.redAccent,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
                       ],
-                    ),
+                    ],
                   ),
                 ),
               ),
             ),
           ),
-        ],
+        ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

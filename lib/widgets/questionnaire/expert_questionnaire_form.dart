@@ -8,6 +8,7 @@ import '../../localization/app_localizations.dart';
 import '../../services/auth/affiliation_service.dart';
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/components/taqa_filled_button.dart';
+import '../../TaqaUI/components/taqa_page_app_bar.dart';
 import '../../TaqaUI/components/taqa_underline_field.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
@@ -28,7 +29,8 @@ class ExpertQuestionnaireForm extends StatefulWidget {
   final bool submitting;
 
   @override
-  State<ExpertQuestionnaireForm> createState() => _ExpertQuestionnaireFormState();
+  State<ExpertQuestionnaireForm> createState() =>
+      _ExpertQuestionnaireFormState();
 }
 
 class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
@@ -62,8 +64,6 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
   String? _affiliationOtherText;
   String? _affiliationName;
 
-
-
   // "Other" controllers
   final TextEditingController _coreOtherCtrl = TextEditingController();
   final TextEditingController _workOtherCtrl = TextEditingController();
@@ -86,7 +86,15 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
     "Mental Performance Coach",
     "Other",
   ];
-  final List<String> _certOpts = ["ACE", "NASM", "ISSA", "RD", "DPT", "MD", "Other"];
+  final List<String> _certOpts = [
+    "ACE",
+    "NASM",
+    "ISSA",
+    "RD",
+    "DPT",
+    "MD",
+    "Other",
+  ];
   final List<String> _yearsOpts = ["<1", "1–2", "3–5", "6–10", "10+"];
   final List<String> _coreOpts = [
     "Weight loss",
@@ -132,8 +140,18 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
     "Online Coaching",
     "Other",
   ];
-  final List<String> _heardOpts = ["Social media", "Referral", "Partner gym", "Other"];
-  final List<String> _joinReasonOpts = ["Growth", "More clients", "Professional network", "Other"];
+  final List<String> _heardOpts = [
+    "Social media",
+    "Referral",
+    "Partner gym",
+    "Other",
+  ];
+  final List<String> _joinReasonOpts = [
+    "Growth",
+    "More clients",
+    "Professional network",
+    "Other",
+  ];
   final List<String> _onboardingOpts = ["Morning", "Afternoon", "Evening"];
   final List<String> _countryOpts = const [
     "United States",
@@ -196,7 +214,8 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
       return;
     }
 
-    if (_coreSpecialties.contains("Other") && _coreOtherCtrl.text.trim().isEmpty) {
+    if (_coreSpecialties.contains("Other") &&
+        _coreOtherCtrl.text.trim().isEmpty) {
       _toast("Please specify the other specialty.");
       return;
     }
@@ -204,7 +223,8 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
       _toast("Please specify the other work setting.");
       return;
     }
-    if (_languages.contains("Other") && _languageOtherCtrl.text.trim().isEmpty) {
+    if (_languages.contains("Other") &&
+        _languageOtherCtrl.text.trim().isEmpty) {
       _toast("Please specify the other language.");
       return;
     }
@@ -235,7 +255,8 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
     }
 
     final isAffiliated = _isAffiliated;
-    final hasAffiliationId = _affiliationId != null && _affiliationId!.isNotEmpty;
+    final hasAffiliationId =
+        _affiliationId != null && _affiliationId!.isNotEmpty;
     final otherAffiliation = (_affiliationOtherText ?? "").trim();
     if (isAffiliated && !hasAffiliationId && otherAffiliation.isEmpty) {
       _toast("Please add your affiliation.");
@@ -257,8 +278,7 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
       return;
     }
     final selfieUrl = selfieRaw;
-    final certFileUrl =
-        certChoice == "No" ? "" : _certFileCtrl.text.trim();
+    final certFileUrl = certChoice == "No" ? "" : _certFileCtrl.text.trim();
 
     final data = <String, dynamic>{
       "full_name": _c("full_name").text.trim(),
@@ -272,29 +292,37 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
       "professional_role": _role,
       "professional_role_other": _c("professional_role_other").text.trim(),
       "certification_type": certChoice == "No" ? "" : _certType,
-      "certification_type_other":
-          certChoice == "No" ? "" : _certOtherCtrl.text.trim(),
+      "certification_type_other": certChoice == "No"
+          ? ""
+          : _certOtherCtrl.text.trim(),
       "certification_file_url": certFileUrl,
       "government_id_file_url": _c("government_id_file_url").text.trim(),
       "selfie_file_url": selfieUrl,
       "years_experience": _yearsExperience,
       "core_specialties": _coreSpecialties
-          .map((o) => o == "Other" && _coreOtherCtrl.text.trim().isNotEmpty
-              ? _coreOtherCtrl.text.trim()
-              : o)
+          .map(
+            (o) => o == "Other" && _coreOtherCtrl.text.trim().isNotEmpty
+                ? _coreOtherCtrl.text.trim()
+                : o,
+          )
           .toList(),
       "preferred_client_types": _preferredClients.toList(),
       "services_to_offer": _servicesOffer.toList(),
       "expected_response_time": _responseTime,
       "languages": _languages
-          .map((lang) => lang == "Other" && _languageOtherCtrl.text.trim().isNotEmpty
-              ? _languageOtherCtrl.text.trim()
-              : lang)
+          .map(
+            (lang) =>
+                lang == "Other" && _languageOtherCtrl.text.trim().isNotEmpty
+                ? _languageOtherCtrl.text.trim()
+                : lang,
+          )
           .toList(),
       "previous_work_settings": _workSettings
-          .map((o) => o == "Other" && _workOtherCtrl.text.trim().isNotEmpty
-              ? _workOtherCtrl.text.trim()
-              : o)
+          .map(
+            (o) => o == "Other" && _workOtherCtrl.text.trim().isNotEmpty
+                ? _workOtherCtrl.text.trim()
+                : o,
+          )
           .toList(),
       "social_links": _c("social_links").text.trim(),
       "heard_about_taqa": _heardAbout == "Other"
@@ -322,7 +350,6 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
       data["affiliation_id"] = null;
       data["affiliation_other_text"] = "";
     }
-
 
     await widget.onSubmit?.call(data);
   }
@@ -425,7 +452,8 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
               value: _yearsExperience,
               options: _yearsOpts,
               onChanged: (v) => setState(() => _yearsExperience = v),
-              validator: (val) => (val == null || val.isEmpty) ? "Required" : null,
+              validator: (val) =>
+                  (val == null || val.isEmpty) ? "Required" : null,
             ),
             SizedBox(height: TaqaUiScale.h(16)),
             _multiChoiceWithOther(
@@ -435,7 +463,11 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
               otherCtrl: _coreOtherCtrl,
             ),
             SizedBox(height: TaqaUiScale.h(16)),
-            _multiChoice("Preferred client types", _preferredOpts, _preferredClients),
+            _multiChoice(
+              "Preferred client types",
+              _preferredOpts,
+              _preferredClients,
+            ),
             SizedBox(height: TaqaUiScale.h(16)),
             _multiChoice("Services to offer", _servicesOpts, _servicesOffer),
             const TaqaSectionDivider(),
@@ -461,7 +493,8 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
                   if (v != "Other") _c("professional_role_other").clear();
                 });
               },
-              validator: (val) => (val == null || val.isEmpty) ? "Required" : null,
+              validator: (val) =>
+                  (val == null || val.isEmpty) ? "Required" : null,
             ),
             if (_role == "Other") ...[
               SizedBox(height: TaqaUiScale.h(12)),
@@ -480,7 +513,8 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
               value: _responseTime,
               options: _responseOpts,
               onChanged: (v) => setState(() => _responseTime = v),
-              validator: (val) => (val == null || val.isEmpty) ? "Required" : null,
+              validator: (val) =>
+                  (val == null || val.isEmpty) ? "Required" : null,
             ),
             SizedBox(height: TaqaUiScale.h(16)),
             _multiChoiceWithOther(
@@ -516,7 +550,8 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
               value: _onboarding,
               options: _onboardingOpts,
               onChanged: (v) => setState(() => _onboarding = v),
-              validator: (val) => (val == null || val.isEmpty) ? "Required" : null,
+              validator: (val) =>
+                  (val == null || val.isEmpty) ? "Required" : null,
             ),
             SizedBox(height: TaqaUiScale.h(16)),
             TaqaUnderlineDropdown(
@@ -524,7 +559,8 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
               value: _referAsCoach,
               options: const ["Yes", "No"],
               onChanged: (v) => setState(() => _referAsCoach = v),
-              validator: (val) => (val == null || val.isEmpty) ? "Required" : null,
+              validator: (val) =>
+                  (val == null || val.isEmpty) ? "Required" : null,
             ),
             const TaqaSectionDivider(),
 
@@ -586,7 +622,8 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
               value: _nationality,
               options: _countryOpts,
               onChanged: (v) => setState(() => _nationality = v),
-              validator: (val) => (val == null || val.isEmpty) ? "Required" : null,
+              validator: (val) =>
+                  (val == null || val.isEmpty) ? "Required" : null,
             ),
             SizedBox(height: TaqaUiScale.h(16)),
             TaqaUnderlineDropdown(
@@ -594,7 +631,8 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
               value: _residence,
               options: _countryOpts,
               onChanged: (v) => setState(() => _residence = v),
-              validator: (val) => (val == null || val.isEmpty) ? "Required" : null,
+              validator: (val) =>
+                  (val == null || val.isEmpty) ? "Required" : null,
             ),
             SizedBox(height: TaqaUiScale.h(16)),
             TaqaUnderlineTextField(
@@ -652,8 +690,9 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
                         fontFamily: TaqaUiFontFamilies.interTight,
                         fontSize: TaqaUiScale.sp(10),
                         fontWeight: FontWeight.w600,
-                        color:
-                            TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+                        color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                          alpha: 0.6,
+                        ),
                       ),
                     ),
                   ),
@@ -677,9 +716,9 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
     final label = !_isAffiliated
         ? "Not affiliated"
         : _affiliationName ??
-            (_affiliationOtherText?.isNotEmpty == true
-                ? _affiliationOtherText
-                : "Not set");
+              (_affiliationOtherText?.isNotEmpty == true
+                  ? _affiliationOtherText
+                  : "Not set");
     return TaqaSummaryRow(
       value: label ?? "Not set",
       onTap: _isAffiliated ? _openAffiliationSelector : null,
@@ -692,10 +731,7 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
         ? (_certType ?? "Select type")
         : (_hasCertification == "No" ? "No certification" : "Not set");
     final label = _hasCertification == null ? "Not set" : "$status • $detail";
-    return TaqaSummaryRow(
-      value: label,
-      onTap: _openCertificateSelector,
-    );
+    return TaqaSummaryRow(value: label, onTap: _openCertificateSelector);
   }
 
   Future<void> _openAffiliationSelector() async {
@@ -753,7 +789,8 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
         final now = DateTime.now();
         final picked = await showDatePicker(
           context: context,
-          initialDate: _selectedDob ?? DateTime(now.year - 20, now.month, now.day),
+          initialDate:
+              _selectedDob ?? DateTime(now.year - 20, now.month, now.day),
           firstDate: DateTime(1900, 1, 1),
           lastDate: DateTime(now.year, now.month, now.day),
         );
@@ -894,7 +931,10 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
     );
   }
 
-  Future<void> _pickAndUpload(String kind, TextEditingController controller) async {
+  Future<void> _pickAndUpload(
+    String kind,
+    TextEditingController controller,
+  ) async {
     final permitted = await ConsentManager.requestFileAccessJIT();
     if (!permitted) {
       _toast("Permission required to access files.", type: AppToastType.error);
@@ -1010,12 +1050,16 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
 }
 
 class _AffiliationSelectionPage extends StatefulWidget {
-  const _AffiliationSelectionPage({required this.initialId, required this.initialOther});
+  const _AffiliationSelectionPage({
+    required this.initialId,
+    required this.initialOther,
+  });
   final String? initialId;
   final String? initialOther;
 
   @override
-  State<_AffiliationSelectionPage> createState() => _AffiliationSelectionPageState();
+  State<_AffiliationSelectionPage> createState() =>
+      _AffiliationSelectionPageState();
 }
 
 class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
@@ -1028,7 +1072,6 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
   String? _error;
   final TextEditingController _otherCtrl = TextEditingController();
   bool _useCustomAffiliation = false;
-
 
   @override
   void initState() {
@@ -1086,7 +1129,10 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
   void _submit() {
     if ((_selectedAffId == null || _selectedAffId!.isEmpty) &&
         _otherCtrl.text.trim().isEmpty) {
-      _toast("Please choose an affiliation or type one.", type: AppToastType.error);
+      _toast(
+        "Please choose an affiliation or type one.",
+        type: AppToastType.error,
+      );
       return;
     }
     Navigator.of(context).pop(<String, String?>{
@@ -1100,21 +1146,7 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-      appBar: AppBar(
-        centerTitle: true,
-        title: Text(
-          "Affiliation",
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: TaqaUiScale.sp(15),
-            fontWeight: FontWeight.w700,
-            color: TaqaUiColors.unnamedColor1c1d17,
-          ),
-        ),
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-        elevation: 0,
-      ),
+      appBar: const TaqaPageAppBar(title: "Affiliation"),
       body: SingleChildScrollView(
         padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
         child: Column(
@@ -1145,8 +1177,10 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
                   : (val) {
                       setState(() {
                         _selectedAffId = val;
-                        final match = _affiliations
-                            .firstWhere((e) => e["id"].toString() == val, orElse: () => {});
+                        final match = _affiliations.firstWhere(
+                          (e) => e["id"].toString() == val,
+                          orElse: () => {},
+                        );
                         _selectedAffName = match["name"]?.toString();
                         _otherCtrl.clear();
                       });
@@ -1230,7 +1264,8 @@ class _CertificateSelectionPage extends StatefulWidget {
   final List<String> certOpts;
 
   @override
-  State<_CertificateSelectionPage> createState() => _CertificateSelectionPageState();
+  State<_CertificateSelectionPage> createState() =>
+      _CertificateSelectionPageState();
 }
 
 class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
@@ -1283,21 +1318,7 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-      appBar: AppBar(
-        centerTitle: true,
-        title: Text(
-          "Certification",
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: TaqaUiScale.sp(15),
-            fontWeight: FontWeight.w700,
-            color: TaqaUiColors.unnamedColor1c1d17,
-          ),
-        ),
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-        elevation: 0,
-      ),
+      appBar: const TaqaPageAppBar(title: "Certification"),
       body: SingleChildScrollView(
         padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
         child: Column(

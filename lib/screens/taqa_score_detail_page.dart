@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_score_widget.dart' show TaqaOpenArcPainter;
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
-import '../TaqaUI/styles/taqa_ui_styles.dart';
 import '../core/account_storage.dart';
 import '../localization/app_localizations.dart';
 import '../services/core/daily_provider_push_service.dart';
@@ -243,14 +243,11 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.appBackground,
-      appBar: AppBar(
+      appBar: TaqaPageAppBar(
+        title: t("taqa_detail_title"),
         backgroundColor: AppColors.appBackground,
-        title: Text(
-          t("taqa_detail_title"),
-          style: TaqaUiStyles.pageTitle.copyWith(color: TaqaUiColors.charcoal),
-        ),
+        titleColor: TaqaUiColors.charcoal,
         leading: const BackButton(color: TaqaUiColors.charcoal),
-        elevation: 0,
       ),
       body: SafeArea(
         child: _loading && _score == null && _scorePreviewCache.isEmpty

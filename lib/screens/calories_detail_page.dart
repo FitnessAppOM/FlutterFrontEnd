@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../TaqaUI/components/taqa_empty_card.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_steps_ui.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../core/account_storage.dart';
@@ -211,23 +212,7 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
     final bars = _buildBars(theme, t, avg, total);
 
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        title: Text(
-          t("calories_title"),
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: TaqaUiScale.sp(15),
-            fontWeight: FontWeight.w700,
-            height: 25 / 15,
-            letterSpacing: 0,
-            color: TaqaUiColors.unnamedColor1c1d17,
-          ),
-        ),
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-        elevation: 0,
-      ),
+      appBar: TaqaPageAppBar(title: t("calories_title")),
       resizeToAvoidBottomInset: false,
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       body: Padding(
@@ -271,7 +256,9 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
               children: [
                 Expanded(
                   child: Text(
-                    t("calories_goal_btn").replaceAll("{value}", "${_goal ?? 500}"),
+                    t(
+                      "calories_goal_btn",
+                    ).replaceAll("{value}", "${_goal ?? 500}"),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -391,8 +378,8 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
                 _loading
                     ? t("dash_loading")
                     : t("common_avg_total")
-                        .replaceAll("{avg}", avg.toStringAsFixed(0))
-                        .replaceAll("{total}", "$total"),
+                          .replaceAll("{avg}", avg.toStringAsFixed(0))
+                          .replaceAll("{total}", "$total"),
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(10),
@@ -419,7 +406,9 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
                               color: TaqaUiColors.charcoal,
                               borderRadius: TaqaUiScale.radius(10),
                               border: Border.all(
-                                color: TaqaUiColors.lime.withValues(alpha: 0.45),
+                                color: TaqaUiColors.lime.withValues(
+                                  alpha: 0.45,
+                                ),
                                 width: 0.5,
                               ),
                             ),
@@ -647,7 +636,9 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
     if (!_canManualEdit) return;
     final result = await showTaqaValueDialog(
       context: context,
-      title: AppLocalizations.of(context).translate("calories_add_dialog_title"),
+      title: AppLocalizations.of(
+        context,
+      ).translate("calories_add_dialog_title"),
       initialValue: _todayCalories() > 0 ? _todayCalories().toString() : '',
     );
     if (result != null) {

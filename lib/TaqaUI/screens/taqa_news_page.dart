@@ -62,11 +62,11 @@ class TaqaNewsPage extends StatelessWidget {
               ),
             ),
             Positioned(
-              top: TaqaUiScale.h(94),
+              top: TaqaUiScale.h(43),
               left: TaqaUiScale.w(16),
               child: TaqaPageHeader(title: t("dash_news_tag")),
             ),
-            const Positioned(top: 20, left: 8, child: TaqaBackButton()),
+            const Positioned(top: 39, left: 8, child: TaqaBackButton()),
           ],
         ),
       ),
