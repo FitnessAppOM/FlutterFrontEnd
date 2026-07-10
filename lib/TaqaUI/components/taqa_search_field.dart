@@ -24,7 +24,7 @@ class TaqaSearchField extends StatelessWidget {
     return Container(
       width: TaqaUiScale.w(357),
       height: TaqaUiScale.h(39),
-      alignment: Alignment.center,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: TaqaUiColors.white,
         borderRadius: TaqaUiScale.radius(15),
@@ -35,6 +35,10 @@ class TaqaSearchField extends StatelessWidget {
         onChanged: onChanged,
         onSubmitted: onSubmitted,
         textInputAction: TextInputAction.search,
+        minLines: 1,
+        maxLines: 1,
+        textAlignVertical: TextAlignVertical.center,
+        scrollPadding: EdgeInsets.zero,
         style: TextStyle(
           fontFamily: TaqaUiFontFamilies.interTight,
           fontSize: TaqaUiScale.sp(14),
@@ -43,7 +47,7 @@ class TaqaSearchField extends StatelessWidget {
         ),
         decoration: InputDecoration(
           isDense: true,
-          isCollapsed: true,
+          contentPadding: EdgeInsets.zero,
           filled: false,
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
@@ -64,13 +68,20 @@ class TaqaSearchField extends StatelessWidget {
             color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.5),
           ),
           prefixIconConstraints: BoxConstraints(
-            minWidth: TaqaUiScale.w(24),
-            minHeight: TaqaUiScale.h(18),
+            minWidth: TaqaUiScale.w(30),
+            maxWidth: TaqaUiScale.w(30),
+            minHeight: TaqaUiScale.h(39),
+            maxHeight: TaqaUiScale.h(39),
           ),
           suffixIcon: controller.text.isEmpty
               ? null
               : IconButton(
                   padding: EdgeInsets.zero,
+                  constraints: BoxConstraints.tightFor(
+                    width: TaqaUiScale.w(30),
+                    height: TaqaUiScale.h(39),
+                  ),
+                  visualDensity: VisualDensity.compact,
                   icon: Icon(
                     Icons.close,
                     size: TaqaUiScale.sp(16),
@@ -84,8 +95,10 @@ class TaqaSearchField extends StatelessWidget {
                   },
                 ),
           suffixIconConstraints: BoxConstraints(
-            minWidth: TaqaUiScale.w(24),
-            minHeight: TaqaUiScale.h(24),
+            minWidth: TaqaUiScale.w(30),
+            maxWidth: TaqaUiScale.w(30),
+            minHeight: TaqaUiScale.h(39),
+            maxHeight: TaqaUiScale.h(39),
           ),
         ),
       ),

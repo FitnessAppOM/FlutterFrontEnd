@@ -98,42 +98,11 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _showSuccessDialog(String message) async {
     if (!mounted) return;
     final t = AppLocalizations.of(context);
-    await showDialog(
+    await showTaqaInfoDialog(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: AppColors.black,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.check_circle, color: AppColors.accent, size: 42),
-              const SizedBox(height: 12),
-              Text(
-                t.translate("settings"),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white70),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(t.translate("ok")),
-            ),
-          ],
-        );
-      },
+      title: t.translate("settings"),
+      message: message,
+      confirmLabel: t.translate("ok"),
     );
   }
 
@@ -607,7 +576,9 @@ class _SettingsPageState extends State<SettingsPage> {
       }
       AppToast.show(
         context,
-        loc.translate("whoop_connect_failed_detail").replaceAll("{error}", "$e"),
+        loc
+            .translate("whoop_connect_failed_detail")
+            .replaceAll("{error}", "$e"),
         type: AppToastType.error,
       );
     } finally {
@@ -668,7 +639,9 @@ class _SettingsPageState extends State<SettingsPage> {
       }
       AppToast.show(
         context,
-        loc.translate("fitbit_connect_failed_detail").replaceAll("{error}", "$e"),
+        loc
+            .translate("fitbit_connect_failed_detail")
+            .replaceAll("{error}", "$e"),
         type: AppToastType.error,
       );
     } finally {
@@ -728,7 +701,9 @@ class _SettingsPageState extends State<SettingsPage> {
       }
       AppToast.show(
         context,
-        loc.translate("strava_connect_failed_detail").replaceAll("{error}", "$e"),
+        loc
+            .translate("strava_connect_failed_detail")
+            .replaceAll("{error}", "$e"),
         type: AppToastType.error,
       );
     } finally {
@@ -766,7 +741,9 @@ class _SettingsPageState extends State<SettingsPage> {
     } catch (e) {
       AppToast.show(
         context,
-        loc.translate("fitbit_disconnect_failed_detail").replaceAll("{error}", "$e"),
+        loc
+            .translate("fitbit_disconnect_failed_detail")
+            .replaceAll("{error}", "$e"),
         type: AppToastType.error,
       );
     } finally {
@@ -803,7 +780,9 @@ class _SettingsPageState extends State<SettingsPage> {
     } catch (e) {
       AppToast.show(
         context,
-        loc.translate("strava_disconnect_failed_detail").replaceAll("{error}", "$e"),
+        loc
+            .translate("strava_disconnect_failed_detail")
+            .replaceAll("{error}", "$e"),
         type: AppToastType.error,
       );
     } finally {
@@ -834,7 +813,11 @@ class _SettingsPageState extends State<SettingsPage> {
     final userId = await AccountStorage.getUserId();
     if (!mounted) return;
     if (userId == null || userId == 0) {
-      AppToast.show(context, loc.translate("please_login"), type: AppToastType.info);
+      AppToast.show(
+        context,
+        loc.translate("please_login"),
+        type: AppToastType.info,
+      );
       return;
     }
     final ok = await showTaqaConfirmDialog(
@@ -870,7 +853,9 @@ class _SettingsPageState extends State<SettingsPage> {
       if (!mounted) return;
       AppToast.show(
         context,
-        loc.translate("common_disconnect_failed_detail").replaceAll("{error}", "$e"),
+        loc
+            .translate("common_disconnect_failed_detail")
+            .replaceAll("{error}", "$e"),
         type: AppToastType.error,
       );
     } finally {

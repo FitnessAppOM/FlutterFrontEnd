@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
 
 import '../TaqaUI/components/taqa_back_button.dart';
+import '../TaqaUI/components/taqa_filled_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
+import '../TaqaUI/components/taqa_underline_field.dart'
+    show
+        TaqaPillChoice,
+        TaqaSectionHeading,
+        TaqaUnderlineDropdown,
+        TaqaUnderlineTextField;
 import '../TaqaUI/taqa_ui_colors.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../core/account_storage.dart';
 import '../../core/diet_regeneration_flag.dart';
 import '../../localization/app_localizations.dart';
@@ -10,9 +19,8 @@ import '../../services/auth/profile_service.dart';
 import '../../services/auth/affiliation_service.dart';
 import '../../services/core/university_service.dart';
 import '../../services/diet/diet_targets_storage.dart';
-import '../../theme/app_theme.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
-import '../../widgets/primary_button.dart';
+import '../../TaqaUI/components/taqa_value_dialog.dart';
 import 'updating_diet_screen.dart';
 import 'updating_plan_screen.dart';
 
@@ -578,45 +586,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
     // If training days or location changed, prompt the user before regenerating training + diet.
     if (trainingDaysChanged || trainingLocationChanged) {
       if (!mounted) return;
-      final confirmed = await showDialog<bool>(
+      final confirmed = await showTaqaConfirmDialog(
         context: context,
-        barrierDismissible: false,
-        builder: (ctx) {
-          final t = AppLocalizations.of(ctx);
-          return AlertDialog(
-            backgroundColor: AppColors.cardDark,
-            title: Text(
-              t.translate("training_days_change_confirm_title"),
-              style: const TextStyle(color: Colors.white),
-            ),
-            content: Text(
-              t.translate("training_days_change_confirm_message"),
-              style: const TextStyle(color: Colors.white70),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(false),
-                child: Text(
-                  t.translate("common_cancel"),
-                  style: const TextStyle(color: Colors.white70),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(ctx).pop(true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                ),
-                child: Text(
-                  t.translate("common_confirm"),
-                  style: const TextStyle(color: Colors.black),
-                ),
-              ),
-            ],
-          );
-        },
+        title: _t("training_days_change_confirm_title"),
+        message: _t("training_days_change_confirm_message"),
+        confirmLabel: _t("common_confirm"),
+        cancelLabel: _t("common_cancel"),
       );
       if (!mounted) return;
-      if (confirmed != true) {
+      if (!confirmed) {
         setState(() => _saving = false);
         return;
       }
@@ -633,45 +611,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
     // If main goal or nutrition changed, confirm then show loading screen until diet is regenerated
     if (mainGoalOrDietChanged) {
       if (!mounted) return;
-      final confirmed = await showDialog<bool>(
+      final confirmed = await showTaqaConfirmDialog(
         context: context,
-        barrierDismissible: false,
-        builder: (ctx) {
-          final t = AppLocalizations.of(ctx);
-          return AlertDialog(
-            backgroundColor: AppColors.cardDark,
-            title: Text(
-              t.translate("diet_plan_change_confirm_title"),
-              style: const TextStyle(color: Colors.white),
-            ),
-            content: Text(
-              t.translate("diet_plan_change_confirm_message"),
-              style: const TextStyle(color: Colors.white70),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(false),
-                child: Text(
-                  t.translate("common_cancel"),
-                  style: const TextStyle(color: Colors.white70),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(ctx).pop(true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                ),
-                child: Text(
-                  t.translate("common_confirm"),
-                  style: const TextStyle(color: Colors.black),
-                ),
-              ),
-            ],
-          );
-        },
+        title: _t("diet_plan_change_confirm_title"),
+        message: _t("diet_plan_change_confirm_message"),
+        confirmLabel: _t("common_confirm"),
+        cancelLabel: _t("common_cancel"),
       );
       if (!mounted) return;
-      if (confirmed != true) {
+      if (!confirmed) {
         setState(() => _saving = false);
         return;
       }
@@ -749,16 +697,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return PopScope(
       canPop: !_saving,
       child: Scaffold(
-        backgroundColor: AppColors.black,
+        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
         appBar: TaqaPageAppBar(
           title: t.translate("edit_profile"),
-          backgroundColor: AppColors.black,
-          titleColor: Colors.white,
+          backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+          titleColor: TaqaUiColors.charcoal,
           showBackButton: !_saving,
-          leading: _saving ? null : TaqaBackButton(color: TaqaUiColors.white),
+          leading: _saving ? null : const TaqaBackButton(),
         ),
         body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: TaqaUiScale.insetsLTRB(16, 12, 16, 24),
           child: Form(
             key: _formKey,
             child: Column(
@@ -768,19 +716,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 Row(
                   children: [
                     Expanded(child: _numberField(_ageCtrl, t.translate("age"))),
-                    const SizedBox(width: 12),
+                    SizedBox(width: TaqaUiScale.w(12)),
                     Expanded(
                       child: _numberField(_heightCtrl, t.translate("height")),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: TaqaUiScale.h(12)),
                 Row(
                   children: [
                     Expanded(
                       child: _numberField(_weightCtrl, t.translate("weight")),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: TaqaUiScale.w(12)),
                     Expanded(
                       child: _dropdownField(
                         label: t.translate("sex"),
@@ -792,12 +740,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: TaqaUiScale.h(12)),
                 _universitySection(),
-                const SizedBox(height: 12),
+                SizedBox(height: TaqaUiScale.h(12)),
                 _sectionTitle(t.translate("affiliation")),
                 _affiliationBlock(),
-                const SizedBox(height: 20),
+                SizedBox(height: TaqaUiScale.h(20)),
                 _sectionTitle(t.translate("section_goals_title")),
                 _dropdownField(
                   label: t.translate("goal_main"),
@@ -826,10 +774,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   translateOptions: true,
                   onChanged: (v) => setState(() => _dailyActivity = v),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: TaqaUiScale.h(12)),
                 _sectionTitle(t.translate("section_nutrition_title")),
                 _dietMultiChoiceField(),
-                const SizedBox(height: 12),
+                SizedBox(height: TaqaUiScale.h(12)),
                 _sectionTitle(t.translate("section_training_title")),
                 _trainingLocationToggle(),
                 _dropdownField(
@@ -855,35 +803,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 const SizedBox(height: 12),
                 _sectionTitle(t.translate("sec_health_title")),
                 _chronicChoiceField(),
-                const SizedBox(height: 24),
+                SizedBox(height: TaqaUiScale.h(24)),
                 Row(
                   children: [
                     Expanded(
-                      child: PrimaryWhiteButton(
-                        onPressed: _saving ? null : _submit,
-                        child: _saving
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Text(t.translate("common_save")),
+                      child: TaqaFilledButton(
+                        label: t.translate("common_save"),
+                        onTap: _saving ? null : _submit,
+                        loading: _saving,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: TaqaUiScale.w(12)),
                     Expanded(
-                      child: OutlinedButton(
-                        onPressed: _saving
+                      child: TaqaTextActionButton(
+                        label: t.translate("common_cancel"),
+                        onTap: _saving
                             ? null
                             : () => Navigator.of(context).pop(false),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: AppColors.greyDark),
-                          minimumSize: const Size.fromHeight(48),
-                        ),
-                        child: Text(t.translate("common_cancel")),
                       ),
                     ),
                   ],
@@ -897,17 +833,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Widget _sectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        title,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
+    return TaqaSectionHeading(title: title);
   }
 
   Widget _universitySection() {
@@ -921,18 +847,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        DropdownButtonFormField<String>(
-          decoration: InputDecoration(
-            labelText: t.translate("university_student_question"),
-            border: const OutlineInputBorder(),
-          ),
+        TaqaUnderlineDropdown(
+          label: t.translate("university_student_question"),
           value: studentChoice,
-          style: const TextStyle(color: Colors.white),
-          dropdownColor: AppColors.black,
-          items: [
-            DropdownMenuItem(value: yes, child: Text(yes)),
-            DropdownMenuItem(value: no, child: Text(no)),
-          ],
+          options: [yes, no],
           validator: (_) => null,
           onChanged: (val) {
             setState(() {
@@ -947,27 +865,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
           },
         ),
         if (_isUniversityStudent == true) ...[
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            decoration: InputDecoration(
-              labelText: t.translate("select_university"),
-              border: const OutlineInputBorder(),
-            ),
-            isExpanded: true,
+          SizedBox(height: TaqaUiScale.h(8)),
+          TaqaUnderlineDropdown(
+            label: t.translate("select_university"),
             value: _universityId,
-            style: const TextStyle(color: Colors.white),
-            dropdownColor: AppColors.black,
-            items: _universities
-                .map(
-                  (u) => DropdownMenuItem<String>(
-                    value: u["id"].toString(),
-                    child: Text(
-                      u["name"]?.toString() ?? "",
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                )
-                .toList(),
+            options: _universities
+                .map((university) => university["id"].toString())
+                .toList(growable: false),
+            itemLabelBuilder: (id) => _resolveUniversityName(id) ?? id,
             onChanged: _universitiesLoading
                 ? null
                 : (val) {
@@ -1008,10 +913,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
 
     return Card(
-      color: AppColors.greyDark,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: TaqaUiColors.white,
+      shape: RoundedRectangleBorder(borderRadius: TaqaUiScale.radius(15)),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: TaqaUiScale.symmetric(horizontal: 14, vertical: 14),
         child: Row(
           children: [
             Expanded(
@@ -1020,13 +925,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 children: [
                   Text(
                     t.translate("affiliation"),
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      color: TaqaUiColors.charcoal,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(subtitle, style: const TextStyle(color: Colors.white70)),
+                  SizedBox(height: TaqaUiScale.h(4)),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1058,8 +969,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 }
               },
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white,
-                side: const BorderSide(color: AppColors.accent),
+                foregroundColor: TaqaUiColors.charcoal,
+                side: const BorderSide(color: TaqaUiColors.charcoal),
               ),
               child: Text(t.translate("set_button")),
             ),
@@ -1087,16 +998,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
     bool requireNumber = false,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextFormField(
+      padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
+      child: TaqaUnderlineTextField(
         controller: controller,
+        label: label,
         keyboardType: keyboardType,
-        decoration: InputDecoration(
-          labelText: label,
-          hintText: hint,
-          border: const OutlineInputBorder(),
-        ),
-        style: const TextStyle(color: Colors.white),
+        hint: hint,
         validator: (val) {
           if (requireNumber && val != null && val.trim().isNotEmpty) {
             if (int.tryParse(val.trim()) == null) {
@@ -1117,23 +1024,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
     bool translateOptions = false,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: DropdownButtonFormField<String>(
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
+      padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
+      child: TaqaUnderlineDropdown(
+        label: label,
         value: value,
-        style: const TextStyle(color: Colors.white),
-        dropdownColor: AppColors.black,
-        items: options
-            .map(
-              (o) => DropdownMenuItem(
-                value: o,
-                child: Text(translateOptions ? _t(o) : o),
-              ),
-            )
-            .toList(),
+        options: options,
+        itemLabelBuilder: (option) => translateOptions ? _t(option) : option,
         validator: (_) => null,
         onChanged: onChanged,
       ),
@@ -1145,37 +1041,41 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final t = AppLocalizations.of(context);
     final options = _dietOptions();
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             t.translate("diet_type"),
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+              color: TaqaUiColors.charcoal.withValues(alpha: 0.55),
+              fontSize: TaqaUiScale.sp(8),
+            ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: TaqaUiScale.h(8)),
           Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: options.map((o) {
-              final isSelected = _dietSelected.contains(o);
-              return FilterChip(
-                label: Text(o == _otherKey ? _otherLabel : _t(o)),
-                selected: isSelected,
-                selectedColor: AppColors.accent.withValues(alpha: 0.4),
-                checkmarkColor: Colors.white,
-                onSelected: (value) {
-                  setState(() {
-                    if (value) {
-                      _dietSelected.add(o);
-                    } else {
-                      _dietSelected.remove(o);
-                      if (o == _otherKey) _dietOtherCtrl.clear();
-                    }
-                  });
-                },
-              );
-            }).toList(),
+            spacing: TaqaUiScale.w(10),
+            runSpacing: TaqaUiScale.h(10),
+            children: options
+                .map((option) {
+                  final selected = _dietSelected.contains(option);
+                  return TaqaPillChoice(
+                    label: option == _otherKey ? _otherLabel : _t(option),
+                    selected: selected,
+                    onTap: () {
+                      setState(() {
+                        if (selected) {
+                          _dietSelected.remove(option);
+                          if (option == _otherKey) _dietOtherCtrl.clear();
+                        } else {
+                          _dietSelected.add(option);
+                        }
+                      });
+                    },
+                  );
+                })
+                .toList(growable: false),
           ),
           if (_dietSelected.contains(_otherKey)) ...[
             const SizedBox(height: 8),
@@ -1189,53 +1089,31 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Widget _trainingLocationToggle() {
     final options = _trainingLocationOptions();
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             _t("training_location"),
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+              color: TaqaUiColors.charcoal.withValues(alpha: 0.55),
+              fontSize: TaqaUiScale.sp(8),
+            ),
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: options.map((o) {
-              final isSelected = _trainingLocation == o;
-              final isLast = o == options.last;
-              return Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(right: isLast ? 0 : 8),
-                  child: GestureDetector(
-                    onTap: () => setState(() => _trainingLocation = o),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppColors.accent
-                            : Colors.transparent,
-                        border: Border.all(
-                          color: isSelected
-                              ? AppColors.accent
-                              : AppColors.greyDark,
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        _t(o),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: isSelected ? Colors.black : Colors.white70,
-                          fontWeight: isSelected
-                              ? FontWeight.w600
-                              : FontWeight.normal,
-                        ),
-                      ),
-                    ),
+          SizedBox(height: TaqaUiScale.h(8)),
+          Wrap(
+            spacing: TaqaUiScale.w(10),
+            runSpacing: TaqaUiScale.h(10),
+            children: options
+                .map(
+                  (option) => TaqaPillChoice(
+                    label: _t(option),
+                    selected: _trainingLocation == option,
+                    onTap: () => setState(() => _trainingLocation = option),
                   ),
-                ),
-              );
-            }).toList(),
+                )
+                .toList(growable: false),
           ),
         ],
       ),
@@ -1248,18 +1126,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        DropdownButtonFormField<String>(
-          decoration: InputDecoration(
-            labelText: _t("chronic_prompt"),
-            border: const OutlineInputBorder(),
-          ),
+        TaqaUnderlineDropdown(
+          label: _t("chronic_prompt"),
           value: _chronicChoice,
-          style: const TextStyle(color: Colors.white),
-          dropdownColor: AppColors.black,
-          items: [
-            DropdownMenuItem(value: yes, child: Text(yes)),
-            DropdownMenuItem(value: no, child: Text(no)),
-          ],
+          options: [yes, no],
           validator: (val) {
             if (val == null || val.isEmpty) {
               return _t("select_option");
@@ -1322,6 +1192,7 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
   bool _loading = false;
   String? _error;
   late TextEditingController _otherCtrl;
+  bool _useCustomAffiliation = false;
 
   @override
   void initState() {
@@ -1329,6 +1200,7 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
     _selectedAffId = widget.initialId;
     _selectedAffName = widget.initialName;
     _otherCtrl = TextEditingController(text: widget.initialOther ?? "");
+    _useCustomAffiliation = _otherCtrl.text.trim().isNotEmpty;
     _loadCategories();
   }
 
@@ -1391,80 +1263,96 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     return Scaffold(
-      appBar: TaqaPageAppBar(title: t.translate("affiliation")),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      appBar: TaqaPageAppBar(
+        title: t.translate("affiliation"),
+        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      ),
+      body: SingleChildScrollView(
+        padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DropdownButtonFormField<String>(
-              decoration: InputDecoration(
-                labelText: t.translate("affiliation_category"),
-                border: const OutlineInputBorder(),
-              ),
+            TaqaUnderlineDropdown(
+              label: t.translate("affiliation_category"),
               value: _selectedCategory,
-              items: _categories
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                  .toList(),
+              options: _categories,
               onChanged: (val) {
                 setState(() => _selectedCategory = val);
-                if (val != null && val.isNotEmpty) {
-                  _loadAffiliations(val);
-                }
+                if (val != null && val.isNotEmpty) _loadAffiliations(val);
               },
             ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              decoration: InputDecoration(
-                labelText: _loading
-                    ? t.translate("affiliation_loading")
-                    : t.translate("affiliation"),
-                border: const OutlineInputBorder(),
-              ),
+            SizedBox(height: TaqaUiScale.h(16)),
+            TaqaUnderlineDropdown(
+              label: _loading
+                  ? t.translate("affiliation_loading")
+                  : t.translate("affiliation"),
               value: _selectedAffId,
-              isExpanded: true,
-              items: _affiliations
-                  .map(
-                    (item) => DropdownMenuItem<String>(
-                      value: item["id"].toString(),
-                      child: Text(item["name"]?.toString() ?? ""),
-                    ),
-                  )
-                  .toList(),
+              options: _affiliations
+                  .map((item) => item["id"].toString())
+                  .toList(growable: false),
+              itemLabelBuilder: (id) {
+                final match = _affiliations.firstWhere(
+                  (item) => item["id"].toString() == id,
+                  orElse: () => <String, dynamic>{},
+                );
+                return match["name"]?.toString() ?? id;
+              },
               onChanged: _loading
                   ? null
                   : (val) {
                       setState(() {
                         _selectedAffId = val;
                         final match = _affiliations.firstWhere(
-                          (e) => e["id"].toString() == val,
-                          orElse: () => {},
+                          (item) => item["id"].toString() == val,
+                          orElse: () => <String, dynamic>{},
                         );
                         _selectedAffName = match["name"]?.toString();
                         _otherCtrl.clear();
+                        _useCustomAffiliation = false;
                       });
                     },
             ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _otherCtrl,
-              decoration: InputDecoration(
-                labelText: t.translate("affiliation_other"),
-                border: const OutlineInputBorder(),
+            SizedBox(height: TaqaUiScale.h(12)),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => setState(() {
+                  _useCustomAffiliation = true;
+                  _selectedAffId = null;
+                  _selectedAffName = null;
+                }),
+                child: Text(
+                  t.translate("affiliation_other"),
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: TaqaUiScale.sp(12),
+                    fontWeight: FontWeight.w600,
+                    color: TaqaUiColors.charcoal,
+                  ),
+                ),
               ),
-              onChanged: (_) => setState(() => _selectedAffId = null),
             ),
-            if (_error != null) ...[
-              const SizedBox(height: 8),
-              Text(_error!, style: const TextStyle(color: Colors.redAccent)),
+            if (_useCustomAffiliation) ...[
+              SizedBox(height: TaqaUiScale.h(12)),
+              TaqaUnderlineTextField(
+                controller: _otherCtrl,
+                label: t.translate("affiliation_other"),
+                onChanged: (_) => setState(() {
+                  _selectedAffId = null;
+                  _selectedAffName = null;
+                }),
+              ),
             ],
-            const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              child: PrimaryWhiteButton(
-                onPressed: _submit,
-                child: Text(t.translate("common_save")),
+            if (_error != null) ...[
+              SizedBox(height: TaqaUiScale.h(8)),
+              Text(
+                _error!,
+                style: TextStyle(color: TaqaUiColors.unnamedColorE93b3b),
               ),
-            ),
+            ],
+            SizedBox(height: TaqaUiScale.h(28)),
+            TaqaFilledButton(label: t.translate("common_save"), onTap: _submit),
           ],
         ),
       ),

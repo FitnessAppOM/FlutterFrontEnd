@@ -6,6 +6,7 @@ import '../localization/app_localizations.dart';
 import '../widgets/questionnaire/expert_questionnaire_form.dart';
 import '../core/account_storage.dart';
 import '../TaqaUI/components/taqa_toast.dart';
+import '../TaqaUI/components/taqa_filled_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
 import 'expert_submission_success.dart';
 import '../services/core/expert_questionnaire_service.dart';
@@ -113,7 +114,7 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
             onTap: () => setState(() => _started = true),
           ),
           SizedBox(height: TaqaUiScale.h(10)),
-          _OutlineActionButton(
+          TaqaTextActionButton(
             label: _t("cancel"),
             onTap: () => Navigator.of(context).pop(),
           ),
@@ -207,40 +208,6 @@ class _FilledActionButton extends StatelessWidget {
       borderRadius: TaqaUiScale.radius(5),
       child: InkWell(
         borderRadius: TaqaUiScale.radius(5),
-        onTap: onTap,
-        child: SizedBox(
-          width: double.infinity,
-          height: TaqaUiScale.h(45),
-          child: Center(
-            child: Text(
-              label.toUpperCase(),
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: TaqaUiScale.sp(10),
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0,
-                height: 12 / 10,
-                color: TaqaUiColors.unnamedColor1c1d17,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _OutlineActionButton extends StatelessWidget {
-  const _OutlineActionButton({required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
         onTap: onTap,
         child: SizedBox(
           width: double.infinity,

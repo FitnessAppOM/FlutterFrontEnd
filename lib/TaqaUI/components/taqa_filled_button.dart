@@ -56,3 +56,43 @@ class TaqaFilledButton extends StatelessWidget {
     );
   }
 }
+
+/// Borderless secondary action used for Cancel-style controls in Taqa forms.
+class TaqaTextActionButton extends StatelessWidget {
+  const TaqaTextActionButton({
+    super.key,
+    required this.label,
+    required this.onTap,
+  });
+
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: TaqaUiScale.radius(5),
+        child: SizedBox(
+          width: double.infinity,
+          height: TaqaUiScale.h(45),
+          child: Center(
+            child: Text(
+              label.toUpperCase(),
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(10),
+                fontWeight: FontWeight.w600,
+                height: 12 / 10,
+                letterSpacing: 0,
+                color: TaqaUiColors.unnamedColor1c1d17,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
