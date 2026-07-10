@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../taqa_ui_colors.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../styles/taqa_ui_styles.dart';
+import 'taqa_adaptive_name_text.dart';
 import 'taqa_intro_actions_row.dart';
 import 'taqa_profile_avatar.dart';
 import 'taqa_streak_tag.dart';
@@ -116,11 +117,9 @@ class TaqaDashboardIntroCard extends StatelessWidget {
                           Expanded(
                             child: Align(
                               alignment: Alignment.centerLeft,
-                              child: Text(
-                                '$cleanName,',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textDirection: TextDirection.ltr,
+                              child: TaqaAdaptiveNameText(
+                                welcomeText: cleanName,
+                                userNameText: cleanName,
                                 style: TaqaUiStyles.userName,
                               ),
                             ),

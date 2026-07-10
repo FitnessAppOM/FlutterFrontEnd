@@ -45,6 +45,7 @@ class _CommunityPageState extends State<CommunityPage> {
   CommunityBootstrap? _bootstrap;
   List<CommunityFeedItem> _feed = const [];
   List<CommunityBadge> _myEarnedBadges = const [];
+  String? _cachedCommunityName;
   bool _loading = true;
   bool _loadingMore = false;
   String? _error;
@@ -55,7 +56,16 @@ class _CommunityPageState extends State<CommunityPage> {
   @override
   void initState() {
     super.initState();
+    unawaited(_loadCachedCommunityName());
     _loadInitial();
+  }
+
+  Future<void> _loadCachedCommunityName() async {
+    final cachedName = await AccountStorage.getName();
+    if (!mounted) return;
+    final trimmed = cachedName?.trim();
+    if (trimmed == null || trimmed.isEmpty) return;
+    setState(() => _cachedCommunityName = trimmed);
   }
 
   Future<void> _loadInitial() async {
@@ -79,6 +89,10 @@ class _CommunityPageState extends State<CommunityPage> {
         _nextCursor = feedPage.nextCursor;
         _loading = false;
         _myEarnedBadges = earned;
+        final latestName = bootstrap.currentUser.primaryLabel.trim();
+        if (latestName.isNotEmpty) {
+          _cachedCommunityName = latestName;
+        }
       });
     } catch (e) {
       if (!mounted) return;
@@ -107,6 +121,10 @@ class _CommunityPageState extends State<CommunityPage> {
         _nextCursor = feedPage.nextCursor;
         _error = null;
         _myEarnedBadges = earned;
+        final latestName = bootstrap.currentUser.primaryLabel.trim();
+        if (latestName.isNotEmpty) {
+          _cachedCommunityName = latestName;
+        }
       });
     } catch (e) {
       if (!mounted) return;
@@ -420,10 +438,16 @@ class _CommunityPageState extends State<CommunityPage> {
 
   Widget _buildHeroCard() {
     final bootstrap = _bootstrap;
+    final resolvedName =
+        bootstrap?.currentUser.primaryLabel.trim().isNotEmpty == true
+        ? bootstrap!.currentUser.primaryLabel.trim()
+        : (_cachedCommunityName?.trim().isNotEmpty == true
+              ? _cachedCommunityName!.trim()
+              : 'Athlete');
     return TaqaCommunityHeroCard(
-      welcomeText: bootstrap == null
-          ? 'Loading your groups'
-          : 'Welcome back, ${bootstrap.currentUser.primaryLabel}',
+      welcomeText: 'Welcome back, $resolvedName',
+      greetingText: 'Welcome back,',
+      userNameText: resolvedName,
       badgeCount: _myEarnedBadges.length,
       groupCount: bootstrap?.joinedGroups.length ?? 0,
       challengeCount: bootstrap?.activeChallenges.length ?? 0,
@@ -3993,232 +4017,208 @@ Future<_CreateGroupPayload?> _showGroupFormDialog(
     context: context,
     barrierColor: const Color(0x66000000),
     builder: (ctx) {
-      return GestureDetector(
-        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-        child: StatefulBuilder(
-          builder: (ctx, setLocalState) {
-            return Align(
-              alignment: Alignment.center,
-              child: Padding(
-                padding: TaqaUiScale.symmetric(horizontal: 17),
-                child: Material(
-                  color: Colors.transparent,
-                  clipBehavior: Clip.none,
-                  child: Container(
-                    constraints: BoxConstraints(maxWidth: TaqaUiScale.w(356)),
-                    padding: TaqaUiScale.insetsLTRB(20, 24, 20, 20),
-                    decoration: BoxDecoration(
-                      color: TaqaUiColors.white,
-                      borderRadius: TaqaUiScale.radius(24),
+      final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
+      return StatefulBuilder(
+        builder: (ctx, setLocalState) {
+          return MediaQuery.removeViewInsets(
+            context: ctx,
+            removeBottom: true,
+            child: TaqaPopupDialog(
+              bottomInset: bottomInset,
+              padding: TaqaUiScale.insetsLTRB(20, 24, 20, 20),
+              maxHeightFactor: 0.84,
+              onBackgroundTap: () =>
+                  FocusManager.instance.primaryFocus?.unfocus(),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(22),
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0,
+                      color: TaqaUiColors.unnamedColor1c1d17,
                     ),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Text(
-                            title,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontFamily: TaqaUiFontFamilies.interTight,
-                              fontSize: TaqaUiScale.sp(22),
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0,
-                              color: TaqaUiColors.unnamedColor1c1d17,
+                  ),
+                  SizedBox(height: TaqaUiScale.h(28)),
+                  _taqaDialogField(
+                    controller: nameController,
+                    hint: 'Group Name',
+                    errorText: nameError,
+                  ),
+                  SizedBox(height: TaqaUiScale.h(20)),
+                  _taqaDialogField(
+                    controller: descriptionController,
+                    hint: 'Description',
+                    maxLines: 3,
+                  ),
+                  SizedBox(height: TaqaUiScale.h(20)),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _taqaDialogDropdown<String>(
+                          value: visibility,
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'private',
+                              child: Text('Private'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'public',
+                              child: Text('Public'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setLocalState(() => visibility = value);
+                          },
+                        ),
+                      ),
+                      SizedBox(width: TaqaUiScale.w(20)),
+                      Expanded(
+                        child: _taqaDialogDropdown<String>(
+                          value: kind,
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'general',
+                              child: Text('General'),
+                            ),
+                            DropdownMenuItem(value: 'gym', child: Text('Gym')),
+                            DropdownMenuItem(
+                              value: 'coach',
+                              child: Text('Coach'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'city',
+                              child: Text('City'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'country',
+                              child: Text('Country'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'sport',
+                              child: Text('Sport'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setLocalState(() => kind = value);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: TaqaUiScale.h(24)),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Discoverable',
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(16),
+                            fontWeight: FontWeight.w500,
+                            color: TaqaUiColors.unnamedColor1c1d17,
+                          ),
+                        ),
+                      ),
+                      TaqaSwitch(
+                        value: visibility == 'public' ? discoverable : false,
+                        onChanged: visibility == 'public'
+                            ? (value) =>
+                                  setLocalState(() => discoverable = value)
+                            : null,
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: TaqaUiScale.h(28)),
+                  SizedBox(
+                    height: TaqaUiScale.h(50),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => Navigator.pop(ctx),
+                            child: Center(
+                              child: Text(
+                                "CANCEL",
+                                style: TextStyle(
+                                  fontFamily: TaqaUiFontFamilies.interTight,
+                                  fontSize: TaqaUiScale.sp(13),
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0,
+                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                ),
+                              ),
                             ),
                           ),
-                          SizedBox(height: TaqaUiScale.h(28)),
-                          _taqaDialogField(
-                            controller: nameController,
-                            hint: 'Group Name',
-                            errorText: nameError,
-                          ),
-                          SizedBox(height: TaqaUiScale.h(20)),
-                          _taqaDialogField(
-                            controller: descriptionController,
-                            hint: 'Description',
-                            maxLines: 3,
-                          ),
-                          SizedBox(height: TaqaUiScale.h(20)),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: _taqaDialogDropdown<String>(
-                                  value: visibility,
-                                  items: const [
-                                    DropdownMenuItem(
-                                      value: 'private',
-                                      child: Text('Private'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'public',
-                                      child: Text('Public'),
-                                    ),
-                                  ],
-                                  onChanged: (value) {
-                                    if (value == null) return;
-                                    setLocalState(() => visibility = value);
-                                  },
+                        ),
+                        Material(
+                          color: TaqaUiColors.unnamedColorE4e93b,
+                          borderRadius: TaqaUiScale.radius(14),
+                          child: InkWell(
+                            borderRadius: TaqaUiScale.radius(14),
+                            onTap: () {
+                              final name = nameController.text.trim();
+                              if (name.length < 3) {
+                                setLocalState(() {
+                                  nameError =
+                                      'Group name must be at least 3 characters.';
+                                });
+                                return;
+                              }
+                              if (nameError != null) {
+                                setLocalState(() => nameError = null);
+                              }
+                              Navigator.pop(
+                                ctx,
+                                _CreateGroupPayload(
+                                  name: name,
+                                  description:
+                                      descriptionController.text.trim().isEmpty
+                                      ? null
+                                      : descriptionController.text.trim(),
+                                  visibility: visibility,
+                                  groupKind: kind,
+                                  isDiscoverable: visibility == 'public'
+                                      ? discoverable
+                                      : false,
                                 ),
-                              ),
-                              SizedBox(width: TaqaUiScale.w(20)),
-                              Expanded(
-                                child: _taqaDialogDropdown<String>(
-                                  value: kind,
-                                  items: const [
-                                    DropdownMenuItem(
-                                      value: 'general',
-                                      child: Text('General'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'gym',
-                                      child: Text('Gym'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'coach',
-                                      child: Text('Coach'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'city',
-                                      child: Text('City'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'country',
-                                      child: Text('Country'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'sport',
-                                      child: Text('Sport'),
-                                    ),
-                                  ],
-                                  onChanged: (value) {
-                                    if (value == null) return;
-                                    setLocalState(() => kind = value);
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: TaqaUiScale.h(24)),
-                          Row(
-                            children: [
-                              Expanded(
+                              );
+                            },
+                            child: SizedBox(
+                              width: TaqaUiScale.w(170),
+                              height: TaqaUiScale.h(50),
+                              child: Center(
                                 child: Text(
-                                  'Discoverable',
+                                  confirmLabel.toUpperCase(),
                                   style: TextStyle(
                                     fontFamily: TaqaUiFontFamilies.interTight,
-                                    fontSize: TaqaUiScale.sp(16),
-                                    fontWeight: FontWeight.w500,
+                                    fontSize: TaqaUiScale.sp(13),
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0,
                                     color: TaqaUiColors.unnamedColor1c1d17,
                                   ),
                                 ),
                               ),
-                              TaqaSwitch(
-                                value: visibility == 'public'
-                                    ? discoverable
-                                    : false,
-                                onChanged: visibility == 'public'
-                                    ? (value) => setLocalState(
-                                        () => discoverable = value,
-                                      )
-                                    : null,
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: TaqaUiScale.h(28)),
-                          SizedBox(
-                            height: TaqaUiScale.h(50),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Expanded(
-                                  child: GestureDetector(
-                                    onTap: () => Navigator.pop(ctx),
-                                    child: Center(
-                                      child: Text(
-                                        "CANCEL",
-                                        style: TextStyle(
-                                          fontFamily:
-                                              TaqaUiFontFamilies.interTight,
-                                          fontSize: TaqaUiScale.sp(13),
-                                          fontWeight: FontWeight.w600,
-                                          letterSpacing: 0,
-                                          color:
-                                              TaqaUiColors.unnamedColor1c1d17,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Material(
-                                  color: TaqaUiColors.unnamedColorE4e93b,
-                                  borderRadius: TaqaUiScale.radius(14),
-                                  child: InkWell(
-                                    borderRadius: TaqaUiScale.radius(14),
-                                    onTap: () {
-                                      final name = nameController.text.trim();
-                                      if (name.length < 3) {
-                                        setLocalState(() {
-                                          nameError =
-                                              'Group name must be at least 3 characters.';
-                                        });
-                                        return;
-                                      }
-                                      if (nameError != null) {
-                                        setLocalState(() => nameError = null);
-                                      }
-                                      Navigator.pop(
-                                        ctx,
-                                        _CreateGroupPayload(
-                                          name: name,
-                                          description:
-                                              descriptionController.text
-                                                  .trim()
-                                                  .isEmpty
-                                              ? null
-                                              : descriptionController.text
-                                                    .trim(),
-                                          visibility: visibility,
-                                          groupKind: kind,
-                                          isDiscoverable: visibility == 'public'
-                                              ? discoverable
-                                              : false,
-                                        ),
-                                      );
-                                    },
-                                    child: SizedBox(
-                                      width: TaqaUiScale.w(170),
-                                      height: TaqaUiScale.h(50),
-                                      child: Center(
-                                        child: Text(
-                                          confirmLabel.toUpperCase(),
-                                          style: TextStyle(
-                                            fontFamily:
-                                                TaqaUiFontFamilies.interTight,
-                                            fontSize: TaqaUiScale.sp(13),
-                                            fontWeight: FontWeight.w700,
-                                            letterSpacing: 0,
-                                            color:
-                                                TaqaUiColors.unnamedColor1c1d17,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
+                ],
               ),
-            );
-          },
-        ),
+            ),
+          );
+        },
       );
     },
   );

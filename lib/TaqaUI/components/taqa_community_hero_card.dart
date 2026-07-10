@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'taqa_adaptive_name_text.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../styles/taqa_ui_styles.dart';
 import '../taqa_ui_colors.dart';
@@ -11,6 +12,8 @@ class TaqaCommunityHeroCard extends StatelessWidget {
     super.key,
     this.title,
     required this.welcomeText,
+    this.greetingText,
+    this.userNameText,
     required this.badgeCount,
     required this.groupCount,
     required this.challengeCount,
@@ -23,6 +26,8 @@ class TaqaCommunityHeroCard extends StatelessWidget {
 
   final String? title;
   final String welcomeText;
+  final String? greetingText;
+  final String? userNameText;
   final int badgeCount;
   final int groupCount;
   final int challengeCount;
@@ -51,7 +56,7 @@ class TaqaCommunityHeroCard extends StatelessWidget {
         final titleHeight = TaqaUiScale.h(18) * layoutScale;
         final welcomeTop = TaqaUiScale.h(hasTitle ? 34 : 15) * layoutScale;
         final welcomeWidth = TaqaUiScale.w(328) * layoutScale;
-        final welcomeHeight = TaqaUiScale.h(30) * layoutScale;
+        final welcomeHeight = TaqaUiScale.h(hasTitle ? 52 : 56) * layoutScale;
         final boxesTop = TaqaUiScale.h(94) * layoutScale;
         final boxesLeft = TaqaUiScale.w(14) * layoutScale;
         final boxWidth = TaqaUiStyles.communityStatBoxWidth * layoutScale;
@@ -91,10 +96,10 @@ class TaqaCommunityHeroCard extends StatelessWidget {
                   height: welcomeHeight,
                   child: Align(
                     alignment: Alignment.centerLeft,
-                    child: Text(
-                      welcomeText,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    child: TaqaAdaptiveNameText(
+                      welcomeText: welcomeText,
+                      greetingText: greetingText,
+                      userNameText: userNameText,
                       style: TaqaUiStyles.userName,
                     ),
                   ),
