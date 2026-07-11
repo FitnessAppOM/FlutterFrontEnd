@@ -135,30 +135,24 @@ struct TrainingLiveActivityWidget: Widget {
                 TimelineView(.periodic(from: Date(), by: 1)) { timeline in
                     let elapsed = elapsedSeconds(from: context.state.startMs, now: timeline.date, fallback: context.state.seconds)
                     let startDate = startDateFromMs(context.state.startMs, fallbackSeconds: elapsed, now: timeline.date, paused: context.state.paused)
-                    let timerText = timerView(
+                    // No fixed frame here: a live `Text(date, style: .timer)` reserves
+                    // its own intrinsic width for the digits it needs, and a narrower
+                    // `.frame(width:, alignment: .trailing)` just lets that overflow
+                    // bleed out the left edge of the compact pill instead of clipping.
+                    timerView(
                         elapsed: elapsed,
                         startDate: startDate,
                         paused: context.state.paused,
                         short: true,
-                        width: 44,
+                        width: nil,
                         font: .caption2
                     )
-                    timerText
                 }
             } minimal: {
-                TimelineView(.periodic(from: Date(), by: 1)) { timeline in
-                    let elapsed = elapsedSeconds(from: context.state.startMs, now: timeline.date, fallback: context.state.seconds)
-                    let startDate = startDateFromMs(context.state.startMs, fallbackSeconds: elapsed, now: timeline.date, paused: context.state.paused)
-                    let timerText = timerView(
-                        elapsed: elapsed,
-                        startDate: startDate,
-                        paused: context.state.paused,
-                        short: true,
-                        width: 44,
-                        font: .caption2
-                    )
-                    timerText
-                }
+                // Per Apple's guidance the minimal region is a single tiny glyph slot
+                // (shown when multiple Live Activities compete for space) — it can't
+                // fit a live timer, so mirror compactLeading instead.
+                Image(systemName: "figure.strengthtraining.traditional")
             }
         }
     }
@@ -220,7 +214,7 @@ struct TrainingLiveActivityWidget: Widget {
         startDate: Date?,
         paused: Bool,
         short: Bool,
-        width: CGFloat,
+        width: CGFloat?,
         font: Font
     ) -> some View {
         let text: Text = {
@@ -233,11 +227,13 @@ struct TrainingLiveActivityWidget: Widget {
             return Text(short ? shortTime(elapsed) : formatTime(elapsed))
         }()
 
-        return text
+        let styled = text
             .font(font)
             .foregroundStyle(.white)
             .monospacedDigit()
-            .frame(width: width, alignment: .trailing)
+
+        guard let width else { return AnyView(styled) }
+        return AnyView(styled.frame(width: width, alignment: .trailing))
     }
 }
 

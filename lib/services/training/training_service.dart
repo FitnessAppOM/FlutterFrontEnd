@@ -232,6 +232,18 @@ class TrainingService {
     if (provider != null) {
       provider.evict().catchError((_) => false);
     }
+    // provider.evict() above only clears Flutter's in-memory ImageCache.
+    // cached_network_image also keeps its own persistent DISK cache keyed
+    // by cacheKey (url with the signing query stripped), which is what
+    // actually survives an app restart — without evicting that too, a gif
+    // that failed once (e.g. hit while the signed url was already expired,
+    // or a transient network/permission hiccup) keeps serving that same
+    // failed/corrupt file forever, even once a fresh valid signed url for
+    // the same blob is available, because the cache key never changes.
+    CachedNetworkImage.evictFromCache(
+      url,
+      cacheKey: _cacheKeyForUrl(url),
+    ).catchError((_) => false);
   }
 
   static Future<void> warmGif(

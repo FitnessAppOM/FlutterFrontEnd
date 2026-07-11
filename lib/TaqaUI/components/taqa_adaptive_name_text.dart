@@ -40,47 +40,21 @@ class TaqaAdaptiveNameText extends StatelessWidget {
       );
     }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final namePainter = TextPainter(
-          text: TextSpan(text: userName, style: style),
+    // Keep the greeting fixed and scroll only an overflowing name in the
+    // remaining horizontal space.
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          '$greeting ',
           maxLines: 1,
-          textDirection: TextDirection.ltr,
-        )..layout(maxWidth: double.infinity);
-        final shouldSplit = namePainter.width > constraints.maxWidth;
-
-        if (!shouldSplit) {
-          return Text(
-            '$greeting $userName',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            softWrap: true,
-            style: style,
-          );
-        }
-
-        final greetingStyle = style.copyWith(
-          fontSize: (style.fontSize ?? 25) * 0.82,
-          height: 1,
-        );
-
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              greeting,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: greetingStyle,
-            ),
-            SizedBox(height: TaqaUiScale.h(4)),
-            Expanded(
-              child: _OscillatingNameText(text: userName, style: style),
-            ),
-          ],
-        );
-      },
+          overflow: TextOverflow.ellipsis,
+          style: style,
+        ),
+        Expanded(
+          child: _OverflowAwareSingleLineText(text: userName, style: style),
+        ),
+      ],
     );
   }
 }
@@ -130,8 +104,16 @@ class _OscillatingNameTextState extends State<_OscillatingNameText>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 2800),
+    duration: const Duration(milliseconds: 6000),
   );
+
+  @override
+  void didUpdateWidget(covariant _OscillatingNameText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.text != widget.text) {
+      _controller.reset();
+    }
+  }
 
   @override
   void dispose() {
@@ -148,7 +130,13 @@ class _OscillatingNameTextState extends State<_OscillatingNameText>
           maxLines: 1,
           textDirection: TextDirection.ltr,
         )..layout(maxWidth: double.infinity);
-        final overflow = math.max(0.0, painter.width - constraints.maxWidth);
+        // Allow a small trailing buffer for glyph overhang, so the final
+        // characters are fully visible when a long name reaches the end.
+        final trailingBuffer = TaqaUiScale.w(4);
+        final overflow = math.max(
+          0.0,
+          painter.width + trailingBuffer - constraints.maxWidth,
+        );
 
         if (overflow <= 0) {
           _controller.stop();
@@ -167,22 +155,39 @@ class _OscillatingNameTextState extends State<_OscillatingNameText>
           _controller.repeat(reverse: true);
         }
 
-        return ClipRect(
-          child: AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              return Transform.translate(
-                offset: Offset(-overflow * _controller.value, 0),
-                child: child,
-              );
-            },
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                widget.text,
-                maxLines: 1,
-                softWrap: false,
-                style: widget.style,
+        return SizedBox(
+          height: painter.height,
+          child: ClipRect(
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                return Transform.translate(
+                  // Begin with the start of the name visible, then move left
+                  // to reveal the rest of the full name through to its final
+                  // glyph.
+                  offset: Offset(-overflow * _controller.value, 0),
+                  child: child,
+                );
+              },
+              child: OverflowBox(
+                alignment: Alignment.centerLeft,
+                minWidth: 0,
+                maxWidth: double.infinity,
+                // Without an explicit height, OverflowBox sizes itself to the
+                // incoming constraints rather than its child, which are
+                // unbounded here (e.g. a Column placing this without a fixed
+                // height) and throws "given infinite size during layout".
+                minHeight: painter.height,
+                maxHeight: painter.height,
+                child: Padding(
+                  padding: EdgeInsets.only(right: trailingBuffer),
+                  child: Text(
+                    widget.text,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: widget.style,
+                  ),
+                ),
               ),
             ),
           ),

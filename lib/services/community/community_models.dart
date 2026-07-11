@@ -49,7 +49,9 @@ String? normalizeCommunityUrl(String? rawValue) {
   if (base.isEmpty) return raw;
   try {
     final baseUri = Uri.parse(base.endsWith('/') ? base : '$base/');
-    return baseUri.resolve(raw.startsWith('/') ? raw.substring(1) : raw).toString();
+    return baseUri
+        .resolve(raw.startsWith('/') ? raw.substring(1) : raw)
+        .toString();
   } catch (_) {
     return raw;
   }
@@ -59,6 +61,9 @@ class CommunityUserPreview {
   const CommunityUserPreview({
     required this.userId,
     this.displayName,
+    this.firstName,
+    this.lastName,
+    this.fullName,
     this.username,
     this.email,
     this.avatarUrl,
@@ -67,17 +72,38 @@ class CommunityUserPreview {
 
   final int userId;
   final String? displayName;
+  final String? firstName;
+  final String? lastName;
+  final String? fullName;
   final String? username;
   final String? email;
   final String? avatarUrl;
   final bool isPlatformAdmin;
 
-  String get primaryLabel => displayName ?? username ?? email ?? 'User $userId';
+  String get primaryLabel {
+    final cleanFirstName = firstName?.trim() ?? '';
+    final cleanLastName = lastName?.trim() ?? '';
+    if (cleanFirstName.isNotEmpty && cleanLastName.isNotEmpty) {
+      return '$cleanFirstName $cleanLastName';
+    }
+
+    for (final candidate in [displayName, fullName, username, email]) {
+      if (candidate != null && candidate.trim().isNotEmpty) {
+        return candidate.trim();
+      }
+    }
+    if (cleanFirstName.isNotEmpty) return cleanFirstName;
+    if (cleanLastName.isNotEmpty) return cleanLastName;
+    return 'User $userId';
+  }
 
   factory CommunityUserPreview.fromJson(Map<String, dynamic> json) {
     return CommunityUserPreview(
       userId: _asInt(json['user_id'] ?? json['id']),
       displayName: _asString(json['display_name'] ?? json['full_name']),
+      firstName: _asString(json['first_name']),
+      lastName: _asString(json['last_name']),
+      fullName: _asString(json['full_name']),
       username: _asString(json['username']),
       email: _asString(json['email']),
       avatarUrl: normalizeCommunityUrl(
@@ -147,10 +173,7 @@ class CommunityGroupSummary {
 }
 
 class CommunityGroupCreationResult {
-  const CommunityGroupCreationResult({
-    required this.group,
-    this.joinCode,
-  });
+  const CommunityGroupCreationResult({required this.group, this.joinCode});
 
   final CommunityGroupSummary group;
   final String? joinCode;
@@ -159,7 +182,9 @@ class CommunityGroupCreationResult {
     final rawCode = _asString(json['join_code']);
     return CommunityGroupCreationResult(
       group: CommunityGroupSummary.fromJson(_asMap(json['group'])),
-      joinCode: rawCode == null || rawCode.trim().isEmpty ? null : rawCode.trim(),
+      joinCode: rawCode == null || rawCode.trim().isEmpty
+          ? null
+          : rawCode.trim(),
     );
   }
 }
@@ -210,7 +235,8 @@ class CommunityShareSettings {
     bool? shareWellness,
   }) {
     return CommunityShareSettings(
-      shareTrainingProgress: shareTrainingProgress ?? this.shareTrainingProgress,
+      shareTrainingProgress:
+          shareTrainingProgress ?? this.shareTrainingProgress,
       shareTaqaScore: shareTaqaScore ?? this.shareTaqaScore,
       shareDailyMovement: shareDailyMovement ?? this.shareDailyMovement,
       shareWearableData: shareWearableData ?? this.shareWearableData,
@@ -308,9 +334,9 @@ class CommunityLeaderboard {
       groupId: _asInt(json['group_id']),
       metric: _asString(json['metric']) ?? 'workout_streak',
       snapshotAt: DateTime.tryParse(_asString(json['snapshot_at']) ?? ''),
-      items: _asMapList(json['items'])
-          .map(CommunityLeaderboardEntry.fromJson)
-          .toList(growable: false),
+      items: _asMapList(
+        json['items'],
+      ).map(CommunityLeaderboardEntry.fromJson).toList(growable: false),
     );
   }
 }
@@ -383,12 +409,18 @@ class CommunityGroupDetail {
       shareSettings: json['share_settings'] == null
           ? null
           : CommunityShareSettings.fromJson(_asMap(json['share_settings'])),
-      pinnedItems: _asMapList(json['pinned_items'])
-          .map(CommunityPin.fromJson)
-          .toList(growable: false),
+      pinnedItems: _asMapList(
+        json['pinned_items'],
+      ).map(CommunityPin.fromJson).toList(growable: false),
       leaderboardSummary: CommunityLeaderboard.fromJson({
-        'group_id': _asInt(leaderboardMap['group_id'], fallback: _asInt(json['id'])),
-        'metric': _asString(leaderboardMap['metric']) ?? _asString(json['leaderboard_metric']) ?? 'workout_streak',
+        'group_id': _asInt(
+          leaderboardMap['group_id'],
+          fallback: _asInt(json['id']),
+        ),
+        'metric':
+            _asString(leaderboardMap['metric']) ??
+            _asString(json['leaderboard_metric']) ??
+            'workout_streak',
         'snapshot_at': leaderboardMap['snapshot_at'],
         'items': leaderboardMap['items'],
       }),
@@ -567,7 +599,9 @@ class CommunityChallenge {
       challengeType: _asString(json['challenge_type']) ?? 'custom',
       startAt: DateTime.tryParse(_asString(json['start_at']) ?? ''),
       endAt: DateTime.tryParse(_asString(json['end_at']) ?? ''),
-      goalValue: json['goal_value'] == null ? null : _asDouble(json['goal_value']),
+      goalValue: json['goal_value'] == null
+          ? null
+          : _asDouble(json['goal_value']),
       progressUnit: _asString(json['progress_unit']),
       isActive: _asBool(json['is_active'], fallback: true),
       progressValue: _asDouble(json['progress_value']),
@@ -580,9 +614,7 @@ class CommunityChallenge {
     );
   }
 
-  CommunityChallenge copyWith({
-    bool? mutedNotifications,
-  }) {
+  CommunityChallenge copyWith({bool? mutedNotifications}) {
     return CommunityChallenge(
       challengeId: challengeId,
       name: name,
@@ -632,7 +664,9 @@ class CommunityBadge {
   factory CommunityBadge.fromJson(Map<String, dynamic> json) {
     return CommunityBadge(
       badgeId: json['badge_id'] == null ? null : _asInt(json['badge_id']),
-      userBadgeId: json['user_badge_id'] == null ? null : _asInt(json['user_badge_id']),
+      userBadgeId: json['user_badge_id'] == null
+          ? null
+          : _asInt(json['user_badge_id']),
       badgeKey: _asString(json['badge_key']) ?? '',
       name: _asString(json['name']) ?? 'Badge',
       category: _asString(json['category']) ?? 'general',
@@ -640,7 +674,9 @@ class CommunityBadge {
       triggerType: _asString(json['trigger_type']),
       isEarned: _asBool(json['is_earned'] ?? (json['awarded_at'] != null)),
       awardedAt: DateTime.tryParse(_asString(json['awarded_at']) ?? ''),
-      awardMetadata: json['award_metadata'] == null ? null : _asMap(json['award_metadata']),
+      awardMetadata: json['award_metadata'] == null
+          ? null
+          : _asMap(json['award_metadata']),
     );
   }
 }
@@ -679,7 +715,9 @@ class CommunityReport {
       reason: _asString(json['reason']) ?? 'other',
       details: _asString(json['details']),
       status: _asString(json['status']) ?? 'open',
-      reviewedBy: json['reviewed_by'] == null ? null : _asInt(json['reviewed_by']),
+      reviewedBy: json['reviewed_by'] == null
+          ? null
+          : _asInt(json['reviewed_by']),
       reviewedAt: DateTime.tryParse(_asString(json['reviewed_at']) ?? ''),
       createdAt: DateTime.tryParse(_asString(json['created_at']) ?? ''),
     );
@@ -750,24 +788,26 @@ class CommunityBootstrap {
   factory CommunityBootstrap.fromJson(Map<String, dynamic> json) {
     final filters = _asMap(json['feed_filters_metadata']);
     final challengeSummary = _asMap(json['active_challenges_summary']);
-    final kinds = (filters['group_kinds'] as List?)
+    final kinds =
+        (filters['group_kinds'] as List?)
             ?.map((item) => _asString(item))
             .whereType<String>()
             .toList(growable: false) ??
         const <String>[];
-    final metrics = (filters['leaderboard_metrics'] as List?)
+    final metrics =
+        (filters['leaderboard_metrics'] as List?)
             ?.map((item) => _asString(item))
             .whereType<String>()
             .toList(growable: false) ??
         const <String>[];
     return CommunityBootstrap(
       currentUser: CommunityUserPreview.fromJson(_asMap(json['current_user'])),
-      joinedGroups: _asMapList(json['joined_groups'])
-          .map(CommunityGroupSummary.fromJson)
-          .toList(growable: false),
-      activeChallenges: _asMapList(challengeSummary['items'])
-          .map(CommunityChallenge.fromJson)
-          .toList(growable: false),
+      joinedGroups: _asMapList(
+        json['joined_groups'],
+      ).map(CommunityGroupSummary.fromJson).toList(growable: false),
+      activeChallenges: _asMapList(
+        challengeSummary['items'],
+      ).map(CommunityChallenge.fromJson).toList(growable: false),
       unreadModerationReportNoticesCount: _asInt(
         json['unread_moderation_report_notices_count'],
       ),
@@ -778,10 +818,7 @@ class CommunityBootstrap {
 }
 
 class CommunityPagedResult<T> {
-  const CommunityPagedResult({
-    required this.items,
-    this.nextCursor,
-  });
+  const CommunityPagedResult({required this.items, this.nextCursor});
 
   final List<T> items;
   final int? nextCursor;

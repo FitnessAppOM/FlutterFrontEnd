@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../TaqaUI/components/taqa_back_button.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
+import '../TaqaUI/components/taqa_selection_card.dart';
 import '../TaqaUI/components/taqa_underline_field.dart'
     show
         TaqaPillChoice,
@@ -807,19 +808,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 Row(
                   children: [
                     Expanded(
-                      child: TaqaFilledButton(
-                        label: t.translate("common_save"),
-                        onTap: _saving ? null : _submit,
-                        loading: _saving,
-                      ),
-                    ),
-                    SizedBox(width: TaqaUiScale.w(12)),
-                    Expanded(
                       child: TaqaTextActionButton(
                         label: t.translate("common_cancel"),
                         onTap: _saving
                             ? null
                             : () => Navigator.of(context).pop(false),
+                      ),
+                    ),
+                    SizedBox(width: TaqaUiScale.w(12)),
+                    Expanded(
+                      child: TaqaFilledButton(
+                        label: t.translate("common_save"),
+                        onTap: _saving ? null : _submit,
+                        loading: _saving,
                       ),
                     ),
                   ],
@@ -912,71 +913,35 @@ class _EditProfilePageState extends State<EditProfilePage> {
       subtitle = t.translate("not_set");
     }
 
-    return Card(
-      color: TaqaUiColors.white,
-      shape: RoundedRectangleBorder(borderRadius: TaqaUiScale.radius(15)),
-      child: Padding(
-        padding: TaqaUiScale.symmetric(horizontal: 14, vertical: 14),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    t.translate("affiliation"),
-                    style: TextStyle(
-                      fontFamily: TaqaUiFontFamilies.interTight,
-                      color: TaqaUiColors.charcoal,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  SizedBox(height: TaqaUiScale.h(4)),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
-                    ),
-                  ),
-                ],
-              ),
+    return TaqaSelectionCard(
+      label: t.translate("affiliation"),
+      value: subtitle,
+      buttonLabel: t.translate("set_button"),
+      onTap: () async {
+        final result = await Navigator.of(context).push<Map<String, String?>>(
+          MaterialPageRoute(
+            builder: (_) => _AffiliationSelectionPage(
+              initialId: _affiliationId,
+              initialOther: _affiliationOther,
+              initialName: _affiliationName,
             ),
-            OutlinedButton(
-              onPressed: () async {
-                final result = await Navigator.of(context)
-                    .push<Map<String, String?>>(
-                      MaterialPageRoute(
-                        builder: (_) => _AffiliationSelectionPage(
-                          initialId: _affiliationId,
-                          initialOther: _affiliationOther,
-                          initialName: _affiliationName,
-                        ),
-                      ),
-                    );
-                if (result != null && mounted) {
-                  setState(() {
-                    _affiliationId = result["id"];
-                    _affiliationName = result["name"] ?? "";
-                    _affiliationOther = result["other"] ?? "";
-                    if ((_affiliationId ?? "").isNotEmpty) {
-                      _affiliationOther = "";
-                    }
-                    if ((_affiliationOther ?? "").isNotEmpty) {
-                      _affiliationId = null;
-                      _affiliationName = "";
-                    }
-                  });
-                }
-              },
-              style: OutlinedButton.styleFrom(
-                foregroundColor: TaqaUiColors.charcoal,
-                side: const BorderSide(color: TaqaUiColors.charcoal),
-              ),
-              child: Text(t.translate("set_button")),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+        if (result != null && mounted) {
+          setState(() {
+            _affiliationId = result["id"];
+            _affiliationName = result["name"] ?? "";
+            _affiliationOther = result["other"] ?? "";
+            if ((_affiliationId ?? "").isNotEmpty) {
+              _affiliationOther = "";
+            }
+            if ((_affiliationOther ?? "").isNotEmpty) {
+              _affiliationId = null;
+              _affiliationName = "";
+            }
+          });
+        }
+      },
     );
   }
 

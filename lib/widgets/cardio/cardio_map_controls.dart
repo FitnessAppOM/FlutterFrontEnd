@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../common/gradient_bubble_button.dart';
+
+import '../../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../../TaqaUI/styles/taqa_ui_scale.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 
 class CardioMapControls extends StatefulWidget {
   const CardioMapControls({
@@ -165,11 +168,12 @@ class _CardioMapControlsState extends State<CardioMapControls> {
     final paceLabel = _paceLabel();
     final stepsLabel = widget.steps?.toString() ?? "0";
     final statPills = <Widget>[
-      if (widget.showTimePill) _StatPill(label: "Time", value: _time),
+      if (widget.showTimePill) _MetricReadout(label: "Time", value: _time),
       if (widget.showDistancePill)
-        _StatPill(label: "Distance", value: "$distanceLabel km"),
-      if (widget.showPacePill) _StatPill(label: "Pace", value: paceLabel),
-      if (widget.showStepsPill) _StatPill(label: "Steps", value: stepsLabel),
+        _MetricReadout(label: "Distance", value: "$distanceLabel km"),
+      if (widget.showPacePill) _MetricReadout(label: "Pace", value: paceLabel),
+      if (widget.showStepsPill)
+        _MetricReadout(label: "Steps", value: stepsLabel),
     ];
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -186,17 +190,17 @@ class _CardioMapControlsState extends State<CardioMapControls> {
               duration: const Duration(milliseconds: 220),
               curve: Curves.easeOutCubic,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                margin: const EdgeInsets.only(bottom: 10),
+                padding: TaqaUiScale.insetsLTRB(14, 10, 14, 10),
+                margin: EdgeInsets.only(bottom: TaqaUiScale.h(18)),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0B0F1A).withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withOpacity(0.1)),
-                  boxShadow: [
+                  color: const Color(0xFF1D1D20),
+                  borderRadius: TaqaUiScale.radius(18),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                  boxShadow: const [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.4),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
+                      color: Color(0x66000000),
+                      blurRadius: 20,
+                      offset: Offset(0, 10),
                     ),
                   ],
                 ),
@@ -204,7 +208,8 @@ class _CardioMapControlsState extends State<CardioMapControls> {
                   children: [
                     for (var i = 0; i < statPills.length; i++) ...[
                       statPills[i],
-                      if (i != statPills.length - 1) const SizedBox(width: 8),
+                      if (i != statPills.length - 1)
+                        SizedBox(width: TaqaUiScale.w(8)),
                     ],
                   ],
                 ),
@@ -212,7 +217,7 @@ class _CardioMapControlsState extends State<CardioMapControls> {
             ),
           ),
         SizedBox(
-          height: 64,
+          height: TaqaUiScale.h(64),
           width: double.infinity,
           child: Stack(
             alignment: Alignment.center,
@@ -222,52 +227,37 @@ class _CardioMapControlsState extends State<CardioMapControls> {
                     ? Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          GradientBubbleButton(
+                          _CardioActionButton(
                             icon: Icons.play_arrow_rounded,
-                            gradient: const LinearGradient(
-                              colors: [Color(0x33FFFFFF), Color(0x55D1E9FF)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
+                            style: _CardioActionStyle.primary,
                             onTap: _handleStart,
                           ),
-                          const SizedBox(width: 12),
-                          GradientBubbleButton(
+                          SizedBox(width: TaqaUiScale.w(12)),
+                          _CardioActionButton(
                             icon: Icons.check_rounded,
-                            gradient: const LinearGradient(
-                              colors: [Color(0x33FFFFFF), Color(0x55D1E9FF)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
+                            style: _CardioActionStyle.primary,
                             onTap: _handleFinish,
                           ),
                         ],
                       )
-                    : GradientBubbleButton(
+                    : _CardioActionButton(
                         icon: Icons.play_arrow_rounded,
-                        gradient: const LinearGradient(
-                          colors: [Color(0x33FFFFFF), Color(0x55D1E9FF)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
+                        style: _CardioActionStyle.primary,
                         onTap: _handleStart,
                       ))
               else if (_countdown != null)
-                GradientBubbleButton(
+                _CardioActionButton(
+                  style: _CardioActionStyle.primary,
+                  onTap: null,
                   child: Text(
                     _countdown.toString(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      color: TaqaUiColors.unnamedColor1c1d17,
+                      fontSize: TaqaUiScale.sp(22),
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  gradient: const LinearGradient(
-                    colors: [Color(0x33FFFFFF), Color(0x55D1E9FF)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  onTap: null,
                 )
               else
                 const SizedBox.shrink(),
@@ -275,23 +265,15 @@ class _CardioMapControlsState extends State<CardioMapControls> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    GradientBubbleButton(
+                    _CardioActionButton(
                       icon: Icons.pause_rounded,
-                      gradient: const LinearGradient(
-                        colors: [Color(0x33FFFFFF), Color(0x55D1E9FF)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                      style: _CardioActionStyle.secondary,
                       onTap: _handlePause,
                     ),
-                    const SizedBox(width: 12),
-                    GradientBubbleButton(
+                    SizedBox(width: TaqaUiScale.w(12)),
+                    _CardioActionButton(
                       icon: Icons.check_rounded,
-                      gradient: const LinearGradient(
-                        colors: [Color(0x33FFFFFF), Color(0x55D1E9FF)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                      style: _CardioActionStyle.primary,
                       onTap: _handleFinish,
                     ),
                   ],
@@ -304,8 +286,73 @@ class _CardioMapControlsState extends State<CardioMapControls> {
   }
 }
 
-class _StatPill extends StatelessWidget {
-  const _StatPill({required this.label, required this.value});
+enum _CardioActionStyle { primary, secondary }
+
+/// Circular action button matching the indoor-cardio session dock's lime
+/// accent language, used here for the outdoor/map cardio controls so both
+/// flows read as one design system instead of the old translucent gradient
+/// bubble buttons.
+class _CardioActionButton extends StatelessWidget {
+  const _CardioActionButton({
+    this.icon,
+    this.child,
+    required this.style,
+    required this.onTap,
+  }) : assert(icon != null || child != null);
+
+  final IconData? icon;
+  final Widget? child;
+  final _CardioActionStyle style;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isPrimary = style == _CardioActionStyle.primary;
+    final size = TaqaUiScale.w(56);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: TaqaUiScale.radius(999),
+        onTap: onTap,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            // The old translucent-white fill was nearly invisible against a
+            // busy map background, reading as a broken/ghost circle. Give
+            // the secondary (pause) button a solid dark fill so it's as
+            // legible as the lime primary button.
+            color: isPrimary ? TaqaUiColors.lime : const Color(0xFF1D1D20),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: isPrimary
+                  ? Colors.transparent
+                  : Colors.white.withValues(alpha: 0.18),
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x66000000),
+                blurRadius: 14,
+                offset: Offset(0, 6),
+              ),
+            ],
+          ),
+          alignment: Alignment.center,
+          child:
+              child ??
+              Icon(
+                icon,
+                color: isPrimary ? TaqaUiColors.unnamedColor1c1d17 : Colors.white,
+                size: TaqaUiScale.sp(24),
+              ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MetricReadout extends StatelessWidget {
+  const _MetricReadout({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -314,11 +361,11 @@ class _StatPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 6),
+        padding: TaqaUiScale.symmetric(vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.08)),
+          color: Colors.white.withValues(alpha: 0.05),
+          borderRadius: TaqaUiScale.radius(12),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -326,19 +373,21 @@ class _StatPill extends StatelessWidget {
             Text(
               label.toUpperCase(),
               style: TextStyle(
-                color: Colors.white.withOpacity(0.6),
-                fontSize: 10,
+                fontFamily: TaqaUiFontFamilies.interTight,
+                color: Colors.white.withValues(alpha: 0.6),
+                fontSize: TaqaUiScale.sp(10),
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.6,
               ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: TaqaUiScale.h(4)),
             Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
                 color: Colors.white,
                 fontWeight: FontWeight.w800,
-                fontSize: 12,
+                fontSize: TaqaUiScale.sp(12),
               ),
             ),
           ],

@@ -207,15 +207,15 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     // Backend expects university_id even when not a student (use 0)
     _values["university_id"] = _values["university_id"] ?? "0";
 
-    // At least one muscle priority (upper or lower) must be chosen.
+    // Both muscle priorities are required by the questionnaire API.
     if (_currentSection == 1) {
       final hasUpper = (_values["muscle_priority_upper"] ?? "").isNotEmpty;
       final hasLower = (_values["muscle_priority_lower"] ?? "").isNotEmpty;
-      if (!hasUpper && !hasLower) {
+      if (!hasUpper || !hasLower) {
         if (!mounted) return;
         AppToast.show(
           context,
-          "Please select at least one muscle priority (upper or lower).",
+          "Please select both upper and lower muscle priorities.",
           type: AppToastType.error,
         );
         return;
@@ -512,10 +512,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _StepProgressBar(
-            current: _currentSection,
-            total: _totalSections,
-          ),
+          _StepProgressBar(current: _currentSection, total: _totalSections),
           SizedBox(height: TaqaUiScale.h(16)),
           Expanded(
             child: SingleChildScrollView(
@@ -584,7 +581,6 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                     ),
                   if (_currentSection > 0) SizedBox(width: TaqaUiScale.w(12)),
                   Expanded(
-                    flex: 2,
                     child: TaqaFilledButton(
                       label: _currentSection == _totalSections - 1
                           ? _t("finish")
@@ -679,13 +675,11 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         label: _t("muscle_priority_upper"),
         keyName: "muscle_priority_upper",
         options: [_t("chest"), _t("back_muscle"), _t("shoulders")],
-        requiredField: false,
       ),
       _buildChoiceField(
         label: _t("muscle_priority_lower"),
         keyName: "muscle_priority_lower",
         options: [_t("quads"), _t("hamstrings"), _t("glutes")],
-        requiredField: false,
       ),
       _buildChoiceField(
         label: _t("time_change"),
@@ -1321,7 +1315,9 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                       label: _t("other"),
                       onChanged: (val) => _saveField(keyName, val),
                       validator: (val) {
-                        if (showOtherField && val != null && val.trim().isEmpty) {
+                        if (showOtherField &&
+                            val != null &&
+                            val.trim().isEmpty) {
                           return _t("required");
                         }
                         return null;
@@ -1463,8 +1459,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                   onChanged: (_) => updateValue(),
                 ),
               ],
-              if (state.hasError)
-                TaqaRequiredHint(text: state.errorText ?? ''),
+              if (state.hasError) TaqaRequiredHint(text: state.errorText ?? ''),
             ],
           ),
         );
@@ -1487,7 +1482,9 @@ class _StepProgressBar extends StatelessWidget {
         final filled = i <= current;
         return Expanded(
           child: Padding(
-            padding: EdgeInsets.only(right: i == total - 1 ? 0 : TaqaUiScale.w(6)),
+            padding: EdgeInsets.only(
+              right: i == total - 1 ? 0 : TaqaUiScale.w(6),
+            ),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               height: TaqaUiScale.h(4),

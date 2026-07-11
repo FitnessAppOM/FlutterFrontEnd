@@ -56,7 +56,8 @@ class TaqaCommunityHeroCard extends StatelessWidget {
         final titleHeight = TaqaUiScale.h(18) * layoutScale;
         final welcomeTop = TaqaUiScale.h(hasTitle ? 34 : 15) * layoutScale;
         final welcomeWidth = TaqaUiScale.w(328) * layoutScale;
-        final welcomeHeight = TaqaUiScale.h(hasTitle ? 52 : 56) * layoutScale;
+        // The greeting and scrolling full name always share one line.
+        final welcomeHeight = TaqaUiScale.h(30) * layoutScale;
         final boxesTop = TaqaUiScale.h(94) * layoutScale;
         final boxesLeft = TaqaUiScale.w(14) * layoutScale;
         final boxWidth = TaqaUiStyles.communityStatBoxWidth * layoutScale;

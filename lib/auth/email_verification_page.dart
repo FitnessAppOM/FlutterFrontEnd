@@ -1,16 +1,19 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import '../core/account_storage.dart';
 import '../config/base_url.dart';
-import '../theme/app_theme.dart';
-import '../theme/spacing.dart';
-import '../widgets/primary_button.dart';
 import '../localization/app_localizations.dart'; // ADDED
 import 'verification_success_page.dart';
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/components/taqa_filled_button.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
+import '../TaqaUI/components/taqa_underline_field.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 import '../services/core/notification_service.dart';
 import '../services/core/daily_provider_push_service.dart';
 
@@ -202,88 +205,84 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
     final t = AppLocalizations.of(context); // Translator
     final canSubmit = !loading && codeController.text.trim().length == 6;
 
+    final bodyStyle = TextStyle(
+      fontFamily: TaqaUiFontFamilies.interTight,
+      fontSize: TaqaUiScale.sp(14),
+      fontWeight: FontWeight.w400,
+      color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.7),
+    );
+
     return Scaffold(
-      backgroundColor: AppColors.black,
-      appBar: TaqaPageAppBar(
-        title: t.translate("verification_title"),
-        backgroundColor: AppColors.black,
-        titleColor: Colors.white,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              t.translate("verification_sent"),
-              style: const TextStyle(fontSize: 16, color: Colors.white70),
-            ),
-            Gaps.h5,
-            Text(
-              _obfuscateEmail(widget.email),
-              style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            ),
-
-            Gaps.h10,
-
-            Text(
-              t.translate("verification_spam_hint"),
-              style: const TextStyle(fontSize: 13, color: Colors.white54),
-            ),
-
-            Gaps.h20,
-
-            TextField(
-              controller: codeController,
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                labelText: t.translate("enter_code"),
-                hintText: t.translate("hint_code"),
-                counterText: "",
-              ),
-            ),
-
-            Gaps.h20,
-
-            SizedBox(
-              width: double.infinity,
-              child: PrimaryWhiteButton(
-                onPressed: canSubmit ? verifyCode : null,
-                child: loading
-                    ? const SizedBox(
-                        height: 22,
-                        width: 22,
-                        child: CircularProgressIndicator(
-                          color: Colors.black,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : Text(t.translate("verify_btn")),
-              ),
-            ),
-
-            Gaps.h20,
-
-            Center(
-              child: resendCooldown
-                  ? Text(
-                      t
-                          .translate("resend_wait")
-                          .replaceAll("{seconds}", "$cooldownSeconds"),
-                      style: const TextStyle(color: Colors.white54),
-                    )
-                  : TextButton(
-                      onPressed: resendCode,
-                      child: Text(t.translate("resend_btn")),
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      appBar: TaqaPageAppBar(title: t.translate("verification_title")),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(t.translate("verification_sent"), style: bodyStyle),
+                  SizedBox(height: TaqaUiScale.h(6)),
+                  Text(
+                    _obfuscateEmail(widget.email),
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(15),
+                      fontWeight: FontWeight.w700,
+                      color: TaqaUiColors.unnamedColor1c1d17,
                     ),
+                  ),
+                  SizedBox(height: TaqaUiScale.h(8)),
+                  Text(
+                    t.translate("verification_spam_hint"),
+                    style: bodyStyle.copyWith(
+                      fontSize: TaqaUiScale.sp(12),
+                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                        alpha: 0.5,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: TaqaUiScale.h(24)),
+                  TaqaUnderlineTextField(
+                    controller: codeController,
+                    label: t.translate("enter_code"),
+                    hint: t.translate("hint_code"),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(6),
+                    ],
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  SizedBox(height: TaqaUiScale.h(20)),
+                  Center(
+                    child: resendCooldown
+                        ? Text(
+                            t
+                                .translate("resend_wait")
+                                .replaceAll("{seconds}", "$cooldownSeconds"),
+                            style: bodyStyle,
+                          )
+                        : TaqaTextActionButton(
+                            label: t.translate("resend_btn"),
+                            onTap: resendCode,
+                          ),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+          Padding(
+            padding: TaqaUiScale.insetsLTRB(16, 0, 16, 20),
+            child: TaqaFilledButton(
+              label: t.translate("verify_btn"),
+              onTap: canSubmit ? verifyCode : null,
+              loading: loading,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -8,6 +8,7 @@ import '../../screens/settings_page.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../../TaqaUI/components/taqa_adaptive_name_text.dart';
 
 class ProfileHeader extends StatelessWidget {
   const ProfileHeader({
@@ -51,10 +52,9 @@ class ProfileHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                name ?? t.translate("profile_user_name"),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              TaqaAdaptiveNameText(
+                welcomeText: name ?? t.translate("profile_user_name"),
+                userNameText: name ?? t.translate("profile_user_name"),
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(25),

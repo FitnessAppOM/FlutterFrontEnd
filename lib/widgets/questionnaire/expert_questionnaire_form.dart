@@ -9,6 +9,7 @@ import '../../services/auth/affiliation_service.dart';
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/components/taqa_filled_button.dart';
 import '../../TaqaUI/components/taqa_page_app_bar.dart';
+import '../../TaqaUI/components/taqa_selection_card.dart';
 import '../../TaqaUI/components/taqa_underline_field.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
@@ -719,8 +720,10 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
               (_affiliationOtherText?.isNotEmpty == true
                   ? _affiliationOtherText
                   : "Not set");
-    return TaqaSummaryRow(
+    return TaqaSelectionCard(
+      label: "Affiliation",
       value: label ?? "Not set",
+      buttonLabel: "Set",
       onTap: _isAffiliated ? _openAffiliationSelector : null,
     );
   }
@@ -731,7 +734,12 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
         ? (_certType ?? "Select type")
         : (_hasCertification == "No" ? "No certification" : "Not set");
     final label = _hasCertification == null ? "Not set" : "$status • $detail";
-    return TaqaSummaryRow(value: label, onTap: _openCertificateSelector);
+    return TaqaSelectionCard(
+      label: "Certification",
+      value: label,
+      buttonLabel: "Set",
+      onTap: _openCertificateSelector,
+    );
   }
 
   Future<void> _openAffiliationSelector() async {

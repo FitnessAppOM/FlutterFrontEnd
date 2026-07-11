@@ -873,7 +873,9 @@ class DashboardPageState extends State<DashboardPage>
     showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
-      barrierLabel: AppLocalizations.of(context).translate("widget_library_title"),
+      barrierLabel: AppLocalizations.of(
+        context,
+      ).translate("widget_library_title"),
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 220),
       pageBuilder: (context, anim, secondary) {
@@ -932,10 +934,8 @@ class DashboardPageState extends State<DashboardPage>
           : _fitbitSleep;
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => FitbitSleepDetailPage(
-            summary: sleep,
-            date: _selectedDate,
-          ),
+          builder: (_) =>
+              FitbitSleepDetailPage(summary: sleep, date: _selectedDate),
         ),
       );
       return;
@@ -1453,7 +1453,9 @@ class DashboardPageState extends State<DashboardPage>
       if (existing.isNotEmpty && existing != key) {
         AppToast.show(
           context,
-          t("dash_only_one_widget").replaceAll("{group}", _exclusiveGroupLabel(group)),
+          t(
+            "dash_only_one_widget",
+          ).replaceAll("{group}", _exclusiveGroupLabel(group)),
           type: AppToastType.info,
         );
         return;
@@ -1467,7 +1469,11 @@ class DashboardPageState extends State<DashboardPage>
         key == 'fitbit_vitals' ||
         key == 'fitbit_body') {
       if (!_fitbitLinked) {
-        AppToast.show(context, t("dash_connect_fitbit_first"), type: AppToastType.info);
+        AppToast.show(
+          context,
+          t("dash_connect_fitbit_first"),
+          type: AppToastType.info,
+        );
         return;
       }
     } else if (key == 'whoop_sleep' ||
@@ -1475,12 +1481,20 @@ class DashboardPageState extends State<DashboardPage>
         key == 'whoop_cycle' ||
         key == 'whoop_body') {
       if (!_whoopLinked) {
-        AppToast.show(context, t("dash_connect_whoop_first"), type: AppToastType.info);
+        AppToast.show(
+          context,
+          t("dash_connect_whoop_first"),
+          type: AppToastType.info,
+        );
         return;
       }
     } else if (key == 'strava_activities') {
       if (!_stravaLinked) {
-        AppToast.show(context, t("dash_connect_strava_first"), type: AppToastType.info);
+        AppToast.show(
+          context,
+          t("dash_connect_strava_first"),
+          type: AppToastType.info,
+        );
         return;
       }
     }
@@ -5053,14 +5067,18 @@ class DashboardPageState extends State<DashboardPage>
   String? _resolveDisplayName(Map<String, dynamic> profile) {
     final firstName = profile["first_name"]?.toString().trim() ?? "";
     final lastName = profile["last_name"]?.toString().trim() ?? "";
-    final joined = [firstName, lastName].where((s) => s.isNotEmpty).join(" ");
-    if (joined.isNotEmpty) return joined;
+    if (firstName.isNotEmpty && lastName.isNotEmpty) {
+      return "$firstName $lastName";
+    }
 
     final fullName = profile["full_name"]?.toString().trim() ?? "";
     if (fullName.isNotEmpty) return fullName;
 
     final name = profile["name"]?.toString().trim() ?? "";
     if (name.isNotEmpty) return name;
+
+    if (firstName.isNotEmpty) return firstName;
+    if (lastName.isNotEmpty) return lastName;
 
     final username = profile["username"]?.toString().trim() ?? "";
     if (username.isNotEmpty) return username;
@@ -5529,9 +5547,13 @@ class DashboardPageState extends State<DashboardPage>
                         : '${_stravaActivitiesCount ?? 0}';
                     return TaqaDashboardMetricCard(
                       source: TaqaDashboardMetricSource.strava,
-                      title: AppLocalizations.of(context).translate("strava_activities_title"),
+                      title: AppLocalizations.of(
+                        context,
+                      ).translate("strava_activities_title"),
                       valueText: stravaActivitiesValue,
-                      goalText: AppLocalizations.of(context).translate("dash_strava_sessions_done"),
+                      goalText: AppLocalizations.of(
+                        context,
+                      ).translate("dash_strava_sessions_done"),
                       progress: 0.0,
                       showArc: false,
                       loading: _stravaActivitiesLoading,
@@ -5731,8 +5753,7 @@ class DashboardPageState extends State<DashboardPage>
                       onTap: () async {
                         await Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) =>
-                                FitbitBodyDetailPage(summary: body),
+                            builder: (_) => FitbitBodyDetailPage(summary: body),
                           ),
                         );
                       },
@@ -6010,7 +6031,9 @@ class DashboardPageState extends State<DashboardPage>
                             if (_wearableBubbleType == 'apple') ...[
                               const SizedBox(width: 8),
                               Text(
-                                AppLocalizations.of(context).translate("dash_apple_watch"),
+                                AppLocalizations.of(
+                                  context,
+                                ).translate("dash_apple_watch"),
                                 style: Theme.of(context).textTheme.labelSmall
                                     ?.copyWith(
                                       color: Colors.white70,

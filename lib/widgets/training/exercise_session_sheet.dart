@@ -128,10 +128,17 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     _restoreTimerState();
     _maybeAutoShowInstructions();
     if (_isCardioExercise()) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        setState(() => _cardioMapExpanded = true);
-      });
+      // _cardioMapExpanded only affects the outdoor CardioMap widget. For
+      // indoor/mapless cardio this setState was pure churn — it forces a
+      // rebuild of the whole page while the fullscreen route's entrance
+      // transition is still animating in, which is what was tripping the
+      // '!semantics.parentDataDirty' crash on open.
+      if (!_isIndoorCardioExercise()) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          setState(() => _cardioMapExpanded = true);
+        });
+      }
       _loadBodyWeight();
     }
   }
@@ -880,13 +887,23 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     final exType = _lower(widget.exercise['exercise_type']);
     final animName = _lower(widget.exercise['animation_name']);
     final name = _lower(widget.exercise['exercise_name']);
+    // Some indoor-cardio exercises (e.g. "Row Machine") aren't tagged
+    // "cardio" in category/exercise_type/animation_name server-side, which
+    // used to make this return false while train_page's own name-based
+    // isIndoorCardioExerciseName() check still routed them into the
+    // fullscreen indoor-cardio route. That mismatch left the sheet
+    // rendering its normal strength-exercise (set rows) layout inside the
+    // fullscreen route instead of the indoor-cardio layout it expects,
+    // which is what caused the semantics/hit-test crashes for those
+    // exercises. Fall back to the same name-based check so both agree.
     return [
-          category,
-          exType,
-          animName,
-          name,
-        ].any((v) => v.contains('cardio')) ||
-        animName.startsWith('cardio -');
+              category,
+              exType,
+              animName,
+              name,
+            ].any((v) => v.contains('cardio')) ||
+        animName.startsWith('cardio -') ||
+        isIndoorCardioExerciseName(widget.exercise['exercise_name']?.toString());
   }
 
   bool _isIndoorCardioExercise() {

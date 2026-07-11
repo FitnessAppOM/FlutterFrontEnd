@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_action_controls.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_filled_button.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_steps_ui.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_set_row_edit_dialog.dart';
 import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
@@ -278,27 +279,16 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                         ],
                       ),
                     ),
-                    ElevatedButton(
-                      onPressed: live.finishingWorkout
-                          ? null
-                          : () => widget.onFinishWorkout(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: TaqaUiColors.white,
-                        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                    SizedBox(
+                      width: TaqaUiScale.w(100),
+                      height: TaqaUiScale.h(40),
+                      child: TaqaFilledButton(
+                        label: "Finish",
+                        loading: live.finishingWorkout,
+                        onTap: live.finishingWorkout
+                            ? null
+                            : () => widget.onFinishWorkout(),
                       ),
-                      child: live.finishingWorkout
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text(
-                              "Finish",
-                              style: TextStyle(fontWeight: FontWeight.w700),
-                            ),
                     ),
                   ],
                 ),
@@ -2074,37 +2064,12 @@ class _WorkoutLauncherExerciseCardState
           const SizedBox(height: 10),
           _ghostButton(label: "ADD SET", onTap: _addSet),
           const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: (_starting || _finishingExercise)
-                  ? null
-                  : (widget.isActive ? _finishExercise : _startExercise),
-              style: ElevatedButton.styleFrom(
-                elevation: 0,
-                backgroundColor: TaqaUiColors.white,
-                foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4),
-                  side: BorderSide(color: TaqaUiColors.white, width: 1),
-                ),
-              ),
-              child: (_starting || _finishingExercise)
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(
-                      widget.isActive ? "FINISH EXERCISE" : "START EXERCISE",
-                      style: const TextStyle(
-                        fontFamily: TaqaUiFontFamilies.interTight,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: TaqaUiColors.unnamedColor1c1d17,
-                      ),
-                    ),
-            ),
+          TaqaFilledButton(
+            label: widget.isActive ? "Finish Exercise" : "Start Exercise",
+            loading: _starting || _finishingExercise,
+            onTap: (_starting || _finishingExercise)
+                ? null
+                : (widget.isActive ? _finishExercise : _startExercise),
           ),
         ],
       ),
@@ -2437,6 +2402,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
   bool _cardioBuilt = false;
   List<Map<String, dynamic>> _cardioLibrary = const [];
   bool _loadingCardioLibrary = false;
+  bool _cardioLibraryFetchedFromNetwork = false;
   List<Map<String, dynamic>> _trainExercises = const [];
   final Set<String> _preloadedThumbs = <String>{};
   List<int> _dayOrder = const [];
@@ -2696,7 +2662,14 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
 
   Future<void> _loadCardioLibrary() async {
     if (_loadingCardioLibrary) return;
-    if (_cardioLibrary.isNotEmpty) return;
+    // _cardioLibrary being non-empty doesn't mean we're done: it may only
+    // hold cache-restored entries, and CardioExercisesStorage deliberately
+    // strips animation_url before caching (signed GCS urls expire, so a
+    // cached one would just 403 later). Only the live fetch below backfills
+    // real animation_url values, so it must always run once per session —
+    // otherwise every cardio card is stuck showing the placeholder icon for
+    // the rest of the app's lifetime after the first cold start.
+    if (_cardioLibraryFetchedFromNetwork) return;
     setState(() => _loadingCardioLibrary = true);
     try {
       final items = await TrainingService.fetchCardioExercises();
@@ -2707,14 +2680,17 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       setState(() {
         _cardioLibrary = merged;
         _loadingCardioLibrary = false;
+        _cardioLibraryFetchedFromNetwork = true;
       });
       CardioExercisesStorage.saveList(merged);
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _cardioLibrary = List<Map<String, dynamic>>.from(
-          _fallbackCardioLibrary,
-        );
+        if (_cardioLibrary.isEmpty) {
+          _cardioLibrary = List<Map<String, dynamic>>.from(
+            _fallbackCardioLibrary,
+          );
+        }
         _loadingCardioLibrary = false;
       });
     }

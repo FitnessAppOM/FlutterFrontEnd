@@ -57,12 +57,22 @@ class _CupertinoPickerFieldState extends State<CupertinoPickerField> {
               itemExtent: TaqaUiScale.h(36),
               selectionOverlay: Container(
                 decoration: BoxDecoration(
-                  color: TaqaUiColors.unnamedColorE3e3e3,
+                  // Cupertino paints this overlay above the wheel items. Keep
+                  // it translucent so the selected age remains readable.
+                  color: TaqaUiColors.unnamedColorE3e3e3.withValues(
+                    alpha: 0.35,
+                  ),
+                  border: Border.all(
+                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                      alpha: 0.12,
+                    ),
+                  ),
                   borderRadius: TaqaUiScale.radius(8),
                 ),
               ),
-              scrollController:
-              FixedExtentScrollController(initialItem: selectedIndex),
+              scrollController: FixedExtentScrollController(
+                initialItem: selectedIndex,
+              ),
               onSelectedItemChanged: (index) {
                 setState(() => selectedIndex = index);
                 widget.onSelected(widget.options[index]);

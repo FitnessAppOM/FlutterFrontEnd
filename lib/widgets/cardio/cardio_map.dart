@@ -6,8 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
-import '../../theme/app_theme.dart';
-import '../common/gradient_bubble_button.dart';
+import '../../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import 'cardio_map_controls.dart';
 
 class CardioMap extends StatefulWidget {
@@ -153,12 +153,14 @@ class _CardioMapState extends State<CardioMap> with WidgetsBindingObserver {
       duration: const Duration(milliseconds: 420),
       curve: Curves.easeOutCubic,
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.dividerDark),
+        color: const Color(0xFF1D1D20),
+        borderRadius: TaqaUiScale.radius(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(widget.expanded ? 0.35 : 0.22),
+            color: Colors.black.withValues(
+              alpha: widget.expanded ? 0.35 : 0.22,
+            ),
             blurRadius: widget.expanded ? 28 : 18,
             offset: const Offset(0, 10),
           ),
@@ -216,9 +218,9 @@ class _CardioMapState extends State<CardioMap> with WidgetsBindingObserver {
             ),
           ),
           Positioned(
-            left: 12,
-            right: 12,
-            bottom: 12,
+            left: TaqaUiScale.w(12),
+            right: TaqaUiScale.w(12),
+            bottom: TaqaUiScale.h(12),
             child: CardioMapControls(
               distanceKm: _distanceMeters / 1000.0,
               speedKmh: _speedKmh,
@@ -245,17 +247,30 @@ class _CardioMapState extends State<CardioMap> with WidgetsBindingObserver {
             ),
           ),
           Positioned(
-            top: 12,
-            right: 12,
-            child: GradientBubbleButton(
-              icon: Icons.close_rounded,
-              size: 42,
-              gradient: const LinearGradient(
-                colors: [Color(0x33FFFFFF), Color(0x55D1E9FF)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+            top: TaqaUiScale.h(12),
+            right: TaqaUiScale.w(12),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: TaqaUiScale.radius(999),
+                onTap: widget.onClose,
+                child: Container(
+                  width: TaqaUiScale.w(42),
+                  height: TaqaUiScale.w(42),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.16),
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.close_rounded,
+                    color: Colors.white,
+                    size: TaqaUiScale.sp(20),
+                  ),
+                ),
               ),
-              onTap: widget.onClose,
             ),
           ),
         ],
@@ -654,29 +669,39 @@ class _CardioMapState extends State<CardioMap> with WidgetsBindingObserver {
 
   Widget _mapPlaceholder(String title, String subtitle) {
     return Container(
-      height: 220,
+      height: TaqaUiScale.h(220),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.dividerDark),
+        color: const Color(0xFF1D1D20),
+        borderRadius: TaqaUiScale.radius(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.map, color: Colors.white54, size: 28),
-            const SizedBox(height: 8),
+            Icon(
+              Icons.map_rounded,
+              color: Colors.white.withValues(alpha: 0.4),
+              size: TaqaUiScale.sp(28),
+            ),
+            SizedBox(height: TaqaUiScale.h(8)),
             Text(
               title,
-              style: const TextStyle(
-                color: Colors.white70,
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                color: Colors.white.withValues(alpha: 0.85),
+                fontSize: TaqaUiScale.sp(14),
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: TaqaUiScale.h(4)),
             Text(
               subtitle,
-              style: const TextStyle(color: Colors.white54, fontSize: 12),
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                color: Colors.white.withValues(alpha: 0.5),
+                fontSize: TaqaUiScale.sp(12),
+              ),
             ),
           ],
         ),

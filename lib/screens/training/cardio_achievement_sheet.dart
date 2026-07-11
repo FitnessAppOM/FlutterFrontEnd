@@ -346,17 +346,12 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                       children: [
                         Row(
                           children: [
-                            Container(
+                            SizedBox(
                               width: TaqaUiScale.w(36),
                               height: TaqaUiScale.h(36),
-                              decoration: BoxDecoration(
-                                color: TaqaUiColors.lime,
-                                borderRadius: TaqaUiScale.radius(12),
-                              ),
-                              child: Icon(
-                                Icons.fitness_center,
-                                color: TaqaUiColors.unnamedColor1c1d17,
-                                size: TaqaUiScale.w(17),
+                              child: Image.asset(
+                                'lib/TaqaUI/Assets/Taqa_Fitness_Favicon.png',
+                                fit: BoxFit.contain,
                               ),
                             ),
                             SizedBox(width: TaqaUiScale.w(9)),

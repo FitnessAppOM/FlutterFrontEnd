@@ -201,14 +201,18 @@ class _ProfilePageState extends State<ProfilePage> {
     if (_profile == null) return null;
     final firstName = _profile?["first_name"]?.toString().trim() ?? "";
     final lastName = _profile?["last_name"]?.toString().trim() ?? "";
-    final joined = [firstName, lastName].where((s) => s.isNotEmpty).join(" ");
-    if (joined.isNotEmpty) return joined;
+    if (firstName.isNotEmpty && lastName.isNotEmpty) {
+      return "$firstName $lastName";
+    }
 
     final fullName = _profile?["full_name"]?.toString().trim() ?? "";
     if (fullName.isNotEmpty) return fullName;
 
     final name = _profile?["name"]?.toString().trim() ?? "";
     if (name.isNotEmpty) return name;
+
+    if (firstName.isNotEmpty) return firstName;
+    if (lastName.isNotEmpty) return lastName;
 
     final username = _profile?["username"]?.toString().trim() ?? "";
     if (username.isNotEmpty) return username;
@@ -464,7 +468,9 @@ class _ProfilePageState extends State<ProfilePage> {
                                 ),
                               ),
                               child: Text(
-                                t.translate("profile_deactivated_edit_disabled"),
+                                t.translate(
+                                  "profile_deactivated_edit_disabled",
+                                ),
                                 style: TextStyle(
                                   fontFamily: TaqaUiFontFamilies.interTight,
                                   color: TaqaUiColors.unnamedColor1c1d17,
