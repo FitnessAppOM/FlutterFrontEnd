@@ -5,8 +5,13 @@ import '../core/user_friendly_error.dart';
 import '../localization/app_localizations.dart';
 import '../services/auth/profile_service.dart';
 import '../theme/app_theme.dart';
+import '../TaqaUI/components/taqa_bottom_nav_bar.dart';
+import '../TaqaUI/components/taqa_floating_chat_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
+import '../TaqaUI/components/taqa_steps_ui.dart';
 import '../TaqaUI/components/taqa_toast.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 import '../widgets/coach/coach_chat_panel.dart';
 import '../widgets/coach/coach_feedback_panel.dart';
 import '../widgets/coach/coach_form_check_panel.dart';
@@ -33,6 +38,26 @@ class _CoachPageState extends State<CoachPage> {
   int _coachPanelsRevision = 0;
   final Set<int> _detachingCoachIds = <int>{};
   final Set<int> _reportingCoachIds = <int>{};
+
+  // Chat moved from an inline tab to the floating CHAT button, so the
+  // panel index only covers Feedback (0) and Form Check (1) now. The old
+  // tab index scheme (0=feedback, 1=chat, 2=form check) is still used by
+  // deep links (push notifications), so index 1 opens the chat page
+  // directly instead of selecting a tab, and 2 maps to the new index 1.
+  late int _panelIndex = widget.initialTabIndex == 2 ? 1 : 0;
+  bool _autoOpenedChat = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialTabIndex == 1) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _autoOpenedChat) return;
+        _autoOpenedChat = true;
+        _openChatPage();
+      });
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -172,19 +197,6 @@ class _CoachPageState extends State<CoachPage> {
       );
     }
     return requests;
-  }
-
-  String _coachPageTitle() {
-    if (_assignedCoaches.isEmpty) return 'Expert';
-    final raw = _assignedCoaches.first.name.trim();
-    if (raw.isEmpty) return 'Expert';
-    final tokens = raw
-        .split(RegExp(r'\s+'))
-        .where((part) => part.trim().isNotEmpty)
-        .toList();
-    if (tokens.isEmpty) return 'Expert';
-    final firstName = tokens.first;
-    return 'Expert $firstName';
   }
 
   String _firstNameOnly(String raw) {
@@ -545,6 +557,7 @@ class _CoachPageState extends State<CoachPage> {
                                         height: 14,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
+                                          color: Colors.orangeAccent,
                                         ),
                                       )
                                     : const Icon(Icons.flag_outlined, size: 18),
@@ -571,6 +584,7 @@ class _CoachPageState extends State<CoachPage> {
                                         height: 14,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
+                                          color: Colors.redAccent,
                                         ),
                                       )
                                     : const Icon(Icons.link_off, size: 18),
@@ -660,49 +674,101 @@ class _CoachPageState extends State<CoachPage> {
     codeController.dispose();
   }
 
+  Future<void> _openChatPage() async {
+    final chatTitle = AppLocalizations.of(context).translate('coach_tab_chat');
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => Scaffold(
+          backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+          appBar: TaqaPageAppBar(title: chatTitle),
+          body: SafeArea(
+            child: CoachChatPanel(initialCoachUserId: widget.initialCoachUserId),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
 
-    return DefaultTabController(
-      length: 3,
-      initialIndex: (widget.initialTabIndex >= 0 && widget.initialTabIndex < 3)
-          ? widget.initialTabIndex
-          : 0,
-      child: Scaffold(
-        backgroundColor: AppColors.black,
-        appBar: TaqaPageAppBar(
-          title: _coachPageTitle(),
-          backgroundColor: AppColors.black,
-          titleColor: Colors.white,
-          trailing: IconButton(
-            tooltip: 'My Coaches',
-            onPressed: _openCoachesSheet,
-            icon: const Icon(Icons.groups_2_outlined),
-          ),
-          bottom: TabBar(
-            indicatorColor: AppColors.accent,
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            tabs: [
-              Tab(text: t.translate('coach_tab_feedback')),
-              Tab(text: t.translate('coach_tab_chat')),
-              Tab(text: t.translate('coach_tab_form_check')),
-            ],
+    return Scaffold(
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      appBar: TaqaPageAppBar(
+        title: 'Expert Dashboard',
+        trailing: IconButton(
+          tooltip: 'My Coaches',
+          onPressed: _openCoachesSheet,
+          icon: Icon(
+            Icons.groups_2_outlined,
+            color: TaqaUiColors.unnamedColor1c1d17,
           ),
         ),
-        body: TabBarView(
+      ),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
           children: [
-            CoachFeedbackPanel(
-              key: ValueKey('coach_feedback_$_coachPanelsRevision'),
+            Padding(
+              padding: TaqaUiScale.insetsLTRB(20, 12, 20, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TaqaRangeTab(
+                      label: t.translate('coach_tab_feedback'),
+                      selected: _panelIndex == 0,
+                      onTap: () => setState(() => _panelIndex = 0),
+                    ),
+                  ),
+                  SizedBox(width: TaqaUiScale.w(15)),
+                  Expanded(
+                    child: TaqaRangeTab(
+                      label: t.translate('coach_tab_form_check'),
+                      selected: _panelIndex == 1,
+                      onTap: () => setState(() => _panelIndex = 1),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            CoachChatPanel(initialCoachUserId: widget.initialCoachUserId),
-            CoachFormCheckPanel(
-              key: ValueKey('coach_form_check_$_coachPanelsRevision'),
+            Expanded(
+              child: IndexedStack(
+                index: _panelIndex,
+                children: [
+                  CoachFeedbackPanel(
+                    key: ValueKey('coach_feedback_$_coachPanelsRevision'),
+                  ),
+                  CoachFormCheckPanel(
+                    key: ValueKey('coach_form_check_$_coachPanelsRevision'),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
       ),
+      // Placing the nav bar here (rather than inside body) is what makes the
+      // Scaffold dock the floating chat button above it automatically,
+      // instead of the two overlapping.
+      bottomNavigationBar: TaqaBottomNavBar(
+        currentIndex: 4,
+        onTap: (index) {
+          if (index == 4) return;
+          Navigator.of(context).pop();
+        },
+        items: const [
+          TaqaBottomNavItem(assetPath: 'assets/icons/Diet.svg', index: 0),
+          TaqaBottomNavItem(assetPath: 'assets/icons/Exercise.svg', index: 1),
+          TaqaBottomNavItem(assetPath: 'assets/icons/Home.svg', index: 2),
+          TaqaBottomNavItem(
+            assetPath: 'assets/icons/Community.svg',
+            index: 3,
+          ),
+          TaqaBottomNavItem(assetPath: 'assets/icons/Trainer.svg', index: 4),
+        ],
+      ),
+      floatingActionButton: TaqaFloatingChatButton(onTap: _openChatPage),
     );
   }
 }

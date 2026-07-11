@@ -12,9 +12,26 @@ import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 
 class PdfViewerPage extends StatefulWidget {
-  const PdfViewerPage({super.key, required this.url, this.title = 'Document'});
+  const PdfViewerPage({
+    super.key,
+    this.url,
+    this.localPath,
+    this.title = 'Document',
+  }) : assert(
+         url != null || localPath != null,
+         'PdfViewerPage needs either a remote url to download or an '
+         'already-downloaded localPath to open.',
+       );
 
-  final String url;
+  /// Remote url to download and cache before displaying. Ignored when
+  /// [localPath] is provided.
+  final String? url;
+
+  /// A file already downloaded to disk (e.g. via an authenticated request
+  /// the caller made itself) — skips the plain, unauthenticated download
+  /// this page would otherwise do from [url].
+  final String? localPath;
+
   final String title;
 
   @override
@@ -28,17 +45,22 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
   @override
   void initState() {
     super.initState();
-    _download();
+    if (widget.localPath != null) {
+      _localPath = widget.localPath;
+    } else {
+      _download();
+    }
   }
 
   Future<void> _download() async {
     try {
-      final response = await http.get(Uri.parse(widget.url));
+      final url = widget.url!;
+      final response = await http.get(Uri.parse(url));
       if (response.statusCode != 200) {
         throw Exception('Failed to download document (${response.statusCode})');
       }
       final dir = await getTemporaryDirectory();
-      final fileName = widget.url.split('/').last.split('?').first;
+      final fileName = url.split('/').last.split('?').first;
       final file = File('${dir.path}/$fileName');
       await file.writeAsBytes(response.bodyBytes, flush: true);
       if (!mounted) return;

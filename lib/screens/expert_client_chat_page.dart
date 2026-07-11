@@ -18,6 +18,7 @@ import '../screens/expert_dashboard_page.dart';
 import '../services/coach/chat_attachment_file_service.dart';
 import '../services/coach/coach_support_chat_service.dart';
 import '../services/coach/voice_note_audio_service.dart';
+import '../services/core/pdf_open_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/coach/chat_video_player_page.dart';
 import '../widgets/coach/chat_video_preview_tile.dart';
@@ -717,6 +718,23 @@ class _ExpertClientChatPageState extends State<ExpertClientChatPage> {
             suggestedFileName: message.attachmentFilename,
             fallbackExtension: '.pdf',
           );
+      // PDFs stay in-app via the same viewer used for announcements/diet
+      // plans; other document types (doc/docx/txt/rtf) still need an
+      // external app that can render them.
+      if (PdfOpenService.isPdfUrl(
+            url,
+            suggestedFileName: message.attachmentFilename,
+          ) ||
+          localPath.toLowerCase().endsWith('.pdf')) {
+        if (!mounted) return;
+        await PdfOpenService.openLocalFile(
+          context,
+          path: localPath,
+          title: message.attachmentFilename ?? 'Document',
+        );
+        return;
+      }
+
       var opened = false;
       try {
         opened = await launchUrl(

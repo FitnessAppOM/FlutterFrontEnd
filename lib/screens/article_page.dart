@@ -6,7 +6,7 @@ import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../localization/app_localizations.dart';
 import '../models/news_item.dart';
-import 'pdf_viewer_page.dart';
+import '../services/core/pdf_open_service.dart';
 
 class ArticlePage extends StatelessWidget {
   final NewsItem item;
@@ -152,11 +152,7 @@ class _PdfButton extends StatelessWidget {
       child: InkWell(
         borderRadius: TaqaUiScale.radius(5),
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => PdfViewerPage(url: url, title: title),
-            ),
-          );
+          PdfOpenService.openInApp(context, url: url, title: title);
         },
         child: SizedBox(
           width: TaqaUiScale.w(357),

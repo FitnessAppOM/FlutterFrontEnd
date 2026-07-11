@@ -9,12 +9,15 @@ import '../localization/app_localizations.dart';
 import '../services/coach/coach_habit_reminder_settings_service.dart';
 import '../services/coach/coach_support_chat_service.dart';
 import '../services/coach/diet_document_file_service.dart';
+import '../services/core/pdf_open_service.dart';
 import '../services/coach/progression_review_service.dart';
 import '../services/core/navigation_service.dart';
 import '../services/training/training_service.dart';
 import '../theme/app_theme.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
+import '../TaqaUI/components/taqa_refresh_indicator.dart';
 import '../TaqaUI/components/taqa_toast.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 import '../widgets/training/exercise_picker_sheet.dart';
 import 'expert_client_detail_page.dart';
 import 'expert_connection_requests_page.dart';
@@ -1367,12 +1370,27 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       if (url.isEmpty) {
         throw Exception('Document URL is missing.');
       }
+      final suggestedFileName =
+          document.originalFilename ?? document.documentTitle;
       final localPath =
           await DietDocumentFileService.prepareLocalDietDocumentFile(
             url,
-            suggestedFileName:
-                document.originalFilename ?? document.documentTitle,
+            suggestedFileName: suggestedFileName,
           );
+      // PDFs stay in-app via the same viewer used for announcements/diet
+      // plans/chat attachments; other document types (doc/docx/txt/rtf)
+      // still need an external app that can render them.
+      if (PdfOpenService.isPdfUrl(url, suggestedFileName: suggestedFileName) ||
+          localPath.toLowerCase().endsWith('.pdf')) {
+        if (!mounted) return;
+        await PdfOpenService.openLocalFile(
+          context,
+          path: localPath,
+          title: document.documentTitle ?? suggestedFileName ?? 'Document',
+        );
+        return;
+      }
+
       var opened = false;
       try {
         opened = await launchUrl(
@@ -1652,7 +1670,9 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
 
   Widget _buildMyClientsTab() {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: CircularProgressIndicator(color: TaqaUiColors.lime),
+      );
     }
 
     final displayClients = _clients.map((client) {
@@ -1727,7 +1747,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
         return a.userId.compareTo(b.userId);
       });
 
-    return RefreshIndicator(
+    return TaqaRefreshIndicator(
       onRefresh: _load,
       child: ListView(
         padding: const EdgeInsets.all(20),
@@ -1825,11 +1845,12 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                             ? null
                             : _openPlanCreatorSheet,
                         icon: _openingPlanCreator
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 14,
                                 height: 14,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
+                                  color: TaqaUiColors.lime,
                                 ),
                               )
                             : const Icon(Icons.add),
@@ -1869,11 +1890,12 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                               ? null
                               : _openPlanCreatorSheet,
                           icon: _openingPlanCreator
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 14,
                                   height: 14,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
+                                    color: TaqaUiColors.lime,
                                   ),
                                 )
                               : const Icon(Icons.add),
@@ -2053,11 +2075,12 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                                   ),
                                 ),
                                 icon: assigning
-                                    ? const SizedBox(
+                                    ? SizedBox(
                                         width: 14,
                                         height: 14,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
+                                          color: TaqaUiColors.lime,
                                         ),
                                       )
                                     : const Icon(
@@ -2076,11 +2099,12 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                                     ? null
                                     : () => _deletePlanTemplate(template),
                                 icon: deleting
-                                    ? const SizedBox(
+                                    ? SizedBox(
                                         width: 14,
                                         height: 14,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
+                                          color: TaqaUiColors.lime,
                                         ),
                                       )
                                     : const Icon(
@@ -2169,10 +2193,12 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
     final pinnedCount = items.where((item) => item.isPinned).length;
 
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: CircularProgressIndicator(color: TaqaUiColors.lime),
+      );
     }
 
-    return RefreshIndicator(
+    return TaqaRefreshIndicator(
       onRefresh: _load,
       child: ListView(
         padding: const EdgeInsets.all(20),

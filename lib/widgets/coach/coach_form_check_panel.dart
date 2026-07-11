@@ -11,6 +11,8 @@ import '../../localization/app_localizations.dart';
 import '../../services/coach/chat_attachment_file_service.dart';
 import '../../services/coach/form_check_service.dart';
 import '../../theme/app_theme.dart';
+import '../../TaqaUI/components/taqa_refresh_indicator.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 import 'chat_video_player_page.dart';
 
 String _tr(BuildContext context, String key, String fallback) {
@@ -437,7 +439,9 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
   Widget build(BuildContext context) {
     final usage = _usage;
 
-    return ListView(
+    return TaqaRefreshIndicator(
+      onRefresh: () => _load(silent: true),
+      child: ListView(
       padding: const EdgeInsets.all(20),
       children: [
         _HeaderCard(
@@ -504,10 +508,10 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
           ],
         ),
         if (_loading)
-          const Padding(
-            padding: EdgeInsets.only(top: 24),
+          Padding(
+            padding: const EdgeInsets.only(top: 24),
             child: Center(
-              child: CircularProgressIndicator(color: AppColors.accent),
+              child: CircularProgressIndicator(color: TaqaUiColors.lime),
             ),
           )
         else if (_error != null)
@@ -559,6 +563,7 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
                 ),
               ),
       ],
+      ),
     );
   }
 }
@@ -862,10 +867,13 @@ class _UploadCard extends StatelessWidget {
             child: ElevatedButton(
               onPressed: submitting ? null : onSubmit,
               child: submitting
-                  ? const SizedBox(
+                  ? SizedBox(
                       height: 20,
                       width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: TaqaUiColors.lime,
+                      ),
                     )
                   : Text(
                       _tr(
@@ -1046,12 +1054,12 @@ class _SubmissionCard extends StatelessWidget {
             const SizedBox(height: 12),
             Row(
               children: [
-                const SizedBox(
+                SizedBox(
                   height: 16,
                   width: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: AppColors.accent,
+                    color: TaqaUiColors.lime,
                   ),
                 ),
                 const SizedBox(width: 10),

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
+import '../TaqaUI/components/taqa_pillar_card.dart';
 import '../TaqaUI/components/taqa_score_widget.dart' show TaqaOpenArcPainter;
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
@@ -359,7 +360,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     final cards = <Widget>[];
 
     cards.add(
-      _PillarCard(
+      TaqaPillarCard(
         metricKey: 'sleep',
         label: t("taqa_label_sleep"),
         score: s.sleep.score,
@@ -377,7 +378,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     );
 
     cards.add(
-      _PillarCard(
+      TaqaPillarCard(
         metricKey: 'recovery',
         label: t("taqa_label_recovery"),
         score: s.recovery.score,
@@ -397,7 +398,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     );
 
     cards.add(
-      _PillarCard(
+      TaqaPillarCard(
         metricKey: 'stress',
         label: t("taqa_label_stress"),
         score: s.stress.score,
@@ -414,7 +415,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     );
 
     cards.add(
-      _PillarCard(
+      TaqaPillarCard(
         metricKey: 'training_load',
         label: t("taqa_label_training_load"),
         score: s.trainingLoad.score,
@@ -446,7 +447,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     );
 
     cards.add(
-      _PillarCard(
+      TaqaPillarCard(
         metricKey: 'nutrition',
         label: t("taqa_label_nutrition"),
         score: s.nutrition.score,
@@ -466,7 +467,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
 
     if (s.hasReadiness) {
       cards.add(
-        _PillarCard(
+        TaqaPillarCard(
           metricKey: 'readiness',
           label: t("taqa_label_readiness"),
           score: s.readiness.score,
@@ -485,7 +486,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
 
     if (s.hasLifestyleBalance) {
       cards.add(
-        _PillarCard(
+        TaqaPillarCard(
           metricKey: 'lifestyle_balance',
           label: t("taqa_label_lifestyle"),
           score: s.lifestyleBalance.score,
@@ -651,345 +652,3 @@ String _providerLabel(String? provider) {
   }
 }
 
-class _PillarCard extends StatefulWidget {
-  final String metricKey;
-  final String label;
-  final double? score;
-  final IconData icon;
-  final Color color;
-  final String? path;
-  final Map<String, dynamic> details;
-  final Map<String, String> detailLabels;
-
-  const _PillarCard({
-    required this.metricKey,
-    required this.label,
-    required this.score,
-    required this.icon,
-    required this.color,
-    this.path,
-    required this.details,
-    required this.detailLabels,
-  });
-
-  @override
-  State<_PillarCard> createState() => _PillarCardState();
-}
-
-class _PillarCardState extends State<_PillarCard> {
-  bool _expanded = false;
-
-  String t(String key) => AppLocalizations.of(context).translate(key);
-
-  @override
-  Widget build(BuildContext context) {
-    final isDarkCard =
-        widget.metricKey == 'training_load' ||
-        widget.metricKey == 'nutrition' ||
-        widget.metricKey == 'readiness' ||
-        widget.metricKey == 'lifestyle_balance';
-    final hasDetails =
-        widget.detailLabels.isNotEmpty && widget.details.isNotEmpty;
-    final scoreDisplay = widget.score == null
-        ? "--"
-        : widget.score!.round().toString();
-    final barValue = widget.score == null
-        ? 0.0
-        : (widget.score! / 100).clamp(0.0, 1.0);
-    final cardBg = isDarkCard ? TaqaUiColors.charcoal : TaqaUiColors.white;
-    final textColor = isDarkCard ? TaqaUiColors.white : TaqaUiColors.charcoal;
-    final chipBorder = isDarkCard
-        ? TaqaUiColors.lightGray.withValues(alpha: 0.6)
-        : TaqaUiColors.graphite.withValues(alpha: 0.6);
-    final barTrack = isDarkCard
-        ? TaqaUiColors.graphite.withValues(alpha: 0.95)
-        : TaqaUiColors.lightGray.withValues(alpha: 0.9);
-    final barFill = isDarkCard
-        ? TaqaUiColors.lightGray.withValues(alpha: 0.85)
-        : TaqaUiColors.graphite.withValues(alpha: 0.55);
-
-    return GestureDetector(
-      onTap: hasDetails ? () => setState(() => _expanded = !_expanded) : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: TaqaUiScale.insetsLTRB(14, 10, 14, 10),
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: TaqaUiScale.radius(15),
-        ),
-        child: Column(
-          children: [
-            SizedBox(
-              height: TaqaUiScale.h(78),
-              child: Stack(
-                children: [
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    width: TaqaUiScale.w(180),
-                    height: TaqaUiScale.h(25),
-                    child: Text(
-                      widget.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: TaqaUiFontFamilies.interTight,
-                        fontSize: TaqaUiScale.sp(15),
-                        fontWeight: FontWeight.w700,
-                        color: textColor,
-                        height: 25 / 15,
-                      ),
-                    ),
-                  ),
-                  if (widget.path != null)
-                    Positioned(
-                      right: 0,
-                      top: TaqaUiScale.h(5),
-                      child: _PathChip(
-                        path: widget.path!,
-                        isDark: isDarkCard,
-                        borderColor: chipBorder,
-                      ),
-                    ),
-                  if (hasDetails)
-                    Positioned(
-                      right: 0,
-                      top: TaqaUiScale.h(48),
-                      child: Icon(
-                        _expanded
-                            ? Icons.keyboard_arrow_up_rounded
-                            : Icons.keyboard_arrow_down_rounded,
-                        color: isDarkCard
-                            ? TaqaUiColors.white.withValues(alpha: 0.85)
-                            : TaqaUiColors.charcoal.withValues(alpha: 0.85),
-                        size: 18,
-                      ),
-                    ),
-                  Positioned(
-                    left: TaqaUiScale.w(265),
-                    top: TaqaUiScale.h(48),
-                    width: TaqaUiScale.w(64),
-                    height: TaqaUiScale.h(30),
-                    child: Text(
-                      scoreDisplay,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: TaqaUiFontFamilies.interTight,
-                        fontSize: TaqaUiScale.sp(25),
-                        fontWeight: FontWeight.w700,
-                        color: textColor,
-                        height: 1,
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 0,
-                    top: TaqaUiScale.h(56),
-                    width: TaqaUiScale.w(250),
-                    height: TaqaUiScale.h(17),
-                    child: ClipRRect(
-                      borderRadius: TaqaUiScale.radius(9),
-                      child: LinearProgressIndicator(
-                        value: barValue,
-                        backgroundColor: barTrack,
-                        valueColor: AlwaysStoppedAnimation(barFill),
-                        minHeight: TaqaUiScale.h(17),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (_expanded && hasDetails) ...[
-              if (_statusMessage() != null) ...[
-                const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    _statusMessage()!,
-                    textAlign: TextAlign.left,
-                    style: TextStyle(
-                      fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w400,
-                      color: textColor.withValues(alpha: 0.78),
-                      letterSpacing: 0,
-                      height: 25 / 15,
-                    ),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 12),
-              Divider(
-                color: isDarkCard
-                    ? TaqaUiColors.lightGray.withValues(alpha: 0.25)
-                    : TaqaUiColors.graphite.withValues(alpha: 0.2),
-                height: 1,
-              ),
-              const SizedBox(height: 12),
-              ...widget.detailLabels.entries.map((entry) {
-                final rawVal = widget.details[entry.key];
-                if (rawVal == null) return const SizedBox.shrink();
-                final val = _formatDetailValue(entry.key, rawVal);
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        entry.value,
-                        style: TextStyle(
-                          color: textColor.withValues(alpha: 0.72),
-                          fontSize: 13,
-                        ),
-                      ),
-                      Text(
-                        val,
-                        style: TextStyle(
-                          color: textColor,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  String? _statusMessage() {
-    if (widget.metricKey == 'training_load') {
-      final note = widget.details['note']?.toString();
-      if (note != null && note.isNotEmpty) return note;
-
-      if (widget.path == 'coming_soon') {
-        return 'Training Load support for this provider is coming soon.';
-      }
-
-      if (widget.score == null) {
-        final phaseLabel = widget.details['phase_label']?.toString();
-        if (phaseLabel == 'Calibrating') {
-          final remaining = widget.details['progress_remaining'];
-          final unit = widget.details['progress_unit']?.toString() ?? 'days';
-          if (remaining is num) {
-            return '$remaining more $unit needed to unlock Training Load.';
-          }
-          return 'Training Load is calibrating.';
-        }
-        return t("taqa_training_no_data");
-      }
-
-      final status = widget.details['status_label']?.toString();
-      if (status != null && status.isNotEmpty) {
-        return 'Load status: $status';
-      }
-    }
-    if (widget.metricKey == 'nutrition' && widget.score == null) {
-      return t("taqa_nutrition_no_data");
-    }
-    return null;
-  }
-
-  String _formatDetailValue(String key, dynamic rawVal) {
-    if (rawVal is bool) {
-      return rawVal ? 'Yes' : 'No';
-    }
-    if (rawVal is num) {
-      if (key == 'active_days_7d' || key == 'phase') {
-        return rawVal.toInt().toString();
-      }
-      if (key == 'wow_change_pct') {
-        return '${rawVal.toStringAsFixed(1)}%';
-      }
-      if (key == 'efficiency_ratio') {
-        return rawVal.toStringAsFixed(3);
-      }
-      return rawVal.toStringAsFixed(1);
-    }
-    return rawVal.toString();
-  }
-}
-
-class _PathChip extends StatelessWidget {
-  final String path;
-  final bool isDark;
-  final Color borderColor;
-  const _PathChip({
-    required this.path,
-    required this.isDark,
-    required this.borderColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isWhoop = path == 'whoop_direct';
-    final isFitbit = path == 'fitbit_direct';
-    final label = path == 'wearable'
-        ? 'WEARABLE'
-        : path == 'journal'
-        ? 'JOURNAL'
-        : path == 'tflu_v1'
-        ? 'TFLU'
-        : path == 'coming_soon'
-        ? 'COMING SOON'
-        : path == 'diet_data'
-        ? 'DIET'
-        : path == 'journal_nutrition'
-        ? 'JOURNAL'
-        : path == 'whoop_direct'
-        ? 'WHOOP DIRECT'
-        : path == 'fitbit_direct'
-        ? 'FITBIT DIRECT'
-        : path == 'samsung_direct'
-        ? 'SAMSUNG DIRECT'
-        : path == 'samsung_direct_inverted'
-        ? 'SAMSUNG DIRECT'
-        : path == 'prom_aware_composite'
-        ? 'COMPOSITE'
-        : path.toUpperCase();
-    final chipTextColor = isDark
-        ? TaqaUiColors.white
-        : TaqaUiColors.unnamedColor1c1d17;
-    return Container(
-      alignment: Alignment.center,
-      padding: TaqaUiScale.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: isDark ? TaqaUiColors.charcoal : Colors.transparent,
-        borderRadius: TaqaUiScale.radius(5),
-        border: Border.all(
-          color: isDark ? borderColor : TaqaUiColors.unnamedColor1c1d17,
-          width: 0.5,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isWhoop || isFitbit) ...[
-            Image.asset(
-              isWhoop ? 'assets/images/whoop.png' : 'assets/images/fitbit.png',
-              width: 10,
-              height: 10,
-            ),
-            const SizedBox(width: 4),
-          ],
-          Text(
-            label,
-            style: TextStyle(
-              fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-              color: chipTextColor,
-              fontSize: TaqaUiScale.sp(8),
-              fontWeight: FontWeight.w400,
-              letterSpacing: 0,
-              height: 10 / 8,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

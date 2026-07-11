@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
+import '../TaqaUI/components/taqa_pillar_card.dart';
+import '../TaqaUI/components/taqa_score_widget.dart' show TaqaOpenArcPainter;
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 import '../core/account_storage.dart';
-import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
 import '../services/whoop/whoop_recovery_service.dart';
+import '../theme/app_theme.dart';
 import '../widgets/charts/simple_line_chart.dart';
-import '../widgets/recovery/recovery_gauge.dart';
-import '../widgets/recovery/recovery_metric_card.dart';
-import '../widgets/common/date_switcher.dart';
 
 class WhoopRecoveryDetailPage extends StatefulWidget {
   const WhoopRecoveryDetailPage({super.key, this.initialDate});
@@ -20,171 +24,314 @@ class WhoopRecoveryDetailPage extends StatefulWidget {
 }
 
 class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
-  bool _loading = true;
-  Map<DateTime, Map<String, dynamic>> _daily = {};
-  static final Map<DateTime, Map<String, dynamic>> _dailyCache = {};
-  static final Map<String, Map<DateTime, Map<String, dynamic>>> _rangeCache =
-      {};
-  static int? _cacheUserId;
+  static const int _previewYearsBack = 5;
+
   late DateTime _selectedDate;
+  late final PageController _previewController;
+  static final Map<DateTime, Map<String, dynamic>> _dailyCache = {};
+  static final Set<String> _loadedWindowKeys = <String>{};
+  static int? _cacheUserId;
+  final Set<String> _windowLoadingKeys = <String>{};
+  bool _loading = true;
   int _reqId = 0;
+
+  DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+  bool _sameDay(DateTime a, DateTime b) => _dateOnly(a) == _dateOnly(b);
+
+  DateTime _maxSelectableDate() => _dateOnly(DateTime.now());
+
+  DateTime _previewStartDate() => _maxSelectableDate().subtract(
+    const Duration(days: 365 * _previewYearsBack),
+  );
+
+  int _previewItemCount() =>
+      _maxSelectableDate().difference(_previewStartDate()).inDays + 1;
+
+  DateTime _previewDateForIndex(int index) {
+    final safeIndex = index.clamp(0, _previewItemCount() - 1);
+    return _previewStartDate().add(Duration(days: safeIndex));
+  }
+
+  int _previewIndexForDate(DateTime date) {
+    final days = _dateOnly(date).difference(_previewStartDate()).inDays;
+    return days.clamp(0, _previewItemCount() - 1);
+  }
 
   @override
   void initState() {
     super.initState();
-    final initial = widget.initialDate ?? DateTime.now();
-    _selectedDate = DateTime(initial.year, initial.month, initial.day);
-    _loadRange();
+    final initial = _dateOnly(widget.initialDate ?? DateTime.now());
+    _selectedDate = initial.isAfter(_maxSelectableDate())
+        ? _maxSelectableDate()
+        : initial;
+    _previewController = PageController(
+      initialPage: _previewIndexForDate(_selectedDate),
+      viewportFraction: 186 / 358,
+    );
+    _ensureLoaded(_selectedDate);
   }
 
-  Future<void> _loadRange() async {
-    final requestId = ++_reqId;
-    final day = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-    );
-    final start = day.subtract(const Duration(days: 6));
-    final end = day;
+  @override
+  void dispose() {
+    _previewController.dispose();
+    super.dispose();
+  }
+
+  String _windowKey(int? userId, DateTime end) =>
+      "${userId ?? 0}|${end.toIso8601String()}";
+
+  Future<void> _ensureLoaded(DateTime day) async {
+    final reqId = ++_reqId;
     final userId = await AccountStorage.getUserId();
     if (_cacheUserId != userId) {
       _cacheUserId = userId;
       _dailyCache.clear();
-      _rangeCache.clear();
+      _loadedWindowKeys.clear();
     }
-    final rangeKey = _rangeKey(userId, start, end);
-
-    final cachedRange = _rangeCache[rangeKey];
-    if (cachedRange != null) {
-      if (!mounted) return;
-      if (requestId != _reqId) return;
-      setState(() {
-        _daily = cachedRange;
-        _loading = false;
-      });
+    final key = _windowKey(userId, day);
+    if (_dailyCache.containsKey(day)) {
+      if (mounted && reqId == _reqId) setState(() => _loading = false);
+    } else if (!_windowLoadingKeys.contains(key)) {
+      if (mounted) setState(() => _loading = true);
+    }
+    if (_loadedWindowKeys.contains(key) || _windowLoadingKeys.contains(key)) {
       return;
     }
-
-    final hasSelectedDayCached = _dailyCache.containsKey(day);
-    setState(() => _loading = !hasSelectedDayCached);
+    _windowLoadingKeys.add(key);
     try {
+      final start = day.subtract(const Duration(days: 6));
       final data = await WhoopRecoveryService().fetchDailyRecovery(
         start: start,
-        end: end,
+        end: day,
       );
-      if (!mounted) return;
-      if (requestId != _reqId) return;
-      setState(() {
-        _daily = data;
-        _dailyCache.addAll(data);
-        _rangeCache[rangeKey] = data;
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      if (requestId != _reqId) return;
-      setState(() => _loading = false);
+      _dailyCache.addAll(data);
+      _loadedWindowKeys.add(key);
+    } catch (_) {
+      // Keep whatever is cached; missing days just render as no-data.
+    } finally {
+      _windowLoadingKeys.remove(key);
+      if (mounted && reqId == _reqId) {
+        setState(() => _loading = false);
+      }
     }
+  }
+
+  Future<void> _onPreviewPageChanged(int index) async {
+    final day = _previewDateForIndex(index);
+    if (_sameDay(day, _selectedDate)) return;
+    setState(() => _selectedDate = day);
+    await _ensureLoaded(day);
   }
 
   @override
   Widget build(BuildContext context) {
-    final dayKey = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-    );
-    final metrics = _currentMetrics(_daily[dayKey] ?? _dailyCache[dayKey]);
-    final hasAnyData = _daily.isNotEmpty || _dailyCache.isNotEmpty;
-    final headerDate = dayKey;
+    final metrics = _currentMetrics(_dailyCache[_selectedDate]);
+    final hasData = metrics.recoveryScore != null;
 
     return Scaffold(
+      backgroundColor: AppColors.appBackground,
       appBar: TaqaPageAppBar(
         title: AppLocalizations.of(context).translate("whoop_recovery_title"),
-        backgroundColor: AppColors.black,
+        backgroundColor: AppColors.appBackground,
+        titleColor: TaqaUiColors.charcoal,
+        leading: const BackButton(color: TaqaUiColors.charcoal),
       ),
-      backgroundColor: AppColors.black,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _header(headerDate),
-            const SizedBox(height: 12),
-            if (metrics.recoveryScore == null && !_loading && !hasAnyData) ...[
-              _noDataCard(),
-            ] else ...[
-              Center(child: RecoveryGauge(score: metrics.recoveryScore)),
-              const SizedBox(height: 14),
-              _metricsGrid(metrics),
+      body: SafeArea(
+        child: RefreshIndicator(
+          color: AppColors.accent,
+          backgroundColor: AppColors.cardDark,
+          onRefresh: () async {
+            _loadedWindowKeys.remove(_windowKey(_cacheUserId, _selectedDate));
+            await _ensureLoaded(_selectedDate);
+          },
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            children: [
+              _buildPreviewCarousel(),
+              const SizedBox(height: 20),
+              if (hasData)
+                ..._buildDetailsSection(metrics)
+              else if (_loading)
+                const Padding(
+                  padding: EdgeInsets.only(top: 40),
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppColors.accent),
+                  ),
+                )
+              else
+                _buildNoData(),
+              const SizedBox(height: 40),
             ],
-            const SizedBox(height: 16),
-            if (metrics.recoveryScore != null || hasAnyData || _loading) ...[
-              Center(
-                child: _sectionTitle(
-                  AppLocalizations.of(
-                    context,
-                  ).translate("whoop_recovery_trend"),
-                ),
-              ),
-              const SizedBox(height: 8),
-              _loading && !hasAnyData
-                  ? const Center(
-                      child: CircularProgressIndicator(color: AppColors.accent),
-                    )
-                  : Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 520),
-                        child: Column(
-                          children: [
-                            SimpleLineChart(
-                              values: _recoverySeries(),
-                              color: const Color(0xFFB8E91E),
-                              showPoints: true,
-                            ),
-                            const SizedBox(height: 8),
-                            _weekdayLabels(),
-                          ],
-                        ),
-                      ),
-                    ),
-            ],
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _noDataCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            height: 36,
-            width: 36,
-            decoration: BoxDecoration(
-              color: const Color(0xFF2D7CFF).withValues(alpha: 0.2),
-              shape: BoxShape.circle,
+  Widget _buildPreviewCarousel() {
+    final currentIndex = _previewIndexForDate(_selectedDate);
+    final locale = Localizations.localeOf(context).languageCode == 'ar'
+        ? 'ar'
+        : 'en';
+
+    return SizedBox(
+      height: 220,
+      child: PageView.builder(
+        controller: _previewController,
+        onPageChanged: (index) => _onPreviewPageChanged(index),
+        itemCount: _previewItemCount(),
+        itemBuilder: (context, index) {
+          final day = _previewDateForIndex(index);
+          final isCenter = index == currentIndex;
+          final score = _numFromAny(_dailyCache[day]?["recovery_score"]);
+          final label = DateFormat(
+            'EEE, MMM d',
+            locale,
+          ).format(day).toUpperCase();
+          return AnimatedPadding(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            padding: EdgeInsets.fromLTRB(
+              8,
+              isCenter ? 2 : 14,
+              8,
+              isCenter ? 2 : 14,
             ),
-            child: const Icon(Icons.info_outline, color: Color(0xFF2D7CFF)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              AppLocalizations.of(context).translate("whoop_no_recovery_data"),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.white60,
-                fontWeight: FontWeight.w600,
+            child: Opacity(
+              opacity: isCenter ? 1 : 0.72,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: TaqaUiScale.w(62),
+                    height: TaqaUiScale.h(10),
+                    child: Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+                        fontSize: TaqaUiScale.sp(8),
+                        fontWeight: FontWeight.w400,
+                        color: TaqaUiColors.charcoal,
+                        height: 10 / 8,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _RecoveryPreviewCard(score: score),
+                ],
               ),
             ),
+          );
+        },
+      ),
+    );
+  }
+
+  List<Widget> _buildDetailsSection(_RecoveryMetrics metrics) {
+    return [
+      TaqaPillarCard(
+        metricKey: 'rhr',
+        label: AppLocalizations.of(
+          context,
+        ).translate("fitbit_heart_resting_hr"),
+        score: metrics.rhr,
+        maxScore: 100,
+        icon: Icons.favorite_rounded,
+        color: const Color(0xFFE84C4F),
+        details: const {},
+        detailLabels: const {},
+        valueDisplay: metrics.rhr == null ? null : '${_fmt(metrics.rhr)} bpm',
+      ),
+      SizedBox(height: TaqaUiScale.h(12)),
+      TaqaPillarCard(
+        metricKey: 'hrv',
+        label: AppLocalizations.of(
+          context,
+        ).translate("fitbit_heart_hrv_rmssd"),
+        score: metrics.hrv,
+        maxScore: 150,
+        icon: Icons.timeline_rounded,
+        color: const Color(0xFF9B8CFF),
+        details: const {},
+        detailLabels: const {},
+        valueDisplay: metrics.hrv == null ? null : '${_fmt(metrics.hrv)} ms',
+      ),
+      SizedBox(height: TaqaUiScale.h(12)),
+      TaqaPillarCard(
+        metricKey: 'spo2',
+        label: AppLocalizations.of(context).translate("whoop_spo2_level"),
+        score: metrics.spo2,
+        maxScore: 100,
+        icon: Icons.air_rounded,
+        color: const Color(0xFF35B6FF),
+        details: const {},
+        detailLabels: const {},
+        valueDisplay: metrics.spo2 == null ? null : '${_fmt(metrics.spo2)}%',
+      ),
+      SizedBox(height: TaqaUiScale.h(12)),
+      TaqaPillarCard(
+        metricKey: 'skin_temp',
+        label: AppLocalizations.of(context).translate("whoop_skin_temp"),
+        score: metrics.skinTemp,
+        maxScore: 40,
+        icon: Icons.thermostat_rounded,
+        color: const Color(0xFFFF8A00),
+        details: const {},
+        detailLabels: const {},
+        valueDisplay: metrics.skinTemp == null
+            ? null
+            : '${_fmt(metrics.skinTemp)}°C',
+      ),
+      SizedBox(height: TaqaUiScale.h(16)),
+      Center(
+        child: _sectionTitle(
+          AppLocalizations.of(context).translate("whoop_recovery_trend"),
+        ),
+      ),
+      SizedBox(height: TaqaUiScale.h(8)),
+      Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Column(
+            children: [
+              SimpleLineChart(
+                values: _recoverySeries(),
+                color: TaqaUiColors.lime,
+                showPoints: true,
+                labelColor: TaqaUiColors.charcoal.withValues(alpha: 0.5),
+                titleColor: TaqaUiColors.charcoal.withValues(alpha: 0.5),
+                gridColor: TaqaUiColors.charcoal,
+                pointColor: TaqaUiColors.white,
+              ),
+              SizedBox(height: TaqaUiScale.h(8)),
+              _weekdayLabels(),
+            ],
+          ),
+        ),
+      ),
+    ];
+  }
+
+  Widget _buildNoData() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 48),
+      alignment: Alignment.center,
+      child: Column(
+        children: [
+          Icon(
+            Icons.cloud_off_rounded,
+            size: 48,
+            color: TaqaUiColors.charcoal.withValues(alpha: 0.25),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            AppLocalizations.of(context).translate("whoop_no_recovery_data"),
+            style: TextStyle(
+              color: TaqaUiColors.charcoal.withValues(alpha: 0.54),
+              fontSize: 15,
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -192,192 +339,40 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
   }
 
   List<double?> _recoverySeries() {
-    final day = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-    );
-    final start = day.subtract(const Duration(days: 6));
+    final start = _selectedDate.subtract(const Duration(days: 6));
     final values = <double?>[];
     for (int i = 0; i < 7; i++) {
       final d = start.add(Duration(days: i));
-      final dayKey = DateTime(d.year, d.month, d.day);
-      final v = (_daily[dayKey] ?? _dailyCache[dayKey])?["recovery_score"];
-      if (v is num) {
-        values.add(v.toDouble());
-      } else {
-        values.add(null);
-      }
+      values.add(_numFromAny(_dailyCache[d]?["recovery_score"]));
     }
     return values;
-  }
-
-  Widget _header(DateTime date) {
-    final dateLabel = "${_monthName(date.month)} ${date.day}";
-    return Center(
-      child: Column(
-        children: [
-          DateSwitcher(
-            label: dateLabel,
-            onPrev: () => _changeDay(-1),
-            onNext: () => _changeDay(1),
-            canGoNext: _canGoNext,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            AppLocalizations.of(context).translate("whoop_recovery_details"),
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _changeDay(int delta) {
-    final next = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day + delta,
-    );
-    final today = DateTime.now();
-    final todayOnly = DateTime(today.year, today.month, today.day);
-    if (next.isAfter(todayOnly)) return;
-    setState(() => _selectedDate = next);
-    _loadRange();
-  }
-
-  bool get _canGoNext {
-    final today = DateTime.now();
-    final todayOnly = DateTime(today.year, today.month, today.day);
-    final selected = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-    );
-    return selected.isBefore(todayOnly);
   }
 
   Widget _sectionTitle(String title) {
     return Text(
       title,
-      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-        color: Colors.white,
+      style: TextStyle(
+        fontFamily: TaqaUiFontFamilies.interTight,
+        fontSize: TaqaUiScale.sp(15),
+        color: TaqaUiColors.charcoal,
         fontWeight: FontWeight.w700,
       ),
     );
   }
 
-  Widget _metricsGrid(_RecoveryMetrics metrics) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: RecoveryMetricCard(
-                title: AppLocalizations.of(
-                  context,
-                ).translate("fitbit_heart_resting_hr"),
-                value: _fmt(metrics.rhr),
-                unit: "bpm",
-                icon: Icons.favorite,
-                accent: const Color(0xFFE84C4F),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: RecoveryMetricCard(
-                title: AppLocalizations.of(
-                  context,
-                ).translate("fitbit_heart_hrv_rmssd"),
-                value: _fmt(metrics.hrv),
-                unit: "ms",
-                icon: Icons.show_chart,
-                accent: const Color(0xFF7BD4FF),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: RecoveryMetricCard(
-                title: AppLocalizations.of(
-                  context,
-                ).translate("whoop_spo2_level"),
-                value: _fmt(metrics.spo2),
-                unit: "%",
-                icon: Icons.water_drop,
-                accent: const Color(0xFF35B6FF),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: RecoveryMetricCard(
-                title: AppLocalizations.of(
-                  context,
-                ).translate("whoop_skin_temp"),
-                value: _fmt(metrics.skinTemp),
-                unit: "°C",
-                icon: Icons.thermostat,
-                accent: const Color(0xFFFF8A00),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-      ],
-    );
-  }
-
   _RecoveryMetrics _currentMetrics(Map<String, dynamic>? today) {
-    final recovery = _numFromAny(today?["recovery_score"]);
-    final rhr = _numFromAny(today?["rhr"]);
-    final hrv = _numFromAny(today?["hrv"]);
-    final spo2 = _numFromAny(today?["spo2"]);
-    final skin = _numFromAny(today?["skin_temp_c"]);
-    final calibrating = today?["user_calibrating"] == true;
-
     return _RecoveryMetrics(
-      recoveryScore: recovery,
-      rhr: rhr,
-      hrv: hrv,
-      spo2: spo2,
-      skinTemp: skin,
-      calibrating: calibrating,
+      recoveryScore: _numFromAny(today?["recovery_score"]),
+      rhr: _numFromAny(today?["rhr"]),
+      hrv: _numFromAny(today?["hrv"]),
+      spo2: _numFromAny(today?["spo2"]),
+      skinTemp: _numFromAny(today?["skin_temp_c"]),
     );
   }
 
   String _fmt(double? v) {
     if (v == null) return "—";
     return v.toStringAsFixed(1);
-  }
-
-  String _monthName(int m) {
-    const names = [
-      "January",
-      "February",
-      "March",
-      "April",
-      "May",
-      "June",
-      "July",
-      "August",
-      "September",
-      "October",
-      "November",
-      "December",
-    ];
-    return names[m - 1];
-  }
-
-  String _rangeKey(int? userId, DateTime start, DateTime end) {
-    final s = DateTime(start.year, start.month, start.day).toIso8601String();
-    final e = DateTime(end.year, end.month, end.day).toIso8601String();
-    return "${userId ?? 0}|$s|$e";
   }
 
   double? _numFromAny(dynamic v) {
@@ -387,26 +382,22 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
   }
 
   Widget _weekdayLabels() {
-    final day = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
+    final start = _selectedDate.subtract(const Duration(days: 6));
+    final labels = List.generate(
+      7,
+      (i) => _weekdayName(start.add(Duration(days: i)).weekday),
     );
-    final start = day.subtract(const Duration(days: 6));
-    final labels = List.generate(7, (i) {
-      final d = start.add(Duration(days: i));
-      return _weekdayName(d.weekday);
-    });
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: labels
           .map(
             (l) => Text(
               l,
-              style: const TextStyle(
-                color: Colors.white54,
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                color: TaqaUiColors.charcoal.withValues(alpha: 0.5),
                 fontWeight: FontWeight.w600,
-                fontSize: 11,
+                fontSize: TaqaUiScale.sp(11),
               ),
             ),
           )
@@ -443,7 +434,6 @@ class _RecoveryMetrics {
     required this.hrv,
     required this.spo2,
     required this.skinTemp,
-    required this.calibrating,
   });
 
   final double? recoveryScore;
@@ -451,5 +441,88 @@ class _RecoveryMetrics {
   final double? hrv;
   final double? spo2;
   final double? skinTemp;
-  final bool calibrating;
+}
+
+class _RecoveryPreviewCard extends StatelessWidget {
+  const _RecoveryPreviewCard({this.score});
+
+  final double? score;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = score?.round() ?? 0;
+    final progress = score == null ? 0.0 : (score! / 100).clamp(0.0, 1.0);
+
+    final arcSize = TaqaUiScale.w(141);
+    final visibleHeight = TaqaUiScale.h(124);
+
+    return Container(
+      width: TaqaUiScale.w(171),
+      height: TaqaUiScale.h(171),
+      decoration: BoxDecoration(
+        color: TaqaUiColors.unnamedColorE4e93b,
+        borderRadius: TaqaUiScale.radius(15),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            left: TaqaUiScale.w(15),
+            top: TaqaUiScale.h(27),
+            width: arcSize,
+            height: visibleHeight,
+            child: ClipRect(
+              child: OverflowBox(
+                maxWidth: arcSize,
+                maxHeight: arcSize,
+                alignment: Alignment.topCenter,
+                child: SizedBox(
+                  width: arcSize,
+                  height: arcSize,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      CustomPaint(
+                        size: Size.square(arcSize),
+                        painter: TaqaOpenArcPainter(progress: progress),
+                      ),
+                      Transform.translate(
+                        offset: Offset(0, -((arcSize - visibleHeight) / 2)),
+                        child: Text(
+                          '$value',
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(35),
+                            fontWeight: FontWeight.w800,
+                            color: TaqaUiColors.charcoal,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: TaqaUiScale.w(15),
+            top: TaqaUiScale.h(132),
+            width: TaqaUiScale.w(141),
+            height: TaqaUiScale.h(10),
+            child: Text(
+              'WHOOP',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(8),
+                fontWeight: FontWeight.w400,
+                color: TaqaUiColors.charcoal,
+                height: 13 / 8,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

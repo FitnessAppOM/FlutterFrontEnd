@@ -34,6 +34,7 @@ class MainLayout extends StatefulWidget {
 
 class _MainLayoutState extends State<MainLayout> {
   late int _index;
+  bool _expertStatusRefreshedThisSession = false;
 
   final GlobalKey<DashboardPageState> _dashboardKey =
       GlobalKey<DashboardPageState>();
@@ -120,11 +121,12 @@ class _MainLayoutState extends State<MainLayout> {
     }
   }
 
-  Future<bool> _resolveIsExpert() async {
+  Future<void> _refreshExpertStatusInBackground() async {
+    if (!mounted) return;
     try {
       final lang = Localizations.localeOf(context).languageCode;
       final userId = await AccountStorage.getUserId();
-      if (userId == null || userId <= 0) return AccountStorage.isExpert();
+      if (userId == null || userId <= 0) return;
       final profile = await ProfileApi.fetchProfile(userId, lang: lang);
       final filledExpertQuestionnaire =
           profile["filled_expert_questionnaire"] == true;
@@ -133,20 +135,43 @@ class _MainLayoutState extends State<MainLayout> {
         filledExpertQuestionnaire,
       );
       await AccountStorage.setIsExpert(isExpert);
-      return isExpert;
     } catch (_) {
-      return AccountStorage.isExpert();
+      // Best-effort refresh; the cached value from before this tap is
+      // still used for the current navigation decision either way.
     }
   }
 
+  // The other 4 bottom-nav tabs switch instantly (they're IndexedStack
+  // pages, no route push at all). A plain MaterialPageRoute push here would
+  // slide in from the right, which reads as an inconsistent, "off" feeling
+  // transition next to those instant tab switches — so this route has no
+  // transition, just like tapping Train/Diet/etc. appears immediately.
+  Route<T> _instantRoute<T>(WidgetBuilder builder) {
+    return PageRouteBuilder<T>(
+      pageBuilder: (context, animation, secondaryAnimation) =>
+          builder(context),
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
+    );
+  }
+
   Future<void> _openCoach() async {
-    final isExpert = await _resolveIsExpert();
+    // Use the fast local cache to decide instantly instead of blocking the
+    // whole tap on a network round-trip (ProfileApi.fetchProfile) the way
+    // _resolveIsExpert() used to — that's what made this tab feel slow next
+    // to the other 4, which are just local IndexedStack switches. Refresh
+    // the cached value in the background so it's accurate next time.
+    final isExpert = await AccountStorage.isExpert();
     if (!mounted) return;
+    if (!_expertStatusRefreshedThisSession) {
+      _expertStatusRefreshedThisSession = true;
+      unawaited(_refreshExpertStatusInBackground());
+    }
 
     if (!isExpert) {
       await Navigator.of(
         context,
-      ).push(MaterialPageRoute(builder: (_) => const CoachPage()));
+      ).push(_instantRoute((_) => const CoachPage()));
       return;
     }
 
@@ -170,8 +195,8 @@ class _MainLayoutState extends State<MainLayout> {
 
     if (!mounted || choice == null) return;
     await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => choice == 'expert'
+      _instantRoute(
+        (_) => choice == 'expert'
             ? const ExpertDashboardPage()
             : const CoachPage(),
       ),

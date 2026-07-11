@@ -4,6 +4,7 @@ import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../styles/taqa_ui_styles.dart';
 import '../taqa_ui_colors.dart';
+import 'taqa_mini_tag.dart';
 
 class TaqaCommunityFeedCard extends StatelessWidget {
   const TaqaCommunityFeedCard({
@@ -73,7 +74,7 @@ class TaqaCommunityFeedCard extends StatelessWidget {
                         spacing: gap,
                         runSpacing: gap,
                         children: chips
-                            .map((label) => _TaqaFeedMiniChip(label: label))
+                            .map((label) => TaqaMiniTag(label: label))
                             .toList(growable: false),
                       ),
                     ],
@@ -159,28 +160,6 @@ class _TaqaFeedAvatar extends StatelessWidget {
   }
 }
 
-class _TaqaFeedMiniChip extends StatelessWidget {
-  const _TaqaFeedMiniChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: TaqaUiScale.insetsLTRB(8, 4, 8, 4),
-      decoration: BoxDecoration(
-        color: TaqaUiColors.lightGray,
-        borderRadius: TaqaUiScale.radius(999),
-      ),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TaqaUiStyles.dailyOutlookDescription,
-      ),
-    );
-  }
-}
 
 class _TaqaFeedPayloadChip extends StatelessWidget {
   const _TaqaFeedPayloadChip({required this.label, required this.value});

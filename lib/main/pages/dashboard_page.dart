@@ -89,6 +89,7 @@ import '../../screens/daily_journal.dart';
 import '../../screens/taqa_score_detail_page.dart';
 import '../../localization/app_localizations.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
+import '../../TaqaUI/components/taqa_refresh_indicator.dart';
 import '../../core/user_friendly_error.dart';
 import '../../TaqaUI/components/taqa_value_dialog.dart';
 import '../../services/training/training_service.dart';
@@ -5303,9 +5304,11 @@ class DashboardPageState extends State<DashboardPage>
         ),
         const SizedBox(height: 16),
         if (_loading)
-          const LinearProgressIndicator(
-            color: AppColors.accent,
-            backgroundColor: Colors.white12,
+          LinearProgressIndicator(
+            color: TaqaUiColors.lime,
+            backgroundColor: TaqaUiColors.unnamedColor1c1d17.withValues(
+              alpha: 0.1,
+            ),
             minHeight: 2,
           ),
         if (noEntriesForSelectedDate)
@@ -5967,9 +5970,7 @@ class DashboardPageState extends State<DashboardPage>
     );
 
     return SafeArea(
-      child: RefreshIndicator(
-        color: AppColors.accent,
-        backgroundColor: AppColors.cardDark,
+      child: TaqaRefreshIndicator(
         notificationPredicate: (_) => isCurrentDay,
         onRefresh: (!_wiggling && isCurrentDay)
             ? () => _refreshAll(refreshStrava: false, refreshTaqaScore: false)

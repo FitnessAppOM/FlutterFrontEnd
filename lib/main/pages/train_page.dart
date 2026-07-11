@@ -24,6 +24,7 @@ import '../../widgets/training/replace_exercise_sheet.dart';
 import '../../TaqaUI/components/taqa_page_app_bar.dart';
 import '../../TaqaUI/components/taqa_page_header.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
+import '../../TaqaUI/components/taqa_refresh_indicator.dart';
 import '../../services/training/exercise_action_queue.dart';
 import '../../consents/consent_manager.dart';
 import '../../screens/training/training_history_page.dart';
@@ -5150,9 +5151,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                   child: IndexedStack(
                     index: _tabIndex,
                     children: [
-                      RefreshIndicator(
-                        color: Colors.blueAccent,
-                        backgroundColor: Colors.white,
+                      TaqaRefreshIndicator(
                         onRefresh: _refreshLightTrainState,
                         child: ListView(
                           physics: const AlwaysScrollableScrollPhysics(),
@@ -5395,9 +5394,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                           ],
                         ),
                       ),
-                      RefreshIndicator(
-                        color: Colors.blueAccent,
-                        backgroundColor: Colors.white,
+                      TaqaRefreshIndicator(
                         onRefresh: _refreshLightTrainState,
                         child: _cardioBuilt
                             ? ListView(

@@ -8,6 +8,7 @@ import '../../services/diet/diet_service.dart';
 import '../../services/diet/diet_meals_storage.dart';
 import '../../services/diet/diet_day_summary_storage.dart';
 import '../../services/coach/diet_document_file_service.dart';
+import '../../services/core/pdf_open_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/diet_item_search_sheet.dart';
 import '../../widgets/diet_logging_options_sheet.dart';
@@ -22,6 +23,7 @@ import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
+import '../../TaqaUI/components/taqa_refresh_indicator.dart';
 import '../../TaqaUI/components/taqa_value_dialog.dart';
 import '../../TaqaUI/components/taqa_steps_ui.dart'
     show TaqaTagButton, TaqaRangeTab;
@@ -2067,12 +2069,27 @@ class DietPageState extends State<DietPage> {
       if (url.isEmpty) {
         throw Exception('Document URL is missing.');
       }
+      final suggestedFileName =
+          document.originalFilename ?? document.documentTitle;
       final localPath =
           await DietDocumentFileService.prepareLocalDietDocumentFile(
             url,
-            suggestedFileName:
-                document.originalFilename ?? document.documentTitle,
+            suggestedFileName: suggestedFileName,
           );
+      // Coach-sent plans can be PDF, DOC, DOCX, TXT or RTF. Only PDFs can
+      // stay in-app (via the same viewer announcements/news use); anything
+      // else still has to hand off to an external app that can render it.
+      if (PdfOpenService.isPdfUrl(url, suggestedFileName: suggestedFileName) ||
+          localPath.toLowerCase().endsWith('.pdf')) {
+        if (!mounted) return;
+        await PdfOpenService.openLocalFile(
+          context,
+          path: localPath,
+          title: document.documentTitle ?? suggestedFileName ?? 'Document',
+        );
+        return;
+      }
+
       var opened = false;
       try {
         opened = await launchUrl(
@@ -2670,7 +2687,9 @@ class DietPageState extends State<DietPage> {
     return Container(
       color: TaqaUiColors.unnamedColorE3e3e3,
       child: SafeArea(
-        child: ListView(
+        child: TaqaRefreshIndicator(
+          onRefresh: () => _loadBootstrap(),
+          child: ListView(
           padding: TaqaUiScale.insetsLTRB(16, 20, 16, 24),
           children: [
             Center(
@@ -3518,6 +3537,7 @@ class DietPageState extends State<DietPage> {
               }),
             ],
           ],
+          ),
         ),
       ),
     );

@@ -8,6 +8,7 @@ import '../../services/community/community_models.dart';
 import '../../services/community/community_service.dart';
 import '../../theme/app_theme.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
+import '../../TaqaUI/components/taqa_refresh_indicator.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../TaqaUI/components/taqa_community_hero_card.dart';
 import '../../TaqaUI/components/taqa_community_action_row.dart';
@@ -373,10 +374,7 @@ class _CommunityPageState extends State<CommunityPage> {
         children: [
           Padding(
             padding: EdgeInsets.only(top: TaqaUiScale.h(60)),
-            child: RefreshIndicator(
-              color: TaqaUiColors.charcoal,
-              backgroundColor: TaqaUiColors.white,
-              strokeWidth: TaqaUiScale.w(2),
+            child: TaqaRefreshIndicator(
               onRefresh: _refreshFeed,
               child: ListView(
                 padding: TaqaUiScale.insetsLTRB(20, 0, 20, 32),
@@ -807,8 +805,7 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
       ),
       body: SafeArea(
         top: false,
-        child: RefreshIndicator(
-          color: AppColors.accent,
+        child: TaqaRefreshIndicator(
           onRefresh: () => _load(),
           child: ListView(
             padding: EdgeInsets.fromLTRB(
@@ -1295,10 +1292,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
               )
             : null,
       ),
-      body: RefreshIndicator(
-        color: TaqaUiColors.charcoal,
-        backgroundColor: TaqaUiColors.white,
-        strokeWidth: TaqaUiScale.w(2),
+      body: TaqaRefreshIndicator(
         onRefresh: () => _load(),
         child: ListView(
           padding: TaqaUiScale.symmetric(horizontal: 20, vertical: 20),
@@ -1828,8 +1822,7 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
               )
             : null,
       ),
-      body: RefreshIndicator(
-        color: AppColors.accent,
+      body: TaqaRefreshIndicator(
         onRefresh: () => _load(),
         child: ListView(
           padding: const EdgeInsets.all(20),
@@ -1923,8 +1916,7 @@ class _CommunityBadgesPageState extends State<CommunityBadgesPage> {
         backgroundColor: AppColors.appBackground,
         title: 'Badges',
       ),
-      body: RefreshIndicator(
-        color: AppColors.accent,
+      body: TaqaRefreshIndicator(
         onRefresh: () => _load(),
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
@@ -2177,10 +2169,7 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
         backgroundColor: AppColors.appBackground,
         title: widget.title,
       ),
-      body: RefreshIndicator(
-        color: TaqaUiColors.charcoal,
-        backgroundColor: TaqaUiColors.white,
-        strokeWidth: TaqaUiScale.w(2),
+      body: TaqaRefreshIndicator(
         onRefresh: () => _load(),
         child: ListView(
           padding: TaqaUiScale.insetsLTRB(16, 8, 16, 24),

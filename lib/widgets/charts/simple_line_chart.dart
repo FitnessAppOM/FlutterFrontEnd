@@ -12,6 +12,10 @@ class SimpleLineChart extends StatelessWidget {
     this.yLabels,
     this.xAxisTitle,
     this.yAxisTitle,
+    this.labelColor = Colors.white54,
+    this.titleColor = Colors.white60,
+    this.gridColor = Colors.white,
+    this.pointColor = Colors.white,
   });
 
   final List<double?> values;
@@ -22,6 +26,20 @@ class SimpleLineChart extends StatelessWidget {
   final List<String>? yLabels;
   final String? xAxisTitle;
   final String? yAxisTitle;
+
+  /// Axis tick label color. Defaults to the old white54, kept for callers
+  /// still on a dark background.
+  final Color labelColor;
+
+  /// Axis title color (defaults to white60).
+  final Color titleColor;
+
+  /// Base grid-line color, drawn at low opacity — defaults to white so it
+  /// stays subtle on dark backgrounds. Pass a dark color on light pages.
+  final Color gridColor;
+
+  /// Marker dot fill color when [showPoints] is set (defaults to white).
+  final Color pointColor;
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +54,8 @@ class SimpleLineChart extends StatelessWidget {
           values: values,
           color: color,
           showPoints: showPoints,
+          gridColor: gridColor,
+          pointColor: pointColor,
         ),
       ),
     );
@@ -59,8 +79,8 @@ class SimpleLineChart extends StatelessWidget {
                   .map(
                     (label) => Text(
                       label,
-                      style: const TextStyle(
-                        color: Colors.white54,
+                      style: TextStyle(
+                        color: labelColor,
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
                       ),
@@ -85,8 +105,8 @@ class SimpleLineChart extends StatelessWidget {
                       .map(
                         (label) => Text(
                           label,
-                          style: const TextStyle(
-                            color: Colors.white54,
+                          style: TextStyle(
+                            color: labelColor,
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
                           ),
@@ -105,8 +125,8 @@ class SimpleLineChart extends StatelessWidget {
               if (yAxisTitle != null)
                 Text(
                   yAxisTitle!,
-                  style: const TextStyle(
-                    color: Colors.white60,
+                  style: TextStyle(
+                    color: titleColor,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -115,8 +135,8 @@ class SimpleLineChart extends StatelessWidget {
               if (xAxisTitle != null)
                 Text(
                   xAxisTitle!,
-                  style: const TextStyle(
-                    color: Colors.white60,
+                  style: TextStyle(
+                    color: titleColor,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -147,11 +167,15 @@ class _LineChartPainter extends CustomPainter {
     required this.values,
     required this.color,
     required this.showPoints,
+    this.gridColor = Colors.white,
+    this.pointColor = Colors.white,
   });
 
   final List<double?> values;
   final Color color;
   final bool showPoints;
+  final Color gridColor;
+  final Color pointColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -212,7 +236,7 @@ class _LineChartPainter extends CustomPainter {
     }
 
     if (showPoints) {
-      final pointPaint = Paint()..color = Colors.white;
+      final pointPaint = Paint()..color = pointColor;
       final ringPaint = Paint()
         ..color = color
         ..style = PaintingStyle.stroke
@@ -233,7 +257,7 @@ class _LineChartPainter extends CustomPainter {
 
   void _drawGrid(Canvas canvas, Rect chart) {
     final gridPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.06)
+      ..color = gridColor.withValues(alpha: 0.06)
       ..strokeWidth = 1;
     const lines = 4;
     for (int i = 0; i <= lines; i++) {
@@ -307,6 +331,8 @@ class _LineChartPainter extends CustomPainter {
   bool shouldRepaint(covariant _LineChartPainter oldDelegate) {
     return oldDelegate.values != values ||
         oldDelegate.color != color ||
-        oldDelegate.showPoints != showPoints;
+        oldDelegate.showPoints != showPoints ||
+        oldDelegate.gridColor != gridColor ||
+        oldDelegate.pointColor != pointColor;
   }
 }
