@@ -13,6 +13,7 @@ import '../../widgets/cardio/cardio_exercise_utils.dart';
 import '../../widgets/cardio/cardio_map.dart';
 import '../../widgets/cardio/cardio_route_utils.dart';
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../../TaqaUI/components/taqa_cardio_stat_panel.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
 import 'other_models/other_models_page.dart';
@@ -473,37 +474,26 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                         ],
                         if (!_isMapless && _hideMapForCapture)
                           SizedBox(height: TaqaUiScale.h(6)),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _MetricChip(
-                                label: 'Time',
-                                value: _formatTime(widget.durationSeconds),
-                              ),
+                        TaqaCardioStatPanel(
+                          metrics: [
+                            TaqaCardioStatMetric(
+                              label: 'Time',
+                              value: _formatTime(widget.durationSeconds),
+                              accent: true,
                             ),
                             if (_showDistance)
-                              SizedBox(width: TaqaUiScale.w(8)),
-                            if (_showDistance)
-                              Expanded(
-                                child: _MetricChip(
-                                  label: 'Distance',
-                                  value:
-                                      '${widget.distanceKm.toStringAsFixed(2)} km',
-                                ),
+                              TaqaCardioStatMetric(
+                                label: 'Distance',
+                                value:
+                                    '${widget.distanceKm.toStringAsFixed(2)} km',
                               ),
-                            SizedBox(width: TaqaUiScale.w(8)),
-                            Expanded(
-                              child: _MetricChip(
-                                label: 'Pace',
-                                value: _avgPaceLabel(),
-                              ),
+                            TaqaCardioStatMetric(
+                              label: 'Pace',
+                              value: _avgPaceLabel(),
                             ),
-                            SizedBox(width: TaqaUiScale.w(8)),
-                            Expanded(
-                              child: _MetricChip(
-                                label: 'Steps',
-                                value: '${widget.steps}',
-                              ),
+                            TaqaCardioStatMetric(
+                              label: 'Steps',
+                              value: '${widget.steps}',
                             ),
                           ],
                         ),
@@ -661,57 +651,3 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
   }
 }
 
-class _MetricChip extends StatelessWidget {
-  const _MetricChip({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: TaqaUiScale.insetsLTRB(10, 8, 10, 8),
-      decoration: BoxDecoration(
-        color: TaqaUiColors.unnamedColorE3e3e3,
-        borderRadius: TaqaUiScale.radius(12),
-        border: Border.all(
-          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.10),
-        ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              label.toUpperCase(),
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
-                fontSize: TaqaUiScale.sp(9),
-                letterSpacing: 0.6,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-          ),
-          SizedBox(height: TaqaUiScale.h(3)),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                color: TaqaUiColors.unnamedColor1c1d17,
-                fontSize: TaqaUiScale.sp(13),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

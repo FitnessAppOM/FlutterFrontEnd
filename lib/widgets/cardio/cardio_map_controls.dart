@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../../TaqaUI/components/taqa_cardio_stat_panel.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
 
@@ -167,13 +168,15 @@ class _CardioMapControlsState extends State<CardioMapControls> {
     final distanceLabel = (widget.distanceKm ?? 0).toStringAsFixed(2);
     final paceLabel = _paceLabel();
     final stepsLabel = widget.steps?.toString() ?? "0";
-    final statPills = <Widget>[
-      if (widget.showTimePill) _MetricReadout(label: "Time", value: _time),
+    final metrics = <TaqaCardioStatMetric>[
+      if (widget.showTimePill)
+        TaqaCardioStatMetric(label: "Time", value: _time, accent: true),
       if (widget.showDistancePill)
-        _MetricReadout(label: "Distance", value: "$distanceLabel km"),
-      if (widget.showPacePill) _MetricReadout(label: "Pace", value: paceLabel),
+        TaqaCardioStatMetric(label: "Distance", value: "$distanceLabel km"),
+      if (widget.showPacePill)
+        TaqaCardioStatMetric(label: "Pace", value: paceLabel),
       if (widget.showStepsPill)
-        _MetricReadout(label: "Steps", value: stepsLabel),
+        TaqaCardioStatMetric(label: "Steps", value: stepsLabel),
     ];
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -189,30 +192,9 @@ class _CardioMapControlsState extends State<CardioMapControls> {
               opacity: (widget.alwaysShowStatBar || _showStats) ? 1 : 0,
               duration: const Duration(milliseconds: 220),
               curve: Curves.easeOutCubic,
-              child: Container(
-                padding: TaqaUiScale.insetsLTRB(14, 10, 14, 10),
-                margin: EdgeInsets.only(bottom: TaqaUiScale.h(18)),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1D1D20),
-                  borderRadius: TaqaUiScale.radius(18),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x66000000),
-                      blurRadius: 20,
-                      offset: Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    for (var i = 0; i < statPills.length; i++) ...[
-                      statPills[i],
-                      if (i != statPills.length - 1)
-                        SizedBox(width: TaqaUiScale.w(8)),
-                    ],
-                  ],
-                ),
+              child: Padding(
+                padding: EdgeInsets.only(bottom: TaqaUiScale.h(18)),
+                child: TaqaCardioStatPanel(metrics: metrics),
               ),
             ),
           ),
@@ -351,48 +333,3 @@ class _CardioActionButton extends StatelessWidget {
   }
 }
 
-class _MetricReadout extends StatelessWidget {
-  const _MetricReadout({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: TaqaUiScale.symmetric(vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
-          borderRadius: TaqaUiScale.radius(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label.toUpperCase(),
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                color: Colors.white.withValues(alpha: 0.6),
-                fontSize: TaqaUiScale.sp(10),
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.6,
-              ),
-            ),
-            SizedBox(height: TaqaUiScale.h(4)),
-            Text(
-              value,
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: TaqaUiScale.sp(12),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
