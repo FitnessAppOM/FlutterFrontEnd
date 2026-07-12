@@ -882,7 +882,7 @@ class AppLocalizations {
       "dash_daily_outlook_ready": "Daily Outlook generated.",
       "dash_daily_outlook_failed": "Failed to generate Daily Outlook: {error}",
       "dash_placeholder": "Placeholder",
-      "taqa_detail_title": "TAQA Fitness Scores",
+      "taqa_detail_title": "Taqa Fitness Scores",
       "taqa_label_taqa_value": "TAQA Fitness Score",
       "taqa_label_sleep": "Sleep",
       "taqa_label_recovery": "Recovery",

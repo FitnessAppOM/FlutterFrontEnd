@@ -844,7 +844,7 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
   }
 
   String _titleForPlanChangeEvent(TrainingPlanChangeEvent event) {
-    if (event.coachUserId == null) return 'AI';
+    if (event.coachUserId == null) return 'Taqa Fitness';
     if (event.coachIsAdmin && !event.coachIsAssignedCoach) return 'Admin';
     final firstName = event.coachFirstName?.trim();
     if (firstName != null && firstName.isNotEmpty) return 'Coach $firstName';
@@ -858,11 +858,11 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
   String _labelForPlanSource(String? source) {
     switch ((source ?? '').trim()) {
       case 'ai_generated':
-        return 'AI';
+        return 'Taqa Fitness';
       case 'verified':
         return 'Verified by coach';
       case 'ai_coach':
-        return 'AI/Coach';
+        return 'Taqa Fitness/Coach';
       case 'coach_edited':
         return 'Coach/edited';
       case 'expert_created':
@@ -913,10 +913,11 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
     if (event.details.isEmpty) return const <Widget>[];
 
     // 'added'/'removed' show as a +/- pair (an exercise swap shows up as
-    // both). 'updated' (sets/reps/rir tweak on the same exercise, no name
-    // change) doesn't belong in either bucket.
+    // both). 'updated' (sets/reps/rir/weight tweak on the same exercise, no
+    // name change) gets its own per-exercise field-diff line below.
     final addedNames = <String>[];
     final replacedNames = <String>[];
+    final updatedLines = <String>[];
     for (final change in event.details) {
       final type = (change['type'] ?? '').toString().trim();
       if (type == 'added') {
@@ -931,6 +932,9 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
             ? (from['exercise_name'] ?? '').toString().trim()
             : '';
         if (name.isNotEmpty) replacedNames.add(name);
+      } else if (type == 'updated') {
+        final line = _formatUpdatedDetailLine(change);
+        if (line != null) updatedLines.add(line);
       }
     }
 
@@ -963,7 +967,83 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
         ),
       );
     }
+    for (final line in updatedLines) {
+      widgets.add(
+        Padding(
+          padding: EdgeInsets.only(top: TaqaUiScale.h(2)),
+          child: Text(
+            line,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(13),
+              fontWeight: FontWeight.w600,
+              height: 18 / 13,
+              color: TaqaUiColors.unnamedColor1c1d17,
+            ),
+          ),
+        ),
+      );
+    }
     return widgets;
+  }
+
+  /// Renders one 'updated' detail entry (e.g. `{type: updated, position:
+  /// {exercise_name, day_label}, fields: {sets: {from, to}, ...}}`) as a
+  /// single "Exercise (Day): Sets 3→4, Reps 8→10" line.
+  String? _formatUpdatedDetailLine(Map<String, dynamic> change) {
+    final position = change['position'];
+    final name = position is Map
+        ? (position['exercise_name'] ?? '').toString().trim()
+        : '';
+    final dayLabel = position is Map
+        ? (position['day_label'] ?? '').toString().trim()
+        : '';
+    final fields = change['fields'];
+    if (name.isEmpty || fields is! Map) return null;
+
+    final fieldTexts = <String>[];
+    fields.forEach((key, value) {
+      if (value is! Map) return;
+      final label = _labelForChangedField(key.toString());
+      if (label == null) return;
+      final from = _formatChangedFieldValue(key.toString(), value['from']);
+      final to = _formatChangedFieldValue(key.toString(), value['to']);
+      fieldTexts.add('$label $from→$to');
+    });
+    if (fieldTexts.isEmpty) return null;
+
+    final prefix = dayLabel.isNotEmpty ? '$name ($dayLabel)' : name;
+    return '$prefix: ${fieldTexts.join(', ')}';
+  }
+
+  String? _labelForChangedField(String key) {
+    switch (key) {
+      case 'sets':
+        return 'Sets';
+      case 'reps':
+        return 'Reps';
+      case 'rir':
+        return 'RIR';
+      case 'weight_kg':
+        return 'Weight';
+      case 'exercise_name':
+        return 'Exercise';
+      default:
+        return null;
+    }
+  }
+
+  String _formatChangedFieldValue(String key, dynamic value) {
+    if (value == null) return '—';
+    if (key == 'weight_kg') {
+      final num? n = value is num ? value : num.tryParse(value.toString());
+      if (n == null) return value.toString();
+      final text = n == n.roundToDouble()
+          ? n.toStringAsFixed(0)
+          : n.toStringAsFixed(1);
+      return '${text}kg';
+    }
+    return value.toString();
   }
 
   String _joinExerciseNames(List<String> names) {

@@ -16,6 +16,7 @@ class NavigationService {
   static bool _journalNotificationPending = false;
   static bool _dietNotificationPending = false;
   static bool _expertAiUpdatesNotificationPending = false;
+  static bool _trainingPlanChangeNotificationPending = false;
   static bool _notificationNavigationReady = false;
   static String? _pendingNotificationType;
   static int? _pendingNotificationSenderUserId;
@@ -45,6 +46,18 @@ class NavigationService {
   static void markExpertAiUpdatesNotificationPending() {
     _expertAiUpdatesNotificationPending = true;
     launchedFromNotificationPayload = true;
+  }
+
+  static void markTrainingPlanChangeNotificationPending() {
+    _trainingPlanChangeNotificationPending = true;
+    launchedFromNotificationPayload = true;
+  }
+
+  static bool consumeTrainingPlanChangeNotification() {
+    final pending = _trainingPlanChangeNotificationPending;
+    _trainingPlanChangeNotificationPending = false;
+    launchedFromNotificationPayload = false;
+    return pending;
   }
 
   static bool consumeJournalNotification() {
@@ -168,6 +181,7 @@ class NavigationService {
       return true;
     }
     if (type == 'training_plan_change') {
+      markTrainingPlanChangeNotificationPending();
       await navigateToTrain(fromNotification: true);
       return true;
     }
@@ -207,6 +221,7 @@ class NavigationService {
     launchedFromNotificationPayload = false;
 
     if (type == 'training_plan_change') {
+      markTrainingPlanChangeNotificationPending();
       return const MainLayout(initialIndex: 1);
     }
     if (type == 'diet_target_change') {

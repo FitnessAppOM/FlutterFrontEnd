@@ -16,7 +16,7 @@ import '../TaqaUI/taqa_ui_colors.dart';
 import '../widgets/coach/coach_chat_panel.dart';
 import '../widgets/coach/coach_feedback_panel.dart';
 import '../widgets/coach/coach_form_check_panel.dart';
-import '../widgets/confirm_dialog.dart';
+import '../TaqaUI/components/taqa_value_dialog.dart';
 
 class CoachPage extends StatefulWidget {
   const CoachPage({
@@ -212,60 +212,120 @@ class _CoachPageState extends State<CoachPage> {
   }
 
   Future<String?> _promptReportReason({required String targetName}) async {
-    final controller = TextEditingController();
+    // Not a TextEditingController owned here: see _ReportReasonField for why
+    // (disposing a controller right after the dialog's future resolves can
+    // race the dialog's still-animating exit transition).
+    var reportReasonText = '';
     String? errorText;
     final result = await showDialog<String>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: AppColors.cardDark,
-          title: const Text(
-            'Report Coach',
-            style: TextStyle(color: Colors.white),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Why are you reporting $targetName?',
-                style: const TextStyle(color: Colors.white70),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: controller,
-                maxLength: 1000,
-                minLines: 3,
-                maxLines: 6,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'Write the reason...',
-                  errorText: errorText,
+      barrierColor: const Color(0x66000000),
+      builder: (ctx) {
+        final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return MediaQuery.removeViewInsets(
+              context: ctx,
+              removeBottom: true,
+              child: TaqaPopupDialog(
+                bottomInset: bottomInset,
+                onBackgroundTap: () =>
+                    FocusManager.instance.primaryFocus?.unfocus(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Report Coach',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(15),
+                        fontWeight: FontWeight.w700,
+                        color: TaqaUiColors.charcoal,
+                      ),
+                    ),
+                    SizedBox(height: TaqaUiScale.h(8)),
+                    Text(
+                      'Why are you reporting $targetName?',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(13),
+                        color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+                      ),
+                    ),
+                    SizedBox(height: TaqaUiScale.h(14)),
+                    _ReportReasonField(
+                      errorText: errorText,
+                      onChanged: (value) => reportReasonText = value,
+                    ),
+                    SizedBox(height: TaqaUiScale.h(16)),
+                    SizedBox(
+                      height: TaqaUiScale.h(45),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => Navigator.of(ctx).pop(),
+                              child: Center(
+                                child: Text(
+                                  "CANCEL",
+                                  style: TextStyle(
+                                    fontFamily: TaqaUiFontFamilies.interTight,
+                                    fontSize: TaqaUiScale.sp(10),
+                                    fontWeight: FontWeight.w600,
+                                    color: TaqaUiColors.charcoal,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Material(
+                            color: TaqaUiColors.unnamedColorE4e93b,
+                            borderRadius: TaqaUiScale.radius(5),
+                            child: InkWell(
+                              borderRadius: TaqaUiScale.radius(5),
+                              onTap: () {
+                                final reason = reportReasonText.trim();
+                                if (reason.isEmpty) {
+                                  setDialogState(
+                                    () => errorText = 'Reason is required.',
+                                  );
+                                  return;
+                                }
+                                Navigator.of(ctx).pop(reason);
+                              },
+                              child: SizedBox(
+                                width: TaqaUiScale.w(159),
+                                height: TaqaUiScale.h(45),
+                                child: Center(
+                                  child: Text(
+                                    "REPORT",
+                                    style: TextStyle(
+                                      fontFamily:
+                                          TaqaUiFontFamilies.interTight,
+                                      fontSize: TaqaUiScale.sp(10),
+                                      fontWeight: FontWeight.w700,
+                                      color: TaqaUiColors.charcoal,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                final reason = controller.text.trim();
-                if (reason.isEmpty) {
-                  setDialogState(() => errorText = 'Reason is required.');
-                  return;
-                }
-                Navigator.of(ctx).pop(reason);
-              },
-              child: const Text('Report'),
-            ),
-          ],
-        ),
-      ),
+            );
+          },
+        );
+      },
     );
-    controller.dispose();
     return result;
   }
 
@@ -282,13 +342,13 @@ class _CoachPageState extends State<CoachPage> {
     if (_detachingCoachIds.contains(coachId)) return;
 
     final coachFirstName = _firstNameOnly(coach.name);
-    final confirm = await showConfirmDialog(
+    final confirm = await showTaqaConfirmDialog(
       context: context,
       title: "Detach Coach",
       message: "Detach from $coachFirstName?",
-      confirmText: "Detach",
+      confirmLabel: "Detach",
     );
-    if (confirm != true) return;
+    if (!confirm) return;
 
     setState(() => _detachingCoachIds.add(coachId));
     try {
@@ -336,10 +396,20 @@ class _CoachPageState extends State<CoachPage> {
     setState(() => _reportingCoachIds.add(coachId));
     try {
       await ProfileApi.reportCoach(expertUserId: coachId, reason: reason);
+      // Reporting a coach implies you no longer want them assigned to you,
+      // so detach automatically instead of leaving the (now-reported) coach
+      // connected until the client separately remembers to detach.
+      try {
+        await ProfileApi.detachCoach(expertUserId: coachId);
+      } catch (_) {
+        // Report already went through; a failed auto-detach shouldn't block
+        // that or surface as an error — the client can still detach manually.
+      }
+      await _loadAssignedCoaches();
       if (!mounted) return;
       AppToast.show(
         context,
-        "Report submitted. Our team will review it.",
+        "Report submitted and $coachFirstName has been detached.",
         type: AppToastType.success,
       );
     } catch (e) {
@@ -412,7 +482,13 @@ class _CoachPageState extends State<CoachPage> {
   Future<void> _openCoachesSheet() async {
     final coaches = List<_CoachAssignment>.from(_assignedCoaches);
     final requests = List<_CoachConnectionRequest>.from(_coachRequests);
-    final codeController = TextEditingController();
+    // Owned by _CoachCodeField below, not created here: a TextEditingController
+    // created in this method and disposed right after showModalBottomSheet's
+    // future resolves can outlive the sheet's still-animating exit transition
+    // (pop() resolves the future before the TextField is actually unmounted),
+    // throwing "used after being disposed". Tracking the text in a plain
+    // closure variable instead avoids owning any controller here.
+    var enteredCoachCode = '';
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -457,34 +533,8 @@ class _CoachPageState extends State<CoachPage> {
                     ),
                   ),
                   SizedBox(height: TaqaUiScale.h(14)),
-                  TextField(
-                    controller: codeController,
-                    keyboardType: TextInputType.number,
-                    maxLength: 6,
-                    style: TextStyle(
-                      fontFamily: TaqaUiFontFamilies.interTight,
-                      color: TaqaUiColors.charcoal,
-                    ),
-                    decoration: InputDecoration(
-                      counterText: "",
-                      hintText: "Enter 6-digit coach code",
-                      hintStyle: TextStyle(
-                        fontFamily: TaqaUiFontFamilies.interTight,
-                        color: TaqaUiColors.charcoal.withValues(alpha: 0.4),
-                      ),
-                      filled: true,
-                      fillColor: TaqaUiColors.white,
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: TaqaUiScale.radius(10),
-                        borderSide: BorderSide(
-                          color: TaqaUiColors.charcoal.withValues(alpha: 0.1),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: TaqaUiScale.radius(10),
-                        borderSide: const BorderSide(color: AppColors.accent),
-                      ),
-                    ),
+                  _CoachCodeField(
+                    onChanged: (value) => enteredCoachCode = value,
                   ),
                   SizedBox(height: TaqaUiScale.h(10)),
                   Material(
@@ -493,7 +543,7 @@ class _CoachPageState extends State<CoachPage> {
                     child: InkWell(
                       borderRadius: TaqaUiScale.radius(5),
                       onTap: () async {
-                        final code = codeController.text.trim();
+                        final code = enteredCoachCode.trim();
                         Navigator.of(sheetContext).pop();
                         await _connectCoachByCode(code);
                       },
@@ -740,7 +790,6 @@ class _CoachPageState extends State<CoachPage> {
         );
       },
     );
-    codeController.dispose();
   }
 
   Future<void> _openChatPage() async {
@@ -922,6 +971,119 @@ class _CoachSheetActionChip extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Owns its own [TextEditingController] so disposal is tied to this widget's
+/// actual unmount (after the bottom sheet's exit animation finishes) rather
+/// than to when the enclosing showModalBottomSheet future resolves — see the
+/// comment in _openCoachesSheet for why that distinction matters.
+class _CoachCodeField extends StatefulWidget {
+  const _CoachCodeField({required this.onChanged});
+
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_CoachCodeField> createState() => _CoachCodeFieldState();
+}
+
+class _CoachCodeFieldState extends State<_CoachCodeField> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _controller,
+      keyboardType: TextInputType.number,
+      maxLength: 6,
+      onChanged: widget.onChanged,
+      style: TextStyle(
+        fontFamily: TaqaUiFontFamilies.interTight,
+        color: TaqaUiColors.charcoal,
+      ),
+      decoration: InputDecoration(
+        counterText: "",
+        hintText: "Enter 6-digit coach code",
+        hintStyle: TextStyle(
+          fontFamily: TaqaUiFontFamilies.interTight,
+          color: TaqaUiColors.charcoal.withValues(alpha: 0.4),
+        ),
+        filled: true,
+        fillColor: TaqaUiColors.white,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: TaqaUiScale.radius(10),
+          borderSide: BorderSide(
+            color: TaqaUiColors.charcoal.withValues(alpha: 0.1),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: TaqaUiScale.radius(10),
+          borderSide: const BorderSide(color: AppColors.accent),
+        ),
+      ),
+    );
+  }
+}
+
+/// Owns its own [TextEditingController], same reasoning as _CoachCodeField:
+/// disposing a controller right after the dialog's showDialog future
+/// resolves can race the dialog's still-animating exit transition.
+class _ReportReasonField extends StatefulWidget {
+  const _ReportReasonField({required this.errorText, required this.onChanged});
+
+  final String? errorText;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_ReportReasonField> createState() => _ReportReasonFieldState();
+}
+
+class _ReportReasonFieldState extends State<_ReportReasonField> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _controller,
+      maxLength: 1000,
+      minLines: 3,
+      maxLines: 6,
+      autofocus: true,
+      onChanged: widget.onChanged,
+      style: TextStyle(
+        fontFamily: TaqaUiFontFamilies.interTight,
+        color: TaqaUiColors.charcoal,
+      ),
+      decoration: InputDecoration(
+        hintText: 'Write the reason...',
+        hintStyle: TextStyle(
+          color: TaqaUiColors.charcoal.withValues(alpha: 0.4),
+        ),
+        errorText: widget.errorText,
+        filled: true,
+        fillColor: TaqaUiColors.unnamedColorE3e3e3,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: TaqaUiScale.radius(10),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: TaqaUiScale.radius(10),
+          borderSide: const BorderSide(color: AppColors.accent),
         ),
       ),
     );

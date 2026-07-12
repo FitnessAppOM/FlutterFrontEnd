@@ -18,6 +18,16 @@ class CoachHabitItem {
   final DateTime? addedAt;
   final DateTime? completedAt;
 
+  /// Dates (local midnight) this daily habit was checked, from Monday of the
+  /// current week through [today]. Empty for weekly habits.
+  final List<DateTime> completedDatesThisWeek;
+
+  /// Monday of the current week and the server's "today", both as returned
+  /// by the habits-list response (so the week-so-far checklist matches the
+  /// same date range [completedDatesThisWeek] was computed over).
+  final DateTime? weekStart;
+  final DateTime? today;
+
   const CoachHabitItem({
     required this.id,
     required this.expertId,
@@ -27,6 +37,9 @@ class CoachHabitItem {
     required this.isCompleted,
     this.addedAt,
     this.completedAt,
+    this.completedDatesThisWeek = const [],
+    this.weekStart,
+    this.today,
   });
 
   CoachHabitItem copyWith({
@@ -39,6 +52,9 @@ class CoachHabitItem {
     DateTime? addedAt,
     DateTime? completedAt,
     bool clearCompletedAt = false,
+    List<DateTime>? completedDatesThisWeek,
+    DateTime? weekStart,
+    DateTime? today,
   }) {
     return CoachHabitItem(
       id: id ?? this.id,
@@ -49,13 +65,21 @@ class CoachHabitItem {
       isCompleted: isCompleted ?? this.isCompleted,
       addedAt: addedAt ?? this.addedAt,
       completedAt: clearCompletedAt ? null : (completedAt ?? this.completedAt),
+      completedDatesThisWeek:
+          completedDatesThisWeek ?? this.completedDatesThisWeek,
+      weekStart: weekStart ?? this.weekStart,
+      today: today ?? this.today,
     );
   }
 
   bool get isDaily => habitType == dailyType;
   bool get isWeekly => !isDaily;
 
-  factory CoachHabitItem.fromJson(Map<String, dynamic> json) {
+  factory CoachHabitItem.fromJson(
+    Map<String, dynamic> json, {
+    DateTime? weekStart,
+    DateTime? today,
+  }) {
     int parseInt(dynamic v) {
       if (v is int) return v;
       if (v is num) return v.toInt();
@@ -75,6 +99,20 @@ class CoachHabitItem {
       return DateTime.tryParse(hasTz ? raw : '${raw}Z');
     }
 
+    DateTime? parseDateOnly(dynamic v) {
+      final raw = (v ?? '').toString().trim();
+      if (raw.isEmpty) return null;
+      return DateTime.tryParse(raw);
+    }
+
+    final rawCompletedDates = json['completed_dates'];
+    final completedDates = rawCompletedDates is List
+        ? rawCompletedDates
+            .map(parseDateOnly)
+            .whereType<DateTime>()
+            .toList(growable: false)
+        : const <DateTime>[];
+
     return CoachHabitItem(
       id: parseInt(json['id']),
       expertId: parseInt(json['expert_id']),
@@ -86,6 +124,9 @@ class CoachHabitItem {
       isCompleted: json['is_completed'] == true,
       addedAt: parseDate(json['added_at']),
       completedAt: parseDate(json['completed_at']),
+      completedDatesThisWeek: completedDates,
+      weekStart: weekStart,
+      today: today,
     );
   }
 }
@@ -130,9 +171,17 @@ class CoachHabitsService {
     if (data is! Map<String, dynamic>) return [];
     final rawItems = data['items'];
     if (rawItems is! List) return [];
+    final weekStart = DateTime.tryParse((data['week_start'] ?? '').toString());
+    final today = DateTime.tryParse((data['today'] ?? '').toString());
     return rawItems
         .whereType<Map>()
-        .map((e) => CoachHabitItem.fromJson(Map<String, dynamic>.from(e)))
+        .map(
+          (e) => CoachHabitItem.fromJson(
+            Map<String, dynamic>.from(e),
+            weekStart: weekStart,
+            today: today,
+          ),
+        )
         .toList();
   }
 

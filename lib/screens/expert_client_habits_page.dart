@@ -588,6 +588,12 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
                                 fontSize: 12,
                               ),
                             ),
+                            if (habit.isDaily &&
+                                habit.weekStart != null &&
+                                habit.today != null) ...[
+                              const SizedBox(height: 6),
+                              _WeekChecklistRow(habit: habit),
+                            ],
                           ],
                         ),
                       ),
@@ -652,6 +658,81 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Mon-Sun row showing which days this week a daily habit was checked, up
+/// through [CoachHabitItem.today]. Days after today haven't happened yet, so
+/// they render as an empty placeholder instead of "unchecked".
+class _WeekChecklistRow extends StatelessWidget {
+  const _WeekChecklistRow({required this.habit});
+
+  final CoachHabitItem habit;
+
+  static const _dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  @override
+  Widget build(BuildContext context) {
+    final weekStart = habit.weekStart!;
+    final today = habit.today!;
+    return Row(
+      children: List.generate(7, (index) {
+        final day = DateTime(
+          weekStart.year,
+          weekStart.month,
+          weekStart.day + index,
+        );
+        final isFuture = day.isAfter(today);
+        final isChecked = habit.completedDatesThisWeek.any(
+          (d) => _sameDay(d, day),
+        );
+
+        Color background;
+        Color foreground;
+        if (isFuture) {
+          background = Colors.transparent;
+          foreground = Colors.white24;
+        } else if (isChecked) {
+          background = AppColors.successGreen.withValues(alpha: 0.18);
+          foreground = AppColors.successGreen;
+        } else {
+          background = Colors.white.withValues(alpha: 0.05);
+          foreground = Colors.white38;
+        }
+
+        return Padding(
+          padding: const EdgeInsets.only(right: 5),
+          child: Column(
+            children: [
+              Container(
+                width: 18,
+                height: 18,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: background,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isFuture ? Colors.white12 : foreground,
+                    width: 1,
+                  ),
+                ),
+                child: isChecked
+                    ? Icon(Icons.check, size: 11, color: foreground)
+                    : null,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                _dayLabels[index],
+                style: TextStyle(fontSize: 9, color: foreground),
+              ),
+            ],
+          ),
+        );
+      }),
     );
   }
 }

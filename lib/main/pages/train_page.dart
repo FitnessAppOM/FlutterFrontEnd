@@ -19,6 +19,7 @@ import '../../core/account_storage.dart';
 import '../../core/training_regeneration_flag.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/auth/profile_service.dart';
+import '../../services/core/navigation_service.dart';
 import '../../services/training/training_service.dart';
 import '../../widgets/training/replace_exercise_sheet.dart';
 import '../../TaqaUI/components/taqa_page_app_bar.dart';
@@ -2567,6 +2568,27 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     await _restoreExRestState();
     await _refreshTrainingPlanChangeState();
     await _checkOpenWorkoutSessionOnLaunch();
+    await _openPlanLogsIfNotificationPending();
+  }
+
+  /// A "coach changed your plan" push notification should land the client
+  /// directly on Plan Logs, not just the Train tab — consume the pending
+  /// flag NavigationService set on tap and push straight there once the
+  /// program (required by TrainingHistoryPage) has finished loading.
+  Future<void> _openPlanLogsIfNotificationPending() async {
+    if (!NavigationService.consumeTrainingPlanChangeNotification()) return;
+    final currentProgram = program;
+    if (currentProgram == null || !mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TrainingHistoryPage(
+          program: currentProgram,
+          initialTabIndex: 1,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    await _refreshTrainingPlanChangeState();
   }
 
   /// Issues 3 & 5: reconcile the server's open workout session with local state
@@ -4260,7 +4282,29 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     return raw.replaceAll(RegExp(r'\s+'), ' ');
   }
 
-  Set<String> _programDayIdentityTokens(Map<String, dynamic> day, int index) {
+  /// The active plan's unique id, used to scope day-identity tokens below so
+  /// a freshly regenerated plan can never match completion history logged
+  /// against a previous plan (e.g. same "Day 1" index/label reused across
+  /// plans).
+  int? _currentProgramId() {
+    final p = program;
+    if (p == null) return null;
+    return _parseInt(p['program_id'] ?? p['id']);
+  }
+
+  /// Prefixes every token with the owning plan's id (when known) so tokens
+  /// from different plans never collide, even if the underlying index/id/
+  /// label happens to repeat across plans.
+  Set<String> _scopeTokensToProgram(Set<String> tokens, int? programId) {
+    if (programId == null) return tokens;
+    return tokens.map((t) => 'pid:$programId|$t').toSet();
+  }
+
+  Set<String> _programDayIdentityTokens(
+    Map<String, dynamic> day,
+    int index, {
+    int? programId,
+  }) {
     final tokens = <String>{'index:${index + 1}'};
     final dayId = _parseInt(
       day['day_id'] ?? day['training_day_id'] ?? day['id'],
@@ -4282,7 +4326,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       tokens.add('label:$normalized');
       tokens.add('key:$normalized');
     }
-    return tokens;
+    return _scopeTokensToProgram(tokens, programId ?? _currentProgramId());
   }
 
   Set<String> _historyDayIdentityTokens(Map<String, dynamic> item) {
@@ -4316,7 +4360,8 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       tokens.add('label:$normalized');
       tokens.add('key:$normalized');
     }
-    return tokens;
+    final rowProgramId = _parseInt(item['program_id']);
+    return _scopeTokensToProgram(tokens, rowProgramId);
   }
 
   Set<String> _historyCompletedExerciseNames(Map<String, dynamic> item) {
@@ -5201,7 +5246,9 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                                     await _refreshTrainingPlanChangeState();
                                   },
                                   icon: Icons.history,
-                                  label: "HISTORY",
+                                  label: _unseenPlanChangeCount > 0
+                                      ? "HISTORY $_unseenPlanChangeCount"
+                                      : "HISTORY",
                                 ),
                               ],
                             ),

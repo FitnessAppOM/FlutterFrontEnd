@@ -16,6 +16,7 @@ import '../../services/core/pdf_open_service.dart';
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/components/taqa_mini_tag.dart';
 import '../../TaqaUI/components/taqa_refresh_indicator.dart';
+import '../../TaqaUI/components/taqa_value_dialog.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
 
@@ -112,20 +113,31 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
 
   Future<void> _toggleHabit(CoachHabitItem habit) async {
     if (_updatingHabitIds.contains(habit.id)) return;
+    // Marking done is final — clients can't check a habit and later undo it,
+    // so the row is disabled once completed and this is unreachable then,
+    // but guard here too in case a stale tap slips through.
+    if (habit.isCompleted) return;
 
-    final nextCompleted = !habit.isCompleted;
     final previous = habit;
+    final period = habit.isDaily ? 'day' : 'week';
+
+    final confirmed = await showTaqaConfirmDialog(
+      context: context,
+      title: 'Mark habit as done?',
+      message:
+          'Did you finish this habit, "${habit.habit}", for this $period? '
+          'This action can\'t be undone.',
+      confirmLabel: 'Yes, done',
+    );
+    if (!confirmed) return;
+    if (!mounted) return;
 
     setState(() {
       _updatingHabitIds.add(habit.id);
       _habits = _habits
           .map(
             (h) => h.id == habit.id
-                ? h.copyWith(
-                    isCompleted: nextCompleted,
-                    completedAt: nextCompleted ? DateTime.now() : null,
-                    clearCompletedAt: !nextCompleted,
-                  )
+                ? h.copyWith(isCompleted: true, completedAt: DateTime.now())
                 : h,
           )
           .toList();
@@ -134,7 +146,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
     try {
       final updated = await CoachHabitsService.setHabitCompletion(
         habitId: habit.id,
-        isCompleted: nextCompleted,
+        isCompleted: true,
       );
       if (!mounted) return;
       setState(() {
@@ -798,7 +810,7 @@ class _HabitRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: isUpdating ? null : onTap,
+          onTap: (isUpdating || habit.isCompleted) ? null : onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             child: Row(
