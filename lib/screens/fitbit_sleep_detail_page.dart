@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_empty_card.dart';
-import '../TaqaUI/components/taqa_linear_metric_card.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_progress_widget_card.dart';
 import '../TaqaUI/components/taqa_sleep_stages_wide_card.dart';
@@ -36,7 +35,10 @@ class FitbitSleepDetailPage extends StatelessWidget {
         : 0.0;
     final hasData =
         summary != null &&
-        (asleep != null || inBed != null || sleepScore != null);
+        (asleep != null ||
+            inBed != null ||
+            stageEntries.isNotEmpty ||
+            logs.isNotEmpty);
 
     return Scaffold(
       appBar: TaqaPageAppBar(
@@ -66,9 +68,9 @@ class FitbitSleepDetailPage extends StatelessWidget {
                       Expanded(
                         child: TaqaProgressWidgetCard(
                           title: t("sleep_total_sleep_title"),
-                          valueText: asleep == null ? "—" : _fmtMinutes(asleep),
+                          valueText: asleep == null ? "--" : _fmtMinutes(asleep),
                           goalText: goal == null
-                              ? "—"
+                              ? "--"
                               : t(
                                   "common_goal_value",
                                 ).replaceAll("{value}", _fmtMinutes(goal)),
@@ -79,23 +81,13 @@ class FitbitSleepDetailPage extends StatelessWidget {
                       Expanded(
                         child: TaqaProgressWidgetCard(
                           title: t("sleep_time_in_bed_title"),
-                          valueText: inBed == null ? "—" : _fmtMinutes(inBed),
-                          goalText: t("fitbit_sleep_score"),
-                          progress: sleepScore == null
-                              ? 0.0
-                              : (sleepScore! / 100).clamp(0.0, 1.0),
-                          showArc: sleepScore != null,
+                          valueText: inBed == null ? "--" : _fmtMinutes(inBed),
+                          goalText: "",
+                          progress: 0.0,
+                          showArc: false,
                         ),
                       ),
                     ],
-                  ),
-                  SizedBox(height: TaqaUiScale.h(12)),
-                  TaqaLinearMetricCard(
-                    title: t("fitbit_sleep_score"),
-                    valueText: sleepScore == null ? "—" : "$sleepScore%",
-                    subtitle: t("fitbit_sleep_title"),
-                    progress: sleepScore == null ? 0.0 : sleepScore! / 100,
-                    showBar: sleepScore != null,
                   ),
                   if (stageEntries.isNotEmpty) ...[
                     SizedBox(height: TaqaUiScale.h(12)),
@@ -180,13 +172,13 @@ class _LogTile extends StatelessWidget {
     final start = log.start?.toLocal();
     final end = log.end?.toLocal();
     final startLabel = start == null
-        ? "—"
+        ? "--"
         : "${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}";
     final endLabel = end == null
-        ? "—"
+        ? "--"
         : "${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}";
     final duration = log.minutesAsleep == null
-        ? "—"
+        ? "--"
         : "${log.minutesAsleep} min";
     final main = log.isMainSleep == true
         ? t("fitbit_sleep_log_main_sleep")
@@ -203,7 +195,7 @@ class _LogTile extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              "$startLabel → $endLabel",
+              "$startLabel -> $endLabel",
               style: TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(10),

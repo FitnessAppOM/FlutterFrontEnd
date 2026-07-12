@@ -178,6 +178,9 @@ class DashboardPageState extends State<DashboardPage>
     'whoop_body',
     'strava_activities',
   };
+  static const Set<String> _temporarilyHiddenStatKeys = {
+    'fitbit_scores',
+  };
   static final Map<String, List<double>> _trendSleepWeekCache = {};
   static final Map<String, List<double>> _trendCaloriesWeekCache = {};
   final Map<DateTime, Map<String, dynamic>> _dietSummaryCache = {};
@@ -1114,15 +1117,6 @@ class DashboardPageState extends State<DashboardPage>
       );
       all.add(
         WidgetLibraryOption(
-          keyName: 'fitbit_scores',
-          title: t("dash_widget_fitbit_scores_title"),
-          subtitle: t("dash_widget_fitbit_scores_subtitle"),
-          icon: Icons.emoji_events_outlined,
-          accentColor: const Color(0xFF0C6A73),
-        ),
-      );
-      all.add(
-        WidgetLibraryOption(
           keyName: 'fitbit_vitals',
           title: t("dash_widget_fitbit_vitals_title"),
           subtitle: t("dash_widget_fitbit_vitals_subtitle"),
@@ -1243,7 +1237,9 @@ class DashboardPageState extends State<DashboardPage>
         final next = decoded.map((e) => e.toString()).toList();
         final filtered = <String>[];
         for (final item in next) {
-          if (_allowedStatKeys.contains(item) && !filtered.contains(item)) {
+          if (_allowedStatKeys.contains(item) &&
+              !_temporarilyHiddenStatKeys.contains(item) &&
+              !filtered.contains(item)) {
             filtered.add(item);
           }
         }
@@ -1399,6 +1395,9 @@ class DashboardPageState extends State<DashboardPage>
   void _pruneDeviceWidgets() {
     var changed = false;
     var sleepChanged = false;
+    for (final key in _temporarilyHiddenStatKeys) {
+      if (_statOrder.remove(key)) changed = true;
+    }
     if (_fitbitLinkedHint == false) {
       if (_statOrder.remove('fitbit_activity')) changed = true;
       if (_statOrder.remove('fitbit_heart')) changed = true;
@@ -1445,6 +1444,9 @@ class DashboardPageState extends State<DashboardPage>
 
   void _activateWidget(String key) {
     final t = AppLocalizations.of(context).translate;
+    if (_temporarilyHiddenStatKeys.contains(key)) {
+      return;
+    }
     final group = _exclusiveGroupForKey(key);
     if (group != null) {
       final existing = _statOrder.firstWhere(
@@ -5003,6 +5005,7 @@ class DashboardPageState extends State<DashboardPage>
     }
 
     String? fetchedName = initialName;
+    String? fetchedAccountName = storedName ?? initialName;
     String? fetchedAvatar = storedAvatar;
     double? fetchedHeight;
     double? fetchedWeight;
@@ -5011,6 +5014,7 @@ class DashboardPageState extends State<DashboardPage>
       try {
         final profile = await ProfileApi.fetchProfile(requestUserId);
         final resolvedName = _resolveDisplayName(profile);
+        final resolvedAccountName = _resolveStoredAccountName(profile);
         final remoteAvatar = _normalizeAvatarUrl(
           profile["avatar_url"]?.toString(),
         );
@@ -5018,6 +5022,10 @@ class DashboardPageState extends State<DashboardPage>
         final weight = profile["weight_kg"];
         if (resolvedName != null && resolvedName.trim().isNotEmpty) {
           fetchedName = resolvedName;
+        }
+        if (resolvedAccountName != null &&
+            resolvedAccountName.trim().isNotEmpty) {
+          fetchedAccountName = resolvedAccountName;
         }
         if (remoteAvatar != null && remoteAvatar.trim().isNotEmpty) {
           if (mounted && remoteAvatar != storedAvatar) {
@@ -5044,10 +5052,10 @@ class DashboardPageState extends State<DashboardPage>
     if (!mounted) return;
     final activeUserId = await AccountStorage.getUserId();
     if (activeUserId != requestUserId) return;
-    if (fetchedName != null &&
-        fetchedName.trim().isNotEmpty &&
-        fetchedName != initialName) {
-      await AccountStorage.setName(fetchedName);
+    if (fetchedAccountName != null &&
+        fetchedAccountName.trim().isNotEmpty &&
+        fetchedAccountName != storedName) {
+      await AccountStorage.setName(fetchedAccountName);
     }
     if (fetchedAvatar != null &&
         fetchedAvatar.trim().isNotEmpty &&
@@ -5085,6 +5093,12 @@ class DashboardPageState extends State<DashboardPage>
     if (username.isNotEmpty) return username;
 
     return null;
+  }
+
+  String? _resolveStoredAccountName(Map<String, dynamic> profile) {
+    final username = profile["username"]?.toString().trim() ?? "";
+    if (username.isNotEmpty) return username;
+    return _resolveDisplayName(profile);
   }
 
   String? _normalizeAvatarUrl(String? rawValue) {

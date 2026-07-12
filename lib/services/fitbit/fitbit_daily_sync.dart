@@ -62,7 +62,13 @@ class FitbitDailySync {
         cursor = cursor.add(const Duration(days: 1));
       }
 
-      for (final day in missingDates) {
+      final refreshDates = <String>{...missingDates};
+      final yesterday = effectiveToday.subtract(const Duration(days: 1));
+      if (!yesterday.isBefore(start) && !yesterday.isAfter(end)) {
+        refreshDates.add(_dateKey(yesterday));
+      }
+
+      for (final day in refreshDates) {
         final url = Uri.parse(
           "${ApiConfig.baseUrl}/fitbit/day?user_id=$userId&date=$day&persist=1",
         );
@@ -71,7 +77,7 @@ class FitbitDailySync {
             .timeout(const Duration(seconds: 25));
       }
 
-      if (missingDates.isEmpty) {
+      if (refreshDates.isEmpty) {
         await sp.setString(lastKey, todayKey);
         return;
       }
@@ -122,37 +128,15 @@ class FitbitDailySync {
       final end = effectiveToday;
       if (end.isBefore(start)) return;
 
-      final startStr = _dateKey(start);
-      final endStr = _dateKey(end);
-      final rangeUrl = Uri.parse(
-        "${ApiConfig.baseUrl}/fitbit/daily-metrics/range?user_id=$userId&start=$startStr&end=$endStr",
-      );
-      final rangeRes = await http
-          .get(rangeUrl, headers: headers)
-          .timeout(const Duration(seconds: 20));
-      if (rangeRes.statusCode != 200) return;
-
-      final List<dynamic> rows = jsonDecode(rangeRes.body) as List<dynamic>;
-      final existingDates = <String>{};
-      for (final row in rows) {
-        if (row is Map &&
-            row["entry_date"] != null &&
-            _isPersistedFitbitDayRow(row)) {
-          existingDates.add(row["entry_date"].toString().split("T").first);
-        }
-      }
-
       var cursor = end;
       while (!cursor.isBefore(start)) {
         final key = _dateKey(cursor);
-        if (!existingDates.contains(key)) {
-          final url = Uri.parse(
-            "${ApiConfig.baseUrl}/fitbit/day?user_id=$userId&date=$key&persist=1",
-          );
-          await http
-              .get(url, headers: headers)
-              .timeout(const Duration(seconds: 25));
-        }
+        final url = Uri.parse(
+          "${ApiConfig.baseUrl}/fitbit/day?user_id=$userId&date=$key&persist=1",
+        );
+        await http
+            .get(url, headers: headers)
+            .timeout(const Duration(seconds: 25));
         cursor = cursor.subtract(const Duration(days: 1));
       }
     } finally {

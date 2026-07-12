@@ -84,18 +84,22 @@ class CommunityService {
         response = await http.get(uri, headers: headers);
         break;
       case 'POST':
-        response = await http.post(
-          uri,
-          headers: headers,
-          body: jsonEncode(body ?? const <String, dynamic>{}),
-        );
+        response = body == null
+            ? await http.post(uri, headers: headers)
+            : await http.post(
+                uri,
+                headers: headers,
+                body: jsonEncode(body),
+              );
         break;
       case 'PATCH':
-        response = await http.patch(
-          uri,
-          headers: headers,
-          body: jsonEncode(body ?? const <String, dynamic>{}),
-        );
+        response = body == null
+            ? await http.patch(uri, headers: headers)
+            : await http.patch(
+                uri,
+                headers: headers,
+                body: jsonEncode(body),
+              );
         break;
       case 'DELETE':
         response = body == null

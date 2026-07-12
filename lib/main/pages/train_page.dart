@@ -1586,6 +1586,16 @@ class _WorkoutLauncherExerciseCardState
     await _saveLauncherProgressState();
   }
 
+  Future<void> _handleDoneTap(int index) async {
+    if (index < 0 || index >= _rows.length) return;
+    final activeIndex = _activeFlowSetIndex();
+    if (_setInProgress && index == activeIndex) {
+      await _onSetActionPressed();
+      return;
+    }
+    await _toggleDone(index);
+  }
+
   Future<void> _editSetRow(int index) async {
     if (index < 0 || index >= _rows.length) return;
     final current = _rows[index];
@@ -2184,7 +2194,7 @@ class _WorkoutLauncherExerciseCardState
               child: Align(
                 alignment: Alignment.center,
                 child: GestureDetector(
-                  onTap: () => unawaited(_toggleDone(index)),
+                  onTap: () => unawaited(_handleDoneTap(index)),
                   child: Container(
                     width: TaqaUiScale.w(24),
                     height: TaqaUiScale.h(24),

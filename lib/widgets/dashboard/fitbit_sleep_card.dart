@@ -40,7 +40,7 @@ class FitbitSleepCard extends StatelessWidget {
       valueText: value,
       goalText: subtitle,
       progress: progress,
-      loading: loading && minutesAsleep == null && sleepScore == null,
+      loading: loading && minutesAsleep == null,
       onTap: onTap,
     );
   }
@@ -55,15 +55,11 @@ class FitbitSleepCard extends StatelessWidget {
     final goalLabel = goalMinutes != null
         ? t("common_goal_value").replaceAll("{value}", _fmtMinutes(goalMinutes!))
         : null;
-    final scoreLabel = sleepScore != null
-        ? "${t("common_score_short")} ${sleepScore!}%"
-        : null;
     final stageLabel = stageMinutes.isNotEmpty
         ? "${t("sleep_stages_label")} ${stageMinutes.length}"
         : null;
     final parts = [
       goalLabel,
-      scoreLabel,
       stageLabel,
     ].whereType<String>().toList();
     return parts.isEmpty ? t("dash_no_sleep_data") : parts.join(" | ");

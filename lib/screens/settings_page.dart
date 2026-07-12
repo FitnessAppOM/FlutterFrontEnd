@@ -972,8 +972,12 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     }
     if (currentUsername.isEmpty) {
-      currentUsername = (await AccountStorage.getName() ?? "").trim();
+      final cachedName = (await AccountStorage.getName() ?? "").trim();
+      if (_usernameRegex.hasMatch(cachedName)) {
+        currentUsername = cachedName;
+      }
     }
+    if (!mounted) return;
 
     final newUsername = await showTaqaTextValueDialog(
       context: context,
@@ -982,8 +986,9 @@ class _SettingsPageState extends State<SettingsPage> {
       keyboardType: TextInputType.text,
     );
     if (newUsername == null) return;
+    final normalizedUsername = newUsername.trim();
 
-    if (newUsername.length < 3) {
+    if (normalizedUsername.length < 3) {
       if (!mounted) return;
       AppToast.show(
         context,
@@ -992,7 +997,7 @@ class _SettingsPageState extends State<SettingsPage> {
       );
       return;
     }
-    if (newUsername.length > 50) {
+    if (normalizedUsername.length > 50) {
       if (!mounted) return;
       AppToast.show(
         context,
@@ -1001,7 +1006,7 @@ class _SettingsPageState extends State<SettingsPage> {
       );
       return;
     }
-    if (!_usernameRegex.hasMatch(newUsername)) {
+    if (!_usernameRegex.hasMatch(normalizedUsername)) {
       if (!mounted) return;
       AppToast.show(
         context,
@@ -1010,7 +1015,9 @@ class _SettingsPageState extends State<SettingsPage> {
       );
       return;
     }
-    if (newUsername.isEmpty || newUsername == currentUsername) return;
+    if (normalizedUsername.isEmpty || normalizedUsername == currentUsername) {
+      return;
+    }
 
     try {
       final uid = await AccountStorage.getUserId();
@@ -1023,7 +1030,7 @@ class _SettingsPageState extends State<SettingsPage> {
         );
         return;
       }
-      final updated = await ProfileApi.updateUsername(uid, newUsername);
+      final updated = await ProfileApi.updateUsername(uid, normalizedUsername);
       await AccountStorage.setName(updated);
       if (!mounted) return;
       await _showSuccessDialog("${t.translate("username_updated")}: $updated");

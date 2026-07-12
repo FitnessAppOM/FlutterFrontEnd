@@ -7,6 +7,25 @@ import '../../core/account_storage.dart';
 import '../core/daily_provider_push_service.dart';
 import 'fitbit_db_service.dart';
 
+String? _formatVo2Max(dynamic value) {
+  if (value == null) return null;
+  if (value is num) {
+    final rounded = value.toStringAsFixed(1);
+    return rounded.endsWith('.0')
+        ? rounded.substring(0, rounded.length - 2)
+        : rounded;
+  }
+  final parsed = double.tryParse(value.toString());
+  if (parsed != null) {
+    final rounded = parsed.toStringAsFixed(1);
+    return rounded.endsWith('.0')
+        ? rounded.substring(0, rounded.length - 2)
+        : rounded;
+  }
+  final text = value.toString().trim();
+  return text.isEmpty ? null : text;
+}
+
 class FitbitHeartSummary {
   final int? restingHr;
   final double? hrvRmssd;
@@ -55,7 +74,7 @@ class FitbitHeartService {
 
       final zonesRaw = row["heart_zones"];
       final zones = zonesRaw is List ? zonesRaw : const [];
-      final vo2 = row["cardio_vo2max"]?.toString();
+      final vo2 = _formatVo2Max(row["cardio_vo2max"]);
 
       return FitbitHeartSummary(
         restingHr: _int(row["resting_hr"]),
@@ -103,7 +122,7 @@ class FitbitHeartService {
     return FitbitHeartSummary(
       restingHr: _int(heartData["resting_hr"]),
       hrvRmssd: _double(hrvData["daily_rmssd"]),
-      vo2Max: cardioData["vo2max"]?.toString(),
+      vo2Max: _formatVo2Max(cardioData["vo2max"]),
       zones: (heartData["zones"] is List) ? (heartData["zones"] as List) : const [],
     );
   }

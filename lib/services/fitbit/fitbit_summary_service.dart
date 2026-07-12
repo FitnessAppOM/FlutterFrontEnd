@@ -13,6 +13,25 @@ import 'fitbit_vitals_service.dart';
 import 'fitbit_body_service.dart';
 import 'fitbit_scores_service.dart';
 
+String? _formatVo2Max(dynamic value) {
+  if (value == null) return null;
+  if (value is num) {
+    final rounded = value.toStringAsFixed(1);
+    return rounded.endsWith('.0')
+        ? rounded.substring(0, rounded.length - 2)
+        : rounded;
+  }
+  final parsed = double.tryParse(value.toString());
+  if (parsed != null) {
+    final rounded = parsed.toStringAsFixed(1);
+    return rounded.endsWith('.0')
+        ? rounded.substring(0, rounded.length - 2)
+        : rounded;
+  }
+  final text = value.toString().trim();
+  return text.isEmpty ? null : text;
+}
+
 class FitbitSummaryBundle {
   final FitbitActivitySummary? activity;
   final FitbitHeartSummary? heart;
@@ -260,7 +279,7 @@ class FitbitSummaryService {
           ? heartNode["zones"] as List
           : const [];
       final vo2 = cardioNode is Map<String, dynamic>
-          ? cardioNode["vo2max"]?.toString()
+          ? _formatVo2Max(cardioNode["vo2max"])
           : null;
 
       heart = FitbitHeartSummary(
@@ -398,7 +417,7 @@ class FitbitSummaryService {
         row["heart_zones"] != null) {
       final zonesRaw = row["heart_zones"];
       final zones = zonesRaw is List ? zonesRaw : const [];
-      final vo2 = row["cardio_vo2max"]?.toString();
+      final vo2 = _formatVo2Max(row["cardio_vo2max"]);
       heart = FitbitHeartSummary(
         restingHr: _int(row["resting_hr"]),
         hrvRmssd: _double(row["hrv_daily_rmssd"]),
