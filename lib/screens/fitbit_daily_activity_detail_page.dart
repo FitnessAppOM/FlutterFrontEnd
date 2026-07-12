@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
-import '../TaqaUI/components/taqa_linear_metric_card.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
+import '../TaqaUI/components/taqa_pillar_card.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../localization/app_localizations.dart';
@@ -38,60 +38,54 @@ class FitbitDailyActivityDetailPage extends StatelessWidget {
               children: [
                 _dateLabel(),
                 SizedBox(height: TaqaUiScale.h(14)),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _metricCard(
-                        title: t("fitbit_steps_label"),
-                        value: summary.steps,
-                        goal: summary.goalSteps,
-                        unit: "",
-                        goalPrefix: t("fitbit_goal_label"),
-                      ),
-                    ),
-                    SizedBox(width: TaqaUiScale.w(12)),
-                    Expanded(
-                      child: _metricCard(
-                        title: t("fitbit_distance_label"),
-                        value: summary.distance,
-                        goal: summary.goalDistance,
-                        unit: "km",
-                        goalPrefix: t("fitbit_goal_label"),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: TaqaUiScale.h(12)),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _metricCard(
-                        title: t("fitbit_calories_label"),
-                        value: summary.calories,
-                        goal: summary.goalCalories,
-                        unit: "kcal",
-                        goalPrefix: t("fitbit_goal_label"),
-                      ),
-                    ),
-                    SizedBox(width: TaqaUiScale.w(12)),
-                    Expanded(
-                      child: _metricCard(
-                        title: t("fitbit_floors_label"),
-                        value: summary.floors,
-                        goal: summary.goalFloors,
-                        unit: "",
-                        goalPrefix: t("fitbit_goal_label"),
-                      ),
-                    ),
-                  ],
+                _metricCard(
+                  metricKey: 'steps',
+                  title: t("fitbit_steps_label"),
+                  value: summary.steps,
+                  goal: summary.goalSteps,
+                  unit: "",
+                  icon: Icons.directions_walk_rounded,
+                  color: const Color(0xFF9B8CFF),
                 ),
                 SizedBox(height: TaqaUiScale.h(12)),
                 _metricCard(
+                  metricKey: 'distance',
+                  title: t("fitbit_distance_label"),
+                  value: summary.distance,
+                  goal: summary.goalDistance,
+                  unit: "km",
+                  icon: Icons.route_rounded,
+                  color: const Color(0xFF35B6FF),
+                ),
+                SizedBox(height: TaqaUiScale.h(12)),
+                _metricCard(
+                  metricKey: 'calories',
+                  title: t("fitbit_calories_label"),
+                  value: summary.calories,
+                  goal: summary.goalCalories,
+                  unit: "kcal",
+                  icon: Icons.local_fire_department_rounded,
+                  color: const Color(0xFFFF8A00),
+                ),
+                SizedBox(height: TaqaUiScale.h(12)),
+                _metricCard(
+                  metricKey: 'floors',
+                  title: t("fitbit_floors_label"),
+                  value: summary.floors,
+                  goal: summary.goalFloors,
+                  unit: "",
+                  icon: Icons.stairs_rounded,
+                  color: const Color(0xFF00BFA6),
+                ),
+                SizedBox(height: TaqaUiScale.h(12)),
+                _metricCard(
+                  metricKey: 'active_minutes',
                   title: t("fitbit_active_minutes_label"),
                   value: summary.activeMinutes,
                   goal: summary.goalActiveMinutes,
                   unit: "min",
-                  goalPrefix: t("fitbit_goal_label"),
+                  icon: Icons.timer_rounded,
+                  color: const Color(0xFF4CD964),
                 ),
               ],
             ),
@@ -102,25 +96,28 @@ class FitbitDailyActivityDetailPage extends StatelessWidget {
   }
 
   Widget _metricCard({
+    required String metricKey,
     required String title,
     required num? value,
     required num? goal,
     required String unit,
-    required String goalPrefix,
+    required IconData icon,
+    required Color color,
   }) {
     final valueText = value == null
-        ? "—"
+        ? null
         : (unit.isEmpty ? _fmt(value) : "${_fmt(value)} $unit");
-    final progress = (value != null && goal != null && goal > 0)
-        ? (value / goal).clamp(0.0, 1.0).toDouble()
-        : 0.0;
-    final goalLabel = goal == null ? "—" : "${_fmt(goal)} $unit".trim();
-    return TaqaLinearMetricCard(
-      title: title,
-      valueText: valueText,
-      subtitle: goalPrefix.replaceAll("{value}", goalLabel),
-      progress: progress,
-      showBar: goal != null,
+    final maxScore = (goal != null && goal > 0) ? goal.toDouble() : 1.0;
+    return TaqaPillarCard(
+      metricKey: metricKey,
+      label: title,
+      score: value?.toDouble(),
+      maxScore: maxScore,
+      icon: icon,
+      color: color,
+      details: const {},
+      detailLabels: const {},
+      valueDisplay: valueText,
     );
   }
 

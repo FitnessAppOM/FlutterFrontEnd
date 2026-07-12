@@ -5989,66 +5989,68 @@ class DashboardPageState extends State<DashboardPage>
                   onTap: _openWidgetLibrary,
                 ),
               ),
-              Positioned(
-                left: 20,
-                bottom: 20 + bottomInset,
-                child: IgnorePointer(
-                  ignoring: true,
-                  child: AnimatedOpacity(
-                    opacity: (!_wiggling && _wearableBubbleVisible) ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 180),
-                    child: AnimatedScale(
-                      scale: (!_wiggling && _wearableBubbleVisible)
-                          ? 1.0
-                          : 0.96,
-                      duration: const Duration(milliseconds: 180),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.accent.withValues(alpha: 0.16),
-                          borderRadius: BorderRadius.circular(28),
-                          border: Border.all(
-                            color: AppColors.accent.withValues(alpha: 0.35),
-                          ),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Colors.black54,
-                              blurRadius: 12,
-                              offset: Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.watch,
-                              size: 16,
-                              color: Colors.white,
-                            ),
-                            if (_wearableBubbleType == 'apple') ...[
-                              const SizedBox(width: 8),
-                              Text(
-                                AppLocalizations.of(
-                                  context,
-                                ).translate("dash_apple_watch"),
-                                style: Theme.of(context).textTheme.labelSmall
-                                    ?.copyWith(
-                                      color: Colors.white70,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              // Wearable bubble (watch icon toast) disabled per request —
+              // was showing up unexpectedly on the dashboard.
+              // Positioned(
+              //   left: 20,
+              //   bottom: 20 + bottomInset,
+              //   child: IgnorePointer(
+              //     ignoring: true,
+              //     child: AnimatedOpacity(
+              //       opacity: (!_wiggling && _wearableBubbleVisible) ? 1.0 : 0.0,
+              //       duration: const Duration(milliseconds: 180),
+              //       child: AnimatedScale(
+              //         scale: (!_wiggling && _wearableBubbleVisible)
+              //             ? 1.0
+              //             : 0.96,
+              //         duration: const Duration(milliseconds: 180),
+              //         child: Container(
+              //           padding: const EdgeInsets.symmetric(
+              //             horizontal: 16,
+              //             vertical: 10,
+              //           ),
+              //           decoration: BoxDecoration(
+              //             color: AppColors.accent.withValues(alpha: 0.16),
+              //             borderRadius: BorderRadius.circular(28),
+              //             border: Border.all(
+              //               color: AppColors.accent.withValues(alpha: 0.35),
+              //             ),
+              //             boxShadow: const [
+              //               BoxShadow(
+              //                 color: Colors.black54,
+              //                 blurRadius: 12,
+              //                 offset: Offset(0, 6),
+              //               ),
+              //             ],
+              //           ),
+              //           child: Row(
+              //             mainAxisSize: MainAxisSize.min,
+              //             children: [
+              //               const Icon(
+              //                 Icons.watch,
+              //                 size: 16,
+              //                 color: Colors.white,
+              //               ),
+              //               if (_wearableBubbleType == 'apple') ...[
+              //                 const SizedBox(width: 8),
+              //                 Text(
+              //                   AppLocalizations.of(
+              //                     context,
+              //                   ).translate("dash_apple_watch"),
+              //                   style: Theme.of(context).textTheme.labelSmall
+              //                       ?.copyWith(
+              //                         color: Colors.white70,
+              //                         fontWeight: FontWeight.w600,
+              //                       ),
+              //                 ),
+              //               ],
+              //             ],
+              //           ),
+              //         ),
+              //       ),
+              //     ),
+              //   ),
+              // ),
             ],
           ),
         ),

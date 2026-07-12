@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../TaqaUI/components/taqa_empty_card.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
-import '../TaqaUI/components/taqa_progress_widget_card.dart';
+import '../TaqaUI/components/taqa_pillar_card.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../localization/app_localizations.dart';
@@ -37,24 +37,28 @@ class FitbitScoresDetailPage extends StatelessWidget {
                     subtitle: t("common_no_records_in_range"),
                     icon: Icons.insights_outlined,
                   )
-                : Row(
+                : Column(
                     children: [
-                      Expanded(
-                        child: TaqaProgressWidgetCard(
-                          title: t("fitbit_scores_readiness"),
-                          valueText: _fmtScore(readiness),
-                          goalText: t("fitbit_scores_title"),
-                          progress: readiness == null ? 0.0 : readiness / 100,
-                        ),
+                      TaqaPillarCard(
+                        metricKey: 'fitbit_readiness',
+                        label: t("fitbit_scores_readiness"),
+                        score: readiness?.toDouble(),
+                        icon: Icons.flash_on_rounded,
+                        color: const Color(0xFFFFD700),
+                        details: const {},
+                        detailLabels: const {},
+                        valueDisplay: _fmtScore(readiness),
                       ),
-                      SizedBox(width: TaqaUiScale.w(12)),
-                      Expanded(
-                        child: TaqaProgressWidgetCard(
-                          title: t("fitbit_scores_stress"),
-                          valueText: _fmtScore(stress),
-                          goalText: t("fitbit_scores_title"),
-                          progress: stress == null ? 0.0 : stress / 100,
-                        ),
+                      SizedBox(height: TaqaUiScale.h(12)),
+                      TaqaPillarCard(
+                        metricKey: 'stress',
+                        label: t("fitbit_scores_stress"),
+                        score: stress?.toDouble(),
+                        icon: Icons.psychology_rounded,
+                        color: const Color(0xFF4CD964),
+                        details: const {},
+                        detailLabels: const {},
+                        valueDisplay: _fmtScore(stress),
                       ),
                     ],
                   ),

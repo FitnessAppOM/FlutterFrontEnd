@@ -5,14 +5,18 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
+import '../../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../../TaqaUI/components/taqa_mini_tag.dart';
+import '../../TaqaUI/components/taqa_refresh_indicator.dart';
+import '../../TaqaUI/components/taqa_switch.dart';
+import '../../TaqaUI/styles/taqa_ui_scale.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../consents/consent_manager.dart';
 import '../../core/user_friendly_error.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/coach/chat_attachment_file_service.dart';
 import '../../services/coach/form_check_service.dart';
 import '../../theme/app_theme.dart';
-import '../../TaqaUI/components/taqa_refresh_indicator.dart';
-import '../../TaqaUI/taqa_ui_colors.dart';
 import 'chat_video_player_page.dart';
 
 String _tr(BuildContext context, String key, String fallback) {
@@ -28,7 +32,6 @@ class CoachFormCheckPanel extends StatefulWidget {
 }
 
 class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
-  final TextEditingController _exerciseController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
 
   bool _loading = true;
@@ -36,9 +39,6 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
   bool _consentAccepted = false;
   bool _saveToLibrary = false;
   String? _error;
-  File? _selectedVideo;
-  String? _selectedVideoName;
-  int _selectedVideoBytes = 0;
   FormCheckUsage? _usage;
   List<FormCheckSubmission> _items = const [];
   Timer? _pollTimer;
@@ -52,7 +52,6 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
   @override
   void dispose() {
     _pollTimer?.cancel();
-    _exerciseController.dispose();
     super.dispose();
   }
 
@@ -101,6 +100,18 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
   }
 
   Future<void> _pickVideo() async {
+    if (_submitting) return;
+    if (!_consentAccepted) {
+      _showToast(
+        _tr(
+          context,
+          'coach_form_check_consent_required',
+          'Accept consent before uploading',
+        ),
+      );
+      return;
+    }
+
     final photosOk = await ConsentManager.requestPhotosJIT();
     if (!photosOk) {
       if (!mounted) return;
@@ -111,16 +122,8 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
     try {
       final picked = await _imagePicker.pickVideo(source: ImageSource.gallery);
       if (picked == null) return;
-
-      final file = File(picked.path);
-      final size = await file.length();
       if (!mounted) return;
-
-      setState(() {
-        _selectedVideo = file;
-        _selectedVideoName = picked.name;
-        _selectedVideoBytes = size;
-      });
+      await _promptExerciseNameAndSubmit(File(picked.path));
     } catch (_) {
       if (!mounted) return;
       _showToast(
@@ -134,20 +137,26 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
   }
 
   Future<void> _recordVideo() async {
+    if (_submitting) return;
+    if (!_consentAccepted) {
+      _showToast(
+        _tr(
+          context,
+          'coach_form_check_consent_required',
+          'Accept consent before uploading',
+        ),
+      );
+      return;
+    }
+
     try {
       final picked = await _imagePicker.pickVideo(
         source: ImageSource.camera,
         maxDuration: const Duration(seconds: 15),
       );
       if (picked == null) return;
-      final file = File(picked.path);
-      final size = await file.length();
       if (!mounted) return;
-      setState(() {
-        _selectedVideo = file;
-        _selectedVideoName = picked.name;
-        _selectedVideoBytes = size;
-      });
+      await _promptExerciseNameAndSubmit(File(picked.path));
     } catch (_) {
       if (!mounted) return;
       _showToast(
@@ -160,39 +169,77 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
     }
   }
 
-  Future<void> _submit() async {
-    final video = _selectedVideo;
-    final exerciseName = _exerciseController.text.trim();
-
-    if (video == null) {
-      _showToast(_tr(context, 'coach_form_check_pick_video', 'Pick a video'));
-      return;
-    }
-    if (exerciseName.isEmpty) {
-      _showToast(
-        _tr(
-          context,
-          'coach_form_check_exercise_required',
-          'Enter the exercise name',
+  Future<void> _promptExerciseNameAndSubmit(File video) async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: TaqaUiColors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(TaqaUiScale.r(15)),
         ),
-      );
-      return;
-    }
-    if (!_consentAccepted) {
-      _showToast(
-        _tr(
-          context,
-          'coach_form_check_consent_required',
-          'Accept consent before uploading',
+        title: Text(
+          _tr(dialogContext, 'coach_form_check_exercise_label', 'Exercise'),
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            color: TaqaUiColors.charcoal,
+            fontWeight: FontWeight.w700,
+          ),
         ),
-      );
-      return;
-    }
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            color: TaqaUiColors.charcoal,
+          ),
+          decoration: InputDecoration(
+            hintText: _tr(
+              dialogContext,
+              'coach_form_check_exercise_hint',
+              'Example: Squat or Romanian deadlift',
+            ),
+            hintStyle: TextStyle(
+              color: TaqaUiColors.charcoal.withValues(alpha: 0.4),
+            ),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(
+                color: TaqaUiColors.charcoal.withValues(alpha: 0.2),
+              ),
+            ),
+            focusedBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: AppColors.accent),
+            ),
+          ),
+          onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(_tr(dialogContext, 'common_close', 'Cancel')),
+          ),
+          TextButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (value.isEmpty) return;
+              Navigator.of(dialogContext).pop(value);
+            },
+            child: Text(
+              _tr(dialogContext, 'coach_form_check_submit', 'Continue'),
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    final exerciseName = (name ?? '').trim();
+    if (exerciseName.isEmpty) return;
+    await _submitVideo(video, exerciseName);
+  }
 
-    setState(() {
-      _submitting = true;
-    });
-
+  Future<void> _submitVideo(File video, String exerciseName) async {
+    setState(() => _submitting = true);
     try {
       final created = await FormCheckService.createSubmission(
         videoFile: video,
@@ -204,12 +251,6 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
 
       setState(() {
         _submitting = false;
-        _selectedVideo = null;
-        _selectedVideoName = null;
-        _selectedVideoBytes = 0;
-        _exerciseController.clear();
-        _consentAccepted = false;
-        _saveToLibrary = false;
         _items = [
           created,
           ..._items.where((item) => item.submissionId != created.submissionId),
@@ -337,14 +378,21 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
         await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
-            backgroundColor: AppColors.cardDark,
+            backgroundColor: TaqaUiColors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(TaqaUiScale.r(15)),
+            ),
             title: Text(
               _tr(
                 dialogContext,
                 'coach_form_check_delete_title',
                 'Delete Form Check',
               ),
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                color: TaqaUiColors.charcoal,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             content: Text(
               _tr(
@@ -352,7 +400,10 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
                 'coach_form_check_delete_body',
                 'This removes the submission and its analysis from your account.',
               ),
-              style: const TextStyle(color: Colors.white70),
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+              ),
             ),
             actions: [
               TextButton(
@@ -367,7 +418,7 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
                     'coach_form_check_delete_confirm',
                     'Delete',
                   ),
-                  style: const TextStyle(color: Colors.redAccent),
+                  style: const TextStyle(color: Color(0xFFE84C4F)),
                 ),
               ),
             ],
@@ -442,190 +493,144 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
     return TaqaRefreshIndicator(
       onRefresh: () => _load(silent: true),
       child: ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        _HeaderCard(
-          title: _tr(context, 'coach_tab_form_check', 'Form Check'),
-          subtitle: _tr(
-            context,
-            'coach_form_check_intro',
-            'Upload a short exercise video for AI feedback on movement quality and technique.',
-          ),
-          usage: usage,
-        ),
-        const SizedBox(height: 14),
-        _ConsentCard(
-          title: _tr(
-            context,
-            'coach_form_check_consent_title',
-            'Consent required before upload',
-          ),
-          body: _tr(
-            context,
-            'coach_form_check_consent_body',
-            'Your video will be analyzed by Taqa Agent and stored on Taqa Fitness servers for up to 30 days unless you save it to your Library. You can delete it at any time.',
-          ),
-        ),
-        const SizedBox(height: 14),
-        _UploadCard(
-          exerciseController: _exerciseController,
-          consentAccepted: _consentAccepted,
-          saveToLibrary: _saveToLibrary,
-          selectedVideoName: _selectedVideoName,
-          selectedVideoBytes: _selectedVideoBytes,
-          submitting: _submitting,
-          onPickVideo: _pickVideo,
-          onRecordVideo: _recordVideo,
-          onConsentChanged: (value) {
-            setState(() {
-              _consentAccepted = value ?? false;
-            });
-          },
-          onSaveToLibraryChanged: (value) {
-            setState(() {
-              _saveToLibrary = value;
-            });
-          },
-          onSubmit: _submit,
-        ),
-        const SizedBox(height: 18),
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                _tr(context, 'coach_form_check_recent', 'Recent Form Checks'),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-            IconButton(
-              onPressed: _loading ? null : () => _load(),
-              icon: const Icon(Icons.refresh, color: Colors.white70),
-            ),
-          ],
-        ),
-        if (_loading)
-          Padding(
-            padding: const EdgeInsets.only(top: 24),
-            child: Center(
-              child: CircularProgressIndicator(color: TaqaUiColors.lime),
-            ),
-          )
-        else if (_error != null)
-          _EmptyStateCard(
-            title: _tr(
-              context,
-              'coach_form_check_load_failed',
-              'Could not load Form Checks',
-            ),
-            subtitle: _error!,
-          )
-        else if (_items.isEmpty)
-          _EmptyStateCard(
-            title: _tr(
-              context,
-              'coach_form_check_empty_title',
-              'No Form Checks yet',
-            ),
-            subtitle: _tr(
-              context,
-              'coach_form_check_empty_body',
-              'Upload your first short exercise clip to get AI feedback.',
-            ),
-          )
-        else
-          ..._items
-              .take(8)
-              .map(
-                (item) => Padding(
-                  padding: const EdgeInsets.only(top: 10),
-                  child: _SubmissionCard(
-                    item: item,
-                    createdAtLabel: _formatDate(item.createdAt),
-                    deleteAfterLabel: _formatDate(item.deleteAfter),
-                    onOpenVideo: () => _openVideoInApp(
-                      item.originalVideoUrl,
-                      title: item.exerciseName,
-                    ),
-                    onOpenOverlay: item.result.overlayUrl == null
-                        ? null
-                        : () => _openVideoInApp(
-                            item.result.overlayUrl,
-                            title: '${item.exerciseName} (Overlay)',
-                          ),
-                    onToggleShare: () => _toggleShare(item),
-                    onToggleSave: () => _toggleSave(item),
-                    onDelete: () => _deleteSubmission(item),
-                  ),
-                ),
-              ),
-      ],
-      ),
-    );
-  }
-}
-
-class _HeaderCard extends StatelessWidget {
-  const _HeaderCard({
-    required this.title,
-    required this.subtitle,
-    required this.usage,
-  });
-
-  final String title;
-  final String subtitle;
-  final FormCheckUsage? usage;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white10),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        padding: TaqaUiScale.insetsLTRB(16, 12, 16, 20),
         children: [
-          Row(
-            children: [
-              const Icon(Icons.smart_toy_outlined, color: AppColors.accent),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
           Text(
-            subtitle,
-            style: const TextStyle(color: Colors.white70, height: 1.4),
+            _tr(context, 'coach_tab_form_check', 'Form Check'),
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(25),
+              fontWeight: FontWeight.w700,
+              color: TaqaUiColors.charcoal,
+              height: 25 / 25,
+            ),
+          ),
+          SizedBox(height: TaqaUiScale.h(4)),
+          Text(
+            _tr(
+              context,
+              'coach_form_check_intro',
+              'Upload a 5-15 second short exercise video for AI feedback on movement quality and technique.',
+            ),
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(15),
+              fontWeight: FontWeight.w400,
+              color: TaqaUiColors.charcoal,
+              height: 18 / 15,
+            ),
           ),
           if (usage != null) ...[
-            const SizedBox(height: 14),
+            SizedBox(height: TaqaUiScale.h(10)),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: TaqaUiScale.w(8),
+              runSpacing: TaqaUiScale.h(8),
               children: [
                 _UsageChip(
-                  label: '${usage!.usedThisWeek}/${usage!.weeklyLimit} used',
+                  label:
+                      '${usage.usedThisWeek}/${usage.weeklyLimit} USED'
+                          .toUpperCase(),
                 ),
-                _UsageChip(label: '${usage!.remainingThisWeek} remaining'),
-                const _UsageChip(label: '5-15 sec, MP4/MOV'),
+                const _UsageChip(label: 'MP4/MOV'),
               ],
             ),
           ],
+          SizedBox(height: TaqaUiScale.h(14)),
+          _ConsentCard(
+            title: _tr(
+              context,
+              'coach_form_check_consent_title',
+              'Consent Required Before Upload',
+            ),
+            body: _tr(
+              context,
+              'coach_form_check_consent_body',
+              'Your video will be analyzed by Taqa Agent and stored on Taqa Fitness servers for up to 30 days unless you save it to your Library. You can delete it at any time.',
+            ),
+          ),
+          SizedBox(height: TaqaUiScale.h(14)),
+          _UploadCard(
+            consentAccepted: _consentAccepted,
+            saveToLibrary: _saveToLibrary,
+            submitting: _submitting,
+            onPickVideo: _pickVideo,
+            onRecordVideo: _recordVideo,
+            onConsentChanged: (value) {
+              setState(() {
+                _consentAccepted = value ?? false;
+              });
+            },
+            onSaveToLibraryChanged: (value) {
+              setState(() {
+                _saveToLibrary = value;
+              });
+            },
+          ),
+          SizedBox(height: TaqaUiScale.h(18)),
+          Text(
+            _tr(context, 'coach_form_check_recent', 'Recent Form Checks'),
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              color: TaqaUiColors.charcoal,
+              fontWeight: FontWeight.w700,
+              fontSize: TaqaUiScale.sp(16),
+            ),
+          ),
+          if (_loading)
+            Padding(
+              padding: EdgeInsets.only(top: TaqaUiScale.h(24)),
+              child: const Center(
+                child: CircularProgressIndicator(color: AppColors.accent),
+              ),
+            )
+          else if (_error != null)
+            _EmptyStateCard(
+              title: _tr(
+                context,
+                'coach_form_check_load_failed',
+                'Could not load Form Checks',
+              ),
+              subtitle: _error!,
+            )
+          else if (_items.isEmpty)
+            _EmptyStateCard(
+              title: _tr(
+                context,
+                'coach_form_check_empty_title',
+                'No Form Checks yet',
+              ),
+              subtitle: _tr(
+                context,
+                'coach_form_check_empty_body',
+                'Upload your first short exercise clip to get AI feedback.',
+              ),
+            )
+          else
+            ..._items
+                .take(8)
+                .map(
+                  (item) => Padding(
+                    padding: EdgeInsets.only(top: TaqaUiScale.h(10)),
+                    child: _SubmissionCard(
+                      item: item,
+                      createdAtLabel: _formatDate(item.createdAt),
+                      deleteAfterLabel: _formatDate(item.deleteAfter),
+                      onOpenVideo: () => _openVideoInApp(
+                        item.originalVideoUrl,
+                        title: item.exerciseName,
+                      ),
+                      onOpenOverlay: item.result.overlayUrl == null
+                          ? null
+                          : () => _openVideoInApp(
+                              item.result.overlayUrl,
+                              title: '${item.exerciseName} (Overlay)',
+                            ),
+                      onToggleShare: () => _toggleShare(item),
+                      onToggleSave: () => _toggleSave(item),
+                      onDelete: () => _deleteSubmission(item),
+                    ),
+                  ),
+                ),
         ],
       ),
     );
@@ -640,15 +645,20 @@ class _UsageChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: TaqaUiScale.insetsLTRB(10, 6, 10, 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white12),
+        color: TaqaUiColors.white,
+        borderRadius: TaqaUiScale.radius(8),
+        border: Border.all(color: TaqaUiColors.charcoal.withValues(alpha: 0.15)),
       ),
       child: Text(
         label,
-        style: const TextStyle(color: Colors.white70, fontSize: 12),
+        style: TextStyle(
+          fontFamily: TaqaUiFontFamilies.interTight,
+          color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+          fontSize: TaqaUiScale.sp(10),
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -664,41 +674,32 @@ class _ConsentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF101827),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Colors.lightBlueAccent.withValues(alpha: 0.22),
-        ),
+        color: TaqaUiColors.charcoal,
+        borderRadius: TaqaUiScale.radius(15),
       ),
-      padding: const EdgeInsets.all(16),
-      child: Row(
+      padding: TaqaUiScale.insetsLTRB(14, 14, 14, 14),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(top: 2),
-            child: Icon(
-              Icons.verified_user_outlined,
-              color: Colors.lightBlueAccent,
+          Text(
+            title,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              color: TaqaUiColors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: TaqaUiScale.sp(15),
+              height: 25 / 15,
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  body,
-                  style: const TextStyle(color: Colors.white70, height: 1.45),
-                ),
-              ],
+          SizedBox(height: TaqaUiScale.h(8)),
+          Text(
+            body,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              color: TaqaUiColors.white,
+              fontWeight: FontWeight.w400,
+              fontSize: TaqaUiScale.sp(15),
+              height: 21 / 15,
             ),
           ),
         ],
@@ -709,40 +710,31 @@ class _ConsentCard extends StatelessWidget {
 
 class _UploadCard extends StatelessWidget {
   const _UploadCard({
-    required this.exerciseController,
     required this.consentAccepted,
     required this.saveToLibrary,
-    required this.selectedVideoName,
-    required this.selectedVideoBytes,
     required this.submitting,
     required this.onPickVideo,
     required this.onRecordVideo,
     required this.onConsentChanged,
     required this.onSaveToLibraryChanged,
-    required this.onSubmit,
   });
 
-  final TextEditingController exerciseController;
   final bool consentAccepted;
   final bool saveToLibrary;
-  final String? selectedVideoName;
-  final int selectedVideoBytes;
   final bool submitting;
   final VoidCallback onPickVideo;
   final VoidCallback onRecordVideo;
   final ValueChanged<bool?> onConsentChanged;
   final ValueChanged<bool> onSaveToLibraryChanged;
-  final VoidCallback onSubmit;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white10),
+        color: TaqaUiColors.white,
+        borderRadius: TaqaUiScale.radius(15),
       ),
-      padding: const EdgeInsets.all(16),
+      padding: TaqaUiScale.insetsLTRB(14, 14, 14, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -750,151 +742,176 @@ class _UploadCard extends StatelessWidget {
             _tr(
               context,
               'coach_form_check_upload_title',
-              'Upload a new Form Check',
+              'Upload New Form Check',
             ),
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              color: TaqaUiColors.charcoal,
               fontWeight: FontWeight.w700,
-              fontSize: 16,
+              fontSize: TaqaUiScale.sp(15),
+              height: 25 / 15,
             ),
           ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: exerciseController,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              labelText: _tr(
-                context,
-                'coach_form_check_exercise_label',
-                'Exercise',
-              ),
-              hintText: _tr(
-                context,
-                'coach_form_check_exercise_hint',
-                'Example: Squat or Romanian deadlift',
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
+          SizedBox(height: TaqaUiScale.h(17)),
           Row(
             children: [
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: submitting ? null : onPickVideo,
-                  icon: const Icon(
-                    Icons.video_library_outlined,
-                    color: Colors.white,
+                child: _FormCheckActionButton(
+                  label: _tr(
+                    context,
+                    'coach_form_check_pick_video',
+                    'Upload Video',
                   ),
-                  label: Text(
-                    _tr(context, 'coach_form_check_pick_video', 'Pick a video'),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.white12),
-                    minimumSize: const Size.fromHeight(48),
-                  ),
+                  onTap: submitting ? null : onPickVideo,
                 ),
               ),
-              const SizedBox(width: 10),
+              SizedBox(width: TaqaUiScale.w(15)),
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: submitting ? null : onRecordVideo,
-                  icon: const Icon(
-                    Icons.videocam_outlined,
-                    color: Colors.white,
+                child: _FormCheckActionButton(
+                  label: _tr(
+                    context,
+                    'coach_form_check_record_video',
+                    'Record Video',
                   ),
-                  label: Text(
-                    _tr(
-                      context,
-                      'coach_form_check_record_video',
-                      'Record video',
-                    ),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.white12),
-                    minimumSize: const Size.fromHeight(48),
-                  ),
+                  onTap: submitting ? null : onRecordVideo,
                 ),
               ),
             ],
           ),
-          if (selectedVideoName != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              '${_tr(context, 'coach_form_check_selected_video', 'Selected')}: $selectedVideoName',
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${_tr(context, 'coach_form_check_file_size', 'File size')}: ${_formatBytes(selectedVideoBytes)}',
-              style: const TextStyle(color: Colors.white54, fontSize: 12),
+          if (submitting) ...[
+            SizedBox(height: TaqaUiScale.h(12)),
+            Row(
+              children: [
+                SizedBox(
+                  width: TaqaUiScale.w(14),
+                  height: TaqaUiScale.w(14),
+                  child: const CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.accent,
+                  ),
+                ),
+                SizedBox(width: TaqaUiScale.w(10)),
+                Text(
+                  _tr(
+                    context,
+                    'coach_form_check_uploading',
+                    'Uploading and analyzing...',
+                  ),
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+                    fontSize: TaqaUiScale.sp(12),
+                  ),
+                ),
+              ],
             ),
           ],
-          const SizedBox(height: 10),
-          CheckboxListTile(
-            value: consentAccepted,
-            onChanged: submitting ? null : onConsentChanged,
-            activeColor: AppColors.accent,
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              _tr(
-                context,
-                'coach_form_check_accept_consent',
-                'I understand this video will be analyzed and stored according to the consent notice above.',
-              ),
-              style: const TextStyle(color: Colors.white70, fontSize: 13),
-            ),
-            controlAffinity: ListTileControlAffinity.leading,
-          ),
-          SwitchListTile(
-            value: saveToLibrary,
-            onChanged: submitting ? null : onSaveToLibraryChanged,
-            activeThumbColor: AppColors.accent,
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              _tr(
-                context,
-                'coach_form_check_save_to_library',
-                'Save this result to Library',
-              ),
-              style: const TextStyle(color: Colors.white70, fontSize: 13),
-            ),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: submitting ? null : onSubmit,
-              child: submitting
-                  ? SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: TaqaUiColors.lime,
-                      ),
-                    )
-                  : Text(
-                      _tr(
-                        context,
-                        'coach_form_check_submit',
-                        'Upload and analyze',
+          SizedBox(height: TaqaUiScale.h(20)),
+          GestureDetector(
+            onTap: submitting
+                ? null
+                : () => onConsentChanged(!consentAccepted),
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: EdgeInsets.only(left: TaqaUiScale.w(9)),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: TaqaUiScale.w(10),
+                    height: TaqaUiScale.w(10),
+                    margin: EdgeInsets.only(top: TaqaUiScale.h(2)),
+                    decoration: BoxDecoration(
+                      color: consentAccepted
+                          ? AppColors.accent
+                          : TaqaUiColors.white,
+                      border: Border.all(
+                        color: TaqaUiColors.charcoal.withValues(alpha: 0.8),
+                        width: 0.5,
                       ),
                     ),
+                  ),
+                  SizedBox(width: TaqaUiScale.w(13)),
+                  Expanded(
+                    child: Text(
+                      _tr(
+                        context,
+                        'coach_form_check_accept_consent',
+                        'I understand this video will be analyzed and stored according to the consent notice above',
+                      ),
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        color: TaqaUiColors.charcoal,
+                        fontWeight: FontWeight.w400,
+                        fontSize: TaqaUiScale.sp(10),
+                        height: 12 / 10,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
+          ),
+          SizedBox(height: TaqaUiScale.h(16)),
+          Row(
+            children: [
+              Text(
+                _tr(
+                  context,
+                  'coach_form_check_save_to_library',
+                  'Save to Library',
+                ),
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  color: TaqaUiColors.charcoal,
+                  fontWeight: FontWeight.w700,
+                  fontSize: TaqaUiScale.sp(13),
+                ),
+              ),
+              const Spacer(),
+              TaqaSwitch(
+                value: saveToLibrary,
+                onChanged: submitting ? null : onSaveToLibraryChanged,
+              ),
+            ],
           ),
         ],
       ),
     );
   }
+}
 
-  String _formatBytes(int bytes) {
-    if (bytes <= 0) return '0 MB';
-    final mb = bytes / (1024 * 1024);
-    if (mb >= 1) return '${mb.toStringAsFixed(1)} MB';
-    final kb = bytes / 1024;
-    return '${kb.toStringAsFixed(0)} KB';
+class _FormCheckActionButton extends StatelessWidget {
+  const _FormCheckActionButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: TaqaUiColors.unnamedColorE3e3e3,
+      borderRadius: TaqaUiScale.radius(5),
+      child: InkWell(
+        borderRadius: TaqaUiScale.radius(5),
+        onTap: onTap,
+        child: Container(
+          height: TaqaUiScale.h(45),
+          alignment: Alignment.center,
+          child: Text(
+            label.toUpperCase(),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              color: TaqaUiColors.charcoal,
+              fontWeight: FontWeight.w600,
+              fontSize: TaqaUiScale.sp(10),
+              height: 12 / 10,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -907,30 +924,35 @@ class _EmptyStateCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(top: 8),
+      margin: EdgeInsets.only(top: TaqaUiScale.h(8)),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white10),
+        color: TaqaUiColors.white,
+        borderRadius: TaqaUiScale.radius(15),
       ),
-      padding: const EdgeInsets.all(18),
+      padding: TaqaUiScale.insetsLTRB(14, 14, 14, 16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.inbox_outlined, color: Colors.white54, size: 28),
-          const SizedBox(height: 10),
           Text(
             title,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              color: TaqaUiColors.charcoal,
               fontWeight: FontWeight.w700,
+              fontSize: TaqaUiScale.sp(15),
+              height: 25 / 15,
             ),
-            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: TaqaUiScale.h(4)),
           Text(
             subtitle,
-            style: const TextStyle(color: Colors.white70, height: 1.4),
-            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              color: TaqaUiColors.charcoal,
+              fontWeight: FontWeight.w400,
+              fontSize: TaqaUiScale.sp(15),
+              height: 21 / 15,
+            ),
           ),
         ],
       ),
@@ -961,24 +983,16 @@ class _SubmissionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = switch (item.status) {
-      'completed' => AppColors.successGreen,
-      'failed' => AppColors.errorRed,
-      'processing' => Colors.orangeAccent,
-      'queued' => Colors.amberAccent,
-      _ => Colors.white54,
-    };
     final hasCoachReply =
         item.coachReviewReplies.isNotEmpty ||
         ((item.coachReview?.reviewText ?? '').trim().isNotEmpty);
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white10),
+        color: TaqaUiColors.white,
+        borderRadius: TaqaUiScale.radius(15),
       ),
-      padding: const EdgeInsets.all(14),
+      padding: TaqaUiScale.insetsLTRB(14, 14, 14, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -987,53 +1001,36 @@ class _SubmissionCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   item.exerciseName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-                ),
-                child: Text(
-                  item.status.toUpperCase(),
                   style: TextStyle(
-                    color: statusColor,
-                    fontSize: 11,
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    color: TaqaUiColors.charcoal,
                     fontWeight: FontWeight.w700,
+                    fontSize: TaqaUiScale.sp(15),
                   ),
                 ),
               ),
+              TaqaMiniTag(label: item.status.toUpperCase()),
             ],
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: TaqaUiScale.h(8)),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: TaqaUiScale.w(8),
+            runSpacing: TaqaUiScale.h(8),
             children: [
-              _Meta(
+              TaqaMiniTag(
                 label:
                     '${_tr(context, 'coach_form_check_created', 'Created')}: $createdAtLabel',
               ),
-              _Meta(
+              TaqaMiniTag(
                 label:
                     '${_tr(context, 'coach_form_check_duration', 'Duration')}: ${item.durationSeconds.toStringAsFixed(1)}s',
               ),
-              _Meta(
+              TaqaMiniTag(
                 label:
                     '${_tr(context, 'coach_form_check_delete_after', 'Delete after')}: $deleteAfterLabel',
               ),
               if (item.sharedWithCoach && !hasCoachReply)
-                _Meta(
+                TaqaMiniTag(
                   label: _tr(
                     context,
                     'coach_form_check_review_available',
@@ -1041,7 +1038,7 @@ class _SubmissionCard extends StatelessWidget {
                   ),
                 ),
               if (hasCoachReply)
-                _Meta(
+                TaqaMiniTag(
                   label: _tr(
                     context,
                     'coach_form_check_replied',
@@ -1051,18 +1048,18 @@ class _SubmissionCard extends StatelessWidget {
             ],
           ),
           if (item.isProcessing) ...[
-            const SizedBox(height: 12),
+            SizedBox(height: TaqaUiScale.h(12)),
             Row(
               children: [
                 SizedBox(
-                  height: 16,
-                  width: 16,
-                  child: CircularProgressIndicator(
+                  height: TaqaUiScale.w(16),
+                  width: TaqaUiScale.w(16),
+                  child: const CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: TaqaUiColors.lime,
+                    color: AppColors.accent,
                   ),
                 ),
-                const SizedBox(width: 10),
+                SizedBox(width: TaqaUiScale.w(10)),
                 Expanded(
                   child: Text(
                     _tr(
@@ -1070,13 +1067,16 @@ class _SubmissionCard extends StatelessWidget {
                       'coach_form_check_processing',
                       'Analyzing your movement...',
                     ),
-                    style: const TextStyle(color: Colors.white70),
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+                    ),
                   ),
                 ),
               ],
             ),
           ] else if (item.isFailed) ...[
-            const SizedBox(height: 12),
+            SizedBox(height: TaqaUiScale.h(12)),
             Text(
               item.failureReason?.isNotEmpty == true
                   ? item.failureReason!
@@ -1085,41 +1085,45 @@ class _SubmissionCard extends StatelessWidget {
                       'coach_form_check_failed_body',
                       'This Form Check could not be processed.',
                     ),
-              style: const TextStyle(color: Colors.redAccent),
+              style: const TextStyle(color: Color(0xFFE84C4F)),
             ),
           ] else ...[
             if ((item.result.feedbackSummary ?? '').trim().isNotEmpty) ...[
-              const SizedBox(height: 12),
+              SizedBox(height: TaqaUiScale.h(12)),
               Text(
                 item.result.feedbackSummary!,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  color: TaqaUiColors.charcoal,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ],
             if (item.result.feedbackBullets.isNotEmpty) ...[
-              const SizedBox(height: 10),
+              SizedBox(height: TaqaUiScale.h(10)),
               ...item.result.feedbackBullets.map(
                 (bullet) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
+                  padding: EdgeInsets.only(bottom: TaqaUiScale.h(6)),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Padding(
-                        padding: EdgeInsets.only(top: 6),
+                      Padding(
+                        padding: EdgeInsets.only(top: TaqaUiScale.h(6)),
                         child: Icon(
                           Icons.circle,
-                          size: 7,
+                          size: TaqaUiScale.sp(7),
                           color: AppColors.accent,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: TaqaUiScale.w(8)),
                       Expanded(
                         child: Text(
                           bullet,
-                          style: const TextStyle(
-                            color: Colors.white70,
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            color: TaqaUiColors.charcoal.withValues(
+                              alpha: 0.8,
+                            ),
                             height: 1.35,
                           ),
                         ),
@@ -1130,10 +1134,10 @@ class _SubmissionCard extends StatelessWidget {
               ),
             ],
           ],
-          const SizedBox(height: 12),
+          SizedBox(height: TaqaUiScale.h(12)),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: TaqaUiScale.w(8),
+            runSpacing: TaqaUiScale.h(8),
             children: [
               _ActionButton(
                 icon: Icons.open_in_new,
@@ -1170,9 +1174,6 @@ class _SubmissionCard extends StatelessWidget {
                         'Show to coach for review',
                       ),
                 onTap: onToggleShare,
-                foreground: item.sharedWithCoach
-                    ? Colors.orangeAccent
-                    : Colors.lightBlueAccent,
               ),
               _ActionButton(
                 icon: item.savedToLibrary
@@ -1199,32 +1200,10 @@ class _SubmissionCard extends StatelessWidget {
                   'Delete',
                 ),
                 onTap: onDelete,
-                foreground: Colors.redAccent,
               ),
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _Meta extends StatelessWidget {
-  const _Meta({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(color: Colors.white60, fontSize: 11),
       ),
     );
   }
@@ -1235,33 +1214,37 @@ class _ActionButton extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.foreground,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  final Color? foreground;
 
   @override
   Widget build(BuildContext context) {
-    final color = foreground ?? Colors.white70;
+    final color = TaqaUiColors.charcoal.withValues(alpha: 0.7);
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: TaqaUiScale.radius(999),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: TaqaUiScale.insetsLTRB(10, 8, 10, 8),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: Colors.white12),
+          color: TaqaUiColors.unnamedColorE3e3e3,
+          borderRadius: TaqaUiScale.radius(999),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 6),
-            Text(label, style: TextStyle(color: color, fontSize: 12)),
+            Icon(icon, size: TaqaUiScale.sp(16), color: color),
+            SizedBox(width: TaqaUiScale.w(6)),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                color: color,
+                fontSize: TaqaUiScale.sp(12),
+              ),
+            ),
           ],
         ),
       ),

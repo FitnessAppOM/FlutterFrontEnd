@@ -15,7 +15,7 @@ class TaqaScoreWidget extends StatelessWidget {
     required this.onTap,
     this.provider,
     this.scoreDayLabel,
-    this.emptyMessage = "No score data yet",
+    this.emptyMessage = "No data",
   });
 
   final TaqaDailyScore? score;

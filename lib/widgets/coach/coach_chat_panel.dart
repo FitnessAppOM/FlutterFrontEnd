@@ -10,6 +10,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../../TaqaUI/styles/taqa_ui_scale.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../config/base_url.dart';
 import '../../core/user_friendly_error.dart';
 import '../../services/coach/chat_attachment_file_service.dart';
@@ -20,10 +23,29 @@ import '../../theme/app_theme.dart';
 import 'chat_video_player_page.dart';
 import 'chat_video_preview_tile.dart';
 
+enum CoachChatRole { client, coach }
+
 class CoachChatPanel extends StatefulWidget {
-  const CoachChatPanel({super.key, this.initialCoachUserId});
+  /// Client-side: the logged-in user chats with one or more of their coaches.
+  const CoachChatPanel({super.key, this.initialCoachUserId})
+    : role = CoachChatRole.client,
+      clientUserId = null,
+      clientName = null;
+
+  /// Coach-side: an expert chats with one specific client. Both sides of a
+  /// support-chat conversation share this widget — only the data source
+  /// (which endpoints get called) differs by [role].
+  const CoachChatPanel.forCoach({
+    super.key,
+    required int this.clientUserId,
+    required String this.clientName,
+  }) : role = CoachChatRole.coach,
+       initialCoachUserId = null;
 
   final int? initialCoachUserId;
+  final CoachChatRole role;
+  final int? clientUserId;
+  final String? clientName;
 
   @override
   State<CoachChatPanel> createState() => _CoachChatPanelState();
@@ -162,14 +184,22 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
     });
   }
 
+  String get _otherPartyDefaultLabel =>
+      widget.role == CoachChatRole.coach ? 'Client' : 'Coach';
+
+  bool _isOwnMessage(CoachSupportChatMessage message) =>
+      widget.role == CoachChatRole.coach
+      ? message.isFromCoach
+      : message.isFromClient;
+
   String _firstNameOnly(String raw) {
     final normalized = raw.trim();
-    if (normalized.isEmpty) return 'Coach';
+    if (normalized.isEmpty) return _otherPartyDefaultLabel;
     final parts = normalized
         .split(RegExp(r'\s+'))
         .where((part) => part.trim().isNotEmpty)
         .toList();
-    if (parts.isEmpty) return 'Coach';
+    if (parts.isEmpty) return _otherPartyDefaultLabel;
     return parts.first;
   }
 
@@ -296,9 +326,11 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
     if (_sending || _isRecordingVoice) return;
     final choice = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: AppColors.cardDark,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(TaqaUiScale.r(16)),
+        ),
       ),
       builder: (sheetContext) {
         return SafeArea(
@@ -307,32 +339,44 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(
+                leading: Icon(
                   Icons.perm_media_outlined,
-                  color: Colors.white70,
+                  color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
                 ),
-                title: const Text(
+                title: Text(
                   'Photo or video',
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    color: TaqaUiColors.charcoal,
+                  ),
                 ),
-                subtitle: const Text(
+                subtitle: Text(
                   'Upload an image or video',
-                  style: TextStyle(color: Colors.white54),
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    color: TaqaUiColors.charcoal.withValues(alpha: 0.55),
+                  ),
                 ),
                 onTap: () => Navigator.of(sheetContext).pop('media'),
               ),
               ListTile(
-                leading: const Icon(
+                leading: Icon(
                   Icons.description_outlined,
-                  color: Colors.white70,
+                  color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
                 ),
-                title: const Text(
+                title: Text(
                   'Document',
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    color: TaqaUiColors.charcoal,
+                  ),
                 ),
-                subtitle: const Text(
+                subtitle: Text(
                   'Upload a file like PDF or DOCX',
-                  style: TextStyle(color: Colors.white54),
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    color: TaqaUiColors.charcoal.withValues(alpha: 0.55),
+                  ),
                 ),
                 onTap: () => Navigator.of(sheetContext).pop('document'),
               ),
@@ -595,7 +639,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
         builder: (dialogContext) {
           return Dialog(
             backgroundColor: Colors.black,
-            insetPadding: const EdgeInsets.all(12),
+            insetPadding: TaqaUiScale.insetsLTRB(12, 12, 12, 12),
             child: Stack(
               children: [
                 Positioned.fill(
@@ -608,8 +652,8 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                   ),
                 ),
                 Positioned(
-                  right: 8,
-                  top: 8,
+                  right: TaqaUiScale.w(8),
+                  top: TaqaUiScale.h(8),
                   child: IconButton(
                     icon: const Icon(Icons.close, color: Colors.white),
                     onPressed: () => Navigator.of(dialogContext).pop(),
@@ -739,7 +783,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
     if (!mounted) return;
     setState(() => _focusedMessageId = message.id);
 
-    final isOwn = message.isFromClient;
+    final isOwn = _isOwnMessage(message);
     final canReport =
         !isOwn &&
         message.senderUserId != null &&
@@ -747,9 +791,11 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
 
     final action = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: AppColors.cardDark,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(TaqaUiScale.r(14)),
+        ),
       ),
       builder: (sheetContext) {
         return SafeArea(
@@ -758,13 +804,16 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(
+                leading: Icon(
                   Icons.copy_all_outlined,
-                  color: Colors.white70,
+                  color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
                 ),
-                title: const Text(
+                title: Text(
                   'Copy',
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    color: TaqaUiColors.charcoal,
+                  ),
                 ),
                 onTap: () => Navigator.of(sheetContext).pop('copy'),
               ),
@@ -772,11 +821,11 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                 ListTile(
                   leading: const Icon(
                     Icons.flag_outlined,
-                    color: Colors.orangeAccent,
+                    color: Color(0xFFFF8A00),
                   ),
                   title: const Text(
                     'Report',
-                    style: TextStyle(color: Colors.orangeAccent),
+                    style: TextStyle(color: Color(0xFFFF8A00)),
                   ),
                   onTap: () => Navigator.of(sheetContext).pop('report'),
                 ),
@@ -803,6 +852,43 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
   }
 
   Future<void> _loadChat() async {
+    if (widget.role == CoachChatRole.coach) {
+      await _loadCoachSideChat();
+      return;
+    }
+    await _loadClientSideChat();
+  }
+
+  Future<void> _loadCoachSideChat() async {
+    setState(() {
+      _loading = true;
+      _loadingThread = false;
+      _error = null;
+    });
+    try {
+      final state = await CoachSupportChatService.fetchCoachClientThread(
+        clientUserId: widget.clientUserId!,
+      );
+      if (!mounted) return;
+      setState(() {
+        _chatState = state;
+        _loading = false;
+      });
+      _scrollToBottom();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _chatState = null;
+        _error = userFriendlyErrorMessage(
+          e,
+          fallback: 'Could not load chat. Please try again.',
+        );
+      });
+    }
+  }
+
+  Future<void> _loadClientSideChat() async {
     setState(() {
       _loading = true;
       _loadingThread = true;
@@ -914,8 +1000,10 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
     final attachment = _pendingAttachmentFile;
     final attachmentType = (_pendingAttachmentType ?? '').trim().toLowerCase();
     if (text.isEmpty && attachment == null) return;
+
+    final isCoachRole = widget.role == CoachChatRole.coach;
     final coachUserId = _selectedCoachUserId;
-    if (coachUserId == null || coachUserId <= 0) {
+    if (!isCoachRole && (coachUserId == null || coachUserId <= 0)) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Select a coach first.')));
@@ -927,12 +1015,19 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       _error = null;
     });
     try {
-      final state = await CoachSupportChatService.sendClientMessage(
-        text: text.isEmpty ? null : text,
-        messageType: attachment == null ? null : attachmentType,
-        attachment: attachment,
-        coachUserId: coachUserId,
-      );
+      final state = isCoachRole
+          ? await CoachSupportChatService.sendCoachMessage(
+              clientUserId: widget.clientUserId!,
+              text: text.isEmpty ? null : text,
+              messageType: attachment == null ? null : attachmentType,
+              attachment: attachment,
+            )
+          : await CoachSupportChatService.sendClientMessage(
+              text: text.isEmpty ? null : text,
+              messageType: attachment == null ? null : attachmentType,
+              attachment: attachment,
+              coachUserId: coachUserId,
+            );
       if (!mounted) return;
       final oldVoicePath = _pendingAttachmentType == 'voice'
           ? _pendingAttachmentFile?.path
@@ -1008,7 +1103,9 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       return 'Expected response window exceeded.';
     }
     if (sla.status == 'responded') {
-      return 'Coach responded.';
+      return widget.role == CoachChatRole.coach
+          ? 'Thread active.'
+          : 'Coach responded.';
     }
     return 'Expected response within: ${sla.targetWindowHoursMin}-${sla.targetWindowHoursMax}h';
   }
@@ -1016,10 +1113,15 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
   Widget _buildCoachSelector() {
     if (_coachThreads.length <= 1) return const SizedBox.shrink();
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      margin: EdgeInsets.fromLTRB(
+        TaqaUiScale.w(16),
+        0,
+        TaqaUiScale.w(16),
+        TaqaUiScale.h(8),
+      ),
       child: Wrap(
-        spacing: 6,
-        runSpacing: 6,
+        spacing: TaqaUiScale.w(6),
+        runSpacing: TaqaUiScale.h(6),
         children: _coachThreads.map((thread) {
           final selected = thread.coachUserId == _selectedCoachUserId;
           final label = _firstNameOnly(thread.coachName);
@@ -1031,28 +1133,29 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
               children: [
                 Text(label),
                 if (thread.hasUnreadForClient) ...[
-                  const SizedBox(width: 6),
+                  SizedBox(width: TaqaUiScale.w(6)),
                   Container(
-                    width: 8,
-                    height: 8,
+                    width: TaqaUiScale.w(8),
+                    height: TaqaUiScale.w(8),
                     decoration: const BoxDecoration(
-                      color: Colors.orangeAccent,
+                      color: Color(0xFFFF8A00),
                       shape: BoxShape.circle,
                     ),
                   ),
                 ],
               ],
             ),
-            selectedColor: AppColors.accent.withValues(alpha: 0.28),
-            backgroundColor: Colors.white.withValues(alpha: 0.05),
+            selectedColor: AppColors.accent.withValues(alpha: 0.22),
+            backgroundColor: TaqaUiColors.white,
             labelStyle: TextStyle(
-              color: selected ? Colors.white : Colors.white70,
+              fontFamily: TaqaUiFontFamilies.interTight,
+              color: TaqaUiColors.charcoal,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             ),
             side: BorderSide(
               color: selected
                   ? AppColors.accent.withValues(alpha: 0.65)
-                  : Colors.white12,
+                  : TaqaUiColors.charcoal.withValues(alpha: 0.1),
             ),
             showCheckmark: false,
           );
@@ -1063,18 +1166,30 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
 
   Widget _buildSupportHeader(CoachSupportChatState? state) {
     final thread = state?.thread;
-    final coachName = thread?.coachName.trim() ?? '';
-    final coachFirstName = _firstNameOnly(coachName);
-    final coachAvatarUrl = _normalizeAvatarUrl(thread?.coachAvatarUrl);
+    final isCoachRole = widget.role == CoachChatRole.coach;
+    final otherPartyName =
+        (isCoachRole
+                ? (thread?.clientName ?? widget.clientName)
+                : thread?.coachName)
+            ?.trim() ??
+        '';
+    final otherPartyFirstName = _firstNameOnly(otherPartyName);
+    final otherPartyAvatarUrl = _normalizeAvatarUrl(
+      isCoachRole ? thread?.clientAvatarUrl : thread?.coachAvatarUrl,
+    );
     final sla = state?.sla;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 10),
-      padding: const EdgeInsets.all(12),
+      margin: EdgeInsets.fromLTRB(
+        TaqaUiScale.w(16),
+        TaqaUiScale.h(16),
+        TaqaUiScale.w(16),
+        TaqaUiScale.h(10),
+      ),
+      padding: TaqaUiScale.insetsLTRB(12, 12, 12, 12),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
+        color: TaqaUiColors.white,
+        borderRadius: TaqaUiScale.radius(15),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1082,70 +1197,82 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
           Row(
             children: [
               CircleAvatar(
-                radius: 16,
-                backgroundColor: Colors.white10,
-                foregroundImage: coachAvatarUrl != null
-                    ? NetworkImage(coachAvatarUrl)
+                radius: TaqaUiScale.w(16),
+                backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+                foregroundImage: otherPartyAvatarUrl != null
+                    ? NetworkImage(otherPartyAvatarUrl)
                     : null,
-                child: coachAvatarUrl == null
+                child: otherPartyAvatarUrl == null
                     ? Text(
-                        coachFirstName.isEmpty
+                        otherPartyFirstName.isEmpty
                             ? 'C'
-                            : coachFirstName.substring(0, 1).toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.white,
+                            : otherPartyFirstName
+                                  .substring(0, 1)
+                                  .toUpperCase(),
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          color: TaqaUiColors.charcoal,
                           fontWeight: FontWeight.w700,
                         ),
                       )
                     : null,
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: TaqaUiScale.w(8)),
               Expanded(
                 child: Text(
-                  coachName.isEmpty
+                  otherPartyName.isEmpty
                       ? 'Support chat'
-                      : 'Support chat with $coachFirstName',
-                  style: const TextStyle(
-                    color: Colors.white,
+                      : 'Support chat with $otherPartyFirstName',
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    color: TaqaUiColors.charcoal,
                     fontWeight: FontWeight.w700,
-                    fontSize: 14,
+                    fontSize: TaqaUiScale.sp(14),
                   ),
                 ),
               ),
             ],
           ),
           if (sla != null) ...[
-            const SizedBox(height: 8),
+            SizedBox(height: TaqaUiScale.h(8)),
             Text(
               _buildSlaLine(sla),
               style: TextStyle(
-                color: sla.breached ? Colors.orangeAccent : Colors.white70,
-                fontSize: 12,
+                fontFamily: TaqaUiFontFamilies.interTight,
+                color: sla.breached
+                    ? const Color(0xFFFF8A00)
+                    : TaqaUiColors.charcoal.withValues(alpha: 0.7),
+                fontSize: TaqaUiScale.sp(12),
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: TaqaUiScale.h(4)),
             Text(
               'Target response window: ${sla.targetWindowHoursMin}-${sla.targetWindowHoursMax} hours',
-              style: const TextStyle(color: Colors.white54, fontSize: 11),
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                color: TaqaUiColors.charcoal.withValues(alpha: 0.5),
+                fontSize: TaqaUiScale.sp(11),
+              ),
             ),
           ],
           if (thread?.hasUnreadForClient == true) ...[
-            const SizedBox(height: 8),
+            SizedBox(height: TaqaUiScale.h(8)),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: TaqaUiScale.insetsLTRB(10, 6, 10, 6),
               decoration: BoxDecoration(
-                color: Colors.orangeAccent.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(999),
+                color: const Color(0xFFFF8A00).withValues(alpha: 0.14),
+                borderRadius: TaqaUiScale.radius(999),
                 border: Border.all(
-                  color: Colors.orangeAccent.withValues(alpha: 0.45),
+                  color: const Color(0xFFFF8A00).withValues(alpha: 0.45),
                 ),
               ),
-              child: const Text(
+              child: Text(
                 'New support-chat message',
                 style: TextStyle(
-                  color: Colors.orangeAccent,
-                  fontSize: 11,
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  color: const Color(0xFFFF8A00),
+                  fontSize: TaqaUiScale.sp(11),
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1157,64 +1284,80 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
   }
 
   Widget _buildMessageBubble(CoachSupportChatMessage message) {
-    final isClient = message.isFromClient;
+    final isOwn = _isOwnMessage(message);
     final isRedHighlight = message.isHighlightedRed;
     final bubbleColor = isRedHighlight
-        ? Colors.redAccent.withValues(alpha: 0.16)
-        : (isClient
-              ? AppColors.accent.withValues(alpha: 0.25)
-              : Colors.white.withValues(alpha: 0.06));
+        ? const Color(0xFFE84C4F).withValues(alpha: 0.14)
+        : (isOwn
+              ? TaqaUiColors.lime.withValues(alpha: 0.35)
+              : TaqaUiColors.white);
     final borderColor = isRedHighlight
-        ? Colors.redAccent.withValues(alpha: 0.8)
-        : (isClient ? AppColors.accent.withValues(alpha: 0.6) : Colors.white10);
+        ? const Color(0xFFE84C4F).withValues(alpha: 0.6)
+        : (isOwn
+              ? TaqaUiColors.lime.withValues(alpha: 0.8)
+              : TaqaUiColors.charcoal.withValues(alpha: 0.08));
     final isFocused = _focusedMessageId == message.id;
-    final focusColor = Colors.orangeAccent.withValues(alpha: 0.75);
+    final focusColor = const Color(0xFFFF8A00).withValues(alpha: 0.75);
+    final textColor = TaqaUiColors.charcoal;
 
     return Align(
-      alignment: isClient ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isOwn ? Alignment.centerRight : Alignment.centerLeft,
       child: InkWell(
         key: _messageKeyFor(message.id),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: TaqaUiScale.radius(12),
         onLongPress: () => _onMessageLongPress(message),
         child: Container(
           constraints: const BoxConstraints(maxWidth: 320),
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+          margin: EdgeInsets.symmetric(
+            horizontal: TaqaUiScale.w(16),
+            vertical: TaqaUiScale.h(4),
+          ),
+          padding: EdgeInsets.symmetric(
+            horizontal: TaqaUiScale.w(11),
+            vertical: TaqaUiScale.h(9),
+          ),
           decoration: BoxDecoration(
             color: bubbleColor,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: TaqaUiScale.radius(12),
             border: Border.all(color: isFocused ? focusColor : borderColor),
           ),
           child: Column(
-            crossAxisAlignment: isClient
+            crossAxisAlignment: isOwn
                 ? CrossAxisAlignment.end
                 : CrossAxisAlignment.start,
             children: [
               if (message.messageText.isNotEmpty)
                 Text(
                   message.messageText,
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    color: textColor,
+                    fontSize: TaqaUiScale.sp(14),
+                  ),
                 ),
               if (message.hasAttachment && message.isImage) ...[
-                if (message.messageText.isNotEmpty) const SizedBox(height: 8),
+                if (message.messageText.isNotEmpty)
+                  SizedBox(height: TaqaUiScale.h(8)),
                 GestureDetector(
                   onTap: () => _openImageAttachment(message),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: TaqaUiScale.radius(10),
                     child: Image.network(
                       message.attachmentUrl!,
-                      width: 210,
-                      height: 150,
+                      width: TaqaUiScale.w(210),
+                      height: TaqaUiScale.h(150),
                       fit: BoxFit.cover,
                       errorBuilder: (_, _, _) {
                         return Container(
-                          width: 210,
-                          height: 150,
-                          color: Colors.white10,
+                          width: TaqaUiScale.w(210),
+                          height: TaqaUiScale.h(150),
+                          color: TaqaUiColors.unnamedColorE3e3e3,
                           alignment: Alignment.center,
-                          child: const Icon(
+                          child: Icon(
                             Icons.broken_image_outlined,
-                            color: Colors.white54,
+                            color: TaqaUiColors.charcoal.withValues(
+                              alpha: 0.4,
+                            ),
                           ),
                         );
                       },
@@ -1222,27 +1365,28 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                   ),
                 ),
               ] else if (message.hasAttachment && message.isVideo) ...[
-                if (message.messageText.isNotEmpty) const SizedBox(height: 8),
+                if (message.messageText.isNotEmpty)
+                  SizedBox(height: TaqaUiScale.h(8)),
                 ChatVideoPreviewTile(
                   videoUrl: message.attachmentUrl!,
                   title: message.attachmentFilename ?? 'Video',
                   onTap: () => _openVideoAttachment(message),
                 ),
               ] else if (message.hasAttachment && message.isVoice) ...[
-                if (message.messageText.isNotEmpty) const SizedBox(height: 8),
+                if (message.messageText.isNotEmpty)
+                  SizedBox(height: TaqaUiScale.h(8)),
                 InkWell(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: TaqaUiScale.radius(10),
                   onTap: () => _toggleMessageVoicePlayback(message),
                   child: Container(
-                    width: 220,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
-                    ),
+                    width: TaqaUiScale.w(220),
+                    padding: TaqaUiScale.insetsLTRB(10, 8, 10, 8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white10),
+                      color: TaqaUiColors.unnamedColorE3e3e3,
+                      borderRadius: TaqaUiScale.radius(10),
+                      border: Border.all(
+                        color: TaqaUiColors.charcoal.withValues(alpha: 0.08),
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -1250,18 +1394,19 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                           _isVoiceKeyActivelyPlaying('message:${message.id}')
                               ? Icons.pause_circle_filled
                               : Icons.play_circle_fill,
-                          color: Colors.white70,
+                          color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: TaqaUiScale.w(8)),
                         Expanded(
                           child: Text(
                             message.attachmentFilename?.trim().isNotEmpty ==
                                     true
                                 ? message.attachmentFilename!
                                 : 'Voice note',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              color: textColor,
+                              fontSize: TaqaUiScale.sp(12),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -1272,25 +1417,28 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                   ),
                 ),
               ] else if (message.hasAttachment && message.isDocument) ...[
-                if (message.messageText.isNotEmpty) const SizedBox(height: 8),
+                if (message.messageText.isNotEmpty)
+                  SizedBox(height: TaqaUiScale.h(8)),
                 InkWell(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: TaqaUiScale.radius(10),
                   onTap: () => _openDocumentAttachment(message),
                   child: Container(
-                    width: 220,
-                    padding: const EdgeInsets.all(10),
+                    width: TaqaUiScale.w(220),
+                    padding: TaqaUiScale.insetsLTRB(10, 10, 10, 10),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white10),
+                      color: TaqaUiColors.unnamedColorE3e3e3,
+                      borderRadius: TaqaUiScale.radius(10),
+                      border: Border.all(
+                        color: TaqaUiColors.charcoal.withValues(alpha: 0.08),
+                      ),
                     ),
                     child: Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.description_outlined,
-                          color: Colors.white70,
+                          color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: TaqaUiScale.w(8)),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1300,19 +1448,23 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                                         true
                                     ? message.attachmentFilename!
                                     : 'Document',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
+                                style: TextStyle(
+                                  fontFamily: TaqaUiFontFamilies.interTight,
+                                  color: textColor,
+                                  fontSize: TaqaUiScale.sp(12),
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: 2),
+                              SizedBox(height: TaqaUiScale.h(2)),
                               Text(
                                 _formatBytes(message.attachmentSizeBytes),
-                                style: const TextStyle(
-                                  color: Colors.white54,
-                                  fontSize: 10,
+                                style: TextStyle(
+                                  fontFamily: TaqaUiFontFamilies.interTight,
+                                  color: TaqaUiColors.charcoal.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                  fontSize: TaqaUiScale.sp(10),
                                 ),
                               ),
                             ],
@@ -1323,10 +1475,14 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                   ),
                 ),
               ],
-              const SizedBox(height: 5),
+              SizedBox(height: TaqaUiScale.h(5)),
               Text(
                 _formatDateTime(message.createdAt),
-                style: const TextStyle(color: Colors.white54, fontSize: 10),
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  color: TaqaUiColors.charcoal.withValues(alpha: 0.5),
+                  fontSize: TaqaUiScale.sp(10),
+                ),
               ),
             ],
           ),
@@ -1337,54 +1493,81 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
 
   Widget _buildBody() {
     if (_loading) {
-      return const Center(
+      return Center(
         child: SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(strokeWidth: 2),
+          width: TaqaUiScale.w(22),
+          height: TaqaUiScale.w(22),
+          child: const CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppColors.accent,
+          ),
         ),
       );
     }
 
     final state = _chatState;
-    final noCoach = _coachThreads.isEmpty || _selectedCoachUserId == null;
+    final noCoach =
+        widget.role == CoachChatRole.client &&
+        (_coachThreads.isEmpty || _selectedCoachUserId == null);
 
     return ListView(
       controller: _chatScrollController,
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
-        _buildSupportHeader(state),
-        _buildCoachSelector(),
+        if (!noCoach) _buildSupportHeader(state),
+        if (!noCoach) _buildCoachSelector(),
         if (_error != null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            padding: EdgeInsets.fromLTRB(
+              TaqaUiScale.w(16),
+              TaqaUiScale.h(noCoach ? 94 : 0),
+              TaqaUiScale.w(16),
+              TaqaUiScale.h(8),
+            ),
             child: Text(
               _error!,
-              style: const TextStyle(color: Colors.orangeAccent, fontSize: 12),
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                color: const Color(0xFFFF8A00),
+                fontSize: TaqaUiScale.sp(12),
+              ),
             ),
           ),
-        if (noCoach)
-          Container(
-            margin: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.04),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.white10),
+        if (noCoach && _error == null)
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              TaqaUiScale.w(16),
+              TaqaUiScale.h(94),
+              TaqaUiScale.w(16),
+              0,
             ),
-            child: const Text(
-              'No coach is currently assigned. Once connected, this chat will be enabled.',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
+            child: SizedBox(
+              width: TaqaUiScale.w(357),
+              child: Text(
+                'No coach is currently assigned. Once connected, this chat will be enabled.',
+                textAlign: TextAlign.left,
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(10),
+                  fontWeight: FontWeight.w400,
+                  color: TaqaUiColors.charcoal,
+                  height: 18 / 10,
+                  letterSpacing: 0,
+                ),
+              ),
             ),
           ),
         if (!noCoach && _loadingThread)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: TaqaUiScale.h(24)),
             child: Center(
               child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                width: TaqaUiScale.w(20),
+                height: TaqaUiScale.w(20),
+                child: const CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.accent,
+                ),
               ),
             ),
           ),
@@ -1393,27 +1576,36 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
             state != null &&
             state.messages.isEmpty)
           Container(
-            margin: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.04),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.white10),
+            margin: EdgeInsets.fromLTRB(
+              TaqaUiScale.w(16),
+              TaqaUiScale.h(4),
+              TaqaUiScale.w(16),
+              TaqaUiScale.h(16),
             ),
-            child: const Text(
+            padding: TaqaUiScale.insetsLTRB(12, 12, 12, 12),
+            decoration: BoxDecoration(
+              color: TaqaUiColors.white,
+              borderRadius: TaqaUiScale.radius(10),
+            ),
+            child: Text(
               'No messages yet. Send your first text message to your coach.',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+                fontSize: TaqaUiScale.sp(13),
+              ),
             ),
           ),
         if (!noCoach && !_loadingThread && state != null)
           ...state.messages.map(_buildMessageBubble),
-        const SizedBox(height: 12),
+        SizedBox(height: TaqaUiScale.h(12)),
       ],
     );
   }
 
   Widget _buildComposer() {
     final state = _chatState;
+    final isCoachRole = widget.role == CoachChatRole.coach;
     final disabled =
         _loading ||
         _loadingThread ||
@@ -1421,7 +1613,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
         state == null ||
         state.thread == null ||
         !state.supportsText ||
-        _selectedCoachUserId == null;
+        (!isCoachRole && _selectedCoachUserId == null);
     final sendDisabled =
         disabled ||
         _sending ||
@@ -1434,22 +1626,18 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
     return SafeArea(
       top: false,
       child: Container(
-        color: AppColors.black,
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+        color: TaqaUiColors.unnamedColorE3e3e3,
+        padding: TaqaUiScale.insetsLTRB(16, 8, 16, 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (hasPending)
               Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
+                margin: EdgeInsets.only(bottom: TaqaUiScale.h(8)),
+                padding: TaqaUiScale.insetsLTRB(10, 8, 10, 8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.07),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.white10),
+                  color: TaqaUiColors.white,
+                  borderRadius: TaqaUiScale.radius(10),
                 ),
                 child: Row(
                   children: [
@@ -1461,16 +1649,17 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                           : pendingType == 'voice'
                           ? Icons.mic_none_rounded
                           : Icons.description_outlined,
-                      color: Colors.white70,
-                      size: 18,
+                      color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+                      size: TaqaUiScale.sp(18),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: TaqaUiScale.w(8)),
                     Expanded(
                       child: Text(
                         (_pendingAttachmentName ?? 'Attachment').trim(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          color: TaqaUiColors.charcoal,
+                          fontSize: TaqaUiScale.sp(12),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -1481,9 +1670,9 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                         onPressed: _sending
                             ? null
                             : _togglePendingVoicePlayback,
-                        iconSize: 20,
-                        color: Colors.white70,
-                        splashRadius: 18,
+                        iconSize: TaqaUiScale.sp(20),
+                        color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+                        splashRadius: TaqaUiScale.w(18),
                         icon: Icon(
                           _isVoiceKeyActivelyPlaying(
                                 'pending:${_pendingAttachmentFile?.path}',
@@ -1494,15 +1683,16 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                       ),
                     IconButton(
                       onPressed: _sending ? null : _clearPendingAttachment,
-                      iconSize: 18,
-                      color: Colors.orangeAccent,
-                      splashRadius: 18,
+                      iconSize: TaqaUiScale.sp(18),
+                      color: const Color(0xFFFF8A00),
+                      splashRadius: TaqaUiScale.w(18),
                       icon: const Icon(Icons.close),
                     ),
                   ],
                 ),
               ),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 IconButton(
                   onPressed: disabled || _isRecordingVoice
@@ -1510,7 +1700,8 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                       : _showAttachmentOptions,
                   tooltip: 'Add media',
                   icon: const Icon(Icons.add_rounded),
-                  color: Colors.white70,
+                  color: const Color(0xFF1F1F1F),
+                  iconSize: TaqaUiScale.sp(22),
                 ),
                 GestureDetector(
                   onLongPressStart: disabled
@@ -1523,58 +1714,67 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                       ? null
                       : () => _finishVoiceRecording(discard: true),
                   child: Container(
-                    width: 38,
-                    height: 38,
+                    width: TaqaUiScale.w(39),
+                    height: TaqaUiScale.w(39),
                     decoration: BoxDecoration(
                       color: _isRecordingVoice
-                          ? Colors.redAccent.withValues(alpha: 0.25)
-                          : Colors.white.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(19),
-                      border: Border.all(
-                        color: _isRecordingVoice
-                            ? Colors.redAccent.withValues(alpha: 0.7)
-                            : Colors.white10,
-                      ),
+                          ? const Color(0xFFE84C4F).withValues(alpha: 0.16)
+                          : TaqaUiColors.white,
+                      borderRadius: TaqaUiScale.radius(20),
+                      border: _isRecordingVoice
+                          ? Border.all(
+                              color: const Color(
+                                0xFFE84C4F,
+                              ).withValues(alpha: 0.7),
+                            )
+                          : null,
                     ),
                     child: Icon(
                       _isRecordingVoice ? Icons.mic : Icons.mic_none_rounded,
                       color: _isRecordingVoice
-                          ? Colors.redAccent
-                          : Colors.white70,
-                      size: 18,
+                          ? const Color(0xFFE84C4F)
+                          : TaqaUiColors.charcoal,
+                      size: TaqaUiScale.sp(18),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: TaqaUiScale.w(8)),
                 Expanded(
                   child: _isRecordingVoice
                       ? Container(
-                          height: 44,
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          height: TaqaUiScale.h(40),
+                          padding: TaqaUiScale.symmetric(horizontal: 14),
                           decoration: BoxDecoration(
-                            color: Colors.redAccent.withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(10),
+                            color: const Color(
+                              0xFFE84C4F,
+                            ).withValues(alpha: 0.1),
+                            borderRadius: TaqaUiScale.radius(20),
                             border: Border.all(
-                              color: Colors.redAccent.withValues(alpha: 0.5),
+                              color: const Color(
+                                0xFFE84C4F,
+                              ).withValues(alpha: 0.4),
                             ),
                           ),
-                          child: const Row(
+                          child: Row(
                             children: [
-                              SizedBox(
+                              const SizedBox(
                                 width: 14,
                                 height: 14,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Colors.redAccent,
+                                  color: Color(0xFFE84C4F),
                                 ),
                               ),
-                              SizedBox(width: 10),
+                              SizedBox(width: TaqaUiScale.w(10)),
                               Expanded(
                                 child: Text(
                                   'Recording voice... release to keep',
                                   style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12,
+                                    fontFamily: TaqaUiFontFamilies.interTight,
+                                    color: TaqaUiColors.charcoal.withValues(
+                                      alpha: 0.7,
+                                    ),
+                                    fontSize: TaqaUiScale.sp(12),
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -1583,67 +1783,75 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                             ],
                           ),
                         )
-                      : TextField(
-                          controller: _messageController,
-                          enabled: !disabled,
-                          minLines: 1,
-                          maxLines: 5,
-                          textInputAction: TextInputAction.newline,
-                          onTapOutside: (_) =>
-                              FocusScope.of(context).unfocus(),
-                          onChanged: (_) => setState(() {}),
-                          style: const TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            hintText: disabled
-                                ? 'Chat unavailable'
-                                : 'Write a message to your coach',
-                            hintStyle: const TextStyle(color: Colors.white38),
-                            filled: true,
-                            fillColor: Colors.white.withValues(alpha: 0.04),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
+                      : Container(
+                          height: TaqaUiScale.h(40),
+                          padding: TaqaUiScale.symmetric(horizontal: 15),
+                          decoration: BoxDecoration(
+                            color: TaqaUiColors.white,
+                            borderRadius: TaqaUiScale.radius(20),
+                          ),
+                          alignment: Alignment.centerLeft,
+                          child: TextField(
+                            controller: _messageController,
+                            enabled: !disabled,
+                            minLines: 1,
+                            maxLines: 5,
+                            textInputAction: TextInputAction.newline,
+                            onTapOutside: (_) =>
+                                FocusScope.of(context).unfocus(),
+                            onChanged: (_) => setState(() {}),
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              color: TaqaUiColors.charcoal,
+                              fontSize: TaqaUiScale.sp(15),
                             ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(
-                                color: Colors.white.withValues(alpha: 0.14),
+                            decoration: InputDecoration(
+                              isCollapsed: true,
+                              hintText: disabled
+                                  ? 'Chat unavailable'
+                                  : 'Write a message',
+                              hintStyle: TextStyle(
+                                fontFamily: TaqaUiFontFamilies.interTight,
+                                color: TaqaUiColors.unnamedColorE3e3e3,
+                                fontSize: TaqaUiScale.sp(15),
+                                height: 25 / 15,
                               ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(
-                                color: Colors.white.withValues(alpha: 0.14),
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: const BorderSide(
-                                color: AppColors.accent,
-                              ),
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              disabledBorder: InputBorder.none,
                             ),
                           ),
                         ),
                 ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: sendDisabled ? null : _sendMessage,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(56, 44),
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                  ),
-                  child: _sending
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+                SizedBox(width: TaqaUiScale.w(8)),
+                GestureDetector(
+                  onTap: sendDisabled ? null : _sendMessage,
+                  child: Container(
+                    width: TaqaUiScale.w(39),
+                    height: TaqaUiScale.w(39),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF404040).withValues(
+                        alpha: sendDisabled ? 0.4 : 1,
+                      ),
+                      borderRadius: TaqaUiScale.radius(20),
+                    ),
+                    alignment: Alignment.center,
+                    child: _sending
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: TaqaUiColors.unnamedColorE3e3e3,
+                            ),
+                          )
+                        : Icon(
+                            Icons.send_rounded,
+                            size: TaqaUiScale.sp(18),
+                            color: TaqaUiColors.unnamedColorE3e3e3,
                           ),
-                        )
-                      : const Icon(Icons.send_rounded, size: 18),
+                  ),
                 ),
               ],
             ),
@@ -1661,7 +1869,12 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       child: Column(
         children: [
           Expanded(
-            child: RefreshIndicator(onRefresh: _loadChat, child: _buildBody()),
+            child: RefreshIndicator(
+              onRefresh: _loadChat,
+              color: AppColors.accent,
+              backgroundColor: TaqaUiColors.white,
+              child: _buildBody(),
+            ),
           ),
           _buildComposer(),
         ],

@@ -5,6 +5,7 @@ import '../core/user_friendly_error.dart';
 import '../localization/app_localizations.dart';
 import '../services/auth/profile_service.dart';
 import '../theme/app_theme.dart';
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_bottom_nav_bar.dart';
 import '../TaqaUI/components/taqa_floating_chat_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
@@ -374,7 +375,7 @@ class _CoachPageState extends State<CoachPage> {
       await _loadAssignedCoaches();
       if (!mounted) return;
 
-      final name = (result['name'] ?? 'Coach').toString();
+      final name = _firstNameOnly((result['name'] ?? 'Coach').toString());
       final status = (result['status'] ?? '').toString().trim().toLowerCase();
       final alreadyConnected = result['already_connected'] == true;
       final alreadyRequested = result['already_requested'] == true;
@@ -415,9 +416,11 @@ class _CoachPageState extends State<CoachPage> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.cardDark,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(TaqaUiScale.r(24)),
+        ),
       ),
       builder: (sheetContext) {
         final viewInsets = MediaQuery.of(sheetContext).viewInsets;
@@ -428,72 +431,109 @@ class _CoachPageState extends State<CoachPage> {
             curve: Curves.easeOut,
             padding: EdgeInsets.only(bottom: viewInsets.bottom),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              padding: TaqaUiScale.insetsLTRB(16, 10, 16, 24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.groups_2_outlined,
-                        color: Colors.white70,
+                  Center(
+                    child: Container(
+                      width: TaqaUiScale.w(36),
+                      height: TaqaUiScale.h(4),
+                      decoration: BoxDecoration(
+                        color: TaqaUiColors.charcoal.withValues(alpha: 0.2),
+                        borderRadius: TaqaUiScale.radius(99),
                       ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'My Coaches',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: TaqaUiScale.h(18)),
+                  Text(
+                    'MY COACHES',
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+                      fontSize: TaqaUiScale.sp(10),
+                      fontWeight: FontWeight.w700,
+                      color: TaqaUiColors.charcoal.withValues(alpha: 0.55),
+                    ),
+                  ),
+                  SizedBox(height: TaqaUiScale.h(14)),
                   TextField(
                     controller: codeController,
                     keyboardType: TextInputType.number,
                     maxLength: 6,
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      color: TaqaUiColors.charcoal,
+                    ),
                     decoration: InputDecoration(
                       counterText: "",
                       hintText: "Enter 6-digit coach code",
-                      hintStyle: const TextStyle(color: Colors.white38),
+                      hintStyle: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        color: TaqaUiColors.charcoal.withValues(alpha: 0.4),
+                      ),
                       filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.04),
+                      fillColor: TaqaUiColors.white,
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: TaqaUiScale.radius(10),
                         borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.16),
+                          color: TaqaUiColors.charcoal.withValues(alpha: 0.1),
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: TaqaUiScale.radius(10),
                         borderSide: const BorderSide(color: AppColors.accent),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: ElevatedButton.icon(
-                      onPressed: () async {
+                  SizedBox(height: TaqaUiScale.h(10)),
+                  Material(
+                    color: TaqaUiColors.accent,
+                    borderRadius: TaqaUiScale.radius(5),
+                    child: InkWell(
+                      borderRadius: TaqaUiScale.radius(5),
+                      onTap: () async {
                         final code = codeController.text.trim();
                         Navigator.of(sheetContext).pop();
                         await _connectCoachByCode(code);
                       },
-                      icon: const Icon(Icons.link),
-                      label: const Text("Connect"),
+                      child: Container(
+                        height: TaqaUiScale.h(45),
+                        alignment: Alignment.center,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.link,
+                              size: TaqaUiScale.w(16),
+                              color: TaqaUiColors.charcoal,
+                            ),
+                            SizedBox(width: TaqaUiScale.w(8)),
+                            Text(
+                              'CONNECT',
+                              style: TextStyle(
+                                fontFamily: TaqaUiFontFamilies.interTight,
+                                fontSize: TaqaUiScale.sp(14),
+                                fontWeight: FontWeight.w700,
+                                color: TaqaUiColors.charcoal,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: TaqaUiScale.h(18)),
                   if (coaches.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 8),
+                    Padding(
+                      padding: EdgeInsets.only(bottom: TaqaUiScale.h(8)),
                       child: Text(
                         'No coaches connected.',
-                        style: TextStyle(color: Colors.white60, fontSize: 13),
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+                          fontSize: TaqaUiScale.sp(13),
+                        ),
                       ),
                     ),
                   if (coaches.isNotEmpty)
@@ -508,107 +548,116 @@ class _CoachPageState extends State<CoachPage> {
                           coachId > 0 &&
                           _reportingCoachIds.contains(coachId);
                       return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
+                        margin: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
+                        padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.04),
-                          borderRadius: BorderRadius.circular(12),
+                          color: TaqaUiColors.white,
+                          borderRadius: TaqaUiScale.radius(15),
                           border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.12),
-                          ),
-                        ),
-                        child: ListTile(
-                          leading: const Icon(
-                            Icons.verified_user_outlined,
-                            color: Colors.white70,
-                          ),
-                          title: Text(
-                            coach.name,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
+                            color: TaqaUiColors.charcoal.withValues(
+                              alpha: 0.08,
                             ),
                           ),
-                          subtitle: (coach.specialty ?? '').isEmpty
-                              ? null
-                              : Text(
-                                  coach.specialty!,
-                                  style: const TextStyle(
-                                    color: Colors.white60,
-                                    fontSize: 12,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.verified_user_outlined,
+                                  color: TaqaUiColors.charcoal.withValues(
+                                    alpha: 0.6,
                                   ),
                                 ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              TextButton.icon(
-                                onPressed:
-                                    (coachId == null ||
-                                        coachId <= 0 ||
-                                        isDetaching ||
-                                        isReporting)
-                                    ? null
-                                    : () async {
-                                        Navigator.of(sheetContext).pop();
-                                        await _reportCoach(coach);
-                                      },
-                                icon: isReporting
-                                    ? const SizedBox(
-                                        width: 14,
-                                        height: 14,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.orangeAccent,
+                                SizedBox(width: TaqaUiScale.w(10)),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _firstNameOnly(coach.name),
+                                        style: TextStyle(
+                                          fontFamily:
+                                              TaqaUiFontFamilies.interTight,
+                                          color: TaqaUiColors.charcoal,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: TaqaUiScale.sp(14),
                                         ),
-                                      )
-                                    : const Icon(Icons.flag_outlined, size: 18),
-                                label: const Text('Report'),
-                                style: TextButton.styleFrom(
-                                  foregroundColor: Colors.orangeAccent,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              TextButton.icon(
-                                onPressed:
-                                    (coachId == null ||
-                                        coachId <= 0 ||
-                                        isDetaching ||
-                                        isReporting)
-                                    ? null
-                                    : () async {
-                                        Navigator.of(sheetContext).pop();
-                                        await _detachCoach(coach);
-                                      },
-                                icon: isDetaching
-                                    ? const SizedBox(
-                                        width: 14,
-                                        height: 14,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.redAccent,
+                                      ),
+                                      if ((coach.specialty ?? '')
+                                          .isNotEmpty) ...[
+                                        SizedBox(height: TaqaUiScale.h(2)),
+                                        Text(
+                                          coach.specialty!,
+                                          style: TextStyle(
+                                            fontFamily: TaqaUiFontFamilies
+                                                .interTight,
+                                            color: TaqaUiColors.charcoal
+                                                .withValues(alpha: 0.55),
+                                            fontSize: TaqaUiScale.sp(12),
+                                          ),
                                         ),
-                                      )
-                                    : const Icon(Icons.link_off, size: 18),
-                                label: const Text('Detach'),
-                                style: TextButton.styleFrom(
-                                  foregroundColor: Colors.redAccent,
+                                      ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
+                              ],
+                            ),
+                            SizedBox(height: TaqaUiScale.h(10)),
+                            Wrap(
+                              spacing: TaqaUiScale.w(8),
+                              runSpacing: TaqaUiScale.h(8),
+                              children: [
+                                _CoachSheetActionChip(
+                                  icon: Icons.flag_outlined,
+                                  label: 'Report',
+                                  loading: isReporting,
+                                  onTap:
+                                      (coachId == null ||
+                                          coachId <= 0 ||
+                                          isDetaching ||
+                                          isReporting)
+                                      ? null
+                                      : () async {
+                                          Navigator.of(sheetContext).pop();
+                                          await _reportCoach(coach);
+                                        },
+                                ),
+                                _CoachSheetActionChip(
+                                  icon: Icons.link_off,
+                                  label: 'Detach',
+                                  loading: isDetaching,
+                                  onTap:
+                                      (coachId == null ||
+                                          coachId <= 0 ||
+                                          isDetaching ||
+                                          isReporting)
+                                      ? null
+                                      : () async {
+                                          Navigator.of(sheetContext).pop();
+                                          await _detachCoach(coach);
+                                        },
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       );
                     }),
                   if (requests.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Connection Requests',
+                    SizedBox(height: TaqaUiScale.h(6)),
+                    Text(
+                      'CONNECTION REQUESTS',
                       style: TextStyle(
-                        color: Colors.white,
+                        fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+                        fontSize: TaqaUiScale.sp(10),
                         fontWeight: FontWeight.w700,
-                        fontSize: 14,
+                        color: TaqaUiColors.charcoal.withValues(alpha: 0.55),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: TaqaUiScale.h(10)),
                     ...requests.map((request) {
                       final isPending = request.status == 'pending';
                       final updatedDate = request.updatedAt.contains('T')
@@ -617,49 +666,69 @@ class _CoachPageState extends State<CoachPage> {
                       final statusLine = isPending
                           ? 'Pending approval${updatedDate.isEmpty ? '' : ' · $updatedDate'}'
                           : 'Request denied${updatedDate.isEmpty ? '' : ' · $updatedDate'}';
+                      final statusColor = isPending
+                          ? const Color(0xFFFF8A00)
+                          : const Color(0xFFE84C4F);
                       return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
+                        margin: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
+                        padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.04),
-                          borderRadius: BorderRadius.circular(12),
+                          color: TaqaUiColors.white,
+                          borderRadius: TaqaUiScale.radius(15),
                           border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.12),
+                            color: TaqaUiColors.charcoal.withValues(
+                              alpha: 0.08,
+                            ),
                           ),
                         ),
-                        child: ListTile(
-                          leading: Icon(
-                            isPending
-                                ? Icons.hourglass_top_rounded
-                                : Icons.cancel_outlined,
-                            color: isPending
-                                ? Colors.orangeAccent
-                                : Colors.redAccent,
-                          ),
-                          title: Text(
-                            request.coachName,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
+                        child: Row(
+                          children: [
+                            Icon(
+                              isPending
+                                  ? Icons.hourglass_top_rounded
+                                  : Icons.cancel_outlined,
+                              color: statusColor,
                             ),
-                          ),
-                          subtitle: Text(
-                            statusLine,
-                            style: TextStyle(
-                              color: isPending
-                                  ? Colors.orangeAccent
-                                  : Colors.redAccent,
-                              fontSize: 12,
-                            ),
-                          ),
-                          trailing: (request.specialty ?? '').isEmpty
-                              ? null
-                              : Text(
-                                  request.specialty!,
-                                  style: const TextStyle(
-                                    color: Colors.white60,
-                                    fontSize: 12,
+                            SizedBox(width: TaqaUiScale.w(10)),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _firstNameOnly(request.coachName),
+                                    style: TextStyle(
+                                      fontFamily:
+                                          TaqaUiFontFamilies.interTight,
+                                      color: TaqaUiColors.charcoal,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: TaqaUiScale.sp(14),
+                                    ),
                                   ),
+                                  SizedBox(height: TaqaUiScale.h(2)),
+                                  Text(
+                                    statusLine,
+                                    style: TextStyle(
+                                      fontFamily:
+                                          TaqaUiFontFamilies.interTight,
+                                      color: statusColor,
+                                      fontSize: TaqaUiScale.sp(12),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if ((request.specialty ?? '').isNotEmpty)
+                              Text(
+                                request.specialty!,
+                                style: TextStyle(
+                                  fontFamily: TaqaUiFontFamilies.interTight,
+                                  color: TaqaUiColors.charcoal.withValues(
+                                    alpha: 0.55,
+                                  ),
+                                  fontSize: TaqaUiScale.sp(12),
                                 ),
+                              ),
+                          ],
                         ),
                       );
                     }),
@@ -732,6 +801,7 @@ class _CoachPageState extends State<CoachPage> {
                 ],
               ),
             ),
+            SizedBox(height: TaqaUiScale.h(16)),
             Expanded(
               child: IndexedStack(
                 index: _panelIndex,
@@ -803,4 +873,57 @@ class _CoachConnectionRequest {
   final String? specialty;
   final String status;
   final String updatedAt;
+}
+
+class _CoachSheetActionChip extends StatelessWidget {
+  const _CoachSheetActionChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.loading = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = TaqaUiColors.charcoal.withValues(alpha: 0.7);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: TaqaUiScale.radius(999),
+      child: Container(
+        padding: TaqaUiScale.insetsLTRB(10, 8, 10, 8),
+        decoration: BoxDecoration(
+          color: TaqaUiColors.unnamedColorE3e3e3,
+          borderRadius: TaqaUiScale.radius(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (loading)
+              SizedBox(
+                width: TaqaUiScale.w(14),
+                height: TaqaUiScale.w(14),
+                child: CircularProgressIndicator(strokeWidth: 2, color: color),
+              )
+            else
+              Icon(icon, size: TaqaUiScale.w(16), color: color),
+            SizedBox(width: TaqaUiScale.w(6)),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                color: color,
+                fontSize: TaqaUiScale.sp(12),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

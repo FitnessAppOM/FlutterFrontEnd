@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
-import '../TaqaUI/components/taqa_linear_metric_card.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
+import '../TaqaUI/components/taqa_pillar_card.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../localization/app_localizations.dart';
@@ -43,41 +43,42 @@ class FitbitHeartDetailPage extends StatelessWidget {
               children: [
                 _dateLabel(),
                 SizedBox(height: TaqaUiScale.h(14)),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TaqaLinearMetricCard(
-                        title: t("fitbit_heart_resting_hr"),
-                        valueText: restingHr == null ? "—" : "$restingHr bpm",
-                        subtitle: t("fitbit_heart_title"),
-                        progress: 0,
-                        showBar: false,
-                        keepBarSpaceWhenHidden: false,
-                      ),
-                    ),
-                    SizedBox(width: TaqaUiScale.w(12)),
-                    Expanded(
-                      child: TaqaLinearMetricCard(
-                        title: t("fitbit_heart_hrv_rmssd"),
-                        valueText: hrvRmssd == null
-                            ? "—"
-                            : "${hrvRmssd!.toStringAsFixed(0)} ms",
-                        subtitle: t("fitbit_heart_title"),
-                        progress: 0,
-                        showBar: false,
-                        keepBarSpaceWhenHidden: false,
-                      ),
-                    ),
-                  ],
+                TaqaPillarCard(
+                  metricKey: 'resting_hr',
+                  label: t("fitbit_heart_resting_hr"),
+                  score: restingHr?.toDouble(),
+                  maxScore: 100,
+                  icon: Icons.favorite_rounded,
+                  color: const Color(0xFFE84C4F),
+                  details: const {},
+                  detailLabels: const {},
+                  valueDisplay: restingHr == null ? null : "$restingHr bpm",
                 ),
                 SizedBox(height: TaqaUiScale.h(12)),
-                TaqaLinearMetricCard(
-                  title: t("fitbit_heart_vo2max"),
-                  valueText: vo2Max == null || vo2Max!.isEmpty ? "—" : vo2Max!,
-                  subtitle: t("fitbit_heart_title"),
-                  progress: 0,
-                  showBar: false,
-                  keepBarSpaceWhenHidden: false,
+                TaqaPillarCard(
+                  metricKey: 'hrv',
+                  label: t("fitbit_heart_hrv_rmssd"),
+                  score: hrvRmssd,
+                  maxScore: 150,
+                  icon: Icons.timeline_rounded,
+                  color: const Color(0xFF9B8CFF),
+                  details: const {},
+                  detailLabels: const {},
+                  valueDisplay: hrvRmssd == null
+                      ? null
+                      : "${hrvRmssd!.toStringAsFixed(0)} ms",
+                ),
+                SizedBox(height: TaqaUiScale.h(12)),
+                TaqaPillarCard(
+                  metricKey: 'vo2max',
+                  label: t("fitbit_heart_vo2max"),
+                  score: (vo2Max == null || vo2Max!.isEmpty) ? null : 1,
+                  maxScore: 1,
+                  icon: Icons.directions_run_rounded,
+                  color: const Color(0xFF35B6FF),
+                  details: const {},
+                  detailLabels: const {},
+                  valueDisplay: vo2Max,
                 ),
                 if (zones.isNotEmpty) ...[
                   SizedBox(height: TaqaUiScale.h(16)),
@@ -93,7 +94,10 @@ class FitbitHeartDetailPage extends StatelessWidget {
                     ),
                   ),
                   SizedBox(height: TaqaUiScale.h(8)),
-                  for (final z in zones) _ZoneTile(zone: z),
+                  for (int i = 0; i < zones.length; i++) ...[
+                    _ZoneTile(zone: zones[i], maxMinutes: _maxZoneMinutes()),
+                    if (i < zones.length - 1) SizedBox(height: TaqaUiScale.h(12)),
+                  ],
                 ],
               ],
             ),
@@ -101,6 +105,17 @@ class FitbitHeartDetailPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  double _maxZoneMinutes() {
+    double max = 0;
+    for (final z in zones) {
+      if (z is Map) {
+        final mins = z["minutes"];
+        if (mins is num && mins.toDouble() > max) max = mins.toDouble();
+      }
+    }
+    return max <= 0 ? 1 : max;
   }
 
   Widget _dateLabel() {
@@ -160,63 +175,54 @@ class FitbitHeartDetailPage extends StatelessWidget {
 }
 
 class _ZoneTile extends StatelessWidget {
-  const _ZoneTile({required this.zone});
+  const _ZoneTile({required this.zone, required this.maxMinutes});
 
   final dynamic zone;
+  final double maxMinutes;
 
   @override
   Widget build(BuildContext context) {
     String name = AppLocalizations.of(context).translate("common_zone");
     String range = "—";
-    String minutes = "—";
+    double? minutes;
     if (zone is Map) {
       final z = zone as Map;
       name = z["name"]?.toString() ?? name;
       final min = z["min"]?.toString();
       final max = z["max"]?.toString();
       if (min != null && max != null) range = "$min-$max bpm";
-      final mins = z["minutes"]?.toString();
-      if (mins != null) minutes = "$mins min";
+      final mins = z["minutes"];
+      if (mins is num) minutes = mins.toDouble();
     }
-    return Container(
-      margin: EdgeInsets.only(bottom: TaqaUiScale.h(8)),
-      padding: TaqaUiScale.insetsLTRB(14, 10, 14, 10),
-      decoration: BoxDecoration(
-        color: TaqaUiColors.white,
-        borderRadius: TaqaUiScale.radius(15),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              name,
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: TaqaUiScale.sp(10),
-                color: TaqaUiColors.unnamedColor1c1d17,
-              ),
-            ),
-          ),
-          Text(
-            range,
-            style: TextStyle(
-              fontFamily: TaqaUiFontFamilies.interTight,
-              fontSize: TaqaUiScale.sp(10),
-              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
-            ),
-          ),
-          SizedBox(width: TaqaUiScale.w(10)),
-          Text(
-            minutes,
-            style: TextStyle(
-              fontFamily: TaqaUiFontFamilies.interTight,
-              fontSize: TaqaUiScale.sp(10),
-              fontWeight: FontWeight.w700,
-              color: TaqaUiColors.unnamedColor1c1d17,
-            ),
-          ),
-        ],
-      ),
+
+    return TaqaPillarCard(
+      metricKey: 'heart_zone_${name.toLowerCase().replaceAll(' ', '_')}',
+      label: range == "—" ? name : "$name ($range)",
+      score: minutes,
+      maxScore: maxMinutes,
+      icon: _zoneIcon(name),
+      color: _zoneColor(name),
+      details: const {},
+      detailLabels: const {},
+      valueDisplay: minutes == null
+          ? null
+          : "${minutes.toStringAsFixed(0)} min",
     );
+  }
+
+  IconData _zoneIcon(String name) {
+    final n = name.toLowerCase();
+    if (n.contains('peak')) return Icons.whatshot_rounded;
+    if (n.contains('cardio')) return Icons.directions_run_rounded;
+    if (n.contains('fat')) return Icons.local_fire_department_rounded;
+    return Icons.bedtime_rounded;
+  }
+
+  Color _zoneColor(String name) {
+    final n = name.toLowerCase();
+    if (n.contains('peak')) return const Color(0xFFE84C4F);
+    if (n.contains('cardio')) return const Color(0xFFFF8A00);
+    if (n.contains('fat')) return const Color(0xFF4CD964);
+    return const Color(0xFF35B6FF);
   }
 }

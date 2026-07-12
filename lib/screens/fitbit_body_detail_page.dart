@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../TaqaUI/components/taqa_empty_card.dart';
-import '../TaqaUI/components/taqa_linear_metric_card.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
+import '../TaqaUI/components/taqa_pillar_card.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../localization/app_localizations.dart';
@@ -35,13 +35,16 @@ class FitbitBodyDetailPage extends StatelessWidget {
                     subtitle: t("common_no_records_in_range"),
                     icon: Icons.monitor_weight_outlined,
                   )
-                : TaqaLinearMetricCard(
-                    title: t("weight"),
-                    valueText: "${weight.toStringAsFixed(1)} kg",
-                    subtitle: t("fitbit_body_title"),
-                    progress: 0,
-                    showBar: false,
-                    keepBarSpaceWhenHidden: false,
+                : TaqaPillarCard(
+                    metricKey: 'weight',
+                    label: t("weight"),
+                    score: 1,
+                    maxScore: 1,
+                    icon: Icons.monitor_weight_rounded,
+                    color: const Color(0xFF35B6FF),
+                    details: const {},
+                    detailLabels: const {},
+                    valueDisplay: "${weight.toStringAsFixed(1)} kg",
                   ),
           ),
         ),

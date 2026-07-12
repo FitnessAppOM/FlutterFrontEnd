@@ -19,7 +19,7 @@ class TaqaScoreCard extends StatelessWidget {
     required this.loading,
     this.metaText = '',
     this.tags = const [],
-    this.emptyMessage = 'No data yet',
+    this.emptyMessage = 'No data',
     this.onTap,
   });
 
