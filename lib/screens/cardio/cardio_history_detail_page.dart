@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_back_button.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_page_app_bar.dart';
-import 'package:taqaproject/TaqaUI/components/taqa_pillar_card.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_linear_metric_card.dart';
 import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
 import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
@@ -153,71 +153,15 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
             else if (!isMapless)
               _buildMapCard(context, snapshotUrl, route.isNotEmpty),
             if (_loading || !isMapless) const SizedBox(height: 18),
-            if (showDistance) ...[
-              TaqaPillarCard(
-                metricKey: 'cardio_distance',
-                label: 'Distance',
-                score: distanceKm,
-                maxScore: 10,
-                icon: Icons.route_rounded,
-                color: const Color(0xFF35B6FF),
-                details: const {},
-                detailLabels: const {},
-                valueDisplay: _formatDistance(distanceKm),
-              ),
-              SizedBox(height: TaqaUiScale.h(12)),
-            ],
-            TaqaPillarCard(
-              metricKey: 'cardio_pace',
-              label: 'Pace',
-              score: pace,
-              maxScore: 10,
-              icon: Icons.speed_rounded,
-              color: const Color(0xFF9B8CFF),
-              details: const {},
-              detailLabels: const {},
-              valueDisplay: _formatPace(pace),
+            ..._buildMetricTiles(
+              showDistance: showDistance,
+              showIncline: showIncline,
+              distanceKm: distanceKm,
+              pace: pace,
+              duration: duration,
+              steps: steps,
+              inclinePercent: inclinePercent,
             ),
-            SizedBox(height: TaqaUiScale.h(12)),
-            TaqaPillarCard(
-              metricKey: 'cardio_duration',
-              label: 'Duration',
-              score: duration / 60.0,
-              maxScore: 90,
-              icon: Icons.timer_rounded,
-              color: const Color(0xFFE84C4F),
-              details: const {},
-              detailLabels: const {},
-              valueDisplay: _formatDuration(duration),
-            ),
-            if (steps > 0) ...[
-              SizedBox(height: TaqaUiScale.h(12)),
-              TaqaPillarCard(
-                metricKey: 'cardio_steps',
-                label: 'Steps',
-                score: steps.toDouble(),
-                maxScore: 10000,
-                icon: Icons.directions_walk_rounded,
-                color: const Color(0xFFFF8A00),
-                details: const {},
-                detailLabels: const {},
-                valueDisplay: steps.toString(),
-              ),
-            ],
-            if (showIncline) ...[
-              SizedBox(height: TaqaUiScale.h(12)),
-              TaqaPillarCard(
-                metricKey: 'cardio_incline',
-                label: 'Incline',
-                score: inclinePercent,
-                maxScore: 20,
-                icon: Icons.terrain_rounded,
-                color: const Color(0xFF6BBE45),
-                details: const {},
-                detailLabels: const {},
-                valueDisplay: "${inclinePercent.toStringAsFixed(1)}%",
-              ),
-            ],
           ],
         ),
       ),
@@ -275,6 +219,59 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
           ),
         ),
       ),
+    );
+  }
+
+  List<Widget> _buildMetricTiles({
+    required bool showDistance,
+    required bool showIncline,
+    required double distanceKm,
+    required double pace,
+    required int duration,
+    required int steps,
+    required double inclinePercent,
+  }) {
+    final tiles = <MapEntry<String, String>>[
+      if (showDistance) MapEntry('Distance', _formatDistance(distanceKm)),
+      MapEntry('Pace', _formatPace(pace)),
+      MapEntry('Duration', _formatDuration(duration)),
+      if (steps > 0) MapEntry('Steps', steps.toString()),
+      if (showIncline)
+        MapEntry('Incline', "${inclinePercent.toStringAsFixed(1)}%"),
+    ];
+
+    final rows = <Widget>[];
+    for (var i = 0; i < tiles.length; i += 2) {
+      final second = i + 1 < tiles.length ? tiles[i + 1] : null;
+      rows.add(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _metricTile(tiles[i])),
+            SizedBox(width: TaqaUiScale.w(12)),
+            Expanded(
+              child: second == null
+                  ? const SizedBox.shrink()
+                  : _metricTile(second),
+            ),
+          ],
+        ),
+      );
+      if (i + 2 < tiles.length) {
+        rows.add(SizedBox(height: TaqaUiScale.h(12)));
+      }
+    }
+    return rows;
+  }
+
+  Widget _metricTile(MapEntry<String, String> entry) {
+    return TaqaLinearMetricCard(
+      title: entry.key,
+      valueText: entry.value,
+      subtitle: 'Cardio session',
+      progress: 0,
+      showBar: false,
+      keepBarSpaceWhenHidden: false,
     );
   }
 

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/components/taqa_linear_metric_card.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
-import '../TaqaUI/components/taqa_pillar_card.dart';
 import '../TaqaUI/components/taqa_score_widget.dart' show TaqaOpenArcPainter;
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
@@ -230,58 +230,82 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
 
   List<Widget> _buildDetailsSection(_RecoveryMetrics metrics) {
     return [
-      TaqaPillarCard(
-        metricKey: 'rhr',
-        label: AppLocalizations.of(
-          context,
-        ).translate("fitbit_heart_resting_hr"),
-        score: metrics.rhr,
-        maxScore: 100,
-        icon: Icons.favorite_rounded,
-        color: const Color(0xFFE84C4F),
-        details: const {},
-        detailLabels: const {},
-        valueDisplay: metrics.rhr == null ? null : '${_fmt(metrics.rhr)} bpm',
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: TaqaLinearMetricCard(
+              title: AppLocalizations.of(
+                context,
+              ).translate("fitbit_heart_resting_hr"),
+              valueText: metrics.rhr == null
+                  ? '—'
+                  : '${_fmt(metrics.rhr)} bpm',
+              subtitle: AppLocalizations.of(
+                context,
+              ).translate("whoop_recovery_title"),
+              progress: 0,
+              showBar: false,
+              keepBarSpaceWhenHidden: false,
+            ),
+          ),
+          SizedBox(width: TaqaUiScale.w(12)),
+          Expanded(
+            child: TaqaLinearMetricCard(
+              title: AppLocalizations.of(
+                context,
+              ).translate("fitbit_heart_hrv_rmssd"),
+              valueText: metrics.hrv == null
+                  ? '—'
+                  : '${_fmt(metrics.hrv)} ms',
+              subtitle: AppLocalizations.of(
+                context,
+              ).translate("whoop_recovery_title"),
+              progress: 0,
+              showBar: false,
+              keepBarSpaceWhenHidden: false,
+            ),
+          ),
+        ],
       ),
       SizedBox(height: TaqaUiScale.h(12)),
-      TaqaPillarCard(
-        metricKey: 'hrv',
-        label: AppLocalizations.of(
-          context,
-        ).translate("fitbit_heart_hrv_rmssd"),
-        score: metrics.hrv,
-        maxScore: 150,
-        icon: Icons.timeline_rounded,
-        color: const Color(0xFF9B8CFF),
-        details: const {},
-        detailLabels: const {},
-        valueDisplay: metrics.hrv == null ? null : '${_fmt(metrics.hrv)} ms',
-      ),
-      SizedBox(height: TaqaUiScale.h(12)),
-      TaqaPillarCard(
-        metricKey: 'spo2',
-        label: AppLocalizations.of(context).translate("whoop_spo2_level"),
-        score: metrics.spo2,
-        maxScore: 100,
-        icon: Icons.air_rounded,
-        color: const Color(0xFF35B6FF),
-        details: const {},
-        detailLabels: const {},
-        valueDisplay: metrics.spo2 == null ? null : '${_fmt(metrics.spo2)}%',
-      ),
-      SizedBox(height: TaqaUiScale.h(12)),
-      TaqaPillarCard(
-        metricKey: 'skin_temp',
-        label: AppLocalizations.of(context).translate("whoop_skin_temp"),
-        score: metrics.skinTemp,
-        maxScore: 40,
-        icon: Icons.thermostat_rounded,
-        color: const Color(0xFFFF8A00),
-        details: const {},
-        detailLabels: const {},
-        valueDisplay: metrics.skinTemp == null
-            ? null
-            : '${_fmt(metrics.skinTemp)}°C',
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: TaqaLinearMetricCard(
+              title: AppLocalizations.of(
+                context,
+              ).translate("whoop_spo2_level"),
+              valueText: metrics.spo2 == null
+                  ? '—'
+                  : '${_fmt(metrics.spo2)}%',
+              subtitle: AppLocalizations.of(
+                context,
+              ).translate("whoop_recovery_title"),
+              progress: 0,
+              showBar: false,
+              keepBarSpaceWhenHidden: false,
+            ),
+          ),
+          SizedBox(width: TaqaUiScale.w(12)),
+          Expanded(
+            child: TaqaLinearMetricCard(
+              title: AppLocalizations.of(
+                context,
+              ).translate("whoop_skin_temp"),
+              valueText: metrics.skinTemp == null
+                  ? '—'
+                  : '${_fmt(metrics.skinTemp)}°C',
+              subtitle: AppLocalizations.of(
+                context,
+              ).translate("whoop_recovery_title"),
+              progress: 0,
+              showBar: false,
+              keepBarSpaceWhenHidden: false,
+            ),
+          ),
+        ],
       ),
       SizedBox(height: TaqaUiScale.h(16)),
       Center(

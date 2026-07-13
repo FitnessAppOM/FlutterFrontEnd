@@ -123,24 +123,10 @@ class _TaqaPillarCardState extends State<TaqaPillarCard> {
                         borderColor: chipBorder,
                       ),
                     ),
-                  if (hasDetails)
-                    Positioned(
-                      right: 0,
-                      top: TaqaUiScale.h(48),
-                      child: Icon(
-                        _expanded
-                            ? Icons.keyboard_arrow_up_rounded
-                            : Icons.keyboard_arrow_down_rounded,
-                        color: isDarkCard
-                            ? TaqaUiColors.white.withValues(alpha: 0.85)
-                            : TaqaUiColors.charcoal.withValues(alpha: 0.85),
-                        size: 18,
-                      ),
-                    ),
                   Positioned(
                     left: TaqaUiScale.w(265),
                     top: TaqaUiScale.h(48),
-                    width: TaqaUiScale.w(64),
+                    width: TaqaUiScale.w(32),
                     height: TaqaUiScale.h(30),
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
@@ -175,6 +161,24 @@ class _TaqaPillarCardState extends State<TaqaPillarCard> {
                       ),
                     ),
                   ),
+                  // Anchored to the card's actual right edge (self-adjusts
+                  // to any screen width). The score column above was
+                  // narrowed to TaqaUiScale.w(32) so it no longer reaches
+                  // far enough right to sit under this arrow.
+                  if (hasDetails)
+                    Positioned(
+                      right: 0,
+                      top: TaqaUiScale.h(48),
+                      child: Icon(
+                        _expanded
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
+                        color: isDarkCard
+                            ? TaqaUiColors.white.withValues(alpha: 0.85)
+                            : TaqaUiColors.charcoal.withValues(alpha: 0.85),
+                        size: 18,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -198,41 +202,56 @@ class _TaqaPillarCardState extends State<TaqaPillarCard> {
                 ),
               ],
               const SizedBox(height: 12),
-              Divider(
-                color: isDarkCard
-                    ? TaqaUiColors.lightGray.withValues(alpha: 0.25)
-                    : TaqaUiColors.graphite.withValues(alpha: 0.2),
-                height: 1,
+              Container(
+                width: double.infinity,
+                padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
+                decoration: BoxDecoration(
+                  color: isDarkCard ? TaqaUiColors.charcoal : TaqaUiColors.white,
+                  borderRadius: TaqaUiScale.radius(15),
+                ),
+                child: Column(
+                  children: widget.detailLabels.entries
+                      .map((entry) {
+                        final rawVal = widget.details[entry.key];
+                        if (rawVal == null) return const SizedBox.shrink();
+                        final val = _formatDetailValue(entry.key, rawVal);
+                        return Padding(
+                          padding: EdgeInsets.only(
+                            bottom: TaqaUiScale.h(4),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                _capitalize(entry.value),
+                                style: TextStyle(
+                                  fontFamily: TaqaUiFontFamilies.interTight,
+                                  fontSize: TaqaUiScale.sp(15),
+                                  fontWeight: FontWeight.w400,
+                                  color: textColor,
+                                  letterSpacing: 0,
+                                  height: 25 / 15,
+                                ),
+                              ),
+                              Text(
+                                _capitalize(val),
+                                textAlign: TextAlign.right,
+                                style: TextStyle(
+                                  fontFamily: TaqaUiFontFamilies.interTight,
+                                  fontSize: TaqaUiScale.sp(15),
+                                  fontWeight: FontWeight.w400,
+                                  color: textColor,
+                                  letterSpacing: 0,
+                                  height: 25 / 15,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      })
+                      .toList(),
+                ),
               ),
-              const SizedBox(height: 12),
-              ...widget.detailLabels.entries.map((entry) {
-                final rawVal = widget.details[entry.key];
-                if (rawVal == null) return const SizedBox.shrink();
-                final val = _formatDetailValue(entry.key, rawVal);
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        entry.value,
-                        style: TextStyle(
-                          color: textColor.withValues(alpha: 0.72),
-                          fontSize: 13,
-                        ),
-                      ),
-                      Text(
-                        val,
-                        style: TextStyle(
-                          color: textColor,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
             ],
           ],
         ),
@@ -290,6 +309,18 @@ class _TaqaPillarCardState extends State<TaqaPillarCard> {
       return rawVal.toStringAsFixed(1);
     }
     return rawVal.toString();
+  }
+
+  String _capitalize(String s) {
+    if (s.isEmpty) return s;
+    return s
+        .split(' ')
+        .map(
+          (word) => word.isEmpty
+              ? word
+              : word[0].toUpperCase() + word.substring(1),
+        )
+        .join(' ');
   }
 }
 

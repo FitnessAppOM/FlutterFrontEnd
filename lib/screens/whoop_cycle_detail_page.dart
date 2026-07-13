@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/components/taqa_linear_metric_card.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
-import '../TaqaUI/components/taqa_pillar_card.dart';
 import '../TaqaUI/components/taqa_score_widget.dart' show TaqaOpenArcPainter;
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
@@ -236,40 +236,50 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
     final maxHr = _numFromAny(metrics["max_hr"]);
     final kilojoules = _numFromAny(metrics["kilojoules"]);
     return [
-      TaqaPillarCard(
-        metricKey: 'avg_hr',
-        label: AppLocalizations.of(context).translate("whoop_avg_hr_label"),
-        score: avgHr,
-        maxScore: 180,
-        icon: Icons.favorite_rounded,
-        color: const Color(0xFFE84C4F),
-        details: const {},
-        detailLabels: const {},
-        valueDisplay: avgHr == null ? null : '${_fmt(avgHr)} bpm',
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: TaqaLinearMetricCard(
+              title: AppLocalizations.of(
+                context,
+              ).translate("whoop_avg_hr_label"),
+              valueText: avgHr == null ? '—' : '${_fmt(avgHr)} bpm',
+              subtitle: AppLocalizations.of(
+                context,
+              ).translate("whoop_daily_cycle_title"),
+              progress: 0,
+              showBar: false,
+              keepBarSpaceWhenHidden: false,
+            ),
+          ),
+          SizedBox(width: TaqaUiScale.w(12)),
+          Expanded(
+            child: TaqaLinearMetricCard(
+              title: AppLocalizations.of(
+                context,
+              ).translate("whoop_max_hr_label"),
+              valueText: maxHr == null ? '—' : '${_fmt(maxHr)} bpm',
+              subtitle: AppLocalizations.of(
+                context,
+              ).translate("whoop_daily_cycle_title"),
+              progress: 0,
+              showBar: false,
+              keepBarSpaceWhenHidden: false,
+            ),
+          ),
+        ],
       ),
       SizedBox(height: TaqaUiScale.h(12)),
-      TaqaPillarCard(
-        metricKey: 'max_hr',
-        label: AppLocalizations.of(context).translate("whoop_max_hr_label"),
-        score: maxHr,
-        maxScore: 200,
-        icon: Icons.speed_rounded,
-        color: const Color(0xFFFF8A00),
-        details: const {},
-        detailLabels: const {},
-        valueDisplay: maxHr == null ? null : '${_fmt(maxHr)} bpm',
-      ),
-      SizedBox(height: TaqaUiScale.h(12)),
-      TaqaPillarCard(
-        metricKey: 'kilojoules',
-        label: AppLocalizations.of(context).translate("whoop_energy_label"),
-        score: kilojoules,
-        maxScore: 20000,
-        icon: Icons.bolt_rounded,
-        color: const Color(0xFF35B6FF),
-        details: const {},
-        detailLabels: const {},
-        valueDisplay: kilojoules == null ? null : '${_fmt(kilojoules)} kJ',
+      TaqaLinearMetricCard(
+        title: AppLocalizations.of(context).translate("whoop_energy_label"),
+        valueText: kilojoules == null ? '—' : '${_fmt(kilojoules)} kJ',
+        subtitle: AppLocalizations.of(
+          context,
+        ).translate("whoop_daily_cycle_title"),
+        progress: 0,
+        showBar: false,
+        keepBarSpaceWhenHidden: false,
       ),
       SizedBox(height: TaqaUiScale.h(16)),
       Center(

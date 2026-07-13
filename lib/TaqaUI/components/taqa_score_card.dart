@@ -266,8 +266,8 @@ class _ScoreCardTag extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: TaqaUiScale.w(8) * layoutScale,
-        vertical: TaqaUiScale.h(4) * layoutScale,
+        horizontal: math.max(4.0, TaqaUiScale.w(8) * layoutScale),
+        vertical: math.max(3.0, TaqaUiScale.h(4) * layoutScale),
       ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(TaqaUiScale.r(10) * layoutScale),
@@ -281,7 +281,11 @@ class _ScoreCardTag extends StatelessWidget {
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
         style: TaqaUiStyles.scoreCardTag.copyWith(
-          fontSize: (TaqaUiStyles.scoreCardTag.fontSize ?? 8) * layoutScale,
+          fontSize: math.max(
+            7.0,
+            (TaqaUiStyles.scoreCardTag.fontSize ?? 8) * layoutScale,
+          ),
+          height: 14 / 8,
         ),
       ),
     );
