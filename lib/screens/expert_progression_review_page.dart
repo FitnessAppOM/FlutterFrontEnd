@@ -267,6 +267,7 @@ class _ExpertProgressionReviewPageState
                       padding: const EdgeInsets.only(bottom: 14),
                       child: _DaySectionCard(
                         group: group,
+                        locked: review.isApplied,
                         expanded: _expandedDayKeys.contains(group.key),
                         busy: _saving,
                         onToggle: () {
@@ -304,8 +305,25 @@ class _ReviewHeaderCard extends StatelessWidget {
         return AppColors.errorRed;
       case 'pending_expert':
         return Colors.orangeAccent;
-      default:
+      case 'reviewed':
         return AppColors.accent;
+      default:
+        return Colors.white54;
+    }
+  }
+
+  String _statusLabel() {
+    switch (review.status) {
+      case 'pending_expert':
+        return 'Pending review';
+      case 'reviewed':
+        return 'Ready to apply';
+      case 'applied':
+        return 'Applied';
+      case 'failed':
+        return 'Needs retry';
+      default:
+        return review.status;
     }
   }
 
@@ -339,12 +357,12 @@ class _ReviewHeaderCard extends StatelessWidget {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: _statusColor().withOpacity(0.15),
+                  color: _statusColor().withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(999),
                   border: Border.all(color: _statusColor()),
                 ),
                 child: Text(
-                  review.status,
+                  _statusLabel(),
                   style: TextStyle(
                     color: _statusColor(),
                     fontWeight: FontWeight.w700,
@@ -440,6 +458,7 @@ List<_DayGroup> _groupedDays(ProgressionReviewDetail review) {
 class _DaySectionCard extends StatelessWidget {
   const _DaySectionCard({
     required this.group,
+    required this.locked,
     required this.expanded,
     required this.busy,
     required this.onToggle,
@@ -449,6 +468,7 @@ class _DaySectionCard extends StatelessWidget {
   });
 
   final _DayGroup group;
+  final bool locked;
   final bool expanded;
   final bool busy;
   final VoidCallback onToggle;
@@ -522,6 +542,7 @@ class _DaySectionCard extends StatelessWidget {
                   for (var i = 0; i < group.items.length; i++) ...[
                     _ReviewItemCard(
                       item: group.items[i],
+                      locked: locked,
                       busy: busy,
                       onApprove: () => onApprove(group.items[i]),
                       onReject: () => onReject(group.items[i]),
@@ -567,6 +588,7 @@ class _SummaryChip extends StatelessWidget {
 class _ReviewItemCard extends StatelessWidget {
   const _ReviewItemCard({
     required this.item,
+    required this.locked,
     required this.busy,
     required this.onApprove,
     required this.onReject,
@@ -574,6 +596,7 @@ class _ReviewItemCard extends StatelessWidget {
   });
 
   final ProgressionReviewItem item;
+  final bool locked;
   final bool busy;
   final VoidCallback onApprove;
   final VoidCallback onReject;
@@ -601,11 +624,38 @@ class _ReviewItemCard extends StatelessWidget {
     );
   }
 
+  Color _decisionColor() {
+    switch (item.expertDecision) {
+      case 'approved':
+        return AppColors.successGreen;
+      case 'edited':
+        return AppColors.accent;
+      case 'rejected':
+        return AppColors.errorRed;
+      default:
+        return Colors.white54;
+    }
+  }
+
+  String _decisionLabel() {
+    switch (item.expertDecision) {
+      case 'approved':
+        return 'Approved';
+      case 'edited':
+        return 'Edited';
+      case 'rejected':
+        return 'Rejected';
+      default:
+        return 'Pending';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final finalSets = item.finalSets ?? item.aiRecommendedSets;
     final finalReps = item.finalReps ?? item.aiRecommendedReps;
     final finalWeight = item.finalWeightKg ?? item.aiRecommendedWeightKg;
+    final decisionColor = _decisionColor();
 
     return Container(
       decoration: BoxDecoration(
@@ -632,13 +682,14 @@ class _ReviewItemCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                 decoration: BoxDecoration(
-                  color: Colors.white10,
+                  color: decisionColor.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: decisionColor),
                 ),
                 child: Text(
-                  item.expertDecision,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  _decisionLabel(),
+                  style: TextStyle(
+                    color: decisionColor,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -678,18 +729,22 @@ class _ReviewItemCard extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: busy ? null : onReject,
+                  onPressed: busy || locked || item.expertDecision == 'rejected'
+                      ? null
+                      : onReject,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.errorRed,
                     side: const BorderSide(color: AppColors.errorRed),
                   ),
-                  child: const Text('Reject'),
+                  child: Text(
+                    item.expertDecision == 'rejected' ? 'Rejected' : 'Reject',
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: OutlinedButton(
-                  onPressed: busy ? null : onEdit,
+                  onPressed: busy || locked ? null : onEdit,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
                     side: const BorderSide(color: Colors.white24),
@@ -700,8 +755,12 @@ class _ReviewItemCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: ElevatedButton(
-                  onPressed: busy ? null : onApprove,
-                  child: const Text('Approve'),
+                  onPressed: busy || locked || item.expertDecision == 'approved'
+                      ? null
+                      : onApprove,
+                  child: Text(
+                    item.expertDecision == 'approved' ? 'Approved' : 'Approve',
+                  ),
                 ),
               ),
             ],

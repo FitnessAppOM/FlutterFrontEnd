@@ -1670,9 +1670,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
 
   Widget _buildMyClientsTab() {
     if (_loading) {
-      return Center(
-        child: CircularProgressIndicator(color: TaqaUiColors.lime),
-      );
+      return Center(child: CircularProgressIndicator(color: TaqaUiColors.lime));
     }
 
     final displayClients = _clients.map((client) {
@@ -2193,9 +2191,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
     final pinnedCount = items.where((item) => item.isPinned).length;
 
     if (_loading) {
-      return Center(
-        child: CircularProgressIndicator(color: TaqaUiColors.lime),
-      );
+      return Center(child: CircularProgressIndicator(color: TaqaUiColors.lime));
     }
 
     return TaqaRefreshIndicator(
@@ -3232,8 +3228,8 @@ class _ClientOverviewCard extends StatelessWidget {
           : 'AI updates: form check awaiting reply';
     }
     return client.trainingPlanUncheckedCount > 1
-        ? 'AI updates: training suggestions pending review (${client.trainingPlanUncheckedCount})'
-        : 'AI updates: training suggestions pending review';
+        ? 'AI updates: training plans pending verification (${client.trainingPlanUncheckedCount})'
+        : 'AI updates: training plan pending verification';
   }
 
   @override
@@ -3617,6 +3613,21 @@ class _ReviewListCard extends StatelessWidget {
     }
   }
 
+  String _statusLabel() {
+    switch (review.status) {
+      case 'pending_expert':
+        return 'Pending review';
+      case 'reviewed':
+        return 'Ready to apply';
+      case 'applied':
+        return 'Applied';
+      case 'failed':
+        return 'Needs retry';
+      default:
+        return review.status;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final statusColor = _statusColor();
@@ -3676,7 +3687,7 @@ class _ReviewListCard extends StatelessWidget {
                     border: Border.all(color: statusColor),
                   ),
                   child: Text(
-                    review.status,
+                    _statusLabel(),
                     style: TextStyle(
                       color: statusColor,
                       fontWeight: FontWeight.w700,

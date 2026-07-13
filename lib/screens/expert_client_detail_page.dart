@@ -338,8 +338,8 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     }
     if (hasTraining) {
       return widget.client.trainingPlanUncheckedCount > 1
-          ? 'Training suggestions pending review (${widget.client.trainingPlanUncheckedCount})'
-          : 'Training suggestions pending review';
+          ? 'Training plans pending verification (${widget.client.trainingPlanUncheckedCount})'
+          : 'Training plan pending verification';
     }
     final reviewCount = _clientAiReviews().length;
     return reviewCount > 0
@@ -3434,8 +3434,8 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
     }
     if (hasTraining) {
       return widget.client.trainingPlanUncheckedCount > 1
-          ? 'Training suggestions pending review (${widget.client.trainingPlanUncheckedCount})'
-          : 'Training suggestions pending review';
+          ? 'Training plans pending verification (${widget.client.trainingPlanUncheckedCount})'
+          : 'Training plan pending verification';
     }
     return _clientReviews.isNotEmpty
         ? 'Latest AI updates ready'
@@ -3646,8 +3646,8 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
               Expanded(
                 child: Text(
                   widget.client.trainingPlanUncheckedCount > 1
-                      ? 'Training suggestions pending review (${widget.client.trainingPlanUncheckedCount})'
-                      : 'Training suggestions pending review',
+                      ? 'Training plans pending verification (${widget.client.trainingPlanUncheckedCount})'
+                      : 'Training plan pending verification',
                   style: const TextStyle(
                     color: Color(0xFF5FD8FF),
                     fontSize: 12,
@@ -3796,7 +3796,7 @@ class _ClientAiReviewCard extends StatelessWidget {
       case 'pending_expert':
         return const Color(0xFF5FD8FF);
       case 'reviewed':
-        return Colors.orangeAccent;
+        return AppColors.accent;
       default:
         return Colors.white54;
     }
@@ -3807,7 +3807,7 @@ class _ClientAiReviewCard extends StatelessWidget {
       case 'pending_expert':
         return 'Pending review';
       case 'reviewed':
-        return 'Awaiting approval';
+        return 'Ready to apply';
       case 'applied':
         return 'Applied';
       case 'failed':
