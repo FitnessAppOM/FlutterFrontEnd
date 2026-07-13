@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_back_button.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_page_app_bar.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_pillar_card.dart';
+import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
+import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
+import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
+import 'package:taqaproject/theme/app_theme.dart';
 
 import '../../core/account_storage.dart';
 import '../../services/training/training_service.dart';
@@ -85,13 +90,14 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
     final snapshotUrl = _buildSnapshotUrl(route: route);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F1014),
+      backgroundColor: AppColors.appBackground,
       appBar: TaqaPageAppBar(
         title: name,
-        backgroundColor: const Color(0xFF0F1014),
-        leading: const TaqaBackButton(color: Colors.white),
+        backgroundColor: AppColors.appBackground,
+        titleColor: TaqaUiColors.charcoal,
+        leading: const TaqaBackButton(color: TaqaUiColors.charcoal),
         trailing: IconButton(
-          icon: const Icon(Icons.ios_share, color: Colors.white),
+          icon: const Icon(Icons.ios_share, color: TaqaUiColors.charcoal),
           onPressed: () async {
             final speedKmh = pace > 0.01 ? 60.0 / pace : 0.0;
             final sessionDate = _parseDate(entryDate);
@@ -119,59 +125,101 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
           },
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
-        children: [
-          Text(
-            _formatDate(entryDate),
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.white.withOpacity(0.6),
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (_error != null)
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+          children: [
             Text(
-              _error!,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: Colors.redAccent),
+              _formatDate(entryDate),
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(13),
+                color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+              ),
             ),
-          if (_loading)
-            const Padding(
-              padding: EdgeInsets.only(top: 12),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (!isMapless)
-            _buildMapCard(context, snapshotUrl, route.isNotEmpty),
-          if (_loading || !isMapless) const SizedBox(height: 18),
-          if (showDistance) ...[
-            _buildMetricsRow(
-              context,
-              label: "Distance",
-              value: _formatDistance(distanceKm),
+            const SizedBox(height: 16),
+            if (_error != null)
+              Text(
+                _error!,
+                style: const TextStyle(color: Colors.redAccent),
+              ),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: Center(
+                  child: CircularProgressIndicator(color: AppColors.accent),
+                ),
+              )
+            else if (!isMapless)
+              _buildMapCard(context, snapshotUrl, route.isNotEmpty),
+            if (_loading || !isMapless) const SizedBox(height: 18),
+            if (showDistance) ...[
+              TaqaPillarCard(
+                metricKey: 'cardio_distance',
+                label: 'Distance',
+                score: distanceKm,
+                maxScore: 10,
+                icon: Icons.route_rounded,
+                color: const Color(0xFF35B6FF),
+                details: const {},
+                detailLabels: const {},
+                valueDisplay: _formatDistance(distanceKm),
+              ),
+              SizedBox(height: TaqaUiScale.h(12)),
+            ],
+            TaqaPillarCard(
+              metricKey: 'cardio_pace',
+              label: 'Pace',
+              score: pace,
+              maxScore: 10,
+              icon: Icons.speed_rounded,
+              color: const Color(0xFF9B8CFF),
+              details: const {},
+              detailLabels: const {},
+              valueDisplay: _formatPace(pace),
             ),
-            const SizedBox(height: 10),
-          ],
-          _buildMetricsRow(context, label: "Pace", value: _formatPace(pace)),
-          const SizedBox(height: 10),
-          _buildMetricsRow(
-            context,
-            label: "Duration",
-            value: _formatDuration(duration),
-          ),
-          if (steps > 0) ...[
-            const SizedBox(height: 10),
-            _buildMetricsRow(context, label: "Steps", value: steps.toString()),
-          ],
-          if (showIncline) ...[
-            const SizedBox(height: 10),
-            _buildMetricsRow(
-              context,
-              label: "Incline",
-              value: "${inclinePercent.toStringAsFixed(1)}%",
+            SizedBox(height: TaqaUiScale.h(12)),
+            TaqaPillarCard(
+              metricKey: 'cardio_duration',
+              label: 'Duration',
+              score: duration / 60.0,
+              maxScore: 90,
+              icon: Icons.timer_rounded,
+              color: const Color(0xFFE84C4F),
+              details: const {},
+              detailLabels: const {},
+              valueDisplay: _formatDuration(duration),
             ),
+            if (steps > 0) ...[
+              SizedBox(height: TaqaUiScale.h(12)),
+              TaqaPillarCard(
+                metricKey: 'cardio_steps',
+                label: 'Steps',
+                score: steps.toDouble(),
+                maxScore: 10000,
+                icon: Icons.directions_walk_rounded,
+                color: const Color(0xFFFF8A00),
+                details: const {},
+                detailLabels: const {},
+                valueDisplay: steps.toString(),
+              ),
+            ],
+            if (showIncline) ...[
+              SizedBox(height: TaqaUiScale.h(12)),
+              TaqaPillarCard(
+                metricKey: 'cardio_incline',
+                label: 'Incline',
+                score: inclinePercent,
+                maxScore: 20,
+                icon: Icons.terrain_rounded,
+                color: const Color(0xFF6BBE45),
+                details: const {},
+                detailLabels: const {},
+                valueDisplay: "${inclinePercent.toStringAsFixed(1)}%",
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -181,15 +229,18 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
       return Container(
         height: 220,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.04),
+          color: TaqaUiColors.white,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white.withOpacity(0.08)),
+          border: Border.all(
+            color: TaqaUiColors.charcoal.withValues(alpha: 0.1),
+          ),
         ),
         child: Center(
           child: Text(
             "Route not available",
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.white.withOpacity(0.7),
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
             ),
           ),
         ),
@@ -208,12 +259,13 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
               gaplessPlayback: true,
               errorBuilder: (_, __, ___) {
                 return Container(
-                  color: Colors.white.withOpacity(0.05),
+                  color: TaqaUiColors.white,
                   child: Center(
                     child: Text(
                       "Map unavailable",
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.7),
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
                       ),
                     ),
                   ),
@@ -222,39 +274,6 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildMetricsRow(
-    BuildContext context, {
-    required String label,
-    required String value,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.04),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
-      ),
-      child: Row(
-        children: [
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.white.withOpacity(0.6),
-            ),
-          ),
-          const Spacer(),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
       ),
     );
   }

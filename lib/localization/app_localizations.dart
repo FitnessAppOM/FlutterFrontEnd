@@ -942,7 +942,7 @@ class AppLocalizations {
       "daily_journal_no_entry_today": "No entry for yesterday",
       "daily_journal_no_entry_date": "No entry on this date",
       "daily_journal_prompt_today":
-          "Answer these questions for yesterday to compute your TAQA Fitness Scores.",
+          "Answer these questions for yesterday to compute your Taqa Fitness Scores.",
       "daily_journal_prompt_other": "Use the arrows to view other days.",
       "daily_journal_record_today": "Record yesterday",
       "daily_journal_sleep_hours_label": "Hours of sleep",
