@@ -142,15 +142,21 @@ class _TaqaPillarCardState extends State<TaqaPillarCard> {
                     top: TaqaUiScale.h(48),
                     width: TaqaUiScale.w(64),
                     height: TaqaUiScale.h(30),
-                    child: Text(
-                      scoreDisplay,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: TaqaUiFontFamilies.interTight,
-                        fontSize: TaqaUiScale.sp(25),
-                        fontWeight: FontWeight.w700,
-                        color: textColor,
-                        height: 1,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: Text(
+                        scoreDisplay,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        softWrap: false,
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          fontSize: TaqaUiScale.sp(25),
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
+                          height: 1,
+                        ),
                       ),
                     ),
                   ),
