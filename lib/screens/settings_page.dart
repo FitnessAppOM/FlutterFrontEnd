@@ -10,6 +10,12 @@ import '../core/locale_controller.dart';
 import 'ForgetPassword/forgot_password_page.dart';
 import '../services/auth/profile_service.dart';
 import '../core/account_storage.dart';
+import '../TaqaUI/components/taqa_community_option_picker_sheet.dart';
+import '../TaqaUI/components/taqa_filled_button.dart';
+import '../TaqaUI/components/taqa_log_entry_card.dart';
+import '../TaqaUI/components/taqa_outline_tag_button.dart';
+import '../TaqaUI/components/taqa_segmented_toggle_button.dart';
+import '../TaqaUI/components/taqa_switch.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../core/user_friendly_error.dart';
 import 'package:image_picker/image_picker.dart';
@@ -17,6 +23,8 @@ import 'package:path_provider/path_provider.dart';
 import '../config/base_url.dart';
 import '../consents/consent_manager.dart';
 import '../auth/expert_questionnaire.dart';
+import '../services/coach/coach_habit_reminder_settings_service.dart';
+import '../services/coach/progression_review_service.dart';
 import '../services/core/daily_provider_push_service.dart';
 import '../services/core/notification_service.dart';
 import '../services/health/apple_watch_detection_service.dart';
@@ -269,9 +277,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _loadExpertFlag() async {
-    if (mounted) {
-      setState(() => _expertFlagReady = false);
-    }
+    // Show the locally cached answer immediately (fast, no network) so
+    // coach-only sections (e.g. "Coach") don't pop in/out on every visit —
+    // only refresh from the server quietly afterwards, in the background.
     var done = await AccountStorage.isExpertQuestionnaireDone();
     var isExpert = await AccountStorage.isExpert();
     String? expertProfileStatus;
@@ -290,6 +298,15 @@ class _SettingsPageState extends State<SettingsPage> {
       isExpert = isExpert || cachedIsExpert;
     } catch (_) {
       // Ignore cache parse failures.
+    }
+
+    if (mounted) {
+      setState(() {
+        _expertQuestionnaireDone = done;
+        _isExpert = isExpert;
+        _expertProfileStatus = expertProfileStatus;
+        _expertFlagReady = true;
+      });
     }
 
     final userId = await AccountStorage.getUserId();
@@ -311,7 +328,10 @@ class _SettingsPageState extends State<SettingsPage> {
         await AccountStorage.setIsExpert(isExpert);
       } catch (_) {
         // Keep existing fallback behavior when profile API isn't reachable.
+        return;
       }
+    } else {
+      return;
     }
     if (mounted) {
       setState(() {
@@ -1380,6 +1400,14 @@ class _SettingsPageState extends State<SettingsPage> {
                               await _loadExpertFlag();
                             },
                     ),
+                  if (_isExpert) ...[
+                    const SizedBox(height: 12),
+                    _sectionTitle(t.translate("settings_coach")),
+                    SizedBox(height: TaqaUiScale.h(12)),
+                    const _CoachPinTile(),
+                    SizedBox(height: TaqaUiScale.h(12)),
+                    const _HabitReminderCard(),
+                  ],
                   const SizedBox(height: 12),
                   _sectionTitle(t.translate("settings_security")),
                   SizedBox(height: TaqaUiScale.h(12)),
@@ -1625,6 +1653,474 @@ class _SettingsTile extends StatelessWidget {
               if (badge != null) Positioned(top: 0, right: 0, child: badge!),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CoachPinTile extends StatefulWidget {
+  const _CoachPinTile();
+
+  @override
+  State<_CoachPinTile> createState() => _CoachPinTileState();
+}
+
+class _CoachPinTileState extends State<_CoachPinTile> {
+  // Cached across the app's lifetime so re-opening Settings doesn't refetch
+  // the coach PIN every time — it never changes during a session.
+  static String? _cachedPin;
+  static bool _pinCached = false;
+
+  bool _loading = !_pinCached;
+  String? _pin = _cachedPin;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!_pinCached) _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final pin = await ProgressionReviewService.fetchMyCoachCode();
+      _cachedPin = pin;
+      _pinCached = true;
+      if (!mounted) return;
+      setState(() {
+        _pin = pin;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _copy() async {
+    final pin = (_pin ?? '').trim();
+    if (pin.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: pin));
+    if (!mounted) return;
+    AppToast.show(context, 'Coach PIN copied', type: AppToastType.success);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pin = (_pin ?? '').trim();
+    return TaqaLogEntryCard(
+      title: 'Coach PIN',
+      badgeText: '',
+      badge: pin.isEmpty
+          ? null
+          : TaqaOutlineTagButton(
+              label: 'Copy',
+              width: TaqaUiScale.w(29),
+              height: TaqaUiScale.h(16),
+            ),
+      subtitle: _loading
+          ? 'Loading...'
+          : pin.isEmpty
+          ? 'Coach PIN unavailable.'
+          : pin,
+      onTap: pin.isEmpty ? null : _copy,
+    );
+  }
+}
+
+class _HabitReminderCard extends StatefulWidget {
+  const _HabitReminderCard();
+
+  @override
+  State<_HabitReminderCard> createState() => _HabitReminderCardState();
+}
+
+class _HabitReminderCardState extends State<_HabitReminderCard> {
+  static const _weekdayOptions = <MapEntry<int, String>>[
+    MapEntry<int, String>(0, 'Monday'),
+    MapEntry<int, String>(1, 'Tuesday'),
+    MapEntry<int, String>(2, 'Wednesday'),
+    MapEntry<int, String>(3, 'Thursday'),
+    MapEntry<int, String>(4, 'Friday'),
+    MapEntry<int, String>(5, 'Saturday'),
+    MapEntry<int, String>(6, 'Sunday'),
+  ];
+
+  // Cached across the app's lifetime so re-opening Settings doesn't refetch
+  // on every visit — only a successful save invalidates/refreshes it.
+  static CoachHabitReminderSettings? _cachedSettings;
+  static bool _settingsCached = false;
+
+  bool _loading = false;
+  bool _saving = false;
+  bool _triggering = false;
+  bool _loaded = false;
+  bool _autoEnabled = false;
+  String _scheduleType = 'weekly';
+  int _weeklyDay = 0;
+  int _hourOfDay = 9;
+  String _timeZone = 'UTC';
+
+  @override
+  void initState() {
+    super.initState();
+    if (_settingsCached && _cachedSettings != null) {
+      _applySettings(_cachedSettings!);
+    } else {
+      _load();
+    }
+  }
+
+  void _applySettings(CoachHabitReminderSettings settings) {
+    _autoEnabled = settings.autoEnabled;
+    final schedule = (settings.scheduleType ?? '').trim().toLowerCase();
+    _scheduleType = schedule == 'daily' ? 'daily' : 'weekly';
+    _weeklyDay = settings.weeklyDay.clamp(0, 6);
+    _hourOfDay = settings.hourOfDay.clamp(0, 23);
+    _timeZone = settings.timeZone.trim().isEmpty
+        ? 'UTC'
+        : settings.timeZone.trim();
+    _loaded = true;
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final settings = await CoachHabitReminderSettingsService.fetchSettings();
+      _cachedSettings = settings;
+      _settingsCached = true;
+      if (!mounted) return;
+      setState(() => _applySettings(settings));
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      final updated = await CoachHabitReminderSettingsService.updateSettings(
+        autoEnabled: _autoEnabled,
+        scheduleType: _scheduleType,
+        weeklyDay: _weeklyDay,
+        hourOfDay: _hourOfDay,
+      );
+      _cachedSettings = updated;
+      _settingsCached = true;
+      if (!mounted) return;
+      setState(() => _applySettings(updated));
+      AppToast.show(
+        context,
+        'Habit reminder settings saved.',
+        type: AppToastType.success,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _triggerNow() async {
+    if (_triggering) return;
+    setState(() => _triggering = true);
+    try {
+      final result = await CoachHabitReminderSettingsService.triggerNow();
+      if (!mounted) return;
+      final triggered = (result['triggered_clients'] as num?)?.toInt() ?? 0;
+      final targeted = (result['targeted_clients'] as num?)?.toInt() ?? 0;
+      AppToast.show(
+        context,
+        triggered > 0
+            ? 'Triggered reminders for $triggered of $targeted clients.'
+            : 'No reminder was triggered right now.',
+        type: triggered > 0 ? AppToastType.success : AppToastType.info,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _triggering = false);
+    }
+  }
+
+  Future<void> _pickWeekday(BuildContext context) async {
+    final selectedLabel = _weekdayOptions
+        .firstWhere((e) => e.key == _weeklyDay)
+        .value;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => TaqaCommunityOptionPickerSheet(
+        title: 'Day of week',
+        options: _weekdayOptions.map((e) => e.value).toList(growable: false),
+        selectedValue: selectedLabel,
+        onSelected: (value) {
+          final entry = _weekdayOptions.firstWhere((e) => e.value == value);
+          setState(() => _weeklyDay = entry.key);
+          Navigator.of(context).pop();
+        },
+      ),
+    );
+  }
+
+  static String _hourLabel(int hour) {
+    final period = hour < 12 ? 'AM' : 'PM';
+    final display = hour % 12 == 0 ? 12 : hour % 12;
+    return '$display $period';
+  }
+
+  Future<void> _pickHour(BuildContext context) async {
+    final hourOptions = List<int>.generate(24, (index) => index);
+    final selectedLabel = _hourLabel(_hourOfDay);
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => TaqaCommunityOptionPickerSheet(
+        title: 'Hour',
+        options: hourOptions.map(_hourLabel).toList(growable: false),
+        selectedValue: selectedLabel,
+        onSelected: (value) {
+          final hour = hourOptions.firstWhere(
+            (h) => _hourLabel(h) == value,
+          );
+          setState(() => _hourOfDay = hour);
+          Navigator.of(context).pop();
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controlsDisabled = _loading || _saving;
+    final scheduleSubtitle = _scheduleType == 'weekly'
+        ? 'Choose one weekday and one hour.'
+        : 'Choose one hour for daily trigger.';
+    final labelColor = TaqaUiColors.unnamedColor1c1d17;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: TaqaUiColors.white,
+        borderRadius: TaqaUiScale.radius(15),
+        border: Border.all(
+          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.10),
+        ),
+      ),
+      padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Habit Reminder Automation',
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(15),
+              fontWeight: FontWeight.w700,
+              height: 25 / 15,
+              letterSpacing: 0,
+              color: labelColor,
+            ),
+          ),
+          SizedBox(height: TaqaUiScale.h(6)),
+          Text(
+            'Automatic reminder scheduling for all assigned clients. Server time: $_timeZone',
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(15),
+              fontWeight: FontWeight.w400,
+              height: 21 / 15,
+              letterSpacing: 0,
+              color: labelColor,
+            ),
+          ),
+          SizedBox(height: TaqaUiScale.h(12)),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Auto send habit reminders to all clients',
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: TaqaUiScale.sp(13),
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: 0,
+                    color: labelColor,
+                  ),
+                ),
+              ),
+              TaqaSwitch(
+                value: _autoEnabled,
+                onChanged: controlsDisabled
+                    ? null
+                    : (value) => setState(() => _autoEnabled = value),
+              ),
+            ],
+          ),
+          SizedBox(height: TaqaUiScale.h(12)),
+          Row(
+            children: [
+              Expanded(
+                child: TaqaSegmentedToggleButton(
+                  label: 'WEEKLY',
+                  selected: _scheduleType == 'weekly',
+                  onTap: !_autoEnabled || controlsDisabled
+                      ? null
+                      : () => setState(() => _scheduleType = 'weekly'),
+                ),
+              ),
+              SizedBox(width: TaqaUiScale.w(15)),
+              Expanded(
+                child: TaqaSegmentedToggleButton(
+                  label: 'DAILY',
+                  selected: _scheduleType == 'daily',
+                  onTap: !_autoEnabled || controlsDisabled
+                      ? null
+                      : () => setState(() => _scheduleType = 'daily'),
+                ),
+              ),
+            ],
+          ),
+          if (_autoEnabled) ...[
+            SizedBox(height: TaqaUiScale.h(6)),
+            Text(
+              scheduleSubtitle,
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(13),
+                fontWeight: FontWeight.w400,
+                height: 18 / 13,
+                letterSpacing: 0,
+                color: labelColor.withValues(alpha: 0.6),
+              ),
+            ),
+            SizedBox(height: TaqaUiScale.h(10)),
+            if (_scheduleType == 'weekly') ...[
+              _SelectField(
+                label: 'Day of week',
+                valueLabel: _weekdayOptions
+                    .firstWhere((e) => e.key == _weeklyDay)
+                    .value,
+                onTap: controlsDisabled
+                    ? null
+                    : () => _pickWeekday(context),
+              ),
+              SizedBox(height: TaqaUiScale.h(10)),
+            ],
+            _SelectField(
+              label: 'Hour',
+              valueLabel: _hourLabel(_hourOfDay),
+              onTap: controlsDisabled ? null : () => _pickHour(context),
+            ),
+          ],
+          SizedBox(height: TaqaUiScale.h(14)),
+          TaqaFilledButton(
+            label: 'Save auto reminder settings',
+            onTap: controlsDisabled ? null : _save,
+            loading: _saving,
+          ),
+          SizedBox(height: TaqaUiScale.h(10)),
+          TaqaFilledButton(
+            label: 'Send habit reminders now',
+            onTap: _triggering ? null : _triggerNow,
+            loading: _triggering,
+          ),
+          if (_loading && !_loaded) ...[
+            SizedBox(height: TaqaUiScale.h(10)),
+            Text(
+              'Loading reminder settings...',
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(12),
+                color: labelColor.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SelectField extends StatelessWidget {
+  const _SelectField({
+    required this.label,
+    required this.valueLabel,
+    required this.onTap,
+  });
+
+  final String label;
+  final String valueLabel;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: TaqaUiScale.radius(10),
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: TaqaUiColors.unnamedColorE3e3e3,
+          borderRadius: TaqaUiScale.radius(10),
+        ),
+        padding: TaqaUiScale.insetsLTRB(12, 8, 12, 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(11),
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: 0,
+                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                        alpha: 0.5,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: TaqaUiScale.h(2)),
+                  Text(
+                    valueLabel,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(13),
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0,
+                      color: TaqaUiColors.unnamedColor1c1d17,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: TaqaUiScale.w(18),
+              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.5),
+            ),
+          ],
         ),
       ),
     );

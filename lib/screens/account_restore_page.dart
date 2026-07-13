@@ -14,7 +14,6 @@ import '../services/core/navigation_service.dart';
 import '../services/core/notification_service.dart';
 import '../services/core/daily_provider_push_service.dart';
 import '../screens/welcome.dart';
-import 'expert_dashboard_page.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
 
 class AccountRestorePage extends StatefulWidget {
@@ -297,7 +296,10 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
                 : (NavigationService.dietNotificationPending
                       ? const MainLayout(initialIndex: 0)
                       : (expertAiPending
-                            ? const ExpertDashboardPage()
+                            ? const MainLayout(
+                                initialIndex: MainLayout.coachTabIndex,
+                                autoOpenExpertDashboard: true,
+                              )
                             : const MainLayout())));
         Navigator.pushAndRemoveUntil(
           context,

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../main/main_layout.dart';
 import '../../core/account_storage.dart';
-import '../../screens/expert_dashboard_page.dart';
 import '../coach/coach_support_chat_service.dart';
 import '../../screens/coach_page.dart';
 import '../../screens/expert_client_chat_page.dart';
@@ -346,7 +345,14 @@ class NavigationService {
     final nav = navigatorKey.currentState;
     if (nav == null) return;
 
-    nav.push(MaterialPageRoute(builder: (_) => const ExpertDashboardPage()));
+    nav.push(
+      MaterialPageRoute(
+        builder: (_) => const MainLayout(
+          initialIndex: MainLayout.coachTabIndex,
+          autoOpenExpertDashboard: true,
+        ),
+      ),
+    );
   }
 
   static Future<void> navigateToCoachPage({

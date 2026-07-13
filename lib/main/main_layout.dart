@@ -18,7 +18,11 @@ import '../TaqaUI/components/taqa_bottom_nav_bar.dart';
 import '../TaqaUI/components/taqa_value_dialog.dart';
 
 class MainLayout extends StatefulWidget {
-  const MainLayout({super.key, this.initialIndex = _dashboardTab});
+  const MainLayout({
+    super.key,
+    this.initialIndex = _dashboardTab,
+    this.autoOpenExpertDashboard = false,
+  });
 
   static const int _dietTab = 0;
   static const int _trainTab = 1;
@@ -26,7 +30,20 @@ class MainLayout extends StatefulWidget {
   static const int _communityTab = 3;
   static const int _coachTab = 4;
 
+  /// Public alias of [_coachTab] so callers outside this file (login/boot/
+  /// welcome/restore redirects, notification handlers, ...) can target the
+  /// embedded Coach tab without duplicating the index.
+  static const int coachTabIndex = _coachTab;
+
   final int initialIndex;
+
+  /// When true and [initialIndex] is [coachTabIndex], the Coach tab is
+  /// populated with [ExpertDashboardPage] immediately on startup, skipping
+  /// the expert/client portal-choice dialog — used by entry points that
+  /// already know the user is an expert (login redirect, boot gate,
+  /// welcome flow, account restore, notification taps). The dialog still
+  /// shows when a user manually taps the Coach tab in the bottom nav.
+  final bool autoOpenExpertDashboard;
 
   @override
   State<MainLayout> createState() => _MainLayoutState();
@@ -48,7 +65,11 @@ class _MainLayoutState extends State<MainLayout> {
     super.initState();
     final idx = widget.initialIndex;
     _index = (idx >= 0 && idx < 5) ? idx : 0;
-    _pages[_index] = _buildPage(_index);
+    if (_index == MainLayout._coachTab && widget.autoOpenExpertDashboard) {
+      _pages[_index] = const ExpertDashboardPage();
+    } else {
+      _pages[_index] = _buildPage(_index);
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       NavigationService.setNotificationNavigationReady(true);
       NavigationService.flushPendingNotificationNavigation();
@@ -141,20 +162,6 @@ class _MainLayoutState extends State<MainLayout> {
     }
   }
 
-  // The other 4 bottom-nav tabs switch instantly (they're IndexedStack
-  // pages, no route push at all). A plain MaterialPageRoute push here would
-  // slide in from the right, which reads as an inconsistent, "off" feeling
-  // transition next to those instant tab switches — so this route has no
-  // transition, just like tapping Train/Diet/etc. appears immediately.
-  Route<T> _instantRoute<T>(WidgetBuilder builder) {
-    return PageRouteBuilder<T>(
-      pageBuilder: (context, animation, secondaryAnimation) =>
-          builder(context),
-      transitionDuration: Duration.zero,
-      reverseTransitionDuration: Duration.zero,
-    );
-  }
-
   Future<void> _openCoach() async {
     // Use the fast local cache to decide instantly instead of blocking the
     // whole tap on a network round-trip (ProfileApi.fetchProfile) the way
@@ -169,9 +176,10 @@ class _MainLayoutState extends State<MainLayout> {
     }
 
     if (!isExpert) {
-      await Navigator.of(
-        context,
-      ).push(_instantRoute((_) => const CoachPage()));
+      setState(() {
+        _pages[MainLayout._coachTab] = const CoachPage();
+        _index = MainLayout._coachTab;
+      });
       return;
     }
 
@@ -194,13 +202,12 @@ class _MainLayoutState extends State<MainLayout> {
     );
 
     if (!mounted || choice == null) return;
-    await Navigator.of(context).push(
-      _instantRoute(
-        (_) => choice == 'expert'
-            ? const ExpertDashboardPage()
-            : const CoachPage(),
-      ),
-    );
+    setState(() {
+      _pages[MainLayout._coachTab] = choice == 'expert'
+          ? const ExpertDashboardPage()
+          : const CoachPage();
+      _index = MainLayout._coachTab;
+    });
   }
 
   Widget _buildBottomNav() {

@@ -15,6 +15,7 @@ class TaqaLogEntryCard extends StatelessWidget {
     required this.subtitle,
     this.detailWidgets = const [],
     this.onTap,
+    this.badge,
   });
 
   final String title;
@@ -22,6 +23,11 @@ class TaqaLogEntryCard extends StatelessWidget {
   final String subtitle;
   final List<Widget> detailWidgets;
   final VoidCallback? onTap;
+
+  /// Overrides the plain [badgeText] rendering with a custom widget (e.g. a
+  /// bordered [TaqaOutlineTagButton]) when the corner marker needs to look
+  /// like an actual tag rather than bare text.
+  final Widget? badge;
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +61,9 @@ class TaqaLogEntryCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (badgeText.isNotEmpty)
+              if (badge != null)
+                badge!
+              else if (badgeText.isNotEmpty)
                 Text(
                   badgeText,
                   style: TextStyle(

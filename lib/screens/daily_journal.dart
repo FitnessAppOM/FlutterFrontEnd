@@ -1338,6 +1338,8 @@ class _NumberField extends StatelessWidget {
           child: TextField(
             controller: controller,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            autocorrect: false,
+            enableSuggestions: false,
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(13),
@@ -1381,6 +1383,8 @@ class _CompactNumberField extends StatelessWidget {
         child: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
+          autocorrect: false,
+          enableSuggestions: false,
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
             fontSize: TaqaUiScale.sp(13),

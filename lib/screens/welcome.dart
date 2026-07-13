@@ -13,7 +13,6 @@ import '../widgets/saved_account_tile.dart';
 import '../localization/app_localizations.dart';
 import '../main/main_layout.dart';
 import 'daily_journal.dart';
-import 'expert_dashboard_page.dart';
 import '../core/locale_controller.dart';
 import '../config/base_url.dart';
 import '../services/auth/profile_service.dart';
@@ -217,7 +216,10 @@ class _WelcomePageState extends State<WelcomePage> {
             : (NavigationService.dietNotificationPending
                 ? const MainLayout(initialIndex: 0)
                 : (expertAiPending
-                    ? const ExpertDashboardPage()
+                    ? const MainLayout(
+                        initialIndex: MainLayout.coachTabIndex,
+                        autoOpenExpertDashboard: true,
+                      )
                     : const MainLayout())));
         Navigator.pushAndRemoveUntil(
           context,

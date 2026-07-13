@@ -4,7 +4,6 @@ import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../core/account_storage.dart';
 import '../main/main_layout.dart';
-import '../screens/expert_dashboard_page.dart';
 import '../widgets/coach/coach_chat_panel.dart';
 
 /// Coach-side support chat. Shares [CoachChatPanel] with the client-side
@@ -31,8 +30,12 @@ class ExpertClientChatPage extends StatelessWidget {
     if (!context.mounted) return;
     navigator.pushAndRemoveUntil(
       MaterialPageRoute(
-        builder: (_) =>
-            isExpert ? const ExpertDashboardPage() : const MainLayout(),
+        builder: (_) => isExpert
+            ? const MainLayout(
+                initialIndex: MainLayout.coachTabIndex,
+                autoOpenExpertDashboard: true,
+              )
+            : const MainLayout(),
       ),
       (_) => false,
     );

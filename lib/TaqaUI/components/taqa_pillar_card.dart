@@ -26,8 +26,16 @@ class TaqaPillarCard extends StatefulWidget {
 
   /// Overrides the headline number text (defaults to `score.round()`).
   /// Use this when [score] isn't naturally a whole-number 0-100 value —
-  /// e.g. Whoop strain, which is shown with one decimal place.
+  /// e.g. Whoop strain, which is shown with one decimal place. Should be
+  /// the number only — pass [unit] separately rather than baking it in,
+  /// otherwise FittedBox shrinks the whole string (number + unit) together
+  /// and the digits end up smaller than they need to be.
   final String? valueDisplay;
+
+  /// Optional short unit (e.g. "km", "min", "bpm") shown as a small label
+  /// in the gap above the headline number, instead of appended inline —
+  /// keeps the number itself at full size regardless of unit length.
+  final String? unit;
 
   const TaqaPillarCard({
     super.key,
@@ -41,6 +49,7 @@ class TaqaPillarCard extends StatefulWidget {
     required this.detailLabels,
     this.maxScore = 100,
     this.valueDisplay,
+    this.unit,
   });
 
   @override
@@ -123,10 +132,34 @@ class _TaqaPillarCardState extends State<TaqaPillarCard> {
                         borderColor: chipBorder,
                       ),
                     ),
+                  if (widget.unit != null && widget.unit!.isNotEmpty)
+                    Positioned(
+                      left: TaqaUiScale.w(265),
+                      top: TaqaUiScale.h(33),
+                      width: TaqaUiScale.w(hasDetails ? 32 : 64),
+                      height: TaqaUiScale.h(12),
+                      child: Text(
+                        widget.unit!,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          fontSize: TaqaUiScale.sp(10),
+                          fontWeight: FontWeight.w500,
+                          color: textColor.withValues(alpha: 0.55),
+                          letterSpacing: 0,
+                          height: 1,
+                        ),
+                      ),
+                    ),
                   Positioned(
                     left: TaqaUiScale.w(265),
                     top: TaqaUiScale.h(48),
-                    width: TaqaUiScale.w(32),
+                    // Narrower when an arrow is present (hasDetails) so the
+                    // two never overlap; full width otherwise since there's
+                    // nothing to its right competing for space.
+                    width: TaqaUiScale.w(hasDetails ? 32 : 64),
                     height: TaqaUiScale.h(30),
                     child: FittedBox(
                       fit: BoxFit.scaleDown,

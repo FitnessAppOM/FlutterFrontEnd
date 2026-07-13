@@ -702,6 +702,7 @@ class AppLocalizations {
       "settings_change_password": "Change password",
       "settings_change_password_sub": "Reset your password via email",
       "settings_security": "Security",
+      "settings_coach": "Coach",
       "settings_profile": "Profile",
       "settings_change_username": "Change username",
       "settings_change_username_sub": "Update your public username",
@@ -2018,6 +2019,7 @@ class AppLocalizations {
       "settings_change_password_sub":
           "أعد تعيين كلمة المرور عبر البريد الإلكتروني",
       "settings_security": "الأمان",
+      "settings_coach": "المدرب",
       "settings_profile": "الملف الشخصي",
       "settings_change_username": "تغيير اسم المستخدم",
       "settings_change_username_sub": "تحديث اسمك العام",

@@ -21,7 +21,6 @@ import '../screens/ForgetPassword/forgot_password_page.dart';
 import '../main/main_layout.dart'; // <-- MAIN PAGE
 import '../screens/daily_journal.dart';
 import '../screens/account_restore_page.dart';
-import '../screens/expert_dashboard_page.dart';
 import 'email_verification_page.dart';
 import '../services/auth/profile_service.dart';
 import 'questionnaire.dart';
@@ -129,7 +128,10 @@ class _LoginPageState extends State<LoginPage> {
                 : (NavigationService.dietNotificationPending
                       ? const MainLayout(initialIndex: 0)
                       : (expertAiPending
-                            ? const ExpertDashboardPage()
+                            ? const MainLayout(
+                                initialIndex: MainLayout.coachTabIndex,
+                                autoOpenExpertDashboard: true,
+                              )
                             : const MainLayout())));
         Navigator.pushAndRemoveUntil(
           context,

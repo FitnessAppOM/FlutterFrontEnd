@@ -104,9 +104,7 @@ class FitbitDailyActivityDetailPage extends StatelessWidget {
     required IconData icon,
     required Color color,
   }) {
-    final valueText = value == null
-        ? null
-        : (unit.isEmpty ? _fmt(value) : "${_fmt(value)} $unit");
+    final valueText = value == null ? null : _fmt(value);
     final maxScore = (goal != null && goal > 0) ? goal.toDouble() : 1.0;
     return TaqaPillarCard(
       metricKey: metricKey,
@@ -118,6 +116,7 @@ class FitbitDailyActivityDetailPage extends StatelessWidget {
       details: const {},
       detailLabels: const {},
       valueDisplay: valueText,
+      unit: unit,
     );
   }
 

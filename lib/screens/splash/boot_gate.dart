@@ -11,7 +11,6 @@ import '../../core/account_storage.dart';
 import '../../core/locale_controller.dart';
 import '../../main/main_layout.dart';
 import '../../screens/daily_journal.dart';
-import '../../screens/expert_dashboard_page.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/core/navigation_service.dart';
 import '../../theme/app_theme.dart';
@@ -118,7 +117,10 @@ class _BootGateState extends State<BootGate> {
           : (NavigationService.dietNotificationPending
               ? const MainLayout(initialIndex: 0)
               : (expertAiPending
-                  ? const ExpertDashboardPage()
+                  ? const MainLayout(
+                      initialIndex: MainLayout.coachTabIndex,
+                      autoOpenExpertDashboard: true,
+                    )
                   : const MainLayout())));
       Navigator.pushAndRemoveUntil(
         context,
