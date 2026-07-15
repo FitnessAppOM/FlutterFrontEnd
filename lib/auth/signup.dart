@@ -116,12 +116,28 @@ class _SignupPageState extends State<SignupPage> {
       _showSnack(t.translate("signup_username_invalid"));
       return false;
     }
+    if (mail.length > 254) {
+      _showSnack("Email cannot exceed 254 characters.");
+      return false;
+    }
     if (!emailRegex.hasMatch(mail)) {
       _showSnack(t.translate("signup_email_invalid"));
       return false;
     }
+    if (fname.length > 50) {
+      _showSnack("First name cannot exceed 50 characters.");
+      return false;
+    }
+    if (lname.length > 50) {
+      _showSnack("Last name cannot exceed 50 characters.");
+      return false;
+    }
     if (pass.length < 8) {
       _showSnack(t.translate("signup_password_short"));
+      return false;
+    }
+    if (pass.length > 128) {
+      _showSnack("Password cannot exceed 128 characters.");
       return false;
     }
     // Mirror the backend policy so users are not rejected after submitting.
@@ -146,6 +162,29 @@ class _SignupPageState extends State<SignupPage> {
       _hasLowercase(p) &&
       _hasDigit(p) &&
       _hasSymbol(p);
+
+  String _signupErrorMessage(dynamic detail, AppLocalizations t) {
+    if (detail is List && detail.isNotEmpty) {
+      final first = detail.first;
+      if (first is Map) {
+        final location = first['loc'];
+        final field = location is List && location.isNotEmpty
+            ? location.last.toString().replaceAll('_', ' ')
+            : '';
+        final message = (first['msg'] ?? '').toString().trim();
+        if (message.isNotEmpty) {
+          return field.isEmpty ? message : '$field: $message';
+        }
+      }
+    }
+
+    final message = (detail ?? '').toString().trim();
+    if (message.isEmpty) return t.translate("signup_failed");
+    if (message.toLowerCase().contains('value too long for type character')) {
+      return 'Account creation is temporarily unavailable. Please try again later.';
+    }
+    return message;
+  }
 
   Future<void> signup() async {
     final t = AppLocalizations.of(context);
@@ -173,13 +212,17 @@ class _SignupPageState extends State<SignupPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final mail = (data["email"] ?? email.text.trim()).toString();
+        final emailDeliveryPending = data["email_delivery_pending"] == true;
 
         if (!mounted) return;
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) =>
-                EmailVerificationPage(email: mail, isExpert: widget.isExpert),
+            builder: (_) => EmailVerificationPage(
+              email: mail,
+              isExpert: widget.isExpert,
+              initialDeliveryPending: emailDeliveryPending,
+            ),
           ),
         );
       } else {
@@ -188,11 +231,10 @@ class _SignupPageState extends State<SignupPage> {
           decoded = jsonDecode(response.body);
         } catch (_) {}
 
-        final msg =
-            (decoded?["detail"] ??
-                    response.reasonPhrase ??
-                    t.translate("signup_failed"))
-                .toString();
+        final msg = _signupErrorMessage(
+          decoded?["detail"] ?? response.reasonPhrase,
+          t,
+        );
 
         _showSnack(msg);
       }
@@ -229,7 +271,7 @@ class _SignupPageState extends State<SignupPage> {
                 result["jwt"] ??
                 result["token"])
             ?.toString()
-            ?.trim();
+            .trim();
 
     if (userId <= 0 || accessToken == null || accessToken.isEmpty) {
       if (!mounted) return;
@@ -246,6 +288,7 @@ class _SignupPageState extends State<SignupPage> {
       name: name,
       verified: true,
       token: accessToken,
+      refreshToken: result["refresh_token"]?.toString(),
       isExpert: widget.isExpert,
       questionnaireDone: false,
       expertQuestionnaireDone: false,
@@ -344,7 +387,7 @@ class _SignupPageState extends State<SignupPage> {
                 result["jwt"] ??
                 result["token"])
             ?.toString()
-            ?.trim();
+            .trim();
 
     if (userId <= 0 || accessToken == null || accessToken.isEmpty) {
       if (!mounted) return;
@@ -361,6 +404,7 @@ class _SignupPageState extends State<SignupPage> {
       name: name,
       verified: true,
       token: accessToken,
+      refreshToken: result["refresh_token"]?.toString(),
       isExpert: widget.isExpert,
       questionnaireDone: false,
       expertQuestionnaireDone: false,
@@ -606,6 +650,7 @@ class _SignupPageState extends State<SignupPage> {
                   controller: username,
                   label: t.translate("signup_username"),
                   hint: t.translate("signup_username_hint"),
+                  maxLength: 50,
                   onChanged: (_) => setState(() {}),
                 ),
                 SizedBox(height: TaqaUiScale.h(12)),
@@ -616,6 +661,7 @@ class _SignupPageState extends State<SignupPage> {
                   label: t.translate("email"),
                   hint: t.translate("email_hint"),
                   keyboardType: TextInputType.emailAddress,
+                  maxLength: 254,
                   onChanged: (_) => setState(() {}),
                 ),
                 SizedBox(height: TaqaUiScale.h(12)),
@@ -625,6 +671,7 @@ class _SignupPageState extends State<SignupPage> {
                   controller: firstName,
                   label: t.translate("signup_first_name"),
                   hint: t.translate("signup_first_name_hint"),
+                  maxLength: 50,
                   onChanged: (_) => setState(() {}),
                 ),
                 SizedBox(height: TaqaUiScale.h(12)),
@@ -634,6 +681,7 @@ class _SignupPageState extends State<SignupPage> {
                   controller: lastName,
                   label: t.translate("signup_last_name"),
                   hint: t.translate("signup_last_name_hint"),
+                  maxLength: 50,
                   onChanged: (_) => setState(() {}),
                 ),
                 SizedBox(height: TaqaUiScale.h(12)),
@@ -644,6 +692,7 @@ class _SignupPageState extends State<SignupPage> {
                   label: t.translate("password"),
                   hint: t.translate("password_hint"),
                   obscureText: !passwordVisible,
+                  maxLength: 128,
                   onChanged: (_) => _onPasswordChanged(),
                   suffixIcon: IconButton(
                     icon: Icon(

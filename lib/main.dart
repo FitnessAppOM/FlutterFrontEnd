@@ -32,7 +32,18 @@ import 'core/account_storage.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'dart:io' show Platform;
 
-void main() async {
+Future<void> main() {
+  if (!kReleaseMode) {
+    return _bootstrap();
+  }
+
+  return runZoned(
+    _bootstrap,
+    zoneSpecification: ZoneSpecification(print: (self, parent, zone, line) {}),
+  );
+}
+
+Future<void> _bootstrap() async {
   final bootWatch = Stopwatch()..start();
   print('[Main] Entry');
   WidgetsFlutterBinding.ensureInitialized();

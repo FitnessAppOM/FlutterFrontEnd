@@ -4,6 +4,8 @@
 *.pyc
 *.swp
 .env
+.env.*
+!.env.example
 .DS_Store
 .atom/
 .build/
@@ -12,6 +14,7 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
+.tmpappdata/
 
 # IntelliJ related
 *.iml
@@ -53,3 +56,7 @@ android/build/
 *.keystore
 android/key.properties
 android/app/upload_certificate.pem
+*.p8
+*.p12
+*.mobileprovision
+*.cer

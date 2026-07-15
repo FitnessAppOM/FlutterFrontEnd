@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -41,21 +40,16 @@ class _BootGateState extends State<BootGate> {
     _boot();
   }
 
-  Future<_CheckUserResult> _checkUserExistsBackend(String email) async {
+  Future<_CheckUserResult> _checkSessionBackend(int userId) async {
     try {
-      final url = Uri.parse("${ApiConfig.baseUrl}/auth/check-user");
+      final url = Uri.parse(
+        "${ApiConfig.baseUrl}/profile/$userId/account-status",
+      );
+      final headers = await AccountStorage.getAuthHeaders();
       final res = await http
-          .post(
-            url,
-            headers: {"Content-Type": "application/json"},
-            body: jsonEncode({"email": email}),
-          )
+          .get(url, headers: headers)
           .timeout(_checkTimeout);
       if (res.statusCode != 200) return const _CheckUserResult();
-      final data = jsonDecode(res.body);
-      if (data is! Map) return const _CheckUserResult();
-      final id = data["user_id"];
-      final userId = id is int ? id : int.tryParse(id.toString());
       return _CheckUserResult(userId: userId);
     } on SocketException {
       return const _CheckUserResult(offline: true);
@@ -158,7 +152,7 @@ class _BootGateState extends State<BootGate> {
         final t = AppLocalizations.of(ctx);
         AppToast.show(
           ctx,
-          t.translate("offline_mode") ?? "Offline Mode",
+          t.translate("offline_mode"),
           type: AppToastType.info,
         );
       });
@@ -183,7 +177,7 @@ class _BootGateState extends State<BootGate> {
         verified == true &&
         questionnaireDone &&
         hasSession) {
-      final result = await _checkUserExistsBackend(email);
+      final result = await _checkSessionBackend(storedUserId);
       if (result.offline) {
         await _navigateOfflineMain();
         return;

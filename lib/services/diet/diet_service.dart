@@ -902,8 +902,10 @@ class DietService {
     int userId,
   ) async {
     final url = Uri.parse('$baseUrl/diet/favorites/$userId');
-    final response = await http.get(url);
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.get(url, headers: headers);
 
+    await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
       final body = response.body.isNotEmpty ? json.decode(response.body) : {};
       throw Exception(body['detail'] ?? 'Failed to load favorites');
@@ -946,8 +948,10 @@ class DietService {
     required int favoriteMealId,
   }) async {
     final url = Uri.parse('$baseUrl/diet/favorites/$userId/$favoriteMealId');
-    final response = await http.get(url);
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.get(url, headers: headers);
 
+    await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
       final body = response.body.isNotEmpty ? json.decode(response.body) : {};
       throw Exception(body['detail'] ?? 'Failed to load favorite');

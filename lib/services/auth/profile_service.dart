@@ -90,6 +90,34 @@ class ProfileApi {
     throw Exception("Failed to load profile (${res.statusCode})");
   }
 
+  static Future<Map<String, dynamic>> fetchCoachClientProfile(
+    int clientUserId,
+  ) async {
+    final url = Uri.parse(
+      "${ApiConfig.baseUrl}/coach/clients/$clientUserId/profile",
+    );
+    final headers = await AccountStorage.getAuthHeaders();
+    final res = await http.get(url, headers: headers);
+    await AccountStorage.handleAuthStatus(
+      res.statusCode,
+      responseBody: res.body,
+    );
+
+    if (res.statusCode == 200) {
+      final data = _decodeMap(res.body);
+      final normalizedAvatar = _normalizeAvatarUrl(data["avatar_url"]);
+      if (normalizedAvatar != null) {
+        data["avatar_url"] = normalizedAvatar;
+      }
+      return data;
+    }
+
+    final data = _decodeMap(res.body);
+    throw Exception(
+      data["detail"]?.toString() ?? "Failed to load client profile",
+    );
+  }
+
   static Future<Map<String, dynamic>> detachCoach({
     required int expertUserId,
   }) async {

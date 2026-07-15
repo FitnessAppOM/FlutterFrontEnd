@@ -50,7 +50,7 @@ struct TAQALiveActivityLiveActivity: Widget {
             } minimal: {
                 Text(context.state.emoji)
             }
-            .widgetURL(URL(string: "http://www.apple.com"))
+            .widgetURL(URL(string: "https://www.apple.com"))
             .keylineTint(Color.red)
         }
     }

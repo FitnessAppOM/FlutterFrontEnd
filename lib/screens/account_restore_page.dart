@@ -238,6 +238,7 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
         name: name,
         verified: true,
         token: accessToken,
+        refreshToken: result['refresh_token']?.toString(),
         isExpert: false,
         questionnaireDone: false,
         expertQuestionnaireDone: false,

@@ -537,6 +537,29 @@ class _SettingsPageState extends State<SettingsPage> {
     await _loadAppleWatchStatus(requestPermissionIfNeeded: true);
   }
 
+  Future<String> _createWearableAuthorizationUrl(String provider) async {
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.post(
+      Uri.parse('${ApiConfig.baseUrl}/auth/$provider/link'),
+      headers: {...headers, 'Accept': 'application/json'},
+    );
+    if (await AccountStorage.handleAuthStatus(
+      response.statusCode,
+      responseBody: response.body,
+    )) {
+      throw StateError('Authentication required');
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw StateError('Could not start $provider connection');
+    }
+    final decoded = jsonDecode(response.body);
+    final url = decoded is Map ? decoded['authorization_url']?.toString() : null;
+    if (url == null || Uri.tryParse(url)?.hasScheme != true) {
+      throw StateError('Invalid $provider authorization URL');
+    }
+    return url;
+  }
+
   Future<void> _connectWhoop() async {
     final loc = AppLocalizations.of(context);
     final userId = await AccountStorage.getUserId();
@@ -551,18 +574,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
     setState(() => _whoopLoading = true);
     try {
-      final token = await AccountStorage.getAccessToken();
-      final t = token?.trim();
-      if (t == null || t.isEmpty) {
-        AppToast.show(
-          context,
-          loc.translate("please_login_again"),
-          type: AppToastType.info,
-        );
-        return;
-      }
-      final url =
-          "${ApiConfig.baseUrl}/auth/whoop/login?user_id=$userId&token=$t";
+      final url = await _createWearableAuthorizationUrl('whoop');
       final result = await FlutterWebAuth2.authenticate(
         url: url,
         callbackUrlScheme: 'taqa',
@@ -621,18 +633,7 @@ class _SettingsPageState extends State<SettingsPage> {
     _fitbitAuthInFlight = true;
     setState(() => _fitbitLoading = true);
     try {
-      final token = await AccountStorage.getAccessToken();
-      final t = token?.trim();
-      if (t == null || t.isEmpty) {
-        AppToast.show(
-          context,
-          loc.translate("please_login_again"),
-          type: AppToastType.info,
-        );
-        return;
-      }
-      final url =
-          "${ApiConfig.baseUrl}/auth/fitbit/login?user_id=$userId&token=$t";
+      final url = await _createWearableAuthorizationUrl('fitbit');
       final result = await FlutterWebAuth2.authenticate(
         url: url,
         callbackUrlScheme: 'taqa',
@@ -685,18 +686,7 @@ class _SettingsPageState extends State<SettingsPage> {
     _stravaAuthInFlight = true;
     setState(() => _stravaLoading = true);
     try {
-      final token = await AccountStorage.getAccessToken();
-      final t = token?.trim();
-      if (t == null || t.isEmpty) {
-        AppToast.show(
-          context,
-          loc.translate("please_login_again"),
-          type: AppToastType.info,
-        );
-        return;
-      }
-      final url =
-          "${ApiConfig.baseUrl}/auth/strava/login?user_id=$userId&token=$t";
+      final url = await _createWearableAuthorizationUrl('strava');
       final result = await FlutterWebAuth2.authenticate(
         url: url,
         callbackUrlScheme: 'taqa',

@@ -39,8 +39,6 @@
 	<string>1900846730624720</string>
 	<key>FacebookDisplayName</key>
 	<string>Taqa Fitness</string>
-	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
 	<key>LSApplicationCategoryType</key>
 	<string></string>
 	<key>LSApplicationQueriesSchemes</key>
@@ -49,11 +47,6 @@
 	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsArbitraryLoads</key>
-		<true/>
-	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>We need camera access to let you take a profile photo.</string>
 	<key>NSHealthClinicalHealthRecordsShareUsageDescription</key>

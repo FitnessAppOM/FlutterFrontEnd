@@ -10,6 +10,7 @@ import 'package:record/record.dart';
 
 import '../config/base_url.dart';
 import '../core/account_storage.dart';
+import '../core/user_friendly_error.dart';
 import '../services/auth/profile_service.dart';
 import '../services/coach/chat_attachment_file_service.dart';
 import '../services/coach/coach_habits_service.dart';
@@ -178,9 +179,9 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     }
 
     try {
-      profile = await ProfileApi.fetchProfile(widget.client.userId);
+      profile = await ProfileApi.fetchCoachClientProfile(widget.client.userId);
     } catch (e) {
-      profileError = e.toString();
+      profileError = _normalizeProfileError(e);
     }
 
     try {
@@ -439,6 +440,17 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       if (clean.isNotEmpty) return clean;
     }
     return raw.isEmpty ? 'Non available' : raw;
+  }
+
+  String _normalizeProfileError(Object error) {
+    final raw = error.toString().toLowerCase();
+    if (raw.contains('forbidden') || raw.contains('403')) {
+      return 'Profile information is unavailable.';
+    }
+    return userFriendlyErrorMessage(
+      error,
+      fallback: 'Profile information is unavailable.',
+    );
   }
 
   String _displayName() {

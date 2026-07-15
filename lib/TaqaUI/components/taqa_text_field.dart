@@ -15,6 +15,7 @@ class TaqaTextField extends StatelessWidget {
     this.textInputAction,
     this.suffixIcon,
     this.onChanged,
+    this.maxLength,
   });
 
   final TextEditingController controller;
@@ -25,6 +26,7 @@ class TaqaTextField extends StatelessWidget {
   final TextInputAction? textInputAction;
   final Widget? suffixIcon;
   final ValueChanged<String>? onChanged;
+  final int? maxLength;
 
   @override
   Widget build(BuildContext context) {
@@ -54,6 +56,7 @@ class TaqaTextField extends StatelessWidget {
             keyboardType: keyboardType,
             textInputAction: textInputAction,
             onChanged: onChanged,
+            maxLength: maxLength,
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(14),
@@ -70,6 +73,7 @@ class TaqaTextField extends StatelessWidget {
               errorBorder: InputBorder.none,
               focusedErrorBorder: InputBorder.none,
               hintText: hint,
+              counterText: '',
               suffixIcon: suffixIcon,
               hintStyle: TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,

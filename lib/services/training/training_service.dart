@@ -1169,8 +1169,10 @@ class TrainingService {
     final url = Uri.parse(
       '$baseUrl/training/exercise/$programExerciseId/replace-suggestions',
     );
-    final response = await http.get(url);
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.get(url, headers: headers);
     _recordServerClock(response);
+    await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
       throw Exception("Failed to load suggestions");
     }

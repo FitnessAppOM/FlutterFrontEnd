@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
@@ -129,7 +130,10 @@ class ArticlePage extends StatelessWidget {
             if (item.contentUrl.isNotEmpty)
               Padding(
                 padding: TaqaUiScale.insetsLTRB(16, 0, 16, 30),
-                child: _PdfButton(url: item.contentUrl, title: item.title),
+                child: _ContentLinkButton(
+                  url: item.contentUrl,
+                  title: item.title,
+                ),
               ),
           ],
         ),
@@ -138,28 +142,48 @@ class ArticlePage extends StatelessWidget {
   }
 }
 
-class _PdfButton extends StatelessWidget {
+class _ContentLinkButton extends StatelessWidget {
   final String url;
   final String title;
 
-  const _PdfButton({required this.url, this.title = 'Document'});
+  const _ContentLinkButton({required this.url, this.title = 'Document'});
 
   @override
   Widget build(BuildContext context) {
+    final isPdf = PdfOpenService.isPdfUrl(url);
     return Material(
       color: TaqaUiColors.lime,
       borderRadius: TaqaUiScale.radius(5),
       child: InkWell(
         borderRadius: TaqaUiScale.radius(5),
-        onTap: () {
-          PdfOpenService.openInApp(context, url: url, title: title);
+        onTap: () async {
+          if (isPdf) {
+            await PdfOpenService.openInApp(context, url: url, title: title);
+            return;
+          }
+
+          final uri = Uri.tryParse(url.trim());
+          final canOpen =
+              uri != null &&
+              {'http', 'https'}.contains(uri.scheme.toLowerCase()) &&
+              uri.host.isNotEmpty;
+          final opened = canOpen
+              ? await launchUrl(uri, mode: LaunchMode.externalApplication)
+              : false;
+          if (!opened && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Could not open this article link.'),
+              ),
+            );
+          }
         },
         child: SizedBox(
           width: TaqaUiScale.w(357),
           height: TaqaUiScale.h(45),
           child: Center(
             child: Text(
-              "OPEN PDF",
+              isPdf ? "OPEN PDF" : "OPEN ARTICLE",
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,

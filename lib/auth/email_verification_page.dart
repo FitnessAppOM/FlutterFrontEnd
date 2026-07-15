@@ -20,11 +20,13 @@ import '../services/core/daily_provider_push_service.dart';
 class EmailVerificationPage extends StatefulWidget {
   final String email;
   final bool isExpert;
+  final bool initialDeliveryPending;
 
   const EmailVerificationPage({
     super.key,
     required this.email,
     this.isExpert = false,
+    this.initialDeliveryPending = false,
   });
 
   @override
@@ -39,6 +41,14 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
   bool resendCooldown = false;
   int cooldownSeconds = 30;
   Timer? timer;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialDeliveryPending) {
+      _startResendCooldown();
+    }
+  }
 
   @override
   void dispose() {
@@ -84,7 +94,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
                     data["jwt"] ??
                     data["token"])
                 ?.toString()
-                ?.trim();
+                .trim();
 
         if (userId <= 0) {
           _show(t.translate("network_error"));
@@ -97,6 +107,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
           name: email.split('@').first,
           verified: true,
           token: token,
+          refreshToken: data["refresh_token"]?.toString(),
           isExpert: widget.isExpert,
           questionnaireDone: false,
           expertQuestionnaireDone: false,
@@ -144,21 +155,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
 
     if (resendCooldown) return;
 
-    setState(() {
-      resendCooldown = true;
-      cooldownSeconds = 30;
-    });
-
-    timer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) return;
-      setState(() {
-        cooldownSeconds--;
-        if (cooldownSeconds <= 0) {
-          resendCooldown = false;
-          t.cancel();
-        }
-      });
-    });
+    _startResendCooldown();
 
     final url = Uri.parse("${ApiConfig.baseUrl}/auth/resend-verification");
 
@@ -181,6 +178,30 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
     } catch (e) {
       _show("${t.translate("network_error")}: $e");
     }
+  }
+
+  void _startResendCooldown() {
+    timer?.cancel();
+    if (mounted) {
+      setState(() {
+        resendCooldown = true;
+        cooldownSeconds = 30;
+      });
+    } else {
+      resendCooldown = true;
+      cooldownSeconds = 30;
+    }
+
+    timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      setState(() {
+        cooldownSeconds--;
+        if (cooldownSeconds <= 0) {
+          resendCooldown = false;
+          timer.cancel();
+        }
+      });
+    });
   }
 
   // ---------------- helpers ----------------
@@ -224,6 +245,17 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(t.translate("verification_sent"), style: bodyStyle),
+                  if (widget.initialDeliveryPending) ...[
+                    SizedBox(height: TaqaUiScale.h(8)),
+                    Text(
+                      'Your account was created, but the first email was delayed. '
+                      'Use Resend Code when the timer finishes.',
+                      style: bodyStyle.copyWith(
+                        color: Colors.orange.shade800,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                   SizedBox(height: TaqaUiScale.h(6)),
                   Text(
                     _obfuscateEmail(widget.email),

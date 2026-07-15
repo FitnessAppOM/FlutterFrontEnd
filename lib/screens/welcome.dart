@@ -25,7 +25,6 @@ import '../services/core/daily_provider_push_service.dart';
 import '../services/auth/auth_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 
@@ -85,24 +84,17 @@ class _WelcomePageState extends State<WelcomePage> {
   // -----------------------------------------------------------------------------
   static const Duration _checkTimeout = Duration(seconds: 6);
 
-  Future<UserCheckResult> checkUserExistsBackend(String email) async {
+  Future<UserCheckResult> checkSessionBackend(int userId) async {
     try {
-      final url = Uri.parse("${ApiConfig.baseUrl}/auth/check-user");
+      final url = Uri.parse(
+        "${ApiConfig.baseUrl}/profile/$userId/account-status",
+      );
+      final headers = await AccountStorage.getAuthHeaders();
       final res = await http
-          .post(
-            url,
-            headers: {"Content-Type": "application/json"},
-            body: jsonEncode({"email": email}),
-          )
+          .get(url, headers: headers)
           .timeout(_checkTimeout);
 
       if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        if (data is! Map) return const UserCheckResult();
-        final id = data["user_id"];
-        if (id == null) return const UserCheckResult();
-        final userId = id is int ? id : int.tryParse(id.toString());
-        if (userId == null) return const UserCheckResult();
         return UserCheckResult(id: userId);
       }
 
@@ -158,7 +150,7 @@ class _WelcomePageState extends State<WelcomePage> {
   final questionnaireDone = qDone || qExpertDone;
   if (e != null && e.isNotEmpty && v == true && questionnaireDone) {
     if (hasSession) {
-      final exists = await checkUserExistsBackend(e);
+      final exists = await checkSessionBackend(savedUserId);
       if (exists.offline) {
         await _navigateOfflineMain();
         return;
@@ -274,7 +266,7 @@ class _WelcomePageState extends State<WelcomePage> {
         final t = AppLocalizations.of(ctx);
         AppToast.show(
           ctx,
-          t.translate("offline_mode") ?? "Offline Mode",
+          t.translate("offline_mode"),
           type: AppToastType.info,
         );
       });
@@ -305,7 +297,7 @@ class _WelcomePageState extends State<WelcomePage> {
               result["jwt"] ??
               result["token"])
           ?.toString()
-          ?.trim();
+          .trim();
 
       if (userId <= 0 || accessToken == null || accessToken.isEmpty) {
         if (!mounted) return;
@@ -326,6 +318,7 @@ class _WelcomePageState extends State<WelcomePage> {
         name: name,
         verified: true,
         token: accessToken,
+        refreshToken: result["refresh_token"]?.toString(),
         isExpert: false,
         questionnaireDone: false,
         expertQuestionnaireDone: false,
@@ -385,7 +378,7 @@ class _WelcomePageState extends State<WelcomePage> {
               result["jwt"] ??
               result["token"])
           ?.toString()
-          ?.trim();
+          .trim();
 
       if (userId <= 0 || accessToken == null || accessToken.isEmpty) {
         if (!mounted) return;
@@ -406,6 +399,7 @@ class _WelcomePageState extends State<WelcomePage> {
         name: name,
         verified: true,
         token: accessToken,
+        refreshToken: result["refresh_token"]?.toString(),
         isExpert: false,
         questionnaireDone: false,
         expertQuestionnaireDone: false,

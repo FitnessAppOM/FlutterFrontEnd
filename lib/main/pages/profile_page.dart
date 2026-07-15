@@ -492,7 +492,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               }
                             },
                             onLogout: () async {
-                              await AccountStorage.clearSessionOnly();
+                              await AccountStorage.logoutSession();
                               if (!context.mounted) return;
                               Navigator.pushAndRemoveUntil(
                                 context,

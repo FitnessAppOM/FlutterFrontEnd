@@ -32,7 +32,7 @@ fun loadDotEnv(rootDir: File): Map<String, String> {
     return map
 }
 
-val dotEnv = loadDotEnv(rootProject.projectDir)
+val dotEnv = loadDotEnv(rootProject.projectDir.parentFile)
 val mapboxToken =
     (dotEnv["MAPBOX_PUBLIC_KEY"] ?: System.getenv("MAPBOX_PUBLIC_KEY") ?: "").trim()
 

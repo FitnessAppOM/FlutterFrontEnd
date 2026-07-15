@@ -10,6 +10,7 @@ import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_back_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../services/core/pdf_document_validation.dart';
 
 class PdfViewerPage extends StatefulWidget {
   const PdfViewerPage({
@@ -54,13 +55,34 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
 
   Future<void> _download() async {
     try {
-      final url = widget.url!;
-      final response = await http.get(Uri.parse(url));
+      final uri = Uri.tryParse(widget.url!);
+      if (uri == null ||
+          !uri.hasScheme ||
+          !{'http', 'https'}.contains(uri.scheme)) {
+        throw const FormatException('The document link is invalid.');
+      }
+      final response = await http.get(uri);
       if (response.statusCode != 200) {
-        throw Exception('Failed to download document (${response.statusCode})');
+        throw Exception(
+          'The document could not be downloaded (${response.statusCode}).',
+        );
+      }
+      if (!hasPdfSignature(response.bodyBytes)) {
+        throw const FormatException(
+          'This link did not return a valid PDF document.',
+        );
       }
       final dir = await getTemporaryDirectory();
-      final fileName = url.split('/').last.split('?').first;
+      final rawFileName = uri.pathSegments.isEmpty
+          ? 'document.pdf'
+          : uri.pathSegments.last;
+      final safeFileName = rawFileName.replaceAll(
+        RegExp(r'[^A-Za-z0-9._-]'),
+        '_',
+      );
+      final fileName = safeFileName.toLowerCase().endsWith('.pdf')
+          ? safeFileName
+          : '$safeFileName.pdf';
       final file = File('${dir.path}/$fileName');
       await file.writeAsBytes(response.bodyBytes, flush: true);
       if (!mounted) return;
@@ -116,7 +138,8 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
       autoSpacing: true,
       pageFling: true,
       onError: (error) {
-        setState(() => _error = error.toString());
+        if (!mounted) return;
+        setState(() => _error = 'This PDF is damaged or cannot be opened.');
       },
       onRender: (pages) {},
     );

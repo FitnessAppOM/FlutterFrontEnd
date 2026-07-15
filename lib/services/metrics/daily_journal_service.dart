@@ -109,7 +109,9 @@ class DailyJournalApi {
 
   static Future<DailyJournalEntry?> fetchLatest(int userId) async {
     final url = Uri.parse("${ApiConfig.baseUrl}/daily-journal/$userId/latest");
-    final res = await http.get(url);
+    final headers = await AccountStorage.getAuthHeaders();
+    final res = await http.get(url, headers: headers);
+    await AccountStorage.handle401(res.statusCode);
 
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
@@ -144,7 +146,9 @@ class DailyJournalApi {
     final url = Uri.parse(
       "${ApiConfig.baseUrl}/daily-journal/$userId/date/$dateStr",
     );
-    final future = http.get(url).then((res) {
+    final headers = await AccountStorage.getAuthHeaders();
+    final future = http.get(url, headers: headers).then((res) async {
+      await AccountStorage.handle401(res.statusCode);
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         return DailyJournalEntry.fromJson(data);

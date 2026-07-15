@@ -1,14 +1,22 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../config/base_url.dart';
+import 'jwt_expiry.dart';
+
 class AccountStorage {
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
+  static Future<String?>? _refreshInFlight;
   static const _kUserId = 'user_id';
   static const _kEmail = 'last_email';
   static const _kName = 'last_name';
   static const _kVerified = 'last_verified';
   static const _kToken = 'auth_token';
+  static const _kRefreshToken = 'auth_refresh_token';
   static const _kIsExpert = 'is_expert';
   static const _kQuestionnaireDone = 'questionnaire_done';
   static const _kExpertQuestionnaireDone = 'expert_questionnaire_done';
@@ -174,6 +182,7 @@ class AccountStorage {
     required String name,
     required bool verified,
     String? token,
+    String? refreshToken,
     bool? isExpert,
     bool? questionnaireDone,
     bool? expertQuestionnaireDone,
@@ -216,7 +225,14 @@ class AccountStorage {
       expertQuestionnaireDone ?? existingExpertQuestionnaireDone,
     );
     if (token != null && token.trim().isNotEmpty) {
-      await sp.setString(_kToken, token.trim());
+      await _secureStorage.write(key: _kToken, value: token.trim());
+      await sp.remove(_kToken);
+    }
+    if (refreshToken != null && refreshToken.trim().isNotEmpty) {
+      await _secureStorage.write(
+        key: _kRefreshToken,
+        value: refreshToken.trim(),
+      );
     }
     if (authProvider != null && authProvider.trim().isNotEmpty) {
       await sp.setString(_kAuthProvider, authProvider.trim());
@@ -366,17 +382,75 @@ class AccountStorage {
 
   /// JWT access token returned by login / Google login. Used for Authorization header on protected APIs.
   static Future<String?> getAccessToken() async {
+    final secureToken = await _secureStorage.read(key: _kToken);
+    if (secureToken != null && secureToken.trim().isNotEmpty) {
+      return secureToken.trim();
+    }
+
+    // Migrate sessions created before secure storage was enabled.
     final sp = await SharedPreferences.getInstance();
-    return sp.getString(_kToken);
+    final legacyToken = sp.getString(_kToken)?.trim();
+    if (legacyToken == null || legacyToken.isEmpty) return null;
+    await _secureStorage.write(key: _kToken, value: legacyToken);
+    await sp.remove(_kToken);
+    return legacyToken;
   }
 
   /// Headers to send with protected API requests. Empty if no token.
   /// Uses exact token string, trimmed (no extra spaces) as required by backend.
   static Future<Map<String, String>> getAuthHeaders() async {
-    final token = await getAccessToken();
+    var token = await getAccessToken();
+    if (token != null && accessTokenExpiresSoon(token)) {
+      token = await _refreshAccessToken();
+    }
     final t = token?.trim();
     if (t == null || t.isEmpty) return {};
     return {'Authorization': 'Bearer $t'};
+  }
+
+  static Future<String?> _refreshAccessToken() async {
+    final existing = _refreshInFlight;
+    if (existing != null) return existing;
+    final operation = _performRefresh();
+    _refreshInFlight = operation;
+    try {
+      return await operation;
+    } finally {
+      if (identical(_refreshInFlight, operation)) {
+        _refreshInFlight = null;
+      }
+    }
+  }
+
+  static Future<String?> _performRefresh() async {
+    final refreshToken = await _secureStorage.read(key: _kRefreshToken);
+    if (refreshToken == null || refreshToken.trim().isEmpty) return null;
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/auth/refresh'),
+        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        body: jsonEncode({'refresh_token': refreshToken.trim()}),
+      );
+      if (response.statusCode != 200) {
+        if (response.statusCode == 401 || response.statusCode == 403) {
+          await clearSessionOnly();
+          onUnauthorized?.call();
+        }
+        return null;
+      }
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map) return null;
+      final accessToken = decoded['access_token']?.toString().trim();
+      final nextRefresh = decoded['refresh_token']?.toString().trim();
+      if (accessToken == null || accessToken.isEmpty) return null;
+      await _secureStorage.write(key: _kToken, value: accessToken);
+      if (nextRefresh != null && nextRefresh.isNotEmpty) {
+        await _secureStorage.write(key: _kRefreshToken, value: nextRefresh);
+      }
+      return accessToken;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Call when a protected API returns 401: clears session and invokes onUnauthorized (e.g. navigate to login).
@@ -516,6 +590,8 @@ class AccountStorage {
   static Future<void> clearSession() async {
     final sp = await SharedPreferences.getInstance();
     final currentUserId = sp.getInt(_kUserId);
+    await _secureStorage.delete(key: _kToken);
+    await _secureStorage.delete(key: _kRefreshToken);
 
     // Only remove session-related values
     await sp.remove(_kUserId); // logged-in identity
@@ -550,6 +626,8 @@ class AccountStorage {
   static Future<void> clearSessionOnly() async {
     final sp = await SharedPreferences.getInstance();
     final currentUserId = sp.getInt(_kUserId);
+    await _secureStorage.delete(key: _kToken);
+    await _secureStorage.delete(key: _kRefreshToken);
     await sp.remove(_kToken);
     await sp.remove(_kUserId);
     if (currentUserId != null) {
@@ -571,9 +649,25 @@ class AccountStorage {
     notifyAccountChanged();
   }
 
+  static Future<void> logoutSession() async {
+    final refreshToken = await _secureStorage.read(key: _kRefreshToken);
+    if (refreshToken != null && refreshToken.trim().isNotEmpty) {
+      try {
+        await http.post(
+          Uri.parse('${ApiConfig.baseUrl}/auth/logout'),
+          headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+          body: jsonEncode({'refresh_token': refreshToken.trim()}),
+        );
+      } catch (_) {}
+    }
+    await clearSessionOnly();
+  }
+
   static Future<void> clear() async {
     final sp = await SharedPreferences.getInstance();
     final currentUserId = sp.getInt(_kUserId);
+    await _secureStorage.delete(key: _kToken);
+    await _secureStorage.delete(key: _kRefreshToken);
     await sp.remove(_kUserId);
     await sp.remove(_kEmail);
     await sp.remove(_kName);

@@ -37,6 +37,7 @@ class ExpertQuestionnaireForm extends StatefulWidget {
 class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
   final _formKey = GlobalKey<FormState>();
   final Map<String, TextEditingController> _ctrl = {};
+  final Map<String, ExpertDocumentUpload> _documentUploads = {};
 
   String? _gender;
   String? _role;
@@ -278,6 +279,12 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
       _toast("Please upload a selfie.");
       return;
     }
+    if (_c("government_id_file_url").text.trim().isEmpty) {
+      _toast("Please upload a government ID.");
+      return;
+    }
+    if (!await _requiredDocumentScansAreClean(certChoice)) return;
+
     final selfieUrl = selfieRaw;
     final certFileUrl = certChoice == "No" ? "" : _certFileCtrl.text.trim();
 
@@ -421,9 +428,7 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
             ),
             SizedBox(height: TaqaUiScale.h(8)),
             TaqaUploadRow(
-              display: _c("government_id_file_url").text.isEmpty
-                  ? "No file uploaded"
-                  : _c("government_id_file_url").text,
+              display: _documentDisplay("gov", _c("government_id_file_url")),
               actionLabel: "Upload",
               onTap: () => _pickAndUpload("gov", _c("government_id_file_url")),
             ),
@@ -439,9 +444,7 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
             ),
             SizedBox(height: TaqaUiScale.h(8)),
             TaqaUploadRow(
-              display: _c("selfie_file_url").text.isEmpty
-                  ? "No file uploaded"
-                  : _c("selfie_file_url").text,
+              display: _documentDisplay("selfie", _c("selfie_file_url")),
               actionLabel: "Upload",
               onTap: () => _captureSelfie(_c("selfie_file_url")),
             ),
@@ -742,6 +745,58 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
     );
   }
 
+  String _documentDisplay(String kind, TextEditingController controller) {
+    if (controller.text.trim().isEmpty) return "No file uploaded";
+    final upload = _documentUploads[kind];
+    if (upload == null) return "File uploaded";
+    switch (upload.status) {
+      case "clean":
+        return "Ready - security scan passed";
+      case "rejected":
+        return "Rejected - upload another file";
+      case "failed":
+        return "Scan failed - upload again";
+      default:
+        return "Security scan pending";
+    }
+  }
+
+  Future<bool> _requiredDocumentScansAreClean(String certChoice) async {
+    final requiredKinds = <String>["gov", "selfie"];
+    if (certChoice == "Yes") requiredKinds.add("cert");
+
+    try {
+      for (final kind in requiredKinds) {
+        final upload = _documentUploads[kind];
+        // Files loaded before this release have no document ID and are checked by the backend.
+        if (upload == null) continue;
+        final refreshed = await ExpertQuestionnaireApi.getUploadStatus(
+          upload.documentId,
+        );
+        _documentUploads[kind] = refreshed;
+      }
+      if (mounted) setState(() {});
+    } catch (e) {
+      _toast("$e", type: AppToastType.error);
+      return false;
+    }
+
+    for (final kind in requiredKinds) {
+      final status = _documentUploads[kind]?.status;
+      if (status == null || status == "clean") continue;
+      if (status == "pending") {
+        _toast("Document security scanning is still in progress.");
+      } else {
+        _toast(
+          "A document did not pass security scanning. Upload it again.",
+          type: AppToastType.error,
+        );
+      }
+      return false;
+    }
+    return true;
+  }
+
   Future<void> _openAffiliationSelector() async {
     final result = await Navigator.of(context).push<Map<String, String?>>(
       MaterialPageRoute(
@@ -770,6 +825,8 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
           certType: _certType,
           certTypeOther: _certOtherCtrl.text,
           certFileUrl: _certFileCtrl.text,
+          documentId: _documentUploads["cert"]?.documentId,
+          scanStatus: _documentUploads["cert"]?.status,
           certOpts: _certOpts,
         ),
       ),
@@ -780,6 +837,16 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
       _certType = result["type"];
       _certOtherCtrl.text = result["other"] ?? "";
       _certFileCtrl.text = result["file"] ?? "";
+      final documentId = result["document_id"];
+      if (documentId != null && documentId.isNotEmpty) {
+        _documentUploads["cert"] = ExpertDocumentUpload(
+          documentId: documentId,
+          reference: result["file"] ?? "",
+          status: result["scan_status"] ?? "pending",
+        );
+      } else {
+        _documentUploads.remove("cert");
+      }
     });
   }
 
@@ -967,11 +1034,12 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
     }
 
     try {
-      final url = await ExpertQuestionnaireApi.upload(kind, path);
+      final upload = await ExpertQuestionnaireApi.upload(kind, path);
       setState(() {
-        controller.text = url;
+        controller.text = upload.reference;
+        _documentUploads[kind] = upload;
       });
-      _toast("Uploaded", type: AppToastType.success);
+      _toast("Uploaded. Security scan pending.", type: AppToastType.success);
     } catch (e) {
       _toast("$e", type: AppToastType.error);
     }
@@ -1010,12 +1078,13 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
     }
 
     try {
-      final url = await ExpertQuestionnaireApi.upload("selfie", picked.path);
+      final upload = await ExpertQuestionnaireApi.upload("selfie", picked.path);
       if (!mounted) return;
       setState(() {
-        controller.text = url;
+        controller.text = upload.reference;
+        _documentUploads["selfie"] = upload;
       });
-      _toast("Uploaded", type: AppToastType.success);
+      _toast("Uploaded. Security scan pending.", type: AppToastType.success);
     } catch (e) {
       _toast("$e", type: AppToastType.error);
     }
@@ -1262,6 +1331,8 @@ class _CertificateSelectionPage extends StatefulWidget {
     required this.certType,
     required this.certTypeOther,
     required this.certFileUrl,
+    required this.documentId,
+    required this.scanStatus,
     required this.certOpts,
   });
 
@@ -1269,6 +1340,8 @@ class _CertificateSelectionPage extends StatefulWidget {
   final String? certType;
   final String certTypeOther;
   final String certFileUrl;
+  final String? documentId;
+  final String? scanStatus;
   final List<String> certOpts;
 
   @override
@@ -1281,6 +1354,8 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
   String? _certType;
   late TextEditingController _otherCtrl;
   late TextEditingController _fileCtrl;
+  String? _documentId;
+  String? _scanStatus;
 
   @override
   void initState() {
@@ -1289,6 +1364,8 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
     _certType = widget.certType;
     _otherCtrl = TextEditingController(text: widget.certTypeOther);
     _fileCtrl = TextEditingController(text: widget.certFileUrl);
+    _documentId = widget.documentId;
+    _scanStatus = widget.scanStatus;
   }
 
   @override
@@ -1319,6 +1396,8 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
       "type": _certType,
       "other": _otherCtrl.text.trim(),
       "file": _fileCtrl.text.trim(),
+      "document_id": _documentId,
+      "scan_status": _scanStatus,
     });
   }
 
@@ -1343,6 +1422,8 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
                     _certType = null;
                     _otherCtrl.clear();
                     _fileCtrl.clear();
+                    _documentId = null;
+                    _scanStatus = null;
                   }
                 });
               },
@@ -1371,7 +1452,11 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
               TaqaUploadRow(
                 display: _fileCtrl.text.isEmpty
                     ? "No file uploaded"
-                    : _fileCtrl.text,
+                    : _scanStatus == "clean"
+                    ? "Ready - security scan passed"
+                    : _scanStatus == "rejected" || _scanStatus == "failed"
+                    ? "Scan failed - upload again"
+                    : "Security scan pending",
                 actionLabel: "Upload",
                 onTap: () => _pickAndUpload("cert"),
               ),
@@ -1407,11 +1492,13 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
       return;
     }
     try {
-      final url = await ExpertQuestionnaireApi.upload(kind, path);
+      final upload = await ExpertQuestionnaireApi.upload(kind, path);
       setState(() {
-        _fileCtrl.text = url;
+        _fileCtrl.text = upload.reference;
+        _documentId = upload.documentId;
+        _scanStatus = upload.status;
       });
-      _toast("Uploaded", type: AppToastType.success);
+      _toast("Uploaded. Security scan pending.", type: AppToastType.success);
     } catch (e) {
       _toast("$e", type: AppToastType.error);
     }
