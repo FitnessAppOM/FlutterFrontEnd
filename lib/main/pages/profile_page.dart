@@ -16,6 +16,7 @@ import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/components/taqa_back_button.dart';
+import '../../TaqaUI/components/taqa_refresh_indicator.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -336,11 +337,14 @@ class _ProfilePageState extends State<ProfilePage> {
     );
     final affiliationName = _profile?["affiliation_name"]?.toString();
     final affiliationOther = _profile?["affiliation_other_text"]?.toString();
+    final universityName = _profile?["university_name"]?.toString();
     final affiliationDisplay =
         (affiliationName != null && affiliationName.trim().isNotEmpty)
         ? affiliationName
         : (affiliationOther != null && affiliationOther.trim().isNotEmpty)
         ? affiliationOther
+        : (universityName != null && universityName.trim().isNotEmpty)
+        ? universityName
         : "";
     final age = _profile?["age"]?.toString();
     final sex = _translateOption("sex", _profile?["sex"], t);
@@ -408,9 +412,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                     )
-                  : RefreshIndicator(
+                  : TaqaRefreshIndicator(
                       onRefresh: _loadProfile,
-                      color: TaqaUiColors.unnamedColor1c1d17,
                       child: ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: TaqaUiScale.insetsLTRB(16, 20, 16, 24),

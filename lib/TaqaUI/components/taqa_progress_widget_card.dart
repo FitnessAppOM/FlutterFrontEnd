@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
+import 'taqa_marquee_text.dart';
 
 class TaqaProgressWidgetCard extends StatelessWidget {
   const TaqaProgressWidgetCard({
@@ -18,6 +19,7 @@ class TaqaProgressWidgetCard extends StatelessWidget {
     this.onTap,
     this.topRight,
     this.lightSurface = true,
+    this.goalScrollable = true,
   });
 
   final String title;
@@ -29,6 +31,12 @@ class TaqaProgressWidgetCard extends StatelessWidget {
   final VoidCallback? onTap;
   final Widget? topRight;
   final bool lightSurface;
+
+  /// Set false for a static status message (e.g. "No health data") rather
+  /// than a real value — it should just show in full, never scroll,
+  /// regardless of length. Only takes effect on arc cards (showArc: true);
+  /// non-arc cards never scroll their goal text at all.
+  final bool goalScrollable;
 
   @override
   Widget build(BuildContext context) {
@@ -79,6 +87,35 @@ class TaqaProgressWidgetCard extends StatelessWidget {
           final titleToArcGap = TaqaUiScale.h(8) * safeScale;
           final goalTopGap = TaqaUiScale.h(0) * safeScale;
           final goalOverlap = TaqaUiScale.h(6) * safeScale;
+          final goalTextStyle = TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: goalFontSize,
+            fontWeight: FontWeight.w300,
+            color: textColor,
+            height: 1.1,
+          );
+          // Text under 13 characters never goes near the cap/marquee path at
+          // all below, so it can't be clipped by a measurement mismatch.
+          const goalScrollThreshold = 13;
+          // For text at/over the threshold, force a box no wider than the
+          // real text's own first 12 characters, so it's always narrower
+          // than the full string and reliably overflows into a scroll —
+          // measuring a prefix of the actual text (same style) instead of
+          // guessing a multiplier keeps this accurate to the real font.
+          final goalCapWidth =
+              (TextPainter(
+                    text: TextSpan(
+                      text: goalText.substring(
+                        0,
+                        math.min(goalScrollThreshold - 1, goalText.length),
+                      ),
+                      style: goalTextStyle,
+                    ),
+                    maxLines: 1,
+                    textDirection: TextDirection.ltr,
+                    textScaler: MediaQuery.textScalerOf(context),
+                  )..layout(maxWidth: double.infinity))
+                  .width;
 
           return Center(
             child: SizedBox(
@@ -244,29 +281,36 @@ class TaqaProgressWidgetCard extends StatelessWidget {
                               SizedBox(height: goalTopGap),
                               Transform.translate(
                                 offset: Offset(0, -goalOverlap),
-                                child: Center(
-                                  child: Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: TaqaUiScale.w(8) * safeScale,
-                                    ),
-                                    child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text(
-                                        goalText,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          fontFamily:
-                                              TaqaUiFontFamilies.interTight,
-                                          fontSize: goalFontSize,
-                                          fontWeight: FontWeight.w300,
-                                          color: textColor,
-                                          height: 1.1,
-                                        ),
-                                      ),
-                                    ),
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: TaqaUiScale.w(8) * safeScale,
                                   ),
+                                  child: !showArc
+                                      ? Text(
+                                          goalText,
+                                          textAlign: TextAlign.center,
+                                          style: goalTextStyle,
+                                        )
+                                      : !goalScrollable ||
+                                            goalText.length <
+                                                goalScrollThreshold
+                                      ? Text(
+                                          goalText,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          textAlign: TextAlign.center,
+                                          style: goalTextStyle,
+                                        )
+                                      : Center(
+                                          child: SizedBox(
+                                            width: goalCapWidth,
+                                            child: TaqaMarqueeText(
+                                              text: goalText,
+                                              textAlign: TextAlign.center,
+                                              style: goalTextStyle,
+                                            ),
+                                          ),
+                                        ),
                                 ),
                               ),
                             ],

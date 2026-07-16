@@ -247,13 +247,13 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                SizedBox(
-                  width: TaqaUiScale.w(147),
-                  height: TaqaUiScale.h(30),
+                Expanded(
                   child: Text(
                     t(
                       "steps_goal_btn",
                     ).replaceAll("{value}", "${_goal ?? 10000}"),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(25),
@@ -264,7 +264,6 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                     ),
                   ),
                 ),
-                const Spacer(),
                 if (_canManualEdit) ...[
                   TaqaTagButton(
                     icon: Icons.edit_outlined,

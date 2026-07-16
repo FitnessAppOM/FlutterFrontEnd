@@ -240,11 +240,11 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                SizedBox(
-                  width: TaqaUiScale.w(147),
-                  height: TaqaUiScale.h(30),
+                Expanded(
                   child: Text(
                     "${t("water_goal_btn").replaceAll("{value}", (_goal ?? 2.5).toStringAsFixed(1))} ${t("dash_unit_l")}",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(25),
@@ -255,7 +255,6 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
                     ),
                   ),
                 ),
-                const Spacer(),
                 if (_canManualEdit) ...[
                   TaqaTagButton(
                     icon: Icons.edit_outlined,

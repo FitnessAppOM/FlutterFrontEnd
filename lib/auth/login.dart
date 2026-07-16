@@ -248,11 +248,11 @@ class _LoginPageState extends State<LoginPage> {
         }
 
         final emailFromApi = (data?['email'] ?? mail).toString();
-        final name =
-            (data?['username'] ??
-                    data?['full_name'] ??
-                    emailFromApi.split('@').first)
-                .toString();
+        // Login never returns username/full_name; leave it blank rather than
+        // falling back to the email's local part, which flashes as a raw,
+        // unformatted string until the profile fetch resolves the real name.
+        final name = (data?['username'] ?? data?['full_name'] ?? '')
+            .toString();
         await AccountStorage.saveUserSession(
           userId: userId,
           email: emailFromApi,

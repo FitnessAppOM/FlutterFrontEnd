@@ -50,6 +50,7 @@ class HealthRecoveryLoadCard extends StatelessWidget {
       title: t("health_recovery_title"),
       valueText: value,
       goalText: subtitle,
+      goalScrollable: subtitleParts.isNotEmpty,
       progress: 0.0,
       showArc: false,
       loading: loading &&

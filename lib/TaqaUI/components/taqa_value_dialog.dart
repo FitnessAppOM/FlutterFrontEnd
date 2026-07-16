@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
@@ -459,6 +460,13 @@ Future<String?> _showTaqaInputDialog({
   final controller = TextEditingController(text: initialValue);
   final focusNode = FocusNode();
   var hasEdited = initialValue.trim().isNotEmpty;
+  // Applies to every numeric popup (goal/value entry, quantities, etc.)
+  // regardless of caller, so no call site can end up unbounded — max 6
+  // integer digits (999999) plus up to 2 decimal digits for decimal fields.
+  final isNumeric = keyboardType.index == TextInputType.number.index;
+  final inputFormatters = isNumeric
+      ? [FilteringTextInputFormatter.allow(RegExp(r'^\d{0,6}(\.\d{0,2})?$'))]
+      : null;
 
   try {
     return await showDialog<String>(
@@ -503,6 +511,7 @@ Future<String?> _showTaqaInputDialog({
                               focusNode: focusNode,
                               keyboardType: keyboardType,
                               maxLength: maxLength,
+                              inputFormatters: inputFormatters,
                               autofocus: true,
                               textAlign: TextAlign.center,
                               onTap: () {

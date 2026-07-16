@@ -25,6 +25,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
   final Map<String, String> _values = {};
   final Map<String, TextEditingController> _otherControllers = {};
   int _currentSection = 0;
+  final ScrollController _scrollController = ScrollController();
   final TextEditingController _affiliationOtherCtrl = TextEditingController();
   final TextEditingController _chronicCtrl = TextEditingController();
 
@@ -54,6 +55,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       c.dispose();
     }
     _chronicCtrl.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -237,6 +239,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       setState(() {
         _currentSection++;
       });
+      _scrollToTop();
     } else {
       await _submit();
     }
@@ -247,7 +250,13 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       setState(() {
         _currentSection--;
       });
+      _scrollToTop();
     }
+  }
+
+  void _scrollToTop() {
+    if (!_scrollController.hasClients) return;
+    _scrollController.jumpTo(0);
   }
 
   Future<void> _loadUniversities() async {
@@ -516,6 +525,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
           SizedBox(height: TaqaUiScale.h(16)),
           Expanded(
             child: SingleChildScrollView(
+              controller: _scrollController,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

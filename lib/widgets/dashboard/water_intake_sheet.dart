@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/account_storage.dart';
@@ -117,6 +118,10 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
     final intake = double.tryParse(_intakeCtrl.text.trim());
     if (goal == null && intake == null) {
       AppToast.show(context, t("water_enter_goal_or_intake"), type: AppToastType.info);
+      return;
+    }
+    if ((goal != null && goal > 999999) || (intake != null && intake > 999999)) {
+      AppToast.show(context, t("value_max_exceeded"), type: AppToastType.error);
       return;
     }
     final userId = await AccountStorage.getUserId();
@@ -329,6 +334,11 @@ class _FieldRow extends StatelessWidget {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(
+                  RegExp(r'^\d{0,6}(\.\d{0,2})?$'),
+                ),
+              ],
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 hintText: label,

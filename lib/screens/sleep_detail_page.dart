@@ -145,7 +145,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
     );
     final res = text == null ? null : double.tryParse(text);
-    if (res != null) {
+    if (res != null && res >= 0) {
       final sp = await SharedPreferences.getInstance();
       await sp.setDouble(_sleepGoalKey, res);
       if (!mounted) return;

@@ -127,11 +127,19 @@ Future<String?> showTaqaTextValueDialog({
   required String title,
   required String initialValue,
   TextInputType keyboardType = TextInputType.number,
+  String? unit,
+  String confirmLabel = "SAVE",
+  String hintText = "0",
+  int? maxLength,
 }) async {
   return taqa_value_dialog.showTaqaTextValueDialog(
     context: context,
     title: title,
     initialValue: initialValue,
     keyboardType: keyboardType,
+    unit: unit,
+    confirmLabel: confirmLabel,
+    hintText: hintText,
+    maxLength: maxLength,
   );
 }

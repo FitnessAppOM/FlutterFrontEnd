@@ -5014,7 +5014,6 @@ class DashboardPageState extends State<DashboardPage>
       try {
         final profile = await ProfileApi.fetchProfile(requestUserId);
         final resolvedName = _resolveDisplayName(profile);
-        final resolvedAccountName = _resolveStoredAccountName(profile);
         final remoteAvatar = _normalizeAvatarUrl(
           profile["avatar_url"]?.toString(),
         );
@@ -5022,10 +5021,7 @@ class DashboardPageState extends State<DashboardPage>
         final weight = profile["weight_kg"];
         if (resolvedName != null && resolvedName.trim().isNotEmpty) {
           fetchedName = resolvedName;
-        }
-        if (resolvedAccountName != null &&
-            resolvedAccountName.trim().isNotEmpty) {
-          fetchedAccountName = resolvedAccountName;
+          fetchedAccountName = resolvedName;
         }
         if (remoteAvatar != null && remoteAvatar.trim().isNotEmpty) {
           if (mounted && remoteAvatar != storedAvatar) {
@@ -5093,12 +5089,6 @@ class DashboardPageState extends State<DashboardPage>
     if (username.isNotEmpty) return username;
 
     return null;
-  }
-
-  String? _resolveStoredAccountName(Map<String, dynamic> profile) {
-    final username = profile["username"]?.toString().trim() ?? "";
-    if (username.isNotEmpty) return username;
-    return _resolveDisplayName(profile);
   }
 
   String? _normalizeAvatarUrl(String? rawValue) {
