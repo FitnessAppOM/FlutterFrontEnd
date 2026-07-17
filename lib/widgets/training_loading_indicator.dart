@@ -1,13 +1,16 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
+import '../TaqaUI/taqa_ui_colors.dart';
+
 class TrainingLoadingIndicator extends StatefulWidget {
   const TrainingLoadingIndicator({super.key, this.size = 140});
 
   final double size;
 
   @override
-  State<TrainingLoadingIndicator> createState() => _TrainingLoadingIndicatorState();
+  State<TrainingLoadingIndicator> createState() =>
+      _TrainingLoadingIndicatorState();
 }
 
 class _TrainingLoadingIndicatorState extends State<TrainingLoadingIndicator>
@@ -31,14 +34,12 @@ class _TrainingLoadingIndicatorState extends State<TrainingLoadingIndicator>
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     return SizedBox(
       width: widget.size,
       height: widget.size,
       child: AnimatedBuilder(
         animation: _controller,
-        builder: (_, __) {
+        builder: (_, _) {
           return Stack(
             alignment: Alignment.center,
             children: [
@@ -53,10 +54,10 @@ class _TrainingLoadingIndicatorState extends State<TrainingLoadingIndicator>
                       startAngle: 0,
                       endAngle: 2 * math.pi,
                       colors: [
-                        cs.primary.withOpacity(0.05),
-                        cs.primary.withOpacity(0.35),
-                        cs.secondary.withOpacity(0.45),
-                        cs.primary.withOpacity(0.05),
+                        TaqaUiColors.unnamedColorE4e93b.withValues(alpha: 0.05),
+                        TaqaUiColors.unnamedColorE4e93b.withValues(alpha: 0.38),
+                        TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.45),
+                        TaqaUiColors.unnamedColorE4e93b.withValues(alpha: 0.05),
                       ],
                       stops: const [0.0, 0.4, 0.8, 1.0],
                     ),
@@ -68,18 +69,20 @@ class _TrainingLoadingIndicatorState extends State<TrainingLoadingIndicator>
                 height: widget.size * 0.72,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: cs.surface,
+                  color: TaqaUiColors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: cs.primary.withOpacity(0.15),
+                      color: TaqaUiColors.unnamedColorE4e93b.withValues(
+                        alpha: 0.28,
+                      ),
                       blurRadius: 24,
                       spreadRadius: 4,
                     ),
                   ],
                 ),
                 child: Icon(
-                  Icons.fitness_center,
-                  color: cs.primary,
+                  Icons.auto_awesome,
+                  color: TaqaUiColors.unnamedColor1c1d17,
                   size: widget.size * 0.28,
                 ),
               ),

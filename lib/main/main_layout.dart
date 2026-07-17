@@ -177,7 +177,9 @@ class _MainLayoutState extends State<MainLayout> {
 
     if (!isExpert) {
       setState(() {
-        _pages[MainLayout._coachTab] = const CoachPage();
+        _pages[MainLayout._coachTab] = const CoachPage(
+          showBottomNavigation: false,
+        );
         _index = MainLayout._coachTab;
       });
       return;
@@ -205,7 +207,7 @@ class _MainLayoutState extends State<MainLayout> {
     setState(() {
       _pages[MainLayout._coachTab] = choice == 'expert'
           ? const ExpertDashboardPage()
-          : const CoachPage();
+          : const CoachPage(showBottomNavigation: false);
       _index = MainLayout._coachTab;
     });
   }
@@ -260,10 +262,7 @@ class _MainLayoutState extends State<MainLayout> {
 /// survives across tabs, and sits in the bottomNavigationBar slot so it is
 /// always above the system (Android) nav bar. Renders nothing when idle.
 class _MinimizedWorkoutBar extends StatefulWidget {
-  const _MinimizedWorkoutBar({
-    required this.onExpand,
-    required this.onDiscard,
-  });
+  const _MinimizedWorkoutBar({required this.onExpand, required this.onDiscard});
 
   final Future<void> Function() onExpand;
   final Future<void> Function() onDiscard;
@@ -329,8 +328,8 @@ class _MinimizedWorkoutBarState extends State<_MinimizedWorkoutBar> {
     } else {
       final startMs = session['startMs'];
       if (startMs is int && startMs > 0) {
-        next =
-            ((DateTime.now().millisecondsSinceEpoch - startMs) / 1000).floor();
+        next = ((DateTime.now().millisecondsSinceEpoch - startMs) / 1000)
+            .floor();
       } else if (startMs is num && startMs > 0) {
         next =
             ((DateTime.now().millisecondsSinceEpoch - startMs.toInt()) / 1000)

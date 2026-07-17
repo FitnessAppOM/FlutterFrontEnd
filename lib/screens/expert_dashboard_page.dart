@@ -13,7 +13,6 @@ import '../services/training/training_service.dart';
 import '../theme/app_theme.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_outline_tag_button.dart';
-import '../TaqaUI/components/taqa_page_header.dart';
 import '../TaqaUI/components/taqa_pill_tab.dart';
 import '../TaqaUI/components/taqa_refresh_indicator.dart';
 import '../TaqaUI/components/taqa_toast.dart';
@@ -1606,13 +1605,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       child: ListView(
         padding: TaqaUiScale.insetsLTRB(20, 20, 20, 20),
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const Expanded(child: _SectionTitle(title: 'My Clients')),
-              _buildInboxButton(),
-            ],
-          ),
+          const _SectionTitle(title: 'My Clients'),
           SizedBox(height: TaqaUiScale.h(10)),
           if (_clients.isEmpty)
             const _EmptyCard(text: 'No assigned clients yet.')
@@ -1646,7 +1639,6 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
           int.tryParse('${template['assigned_client_count'] ?? 0}') ?? 0;
       return count > 0;
     }).length;
-    final unassignedTemplateCount = templateCount - assignedTemplateCount;
     final sortedTemplates = [..._planTemplates]
       ..sort((a, b) {
         final aTs = (a['created_at'] ?? '').toString();
@@ -1654,397 +1646,296 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
         return bTs.compareTo(aTs);
       });
 
-    return ListView(
-      padding: const EdgeInsets.all(20),
+    return Stack(
       children: [
-        Container(
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-          decoration: BoxDecoration(
-            color: TaqaUiColors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: TaqaUiColors.charcoal.withValues(alpha: 0.12),
-            ),
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final compact = constraints.maxWidth < 470;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(
-                        Icons.auto_awesome,
-                        color: TaqaUiColors.charcoal,
-                        size: 18,
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        'Programs',
-                        style: TextStyle(
-                          color: TaqaUiColors.charcoal,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 20,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Create polished training templates and assign them in one tap.',
-                    style: TextStyle(
-                      color: TaqaUiColors.charcoal.withValues(alpha: 0.70),
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  if (compact)
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _openingPlanCreator
-                            ? null
-                            : _openPlanCreatorSheet,
-                        icon: _openingPlanCreator
-                            ? SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: TaqaUiColors.lime,
-                                ),
-                              )
-                            : Icon(Icons.add),
-                        label: Text(
-                          _openingPlanCreator
-                              ? 'Opening...'
-                              : 'Create New Template',
-                        ),
-                      ),
-                    )
-                  else
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              _ProgramStatPill(
-                                icon: Icons.people_alt_outlined,
-                                label: '$clientCount clients',
-                              ),
-                              _ProgramStatPill(
-                                icon: Icons.dashboard_outlined,
-                                label: '$templateCount templates',
-                              ),
-                              _ProgramStatPill(
-                                icon: Icons.link_outlined,
-                                label: '$assignedTemplateCount assigned',
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        ElevatedButton.icon(
-                          onPressed: _openingPlanCreator
-                              ? null
-                              : _openPlanCreatorSheet,
-                          icon: _openingPlanCreator
-                              ? SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: TaqaUiColors.lime,
-                                  ),
-                                )
-                              : Icon(Icons.add),
-                          label: Text(
-                            _openingPlanCreator
-                                ? 'Opening...'
-                                : 'Create Template',
-                          ),
-                        ),
-                      ],
-                    ),
-                  if (compact) ...[
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _ProgramStatPill(
-                          icon: Icons.people_alt_outlined,
-                          label: '$clientCount clients',
-                        ),
-                        _ProgramStatPill(
-                          icon: Icons.dashboard_outlined,
-                          label: '$templateCount templates',
-                        ),
-                        _ProgramStatPill(
-                          icon: Icons.link_outlined,
-                          label: '$assignedTemplateCount assigned',
-                        ),
-                      ],
-                    ),
-                  ],
-                  if (_clients.isEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      'You can create templates now and assign when clients are connected.',
-                      style: TextStyle(
-                        color: TaqaUiColors.charcoal.withValues(alpha: 0.60),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ],
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 14),
-        Row(
+        ListView(
+          padding: TaqaUiScale.insetsLTRB(16, 20, 16, 96),
           children: [
+            const _SectionTitle(
+              title: 'Programs',
+              subtitle:
+                  'Create training templates and assign them to your clients.',
+            ),
+            SizedBox(height: TaqaUiScale.h(14)),
+            Wrap(
+              spacing: TaqaUiScale.w(10),
+              runSpacing: TaqaUiScale.h(8),
+              children: [
+                TaqaOutlineTagButton(
+                  label: '$clientCount clients',
+                  width: TaqaUiScale.w(59),
+                  height: TaqaUiScale.h(20),
+                ),
+                TaqaOutlineTagButton(
+                  label: '$templateCount templates',
+                  width: TaqaUiScale.w(69),
+                  height: TaqaUiScale.h(20),
+                ),
+                TaqaOutlineTagButton(
+                  label: '$assignedTemplateCount assigned',
+                  width: TaqaUiScale.w(64),
+                  height: TaqaUiScale.h(20),
+                ),
+              ],
+            ),
+            SizedBox(height: TaqaUiScale.h(22)),
             Text(
               'Template Library',
               style: TextStyle(
-                color: TaqaUiColors.charcoal,
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(15),
                 fontWeight: FontWeight.w700,
-                fontSize: 16,
+                height: 25 / 15,
+                letterSpacing: 0,
+                color: TaqaUiColors.unnamedColor1c1d17,
               ),
             ),
-            const Spacer(),
-            Text(
-              '$unassignedTemplateCount unassigned',
-              style: TextStyle(
-                color: TaqaUiColors.charcoal.withValues(alpha: 0.54),
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        if (sortedTemplates.isEmpty)
-          const _EmptyCard(text: 'No templates saved yet.')
-        else
-          ...sortedTemplates.map((template) {
-            final templateId =
-                int.tryParse('${template['template_id'] ?? ''}') ?? 0;
-            final title = (template['title'] ?? '').toString().trim();
-            final dayCount = int.tryParse('${template['day_count'] ?? 0}') ?? 0;
-            final exerciseCount =
-                int.tryParse('${template['exercise_count'] ?? 0}') ?? 0;
-            final assignedClientsRaw = template['assigned_clients'];
-            final assignedClients = assignedClientsRaw is List
-                ? assignedClientsRaw
-                      .whereType<Map>()
-                      .map((item) => Map<String, dynamic>.from(item))
-                      .toList(growable: false)
-                : const <Map<String, dynamic>>[];
-            final assignedClientsResolved = _enrichAssignedClientsAvatar(
-              assignedClients,
-            );
-            final assignedClientRaw = template['assigned_client'];
-            final assignedClient = assignedClientRaw is Map
-                ? _enrichAssignedClientAvatar(
-                    Map<String, dynamic>.from(assignedClientRaw),
-                  )
-                : null;
-            final assignedClientCount =
-                int.tryParse('${template['assigned_client_count'] ?? 0}') ?? 0;
-            final previewClients = assignedClientsResolved.isNotEmpty
-                ? assignedClientsResolved.take(3).toList(growable: false)
-                : (assignedClient != null
-                      ? <Map<String, dynamic>>[assignedClient]
-                      : const <Map<String, dynamic>>[]);
-            final assigning = _assigningPlanTemplateIds.contains(templateId);
-            final deleting = _deletingPlanTemplateIds.contains(templateId);
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(14),
-                onTap: templateId <= 0
-                    ? null
-                    : () => _openTemplatePreviewSheet(template),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
+            SizedBox(height: TaqaUiScale.h(10)),
+            if (sortedTemplates.isEmpty)
+              const _EmptyCard(text: 'No templates saved yet.')
+            else
+              ...sortedTemplates.map((template) {
+                final templateId =
+                    int.tryParse('${template['template_id'] ?? ''}') ?? 0;
+                final title = (template['title'] ?? '').toString().trim();
+                final dayCount =
+                    int.tryParse('${template['day_count'] ?? 0}') ?? 0;
+                final exerciseCount =
+                    int.tryParse('${template['exercise_count'] ?? 0}') ?? 0;
+                final assignedClientsRaw = template['assigned_clients'];
+                final assignedClients = assignedClientsRaw is List
+                    ? assignedClientsRaw
+                          .whereType<Map>()
+                          .map((item) => Map<String, dynamic>.from(item))
+                          .toList(growable: false)
+                    : const <Map<String, dynamic>>[];
+                final assignedClientsResolved = _enrichAssignedClientsAvatar(
+                  assignedClients,
+                );
+                final assignedClientRaw = template['assigned_client'];
+                final assignedClient = assignedClientRaw is Map
+                    ? _enrichAssignedClientAvatar(
+                        Map<String, dynamic>.from(assignedClientRaw),
+                      )
+                    : null;
+                final assignedClientCount =
+                    int.tryParse('${template['assigned_client_count'] ?? 0}') ??
+                    0;
+                final previewClients = assignedClientsResolved.isNotEmpty
+                    ? assignedClientsResolved.take(3).toList(growable: false)
+                    : (assignedClient != null
+                          ? <Map<String, dynamic>>[assignedClient]
+                          : const <Map<String, dynamic>>[]);
+                final assigning = _assigningPlanTemplateIds.contains(
+                  templateId,
+                );
+                final deleting = _deletingPlanTemplateIds.contains(templateId);
+                return Padding(
+                  padding: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
+                  child: Material(
                     color: TaqaUiColors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: TaqaUiColors.charcoal.withValues(alpha: 0.10),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
+                    borderRadius: TaqaUiScale.radius(5),
+                    child: InkWell(
+                      borderRadius: TaqaUiScale.radius(5),
+                      onTap: templateId <= 0
+                          ? null
+                          : () => _openTemplatePreviewSheet(template),
+                      child: Container(
+                        padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
+                        decoration: BoxDecoration(
+                          borderRadius: TaqaUiScale.radius(5),
+                          border: Border.all(
+                            color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                              alpha: 0.10,
+                            ),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  title.isEmpty ? 'Untitled template' : title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: TaqaUiColors.charcoal,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 15,
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        title.isEmpty
+                                            ? 'Untitled template'
+                                            : title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontFamily:
+                                              TaqaUiFontFamilies.interTight,
+                                          color:
+                                              TaqaUiColors.unnamedColor1c1d17,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: TaqaUiScale.sp(15),
+                                          height: 18 / 15,
+                                        ),
+                                      ),
+                                      SizedBox(height: TaqaUiScale.h(8)),
+                                      Wrap(
+                                        spacing: TaqaUiScale.w(8),
+                                        runSpacing: TaqaUiScale.h(8),
+                                        children: [
+                                          _ProgramTag(label: '$dayCount days'),
+                                          _ProgramTag(
+                                            label: '$exerciseCount exercises',
+                                          ),
+                                          if (assignedClientCount == 0)
+                                            const _ProgramTag(
+                                              label: 'Not assigned',
+                                            )
+                                          else
+                                            _ProgramTag(
+                                              label:
+                                                  '$assignedClientCount assigned',
+                                            ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                const SizedBox(height: 6),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
+                                SizedBox(width: TaqaUiScale.w(10)),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    _ProgramTag(
-                                      icon: Icons.calendar_today_outlined,
-                                      label: '$dayCount days',
-                                    ),
-                                    _ProgramTag(
-                                      icon: Icons.fitness_center_outlined,
-                                      label: '$exerciseCount exercises',
-                                    ),
-                                    if (assignedClientCount == 0)
-                                      const _ProgramTag(
-                                        icon: Icons.hourglass_empty_outlined,
-                                        label: 'Not assigned',
-                                      )
-                                    else
-                                      _ProgramTag(
-                                        icon: Icons.verified_outlined,
-                                        label: '$assignedClientCount assigned',
+                                    OutlinedButton.icon(
+                                      onPressed:
+                                          (templateId <= 0 ||
+                                              assigning ||
+                                              deleting)
+                                          ? null
+                                          : () => _openAssignTemplateSheet(
+                                              template,
+                                            ),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: TaqaUiColors.charcoal,
+                                        side: BorderSide(
+                                          color: TaqaUiColors.charcoal
+                                              .withValues(alpha: 0.24),
+                                        ),
+                                        minimumSize: const Size(0, 38),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 0,
+                                        ),
                                       ),
+                                      icon: assigning
+                                          ? SizedBox(
+                                              width: 14,
+                                              height: 14,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: TaqaUiColors.lime,
+                                              ),
+                                            )
+                                          : Icon(
+                                              Icons.group_add_outlined,
+                                              size: 18,
+                                            ),
+                                      label: Text(
+                                        assigning ? 'Assigning...' : 'Assign',
+                                      ),
+                                    ),
+                                    SizedBox(width: TaqaUiScale.w(6)),
+                                    IconButton(
+                                      tooltip: 'Delete template',
+                                      onPressed:
+                                          (templateId <= 0 ||
+                                              assigning ||
+                                              deleting)
+                                          ? null
+                                          : () => _deletePlanTemplate(template),
+                                      icon: deleting
+                                          ? SizedBox(
+                                              width: 14,
+                                              height: 14,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: TaqaUiColors.lime,
+                                              ),
+                                            )
+                                          : Icon(
+                                              Icons.delete_outline,
+                                              color: Colors.redAccent,
+                                              size: 20,
+                                            ),
+                                    ),
                                   ],
                                 ),
                               ],
                             ),
-                          ),
-                          const SizedBox(width: 10),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              OutlinedButton.icon(
-                                onPressed:
-                                    (templateId <= 0 || assigning || deleting)
-                                    ? null
-                                    : () => _openAssignTemplateSheet(template),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: TaqaUiColors.charcoal,
-                                  side: BorderSide(
-                                    color: TaqaUiColors.charcoal.withValues(
-                                      alpha: 0.24,
-                                    ),
-                                  ),
-                                  minimumSize: const Size(0, 38),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 0,
-                                  ),
+                            if (assignedClientCount > 0 &&
+                                previewClients.isNotEmpty) ...[
+                              SizedBox(height: TaqaUiScale.h(10)),
+                              InkWell(
+                                borderRadius: TaqaUiScale.radius(5),
+                                onTap: () => _openAssignedClientsSheet(
+                                  title.isEmpty ? 'Untitled template' : title,
+                                  assignedClientsResolved.isNotEmpty
+                                      ? assignedClientsResolved
+                                      : previewClients,
                                 ),
-                                icon: assigning
-                                    ? SizedBox(
-                                        width: 14,
-                                        height: 14,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: TaqaUiColors.lime,
-                                        ),
-                                      )
-                                    : Icon(Icons.group_add_outlined, size: 18),
-                                label: Text(
-                                  assigning ? 'Assigning...' : 'Assign',
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              IconButton(
-                                tooltip: 'Delete template',
-                                onPressed:
-                                    (templateId <= 0 || assigning || deleting)
-                                    ? null
-                                    : () => _deletePlanTemplate(template),
-                                icon: deleting
-                                    ? SizedBox(
-                                        width: 14,
-                                        height: 14,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: TaqaUiColors.lime,
-                                        ),
-                                      )
-                                    : Icon(
-                                        Icons.delete_outline,
-                                        color: Colors.redAccent,
-                                        size: 20,
+                                child: Padding(
+                                  padding: TaqaUiScale.insetsLTRB(4, 4, 4, 4),
+                                  child: Row(
+                                    children: [
+                                      _AssignedClientsStack(
+                                        clients: previewClients,
+                                        totalCount: assignedClientCount,
                                       ),
+                                      SizedBox(width: TaqaUiScale.w(10)),
+                                      Expanded(
+                                        child: Text(
+                                          assignedClientCount == 1
+                                              ? '1 assigned client'
+                                              : '$assignedClientCount assigned clients',
+                                          style: TextStyle(
+                                            fontFamily:
+                                                TaqaUiFontFamilies.interTight,
+                                            color: TaqaUiColors.charcoal
+                                                .withValues(alpha: 0.70),
+                                            fontSize: TaqaUiScale.sp(12),
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      Icon(
+                                        Icons.chevron_right,
+                                        color: TaqaUiColors.charcoal.withValues(
+                                          alpha: 0.54,
+                                        ),
+                                        size: TaqaUiScale.w(18),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ],
-                          ),
-                        ],
-                      ),
-                      if (assignedClientCount > 0 &&
-                          previewClients.isNotEmpty) ...[
-                        const SizedBox(height: 10),
-                        InkWell(
-                          borderRadius: BorderRadius.circular(10),
-                          onTap: () => _openAssignedClientsSheet(
-                            title.isEmpty ? 'Untitled template' : title,
-                            assignedClientsResolved.isNotEmpty
-                                ? assignedClientsResolved
-                                : previewClients,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 4,
-                            ),
-                            child: Row(
-                              children: [
-                                _AssignedClientsStack(
-                                  clients: previewClients,
-                                  totalCount: assignedClientCount,
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    assignedClientCount == 1
-                                        ? '1 assigned client'
-                                        : '$assignedClientCount assigned clients',
-                                    style: TextStyle(
-                                      color: TaqaUiColors.charcoal.withValues(
-                                        alpha: 0.70,
-                                      ),
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.chevron_right,
-                                  color: TaqaUiColors.charcoal.withValues(
-                                    alpha: 0.54,
-                                  ),
-                                  size: 18,
-                                ),
-                              ],
-                            ),
-                          ),
+                          ],
                         ),
-                      ],
-                    ],
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            );
-          }),
+                );
+              }),
+          ],
+        ),
+        PositionedDirectional(
+          end: TaqaUiScale.w(16),
+          bottom: TaqaUiScale.h(16),
+          child: _CreateProgramButton(
+            loading: _openingPlanCreator,
+            onTap: _openingPlanCreator ? null : _openPlanCreatorSheet,
+          ),
+        ),
       ],
     );
   }
@@ -2320,15 +2211,42 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       child: Column(
         children: [
           Padding(
-            padding: EdgeInsets.only(
-              top: TaqaUiScale.h(12),
-              left: TaqaUiScale.w(16),
-            ),
-            child: const Align(
-              alignment: Alignment.centerLeft,
-              child: TaqaPageHeader(
-                title: 'Coach Dashboard',
-                color: TaqaUiColors.charcoal,
+            padding: TaqaUiScale.insetsLTRB(16, 12, 20, 0),
+            child: SizedBox(
+              height: TaqaUiScale.h(39),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Text(
+                    'Coach Dashboard',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(15),
+                      fontWeight: FontWeight.w700,
+                      height: 25 / 15,
+                      letterSpacing: 0,
+                      color: TaqaUiColors.charcoal,
+                    ),
+                  ),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: IconButton(
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      icon: Icon(
+                        Directionality.of(context) == TextDirection.rtl
+                            ? Icons.arrow_forward_ios
+                            : Icons.arrow_back_ios_new,
+                        size: TaqaUiScale.w(18),
+                        color: TaqaUiColors.charcoal,
+                      ),
+                    ),
+                  ),
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: _buildInboxButton(),
+                  ),
+                ],
               ),
             ),
           ),
@@ -2471,81 +2389,88 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
-class _ProgramStatPill extends StatelessWidget {
-  const _ProgramStatPill({required this.icon, required this.label});
+class _CreateProgramButton extends StatelessWidget {
+  const _CreateProgramButton({required this.loading, required this.onTap});
 
-  final IconData icon;
-  final String label;
+  final bool loading;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: TaqaUiColors.charcoal.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: TaqaUiColors.charcoal.withValues(alpha: 0.24),
-        ),
+    final size = TaqaUiScale.w(62);
+    final radius = TaqaUiScale.r(31);
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.only(
+        topLeft: Radius.circular(radius),
+        topRight: Radius.circular(radius),
+        bottomLeft: Radius.circular(radius),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 14,
-            color: TaqaUiColors.charcoal.withValues(alpha: 0.70),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: TaqaUiColors.charcoal,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(radius),
+          topRight: Radius.circular(radius),
+          bottomLeft: Radius.circular(radius),
+        ),
+        child: Container(
+          width: size,
+          height: size,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: TaqaUiColors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(radius),
+              topRight: Radius.circular(radius),
+              bottomRight: Radius.zero,
+              bottomLeft: Radius.circular(radius),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.16),
+                blurRadius: TaqaUiScale.r(30),
+              ),
+            ],
           ),
-        ],
+          child: loading
+              ? SizedBox(
+                  width: TaqaUiScale.w(18),
+                  height: TaqaUiScale.h(18),
+                  child: const CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: TaqaUiColors.unnamedColor1c1d17,
+                  ),
+                )
+              : Icon(
+                  Icons.add,
+                  size: TaqaUiScale.w(26),
+                  color: TaqaUiColors.unnamedColor1c1d17,
+                ),
+        ),
       ),
     );
   }
 }
 
 class _ProgramTag extends StatelessWidget {
-  const _ProgramTag({required this.icon, required this.label});
+  const _ProgramTag({required this.label});
 
-  final IconData icon;
   final String label;
+
+  double get _width {
+    final normalized = label.toLowerCase();
+    if (normalized.contains('exercise')) return 96;
+    if (normalized.contains('assigned')) return 90;
+    if (normalized.contains('not assigned')) return 100;
+    return 62;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: TaqaUiColors.charcoal.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: TaqaUiColors.charcoal.withValues(alpha: 0.12),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 12,
-            color: TaqaUiColors.charcoal.withValues(alpha: 0.70),
-          ),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: TextStyle(
-              color: TaqaUiColors.charcoal.withValues(alpha: 0.70),
-              fontSize: 11,
-            ),
-          ),
-        ],
-      ),
+    return TaqaOutlineTagButton(
+      label: label,
+      width: TaqaUiScale.w(_width),
+      height: TaqaUiScale.h(20),
     );
   }
 }
@@ -2655,14 +2580,6 @@ class _ClientOverviewCard extends StatelessWidget {
   bool get _hasAiUpdatesNote =>
       client.hasFormCheckToReview || client.hasUncheckedTrainingPlan;
 
-  IconData get _aiUpdatesIcon => client.hasFormCheckToReview
-      ? Icons.notification_important_outlined
-      : Icons.auto_awesome_rounded;
-
-  Color get _aiUpdatesColor => client.hasFormCheckToReview
-      ? const Color(0xFFE07A00)
-      : const Color(0xFF0891B2);
-
   String get _aiUpdatesLabel {
     final hasForm = client.hasFormCheckToReview;
     final hasTraining = client.hasUncheckedTrainingPlan;
@@ -2686,178 +2603,92 @@ class _ClientOverviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final clientName = client.name ?? 'Client #${client.userId}';
+    final alerts = <String>[
+      if (client.hasNewAssignment)
+        client.newAssignmentCount > 1
+            ? 'New client assignments (${client.newAssignmentCount})'
+            : 'New client assignment',
+      if (client.hasDietLogToReview)
+        client.sharedDietLogCount > 1
+            ? 'New diet logs (${client.sharedDietLogCount})'
+            : 'New diet log',
+      if (hasSupportChatUnread) 'New support chat message',
+      if (_hasAiUpdatesNote) _aiUpdatesLabel,
+    ];
+
     return ConstrainedBox(
       constraints: BoxConstraints(minHeight: TaqaUiScale.h(79)),
-      child: Container(
-        padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
-        decoration: BoxDecoration(
-          color: TaqaUiColors.white,
+      child: Material(
+        color: TaqaUiColors.white,
+        borderRadius: TaqaUiScale.radius(15),
+        child: InkWell(
+          onTap: onView,
           borderRadius: TaqaUiScale.radius(15),
-          border: Border.all(
-            color: TaqaUiColors.charcoal.withValues(alpha: 0.10),
-          ),
-        ),
-        child: Row(
-          children: [
-            _ClientAvatar(name: clientName, avatarUrl: client.avatarUrl),
-            SizedBox(width: TaqaUiScale.w(12)),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+          child: Container(
+            padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
+            decoration: BoxDecoration(
+              borderRadius: TaqaUiScale.radius(15),
+              border: Border.all(
+                color: TaqaUiColors.charcoal.withValues(alpha: 0.10),
+              ),
+            ),
+            child: Row(
+              children: [
+                _ClientAvatar(name: clientName, avatarUrl: client.avatarUrl),
+                SizedBox(width: TaqaUiScale.w(12)),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          clientName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: TaqaUiFontFamilies.interTight,
-                            color: TaqaUiColors.charcoal,
-                            fontWeight: FontWeight.w700,
-                            fontSize: TaqaUiScale.sp(15),
-                            height: 25 / 15,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              clientName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: TaqaUiFontFamilies.interTight,
+                                color: TaqaUiColors.charcoal,
+                                fontWeight: FontWeight.w700,
+                                fontSize: TaqaUiScale.sp(15),
+                                height: 25 / 15,
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: TaqaUiScale.w(6)),
+                          _ActivityStatusDot(status: client.activityStatus),
+                        ],
+                      ),
+                      if (alerts.isNotEmpty) ...[
+                        SizedBox(height: TaqaUiScale.h(4)),
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: TaqaUiScale.h(33),
+                          ),
+                          child: Align(
+                            alignment: AlignmentDirectional.centerStart,
+                            child: Text(
+                              alerts.join('\n'),
+                              style: TextStyle(
+                                fontFamily: TaqaUiFontFamilies.interTight,
+                                color: TaqaUiColors.unnamedColor1c1d17,
+                                fontSize: TaqaUiScale.sp(15),
+                                fontWeight: FontWeight.w400,
+                                height: 18 / 15,
+                                letterSpacing: 0,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                      SizedBox(width: TaqaUiScale.w(6)),
-                      _ActivityStatusDot(
-                        status: client.activityStatus,
-                        inactiveDays: client.inactiveDays,
-                      ),
+                      ],
                     ],
                   ),
-                  if (client.hasNewAssignment) ...[
-                    SizedBox(height: TaqaUiScale.h(4)),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.person_add_alt_1_rounded,
-                          size: TaqaUiScale.w(14),
-                          color: const Color(0xFF15803D),
-                        ),
-                        SizedBox(width: TaqaUiScale.w(6)),
-                        Expanded(
-                          child: Text(
-                            client.newAssignmentCount > 1
-                                ? 'New client assignments (${client.newAssignmentCount})'
-                                : 'New client assignment',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: const Color(0xFF15803D),
-                              fontSize: TaqaUiScale.sp(12),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  if (client.hasDietLogToReview) ...[
-                    SizedBox(height: TaqaUiScale.h(4)),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.restaurant_menu_rounded,
-                          size: TaqaUiScale.w(14),
-                          color: const Color(0xFF0891B2),
-                        ),
-                        SizedBox(width: TaqaUiScale.w(6)),
-                        Expanded(
-                          child: Text(
-                            client.sharedDietLogCount > 1
-                                ? 'New diet logs (${client.sharedDietLogCount})'
-                                : 'New diet log',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: const Color(0xFF0891B2),
-                              fontSize: TaqaUiScale.sp(12),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  if (hasSupportChatUnread) ...[
-                    SizedBox(height: TaqaUiScale.h(4)),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.chat_bubble_outline_rounded,
-                          size: TaqaUiScale.w(14),
-                          color: const Color(0xFF0891B2),
-                        ),
-                        SizedBox(width: TaqaUiScale.w(6)),
-                        Expanded(
-                          child: Text(
-                            'New support chat message',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: const Color(0xFF0891B2),
-                              fontSize: TaqaUiScale.sp(12),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  if (_hasAiUpdatesNote) ...[
-                    SizedBox(height: TaqaUiScale.h(4)),
-                    Row(
-                      children: [
-                        Icon(
-                          _aiUpdatesIcon,
-                          size: TaqaUiScale.w(14),
-                          color: _aiUpdatesColor,
-                        ),
-                        SizedBox(width: TaqaUiScale.w(6)),
-                        Expanded(
-                          child: Text(
-                            _aiUpdatesLabel,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: _aiUpdatesColor,
-                              fontSize: TaqaUiScale.sp(12),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
+                ),
+              ],
             ),
-            SizedBox(width: TaqaUiScale.w(8)),
-            OutlinedButton(
-              onPressed: onView,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: TaqaUiColors.charcoal,
-                side: BorderSide(
-                  color: TaqaUiColors.charcoal.withValues(alpha: 0.24),
-                ),
-                minimumSize: const Size(0, 32),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: const VisualDensity(
-                  horizontal: -2,
-                  vertical: -2,
-                ),
-              ),
-              child: Text('View'),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -2865,33 +2696,27 @@ class _ClientOverviewCard extends StatelessWidget {
 }
 
 class _ActivityStatusDot extends StatelessWidget {
-  const _ActivityStatusDot({required this.status, this.inactiveDays});
+  const _ActivityStatusDot({required this.status});
 
   final String? status;
-  final int? inactiveDays;
 
   Color _color() {
     switch ((status ?? '').trim().toLowerCase()) {
       case 'green':
-        return Colors.greenAccent.shade400;
+        return const Color(0xFF3BE971);
       case 'yellow':
-        return Colors.amber.shade400;
+        return const Color(0xFFF4C542);
       case 'red':
-        return Colors.redAccent.shade200;
+        return const Color(0xFFE93B3B);
       default:
-        return Colors.redAccent.shade200;
+        return const Color(0xFFE93B3B);
     }
   }
 
   String _label() {
-    final normalized = (status ?? '').trim().toLowerCase();
-    if (normalized == 'green') return 'Active';
-    if (normalized == 'yellow') {
-      if (inactiveDays != null) return 'Inactive ${inactiveDays!}d';
-      return 'Inactive 3d+';
-    }
-    if (inactiveDays != null) return 'Inactive ${inactiveDays!}d';
-    return 'Inactive 7d+';
+    return (status ?? '').trim().toLowerCase() == 'green'
+        ? 'Active'
+        : 'Inactive';
   }
 
   @override
@@ -2899,21 +2724,37 @@ class _ActivityStatusDot extends StatelessWidget {
     final color = _color();
     return Tooltip(
       message: _label(),
-      child: Container(
-        width: TaqaUiScale.w(10),
-        height: TaqaUiScale.h(10),
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.45),
-              blurRadius: TaqaUiScale.r(6),
-              spreadRadius: 0.5,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: TaqaUiScale.w(6),
+            height: TaqaUiScale.h(6),
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.45),
+                  blurRadius: TaqaUiScale.r(5),
+                  spreadRadius: TaqaUiScale.r(0.5),
+                ),
+              ],
             ),
-          ],
-          border: Border.all(color: TaqaUiColors.white, width: 1.2),
-        ),
+          ),
+          SizedBox(width: TaqaUiScale.w(4)),
+          Text(
+            _label().toUpperCase(),
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+              fontSize: TaqaUiScale.sp(8),
+              fontWeight: FontWeight.w400,
+              height: 10 / 8,
+              letterSpacing: 0,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }

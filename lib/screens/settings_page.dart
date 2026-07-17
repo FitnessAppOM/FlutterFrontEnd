@@ -1064,40 +1064,13 @@ class _SettingsPageState extends State<SettingsPage> {
       return;
     }
 
-    final confirmed =
-        await showDialog<bool>(
-          context: context,
-          builder: (ctx) {
-            return AlertDialog(
-              backgroundColor: AppColors.black,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: Text(
-                t.translate("settings_delete_account"),
-                style: const TextStyle(color: Colors.white),
-              ),
-              content: Text(
-                t.translate("settings_delete_account_confirm_body"),
-                style: const TextStyle(color: Colors.white70),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: Text(t.translate("cancel")),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: Text(
-                    t.translate("settings_delete_account_confirm_yes"),
-                    style: const TextStyle(color: Colors.redAccent),
-                  ),
-                ),
-              ],
-            );
-          },
-        ) ??
-        false;
+    final confirmed = await showTaqaConfirmDialog(
+      context: context,
+      title: t.translate("settings_delete_account"),
+      message: t.translate("settings_delete_account_confirm_body"),
+      cancelLabel: t.translate("cancel"),
+      confirmLabel: t.translate("settings_delete_account_confirm_yes"),
+    );
 
     if (!confirmed || !mounted) return;
 
@@ -1146,40 +1119,13 @@ class _SettingsPageState extends State<SettingsPage> {
       return;
     }
 
-    final confirmed =
-        await showDialog<bool>(
-          context: context,
-          builder: (ctx) {
-            return AlertDialog(
-              backgroundColor: AppColors.black,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: Text(
-                t.translate("settings_deactivate_account"),
-                style: const TextStyle(color: Colors.white),
-              ),
-              content: Text(
-                t.translate("settings_deactivate_account_confirm_body"),
-                style: const TextStyle(color: Colors.white70),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: Text(t.translate("cancel")),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: Text(
-                    t.translate("settings_deactivate_account_confirm_yes"),
-                    style: const TextStyle(color: Colors.amberAccent),
-                  ),
-                ),
-              ],
-            );
-          },
-        ) ??
-        false;
+    final confirmed = await showTaqaConfirmDialog(
+      context: context,
+      title: t.translate("settings_deactivate_account"),
+      message: t.translate("settings_deactivate_account_confirm_body"),
+      cancelLabel: t.translate("cancel"),
+      confirmLabel: t.translate("settings_deactivate_account_confirm_yes"),
+    );
 
     if (!confirmed || !mounted) return;
 

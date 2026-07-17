@@ -23,10 +23,12 @@ class CoachPage extends StatefulWidget {
     super.key,
     this.initialTabIndex = 0,
     this.initialCoachUserId,
+    this.showBottomNavigation = true,
   });
 
   final int initialTabIndex;
   final int? initialCoachUserId;
+  final bool showBottomNavigation;
 
   @override
   State<CoachPage> createState() => _CoachPageState();
@@ -304,8 +306,7 @@ class _CoachPageState extends State<CoachPage> {
                                   child: Text(
                                     "REPORT",
                                     style: TextStyle(
-                                      fontFamily:
-                                          TaqaUiFontFamilies.interTight,
+                                      fontFamily: TaqaUiFontFamilies.interTight,
                                       fontSize: TaqaUiScale.sp(10),
                                       fontWeight: FontWeight.w700,
                                       color: TaqaUiColors.charcoal,
@@ -642,8 +643,8 @@ class _CoachPageState extends State<CoachPage> {
                                         Text(
                                           coach.specialty!,
                                           style: TextStyle(
-                                            fontFamily: TaqaUiFontFamilies
-                                                .interTight,
+                                            fontFamily:
+                                                TaqaUiFontFamilies.interTight,
                                             color: TaqaUiColors.charcoal
                                                 .withValues(alpha: 0.55),
                                             fontSize: TaqaUiScale.sp(12),
@@ -747,8 +748,7 @@ class _CoachPageState extends State<CoachPage> {
                                   Text(
                                     _firstNameOnly(request.coachName),
                                     style: TextStyle(
-                                      fontFamily:
-                                          TaqaUiFontFamilies.interTight,
+                                      fontFamily: TaqaUiFontFamilies.interTight,
                                       color: TaqaUiColors.charcoal,
                                       fontWeight: FontWeight.w700,
                                       fontSize: TaqaUiScale.sp(14),
@@ -758,8 +758,7 @@ class _CoachPageState extends State<CoachPage> {
                                   Text(
                                     statusLine,
                                     style: TextStyle(
-                                      fontFamily:
-                                          TaqaUiFontFamilies.interTight,
+                                      fontFamily: TaqaUiFontFamilies.interTight,
                                       color: statusColor,
                                       fontSize: TaqaUiScale.sp(12),
                                     ),
@@ -800,7 +799,9 @@ class _CoachPageState extends State<CoachPage> {
           backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
           appBar: TaqaPageAppBar(title: chatTitle),
           body: SafeArea(
-            child: CoachChatPanel(initialCoachUserId: widget.initialCoachUserId),
+            child: CoachChatPanel(
+              initialCoachUserId: widget.initialCoachUserId,
+            ),
           ),
         ),
       ),
@@ -867,26 +868,33 @@ class _CoachPageState extends State<CoachPage> {
           ],
         ),
       ),
-      // Placing the nav bar here (rather than inside body) is what makes the
-      // Scaffold dock the floating chat button above it automatically,
-      // instead of the two overlapping.
-      bottomNavigationBar: TaqaBottomNavBar(
-        currentIndex: 4,
-        onTap: (index) {
-          if (index == 4) return;
-          Navigator.of(context).pop();
-        },
-        items: const [
-          TaqaBottomNavItem(assetPath: 'assets/icons/Diet.svg', index: 0),
-          TaqaBottomNavItem(assetPath: 'assets/icons/Exercise.svg', index: 1),
-          TaqaBottomNavItem(assetPath: 'assets/icons/Home.svg', index: 2),
-          TaqaBottomNavItem(
-            assetPath: 'assets/icons/Community.svg',
-            index: 3,
-          ),
-          TaqaBottomNavItem(assetPath: 'assets/icons/Trainer.svg', index: 4),
-        ],
-      ),
+      // MainLayout already provides the persistent app navigation when this
+      // page is rendered as its Coach tab. Standalone deep links retain a bar.
+      bottomNavigationBar: widget.showBottomNavigation
+          ? TaqaBottomNavBar(
+              currentIndex: 4,
+              onTap: (index) {
+                if (index == 4) return;
+                Navigator.of(context).pop();
+              },
+              items: const [
+                TaqaBottomNavItem(assetPath: 'assets/icons/Diet.svg', index: 0),
+                TaqaBottomNavItem(
+                  assetPath: 'assets/icons/Exercise.svg',
+                  index: 1,
+                ),
+                TaqaBottomNavItem(assetPath: 'assets/icons/Home.svg', index: 2),
+                TaqaBottomNavItem(
+                  assetPath: 'assets/icons/Community.svg',
+                  index: 3,
+                ),
+                TaqaBottomNavItem(
+                  assetPath: 'assets/icons/Trainer.svg',
+                  index: 4,
+                ),
+              ],
+            )
+          : null,
       floatingActionButton: TaqaFloatingChatButton(onTap: _openChatPage),
     );
   }
