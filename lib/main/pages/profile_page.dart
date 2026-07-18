@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../widgets/profile/profile_header.dart';
-import '../../widgets/profile/profile_info_section.dart';
+import '../../TaqaUI/components/taqa_profile_info_section.dart';
 import '../../widgets/profile/profile_goals_section.dart';
 import '../../widgets/profile/profile_actions_section.dart';
 import '../../localization/app_localizations.dart';
@@ -441,12 +441,29 @@ class _ProfilePageState extends State<ProfilePage> {
                             avatarPath: _avatarPath,
                           ),
                           SizedBox(height: TaqaUiScale.h(24)),
-                          ProfileInfoSection(
-                            age: _display(age),
-                            sex: _display(sex),
-                            height: _displayWithUnit(height, "cm"),
-                            occupation: _display(occupation),
-                            weight: _displayWithUnit(weight, "kg"),
+                          TaqaProfileInfoSection(
+                            items: [
+                              TaqaProfileInfoItem(
+                                label: t.translate("profile_age"),
+                                value: _display(age),
+                              ),
+                              TaqaProfileInfoItem(
+                                label: t.translate("profile_sex"),
+                                value: _display(sex),
+                              ),
+                              TaqaProfileInfoItem(
+                                label: t.translate("profile_height"),
+                                value: _displayWithUnit(height, "cm"),
+                              ),
+                              TaqaProfileInfoItem(
+                                label: t.translate("profile_weight"),
+                                value: _displayWithUnit(weight, "kg"),
+                              ),
+                              TaqaProfileInfoItem(
+                                label: t.translate("profile_occupation"),
+                                value: _display(occupation),
+                              ),
+                            ],
                           ),
                           SizedBox(height: TaqaUiScale.h(15)),
                           ProfileGoalsSection(

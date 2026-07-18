@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../TaqaUI/components/taqa_expert_client_dashboard_ui.dart';
+import '../TaqaUI/components/taqa_expert_dashboard_ui.dart';
+import '../TaqaUI/components/taqa_exercise_picker_sheet.dart';
+import '../TaqaUI/components/taqa_outline_tag_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
+import '../TaqaUI/components/taqa_training_plan_ui.dart';
+import '../TaqaUI/components/taqa_toast.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 import '../services/coach/progression_review_service.dart';
 import '../services/training/training_service.dart';
-import '../theme/app_theme.dart';
-import '../widgets/training/exercise_picker_sheet.dart';
 
 class ExpertTrainingPlanReviewPage extends StatefulWidget {
   const ExpertTrainingPlanReviewPage({
@@ -13,12 +19,16 @@ class ExpertTrainingPlanReviewPage extends StatefulWidget {
     required this.clientName,
     required this.activeProgram,
     this.trainingPlanError,
+    this.clientAvatarUrl,
+    this.clientActivityStatus,
   });
 
   final int clientUserId;
   final String clientName;
   final Map<String, dynamic> activeProgram;
   final String? trainingPlanError;
+  final String? clientAvatarUrl;
+  final String? clientActivityStatus;
 
   @override
   State<ExpertTrainingPlanReviewPage> createState() =>
@@ -181,55 +191,9 @@ class _ExpertTrainingPlanReviewPageState
     return text == 'true' || text == '1' || text == 'yes';
   }
 
-  String _activePlanState() {
-    final raw = (_activeProgram['plan_state'] ?? '').toString().trim();
-    if (raw == 'ai_generated' ||
-        raw == 'verified' ||
-        raw == 'expert_created' ||
-        raw == 'ai_coach' ||
-        raw == 'coach_edited') {
-      return raw;
-    }
-    final source = _activePlanSource();
-    if (source == 'expert_created' ||
-        source == 'ai_coach' ||
-        source == 'coach_edited') {
-      return source;
-    }
-    return _activePlanVerified() ? 'verified' : 'ai_generated';
-  }
-
   bool _needsVerification() {
     if (_activeProgram.isEmpty) return false;
     return _activePlanSource() == 'ai_generated' && !_activePlanVerified();
-  }
-
-  String _planStateLabel() {
-    switch (_activePlanState()) {
-      case 'coach_edited':
-      case 'expert_created':
-        return 'Coach/editted';
-      case 'ai_coach':
-        return 'AI/Coach';
-      case 'verified':
-        return 'Verified by coach';
-      default:
-        return 'AI';
-    }
-  }
-
-  Color _planStateColor() {
-    switch (_activePlanState()) {
-      case 'coach_edited':
-      case 'expert_created':
-        return const Color(0xFF66E0A3);
-      case 'ai_coach':
-        return const Color(0xFF4BE4C7);
-      case 'verified':
-        return const Color(0xFF74B9FF);
-      default:
-        return const Color(0xFF5FD8FF);
-    }
   }
 
   Future<void> _loadExerciseLibrary() async {
@@ -332,15 +296,15 @@ class _ExpertTrainingPlanReviewPageState
           'plan_state': 'verified',
         };
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Plan verified.')));
+      AppToast.show(context, 'Plan verified.', type: AppToastType.success);
     } catch (e) {
       if (!mounted) return;
       setState(() => _verifying = false);
       final msg = e.toString().replaceFirst('Exception: ', '');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg.isEmpty ? 'Failed to verify plan.' : msg)),
+      AppToast.show(
+        context,
+        msg.isEmpty ? 'Failed to verify plan.' : msg,
+        type: AppToastType.error,
       );
     }
   }
@@ -354,12 +318,10 @@ class _ExpertTrainingPlanReviewPageState
     if (_loadingExercises ||
         _exerciseLoadError != null ||
         _exerciseLibrary.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Exercise list is still loading. Please wait a moment and try again.',
-          ),
-        ),
+      AppToast.show(
+        context,
+        'Exercise list is still loading. Please wait a moment and try again.',
+        type: AppToastType.info,
       );
       return;
     }
@@ -448,15 +410,15 @@ class _ExpertTrainingPlanReviewPageState
         _plannedDaysPerWeek = _draftDays.length;
         _originalDays = _cloneDays(_draftDays);
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Changes saved.')));
+      AppToast.show(context, 'Changes saved.', type: AppToastType.success);
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
       final msg = e.toString().replaceFirst('Exception: ', '');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg.isEmpty ? 'Failed to save changes.' : msg)),
+      AppToast.show(
+        context,
+        msg.isEmpty ? 'Failed to save changes.' : msg,
+        type: AppToastType.error,
       );
       return;
     }
@@ -493,219 +455,179 @@ class _ExpertTrainingPlanReviewPageState
     return '';
   }
 
-  Widget _buildExercisePickerField({
-    required _PlanExerciseDraft exercise,
-    required bool enabled,
-  }) {
+  String _exerciseDisplayName(_PlanExerciseDraft exercise) {
     final selectedName = _exerciseNameForId(exercise.exerciseId);
-    final displayName = selectedName.isNotEmpty
-        ? selectedName
-        : (exercise.exerciseName.trim().isNotEmpty
-              ? exercise.exerciseName.trim()
-              : 'Select exercise');
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
-      onTap: enabled
-          ? () async {
-              final picked = await showExercisePickerSheet(
-                context: context,
-                options: _exerciseLibrary,
-                selectedId: exercise.exerciseId > 0
-                    ? exercise.exerciseId
-                    : null,
-              );
-              if (picked == null || !mounted) return;
-              setState(() {
-                exercise.exerciseId = picked.id;
-                exercise.exerciseName = picked.name;
-              });
-            }
-          : null,
-      child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: 'Exercise',
-          isDense: true,
-          suffixIcon: const Icon(Icons.search_rounded),
-        ),
-        child: Text(
-          displayName,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: displayName == 'Select exercise'
-                ? Colors.white54
-                : Colors.white,
-          ),
-        ),
-      ),
-    );
+    if (selectedName.isNotEmpty) return selectedName;
+    final draftName = exercise.exerciseName.trim();
+    return draftName.isEmpty ? 'Select exercise' : draftName;
   }
 
-  Widget _buildStateBadge() {
-    final color = _planStateColor();
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.45)),
-      ),
-      child: Text(
-        _planStateLabel(),
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.w700,
-          fontSize: 12,
-        ),
-      ),
+  Future<void> _pickExercise(_PlanExerciseDraft exercise) async {
+    final picked = await showExercisePickerSheet(
+      context: context,
+      options: _exerciseLibrary,
+      selectedId: exercise.exerciseId > 0 ? exercise.exerciseId : null,
     );
+    if (picked == null || !mounted) return;
+    setState(() {
+      exercise.exerciseId = picked.id;
+      exercise.exerciseName = picked.name;
+    });
   }
 
   Widget _buildDayCard(int dayIndex) {
     final day = _draftDays[dayIndex];
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: TextFormField(
-                  initialValue: day.dayLabel,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: 'Day ${dayIndex + 1}',
-                    isDense: true,
-                  ),
-                  textInputAction: TextInputAction.done,
-                  onFieldSubmitted: (_) => FocusScope.of(context).unfocus(),
-                  onChanged: (value) => day.dayLabel = value,
-                ),
+    return Padding(
+      padding: EdgeInsets.only(bottom: TaqaUiScale.h(24)),
+      child: TaqaTrainingDaySection(
+        dayNumber: dayIndex + 1,
+        dayName: day.dayLabel,
+        enabled: !(_saving || _verifying),
+        onDayNameChanged: (value) => setState(() => day.dayLabel = value),
+        onDelete: _draftDays.length > 1
+            ? () => setState(() => _draftDays.removeAt(dayIndex))
+            : null,
+        exercises: List.generate(day.exercises.length, (exIndex) {
+          final ex = day.exercises[exIndex];
+          return TaqaTrainingExerciseCard(
+            exerciseName: _exerciseDisplayName(ex),
+            onExerciseTap:
+                !(_saving || _verifying) && _exerciseLibrary.isNotEmpty
+                ? () => _pickExercise(ex)
+                : null,
+            onDelete: !(_saving || _verifying) && day.exercises.length > 1
+                ? () => setState(() => day.exercises.removeAt(exIndex))
+                : null,
+            metricFields: [
+              TaqaTrainingNumberInput(
+                label: 'Sets',
+                initialValue: ex.sets,
+                minValue: 1,
+                maxValue: 20,
+                enabled: !(_saving || _verifying),
+                onChanged: (value) =>
+                    setState(() => ex.sets = value ?? ex.sets),
               ),
-              if (_draftDays.length > 1) ...[
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: _saving || _verifying
-                      ? null
-                      : () => setState(() => _draftDays.removeAt(dayIndex)),
-                  icon: const Icon(
-                    Icons.delete_outline_rounded,
-                    color: Colors.redAccent,
-                  ),
-                ),
-              ],
+              TaqaTrainingWeightInput(
+                initialValue: ex.weightKg,
+                enabled: !(_saving || _verifying),
+                onChanged: (value) => setState(() => ex.weightKg = value),
+              ),
+              TaqaTrainingNumberInput(
+                label: 'Reps',
+                initialValue: ex.reps,
+                minValue: 1,
+                maxValue: 200,
+                enabled: !(_saving || _verifying),
+                onChanged: (value) =>
+                    setState(() => ex.reps = value ?? ex.reps),
+              ),
+              TaqaTrainingNumberInput(
+                label: 'RIR',
+                initialValue: ex.rir,
+                minValue: 0,
+                maxValue: 6,
+                allowNull: true,
+                enabled: !(_saving || _verifying),
+                onChanged: (value) => setState(() => ex.rir = value),
+              ),
             ],
+          );
+        }),
+        onAddExercise: (_saving || _verifying || _exerciseLibrary.isEmpty)
+            ? null
+            : () {
+                final fallback = _exerciseLibrary.first;
+                setState(() {
+                  day.exercises.add(
+                    _PlanExerciseDraft(
+                      exerciseId: fallback.id,
+                      exerciseName: fallback.name,
+                      sets: 3,
+                      reps: 10,
+                      rir: 2,
+                    ),
+                  );
+                });
+              },
+      ),
+    );
+  }
+
+  Widget _buildScrollableActions({
+    required bool dirty,
+    required bool canConfirm,
+    required bool canVerifyOnly,
+  }) {
+    if (dirty || _saving) {
+      return Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: TaqaUiScale.h(45),
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: TaqaUiScale.radius(5),
+                  ),
+                  side: const BorderSide(color: TaqaUiColors.charcoal),
+                  foregroundColor: TaqaUiColors.charcoal,
+                ),
+                onPressed: !_saving && !_verifying ? _resetDraft : null,
+                child: const Text('Reset'),
+              ),
+            ),
           ),
-          const SizedBox(height: 8),
-          ...List.generate(day.exercises.length, (exIndex) {
-            final ex = day.exercises[exIndex];
-            return Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppColors.black,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.white12),
+          SizedBox(width: TaqaUiScale.w(8)),
+          Expanded(
+            child: SizedBox(
+              height: TaqaUiScale.h(45),
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: TaqaUiScale.radius(5),
+                  ),
+                  backgroundColor: TaqaUiColors.lime,
+                  foregroundColor: TaqaUiColors.charcoal,
+                ),
+                onPressed: canConfirm ? _confirmChanges : null,
+                child: _saving
+                    ? SizedBox(
+                        width: TaqaUiScale.w(16),
+                        height: TaqaUiScale.h(16),
+                        child: const CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: TaqaUiColors.charcoal,
+                        ),
+                      )
+                    : const Text('Confirm'),
               ),
-              child: Column(
-                children: [
-                  _buildExercisePickerField(
-                    exercise: ex,
-                    enabled:
-                        !(_saving || _verifying) && _exerciseLibrary.isNotEmpty,
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _NumberField(
-                          label: 'Sets',
-                          initialValue: ex.sets,
-                          minValue: 1,
-                          maxValue: 20,
-                          enabled: !(_saving || _verifying),
-                          onChanged: (value) => ex.sets = value ?? ex.sets,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _NumberField(
-                          label: 'Reps',
-                          initialValue: ex.reps,
-                          minValue: 1,
-                          maxValue: 200,
-                          enabled: !(_saving || _verifying),
-                          onChanged: (value) => ex.reps = value ?? ex.reps,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _NumberField(
-                          label: 'RIR',
-                          initialValue: ex.rir,
-                          minValue: 0,
-                          maxValue: 6,
-                          allowNull: true,
-                          enabled: !(_saving || _verifying),
-                          onChanged: (value) => ex.rir = value,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      IconButton(
-                        onPressed:
-                            (_saving || _verifying || day.exercises.length <= 1)
-                            ? null
-                            : () {
-                                setState(() => day.exercises.removeAt(exIndex));
-                              },
-                        icon: const Icon(
-                          Icons.remove_circle_outline_rounded,
-                          color: Colors.redAccent,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  _WeightField(
-                    initialValue: ex.weightKg,
-                    enabled: !(_saving || _verifying),
-                    onChanged: (value) => ex.weightKg = value,
-                  ),
-                ],
-              ),
-            );
-          }),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: (_saving || _verifying || _exerciseLibrary.isEmpty)
-                  ? null
-                  : () {
-                      final fallback = _exerciseLibrary.first;
-                      setState(() {
-                        day.exercises.add(
-                          _PlanExerciseDraft(
-                            exerciseId: fallback.id,
-                            exerciseName: fallback.name,
-                            sets: 3,
-                            reps: 10,
-                            rir: 2,
-                          ),
-                        );
-                      });
-                    },
-              icon: const Icon(Icons.add),
-              label: const Text('Add exercise'),
             ),
           ),
         ],
+      );
+    }
+
+    return SizedBox(
+      width: double.infinity,
+      height: TaqaUiScale.h(45),
+      child: FilledButton(
+        style: FilledButton.styleFrom(
+          shape: RoundedRectangleBorder(borderRadius: TaqaUiScale.radius(5)),
+          backgroundColor: TaqaUiColors.lime,
+          foregroundColor: TaqaUiColors.charcoal,
+        ),
+        onPressed: canVerifyOnly ? _verifyOnly : null,
+        child: _verifying
+            ? SizedBox(
+                width: TaqaUiScale.w(16),
+                height: TaqaUiScale.h(16),
+                child: const CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: TaqaUiColors.charcoal,
+                ),
+              )
+            : const Text('Verify'),
       ),
     );
   }
@@ -731,18 +653,25 @@ class _ExpertTrainingPlanReviewPageState
         Navigator.of(context).pop(_navigationResult());
       },
       child: Scaffold(
-        backgroundColor: AppColors.black,
+        backgroundColor: TaqaUiColors.lightGray,
         appBar: TaqaPageAppBar(
           title: 'Client Training Plan',
-          backgroundColor: AppColors.black,
-          titleColor: Colors.white,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            icon: const Icon(Icons.arrow_back, color: TaqaUiColors.charcoal),
             onPressed: _closePage,
           ),
         ),
         body: _loadingExercises
-            ? const Center(child: CircularProgressIndicator())
+            ? Center(
+                child: SizedBox(
+                  width: TaqaUiScale.w(20),
+                  height: TaqaUiScale.h(20),
+                  child: const CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: TaqaUiColors.charcoal,
+                  ),
+                ),
+              )
             : GestureDetector(
                 behavior: HitTestBehavior.translucent,
                 onTap: () => FocusScope.of(context).unfocus(),
@@ -753,186 +682,113 @@ class _ExpertTrainingPlanReviewPageState
                         child: SingleChildScrollView(
                           keyboardDismissBehavior:
                               ScrollViewKeyboardDismissBehavior.onDrag,
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
+                          padding: TaqaUiScale.insetsLTRB(16, 12, 17, 18),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: AppColors.cardDark,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.white10),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            widget.clientName,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 16,
+                              TaqaExpertClientCard(
+                                name: widget.clientName,
+                                avatarUrl: widget.clientAvatarUrl,
+                                status: widget.clientActivityStatus,
+                                showStatus: (widget.clientActivityStatus ?? '')
+                                    .trim()
+                                    .isNotEmpty,
+                                subtitle: 'User ID: ${widget.clientUserId}',
+                                details: [
+                                  'Days/week: ${_plannedDaysPerWeek > 0 ? _plannedDaysPerWeek : _draftDays.length}',
+                                ],
+                                alerts: const [],
+                                footer:
+                                    needsVerification ||
+                                        (_exerciseLoadError ?? '').isNotEmpty ||
+                                        _draftDays.isEmpty
+                                    ? Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          if (needsVerification) ...[
+                                            const TaqaClientAlertText(
+                                              text:
+                                                  'Training plan pending verification',
                                             ),
-                                          ),
-                                        ),
-                                        _buildStateBadge(),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Days/week: ${_plannedDaysPerWeek > 0 ? _plannedDaysPerWeek : _draftDays.length}',
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                      ),
-                                    ),
-                                    if (_exerciseLoadError != null &&
-                                        _exerciseLoadError!.isNotEmpty) ...[
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        _exerciseLoadError!,
-                                        style: const TextStyle(
-                                          color: Colors.orangeAccent,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                    if (_draftDays.isEmpty) ...[
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        widget.trainingPlanError ??
-                                            'No active training plan yet.',
-                                        style: const TextStyle(
-                                          color: Colors.white60,
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
+                                          ],
+                                          if (_exerciseLoadError != null &&
+                                              _exerciseLoadError!
+                                                  .isNotEmpty) ...[
+                                            if (needsVerification)
+                                              SizedBox(
+                                                height: TaqaUiScale.h(6),
+                                              ),
+                                            TaqaClientAlertText(
+                                              text: _exerciseLoadError!,
+                                            ),
+                                          ],
+                                          if (_draftDays.isEmpty) ...[
+                                            if (needsVerification ||
+                                                (_exerciseLoadError ?? '')
+                                                    .isNotEmpty)
+                                              SizedBox(
+                                                height: TaqaUiScale.h(6),
+                                              ),
+                                            TaqaClientDashboardBodyText(
+                                              widget.trainingPlanError ??
+                                                  'No active training plan yet.',
+                                              color: TaqaUiColors.charcoal
+                                                  .withValues(alpha: 0.6),
+                                            ),
+                                          ],
+                                        ],
+                                      )
+                                    : null,
                               ),
-                              const SizedBox(height: 12),
+                              SizedBox(height: TaqaUiScale.h(12)),
                               if (_draftDays.isNotEmpty) ...[
                                 ...List.generate(
                                   _draftDays.length,
                                   _buildDayCard,
                                 ),
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: OutlinedButton.icon(
-                                    onPressed:
-                                        (_saving ||
-                                            _verifying ||
-                                            _draftDays.length >= 7)
-                                        ? null
-                                        : _addDay,
-                                    icon: const Icon(
-                                      Icons.calendar_view_day_rounded,
-                                    ),
-                                    label: const Text('Add day'),
-                                  ),
+                                TaqaOutlineTagButton(
+                                  label: '+ Add Day',
+                                  width: TaqaUiScale.w(76),
+                                  height: TaqaUiScale.h(20),
+                                  onTap:
+                                      (_saving ||
+                                          _verifying ||
+                                          _draftDays.length >= 7)
+                                      ? null
+                                      : _addDay,
                                 ),
                               ],
                               if (needsVerification && dirty) ...[
-                                const SizedBox(height: 10),
-                                const Text(
-                                  'Reset edits to verify the AI plan only.',
-                                  style: TextStyle(
-                                    color: Color(0xFF5FD8FF),
-                                    fontSize: 12,
-                                  ),
+                                SizedBox(height: TaqaUiScale.h(10)),
+                                const TaqaClientAlertText(
+                                  text:
+                                      'Reset edits to verify the AI plan only.',
                                 ),
                               ],
                             ],
                           ),
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                        decoration: const BoxDecoration(
-                          color: AppColors.black,
-                          border: Border(
-                            top: BorderSide(color: Colors.white12),
+                      if (dirty || needsVerification || _saving || _verifying)
+                        Container(
+                          padding: TaqaUiScale.insetsLTRB(16, 10, 17, 16),
+                          decoration: BoxDecoration(
+                            color: TaqaUiColors.lightGray,
+                            border: Border(
+                              top: BorderSide(
+                                color: TaqaUiColors.charcoal.withValues(
+                                  alpha: 0.12,
+                                ),
+                              ),
+                            ),
+                          ),
+                          child: _buildScrollableActions(
+                            dirty: dirty,
+                            canConfirm: canConfirm,
+                            canVerifyOnly: canVerifyOnly,
                           ),
                         ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: SizedBox(
-                                height: 46,
-                                child: OutlinedButton(
-                                  style: OutlinedButton.styleFrom(
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    side: const BorderSide(
-                                      color: Colors.white24,
-                                    ),
-                                    foregroundColor: Colors.white,
-                                  ),
-                                  onPressed: (!_saving && !_verifying && dirty)
-                                      ? _resetDraft
-                                      : null,
-                                  child: const Text('Reset'),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: SizedBox(
-                                height: 46,
-                                child: FilledButton(
-                                  style: FilledButton.styleFrom(
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  onPressed: canVerifyOnly ? _verifyOnly : null,
-                                  child: _verifying
-                                      ? const SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      : const Text('Verify'),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: SizedBox(
-                                height: 46,
-                                child: FilledButton(
-                                  style: FilledButton.styleFrom(
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    backgroundColor: AppColors.accent,
-                                    foregroundColor: Colors.black,
-                                  ),
-                                  onPressed: canConfirm
-                                      ? _confirmChanges
-                                      : null,
-                                  child: _saving
-                                      ? const SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      : const Text('Confirm'),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -965,182 +821,4 @@ class _PlanExerciseDraft {
   int reps;
   int? rir;
   double? weightKg;
-}
-
-class _NumberField extends StatefulWidget {
-  const _NumberField({
-    required this.label,
-    required this.initialValue,
-    required this.minValue,
-    required this.maxValue,
-    required this.enabled,
-    required this.onChanged,
-    this.allowNull = false,
-  });
-
-  final String label;
-  final int? initialValue;
-  final int minValue;
-  final int maxValue;
-  final bool enabled;
-  final bool allowNull;
-  final ValueChanged<int?> onChanged;
-
-  @override
-  State<_NumberField> createState() => _NumberFieldState();
-}
-
-class _NumberFieldState extends State<_NumberField> {
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(
-      text: widget.initialValue == null ? '' : '${widget.initialValue}',
-    );
-  }
-
-  @override
-  void didUpdateWidget(covariant _NumberField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialValue != widget.initialValue) {
-      _controller.text = widget.initialValue == null
-          ? ''
-          : '${widget.initialValue}';
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _handleChange(String raw) {
-    final text = raw.trim();
-    if (text.isEmpty && widget.allowNull) {
-      widget.onChanged(null);
-      return;
-    }
-    final parsed = int.tryParse(text);
-    if (parsed == null) return;
-    final clamped = parsed.clamp(widget.minValue, widget.maxValue);
-    if (clamped != parsed) {
-      _controller.text = '$clamped';
-      _controller.selection = TextSelection.fromPosition(
-        TextPosition(offset: _controller.text.length),
-      );
-    }
-    widget.onChanged(clamped);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: _controller,
-      enabled: widget.enabled,
-      keyboardType: TextInputType.number,
-      textInputAction: TextInputAction.done,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(labelText: widget.label, isDense: true),
-      onChanged: _handleChange,
-      onFieldSubmitted: (_) => FocusScope.of(context).unfocus(),
-    );
-  }
-}
-
-class _WeightField extends StatefulWidget {
-  const _WeightField({
-    required this.initialValue,
-    required this.enabled,
-    required this.onChanged,
-  });
-
-  final double? initialValue;
-  final bool enabled;
-  final ValueChanged<double?> onChanged;
-
-  @override
-  State<_WeightField> createState() => _WeightFieldState();
-}
-
-class _WeightFieldState extends State<_WeightField> {
-  late final TextEditingController _controller;
-
-  static const double _maxWeight = 1000;
-
-  String _format(double? value) {
-    if (value == null) return '';
-    if (value == value.roundToDouble()) return value.toStringAsFixed(0);
-    return value.toString();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: _format(widget.initialValue));
-  }
-
-  @override
-  void didUpdateWidget(covariant _WeightField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialValue != widget.initialValue &&
-        _toDouble(_controller.text) != widget.initialValue) {
-      _controller.text = _format(widget.initialValue);
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  double? _toDouble(String raw) {
-    final text = raw.trim();
-    if (text.isEmpty) return null;
-    return double.tryParse(text);
-  }
-
-  void _handleChange(String raw) {
-    final text = raw.trim();
-    if (text.isEmpty) {
-      widget.onChanged(null);
-      return;
-    }
-    final parsed = double.tryParse(text);
-    if (parsed == null) return;
-    if (parsed < 0) {
-      widget.onChanged(0);
-      return;
-    }
-    if (parsed > _maxWeight) {
-      _controller.text = _format(_maxWeight);
-      _controller.selection = TextSelection.fromPosition(
-        TextPosition(offset: _controller.text.length),
-      );
-      widget.onChanged(_maxWeight);
-      return;
-    }
-    widget.onChanged(parsed);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: _controller,
-      enabled: widget.enabled,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      textInputAction: TextInputAction.done,
-      style: const TextStyle(color: Colors.white),
-      decoration: const InputDecoration(
-        labelText: 'Weight (kg)',
-        hintText: 'Not set',
-        isDense: true,
-      ),
-      onChanged: _handleChange,
-      onFieldSubmitted: (_) => FocusScope.of(context).unfocus(),
-    );
-  }
 }

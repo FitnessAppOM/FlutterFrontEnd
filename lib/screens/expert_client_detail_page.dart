@@ -27,6 +27,16 @@ import 'expert_progression_review_page.dart';
 import 'expert_training_plan_review_page.dart';
 import '../widgets/coach/chat_video_player_page.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
+import '../TaqaUI/components/taqa_expert_client_dashboard_ui.dart';
+import '../TaqaUI/components/taqa_expert_client_view.dart';
+import '../TaqaUI/components/taqa_profile_info_section.dart';
+import '../TaqaUI/components/taqa_stop_sign_icon.dart';
+import '../TaqaUI/components/taqa_toast.dart';
+import '../TaqaUI/components/taqa_value_dialog.dart';
+import '../TaqaUI/components/taqa_person_remove_icon.dart';
+import '../TaqaUI/components/taqa_refresh_indicator.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 
 String _aiUpdateGenerationMessage(Map<String, dynamic> result) {
   final reason = (result['reason'] ?? '').toString().trim();
@@ -42,6 +52,24 @@ String _aiUpdateGenerationMessage(Map<String, dynamic> result) {
     default:
       return reason.isNotEmpty ? reason : 'No review generated.';
   }
+}
+
+AppToastType _clientToastType(String message) {
+  final normalized = message.toLowerCase();
+  if (normalized.contains('failed') ||
+      normalized.contains('error') ||
+      normalized.contains('could not') ||
+      normalized.contains('required')) {
+    return AppToastType.error;
+  }
+  if (normalized.contains('sent') ||
+      normalized.contains('submitted') ||
+      normalized.contains('saved') ||
+      normalized.contains('pinned') ||
+      normalized.contains('stopped')) {
+    return AppToastType.success;
+  }
+  return AppToastType.info;
 }
 
 class ExpertClientDetailPage extends StatefulWidget {
@@ -75,7 +103,6 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   final Set<int> _sendingVoiceNoteIds = <int>{};
   final Set<int> _pinningReviewIds = <int>{};
   final Set<int> _pinningReplyIds = <int>{};
-  bool _generatingAiReview = false;
   final AudioRecorder _audioRecorder = AudioRecorder();
   final AudioPlayer _voicePlayer = AudioPlayer();
   StreamSubscription<PlayerState>? _voicePlayerSub;
@@ -89,7 +116,6 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   StateSetter? _activeReviewSheetSetState;
   String? _profileError;
   String? _habitsError;
-  String? _formChecksError;
   bool _detachingClient = false;
   bool _reportingClient = false;
   late bool _showFormReviewPendingNote;
@@ -146,7 +172,6 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
         _loading = true;
         _profileError = null;
         _habitsError = null;
-        _formChecksError = null;
       });
     }
 
@@ -156,7 +181,6 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     int? expertId;
     String? profileError;
     String? habitsError;
-    String? formChecksError;
     bool showTrainingPlanPendingNote = _showTrainingPlanPendingNote;
     bool supportChatHasUnread = _supportChatHasUnread;
     String? activityStatus = _activityStatus ?? widget.client.activityStatus;
@@ -199,9 +223,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
           await ProgressionReviewService.fetchClientSharedFormChecks(
             widget.client.userId,
           );
-    } catch (e) {
-      formChecksError = _normalizeHabitsError(e);
-    }
+    } catch (_) {}
 
     try {
       supportChatHasUnread =
@@ -241,7 +263,6 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       _sharedFormChecks = sharedFormChecks;
       _profileError = profileError;
       _habitsError = habitsError;
-      _formChecksError = formChecksError;
       _showTrainingPlanPendingNote = showTrainingPlanPendingNote;
       _supportChatHasUnread = supportChatHasUnread;
       _activityStatus = activityStatus;
@@ -309,20 +330,6 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     return count;
   }
 
-  IconData get _aiUpdatesStatusIcon {
-    if (_showFormReviewPendingNote) {
-      return Icons.notification_important_outlined;
-    }
-    return Icons.auto_awesome_rounded;
-  }
-
-  Color get _aiUpdatesStatusColor {
-    if (_showFormReviewPendingNote) {
-      return Colors.orangeAccent;
-    }
-    return const Color(0xFF5FD8FF);
-  }
-
   String _aiUpdatesStatusText() {
     final hasForm = _showFormReviewPendingNote;
     final hasTraining = _showTrainingPlanPendingNote;
@@ -346,75 +353,6 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     return reviewCount > 0
         ? 'Latest AI updates ready'
         : 'No AI updates pending';
-  }
-
-  Future<void> _openAiReview(ProgressionReview review) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ExpertProgressionReviewPage(reviewId: review.reviewId),
-      ),
-    );
-    await _refreshClientReviews();
-    await _load();
-  }
-
-  Future<void> _refreshClientReviews() async {
-    try {
-      final refreshed = await ProgressionReviewService.fetchReviews(
-        includeApplied: true,
-      );
-      if (!mounted) return;
-      setState(() {
-        _clientReviews = refreshed
-            .where((item) => item.userId == widget.client.userId)
-            .toList();
-      });
-    } catch (_) {
-      // Keep the updated detail page usable even if the refresh fails.
-    }
-  }
-
-  Future<void> _generateAiReview({required bool force}) async {
-    if (_generatingAiReview) return;
-    setState(() => _generatingAiReview = true);
-    try {
-      final result = await ProgressionReviewService.generateReview(
-        widget.client.userId,
-        force: force,
-      );
-      if (!mounted) return;
-      final status = (result['status'] ?? '').toString();
-      String message;
-      switch (status) {
-        case 'generated':
-          message = 'AI update review generated.';
-          break;
-        case 'exists':
-          message = 'A review already exists for this week.';
-          break;
-        case 'noop':
-          message = _aiUpdateGenerationMessage(result);
-          break;
-        case 'failed':
-          message =
-              (result['detail'] ?? result['reason'] ?? 'Generation failed.')
-                  .toString();
-          break;
-        default:
-          message = (result['detail'] ?? 'AI update request completed.')
-              .toString();
-          break;
-      }
-      _showSnack(message);
-      await _refreshClientReviews();
-      await _load();
-    } catch (e) {
-      _showSnack(e.toString().replaceFirst('Exception: ', ''));
-    } finally {
-      if (mounted) {
-        setState(() => _generatingAiReview = false);
-      }
-    }
   }
 
   Future<void> _openAiUpdatesPage() async {
@@ -463,21 +401,6 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     return 'Client #${widget.client.userId}';
   }
 
-  String _initials(String name) {
-    final trimmed = name.trim();
-    if (trimmed.isEmpty) return '?';
-    final parts = trimmed
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
-        .toList();
-    if (parts.isEmpty) return '?';
-    if (parts.length == 1) {
-      return parts.first.substring(0, 1).toUpperCase();
-    }
-    return '${parts.first.substring(0, 1)}${parts.last.substring(0, 1)}'
-        .toUpperCase();
-  }
-
   String? _normalizeAvatarUrl(String? rawValue) {
     final raw = rawValue?.trim() ?? '';
     if (raw.isEmpty) return null;
@@ -504,39 +427,6 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   String _value(dynamic raw, {String fallback = '-'}) {
     final text = (raw ?? '').toString().trim();
     return text.isEmpty ? fallback : text;
-  }
-
-  Color _activityColor() {
-    switch ((_activityStatus ?? widget.client.activityStatus ?? '')
-        .trim()
-        .toLowerCase()) {
-      case 'green':
-        return Colors.greenAccent.shade400;
-      case 'yellow':
-        return Colors.amber.shade400;
-      case 'red':
-        return Colors.redAccent.shade200;
-      default:
-        return Colors.redAccent.shade200;
-    }
-  }
-
-  String _activityLabel() {
-    final status = (_activityStatus ?? widget.client.activityStatus ?? '')
-        .trim()
-        .toLowerCase();
-    final inactiveDays = _inactiveDays ?? widget.client.inactiveDays;
-    if (status == 'green') return 'Active';
-    if (status == 'yellow') {
-      if (inactiveDays != null) {
-        return 'Inactive $inactiveDays days';
-      }
-      return 'Inactive 3+ days';
-    }
-    if (inactiveDays != null) {
-      return 'Inactive $inactiveDays days';
-    }
-    return 'Inactive 7+ days';
   }
 
   int? _parseNullableInt(dynamic value) {
@@ -609,33 +499,20 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
 
   void _showSnack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    AppToast.show(context, message, type: _clientToastType(message));
   }
 
   Future<void> _detachClient() async {
     if (_detachingClient) return;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showTaqaConfirmDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Detach client?'),
-        content: const Text(
+      title: 'Detach client?',
+      message:
           'Are you sure you want to detach this client from your coaching list?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Detach'),
-          ),
-        ],
-      ),
+      confirmLabel: 'Detach',
+      cancelLabel: 'Cancel',
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
 
     setState(() => _detachingClient = true);
     try {
@@ -656,52 +533,15 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
 
   Future<void> _reportClient() async {
     if (_reportingClient) return;
-    final reasonController = TextEditingController();
-    String? errorText;
-    final reason = await showDialog<String>(
+    final reason = await showTaqaMultilineTextDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Report client'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Please write the reason for this report.'),
-              const SizedBox(height: 10),
-              TextField(
-                controller: reasonController,
-                maxLength: 1000,
-                minLines: 3,
-                maxLines: 6,
-                decoration: InputDecoration(
-                  hintText: 'Write the reason...',
-                  errorText: errorText,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                final value = reasonController.text.trim();
-                if (value.isEmpty) {
-                  setDialogState(() => errorText = 'Reason is required.');
-                  return;
-                }
-                Navigator.of(ctx).pop(value);
-              },
-              child: const Text('Report'),
-            ),
-          ],
-        ),
-      ),
+      title: 'Report client',
+      message: 'Please write the reason for this report.',
+      hintText: 'Write the reason...',
+      confirmLabel: 'Report',
+      requiredMessage: 'Reason is required.',
+      maxLength: 1000,
     );
-    reasonController.dispose();
     if (reason == null) return;
 
     setState(() => _reportingClient = true);
@@ -1720,7 +1560,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                             ),
                           ),
                           SizedBox(width: 8),
-                          _AudioWaveBars(
+                          TaqaAudioWaveBars(
                             color: Colors.redAccent,
                             barCount: 6,
                             minHeight: 4,
@@ -1882,7 +1722,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                     const Text(
                       'Reply History',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: TaqaUiColors.charcoal,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -2170,6 +2010,8 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
         builder: (_) => ExpertTrainingPlanReviewPage(
           clientUserId: widget.client.userId,
           clientName: _displayName(),
+          clientAvatarUrl: _resolvedAvatarUrl(),
+          clientActivityStatus: _activityStatus ?? widget.client.activityStatus,
           activeProgram: activeProgram,
           trainingPlanError: trainingPlanError,
         ),
@@ -2215,1066 +2057,135 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
         builder: (_) => ExpertClientChatPage(
           clientUserId: widget.client.userId,
           clientName: _displayName(),
+          clientAvatarUrl: _resolvedAvatarUrl(),
+          clientActivityStatus: _activityStatus ?? widget.client.activityStatus,
         ),
       ),
     );
     await _refreshSupportChatUnreadStatus();
   }
 
-  Widget _buildClientOverviewCard() {
-    final name = _displayName();
-    final avatarUrl = (_resolvedAvatarUrl() ?? '').trim();
-    final profile = _profile;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 30,
-                backgroundColor: Colors.white10,
-                foregroundImage: avatarUrl.isNotEmpty
-                    ? NetworkImage(avatarUrl)
-                    : null,
-                child: Text(
-                  _initials(name),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 19,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 20,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'User ID: ${widget.client.userId}',
-                      style: const TextStyle(color: Colors.white60),
-                    ),
-                    if (_hasAiUpdatesPending) ...[
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Icon(
-                            _aiUpdatesStatusIcon,
-                            size: 13,
-                            color: _aiUpdatesStatusColor,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              _aiUpdatesStatusText(),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: _aiUpdatesStatusColor,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: _activityColor().withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: _activityColor()),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: _activityColor(),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _activityLabel(),
-                      style: TextStyle(
-                        color: _activityColor(),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Divider(color: Colors.white.withValues(alpha: 0.1), height: 1),
-          const SizedBox(height: 12),
-          const Text(
-            'Profile',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 15,
-            ),
-          ),
-          const SizedBox(height: 8),
-          if (_profileError != null)
-            Text(
-              _profileError!,
-              style: const TextStyle(color: Colors.orangeAccent),
-            )
-          else if (profile == null)
-            const Text(
-              'No profile data available.',
-              style: TextStyle(color: Colors.white70),
-            )
-          else
-            Column(
-              children: [
-                _InfoRow(label: 'Age', value: _value(profile['age'])),
-                const SizedBox(height: 6),
-                _InfoRow(label: 'Sex', value: _value(profile['sex'])),
-                const SizedBox(height: 6),
-                _InfoRow(
-                  label: 'Height',
-                  value: '${_value(profile['height_cm'])} cm',
-                ),
-                const SizedBox(height: 6),
-                _InfoRow(
-                  label: 'Weight',
-                  value: '${_value(profile['weight_kg'])} kg',
-                ),
-                const SizedBox(height: 6),
-                _InfoRow(label: 'Goal', value: _value(profile['fitness_goal'])),
-                const SizedBox(height: 6),
-                _InfoRow(
-                  label: 'Training days',
-                  value: _value(profile['training_days']),
-                ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAnalyticsCard() {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: _openAnalyticsPage,
-        child: Ink(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.cardDark,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white10),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Analytics',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                  if (_showTrainingPlanPendingNote)
-                    Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF5FD8FF).withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: const Color(
-                            0xFF5FD8FF,
-                          ).withValues(alpha: 0.45),
-                        ),
-                      ),
-                      child: const Text(
-                        'New',
-                        style: TextStyle(
-                          color: Color(0xFF5FD8FF),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  const Icon(
-                    Icons.chevron_right,
-                    color: Colors.white54,
-                    size: 20,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Open client analytics and activity status.',
-                style: TextStyle(color: Colors.white70),
-              ),
-              if (_showTrainingPlanPendingNote) ...[
-                const SizedBox(height: 6),
-                const Row(
-                  children: [
-                    Icon(
-                      Icons.checklist_rounded,
-                      size: 14,
-                      color: Color(0xFF5FD8FF),
-                    ),
-                    SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        "Client's plan not checked yet.",
-                        style: TextStyle(
-                          color: Color(0xFF5FD8FF),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerRight,
-                child: OutlinedButton.icon(
-                  onPressed: _openAnalyticsPage,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white24),
-                    minimumSize: const Size(0, 34),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: const VisualDensity(
-                      horizontal: -2,
-                      vertical: -2,
-                    ),
-                  ),
-                  icon: const Icon(Icons.insights_outlined, size: 16),
-                  label: const Text('View Analytics'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHabitsCard() {
-    final totalHabits = _habits.length;
-    final checkedCount = _habits.where((habit) => habit.isCompleted).length;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: _expertId == null ? null : _openHabitsPage,
-        child: Ink(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.cardDark,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white10),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: const [
-                  Expanded(
-                    child: Text(
-                      'Habits',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                  Icon(Icons.chevron_right, color: Colors.white54, size: 20),
-                ],
-              ),
-              const SizedBox(height: 8),
-              if (_habitsError != null)
-                Text(
-                  _habitsError!,
-                  style: const TextStyle(color: Colors.white70),
-                )
-              else if (totalHabits == 0)
-                const Text(
-                  'No habits set yet.',
-                  style: TextStyle(color: Colors.white70),
-                )
-              else
-                Column(
-                  children: [
-                    _InfoRow(label: 'Total habits', value: '$totalHabits'),
-                    const SizedBox(height: 6),
-                    _InfoRow(
-                      label: 'Checked this week',
-                      value: '$checkedCount',
-                    ),
-                  ],
-                ),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerRight,
-                child: OutlinedButton.icon(
-                  onPressed: _expertId == null ? null : _openHabitsPage,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white24),
-                    minimumSize: const Size(0, 34),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: const VisualDensity(
-                      horizontal: -2,
-                      vertical: -2,
-                    ),
-                  ),
-                  icon: const Icon(Icons.visibility_outlined, size: 16),
-                  label: const Text('View Habits'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTrainingPlanCard() {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: _openingTrainingPlan ? null : _openTrainingPlanPage,
-        child: Ink(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.cardDark,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white10),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Client Plan',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                  if (_showTrainingPlanPendingNote)
-                    Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF5FD8FF).withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: const Color(
-                            0xFF5FD8FF,
-                          ).withValues(alpha: 0.45),
-                        ),
-                      ),
-                      child: const Text(
-                        'New',
-                        style: TextStyle(
-                          color: Color(0xFF5FD8FF),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  if (_openingTrainingPlan)
-                    const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  else
-                    const Icon(
-                      Icons.chevron_right,
-                      color: Colors.white54,
-                      size: 20,
-                    ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Open and review the client training plan directly.',
-                style: TextStyle(color: Colors.white70),
-              ),
-              if (_showTrainingPlanPendingNote) ...[
-                const SizedBox(height: 6),
-                const Row(
-                  children: [
-                    Icon(
-                      Icons.checklist_rounded,
-                      size: 14,
-                      color: Color(0xFF5FD8FF),
-                    ),
-                    SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        "Client's plan not checked yet.",
-                        style: TextStyle(
-                          color: Color(0xFF5FD8FF),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerRight,
-                child: OutlinedButton.icon(
-                  onPressed: _openingTrainingPlan
-                      ? null
-                      : _openTrainingPlanPage,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white24),
-                    minimumSize: const Size(0, 34),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: const VisualDensity(
-                      horizontal: -2,
-                      vertical: -2,
-                    ),
-                  ),
-                  icon: const Icon(Icons.checklist_rounded, size: 16),
-                  label: Text(
-                    _openingTrainingPlan ? 'Opening...' : 'Open Plan',
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDietReviewCard() {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: _openDietReviewPage,
-        child: Ink(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.cardDark,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white10),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Diet Review',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                  if (_showDietLogPendingNote)
-                    Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF5FD8FF).withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: const Color(
-                            0xFF5FD8FF,
-                          ).withValues(alpha: 0.45),
-                        ),
-                      ),
-                      child: Text(
-                        widget.client.sharedDietLogCount > 1
-                            ? 'New (${widget.client.sharedDietLogCount})'
-                            : 'New',
-                        style: const TextStyle(
-                          color: Color(0xFF5FD8FF),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  const Icon(
-                    Icons.chevron_right,
-                    color: Colors.white54,
-                    size: 20,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'View this client diet logs by date and leave coach comments.',
-                style: TextStyle(color: Colors.white70),
-              ),
-              if (_showDietLogPendingNote) ...[
-                const SizedBox(height: 6),
-                Row(
-                  children: const [
-                    Icon(
-                      Icons.restaurant_menu_rounded,
-                      size: 14,
-                      color: Color(0xFF5FD8FF),
-                    ),
-                    SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'New diet logs available.',
-                        style: TextStyle(
-                          color: Color(0xFF5FD8FF),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerRight,
-                child: OutlinedButton.icon(
-                  onPressed: _openDietReviewPage,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white24),
-                    minimumSize: const Size(0, 34),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: const VisualDensity(
-                      horizontal: -2,
-                      vertical: -2,
-                    ),
-                  ),
-                  icon: const Icon(Icons.restaurant_outlined, size: 16),
-                  label: const Text('Open Diet Review'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSupportChatCard() {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: _openSupportChatPage,
-        child: Ink(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.cardDark,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white10),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Support Chat',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                  if (_supportChatHasUnread) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF5FD8FF).withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: const Color(
-                            0xFF5FD8FF,
-                          ).withValues(alpha: 0.45),
-                        ),
-                      ),
-                      child: const Text(
-                        'New',
-                        style: TextStyle(
-                          color: Color(0xFF5FD8FF),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  const Icon(
-                    Icons.chevron_right,
-                    color: Colors.white54,
-                    size: 20,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _supportChatHasUnread
-                    ? 'Client sent a new message. Open support chat to read it.'
-                    : 'Open chat thread with this client and send text replies.',
-                style: TextStyle(
-                  color: _supportChatHasUnread
-                      ? const Color(0xFF5FD8FF)
-                      : Colors.white70,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerRight,
-                child: OutlinedButton.icon(
-                  onPressed: _openSupportChatPage,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white24),
-                    minimumSize: const Size(0, 34),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: const VisualDensity(
-                      horizontal: -2,
-                      vertical: -2,
-                    ),
-                  ),
-                  icon: const Icon(Icons.chat_bubble_outline, size: 16),
-                  label: const Text('Open Chat'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFormReviewCard() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Form Review',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Only videos explicitly shared by this client are shown.',
-            style: TextStyle(color: Colors.white70),
-          ),
-          if (_showFormReviewPendingNote) ...[
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                const Icon(
-                  Icons.notification_important_outlined,
-                  size: 14,
-                  color: Colors.orangeAccent,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    widget.client.sharedFormCheckCount > 1
-                        ? 'Awaiting your reply (${widget.client.sharedFormCheckCount})'
-                        : 'Awaiting your reply',
-                    style: const TextStyle(
-                      color: Colors.orangeAccent,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 10),
-          if (_formChecksError != null)
-            Text(
-              _formChecksError!,
-              style: const TextStyle(color: Colors.white70),
-            )
-          else if (_sharedFormChecks.isEmpty)
-            const Text(
-              'No videos available for review.',
-              style: TextStyle(color: Colors.white70),
-            )
-          else
-            ..._sharedFormChecks.map((item) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(10),
-                  onTap: () => _openSubmissionReviewSheet(item),
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.03),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                item.exerciseName,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        if (item.result.feedbackBullets.isNotEmpty ||
-                            (item.result.feedbackSummary ?? '')
-                                .trim()
-                                .isNotEmpty)
-                          const Text(
-                            'Taqa Agent analysis ready',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                            ),
-                          )
-                        else if (item.isProcessing)
-                          const Text(
-                            'Taqa Agent analysis processing',
-                            style: TextStyle(
-                              color: Colors.white54,
-                              fontSize: 12,
-                            ),
-                          ),
-                        const SizedBox(height: 6),
-                        const Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Text(
-                              'Tap to open',
-                              style: TextStyle(
-                                color: Colors.white54,
-                                fontSize: 12,
-                              ),
-                            ),
-                            SizedBox(width: 4),
-                            Icon(
-                              Icons.chevron_right,
-                              size: 16,
-                              color: Colors.white54,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAiUpdatesCard() {
-    final statusColor = _aiUpdatesStatusColor;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: _openAiUpdatesPage,
-        child: Ink(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.cardDark,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white10),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'AI Updates',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                  if (_hasAiUpdatesPending)
-                    Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: statusColor.withValues(alpha: 0.45),
-                        ),
-                      ),
-                      child: Text(
-                        _pendingAiUpdateCount > 1 ? 'New' : 'Pending',
-                        style: TextStyle(
-                          color: statusColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  const Icon(
-                    Icons.chevron_right,
-                    color: Colors.white54,
-                    size: 20,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Open AI-driven form feedback and training suggestions.',
-                style: TextStyle(color: Colors.white70),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Icon(_aiUpdatesStatusIcon, size: 14, color: statusColor),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      _aiUpdatesStatusText(),
-                      style: TextStyle(
-                        color: statusColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerRight,
-                child: OutlinedButton.icon(
-                  onPressed: _openAiUpdatesPage,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white24),
-                    minimumSize: const Size(0, 34),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: const VisualDensity(
-                      horizontal: -2,
-                      vertical: -2,
-                    ),
-                  ),
-                  icon: const Icon(Icons.auto_awesome_outlined, size: 16),
-                  label: const Text('Open AI Updates'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final list = ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(20),
-      children: [
-        _buildClientOverviewCard(),
-        const SizedBox(height: 12),
-        _buildSupportChatCard(),
-        const SizedBox(height: 12),
-        _buildAnalyticsCard(),
-        const SizedBox(height: 12),
-        _buildTrainingPlanCard(),
-        const SizedBox(height: 12),
-        _buildHabitsCard(),
-        const SizedBox(height: 12),
-        _buildDietReviewCard(),
-        const SizedBox(height: 12),
-        _buildAiUpdatesCard(),
-        const SizedBox(height: 24),
-      ],
+    final profile = _profile;
+    final personalInfoItems = _profileError != null
+        ? [TaqaProfileInfoItem(label: 'Status', value: _profileError!)]
+        : profile == null
+        ? const [
+            TaqaProfileInfoItem(
+              label: 'Status',
+              value: 'No profile data available.',
+            ),
+          ]
+        : [
+            TaqaProfileInfoItem(label: 'Age', value: _value(profile['age'])),
+            TaqaProfileInfoItem(label: 'Sex', value: _value(profile['sex'])),
+            TaqaProfileInfoItem(
+              label: 'Height',
+              value: '${_value(profile['height_cm'])} cm',
+            ),
+            TaqaProfileInfoItem(
+              label: 'Weight',
+              value: '${_value(profile['weight_kg'])} kg',
+            ),
+            TaqaProfileInfoItem(
+              label: 'Occupation',
+              value: _value(profile['occupation']),
+            ),
+            TaqaProfileInfoItem(
+              label: 'Goal',
+              value: _value(profile['fitness_goal']),
+            ),
+            TaqaProfileInfoItem(
+              label: 'Training days',
+              value: _value(profile['training_days']),
+            ),
+          ];
+    final habitsTotal = _habits.length;
+    final habitsChecked = _habits.where((habit) => habit.isCompleted).length;
+    final dietAlert = _showDietLogPendingNote
+        ? widget.client.sharedDietLogCount > 1
+              ? 'New diet logs available (${widget.client.sharedDietLogCount})'
+              : 'New diet log available'
+        : null;
+
+    final list = TaqaExpertClientView(
+      name: _displayName(),
+      userId: widget.client.userId,
+      avatarUrl: _resolvedAvatarUrl(),
+      activityStatus: _activityStatus ?? widget.client.activityStatus,
+      personalInfoItems: personalInfoItems,
+      habitsTotal: habitsTotal,
+      habitsChecked: habitsChecked,
+      habitsEnabled: _expertId != null,
+      habitsError: _habitsError,
+      analyticsAlert: _showTrainingPlanPendingNote
+          ? "Client's plan not checked yet."
+          : null,
+      trainingPlanAlert: _showTrainingPlanPendingNote
+          ? "Client's plan not checked yet."
+          : null,
+      dietAlert: dietAlert,
+      supportChatAlert: _supportChatHasUnread
+          ? 'Client sent a new message'
+          : null,
+      aiUpdatesAlert: _hasAiUpdatesPending ? _aiUpdatesStatusText() : null,
+      trainingPlanLoading: _openingTrainingPlan,
+      onOpenSupportChat: _openSupportChatPage,
+      onOpenAnalytics: _openAnalyticsPage,
+      onOpenTrainingPlan: _openTrainingPlanPage,
+      onOpenHabits: _openHabitsPage,
+      onOpenDietReview: _openDietReviewPage,
+      onOpenAiUpdates: _openAiUpdatesPage,
     );
 
     return Scaffold(
-      backgroundColor: AppColors.black,
+      backgroundColor: TaqaUiColors.lightGray,
       appBar: TaqaPageAppBar(
-        backgroundColor: AppColors.black,
-        titleColor: Colors.white,
         title: 'Client View',
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            SizedBox(width: TaqaUiScale.w(32), height: TaqaUiScale.h(32)),
             IconButton(
+              constraints: BoxConstraints.tightFor(
+                width: TaqaUiScale.w(32),
+                height: TaqaUiScale.h(32),
+              ),
+              padding: EdgeInsets.zero,
+              splashRadius: TaqaUiScale.r(16),
               onPressed: (_loading || _detachingClient || _reportingClient)
                   ? null
                   : _reportClient,
               icon: _reportingClient
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                  ? SizedBox(
+                      width: TaqaUiScale.w(12),
+                      height: TaqaUiScale.h(12),
+                      child: CircularProgressIndicator(
+                        strokeWidth: TaqaUiScale.w(1.5),
+                        color: TaqaUiColors.recordRed,
+                      ),
                     )
-                  : const Icon(Icons.flag_outlined),
+                  : const TaqaStopSignIcon(),
               tooltip: 'Report client',
-              color: Colors.orangeAccent,
             ),
             IconButton(
+              constraints: BoxConstraints.tightFor(
+                width: TaqaUiScale.w(32),
+                height: TaqaUiScale.h(32),
+              ),
+              padding: EdgeInsets.zero,
+              splashRadius: TaqaUiScale.r(16),
               onPressed: (_loading || _detachingClient || _reportingClient)
                   ? null
                   : _detachClient,
-              icon: _detachingClient
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.person_remove_alt_1_outlined),
+              icon: TaqaPersonRemoveIcon(loading: _detachingClient),
               tooltip: 'Detach client',
-              color: Colors.redAccent,
-            ),
-            IconButton(
-              onPressed: _loading ? null : () => _load(),
-              icon: const Icon(Icons.refresh),
-              tooltip: 'Refresh',
             ),
           ],
         ),
       ),
-      body: Stack(
-        children: [
-          RefreshIndicator(onRefresh: () => _load(), child: list),
-          if (_loading)
-            const Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: LinearProgressIndicator(minHeight: 2),
-            ),
-        ],
-      ),
+      body: TaqaRefreshIndicator(onRefresh: _load, child: list),
     );
   }
 }
@@ -3313,9 +2224,7 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
 
   void _showSnack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    AppToast.show(context, message, type: _clientToastType(message));
   }
 
   Future<void> _load() async {
@@ -3413,20 +2322,6 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
     return count;
   }
 
-  IconData get _aiUpdatesStatusIcon {
-    if (_showFormReviewPendingNote) {
-      return Icons.notification_important_outlined;
-    }
-    return Icons.auto_awesome_rounded;
-  }
-
-  Color get _aiUpdatesStatusColor {
-    if (_showFormReviewPendingNote) {
-      return Colors.orangeAccent;
-    }
-    return const Color(0xFF5FD8FF);
-  }
-
   String _aiUpdatesStatusText() {
     final hasForm = _showFormReviewPendingNote;
     final hasTraining = _showTrainingPlanPendingNote;
@@ -3520,30 +2415,14 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
         ),
         if (_showFormReviewPendingNote) ...[
           const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(
-                Icons.notification_important_outlined,
-                size: 14,
-                color: Colors.orangeAccent,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  _sharedFormChecks
-                              .where((item) => item.coachReview == null)
-                              .length >
-                          1
-                      ? 'Awaiting your reply (${_sharedFormChecks.where((item) => item.coachReview == null).length})'
-                      : 'Awaiting your reply',
-                  style: const TextStyle(
-                    color: Colors.orangeAccent,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
+          TaqaClientAlertText(
+            text:
+                _sharedFormChecks
+                        .where((item) => item.coachReview == null)
+                        .length >
+                    1
+                ? 'Awaiting your reply (${_sharedFormChecks.where((item) => item.coachReview == null).length})'
+                : 'Awaiting your reply',
           ),
         ],
         const SizedBox(height: 10),
@@ -3583,7 +2462,7 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          _AiUpdateStatusPill(
+                          TaqaClientDashboardStatusPill(
                             label: item.coachReview == null
                                 ? 'Pending reply'
                                 : 'Reviewed',
@@ -3647,27 +2526,10 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
         ),
         if (_showTrainingPlanPendingNote) ...[
           const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(
-                Icons.auto_awesome_rounded,
-                size: 14,
-                color: Color(0xFF5FD8FF),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  widget.client.trainingPlanUncheckedCount > 1
-                      ? 'Training plans pending verification (${widget.client.trainingPlanUncheckedCount})'
-                      : 'Training plan pending verification',
-                  style: const TextStyle(
-                    color: Color(0xFF5FD8FF),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
+          TaqaClientAlertText(
+            text: widget.client.trainingPlanUncheckedCount > 1
+                ? 'Training plans pending verification (${widget.client.trainingPlanUncheckedCount})'
+                : 'Training plan pending verification',
           ),
         ],
         const SizedBox(height: 10),
@@ -3689,8 +2551,11 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
           ..._clientReviews.map(
             (review) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
-              child: _ClientAiReviewCard(
-                review: review,
+              child: TaqaClientAiReviewCard(
+                weekStart: review.weekStart,
+                itemCount: review.itemCount,
+                status: review.status,
+                summary: review.aiSummary,
                 onTap: () => _openAiReview(review),
               ),
             ),
@@ -3722,35 +2587,19 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.cardDark,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white10),
+                  if (_showFormReviewPendingNote ||
+                      _showTrainingPlanPendingNote)
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.cardDark,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white10),
+                      ),
+                      child: TaqaClientAlertText(text: _aiUpdatesStatusText()),
                     ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _aiUpdatesStatusIcon,
-                          size: 16,
-                          color: _aiUpdatesStatusColor,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _aiUpdatesStatusText(),
-                            style: TextStyle(
-                              color: _aiUpdatesStatusColor,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                   Expanded(
                     child: TabBarView(
                       children: [
@@ -3762,231 +2611,6 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
                 ],
               ),
       ),
-    );
-  }
-}
-
-class _AiUpdateStatusPill extends StatelessWidget {
-  const _AiUpdateStatusPill({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.w700,
-          fontSize: 11,
-        ),
-      ),
-    );
-  }
-}
-
-class _ClientAiReviewCard extends StatelessWidget {
-  const _ClientAiReviewCard({required this.review, required this.onTap});
-
-  final ProgressionReview review;
-  final VoidCallback onTap;
-
-  Color _statusColor() {
-    switch (review.status) {
-      case 'applied':
-        return AppColors.successGreen;
-      case 'failed':
-        return AppColors.errorRed;
-      case 'pending_expert':
-        return const Color(0xFF5FD8FF);
-      case 'reviewed':
-        return AppColors.accent;
-      default:
-        return Colors.white54;
-    }
-  }
-
-  String _statusLabel() {
-    switch (review.status) {
-      case 'pending_expert':
-        return 'Pending review';
-      case 'reviewed':
-        return 'Ready to apply';
-      case 'applied':
-        return 'Applied';
-      case 'failed':
-        return 'Needs retry';
-      default:
-        return review.status;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final statusColor = _statusColor();
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.03),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.white12),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Week ${review.weekStart ?? '-'}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${review.itemCount} suggestions',
-                    style: const TextStyle(color: Colors.white60),
-                  ),
-                  if ((review.aiSummary ?? '').trim().isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      review.aiSummary!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                _AiUpdateStatusPill(label: _statusLabel(), color: statusColor),
-                const SizedBox(height: 8),
-                const Icon(Icons.chevron_right, color: Colors.white38),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(label, style: const TextStyle(color: Colors.white60)),
-        ),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Text(
-            value,
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _AudioWaveBars extends StatefulWidget {
-  const _AudioWaveBars({
-    required this.color,
-    this.barCount = 5,
-    this.minHeight = 4,
-    this.maxHeight = 12,
-    this.barWidth = 3,
-    this.gap = 2,
-  });
-
-  final Color color;
-  final int barCount;
-  final double minHeight;
-  final double maxHeight;
-  final double barWidth;
-  final double gap;
-
-  @override
-  State<_AudioWaveBars> createState() => _AudioWaveBarsState();
-}
-
-class _AudioWaveBarsState extends State<_AudioWaveBars>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        final t = _controller.value * math.pi * 2;
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: List<Widget>.generate(widget.barCount, (index) {
-            final phase = t + (index * 0.7);
-            final level = (math.sin(phase) + 1) / 2;
-            final height =
-                widget.minHeight +
-                (widget.maxHeight - widget.minHeight) * level;
-            return Padding(
-              padding: EdgeInsets.only(
-                right: index == widget.barCount - 1 ? 0 : widget.gap,
-              ),
-              child: Container(
-                width: widget.barWidth,
-                height: height,
-                decoration: BoxDecoration(
-                  color: widget.color,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-            );
-          }),
-        );
-      },
     );
   }
 }

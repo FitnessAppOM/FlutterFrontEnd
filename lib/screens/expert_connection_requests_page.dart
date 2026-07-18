@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../services/coach/coach_support_chat_service.dart';
 import '../services/coach/progression_review_service.dart';
-import '../theme/app_theme.dart';
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/components/taqa_outline_tag_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_toast.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/styles/taqa_ui_styles.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 
 class ExpertConnectionRequestsPage extends StatefulWidget {
   const ExpertConnectionRequestsPage({super.key});
@@ -243,110 +247,62 @@ class _ExpertConnectionRequestsPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.black,
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       appBar: TaqaPageAppBar(
-        backgroundColor: AppColors.black,
-        titleColor: Colors.white,
+        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        titleColor: TaqaUiColors.unnamedColor1c1d17,
         title: 'Inbox',
         trailing: Padding(
-          padding: const EdgeInsets.only(right: 12),
+          padding: EdgeInsets.only(right: TaqaUiScale.w(9)),
           child: Center(
-            child: Material(
-              color: AppColors.cardDark,
-              borderRadius: BorderRadius.circular(10),
-              child: InkWell(
-                onTap: _sendingBulkMessageToRed
-                    ? null
-                    : _sendBulkMessageToRedClients,
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: Colors.redAccent.withValues(alpha: 0.45),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (_sendingBulkMessageToRed)
-                        const SizedBox(
-                          width: 12,
-                          height: 12,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.redAccent,
-                          ),
-                        )
-                      else
-                        const Icon(
-                          Icons.campaign_outlined,
-                          size: 14,
-                          color: Colors.redAccent,
-                        ),
-                      const SizedBox(width: 6),
-                      const Text(
-                        'Bulk Message',
-                        style: TextStyle(
-                          color: Colors.redAccent,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.1,
-                        ),
-                      ),
-                      if (_redStatusClientCount > 0) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 1,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.redAccent.withValues(alpha: 0.16),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            _redStatusClientCount > 99
-                                ? '99+'
-                                : '$_redStatusClientCount',
-                            style: const TextStyle(
-                              color: Colors.redAccent,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
+            child: TaqaOutlineTagButton(
+              label: 'Bulk message',
+              width: TaqaUiScale.w(85),
+              height: TaqaUiScale.h(20),
+              onTap: _sendingBulkMessageToRed
+                  ? null
+                  : _sendBulkMessageToRedClients,
+              borderColor: TaqaUiColors.unnamedColorE93b3b,
+              textStyle: TaqaUiStyles.streakTag.copyWith(
+                color: TaqaUiColors.unnamedColorE93b3b,
               ),
+              icon: _sendingBulkMessageToRed
+                  ? SizedBox(
+                      width: TaqaUiScale.w(8),
+                      height: TaqaUiScale.h(8),
+                      child: const CircularProgressIndicator(
+                        strokeWidth: 1.5,
+                        color: TaqaUiColors.unnamedColorE93b3b,
+                      ),
+                    )
+                  : Icon(
+                      Icons.campaign,
+                      size: TaqaUiScale.w(8),
+                      color: TaqaUiColors.unnamedColorE93b3b,
+                    ),
             ),
           ),
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: TaqaUiColors.lime),
+            )
           : RefreshIndicator(
               onRefresh: _load,
               child: ListView(
-                padding: const EdgeInsets.all(16),
+                padding: TaqaUiScale.insetsLTRB(16, 10, 16, 16),
                 children: [
                   if (_summary.items.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.cardDark,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white10),
-                      ),
-                      child: const Text(
-                        'No pending requests.',
-                        style: TextStyle(color: Colors.white70),
+                    Text(
+                      'No pending requests.',
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(10),
+                        fontWeight: FontWeight.w400,
+                        height: 18 / 10,
+                        letterSpacing: 0,
+                        color: TaqaUiColors.unnamedColor1c1d17,
                       ),
                     )
                   else
@@ -356,17 +312,19 @@ class _ExpertConnectionRequestsPageState
                       );
                       final isDetachEvent = request.isDetachEvent;
                       return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(12),
+                        margin: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
+                        padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
                         decoration: BoxDecoration(
-                          color: AppColors.cardDark,
-                          borderRadius: BorderRadius.circular(12),
+                          color: TaqaUiColors.white,
+                          borderRadius: TaqaUiScale.radius(15),
                           border: Border.all(
                             color: request.isNew
                                 ? const Color(
-                                    0xFF4ADE80,
+                                    0xFF3BE971,
                                   ).withValues(alpha: 0.55)
-                                : Colors.white10,
+                                : TaqaUiColors.unnamedColor1c1d17.withValues(
+                                    alpha: 0.10,
+                                  ),
                           ),
                         ),
                         child: Column(
@@ -378,56 +336,51 @@ class _ExpertConnectionRequestsPageState
                                   child: Text(
                                     request.clientName ??
                                         'Client #${request.clientUserId}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 15,
+                                    style: TextStyle(
+                                      fontFamily: TaqaUiFontFamilies.interTight,
+                                      color: TaqaUiColors.unnamedColor1c1d17,
+                                      fontSize: TaqaUiScale.sp(15),
                                       fontWeight: FontWeight.w700,
+                                      height: 18 / 15,
                                     ),
                                   ),
                                 ),
                                 if (request.isNew)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 7,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(
-                                        0xFF1F9D63,
-                                      ).withValues(alpha: 0.22),
-                                      borderRadius: BorderRadius.circular(999),
-                                    ),
-                                    child: const Text(
-                                      'NEW',
-                                      style: TextStyle(
-                                        color: Color(0xFFA7F3D0),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w800,
-                                      ),
+                                  TaqaOutlineTagButton(
+                                    label: 'New',
+                                    width: TaqaUiScale.w(38),
+                                    height: TaqaUiScale.h(20),
+                                    borderColor: const Color(0xFF3BE971),
+                                    textStyle: TaqaUiStyles.streakTag.copyWith(
+                                      color: const Color(0xFF15803D),
                                     ),
                                   ),
                               ],
                             ),
-                            const SizedBox(height: 4),
+                            SizedBox(height: TaqaUiScale.h(4)),
                             Text(
                               request.clientEmail ??
                                   'user_id: ${request.clientUserId}',
-                              style: const TextStyle(
-                                color: Colors.white60,
-                                fontSize: 12,
+                              style: TextStyle(
+                                fontFamily: TaqaUiFontFamilies.interTight,
+                                color: TaqaUiColors.unnamedColor1c1d17
+                                    .withValues(alpha: 0.70),
+                                fontSize: TaqaUiScale.sp(12),
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            SizedBox(height: TaqaUiScale.h(4)),
                             Text(
                               isDetachEvent
                                   ? 'Detached: ${_formatDate(request.detachedAt ?? request.updatedAt)}'
                                   : 'Requested: ${_formatDate(request.requestedAt)}',
-                              style: const TextStyle(
-                                color: Colors.white54,
-                                fontSize: 12,
+                              style: TextStyle(
+                                fontFamily: TaqaUiFontFamilies.interTight,
+                                color: TaqaUiColors.unnamedColor1c1d17
+                                    .withValues(alpha: 0.54),
+                                fontSize: TaqaUiScale.sp(12),
                               ),
                             ),
-                            const SizedBox(height: 10),
+                            SizedBox(height: TaqaUiScale.h(12)),
                             if (isDetachEvent)
                               Align(
                                 alignment: Alignment.centerRight,
@@ -436,19 +389,35 @@ class _ExpertConnectionRequestsPageState
                                       ? null
                                       : () => _ackDetach(request),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF2563EB),
-                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    backgroundColor:
+                                        TaqaUiColors.unnamedColorE4e93b,
+                                    foregroundColor:
+                                        TaqaUiColors.unnamedColor1c1d17,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: TaqaUiScale.radius(5),
+                                    ),
                                   ),
                                   child: acting
-                                      ? const SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.white,
-                                          ),
+                                      ? SizedBox(
+                                          width: TaqaUiScale.w(16),
+                                          height: TaqaUiScale.h(16),
+                                          child:
+                                              const CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: TaqaUiColors
+                                                    .unnamedColor1c1d17,
+                                              ),
                                         )
-                                      : const Text('OK'),
+                                      : Text(
+                                          'OK',
+                                          style: TextStyle(
+                                            fontFamily:
+                                                TaqaUiFontFamilies.interTight,
+                                            fontSize: TaqaUiScale.sp(10),
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
                                 ),
                               )
                             else
@@ -461,15 +430,28 @@ class _ExpertConnectionRequestsPageState
                                           : () =>
                                                 _decide(request, accept: false),
                                       style: OutlinedButton.styleFrom(
-                                        foregroundColor: Colors.redAccent,
+                                        foregroundColor:
+                                            TaqaUiColors.unnamedColorE93b3b,
                                         side: const BorderSide(
-                                          color: Colors.redAccent,
+                                          color:
+                                              TaqaUiColors.unnamedColorE93b3b,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: TaqaUiScale.radius(5),
                                         ),
                                       ),
-                                      child: const Text('Deny'),
+                                      child: Text(
+                                        'DENY',
+                                        style: TextStyle(
+                                          fontFamily:
+                                              TaqaUiFontFamilies.interTight,
+                                          fontSize: TaqaUiScale.sp(10),
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  SizedBox(width: TaqaUiScale.w(8)),
                                   Expanded(
                                     child: ElevatedButton(
                                       onPressed: acting
@@ -477,21 +459,35 @@ class _ExpertConnectionRequestsPageState
                                           : () =>
                                                 _decide(request, accept: true),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(
-                                          0xFF16A34A,
+                                        elevation: 0,
+                                        backgroundColor:
+                                            TaqaUiColors.unnamedColorE4e93b,
+                                        foregroundColor:
+                                            TaqaUiColors.unnamedColor1c1d17,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: TaqaUiScale.radius(5),
                                         ),
-                                        foregroundColor: Colors.white,
                                       ),
                                       child: acting
-                                          ? const SizedBox(
-                                              width: 16,
-                                              height: 16,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: Colors.white,
-                                              ),
+                                          ? SizedBox(
+                                              width: TaqaUiScale.w(16),
+                                              height: TaqaUiScale.h(16),
+                                              child:
+                                                  const CircularProgressIndicator(
+                                                    strokeWidth: 2,
+                                                    color: TaqaUiColors
+                                                        .unnamedColor1c1d17,
+                                                  ),
                                             )
-                                          : const Text('Accept'),
+                                          : Text(
+                                              'ACCEPT',
+                                              style: TextStyle(
+                                                fontFamily: TaqaUiFontFamilies
+                                                    .interTight,
+                                                fontSize: TaqaUiScale.sp(10),
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
                                     ),
                                   ),
                                 ],

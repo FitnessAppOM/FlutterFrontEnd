@@ -21,6 +21,8 @@ class ExpertWeeklyMetricsDetailPage extends StatefulWidget {
     required this.clientUserId,
     required this.clientName,
     required this.analyticsData,
+    this.clientAvatarUrl,
+    this.clientActivityStatus,
     this.activeProgram = const {},
     this.trainingPlanError,
     this.onTrainingPlanVerified,
@@ -29,6 +31,8 @@ class ExpertWeeklyMetricsDetailPage extends StatefulWidget {
   final ExpertWeeklyMetricsDetailType type;
   final int clientUserId;
   final String clientName;
+  final String? clientAvatarUrl;
+  final String? clientActivityStatus;
   final Map<String, dynamic> analyticsData;
   final Map<String, dynamic> activeProgram;
   final String? trainingPlanError;
@@ -731,6 +735,8 @@ class _ExpertWeeklyMetricsDetailPageState
         builder: (_) => ExpertTrainingPlanReviewPage(
           clientUserId: widget.clientUserId,
           clientName: widget.clientName,
+          clientAvatarUrl: widget.clientAvatarUrl,
+          clientActivityStatus: widget.clientActivityStatus,
           activeProgram: _activeProgram,
           trainingPlanError: _trainingPlanError,
         ),

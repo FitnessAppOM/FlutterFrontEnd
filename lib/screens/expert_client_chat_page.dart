@@ -14,10 +14,14 @@ class ExpertClientChatPage extends StatelessWidget {
     super.key,
     required this.clientUserId,
     required this.clientName,
+    this.clientAvatarUrl,
+    this.clientActivityStatus,
   });
 
   final int clientUserId;
   final String clientName;
+  final String? clientAvatarUrl;
+  final String? clientActivityStatus;
 
   Future<void> _handleBackPressed(BuildContext context) async {
     final navigator = Navigator.of(context);
@@ -63,6 +67,8 @@ class ExpertClientChatPage extends StatelessWidget {
         child: CoachChatPanel.forCoach(
           clientUserId: clientUserId,
           clientName: clientName,
+          clientAvatarUrl: clientAvatarUrl,
+          clientActivityStatus: clientActivityStatus,
         ),
       ),
     );

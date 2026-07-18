@@ -13,6 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
+import '../../TaqaUI/components/taqa_expert_dashboard_ui.dart';
 import '../../config/base_url.dart';
 import '../../core/user_friendly_error.dart';
 import '../../services/coach/chat_attachment_file_service.dart';
@@ -30,7 +31,9 @@ class CoachChatPanel extends StatefulWidget {
   const CoachChatPanel({super.key, this.initialCoachUserId})
     : role = CoachChatRole.client,
       clientUserId = null,
-      clientName = null;
+      clientName = null,
+      clientAvatarUrl = null,
+      clientActivityStatus = null;
 
   /// Coach-side: an expert chats with one specific client. Both sides of a
   /// support-chat conversation share this widget — only the data source
@@ -39,6 +42,8 @@ class CoachChatPanel extends StatefulWidget {
     super.key,
     required int this.clientUserId,
     required String this.clientName,
+    this.clientAvatarUrl,
+    this.clientActivityStatus,
   }) : role = CoachChatRole.coach,
        initialCoachUserId = null;
 
@@ -46,6 +51,8 @@ class CoachChatPanel extends StatefulWidget {
   final CoachChatRole role;
   final int? clientUserId;
   final String? clientName;
+  final String? clientAvatarUrl;
+  final String? clientActivityStatus;
 
   @override
   State<CoachChatPanel> createState() => _CoachChatPanelState();
@@ -1167,17 +1174,38 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
   Widget _buildSupportHeader(CoachSupportChatState? state) {
     final thread = state?.thread;
     final isCoachRole = widget.role == CoachChatRole.coach;
-    final otherPartyName =
-        (isCoachRole
-                ? (thread?.clientName ?? widget.clientName)
-                : thread?.coachName)
-            ?.trim() ??
-        '';
+    final passedClientName = (widget.clientName ?? '').trim();
+    final threadClientName = (thread?.clientName ?? '').trim();
+    final otherPartyName = isCoachRole
+        ? (passedClientName.isNotEmpty ? passedClientName : threadClientName)
+        : (thread?.coachName ?? '').trim();
     final otherPartyFirstName = _firstNameOnly(otherPartyName);
+    final passedClientAvatarUrl = _normalizeAvatarUrl(widget.clientAvatarUrl);
     final otherPartyAvatarUrl = _normalizeAvatarUrl(
-      isCoachRole ? thread?.clientAvatarUrl : thread?.coachAvatarUrl,
+      isCoachRole
+          ? (passedClientAvatarUrl ?? thread?.clientAvatarUrl)
+          : thread?.coachAvatarUrl,
     );
     final sla = state?.sla;
+
+    if (isCoachRole) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(
+          TaqaUiScale.w(16),
+          TaqaUiScale.h(16),
+          TaqaUiScale.w(17),
+          TaqaUiScale.h(10),
+        ),
+        child: TaqaExpertClientCard(
+          name: otherPartyName.isEmpty ? 'Client' : otherPartyName,
+          avatarUrl: otherPartyAvatarUrl,
+          status: widget.clientActivityStatus,
+          showStatus: (widget.clientActivityStatus ?? '').trim().isNotEmpty,
+          subtitle: 'User ID: ${widget.clientUserId}',
+          alerts: const [],
+        ),
+      );
+    }
 
     return Container(
       margin: EdgeInsets.fromLTRB(
@@ -1196,26 +1224,10 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: TaqaUiScale.w(16),
-                backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-                foregroundImage: otherPartyAvatarUrl != null
-                    ? NetworkImage(otherPartyAvatarUrl)
-                    : null,
-                child: otherPartyAvatarUrl == null
-                    ? Text(
-                        otherPartyFirstName.isEmpty
-                            ? 'C'
-                            : otherPartyFirstName
-                                  .substring(0, 1)
-                                  .toUpperCase(),
-                        style: TextStyle(
-                          fontFamily: TaqaUiFontFamilies.interTight,
-                          color: TaqaUiColors.charcoal,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      )
-                    : null,
+              TaqaClientAvatar(
+                name: otherPartyName.isEmpty ? 'Client' : otherPartyName,
+                avatarUrl: otherPartyAvatarUrl,
+                radius: 16,
               ),
               SizedBox(width: TaqaUiScale.w(8)),
               Expanded(
@@ -1355,9 +1367,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                           alignment: Alignment.center,
                           child: Icon(
                             Icons.broken_image_outlined,
-                            color: TaqaUiColors.charcoal.withValues(
-                              alpha: 0.4,
-                            ),
+                            color: TaqaUiColors.charcoal.withValues(alpha: 0.4),
                           ),
                         );
                       },
@@ -1831,9 +1841,9 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                     width: TaqaUiScale.w(39),
                     height: TaqaUiScale.w(39),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF404040).withValues(
-                        alpha: sendDisabled ? 0.4 : 1,
-                      ),
+                      color: const Color(
+                        0xFF404040,
+                      ).withValues(alpha: sendDisabled ? 0.4 : 1),
                       borderRadius: TaqaUiScale.radius(20),
                     ),
                     alignment: Alignment.center,

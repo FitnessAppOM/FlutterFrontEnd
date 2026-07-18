@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
-import '../../widgets/Main/section_header.dart';
 import '../../widgets/Main/card_container.dart';
 import 'profile_page.dart';
 import '../../TaqaUI/components/taqa_news_carousel.dart';
@@ -16,7 +15,6 @@ import '../../services/news/news_service.dart';
 import '../../services/news/news_tag_actions.dart';
 import '../../models/news_item.dart';
 import '../../widgets/dashboard/progress_meter.dart';
-import '../../widgets/dashboard/bar_trend.dart';
 import '../../widgets/dashboard/whoop_recovery_card.dart';
 import '../../widgets/dashboard/whoop_sleep_card.dart';
 import '../../widgets/dashboard/whoop_extras_card.dart';
@@ -97,15 +95,13 @@ import '../../services/training/training_calories_service.dart';
 import '../../services/training/training_progress_storage.dart';
 import '../../services/training/training_calendar_service.dart';
 import '../../services/training/training_reset_coordinator.dart';
-import '../../widgets/primary_button.dart';
-import '../../screens/whoop_test_page.dart';
 import '../../widgets/release_notes_notice.dart';
 import '../../services/metrics/daily_journal_service.dart';
 import '../../services/core/navigation_service.dart';
 import '../../TaqaUI/components/taqa_dashboard_intro_card.dart';
-import '../../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../../TaqaUI/components/taqa_dashboard_trend_tile.dart';
+import '../../TaqaUI/screens/taqa_daily_outlook_detail_page.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
-import '../../TaqaUI/styles/taqa_ui_styles.dart';
 import 'dart:math' as math;
 
 class _NextTrainingDayResult {
@@ -178,9 +174,7 @@ class DashboardPageState extends State<DashboardPage>
     'whoop_body',
     'strava_activities',
   };
-  static const Set<String> _temporarilyHiddenStatKeys = {
-    'fitbit_scores',
-  };
+  static const Set<String> _temporarilyHiddenStatKeys = {'fitbit_scores'};
   static final Map<String, List<double>> _trendSleepWeekCache = {};
   static final Map<String, List<double>> _trendCaloriesWeekCache = {};
   final Map<DateTime, Map<String, dynamic>> _dietSummaryCache = {};
@@ -1918,7 +1912,7 @@ class DashboardPageState extends State<DashboardPage>
     if (outlook == null || !mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => _DailyOutlookDetailPage(outlook: outlook),
+        builder: (_) => TaqaDailyOutlookDetailPage(outlook: outlook),
       ),
     );
   }
@@ -5942,7 +5936,7 @@ class DashboardPageState extends State<DashboardPage>
                   Row(
                     children: [
                       Expanded(
-                        child: _TrendTile(
+                        child: TaqaDashboardTrendTile(
                           title: t("dash_sleep_hrs"),
                           data: _trendSleepForDisplay(),
                           loading: _trendSleepLoading,
@@ -5953,7 +5947,7 @@ class DashboardPageState extends State<DashboardPage>
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: _TrendTile(
+                        child: TaqaDashboardTrendTile(
                           title: t("dash_calories_scaled"),
                           data: _trendCalories.map((e) => e / 100).toList(),
                           loading: _trendCaloriesLoading,
@@ -6065,194 +6059,3 @@ class DashboardPageState extends State<DashboardPage>
 
 // Backward-compatible alias for older references during hot reloads.
 typedef _DashboardPageState = DashboardPageState;
-
-class _DailyOutlookDetailPage extends StatelessWidget {
-  const _DailyOutlookDetailPage({required this.outlook});
-
-  final DailyOutlookData outlook;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppLocalizations.of(context).translate;
-    final generatedTag = outlook.readinessState.trim().isNotEmpty
-        ? outlook.readinessState.trim()
-        : t("dash_daily_outlook_title");
-    final bodyStyle = TaqaUiStyles.dailyOutlookDescription;
-    final pageTitleStyle = TaqaUiStyles.pageTitle.copyWith(
-      color: TaqaUiColors.charcoal,
-    );
-    final tagStyle = TaqaUiStyles.dailyOutlookTag;
-    final headlineStyle = TextStyle(
-      fontFamily: TaqaUiFontFamilies.interTight,
-      fontSize: TaqaUiScale.sp(25),
-      fontWeight: FontWeight.w700,
-      color: TaqaUiColors.charcoal,
-      letterSpacing: 0,
-      height: 1,
-    );
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.fromLTRB(
-                  TaqaUiScale.w(16),
-                  TaqaUiScale.h(12),
-                  TaqaUiScale.w(16),
-                  0,
-                ),
-                children: [
-                  SizedBox(
-                    height: TaqaUiScale.h(40),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: IconButton(
-                            onPressed: () => Navigator.of(context).maybePop(),
-                            splashRadius: TaqaUiScale.w(20),
-                            icon: Icon(
-                              Icons.arrow_back_ios_new,
-                              color: TaqaUiColors.charcoal,
-                              size: TaqaUiScale.w(18),
-                            ),
-                          ),
-                        ),
-                        Text(
-                          t("dash_daily_outlook_title"),
-                          textAlign: TextAlign.center,
-                          style: pageTitleStyle,
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: TaqaUiScale.h(42)),
-                  Text(
-                    generatedTag.toUpperCase(),
-                    textAlign: TextAlign.left,
-                    style: tagStyle,
-                  ),
-                  SizedBox(height: TaqaUiScale.h(21)),
-                  Text(
-                    outlook.headline,
-                    textAlign: TextAlign.left,
-                    style: headlineStyle,
-                  ),
-                  SizedBox(height: TaqaUiScale.h(15)),
-                  SizedBox(
-                    width: TaqaUiScale.w(357),
-                    child: Text(
-                      outlook.summary,
-                      textAlign: TextAlign.left,
-                      style: bodyStyle,
-                    ),
-                  ),
-                  if (outlook.actionItems.isNotEmpty) ...[
-                    SizedBox(height: TaqaUiScale.h(14)),
-                    ...outlook.actionItems.map(
-                      (item) => Padding(
-                        padding: EdgeInsets.only(bottom: TaqaUiScale.h(8)),
-                        child: Text(
-                          "- $item",
-                          textAlign: TextAlign.left,
-                          style: bodyStyle,
-                        ),
-                      ),
-                    ),
-                  ],
-                  if (outlook.cautionNote.trim().isNotEmpty) ...[
-                    SizedBox(height: TaqaUiScale.h(8)),
-                    Text(
-                      outlook.cautionNote,
-                      textAlign: TextAlign.left,
-                      style: bodyStyle,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                TaqaUiScale.w(16),
-                TaqaUiScale.h(12),
-                TaqaUiScale.w(16),
-                TaqaUiScale.h(16),
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                height: TaqaUiScale.h(45),
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    backgroundColor: TaqaUiColors.lime,
-                    foregroundColor: TaqaUiColors.charcoal,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: TaqaUiStyles.actionButtonRadius,
-                    ),
-                  ),
-                  child: Text(
-                    t("okay"),
-                    textAlign: TextAlign.center,
-                    style: TaqaUiStyles.dailyOutlookButton,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TrendTile extends StatelessWidget {
-  final String title;
-  final List<double> data;
-  final bool loading;
-  final Color accentColor;
-  final String emptyLabel;
-  final VoidCallback? onTap;
-
-  const _TrendTile({
-    required this.title,
-    required this.data,
-    required this.loading,
-    required this.accentColor,
-    required this.emptyLabel,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    Widget content;
-    if (loading) {
-      content = const Center(
-        child: SizedBox(
-          height: 28,
-          width: 28,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      );
-    } else if (data.isEmpty) {
-      content = Text(
-        emptyLabel,
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: Colors.white60),
-      );
-    } else {
-      content = BarTrend(title: title, data: data, accentColor: accentColor);
-    }
-    if (onTap == null) return content;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: content,
-    );
-  }
-}

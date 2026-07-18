@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../localization/app_localizations.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
-import 'profile_info_section.dart';
+import '../../TaqaUI/components/taqa_profile_info_section.dart';
 
 class ProfileGoalsSection extends StatelessWidget {
   const ProfileGoalsSection({
@@ -31,19 +31,19 @@ class ProfileGoalsSection extends StatelessWidget {
       ),
       child: Column(
         children: [
-          ProfileInfoRow(
+          TaqaProfileInfoRow(
             label: t.translate("profile_main_goal"),
             value: mainGoal,
           ),
-          ProfileInfoRow(
+          TaqaProfileInfoRow(
             label: t.translate("profile_workout_freq"),
             value: workoutFreq,
           ),
-          ProfileInfoRow(
+          TaqaProfileInfoRow(
             label: t.translate("profile_diet_pref"),
             value: dietPref,
           ),
-          ProfileInfoRow(
+          TaqaProfileInfoRow(
             label: t.translate("profile_experience"),
             value: experience,
           ),

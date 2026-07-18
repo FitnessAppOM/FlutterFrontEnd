@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
 import 'taqa_back_button.dart';
-import 'taqa_page_header.dart';
 
 class TaqaPageAppBar extends StatelessWidget implements PreferredSizeWidget {
   const TaqaPageAppBar({
@@ -59,8 +59,27 @@ class TaqaPageAppBar extends StatelessWidget implements PreferredSizeWidget {
               ),
             Positioned(
               top: TaqaUiScale.h(12),
-              left: TaqaUiScale.w(16),
-              child: TaqaPageHeader(title: title, color: titleColor),
+              left: TaqaUiScale.w(56),
+              right: TaqaUiScale.w(56),
+              child: SizedBox(
+                height: TaqaUiScale.h(39),
+                child: Center(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(15),
+                      fontWeight: FontWeight.w700,
+                      height: 25 / 15,
+                      letterSpacing: 0,
+                      color: titleColor,
+                    ),
+                  ),
+                ),
+              ),
             ),
             if (trailing != null)
               Positioned(

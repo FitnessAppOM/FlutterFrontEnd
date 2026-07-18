@@ -447,6 +447,175 @@ Future<String?> showTaqaTextValueDialog({
   );
 }
 
+Future<String?> showTaqaMultilineTextDialog({
+  required BuildContext context,
+  required String title,
+  required String message,
+  required String hintText,
+  required String confirmLabel,
+  String cancelLabel = 'Cancel',
+  String requiredMessage = 'This field is required.',
+  int maxLength = 1000,
+}) async {
+  final controller = TextEditingController();
+  String? errorText;
+  try {
+    return await showDialog<String>(
+      context: context,
+      barrierColor: const Color(0x66000000),
+      builder: (ctx) {
+        final bottomInset = MediaQuery.viewInsetsOf(ctx).bottom;
+        return StatefulBuilder(
+          builder: (ctx, setLocalState) => MediaQuery.removeViewInsets(
+            context: ctx,
+            removeBottom: true,
+            child: TaqaPopupDialog(
+              bottomInset: bottomInset,
+              onBackgroundTap: () =>
+                  FocusManager.instance.primaryFocus?.unfocus(),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Align(
+                    alignment: Alignment.center,
+                    child: Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(15),
+                        fontWeight: FontWeight.w700,
+                        height: 25 / 15,
+                        color: TaqaUiColors.charcoal,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: TaqaUiScale.h(8)),
+                  Text(
+                    message,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(15),
+                      fontWeight: FontWeight.w400,
+                      height: 18 / 15,
+                      color: TaqaUiColors.charcoal,
+                    ),
+                  ),
+                  SizedBox(height: TaqaUiScale.h(12)),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    minLines: 3,
+                    maxLines: 6,
+                    maxLength: maxLength,
+                    cursorColor: TaqaUiColors.charcoal,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(15),
+                      height: 18 / 15,
+                      color: TaqaUiColors.charcoal,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: hintText,
+                      errorText: errorText,
+                      hintStyle: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(15),
+                        color: TaqaUiColors.charcoal.withValues(alpha: 0.45),
+                      ),
+                      enabledBorder: const OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: TaqaUiColors.charcoal,
+                          width: 0.5,
+                        ),
+                      ),
+                      focusedBorder: const OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: TaqaUiColors.charcoal,
+                          width: 0.5,
+                        ),
+                      ),
+                      errorBorder: const OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: TaqaUiColors.recordRed,
+                          width: 0.5,
+                        ),
+                      ),
+                      focusedErrorBorder: const OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: TaqaUiColors.recordRed,
+                          width: 0.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: TaqaUiScale.h(12)),
+                  SizedBox(
+                    height: TaqaUiScale.h(45),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => Navigator.of(ctx).pop(),
+                            child: Center(
+                              child: Text(
+                                cancelLabel.toUpperCase(),
+                                style: TextStyle(
+                                  fontFamily: TaqaUiFontFamilies.interTight,
+                                  fontSize: TaqaUiScale.sp(10),
+                                  fontWeight: FontWeight.w600,
+                                  color: TaqaUiColors.charcoal,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Material(
+                            color: TaqaUiColors.lime,
+                            borderRadius: TaqaUiScale.radius(5),
+                            child: InkWell(
+                              borderRadius: TaqaUiScale.radius(5),
+                              onTap: () {
+                                final value = controller.text.trim();
+                                if (value.isEmpty) {
+                                  setLocalState(
+                                    () => errorText = requiredMessage,
+                                  );
+                                  return;
+                                }
+                                Navigator.of(ctx).pop(value);
+                              },
+                              child: Center(
+                                child: Text(
+                                  confirmLabel.toUpperCase(),
+                                  style: TextStyle(
+                                    fontFamily: TaqaUiFontFamilies.interTight,
+                                    fontSize: TaqaUiScale.sp(10),
+                                    fontWeight: FontWeight.w700,
+                                    color: TaqaUiColors.charcoal,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  } finally {
+    controller.dispose();
+  }
+}
+
 Future<String?> _showTaqaInputDialog({
   required BuildContext context,
   required String title,
