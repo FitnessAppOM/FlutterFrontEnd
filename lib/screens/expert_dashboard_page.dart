@@ -15,6 +15,7 @@ import '../TaqaUI/components/taqa_outline_tag_button.dart';
 import '../TaqaUI/components/taqa_empty_state_row.dart';
 import '../TaqaUI/components/taqa_exercise_picker_sheet.dart';
 import '../TaqaUI/components/taqa_expert_dashboard_ui.dart';
+import '../TaqaUI/components/taqa_loading_indicator.dart';
 import '../TaqaUI/components/taqa_pill_tab.dart';
 import '../TaqaUI/components/taqa_program_template_sheets.dart';
 import '../TaqaUI/components/taqa_refresh_indicator.dart';
@@ -903,7 +904,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
 
   Widget _buildMyClientsTab() {
     if (_loading) {
-      return Center(child: CircularProgressIndicator(color: TaqaUiColors.lime));
+      return const Center(child: TaqaLoadingIndicator());
     }
 
     final displayClients = _clients.map((client) {
@@ -1280,7 +1281,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
     final pinnedCount = items.where((item) => item.isPinned).length;
 
     if (_loading) {
-      return Center(child: CircularProgressIndicator(color: TaqaUiColors.lime));
+      return const Center(child: TaqaLoadingIndicator());
     }
 
     return TaqaRefreshIndicator(

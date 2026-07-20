@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../TaqaUI/components/taqa_expert_client_dashboard_ui.dart';
 import '../TaqaUI/components/taqa_expert_dashboard_ui.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
+import '../TaqaUI/components/taqa_loading_indicator.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_refresh_indicator.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
@@ -33,6 +34,14 @@ class ExpertClientAnalyticsPage extends StatefulWidget {
 }
 
 class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
+  static final Map<int, Map<String, dynamic>> _dataCache =
+      <int, Map<String, dynamic>>{};
+  static final Map<int, List<Map<String, dynamic>>> _trainingHistoryCache =
+      <int, List<Map<String, dynamic>>>{};
+  static final Map<int, Map<String, dynamic>> _activeProgramCache =
+      <int, Map<String, dynamic>>{};
+  static final Map<int, String?> _trainingPlanErrorCache = <int, String?>{};
+
   bool _loading = true;
   String? _error;
   Map<String, dynamic> _data = const {};
@@ -43,11 +52,22 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
   @override
   void initState() {
     super.initState();
-    _load();
+    final cachedData = _dataCache[widget.client.userId];
+    if (cachedData != null) {
+      _data = cachedData;
+      _trainingHistoryEntries =
+          _trainingHistoryCache[widget.client.userId] ?? const [];
+      _activeProgram = _activeProgramCache[widget.client.userId] ?? const {};
+      _trainingPlanError = _trainingPlanErrorCache[widget.client.userId];
+      _loading = false;
+      _load(showLoading: false);
+    } else {
+      _load();
+    }
   }
 
-  Future<void> _load() async {
-    if (mounted) {
+  Future<void> _load({bool showLoading = true}) async {
+    if (mounted && showLoading) {
       setState(() {
         _loading = true;
         _error = null;
@@ -88,6 +108,10 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
         }
         activeProgram = const {};
       }
+      _dataCache[widget.client.userId] = data;
+      _trainingHistoryCache[widget.client.userId] = history;
+      _activeProgramCache[widget.client.userId] = activeProgram;
+      _trainingPlanErrorCache[widget.client.userId] = trainingPlanError;
       if (!mounted) return;
       setState(() {
         _data = data;
@@ -98,6 +122,13 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
       });
     } catch (e) {
       if (!mounted) return;
+      // A silent background refresh failing shouldn't blow away content
+      // already showing from cache — only surface the error on a real
+      // (user-visible) load.
+      if (!showLoading) {
+        setState(() => _loading = false);
+        return;
+      }
       setState(() {
         _error = _normalizeError(e);
         _loading = false;
@@ -352,12 +383,14 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
         ? '-'
         : '${delta > 0 ? '+' : ''}${delta.toStringAsFixed(1)} kg';
 
-    return TaqaClientDashboardCard(
-      child: Column(
+    return TaqaClientDashboardNavigationCard(
+      title: 'Weight',
+      description: 'Track the client’s current weight and progress.',
+      onTap: null,
+      showChevron: false,
+      content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const TaqaClientDashboardTitleText('Weight'),
-          SizedBox(height: TaqaUiScale.h(8)),
           TaqaClientDashboardInfoRow(
             label: 'Current',
             value: _formatWeight(currentWeight),
@@ -700,50 +733,38 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
   @override
   Widget build(BuildContext context) {
     final hasLoadedContent = _data.isNotEmpty || _error != null;
-    final body = TaqaRefreshIndicator(
-      onRefresh: _load,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: TaqaUiScale.insetsLTRB(16, 12, 17, 24),
-        children: [
-          if (_loading && !hasLoadedContent)
-            TaqaClientDashboardCard(
-              minHeight: 79,
-              child: Center(
-                child: SizedBox(
-                  width: TaqaUiScale.w(20),
-                  height: TaqaUiScale.h(20),
-                  child: const CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: TaqaUiColors.charcoal,
+    final body = _loading && !hasLoadedContent
+        ? const Center(child: TaqaLoadingIndicator())
+        : TaqaRefreshIndicator(
+            onRefresh: _load,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: TaqaUiScale.insetsLTRB(16, 12, 17, 24),
+              children: [
+                if (_error != null)
+                  TaqaClientDashboardCard(
+                    child: TaqaClientDashboardBodyText(
+                      _error!,
+                      color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+                    ),
                   ),
-                ),
-              ),
+                if (hasLoadedContent) ...[
+                  if (_error != null) SizedBox(height: TaqaUiScale.h(12)),
+                  _buildHeaderCard(),
+                  SizedBox(height: TaqaUiScale.h(12)),
+                  _buildWeightTrendCard(),
+                  SizedBox(height: TaqaUiScale.h(12)),
+                  _buildTrainingCard(),
+                  SizedBox(height: TaqaUiScale.h(12)),
+                  _buildActivityCard(),
+                  SizedBox(height: TaqaUiScale.h(12)),
+                  _buildDailyMetricsCard(),
+                  SizedBox(height: TaqaUiScale.h(12)),
+                  _buildWearablesCard(),
+                ],
+              ],
             ),
-          if (_error != null)
-            TaqaClientDashboardCard(
-              child: TaqaClientDashboardBodyText(
-                _error!,
-                color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
-              ),
-            ),
-          if (hasLoadedContent) ...[
-            if (_error != null) SizedBox(height: TaqaUiScale.h(12)),
-            _buildHeaderCard(),
-            SizedBox(height: TaqaUiScale.h(12)),
-            _buildWeightTrendCard(),
-            SizedBox(height: TaqaUiScale.h(12)),
-            _buildTrainingCard(),
-            SizedBox(height: TaqaUiScale.h(12)),
-            _buildActivityCard(),
-            SizedBox(height: TaqaUiScale.h(12)),
-            _buildDailyMetricsCard(),
-            SizedBox(height: TaqaUiScale.h(12)),
-            _buildWearablesCard(),
-          ],
-        ],
-      ),
-    );
+          );
 
     return Scaffold(
       backgroundColor: TaqaUiColors.lightGray,

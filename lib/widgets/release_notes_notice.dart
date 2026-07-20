@@ -77,7 +77,7 @@ class ReleaseNotesDialog extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             const Text(
-              'Community UI',
+              'What Changed',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
@@ -85,17 +85,9 @@ class ReleaseNotesDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            const _ReleaseNoteItem(
-              text:
-                  'Updated the community experience with refreshed badge and popup UI.',
-            ),
-            const _ReleaseNoteItem(
-              text:
-                  'Earned badges now stand out more clearly in the badges screen.',
-            ),
-            const _ReleaseNoteItem(
-              text: 'General fixes and polish across the app.',
-            ),
+            const _ReleaseNoteItem(text: 'Security updates.'),
+            const _ReleaseNoteItem(text: 'Bugs and fixes.'),
+            const _ReleaseNoteItem(text: 'Expert module UI done.'),
             const SizedBox(height: 18),
             Align(
               alignment: Alignment.centerRight,

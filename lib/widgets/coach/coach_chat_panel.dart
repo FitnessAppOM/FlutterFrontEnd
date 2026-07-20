@@ -14,6 +14,7 @@ import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../TaqaUI/components/taqa_expert_dashboard_ui.dart';
+import '../../TaqaUI/components/taqa_loading_indicator.dart';
 import '../../config/base_url.dart';
 import '../../core/user_friendly_error.dart';
 import '../../services/coach/chat_attachment_file_service.dart';
@@ -59,6 +60,9 @@ class CoachChatPanel extends StatefulWidget {
 }
 
 class _CoachChatPanelState extends State<CoachChatPanel> {
+  static final Map<int, CoachSupportChatState> _coachThreadCache =
+      <int, CoachSupportChatState>{};
+
   final ScrollController _chatScrollController = ScrollController();
   final TextEditingController _messageController = TextEditingController();
   final Map<int, GlobalKey> _messageKeys = <int, GlobalKey>{};
@@ -860,22 +864,32 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
 
   Future<void> _loadChat() async {
     if (widget.role == CoachChatRole.coach) {
+      final cached = _coachThreadCache[widget.clientUserId!];
+      if (cached != null) {
+        _chatState = cached;
+        _loading = false;
+        await _loadCoachSideChat(showLoading: false);
+        return;
+      }
       await _loadCoachSideChat();
       return;
     }
     await _loadClientSideChat();
   }
 
-  Future<void> _loadCoachSideChat() async {
-    setState(() {
-      _loading = true;
-      _loadingThread = false;
-      _error = null;
-    });
+  Future<void> _loadCoachSideChat({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        _loading = true;
+        _loadingThread = false;
+        _error = null;
+      });
+    }
     try {
       final state = await CoachSupportChatService.fetchCoachClientThread(
         clientUserId: widget.clientUserId!,
       );
+      _coachThreadCache[widget.clientUserId!] = state;
       if (!mounted) return;
       setState(() {
         _chatState = state;
@@ -884,6 +898,12 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
+      // A silent background refresh failing shouldn't blow away a thread
+      // already showing from cache.
+      if (!showLoading) {
+        setState(() => _loading = false);
+        return;
+      }
       setState(() {
         _loading = false;
         _chatState = null;
@@ -1503,16 +1523,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
 
   Widget _buildBody() {
     if (_loading) {
-      return Center(
-        child: SizedBox(
-          width: TaqaUiScale.w(22),
-          height: TaqaUiScale.w(22),
-          child: const CircularProgressIndicator(
-            strokeWidth: 2,
-            color: AppColors.accent,
-          ),
-        ),
-      );
+      return const Center(child: TaqaLoadingIndicator());
     }
 
     final state = _chatState;
@@ -1570,16 +1581,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
         if (!noCoach && _loadingThread)
           Padding(
             padding: EdgeInsets.symmetric(vertical: TaqaUiScale.h(24)),
-            child: Center(
-              child: SizedBox(
-                width: TaqaUiScale.w(20),
-                height: TaqaUiScale.w(20),
-                child: const CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.accent,
-                ),
-              ),
-            ),
+            child: const Center(child: TaqaLoadingIndicator()),
           ),
         if (!noCoach &&
             !_loadingThread &&

@@ -11,6 +11,7 @@ import '../TaqaUI/components/taqa_expert_dashboard_ui.dart';
 import '../TaqaUI/components/taqa_expert_client_dashboard_ui.dart';
 import '../TaqaUI/components/taqa_empty_state_row.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
+import '../TaqaUI/components/taqa_loading_indicator.dart';
 import '../TaqaUI/components/taqa_pill_tab.dart';
 import '../TaqaUI/components/taqa_refresh_indicator.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
@@ -39,6 +40,8 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
   static const Duration _reminderCooldownDuration = Duration(minutes: 5);
   static final Map<int, DateTime> _reminderCooldownUntilByClientId =
       <int, DateTime>{};
+  static final Map<int, List<CoachHabitItem>> _habitsCache =
+      <int, List<CoachHabitItem>>{};
 
   final TextEditingController _habitController = TextEditingController();
 
@@ -56,7 +59,15 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
   void initState() {
     super.initState();
     _syncReminderCooldownTimer();
-    _load();
+    final cached = _habitsCache[widget.clientId];
+    if (cached != null) {
+      _habits = cached;
+      _loading = false;
+      _hasCompletedInitialLoad = true;
+      _load(showLoading: false);
+    } else {
+      _load();
+    }
   }
 
   @override
@@ -127,6 +138,7 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
         expertId: expertId,
         includeCompleted: true,
       );
+      _habitsCache[widget.clientId] = habits;
       if (!mounted) return;
       setState(() {
         _expertId = expertId;
@@ -558,21 +570,24 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final body = TaqaRefreshIndicator(
-      onRefresh: _load,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: TaqaUiScale.insetsLTRB(16, 12, 17, 24),
-        children: [
-          _buildHeaderCard(),
-          SizedBox(height: TaqaUiScale.h(12)),
-          _buildAddCard(),
-          SizedBox(height: TaqaUiScale.h(12)),
-          _buildHabitsListCard(),
-          SizedBox(height: TaqaUiScale.h(20)),
-        ],
-      ),
-    );
+    final showInitialLoading = _loading && !_hasCompletedInitialLoad;
+    final body = showInitialLoading
+        ? const Center(child: TaqaLoadingIndicator())
+        : TaqaRefreshIndicator(
+            onRefresh: _load,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: TaqaUiScale.insetsLTRB(16, 12, 17, 24),
+              children: [
+                _buildHeaderCard(),
+                SizedBox(height: TaqaUiScale.h(12)),
+                _buildAddCard(),
+                SizedBox(height: TaqaUiScale.h(12)),
+                _buildHabitsListCard(),
+                SizedBox(height: TaqaUiScale.h(20)),
+              ],
+            ),
+          );
 
     return Scaffold(
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
@@ -581,17 +596,7 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
         titleColor: TaqaUiColors.unnamedColor1c1d17,
         title: 'Habits',
       ),
-      body: Stack(
-        children: [
-          body,
-          if (_loading && !_hasCompletedInitialLoad)
-            const Positioned.fill(
-              child: IgnorePointer(
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            ),
-        ],
-      ),
+      body: body,
     );
   }
 }

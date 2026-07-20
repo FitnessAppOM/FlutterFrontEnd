@@ -4,6 +4,7 @@ import '../TaqaUI/components/taqa_expert_client_dashboard_ui.dart';
 import '../TaqaUI/components/taqa_expert_dashboard_ui.dart';
 import '../TaqaUI/components/taqa_back_button.dart';
 import '../TaqaUI/components/taqa_exercise_picker_sheet.dart';
+import '../TaqaUI/components/taqa_loading_indicator.dart';
 import '../TaqaUI/components/taqa_outline_tag_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_training_plan_ui.dart';
@@ -660,16 +661,7 @@ class _ExpertTrainingPlanReviewPageState
           leading: TaqaBackButton(onPressed: _closePage),
         ),
         body: _loadingExercises
-            ? Center(
-                child: SizedBox(
-                  width: TaqaUiScale.w(20),
-                  height: TaqaUiScale.h(20),
-                  child: const CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: TaqaUiColors.charcoal,
-                  ),
-                ),
-              )
+            ? const Center(child: TaqaLoadingIndicator())
             : GestureDetector(
                 behavior: HitTestBehavior.translucent,
                 onTap: () => FocusScope.of(context).unfocus(),

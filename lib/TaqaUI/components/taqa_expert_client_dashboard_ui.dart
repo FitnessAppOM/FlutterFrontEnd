@@ -132,6 +132,7 @@ class TaqaClientDashboardNavigationCard extends StatelessWidget {
     this.statusText,
     this.content,
     this.loading = false,
+    this.showChevron = true,
   });
 
   final String title;
@@ -141,6 +142,7 @@ class TaqaClientDashboardNavigationCard extends StatelessWidget {
   final String? statusText;
   final Widget? content;
   final bool loading;
+  final bool showChevron;
 
   @override
   Widget build(BuildContext context) {
@@ -160,7 +162,7 @@ class TaqaClientDashboardNavigationCard extends StatelessWidget {
                   height: TaqaUiScale.h(16),
                   child: const CircularProgressIndicator(strokeWidth: 2),
                 )
-              else
+              else if (showChevron)
                 Icon(
                   Icons.chevron_right,
                   color: TaqaUiColors.charcoal,

@@ -17,6 +17,7 @@ import '../TaqaUI/components/taqa_diet_targets_editor.dart';
 import '../TaqaUI/components/taqa_comment_composer_page.dart';
 import '../TaqaUI/components/taqa_expert_dashboard_ui.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
+import '../TaqaUI/components/taqa_loading_indicator.dart';
 import '../TaqaUI/components/taqa_outline_tag_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_profile_info_section.dart';
@@ -74,10 +75,16 @@ class _ExpertClientDietReviewPageState
   String? _targetsError;
   Map<String, dynamic>? _dietLog;
   Map<String, dynamic>? _dietTargets;
-  final Map<String, Map<String, dynamic>> _dietLogByDate =
+  static final Map<String, Map<String, dynamic>> _dietLogByDate =
       <String, Map<String, dynamic>>{};
+  static final Map<int, Map<String, dynamic>> _dietTargetsCache =
+      <int, Map<String, dynamic>>{};
+  static final Map<int, List<CoachDietComment>> _commentsCache =
+      <int, List<CoachDietComment>>{};
   List<CoachDietComment> _comments = const [];
   int? _selectedMealId;
+
+  String _dietLogCacheKey(String dateKey) => '${widget.clientUserId}|$dateKey';
 
   @override
   void initState() {
@@ -88,7 +95,30 @@ class _ExpertClientDietReviewPageState
         setState(() {});
       }
     });
-    _loadAll();
+
+    final cachedTargets = _dietTargetsCache[widget.clientUserId];
+    if (cachedTargets != null) {
+      _dietTargets = cachedTargets;
+      _loadingTargets = false;
+    }
+    final cachedComments = _commentsCache[widget.clientUserId];
+    if (cachedComments != null) {
+      _comments = cachedComments;
+      _loadingComments = false;
+    }
+    final cachedLog =
+        _dietLogByDate[_dietLogCacheKey(_dateToken(_selectedDate))];
+    if (cachedLog != null) {
+      _applyDietLogState(cachedLog);
+    }
+
+    // Any section already served from cache should refresh silently in the
+    // background instead of flashing its loading state again.
+    Future.wait([
+      _loadDietLog(forceRefresh: false, showLoading: cachedLog == null),
+      _loadDietTargets(showLoading: cachedTargets == null),
+      _loadComments(showLoading: cachedComments == null),
+    ]);
   }
 
   @override
@@ -391,17 +421,21 @@ class _ExpertClientDietReviewPageState
               : null);
   }
 
-  Future<void> _loadDietLog({bool forceRefresh = false}) async {
+  Future<void> _loadDietLog({
+    bool forceRefresh = false,
+    bool showLoading = true,
+  }) async {
     final dateKey = _dateToken(_selectedDate);
+    final cacheKey = _dietLogCacheKey(dateKey);
     if (!forceRefresh) {
-      final cached = _dietLogByDate[dateKey];
+      final cached = _dietLogByDate[cacheKey];
       if (cached != null) {
         if (!mounted) return;
         setState(() => _applyDietLogState(cached));
         return;
       }
     }
-    if (mounted) {
+    if (mounted && showLoading) {
       setState(() {
         _loadingLog = true;
         _logError = null;
@@ -412,11 +446,15 @@ class _ExpertClientDietReviewPageState
         clientUserId: widget.clientUserId,
         mealDate: _selectedDate,
       );
-      _dietLogByDate[dateKey] = log;
+      _dietLogByDate[cacheKey] = log;
       if (!mounted) return;
       setState(() => _applyDietLogState(log));
     } catch (e) {
       if (!mounted) return;
+      if (!showLoading) {
+        setState(() => _loadingLog = false);
+        return;
+      }
       setState(() {
         _loadingLog = false;
         _dietLog = null;
@@ -442,8 +480,8 @@ class _ExpertClientDietReviewPageState
     return value;
   }
 
-  Future<void> _loadDietTargets() async {
-    if (mounted) {
+  Future<void> _loadDietTargets({bool showLoading = true}) async {
+    if (mounted && showLoading) {
       setState(() {
         _loadingTargets = true;
         _targetsError = null;
@@ -454,6 +492,7 @@ class _ExpertClientDietReviewPageState
         clientUserId: widget.clientUserId,
         autoGenerate: true,
       );
+      _dietTargetsCache[widget.clientUserId] = targets;
       if (!mounted) return;
       setState(() {
         _dietTargets = targets;
@@ -462,6 +501,10 @@ class _ExpertClientDietReviewPageState
       });
     } catch (e) {
       if (!mounted) return;
+      if (!showLoading) {
+        setState(() => _loadingTargets = false);
+        return;
+      }
       setState(() {
         _dietTargets = null;
         _loadingTargets = false;
@@ -820,9 +863,10 @@ class _ExpertClientDietReviewPageState
     if (targets == null || _loadingTargets || _savingTargets) return;
     var activeTrainingDays = _trainingDayTargets();
     try {
-      final program = await ProgressionReviewService.fetchClientActiveTrainingProgram(
-        widget.clientUserId,
-      );
+      final program =
+          await ProgressionReviewService.fetchClientActiveTrainingProgram(
+            widget.clientUserId,
+          );
       if (!mounted) return;
       final plannedDays = _asInt(
         program['training_days_per_week'] ??
@@ -831,7 +875,8 @@ class _ExpertClientDietReviewPageState
       if (plannedDays > 0 && activeTrainingDays.length > plannedDays) {
         activeTrainingDays = activeTrainingDays.take(plannedDays).toList();
       }
-      final planDaysRaw = program['days'] ??
+      final planDaysRaw =
+          program['days'] ??
           program['training_days'] ??
           _asMap(program['program'])['days'];
       if (planDaysRaw is List) {
@@ -841,13 +886,14 @@ class _ExpertClientDietReviewPageState
           final planDay = entry.key < planDays.length
               ? Map<String, dynamic>.from(planDays[entry.key])
               : const <String, dynamic>{};
-          final label = (planDay['day_label'] ??
-                  planDay['name'] ??
-                  planDay['title'] ??
-                  planDay['day_name'] ??
-                  '')
-              .toString()
-              .trim();
+          final label =
+              (planDay['day_label'] ??
+                      planDay['name'] ??
+                      planDay['title'] ??
+                      planDay['day_name'] ??
+                      '')
+                  .toString()
+                  .trim();
           if (label.isNotEmpty) targetDay['day_label'] = label;
           return targetDay;
         }).toList();
@@ -863,7 +909,7 @@ class _ExpertClientDietReviewPageState
               restProtein: _asInt(targets['rest_protein_g']),
               restCarbs: _asInt(targets['rest_carbs_g']),
               restFat: _asInt(targets['rest_fat_g']),
-          trainingDays: activeTrainingDays,
+              trainingDays: activeTrainingDays,
             ),
           ),
         );
@@ -903,8 +949,8 @@ class _ExpertClientDietReviewPageState
     }
   }
 
-  Future<void> _loadComments() async {
-    if (mounted) {
+  Future<void> _loadComments({bool showLoading = true}) async {
+    if (mounted && showLoading) {
       setState(() {
         _loadingComments = true;
         _commentsError = null;
@@ -914,6 +960,7 @@ class _ExpertClientDietReviewPageState
       final comments = await ProgressionReviewService.fetchClientDietComments(
         clientUserId: widget.clientUserId,
       );
+      _commentsCache[widget.clientUserId] = comments;
       if (!mounted) return;
       setState(() {
         _comments = comments;
@@ -922,6 +969,10 @@ class _ExpertClientDietReviewPageState
       });
     } catch (e) {
       if (!mounted) return;
+      if (!showLoading) {
+        setState(() => _loadingComments = false);
+        return;
+      }
       setState(() {
         _comments = const [];
         _loadingComments = false;
@@ -930,11 +981,14 @@ class _ExpertClientDietReviewPageState
     }
   }
 
-  Future<void> _loadAll({bool forceRefresh = false}) async {
+  Future<void> _loadAll({
+    bool forceRefresh = false,
+    bool showLoading = true,
+  }) async {
     await Future.wait([
-      _loadDietLog(forceRefresh: forceRefresh),
-      _loadDietTargets(),
-      _loadComments(),
+      _loadDietLog(forceRefresh: forceRefresh, showLoading: showLoading),
+      _loadDietTargets(showLoading: showLoading),
+      _loadComments(showLoading: showLoading),
     ]);
   }
 
@@ -2231,13 +2285,7 @@ class _ExpertClientDietReviewPageState
             if (_loadingLog)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 30),
-                child: Center(
-                  child: SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
+                child: Center(child: TaqaLoadingIndicator()),
               )
             else if (_logError != null)
               Container(

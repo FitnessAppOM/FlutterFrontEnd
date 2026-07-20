@@ -4,6 +4,7 @@ import '../services/coach/progression_review_service.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_expert_client_dashboard_ui.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
+import '../TaqaUI/components/taqa_loading_indicator.dart';
 import '../TaqaUI/components/taqa_outline_tag_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_refresh_indicator.dart';
@@ -247,7 +248,7 @@ class _ExpertProgressionReviewPageState
         title: 'AI Updates',
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: TaqaLoadingIndicator())
           : review == null
           ? const Center(
               child: TaqaClientDashboardBodyText('Review unavailable.'),

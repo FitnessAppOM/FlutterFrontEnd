@@ -31,6 +31,7 @@ import '../TaqaUI/components/taqa_expert_client_dashboard_ui.dart';
 import '../TaqaUI/components/taqa_expert_client_view.dart';
 import '../TaqaUI/components/taqa_expert_dashboard_ui.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
+import '../TaqaUI/components/taqa_loading_indicator.dart';
 import '../TaqaUI/components/taqa_outline_tag_button.dart';
 import '../TaqaUI/components/taqa_pill_tab.dart';
 import '../TaqaUI/components/taqa_profile_info_section.dart';
@@ -1179,10 +1180,12 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
               top: false,
               child: Padding(
                 padding: EdgeInsets.only(
-                  left: 16,
-                  right: 16,
-                  top: 14,
-                  bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+                  left: TaqaUiScale.w(16),
+                  right: TaqaUiScale.w(16),
+                  top: TaqaUiScale.h(14),
+                  bottom:
+                      MediaQuery.of(sheetContext).viewInsets.bottom +
+                      TaqaUiScale.h(16),
                 ),
                 child: SingleChildScrollView(
                   child: Column(
@@ -1195,7 +1198,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                             Icons.video_collection_outlined,
                             color: TaqaUiColors.charcoal,
                           ),
-                          const SizedBox(width: 8),
+                          SizedBox(width: TaqaUiScale.w(8)),
                           Expanded(
                             child: Text(
                               current.exerciseName,
@@ -1552,10 +1555,13 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                                           style: TextButton.styleFrom(
                                             foregroundColor:
                                                 TaqaUiColors.charcoal,
-                                            minimumSize: const Size(0, 26),
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
+                                            minimumSize: Size(
+                                              0,
+                                              TaqaUiScale.h(26),
+                                            ),
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: TaqaUiScale.w(8),
+                                              vertical: TaqaUiScale.h(4),
                                             ),
                                             tapTargetSize: MaterialTapTargetSize
                                                 .shrinkWrap,
@@ -1565,11 +1571,11 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                                             ),
                                           ),
                                           icon: isReplyVoiceLoading
-                                              ? const SizedBox(
-                                                  width: 14,
-                                                  height: 14,
+                                              ? SizedBox(
+                                                  width: TaqaUiScale.w(14),
+                                                  height: TaqaUiScale.h(14),
                                                   child:
-                                                      CircularProgressIndicator(
+                                                      const CircularProgressIndicator(
                                                         strokeWidth: 2,
                                                       ),
                                                 )
@@ -1577,7 +1583,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                                                   isReplyVoicePlaying
                                                       ? Icons.pause
                                                       : Icons.play_arrow,
-                                                  size: 16,
+                                                  size: TaqaUiScale.w(16),
                                                 ),
                                           label: Text(
                                             isReplyVoicePlaying
@@ -1659,18 +1665,12 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
 
   Future<void> _openAnalyticsPage() async {
     await Navigator.of(context).push(
-      PageRouteBuilder<void>(
-        transitionDuration: const Duration(milliseconds: 180),
-        reverseTransitionDuration: const Duration(milliseconds: 140),
-        pageBuilder: (_, animation, secondaryAnimation) =>
-            ExpertClientAnalyticsPage(
-              client: widget.client,
-              reviews: widget.reviews,
-              onTrainingPlanVerified: _handleTrainingPlanVerified,
-            ),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
+      MaterialPageRoute<void>(
+        builder: (_) => ExpertClientAnalyticsPage(
+          client: widget.client,
+          reviews: widget.reviews,
+          onTrainingPlanVerified: _handleTrainingPlanVerified,
+        ),
       ),
     );
   }
@@ -1906,6 +1906,13 @@ class ExpertClientAiUpdatesPage extends StatefulWidget {
 }
 
 class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
+  static final Map<int, List<FormCheckSubmission>> _formChecksCache =
+      <int, List<FormCheckSubmission>>{};
+  static final Map<int, List<ProgressionReview>> _reviewsCache =
+      <int, List<ProgressionReview>>{};
+  static final Map<int, bool> _formReviewPendingCache = <int, bool>{};
+  static final Map<int, bool> _trainingPlanPendingCache = <int, bool>{};
+
   bool _loading = true;
   bool _generatingAiReview = false;
   bool _showFormReviewPendingNote = false;
@@ -1917,9 +1924,24 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
   @override
   void initState() {
     super.initState();
-    _showFormReviewPendingNote = widget.client.hasFormCheckToReview;
-    _showTrainingPlanPendingNote = widget.client.hasUncheckedTrainingPlan;
-    _load();
+    final cachedFormChecks = _formChecksCache[widget.client.userId];
+    final cachedReviews = _reviewsCache[widget.client.userId];
+    if (cachedFormChecks != null && cachedReviews != null) {
+      _sharedFormChecks = cachedFormChecks;
+      _clientReviews = cachedReviews;
+      _showFormReviewPendingNote =
+          _formReviewPendingCache[widget.client.userId] ??
+          widget.client.hasFormCheckToReview;
+      _showTrainingPlanPendingNote =
+          _trainingPlanPendingCache[widget.client.userId] ??
+          widget.client.hasUncheckedTrainingPlan;
+      _loading = false;
+      _load(showLoading: false);
+    } else {
+      _showFormReviewPendingNote = widget.client.hasFormCheckToReview;
+      _showTrainingPlanPendingNote = widget.client.hasUncheckedTrainingPlan;
+      _load();
+    }
   }
 
   void _showSnack(String message) {
@@ -1927,8 +1949,8 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
     AppToast.show(context, message, type: _clientToastType(message));
   }
 
-  Future<void> _load() async {
-    if (mounted) {
+  Future<void> _load({bool showLoading = true}) async {
+    if (mounted && showLoading) {
       setState(() {
         _loading = true;
         _formChecksError = null;
@@ -1987,14 +2009,23 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
       });
     } catch (_) {}
 
+    final formReviewPending = sharedFormChecks.any(
+      (item) => item.coachReview == null,
+    );
+    if (formChecksError == null) {
+      _formChecksCache[widget.client.userId] = sharedFormChecks;
+      _reviewsCache[widget.client.userId] = clientReviews;
+      _formReviewPendingCache[widget.client.userId] = formReviewPending;
+      _trainingPlanPendingCache[widget.client.userId] =
+          showTrainingPlanPendingNote;
+    }
+
     if (!mounted) return;
     setState(() {
       _sharedFormChecks = sharedFormChecks;
       _clientReviews = clientReviews;
       _formChecksError = formChecksError;
-      _showFormReviewPendingNote = sharedFormChecks.any(
-        (item) => item.coachReview == null,
-      );
+      _showFormReviewPendingNote = formReviewPending;
       _showTrainingPlanPendingNote = showTrainingPlanPendingNote;
       _loading = false;
     });
@@ -2263,49 +2294,57 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
                   title: 'AI Updates',
                 ),
                 body: _loading
-                    ? const Center(child: CircularProgressIndicator())
-                    : ListView(
-                        padding: TaqaUiScale.insetsLTRB(16, 12, 16, 0),
+                    ? const Center(child: TaqaLoadingIndicator())
+                    : Column(
                         children: [
-                          TaqaExpertClientCard(
-                            name: widget.client.name ?? 'Client',
-                            avatarUrl: widget.client.avatarUrl,
-                            status: widget.client.activityStatus,
-                            showStatus:
-                                (widget.client.activityStatus ?? '')
-                                    .trim()
-                                    .isNotEmpty,
-                            subtitle: 'User ID: ${widget.client.userId}',
-                            details: const [
-                              'Expected response within 24-48h',
-                            ],
-                            alerts: (_showFormReviewPendingNote ||
-                                    _showTrainingPlanPendingNote)
-                                ? [_aiUpdatesStatusText()]
-                                : const [],
-                          ),
-                          SizedBox(height: TaqaUiScale.h(12)),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TaqaPillTab(
-                                  label: 'Form Check',
-                                  active: tabController.index == 0,
-                                  onTap: () => tabController.animateTo(0),
+                          Padding(
+                            padding: TaqaUiScale.insetsLTRB(16, 12, 16, 0),
+                            child: Column(
+                              children: [
+                                TaqaExpertClientCard(
+                                  name: widget.client.name ?? 'Client',
+                                  avatarUrl: widget.client.avatarUrl,
+                                  status: widget.client.activityStatus,
+                                  showStatus:
+                                      (widget.client.activityStatus ?? '')
+                                          .trim()
+                                          .isNotEmpty,
+                                  subtitle:
+                                      'User ID: ${widget.client.userId}',
+                                  details: const [
+                                    'Expected response within 24-48h',
+                                  ],
+                                  alerts: (_showFormReviewPendingNote ||
+                                          _showTrainingPlanPendingNote)
+                                      ? [_aiUpdatesStatusText()]
+                                      : const [],
                                 ),
-                              ),
-                              SizedBox(width: TaqaUiScale.w(15)),
-                              Expanded(
-                                child: TaqaPillTab(
-                                  label: 'Training Suggestion',
-                                  active: tabController.index == 1,
-                                  onTap: () => tabController.animateTo(1),
+                                SizedBox(height: TaqaUiScale.h(12)),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TaqaPillTab(
+                                        label: 'Form Check',
+                                        active: tabController.index == 0,
+                                        onTap: () =>
+                                            tabController.animateTo(0),
+                                      ),
+                                    ),
+                                    SizedBox(width: TaqaUiScale.w(15)),
+                                    Expanded(
+                                      child: TaqaPillTab(
+                                        label: 'Training Suggestion',
+                                        active: tabController.index == 1,
+                                        onTap: () =>
+                                            tabController.animateTo(1),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                          SizedBox(
-                            height: TaqaUiScale.h(520),
+                          Expanded(
                             child: TabBarView(
                               controller: tabController,
                               children: [
