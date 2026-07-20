@@ -11,7 +11,8 @@ class AppLocalizations {
 
   static const Map<String, Map<String, String>> _localizedValues = {
     'en': {
-      'welcome_tagline': 'Log your workouts easily, all in one place.',
+      'welcome_tagline': 'Your Taqa, tracked.',
+      'welcome_tagline_sub': 'All in one place',
       'saved_accounts': 'Saved accounts',
       'login': 'Log in',
       'login_with_another': 'Log in using another account',
@@ -1338,7 +1339,8 @@ class AppLocalizations {
     },
 
     'ar': {
-      'welcome_tagline': 'سجّل تمارينك بسهولة، في مكان واحد.',
+      'welcome_tagline': 'طاقتك، مُتابَعة.',
+      'welcome_tagline_sub': 'كل شيء في مكان واحد',
       'saved_accounts': 'الحسابات المحفوظة',
       'login': 'تسجيل الدخول',
       'login_with_another': 'تسجيل الدخول باستخدام حساب آخر',

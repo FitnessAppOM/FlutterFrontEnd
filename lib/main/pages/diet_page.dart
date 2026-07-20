@@ -70,17 +70,18 @@ class DietPageState extends State<DietPage> {
     if (_targets == null || _editingTargets) return;
     setState(() => _editingTargets = true);
     try {
-      final result = await Navigator.of(context).push<_EditDietTargetsResult>(
-        MaterialPageRoute(
-          builder: (_) => _EditDietTargetsPage(
-            restCalories: _asInt(_targets?["rest_calories"]),
-            restProtein: _asInt(_targets?["rest_protein_g"]),
-            restCarbs: _asInt(_targets?["rest_carbs_g"]),
-            restFat: _asInt(_targets?["rest_fat_g"]),
-            trainingDays: _trainingDays,
-          ),
-        ),
-      );
+      final result = await Navigator.of(context)
+          .push<TaqaDietTargetsEditorResult>(
+            MaterialPageRoute(
+              builder: (_) => TaqaDietTargetsEditorPage(
+                restCalories: _asInt(_targets?["rest_calories"]),
+                restProtein: _asInt(_targets?["rest_protein_g"]),
+                restCarbs: _asInt(_targets?["rest_carbs_g"]),
+                restFat: _asInt(_targets?["rest_fat_g"]),
+                trainingDays: _trainingDays,
+              ),
+            ),
+          );
       if (result != null) {
         await _submitEditedTargetValues(result);
       }
@@ -93,7 +94,9 @@ class DietPageState extends State<DietPage> {
     }
   }
 
-  Future<bool> _submitEditedTargetValues(_EditDietTargetsResult result) async {
+  Future<bool> _submitEditedTargetValues(
+    TaqaDietTargetsEditorResult result,
+  ) async {
     final t = AppLocalizations.of(context);
     try {
       final userId = await AccountStorage.getUserId();
@@ -273,7 +276,9 @@ class DietPageState extends State<DietPage> {
         : null;
     if (summary == null) return null;
     final live = (summary["live"] is Map) ? summary["live"] as Map : summary;
-    final remaining = (live["remaining"] is Map) ? live["remaining"] as Map : null;
+    final remaining = (live["remaining"] is Map)
+        ? live["remaining"] as Map
+        : null;
     final dynamic cal = remaining?["calories"] ?? live["remaining_calories"];
     if (cal == null) return null;
     if (cal is int) return cal;
@@ -292,24 +297,23 @@ class DietPageState extends State<DietPage> {
 
     // Kick off the fetch immediately, but open the dialog right away with the
     // remaining-calorie number we already have cached — no blank "please wait".
-    final optionsFuture = DietService.fetchRemainingRecommendations(userId).then(
-      (data) {
-        final rec = (data["recommendation"] is Map)
-            ? data["recommendation"] as Map
-            : const {};
-        final message =
-            (rec["message"] ?? "Here are a few ideas to finish your day.")
-                .toString();
-        final optionsRaw = rec["options"];
-        final options = (optionsRaw is List)
-            ? optionsRaw
-                  .whereType<Map>()
-                  .map((e) => e.cast<String, dynamic>())
-                  .toList()
-            : <Map<String, dynamic>>[];
-        return DietRecommendationResult(message: message, options: options);
-      },
-    );
+    final optionsFuture = DietService.fetchRemainingRecommendations(userId)
+        .then((data) {
+          final rec = (data["recommendation"] is Map)
+              ? data["recommendation"] as Map
+              : const {};
+          final message =
+              (rec["message"] ?? "Here are a few ideas to finish your day.")
+                  .toString();
+          final optionsRaw = rec["options"];
+          final options = (optionsRaw is List)
+              ? optionsRaw
+                    .whereType<Map>()
+                    .map((e) => e.cast<String, dynamic>())
+                    .toList()
+              : <Map<String, dynamic>>[];
+          return DietRecommendationResult(message: message, options: options);
+        });
     // Swallow the error here so an unawaited rejection doesn't surface; the
     // dialog's own catchError renders the failure state to the user.
     optionsFuture.catchError(
@@ -2690,661 +2694,343 @@ class DietPageState extends State<DietPage> {
         child: TaqaRefreshIndicator(
           onRefresh: () => _loadBootstrap(),
           child: ListView(
-          padding: TaqaUiScale.insetsLTRB(16, 20, 16, 24),
-          children: [
-            Center(
-              child: Text(
-                t.translate("diet_title"),
-                textAlign: TextAlign.center,
+            padding: TaqaUiScale.insetsLTRB(16, 20, 16, 24),
+            children: [
+              Center(
+                child: Text(
+                  t.translate("diet_title"),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: TaqaUiScale.sp(15),
+                    fontWeight: FontWeight.w700,
+                    height: 25 / 15,
+                    letterSpacing: 0,
+                    color: TaqaUiColors.unnamedColor1c1d17,
+                  ),
+                ),
+              ),
+              SizedBox(height: TaqaUiScale.h(20)),
+
+              // Mode toggle (can be locked to Training after strength, or locked to Rest/Cardio after >=15m cardio)
+              Builder(
+                builder: (context) {
+                  final primaryDayTitle = _restDayLockedByCardio
+                      ? t.translate("diet_cardio_day")
+                      : t.translate("diet_rest_day");
+                  Future<void> selectMode(int idx) async {
+                    if (_trainDayLockedByExercise && idx == 0) {
+                      return; // cannot switch to Rest when trained today
+                    }
+                    if (_restDayLockedByCardio && idx == 1) {
+                      return; // cannot switch to Training when cardio lock is active
+                    }
+                    setState(() {
+                      _modeIndex = idx;
+                    });
+                    // Persist calendar mapping so backend can infer diet targets without training_day_id.
+                    try {
+                      final userId = await AccountStorage.getUserId();
+                      if (userId != null) {
+                        if (idx == 0) {
+                          await TrainingCalendarService.setDay(
+                            userId: userId,
+                            entryDate: _mealDate,
+                            dayType: 'rest',
+                          );
+                        } else {
+                          final tdId = _asInt(
+                            _selectedTrainingDay?["day_id"],
+                            fallback: 0,
+                          );
+                          await TrainingCalendarService.setDay(
+                            userId: userId,
+                            entryDate: _mealDate,
+                            dayType: 'training',
+                            trainingDayId: tdId > 0 ? tdId : 1,
+                          );
+                        }
+                      }
+                    } catch (_) {
+                      // ignore calendar mapping errors; diet endpoints may still fall back
+                    }
+                    _loadMeals(clearExisting: true);
+                    AccountStorage.notifyDietChanged();
+                  }
+
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: TaqaRangeTab(
+                          label: primaryDayTitle,
+                          selected: _modeIndex == 0,
+                          onTap: () => selectMode(0),
+                        ),
+                      ),
+                      SizedBox(width: TaqaUiScale.w(15)),
+                      Expanded(
+                        child: TaqaRangeTab(
+                          label: t.translate("diet_training_day"),
+                          selected: _modeIndex == 1,
+                          onTap: () => selectMode(1),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+
+              if (_modeIndex == 1) ...[
+                const SizedBox(height: 12),
+                _buildTrainingDayPicker(
+                  theme,
+                  onChanged: () => _loadMeals(clearExisting: true),
+                ),
+              ],
+
+              SizedBox(height: TaqaUiScale.h(20)),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Text(
+                      t.translate("diet_daily_targets"),
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(25),
+                        fontWeight: FontWeight.w700,
+                        height: 1,
+                        letterSpacing: 0,
+                        color: TaqaUiColors.unnamedColor1c1d17,
+                      ),
+                    ),
+                  ),
+                  if (!_loadingUploadedPlans) ...[
+                    TaqaTagButton(
+                      icon: Icons.description_outlined,
+                      label: _unseenDietTargetChangeCount > 0
+                          ? "Plans $_unseenDietTargetChangeCount"
+                          : "Plans",
+                      onTap: _showUploadedPlansSheet,
+                    ),
+                    SizedBox(width: TaqaUiScale.w(8)),
+                  ],
+                  TaqaTagButton(
+                    icon: Icons.tune,
+                    label: t.translate("diet_edit_targets"),
+                    onTap: () {
+                      if (!_loading && _targets != null) {
+                        _openEditTargetsSheet();
+                      }
+                    },
+                  ),
+                ],
+              ),
+              SizedBox(height: TaqaUiScale.h(8)),
+              Text(
+                targetsSubtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(15),
-                  fontWeight: FontWeight.w700,
-                  height: 25 / 15,
+                  fontWeight: FontWeight.w400,
+                  height: 18 / 15,
                   letterSpacing: 0,
                   color: TaqaUiColors.unnamedColor1c1d17,
                 ),
               ),
-            ),
-            SizedBox(height: TaqaUiScale.h(20)),
+              SizedBox(height: TaqaUiScale.h(20)),
 
-            // Mode toggle (can be locked to Training after strength, or locked to Rest/Cardio after >=15m cardio)
-            Builder(
-              builder: (context) {
-                final primaryDayTitle = _restDayLockedByCardio
-                    ? t.translate("diet_cardio_day")
-                    : t.translate("diet_rest_day");
-                Future<void> selectMode(int idx) async {
-                  if (_trainDayLockedByExercise && idx == 0) {
-                    return; // cannot switch to Rest when trained today
-                  }
-                  if (_restDayLockedByCardio && idx == 1) {
-                    return; // cannot switch to Training when cardio lock is active
-                  }
-                  setState(() {
-                    _modeIndex = idx;
-                  });
-                  // Persist calendar mapping so backend can infer diet targets without training_day_id.
-                  try {
-                    final userId = await AccountStorage.getUserId();
-                    if (userId != null) {
-                      if (idx == 0) {
-                        await TrainingCalendarService.setDay(
-                          userId: userId,
-                          entryDate: _mealDate,
-                          dayType: 'rest',
-                        );
-                      } else {
-                        final tdId = _asInt(
-                          _selectedTrainingDay?["day_id"],
-                          fallback: 0,
-                        );
-                        await TrainingCalendarService.setDay(
-                          userId: userId,
-                          entryDate: _mealDate,
-                          dayType: 'training',
-                          trainingDayId: tdId > 0 ? tdId : 1,
-                        );
-                      }
-                    }
-                  } catch (_) {
-                    // ignore calendar mapping errors; diet endpoints may still fall back
-                  }
-                  _loadMeals(clearExisting: true);
-                  AccountStorage.notifyDietChanged();
-                }
-
-                return Row(
+              if (_loading || _targets == null) ...[
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(color: cs.primary),
+                        const SizedBox(height: 12),
+                        Text(
+                          t.translate("diet_preparing_plan"),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: TaqaUiColors.unnamedColor1c1d17,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ] else ...[
+                // --- Nutrients (arc widgets reused from dashboard) ---
+                Row(
                   children: [
                     Expanded(
-                      child: TaqaRangeTab(
-                        label: primaryDayTitle,
-                        selected: _modeIndex == 0,
-                        onTap: () => selectMode(0),
+                      child: _nutrientArcCard(
+                        title: t.translate("diet_manual_calories"),
+                        value: conCal,
+                        target: caloriesTarget,
+                        unit: t.translate("diet_kcal_unit"),
+                        dark: true,
+                        showRecordDot: true,
                       ),
                     ),
                     SizedBox(width: TaqaUiScale.w(15)),
                     Expanded(
-                      child: TaqaRangeTab(
-                        label: t.translate("diet_training_day"),
-                        selected: _modeIndex == 1,
-                        onTap: () => selectMode(1),
+                      child: _nutrientArcCard(
+                        title: t.translate("protein"),
+                        value: proteinValue,
+                        target: proteinTarget,
+                        unit: t.translate("diet_grams_unit"),
+                        dark: false,
                       ),
                     ),
                   ],
-                );
-              },
-            ),
-
-            if (_modeIndex == 1) ...[
-              const SizedBox(height: 12),
-              _buildTrainingDayPicker(
-                theme,
-                onChanged: () => _loadMeals(clearExisting: true),
-              ),
-            ],
-
-            SizedBox(height: TaqaUiScale.h(20)),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Text(
-                    t.translate("diet_daily_targets"),
-                    style: TextStyle(
-                      fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: TaqaUiScale.sp(25),
-                      fontWeight: FontWeight.w700,
-                      height: 1,
-                      letterSpacing: 0,
-                      color: TaqaUiColors.unnamedColor1c1d17,
-                    ),
-                  ),
                 ),
-                if (!_loadingUploadedPlans) ...[
-                  TaqaTagButton(
-                    icon: Icons.description_outlined,
-                    label: _unseenDietTargetChangeCount > 0
-                        ? "Plans $_unseenDietTargetChangeCount"
-                        : "Plans",
-                    onTap: _showUploadedPlansSheet,
-                  ),
-                  SizedBox(width: TaqaUiScale.w(8)),
-                ],
-                TaqaTagButton(
-                  icon: Icons.tune,
-                  label: t.translate("diet_edit_targets"),
-                  onTap: () {
-                    if (!_loading && _targets != null) {
-                      _openEditTargetsSheet();
-                    }
-                  },
-                ),
-              ],
-            ),
-            SizedBox(height: TaqaUiScale.h(8)),
-            Text(
-              targetsSubtitle,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: TaqaUiScale.sp(15),
-                fontWeight: FontWeight.w400,
-                height: 18 / 15,
-                letterSpacing: 0,
-                color: TaqaUiColors.unnamedColor1c1d17,
-              ),
-            ),
-            SizedBox(height: TaqaUiScale.h(20)),
-
-            if (_loading || _targets == null) ...[
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(color: cs.primary),
-                      const SizedBox(height: 12),
-                      Text(
-                        t.translate("diet_preparing_plan"),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: TaqaUiColors.unnamedColor1c1d17,
-                          fontWeight: FontWeight.w500,
-                        ),
+                SizedBox(height: TaqaUiScale.h(15)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _nutrientArcCard(
+                        title: t.translate("diet_carbs"),
+                        value: carbsValue,
+                        target: carbsTarget,
+                        unit: t.translate("diet_grams_unit"),
+                        dark: false,
                       ),
-                    ],
-                  ),
-                ),
-              ),
-            ] else ...[
-              // --- Nutrients (arc widgets reused from dashboard) ---
-              Row(
-                children: [
-                  Expanded(
-                    child: _nutrientArcCard(
-                      title: t.translate("diet_manual_calories"),
-                      value: conCal,
-                      target: caloriesTarget,
-                      unit: t.translate("diet_kcal_unit"),
-                      dark: true,
-                      showRecordDot: true,
                     ),
-                  ),
-                  SizedBox(width: TaqaUiScale.w(15)),
-                  Expanded(
-                    child: _nutrientArcCard(
-                      title: t.translate("protein"),
-                      value: proteinValue,
-                      target: proteinTarget,
-                      unit: t.translate("diet_grams_unit"),
-                      dark: false,
+                    SizedBox(width: TaqaUiScale.w(15)),
+                    Expanded(
+                      child: _nutrientArcCard(
+                        title: t.translate("diet_fat"),
+                        value: fatValue,
+                        target: fatTarget,
+                        unit: t.translate("diet_grams_unit"),
+                        dark: false,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              SizedBox(height: TaqaUiScale.h(15)),
-              Row(
-                children: [
-                  Expanded(
-                    child: _nutrientArcCard(
-                      title: t.translate("diet_carbs"),
-                      value: carbsValue,
-                      target: carbsTarget,
-                      unit: t.translate("diet_grams_unit"),
-                      dark: false,
-                    ),
-                  ),
-                  SizedBox(width: TaqaUiScale.w(15)),
-                  Expanded(
-                    child: _nutrientArcCard(
-                      title: t.translate("diet_fat"),
-                      value: fatValue,
-                      target: fatTarget,
-                      unit: t.translate("diet_grams_unit"),
-                      dark: false,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-
-            const SizedBox(height: 16),
-
-            // --- Today's Meals ---
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Text(
-                    t.translate("diet_today_meals"),
-                    style: TextStyle(
-                      fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: TaqaUiScale.sp(25),
-                      fontWeight: FontWeight.w700,
-                      height: 1,
-                      letterSpacing: 0,
-                      color: TaqaUiColors.unnamedColor1c1d17,
-                    ),
-                  ),
-                ),
-                TaqaTagButton(
-                  icon: Icons.add,
-                  label: t.translate("diet_add_item_tag"),
-                  onTap: () {
-                    if (!_mealsLoading) _createMealManually();
-                  },
+                  ],
                 ),
               ],
-            ),
-            SizedBox(height: TaqaUiScale.h(8)),
-            Text(
-              mealsSubtitle,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: TaqaUiScale.sp(15),
-                fontWeight: FontWeight.w300,
-                height: 18 / 15,
-                letterSpacing: 0,
-                color: TaqaUiColors.unnamedColor1c1d17,
-              ),
-            ),
-            SizedBox(height: TaqaUiScale.h(20)),
 
-            if (_mealsLoading) ...[
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  child: CircularProgressIndicator(color: cs.primary),
-                ),
-              ),
-            ] else if (_mealList.isEmpty) ...[
-              Text(
-                t.translate("diet_no_meals_today"),
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: TaqaUiColors.unnamedColor1c1d17,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    final userId = await AccountStorage.getUserId();
-                    if (userId == null) return;
-                    await DietService.openMealsForDate(userId, date: _mealDate);
-                    if (!mounted) return;
-                    await _loadMeals();
-                  },
-                  child: Text(t.translate("diet_open_today_meals")),
-                ),
-              ),
-            ] else ...[
-              ..._mealList.asMap().entries.map((entry) {
-                final listIndex = entry.key;
-                final meal = entry.value;
-                final backendTitle = _asString(meal["title"]);
-                final idx =
-                    listIndex +
-                    1; // Frontend display index (1..N) - always use this for numbering
-                final mealIndex = _asInt(meal["meal_index"], fallback: idx);
-                // Treat as default only if it exactly matches "Meal {index}" for this slot
-                final lowerTitle = backendTitle.toLowerCase().trim();
-                final isDefaultTitle =
-                    backendTitle.isEmpty ||
-                    lowerTitle == "meal $mealIndex" ||
-                    lowerTitle ==
-                        "${t.translate("diet_meal").toLowerCase()} $mealIndex";
-                final displayTitle =
-                    (!isDefaultTitle && backendTitle.isNotEmpty)
-                    ? backendTitle
-                    : "${t.translate("diet_meal")} $idx";
-                final itemList = _mealItems(meal);
-                final sums = _mealTotals(meal);
-                final mealId = _asInt(meal["meal_id"], fallback: 0);
+              const SizedBox(height: 16),
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: TaqaUiScale.radius(15),
+              // --- Today's Meals ---
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Text(
+                      t.translate("diet_today_meals"),
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(25),
+                        fontWeight: FontWeight.w700,
+                        height: 1,
+                        letterSpacing: 0,
+                        color: TaqaUiColors.unnamedColor1c1d17,
+                      ),
                     ),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                displayTitle.toUpperCase(),
-                                style: TextStyle(
-                                  fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-                                  fontSize: TaqaUiScale.sp(8),
-                                  fontWeight: FontWeight.w400,
-                                  height: 10 / 8,
-                                  letterSpacing: 0,
-                                  color: TaqaUiColors.unnamedColor1c1d17,
-                                ),
-                              ),
-                            ),
-                            Transform.translate(
-                              offset: Offset(0, -TaqaUiScale.h(11)),
-                              child: PopupMenuButton<String>(
-                                padding: EdgeInsets.zero,
-                                color: TaqaUiColors.white,
-                                surfaceTintColor: TaqaUiColors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: TaqaUiScale.radius(10),
-                                  side: BorderSide(
-                                    color: TaqaUiColors.unnamedColor1c1d17
-                                        .withValues(alpha: 0.10),
-                                  ),
-                                ),
-                                icon: Icon(
-                                  Icons.more_vert,
-                                  color: TaqaUiColors.unnamedColor1c1d17,
-                                  size: TaqaUiScale.sp(18),
-                                ),
-                                onSelected: (value) async {
-                                  final userId =
-                                      await AccountStorage.getUserId();
-                                  if (userId == null) return;
-                                  final trainingDayId = _modeIndex == 1
-                                      ? _asInt(
-                                          _selectedTrainingDay?["day_id"],
-                                          fallback: 0,
-                                        )
-                                      : null;
-                                  if (value == 'favorites_log') {
-                                    await _openFavoritesSheet(
-                                      userId: userId,
-                                      mealId: mealId,
-                                      mealTitle: displayTitle,
-                                      trainingDayId: trainingDayId,
-                                    );
-                                    return;
-                                  }
-                                  if (value == 'favorites_save') {
-                                    await _saveMealAsFavorite(
-                                      userId: userId,
-                                      meal: meal,
-                                      mealTitle: displayTitle,
-                                      trainingDayId: trainingDayId,
-                                    );
-                                    return;
-                                  }
-                                  if (value == 'meal_rename') {
-                                    await _renameMeal(
-                                      mealId: mealId,
-                                      currentTitle: displayTitle,
-                                      trainingDayId: trainingDayId,
-                                    );
-                                    return;
-                                  }
-                                  if (value == 'meal_clear_items') {
-                                    await _clearMealItems(
-                                      items: itemList,
-                                      mealTitle: displayTitle,
-                                    );
-                                    return;
-                                  }
-                                  if (value == 'meal_delete') {
-                                    if (mealId <= 0) return;
-                                    await _deleteMeal(
-                                      mealId: mealId,
-                                      mealTitle: displayTitle,
-                                      items: itemList,
-                                      trainingDayId: trainingDayId,
-                                    );
-                                  }
-                                },
-                                itemBuilder: (ctx) {
-                                  TextStyle menuItemStyle({Color? color}) =>
-                                      TextStyle(
-                                        fontFamily:
-                                            TaqaUiFontFamilies.interTight,
-                                        fontSize: TaqaUiScale.sp(13),
-                                        fontWeight: FontWeight.w500,
-                                        letterSpacing: 0,
-                                        color:
-                                            color ??
-                                            TaqaUiColors.unnamedColor1c1d17,
-                                      );
-                                  return [
-                                    PopupMenuItem(
-                                      value: 'favorites_log',
-                                      child: Text(
-                                        t.translate("diet_favorites_add_from"),
-                                        style: menuItemStyle(),
-                                      ),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'favorites_save',
-                                      enabled: itemList.isNotEmpty,
-                                      child: Text(
-                                        t.translate(
-                                          "diet_favorites_save_current",
-                                        ),
-                                        style: menuItemStyle(),
-                                      ),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'meal_rename',
-                                      child: Text(
-                                        t.translate("diet_rename_meal"),
-                                        style: menuItemStyle(),
-                                      ),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'meal_clear_items',
-                                      enabled: itemList.isNotEmpty,
-                                      child: Text(
-                                        t.translate("diet_clear_meal_items"),
-                                        style: menuItemStyle(),
-                                      ),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'meal_delete',
-                                      child: Text(
-                                        t.translate("diet_delete_meal"),
-                                        style: menuItemStyle(
-                                          color: AppColors.errorRed,
-                                        ),
-                                      ),
-                                    ),
-                                  ];
-                                },
-                              ),
-                            ),
-                            SizedBox(width: TaqaUiScale.w(6)),
-                            GestureDetector(
-                              onTap: mealId <= 0
-                                  ? null
-                                  : () async {
-                                      final userId =
-                                          await AccountStorage.getUserId();
-                                      if (userId == null) return;
-                                      if (!context.mounted) return;
+                  ),
+                  TaqaTagButton(
+                    icon: Icons.add,
+                    label: t.translate("diet_add_item_tag"),
+                    onTap: () {
+                      if (!_mealsLoading) _createMealManually();
+                    },
+                  ),
+                ],
+              ),
+              SizedBox(height: TaqaUiScale.h(8)),
+              Text(
+                mealsSubtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(15),
+                  fontWeight: FontWeight.w300,
+                  height: 18 / 15,
+                  letterSpacing: 0,
+                  color: TaqaUiColors.unnamedColor1c1d17,
+                ),
+              ),
+              SizedBox(height: TaqaUiScale.h(20)),
 
-                                      final trainingDayId = _modeIndex == 1
-                                          ? _asInt(
-                                              _selectedTrainingDay?["day_id"],
-                                              fallback: 0,
-                                            )
-                                          : null;
+              if (_mealsLoading) ...[
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    child: CircularProgressIndicator(color: cs.primary),
+                  ),
+                ),
+              ] else if (_mealList.isEmpty) ...[
+                Text(
+                  t.translate("diet_no_meals_today"),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: TaqaUiColors.unnamedColor1c1d17,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final userId = await AccountStorage.getUserId();
+                      if (userId == null) return;
+                      await DietService.openMealsForDate(
+                        userId,
+                        date: _mealDate,
+                      );
+                      if (!mounted) return;
+                      await _loadMeals();
+                    },
+                    child: Text(t.translate("diet_open_today_meals")),
+                  ),
+                ),
+              ] else ...[
+                ..._mealList.asMap().entries.map((entry) {
+                  final listIndex = entry.key;
+                  final meal = entry.value;
+                  final backendTitle = _asString(meal["title"]);
+                  final idx =
+                      listIndex +
+                      1; // Frontend display index (1..N) - always use this for numbering
+                  final mealIndex = _asInt(meal["meal_index"], fallback: idx);
+                  // Treat as default only if it exactly matches "Meal {index}" for this slot
+                  final lowerTitle = backendTitle.toLowerCase().trim();
+                  final isDefaultTitle =
+                      backendTitle.isEmpty ||
+                      lowerTitle == "meal $mealIndex" ||
+                      lowerTitle ==
+                          "${t.translate("diet_meal").toLowerCase()} $mealIndex";
+                  final displayTitle =
+                      (!isDefaultTitle && backendTitle.isNotEmpty)
+                      ? backendTitle
+                      : "${t.translate("diet_meal")} $idx";
+                  final itemList = _mealItems(meal);
+                  final sums = _mealTotals(meal);
+                  final mealId = _asInt(meal["meal_id"], fallback: 0);
 
-                                      // Show options first
-                                      await showDialog<void>(
-                                        context: context,
-                                        barrierColor: const Color(0x66000000),
-                                        builder: (_) => DietLoggingOptionsSheet(
-                                          mealTitle: displayTitle,
-                                          onSearch: () async {
-                                            if (!context.mounted) return;
-                                            if (_itemSearchSheetOpen) return;
-                                            _itemSearchSheetOpen = true;
-                                            await showModalBottomSheet(
-                                              context: context,
-                                              isScrollControlled: true,
-                                              backgroundColor:
-                                                  TaqaUiColors.white,
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.vertical(
-                                                      top: Radius.circular(
-                                                        TaqaUiScale.r(15),
-                                                      ),
-                                                    ),
-                                              ),
-                                              builder: (_) => DietItemSearchSheet(
-                                                rootContext: context,
-                                                userId: userId,
-                                                mealId: mealId,
-                                                mealTitle: displayTitle,
-                                                trainingDayId: trainingDayId,
-                                                initialTab: 0,
-                                                onLogged: (daySummary) async {
-                                                  try {
-                                                    if (daySummary != null &&
-                                                        _meals != null &&
-                                                        mounted) {
-                                                      setState(() {
-                                                        _meals = {
-                                                          ..._meals!,
-                                                          "day_summary":
-                                                              daySummary,
-                                                        };
-                                                      });
-                                                    }
-                                                    if (mounted)
-                                                      await _loadMeals();
-                                                  } catch (_) {
-                                                    if (mounted)
-                                                      await _loadMeals();
-                                                  }
-                                                },
-                                              ),
-                                            );
-                                            _itemSearchSheetOpen = false;
-                                          },
-                                          onManualEntry: () async {
-                                            if (!context.mounted) return;
-                                            if (_manualEntrySheetOpen) return;
-                                            _manualEntrySheetOpen = true;
-                                            await showModalBottomSheet(
-                                              context: context,
-                                              isScrollControlled: true,
-                                              backgroundColor: TaqaUiColors
-                                                  .unnamedColorE3e3e3,
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.vertical(
-                                                      top: Radius.circular(
-                                                        TaqaUiScale.r(15),
-                                                      ),
-                                                    ),
-                                              ),
-                                              builder: (_) =>
-                                                  DietManualEntrySheet(
-                                                    rootContext: context,
-                                                    userId: userId,
-                                                    mealId: mealId,
-                                                    mealTitle: displayTitle,
-                                                    trainingDayId:
-                                                        trainingDayId,
-                                                    onLogged: (daySummary) async {
-                                                      try {
-                                                        if (daySummary !=
-                                                                null &&
-                                                            _meals != null &&
-                                                            mounted) {
-                                                          setState(() {
-                                                            _meals = {
-                                                              ..._meals!,
-                                                              "day_summary":
-                                                                  daySummary,
-                                                            };
-                                                          });
-                                                        }
-                                                        if (mounted)
-                                                          await _loadMeals();
-                                                      } catch (_) {
-                                                        if (mounted)
-                                                          await _loadMeals();
-                                                      }
-                                                    },
-                                                  ),
-                                            );
-                                            _manualEntrySheetOpen = false;
-                                          },
-                                          onPhotoEntry: () async {
-                                            if (!context.mounted) return;
-                                            if (_photoEntrySheetOpen) return;
-                                            _photoEntrySheetOpen = true;
-                                            await showModalBottomSheet(
-                                              context: context,
-                                              isScrollControlled: true,
-                                              backgroundColor: TaqaUiColors
-                                                  .unnamedColorE3e3e3,
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.vertical(
-                                                      top: Radius.circular(
-                                                        TaqaUiScale.r(15),
-                                                      ),
-                                                    ),
-                                              ),
-                                              builder: (_) => DietPhotoEntrySheet(
-                                                rootContext: context,
-                                                userId: userId,
-                                                mealId: mealId,
-                                                mealTitle: displayTitle,
-                                                trainingDayId: trainingDayId,
-                                                onLogged: (daySummary) async {
-                                                  try {
-                                                    if (daySummary != null &&
-                                                        _meals != null &&
-                                                        mounted) {
-                                                      setState(() {
-                                                        _meals = {
-                                                          ..._meals!,
-                                                          "day_summary":
-                                                              daySummary,
-                                                        };
-                                                      });
-                                                    }
-                                                    if (mounted)
-                                                      await _loadMeals();
-                                                  } catch (_) {
-                                                    if (mounted)
-                                                      await _loadMeals();
-                                                  }
-                                                },
-                                              ),
-                                            );
-                                            _photoEntrySheetOpen = false;
-                                          },
-                                        ),
-                                      );
-                                    },
-                              child: Container(
-                                padding: TaqaUiScale.insetsLTRB(8, 5, 8, 5),
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: TaqaUiColors.unnamedColor1c1d17,
-                                    width: 0.5,
-                                  ),
-                                  borderRadius: TaqaUiScale.radius(5),
-                                ),
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: TaqaUiScale.radius(15),
+                      ),
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
                                 child: Text(
-                                  "+ ${t.translate("diet_add_item_tag").toUpperCase()}",
+                                  displayTitle.toUpperCase(),
                                   style: TextStyle(
                                     fontFamily:
                                         TaqaUiFontFamilies.iaWriterMonoS,
@@ -3356,187 +3042,513 @@ class DietPageState extends State<DietPage> {
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: TaqaUiScale.h(8)),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _mealMacroPair(
-                              value: sums["calories"] ?? 0,
-                              unit: t.translate("diet_kcal_unit"),
-                              label: t.translate("diet_manual_calories"),
-                              gap: 14,
-                            ),
-                            SizedBox(width: TaqaUiScale.w(40)),
-                            _mealMacroPair(
-                              value: sums["protein_g"] ?? 0,
-                              unit: t.translate("diet_grams_unit"),
-                              label: t.translate("protein"),
-                              gap: 15,
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: TaqaUiScale.h(12)),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _mealMacroPair(
-                              value: sums["carbs_g"] ?? 0,
-                              unit: t.translate("diet_grams_unit"),
-                              label: t.translate("diet_carbs"),
-                              gap: 14,
-                            ),
-                            SizedBox(width: TaqaUiScale.w(40)),
-                            _mealMacroPair(
-                              value: sums["fat_g"] ?? 0,
-                              unit: t.translate("diet_grams_unit"),
-                              label: t.translate("diet_fat"),
-                              gap: 15,
-                            ),
-                          ],
-                        ),
-                        if (itemList.isNotEmpty) ...[
-                          const SizedBox(height: 14),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: itemList.map((item) {
-                              final itemName = _asString(item["item_name"]);
-                              final kcal = _asInt(item["calories"]);
-                              final p = _asInt(item["protein_g"]);
-                              final c = _asInt(item["carbs_g"]);
-                              final f = _asInt(item["fat_g"]);
-                              final grams = item["grams"];
-                              final itemId = _mealItemId(item);
-                              final ingredients = item["ingredients"];
-                              final ingList = ingredients is List
-                                  ? ingredients
-                                        .whereType<Map>()
-                                        .map((e) => e.cast<String, dynamic>())
-                                        .toList()
-                                  : <Map<String, dynamic>>[];
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 10),
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: TaqaUiColors.unnamedColorE3e3e3,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: TaqaUiColors.unnamedColor1c1d17
-                                        .withValues(alpha: 0.10),
+                              Transform.translate(
+                                offset: Offset(0, -TaqaUiScale.h(11)),
+                                child: PopupMenuButton<String>(
+                                  padding: EdgeInsets.zero,
+                                  color: TaqaUiColors.white,
+                                  surfaceTintColor: TaqaUiColors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: TaqaUiScale.radius(10),
+                                    side: BorderSide(
+                                      color: TaqaUiColors.unnamedColor1c1d17
+                                          .withValues(alpha: 0.10),
+                                    ),
                                   ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            itemName,
-                                            style: theme.textTheme.bodyMedium
-                                                ?.copyWith(
-                                                  color: TaqaUiColors
-                                                      .unnamedColor1c1d17,
-                                                  fontWeight: FontWeight.w700,
-                                                ),
+                                  icon: Icon(
+                                    Icons.more_vert,
+                                    color: TaqaUiColors.unnamedColor1c1d17,
+                                    size: TaqaUiScale.sp(18),
+                                  ),
+                                  onSelected: (value) async {
+                                    final userId =
+                                        await AccountStorage.getUserId();
+                                    if (userId == null) return;
+                                    final trainingDayId = _modeIndex == 1
+                                        ? _asInt(
+                                            _selectedTrainingDay?["day_id"],
+                                            fallback: 0,
+                                          )
+                                        : null;
+                                    if (value == 'favorites_log') {
+                                      await _openFavoritesSheet(
+                                        userId: userId,
+                                        mealId: mealId,
+                                        mealTitle: displayTitle,
+                                        trainingDayId: trainingDayId,
+                                      );
+                                      return;
+                                    }
+                                    if (value == 'favorites_save') {
+                                      await _saveMealAsFavorite(
+                                        userId: userId,
+                                        meal: meal,
+                                        mealTitle: displayTitle,
+                                        trainingDayId: trainingDayId,
+                                      );
+                                      return;
+                                    }
+                                    if (value == 'meal_rename') {
+                                      await _renameMeal(
+                                        mealId: mealId,
+                                        currentTitle: displayTitle,
+                                        trainingDayId: trainingDayId,
+                                      );
+                                      return;
+                                    }
+                                    if (value == 'meal_clear_items') {
+                                      await _clearMealItems(
+                                        items: itemList,
+                                        mealTitle: displayTitle,
+                                      );
+                                      return;
+                                    }
+                                    if (value == 'meal_delete') {
+                                      if (mealId <= 0) return;
+                                      await _deleteMeal(
+                                        mealId: mealId,
+                                        mealTitle: displayTitle,
+                                        items: itemList,
+                                        trainingDayId: trainingDayId,
+                                      );
+                                    }
+                                  },
+                                  itemBuilder: (ctx) {
+                                    TextStyle menuItemStyle({Color? color}) =>
+                                        TextStyle(
+                                          fontFamily:
+                                              TaqaUiFontFamilies.interTight,
+                                          fontSize: TaqaUiScale.sp(13),
+                                          fontWeight: FontWeight.w500,
+                                          letterSpacing: 0,
+                                          color:
+                                              color ??
+                                              TaqaUiColors.unnamedColor1c1d17,
+                                        );
+                                    return [
+                                      PopupMenuItem(
+                                        value: 'favorites_log',
+                                        child: Text(
+                                          t.translate(
+                                            "diet_favorites_add_from",
+                                          ),
+                                          style: menuItemStyle(),
+                                        ),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'favorites_save',
+                                        enabled: itemList.isNotEmpty,
+                                        child: Text(
+                                          t.translate(
+                                            "diet_favorites_save_current",
+                                          ),
+                                          style: menuItemStyle(),
+                                        ),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'meal_rename',
+                                        child: Text(
+                                          t.translate("diet_rename_meal"),
+                                          style: menuItemStyle(),
+                                        ),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'meal_clear_items',
+                                        enabled: itemList.isNotEmpty,
+                                        child: Text(
+                                          t.translate("diet_clear_meal_items"),
+                                          style: menuItemStyle(),
+                                        ),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'meal_delete',
+                                        child: Text(
+                                          t.translate("diet_delete_meal"),
+                                          style: menuItemStyle(
+                                            color: AppColors.errorRed,
                                           ),
                                         ),
-                                        if (itemId > 0)
-                                          IconButton(
-                                            tooltip: t.translate(
-                                              "diet_add_ingredient",
-                                            ),
-                                            onPressed: () =>
-                                                _openAddIngredientDialog(
-                                                  mealItemId: itemId,
-                                                  itemName: itemName,
+                                      ),
+                                    ];
+                                  },
+                                ),
+                              ),
+                              SizedBox(width: TaqaUiScale.w(6)),
+                              GestureDetector(
+                                onTap: mealId <= 0
+                                    ? null
+                                    : () async {
+                                        final userId =
+                                            await AccountStorage.getUserId();
+                                        if (userId == null) return;
+                                        if (!context.mounted) return;
+
+                                        final trainingDayId = _modeIndex == 1
+                                            ? _asInt(
+                                                _selectedTrainingDay?["day_id"],
+                                                fallback: 0,
+                                              )
+                                            : null;
+
+                                        // Show options first
+                                        await showDialog<void>(
+                                          context: context,
+                                          barrierColor: const Color(0x66000000),
+                                          builder: (_) => DietLoggingOptionsSheet(
+                                            mealTitle: displayTitle,
+                                            onSearch: () async {
+                                              if (!context.mounted) return;
+                                              if (_itemSearchSheetOpen) return;
+                                              _itemSearchSheetOpen = true;
+                                              await showModalBottomSheet(
+                                                context: context,
+                                                isScrollControlled: true,
+                                                backgroundColor:
+                                                    TaqaUiColors.white,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.vertical(
+                                                        top: Radius.circular(
+                                                          TaqaUiScale.r(15),
+                                                        ),
+                                                      ),
                                                 ),
-                                            icon: Icon(
-                                              Icons.add,
-                                              color: TaqaUiColors
-                                                  .unnamedColor1c1d17
-                                                  .withValues(alpha: 0.6),
-                                              size: 20,
-                                            ),
+                                                builder: (_) => DietItemSearchSheet(
+                                                  rootContext: context,
+                                                  userId: userId,
+                                                  mealId: mealId,
+                                                  mealTitle: displayTitle,
+                                                  trainingDayId: trainingDayId,
+                                                  initialTab: 0,
+                                                  onLogged: (daySummary) async {
+                                                    try {
+                                                      if (daySummary != null &&
+                                                          _meals != null &&
+                                                          mounted) {
+                                                        setState(() {
+                                                          _meals = {
+                                                            ..._meals!,
+                                                            "day_summary":
+                                                                daySummary,
+                                                          };
+                                                        });
+                                                      }
+                                                      if (mounted)
+                                                        await _loadMeals();
+                                                    } catch (_) {
+                                                      if (mounted)
+                                                        await _loadMeals();
+                                                    }
+                                                  },
+                                                ),
+                                              );
+                                              _itemSearchSheetOpen = false;
+                                            },
+                                            onManualEntry: () async {
+                                              if (!context.mounted) return;
+                                              if (_manualEntrySheetOpen) return;
+                                              _manualEntrySheetOpen = true;
+                                              await showModalBottomSheet(
+                                                context: context,
+                                                isScrollControlled: true,
+                                                backgroundColor: TaqaUiColors
+                                                    .unnamedColorE3e3e3,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.vertical(
+                                                        top: Radius.circular(
+                                                          TaqaUiScale.r(15),
+                                                        ),
+                                                      ),
+                                                ),
+                                                builder: (_) =>
+                                                    DietManualEntrySheet(
+                                                      rootContext: context,
+                                                      userId: userId,
+                                                      mealId: mealId,
+                                                      mealTitle: displayTitle,
+                                                      trainingDayId:
+                                                          trainingDayId,
+                                                      onLogged: (daySummary) async {
+                                                        try {
+                                                          if (daySummary !=
+                                                                  null &&
+                                                              _meals != null &&
+                                                              mounted) {
+                                                            setState(() {
+                                                              _meals = {
+                                                                ..._meals!,
+                                                                "day_summary":
+                                                                    daySummary,
+                                                              };
+                                                            });
+                                                          }
+                                                          if (mounted)
+                                                            await _loadMeals();
+                                                        } catch (_) {
+                                                          if (mounted)
+                                                            await _loadMeals();
+                                                        }
+                                                      },
+                                                    ),
+                                              );
+                                              _manualEntrySheetOpen = false;
+                                            },
+                                            onPhotoEntry: () async {
+                                              if (!context.mounted) return;
+                                              if (_photoEntrySheetOpen) return;
+                                              _photoEntrySheetOpen = true;
+                                              await showModalBottomSheet(
+                                                context: context,
+                                                isScrollControlled: true,
+                                                backgroundColor: TaqaUiColors
+                                                    .unnamedColorE3e3e3,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.vertical(
+                                                        top: Radius.circular(
+                                                          TaqaUiScale.r(15),
+                                                        ),
+                                                      ),
+                                                ),
+                                                builder: (_) => DietPhotoEntrySheet(
+                                                  rootContext: context,
+                                                  userId: userId,
+                                                  mealId: mealId,
+                                                  mealTitle: displayTitle,
+                                                  trainingDayId: trainingDayId,
+                                                  onLogged: (daySummary) async {
+                                                    try {
+                                                      if (daySummary != null &&
+                                                          _meals != null &&
+                                                          mounted) {
+                                                        setState(() {
+                                                          _meals = {
+                                                            ..._meals!,
+                                                            "day_summary":
+                                                                daySummary,
+                                                          };
+                                                        });
+                                                      }
+                                                      if (mounted)
+                                                        await _loadMeals();
+                                                    } catch (_) {
+                                                      if (mounted)
+                                                        await _loadMeals();
+                                                    }
+                                                  },
+                                                ),
+                                              );
+                                              _photoEntrySheetOpen = false;
+                                            },
                                           ),
-                                        if (itemId > 0)
-                                          IconButton(
-                                            tooltip: t.translate(
-                                              "diet_delete_item",
-                                            ),
-                                            onPressed: () => _deleteMealItem(
-                                              mealItemId: itemId,
-                                              itemName: itemName,
-                                            ),
-                                            icon: Icon(
-                                              Icons.delete_outline,
-                                              color: TaqaUiColors
-                                                  .unnamedColor1c1d17
-                                                  .withValues(alpha: 0.5),
-                                              size: 20,
-                                            ),
-                                          ),
-                                      ],
+                                        );
+                                      },
+                                child: Container(
+                                  padding: TaqaUiScale.insetsLTRB(8, 5, 8, 5),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      color: TaqaUiColors.unnamedColor1c1d17,
+                                      width: 0.5,
                                     ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      "${t.translate("diet_kcal_label")} $kcal • "
-                                      "${t.translate("diet_p_short")} $p • "
-                                      "${t.translate("diet_c_short")} $c • "
-                                      "${t.translate("diet_f_short")} $f"
-                                      "${grams != null ? " • ${grams}g" : ""}",
-                                      style: theme.textTheme.bodySmall
-                                          ?.copyWith(
-                                            color: TaqaUiColors
-                                                .unnamedColor1c1d17
-                                                .withValues(alpha: 0.6),
-                                          ),
+                                    borderRadius: TaqaUiScale.radius(5),
+                                  ),
+                                  child: Text(
+                                    "+ ${t.translate("diet_add_item_tag").toUpperCase()}",
+                                    style: TextStyle(
+                                      fontFamily:
+                                          TaqaUiFontFamilies.iaWriterMonoS,
+                                      fontSize: TaqaUiScale.sp(8),
+                                      fontWeight: FontWeight.w400,
+                                      height: 10 / 8,
+                                      letterSpacing: 0,
+                                      color: TaqaUiColors.unnamedColor1c1d17,
                                     ),
-                                    if (ingList.isNotEmpty) ...[
-                                      const SizedBox(height: 6),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: TaqaUiScale.h(8)),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _mealMacroPair(
+                                value: sums["calories"] ?? 0,
+                                unit: t.translate("diet_kcal_unit"),
+                                label: t.translate("diet_manual_calories"),
+                                gap: 14,
+                              ),
+                              SizedBox(width: TaqaUiScale.w(40)),
+                              _mealMacroPair(
+                                value: sums["protein_g"] ?? 0,
+                                unit: t.translate("diet_grams_unit"),
+                                label: t.translate("protein"),
+                                gap: 15,
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: TaqaUiScale.h(12)),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _mealMacroPair(
+                                value: sums["carbs_g"] ?? 0,
+                                unit: t.translate("diet_grams_unit"),
+                                label: t.translate("diet_carbs"),
+                                gap: 14,
+                              ),
+                              SizedBox(width: TaqaUiScale.w(40)),
+                              _mealMacroPair(
+                                value: sums["fat_g"] ?? 0,
+                                unit: t.translate("diet_grams_unit"),
+                                label: t.translate("diet_fat"),
+                                gap: 15,
+                              ),
+                            ],
+                          ),
+                          if (itemList.isNotEmpty) ...[
+                            const SizedBox(height: 14),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: itemList.map((item) {
+                                final itemName = _asString(item["item_name"]);
+                                final kcal = _asInt(item["calories"]);
+                                final p = _asInt(item["protein_g"]);
+                                final c = _asInt(item["carbs_g"]);
+                                final f = _asInt(item["fat_g"]);
+                                final grams = item["grams"];
+                                final itemId = _mealItemId(item);
+                                final ingredients = item["ingredients"];
+                                final ingList = ingredients is List
+                                    ? ingredients
+                                          .whereType<Map>()
+                                          .map((e) => e.cast<String, dynamic>())
+                                          .toList()
+                                    : <Map<String, dynamic>>[];
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 10),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: TaqaUiColors.unnamedColorE3e3e3,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: TaqaUiColors.unnamedColor1c1d17
+                                          .withValues(alpha: 0.10),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              itemName,
+                                              style: theme.textTheme.bodyMedium
+                                                  ?.copyWith(
+                                                    color: TaqaUiColors
+                                                        .unnamedColor1c1d17,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                            ),
+                                          ),
+                                          if (itemId > 0)
+                                            IconButton(
+                                              tooltip: t.translate(
+                                                "diet_add_ingredient",
+                                              ),
+                                              onPressed: () =>
+                                                  _openAddIngredientDialog(
+                                                    mealItemId: itemId,
+                                                    itemName: itemName,
+                                                  ),
+                                              icon: Icon(
+                                                Icons.add,
+                                                color: TaqaUiColors
+                                                    .unnamedColor1c1d17
+                                                    .withValues(alpha: 0.6),
+                                                size: 20,
+                                              ),
+                                            ),
+                                          if (itemId > 0)
+                                            IconButton(
+                                              tooltip: t.translate(
+                                                "diet_delete_item",
+                                              ),
+                                              onPressed: () => _deleteMealItem(
+                                                mealItemId: itemId,
+                                                itemName: itemName,
+                                              ),
+                                              icon: Icon(
+                                                Icons.delete_outline,
+                                                color: TaqaUiColors
+                                                    .unnamedColor1c1d17
+                                                    .withValues(alpha: 0.5),
+                                                size: 20,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
                                       Text(
-                                        ingList
-                                            .map((ing) {
-                                              final n = _asString(
-                                                ing["ingredient_name"],
-                                              );
-                                              final amt = ing["amount"];
-                                              final unit = _asString(
-                                                ing["unit"],
-                                              );
-                                              final amountLabel = amt != null
-                                                  ? " ${amt.toString()}"
-                                                  : "";
-                                              final unitLabel = unit.isNotEmpty
-                                                  ? " $unit"
-                                                  : "";
-                                              return "$n$amountLabel$unitLabel";
-                                            })
-                                            .where((e) => e.trim().isNotEmpty)
-                                            .join(" • "),
+                                        "${t.translate("diet_kcal_label")} $kcal • "
+                                        "${t.translate("diet_p_short")} $p • "
+                                        "${t.translate("diet_c_short")} $c • "
+                                        "${t.translate("diet_f_short")} $f"
+                                        "${grams != null ? " • ${grams}g" : ""}",
                                         style: theme.textTheme.bodySmall
                                             ?.copyWith(
                                               color: TaqaUiColors
                                                   .unnamedColor1c1d17
-                                                  .withValues(alpha: 0.5),
+                                                  .withValues(alpha: 0.6),
                                             ),
                                       ),
+                                      if (ingList.isNotEmpty) ...[
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          ingList
+                                              .map((ing) {
+                                                final n = _asString(
+                                                  ing["ingredient_name"],
+                                                );
+                                                final amt = ing["amount"];
+                                                final unit = _asString(
+                                                  ing["unit"],
+                                                );
+                                                final amountLabel = amt != null
+                                                    ? " ${amt.toString()}"
+                                                    : "";
+                                                final unitLabel =
+                                                    unit.isNotEmpty
+                                                    ? " $unit"
+                                                    : "";
+                                                return "$n$amountLabel$unitLabel";
+                                              })
+                                              .where((e) => e.trim().isNotEmpty)
+                                              .join(" • "),
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                                color: TaqaUiColors
+                                                    .unnamedColor1c1d17
+                                                    .withValues(alpha: 0.5),
+                                              ),
+                                        ),
+                                      ],
                                     ],
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                          ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                );
-              }),
+                  );
+                }),
+              ],
             ],
-          ],
           ),
         ),
       ),
@@ -3785,8 +3797,8 @@ class DietPageState extends State<DietPage> {
   }
 }
 
-class _EditDietTargetsResult {
-  const _EditDietTargetsResult({
+class TaqaDietTargetsEditorResult {
+  const TaqaDietTargetsEditorResult({
     required this.restCalories,
     required this.restProtein,
     required this.restCarbs,
@@ -3803,8 +3815,9 @@ class _EditDietTargetsResult {
   final List<Map<String, dynamic>> trainingDays;
 }
 
-class _EditDietTargetsPage extends StatefulWidget {
-  const _EditDietTargetsPage({
+class TaqaDietTargetsEditorPage extends StatefulWidget {
+  const TaqaDietTargetsEditorPage({
+    super.key,
     required this.restCalories,
     required this.restProtein,
     required this.restCarbs,
@@ -3819,10 +3832,11 @@ class _EditDietTargetsPage extends StatefulWidget {
   final List<Map<String, dynamic>> trainingDays;
 
   @override
-  State<_EditDietTargetsPage> createState() => _EditDietTargetsPageState();
+  State<TaqaDietTargetsEditorPage> createState() =>
+      _EditDietTargetsEditorPageState();
 }
 
-class _EditDietTargetsPageState extends State<_EditDietTargetsPage> {
+class _EditDietTargetsEditorPageState extends State<TaqaDietTargetsEditorPage> {
   late int _tab;
   late int _restCalories;
   late int _restProtein;
@@ -4032,7 +4046,7 @@ class _EditDietTargetsPageState extends State<_EditDietTargetsPage> {
 
   void _save() {
     Navigator.of(context).pop(
-      _EditDietTargetsResult(
+      TaqaDietTargetsEditorResult(
         restCalories: _restCalories,
         restProtein: _restProtein,
         restCarbs: _restCarbs,
@@ -4096,6 +4110,25 @@ class _EditDietTargetsPageState extends State<_EditDietTargetsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Container(
+                      width: double.infinity,
+                      padding: TaqaUiScale.insetsLTRB(14, 10, 14, 10),
+                      decoration: BoxDecoration(
+                        color: TaqaUiColors.unnamedColorE3e3e3,
+                        borderRadius: TaqaUiScale.radius(15),
+                      ),
+                      child: Text(
+                        'Client-visible calorie targets may appear higher than entered values for today because burned calories are added automatically.',
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          fontSize: TaqaUiScale.sp(10),
+                          fontWeight: FontWeight.w400,
+                          height: 12 / 10,
+                          color: TaqaUiColors.charcoal,
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: TaqaUiScale.h(12)),
                     Row(
                       children: [
                         Expanded(

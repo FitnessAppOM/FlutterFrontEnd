@@ -5,6 +5,7 @@ import '../services/coach/progression_review_service.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_outline_tag_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
+import '../TaqaUI/components/taqa_refresh_indicator.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/styles/taqa_ui_styles.dart';
@@ -288,7 +289,7 @@ class _ExpertConnectionRequestsPageState
           ? const Center(
               child: CircularProgressIndicator(color: TaqaUiColors.lime),
             )
-          : RefreshIndicator(
+          : TaqaRefreshIndicator(
               onRefresh: _load,
               child: ListView(
                 padding: TaqaUiScale.insetsLTRB(16, 10, 16, 16),

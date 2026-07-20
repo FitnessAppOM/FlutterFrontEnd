@@ -18,7 +18,6 @@ import '../services/coach/coach_support_chat_service.dart';
 import '../services/coach/form_check_service.dart';
 import '../services/coach/progression_review_service.dart';
 import '../services/coach/voice_note_audio_service.dart';
-import '../theme/app_theme.dart';
 import 'expert_client_analytics_page.dart';
 import 'expert_client_chat_page.dart';
 import 'expert_client_diet_review_page.dart';
@@ -27,14 +26,20 @@ import 'expert_progression_review_page.dart';
 import 'expert_training_plan_review_page.dart';
 import '../widgets/coach/chat_video_player_page.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
+import '../TaqaUI/components/taqa_comment_composer_page.dart';
 import '../TaqaUI/components/taqa_expert_client_dashboard_ui.dart';
 import '../TaqaUI/components/taqa_expert_client_view.dart';
+import '../TaqaUI/components/taqa_expert_dashboard_ui.dart';
+import '../TaqaUI/components/taqa_filled_button.dart';
+import '../TaqaUI/components/taqa_outline_tag_button.dart';
+import '../TaqaUI/components/taqa_pill_tab.dart';
 import '../TaqaUI/components/taqa_profile_info_section.dart';
 import '../TaqaUI/components/taqa_stop_sign_icon.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../TaqaUI/components/taqa_value_dialog.dart';
 import '../TaqaUI/components/taqa_person_remove_icon.dart';
 import '../TaqaUI/components/taqa_refresh_indicator.dart';
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 
@@ -636,52 +641,6 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     }
   }
 
-  Future<void> _togglePendingVoiceNotePlayback(String localPath) async {
-    final normalizedPath = localPath.trim();
-    if (normalizedPath.isEmpty) return;
-    final sourceKey = _pendingVoiceSourceKey(normalizedPath);
-
-    if (_activeVoiceNoteUrl == sourceKey) {
-      if (_voicePlayer.processingState == ProcessingState.completed) {
-        await _voicePlayer.seek(Duration.zero);
-        await _voicePlayer.play();
-        _refreshOpenReviewSheet();
-        return;
-      }
-      if (_voicePlayer.playing) {
-        await _voicePlayer.pause();
-      } else {
-        await _voicePlayer.play();
-      }
-      _refreshOpenReviewSheet();
-      return;
-    }
-
-    setState(() {
-      _loadingVoiceNoteUrl = sourceKey;
-    });
-    _refreshOpenReviewSheet();
-    try {
-      await _voicePlayer.stop();
-      await _voicePlayer.setFilePath(normalizedPath);
-      _activeVoiceNoteUrl = sourceKey;
-      await _voicePlayer.play();
-    } catch (e) {
-      _showSnack(e.toString().replaceFirst('Exception: ', ''));
-    } finally {
-      if (mounted) {
-        setState(() {
-          if (_loadingVoiceNoteUrl == sourceKey) {
-            _loadingVoiceNoteUrl = null;
-          }
-        });
-      } else if (_loadingVoiceNoteUrl == sourceKey) {
-        _loadingVoiceNoteUrl = null;
-      }
-      _refreshOpenReviewSheet();
-    }
-  }
-
   Future<FormCheckSubmission?> _saveWrittenReview(
     FormCheckSubmission item,
   ) async {
@@ -983,27 +942,6 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     }
   }
 
-  Future<FormCheckSubmission?> _handlePrimarySend(
-    FormCheckSubmission item,
-  ) async {
-    final submissionId = item.submissionId;
-    if (_savingReviewIds.contains(submissionId) ||
-        _sendingVoiceNoteIds.contains(submissionId)) {
-      return null;
-    }
-
-    if (_isRecordingVoiceNote) {
-      _showSnack('Stop recording before sending.');
-      return null;
-    }
-
-    if (_hasPendingVoiceNoteForSubmission(submissionId)) {
-      return _sendPendingVoiceNote(item);
-    }
-
-    return _saveWrittenReview(item);
-  }
-
   Future<FormCheckSubmission?> _toggleReplyPinned({
     required FormCheckSubmission item,
     required FormCheckCoachReply reply,
@@ -1095,13 +1033,64 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     return sorted;
   }
 
+  Widget _reviewPillButton({
+    required IconData icon,
+    required String label,
+    VoidCallback? onTap,
+    bool loading = false,
+    Color? activeColor,
+  }) {
+    final color = activeColor ?? TaqaUiColors.charcoal;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: TaqaUiScale.radius(999),
+        child: Container(
+          height: TaqaUiScale.h(30),
+          padding: TaqaUiScale.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            borderRadius: TaqaUiScale.radius(999),
+            border: Border.all(color: color.withValues(alpha: 0.4)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (loading)
+                SizedBox(
+                  width: TaqaUiScale.w(12),
+                  height: TaqaUiScale.w(12),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: color,
+                  ),
+                )
+              else
+                Icon(icon, size: TaqaUiScale.w(14), color: color),
+              SizedBox(width: TaqaUiScale.w(6)),
+              Text(
+                label,
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(11),
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _openSubmissionReviewSheet(FormCheckSubmission item) async {
     final controller = _reviewControllerFor(item);
     var current = item;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.cardDark,
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
@@ -1110,27 +1099,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
           builder: (sheetContext, setSheetState) {
             _activeReviewSheetSetState = setSheetState;
             final submissionId = current.submissionId;
-            final isSaving = _savingReviewIds.contains(submissionId);
-            final isSendingVoice = _sendingVoiceNoteIds.contains(submissionId);
             final isPinningReview = _pinningReviewIds.contains(submissionId);
-            final isRecordingVoice =
-                _isRecordingVoiceNote &&
-                _recordingVoiceNoteSubmissionId == submissionId;
-            final hasPendingVoice = _hasPendingVoiceNoteForSubmission(
-              submissionId,
-            );
-            final pendingVoicePath = hasPendingVoice
-                ? (_pendingVoiceNotePath ?? '').trim()
-                : '';
-            final pendingVoiceKey = pendingVoicePath.isEmpty
-                ? ''
-                : _pendingVoiceSourceKey(pendingVoicePath);
-            final isPendingVoiceLoading =
-                pendingVoiceKey.isNotEmpty &&
-                _isVoiceNoteLoading(pendingVoiceKey);
-            final isPendingVoicePlaying =
-                pendingVoiceKey.isNotEmpty &&
-                _isVoiceNotePlaying(pendingVoiceKey);
             final replies = _sortedRepliesForHistory(
               current.coachReviewReplies,
             );
@@ -1148,34 +1117,6 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                 aiSummary.isNotEmpty ||
                 aiBullets.isNotEmpty ||
                 aiIssues.isNotEmpty;
-
-            Future<void> handleSend() async {
-              final updated = await _handlePrimarySend(current);
-              if (updated == null || !mounted) return;
-              current = _submissionById(updated.submissionId);
-              setSheetState(() {});
-            }
-
-            Future<void> handleRecordToggle() async {
-              if (isRecordingVoice) {
-                final stopped = await _stopVoiceNoteRecording(current);
-                if (!stopped || !mounted) return;
-                setSheetState(() {});
-                return;
-              }
-              final started = await _startVoiceNoteRecording(current);
-              if (!started || !mounted) return;
-              setSheetState(() {});
-            }
-
-            Future<void> handlePendingVoiceCancel() async {
-              await _clearPendingVoiceNote(
-                submissionId: submissionId,
-                deleteFile: true,
-              );
-              if (!mounted) return;
-              setSheetState(() {});
-            }
 
             Future<void> handleVoicePlayback() async {
               await _toggleVoiceNotePlayback(voiceNoteUrl);
@@ -1200,6 +1141,40 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
               setSheetState(() {});
             }
 
+            Future<void> openReplyComposer() async {
+              if (_isRecordingVoiceNote ||
+                  _hasPendingVoiceNoteForSubmission(submissionId)) {
+                _showSnack('Finish or cancel the current voice note first.');
+                return;
+              }
+              await Navigator.of(sheetContext).push<bool>(
+                MaterialPageRoute(
+                  builder: (_) => TaqaCommentComposerPage(
+                    title: 'Reply to Client',
+                    subject: current.exerciseName,
+                    hintText: 'Write review notes for the client...',
+                    onSubmit: (text) async {
+                      controller.text = text;
+                      await _saveWrittenReview(current);
+                    },
+                    onStartVoiceNote: () => _startVoiceNoteRecording(current),
+                    onStopVoiceNote: () => _stopVoiceNoteRecording(current),
+                    onSendVoiceNote: (text) async {
+                      controller.text = text;
+                      await _sendPendingVoiceNote(current);
+                    },
+                    onCancelVoiceNote: () => _clearPendingVoiceNote(
+                      submissionId: submissionId,
+                      deleteFile: true,
+                    ),
+                  ),
+                ),
+              );
+              if (!mounted) return;
+              current = _submissionById(submissionId);
+              setSheetState(() {});
+            }
+
             return SafeArea(
               top: false,
               child: Padding(
@@ -1209,563 +1184,316 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                   top: 14,
                   bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.video_collection_outlined,
-                          color: Colors.white70,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            current.exerciseName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () async {
-                            if (isRecordingVoice) {
-                              await _cancelVoiceNoteRecording();
-                            }
-                            if (sheetContext.mounted) {
-                              Navigator.of(sheetContext).pop();
-                            }
-                          },
-                          icon: const Icon(Icons.close, color: Colors.white70),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      'Shared: ${_formatDateTime(current.sharedAt ?? current.createdAt)}',
-                      style: const TextStyle(
-                        color: Colors.white60,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: () => _openVideoInApp(
-                            current.originalVideoUrl,
-                            title: current.exerciseName,
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.white24),
-                            minimumSize: const Size(0, 34),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 8,
-                            ),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            visualDensity: const VisualDensity(
-                              horizontal: -2,
-                              vertical: -2,
-                            ),
-                          ),
-                          icon: const Icon(Icons.open_in_new, size: 16),
-                          label: const Text('Open video'),
-                        ),
-                        if ((current.result.overlayUrl ?? '').trim().isNotEmpty)
-                          OutlinedButton.icon(
-                            onPressed: () => _openVideoInApp(
-                              current.result.overlayUrl,
-                              title: '${current.exerciseName} (Overlay)',
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              side: const BorderSide(color: Colors.white24),
-                              minimumSize: const Size(0, 34),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 8,
-                              ),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              visualDensity: const VisualDensity(
-                                horizontal: -2,
-                                vertical: -2,
-                              ),
-                            ),
-                            icon: const Icon(Icons.insights_outlined, size: 16),
-                            label: const Text('Open overlay'),
-                          ),
-                      ],
-                    ),
-                    if (hasAiAnalysis) ...[
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.04),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Taqa Agent analysis',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            if (aiSummary.isNotEmpty) ...[
-                              const SizedBox(height: 8),
-                              Text(
-                                aiSummary,
-                                style: const TextStyle(color: Colors.white70),
-                              ),
-                            ],
-                            if (aiBullets.isNotEmpty) ...[
-                              const SizedBox(height: 10),
-                              ...aiBullets.map(
-                                (bullet) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 6),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Padding(
-                                        padding: EdgeInsets.only(top: 6),
-                                        child: Icon(
-                                          Icons.circle,
-                                          size: 6,
-                                          color: Colors.white54,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          bullet,
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                            if (aiIssues.isNotEmpty) ...[
-                              const SizedBox(height: 6),
-                              Text(
-                                'Detected focus areas: ${aiIssues.join(', ')}',
-                                style: const TextStyle(
-                                  color: Colors.white54,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ] else if (current.isProcessing) ...[
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Taqa Agent analysis is still processing.',
-                        style: TextStyle(color: Colors.white54, fontSize: 12),
-                      ),
-                    ],
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: controller,
-                      minLines: 2,
-                      maxLines: 6,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: 'Write review notes for the client...',
-                        hintStyle: const TextStyle(color: Colors.white38),
-                        filled: true,
-                        fillColor: Colors.white.withValues(alpha: 0.03),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: Colors.white24),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: Colors.white24),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: AppColors.accent),
-                        ),
-                        isDense: true,
-                        contentPadding: const EdgeInsets.all(10),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        FilledButton.icon(
-                          onPressed:
-                              (isSaving ||
-                                  isSendingVoice ||
-                                  _isRecordingVoiceNote)
-                              ? null
-                              : handleSend,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.accent,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(0, 34),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            visualDensity: const VisualDensity(
-                              horizontal: -2,
-                              vertical: -2,
-                            ),
-                          ),
-                          icon: isSaving
-                              ? const SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Icon(Icons.send, size: 14),
-                          label: Text(isSaving ? 'Sending...' : 'Send'),
-                        ),
-                        const SizedBox(width: 8),
-                        if (isRecordingVoice)
-                          OutlinedButton.icon(
-                            onPressed: (isSaving || isSendingVoice)
-                                ? null
-                                : handleRecordToggle,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.redAccent,
-                              side: const BorderSide(color: Colors.redAccent),
-                              minimumSize: const Size(0, 34),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              visualDensity: const VisualDensity(
-                                horizontal: -2,
-                                vertical: -2,
-                              ),
-                            ),
-                            icon: const Icon(Icons.stop, size: 14),
-                            label: const Text('Stop'),
-                          )
-                        else if (hasPendingVoice) ...[
-                          TextButton.icon(
-                            onPressed:
-                                (isSaving ||
-                                    isSendingVoice ||
-                                    pendingVoicePath.isEmpty)
-                                ? null
-                                : () => _togglePendingVoiceNotePlayback(
-                                    pendingVoicePath,
-                                  ),
-                            style: TextButton.styleFrom(
-                              minimumSize: const Size(0, 26),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              visualDensity: const VisualDensity(
-                                horizontal: -2,
-                                vertical: -3,
-                              ),
-                            ),
-                            icon: isPendingVoiceLoading
-                                ? const SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white70,
-                                    ),
-                                  )
-                                : Icon(
-                                    isPendingVoicePlaying
-                                        ? Icons.pause
-                                        : Icons.play_arrow,
-                                    size: 16,
-                                  ),
-                            label: Text(
-                              isPendingVoicePlaying
-                                  ? 'Pause preview'
-                                  : 'Play preview',
-                            ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.video_collection_outlined,
+                            color: TaqaUiColors.charcoal,
                           ),
                           const SizedBox(width: 8),
-                          TextButton(
-                            onPressed: (isSaving || isSendingVoice)
-                                ? null
-                                : handlePendingVoiceCancel,
-                            child: const Text('Cancel'),
-                          ),
-                        ] else
-                          OutlinedButton.icon(
-                            onPressed: (isSaving || isSendingVoice)
-                                ? null
-                                : handleRecordToggle,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              side: const BorderSide(color: Colors.white24),
-                              minimumSize: const Size(0, 34),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              visualDensity: const VisualDensity(
-                                horizontal: -2,
-                                vertical: -2,
+                          Expanded(
+                            child: Text(
+                              current.exerciseName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: TaqaUiFontFamilies.interTight,
+                                color: TaqaUiColors.charcoal,
+                                fontWeight: FontWeight.w700,
+                                fontSize: TaqaUiScale.sp(16),
                               ),
                             ),
-                            icon: const Icon(Icons.mic, size: 14),
-                            label: const Text('Record voice'),
                           ),
-                      ],
-                    ),
-                    if (isRecordingVoice) ...[
-                      const SizedBox(height: 8),
-                      Row(
-                        children: const [
-                          Icon(
-                            Icons.fiber_manual_record,
-                            size: 10,
-                            color: Colors.redAccent,
-                          ),
-                          SizedBox(width: 6),
-                          Text(
-                            'Recording...',
-                            style: TextStyle(
-                              color: Colors.redAccent,
-                              fontWeight: FontWeight.w600,
+                          IconButton(
+                            onPressed: () => Navigator.of(sheetContext).pop(),
+                            icon: const Icon(
+                              Icons.close,
+                              color: TaqaUiColors.charcoal,
                             ),
-                          ),
-                          SizedBox(width: 8),
-                          TaqaAudioWaveBars(
-                            color: Colors.redAccent,
-                            barCount: 6,
-                            minHeight: 4,
-                            maxHeight: 14,
-                            barWidth: 3,
-                            gap: 2,
                           ),
                         ],
                       ),
-                    ],
-                    if (replies.isEmpty &&
-                        voiceNoteUrl.isEmpty &&
-                        current.coachReview != null) ...[
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Text(
-                          reviewSeenAt == null
-                              ? 'Unseen by client'
-                              : 'Seen by client',
-                          style: TextStyle(
-                            color: reviewSeenAt == null
-                                ? Colors.orangeAccent
-                                : Colors.greenAccent,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      Text(
+                        'Shared: ${_formatDateTime(current.sharedAt ?? current.createdAt)}',
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+                          fontSize: TaqaUiScale.sp(12),
                         ),
                       ),
-                    ],
-                    if (replies.isEmpty && voiceNoteUrl.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.04),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.white12),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.mic, color: Colors.white70),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Voice note: ${_formatDateTime(current.coachReview?.updatedAt ?? current.coachReview?.reviewedAt)}',
-                                style: const TextStyle(color: Colors.white70),
+                      SizedBox(height: TaqaUiScale.h(10)),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _reviewPillButton(
+                            icon: Icons.open_in_new,
+                            label: 'Open video',
+                            onTap: () => _openVideoInApp(
+                              current.originalVideoUrl,
+                              title: current.exerciseName,
+                            ),
+                          ),
+                          if ((current.result.overlayUrl ?? '')
+                              .trim()
+                              .isNotEmpty)
+                            _reviewPillButton(
+                              icon: Icons.insights_outlined,
+                              label: 'Open overlay',
+                              onTap: () => _openVideoInApp(
+                                current.result.overlayUrl,
+                                title: '${current.exerciseName} (Overlay)',
                               ),
                             ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  reviewSeenAt == null ? 'Unseen' : 'Seen',
-                                  style: TextStyle(
-                                    color: reviewSeenAt == null
-                                        ? Colors.orangeAccent
-                                        : Colors.greenAccent,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
+                        ],
+                      ),
+                      if (hasAiAnalysis) ...[
+                        SizedBox(height: TaqaUiScale.h(12)),
+                        TaqaClientDashboardCard(
+                          padding: 12,
+                          radius: 12,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const TaqaClientDashboardTitleText(
+                                'Taqa Agent analysis',
+                              ),
+                              if (aiSummary.isNotEmpty) ...[
+                                SizedBox(height: TaqaUiScale.h(8)),
+                                TaqaClientDashboardBodyText(aiSummary),
+                              ],
+                              if (aiBullets.isNotEmpty) ...[
+                                SizedBox(height: TaqaUiScale.h(10)),
+                                ...aiBullets.map(
+                                  (bullet) => Padding(
+                                    padding: EdgeInsets.only(
+                                      bottom: TaqaUiScale.h(6),
+                                    ),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Padding(
+                                          padding: EdgeInsets.only(
+                                            top: TaqaUiScale.h(6),
+                                          ),
+                                          child: Icon(
+                                            Icons.circle,
+                                            size: TaqaUiScale.w(6),
+                                            color: TaqaUiColors.charcoal
+                                                .withValues(alpha: 0.4),
+                                          ),
+                                        ),
+                                        SizedBox(width: TaqaUiScale.w(8)),
+                                        Expanded(
+                                          child: TaqaClientDashboardBodyText(
+                                            bullet,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(height: 2),
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      onPressed: isVoiceLoading
-                                          ? null
-                                          : handleVoicePlayback,
-                                      icon: isVoiceLoading
-                                          ? const SizedBox(
-                                              width: 16,
-                                              height: 16,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: Colors.white70,
-                                              ),
-                                            )
-                                          : Icon(
-                                              isVoicePlaying
-                                                  ? Icons.pause_circle_filled
-                                                  : Icons.play_circle_fill,
-                                              color: Colors.white,
-                                            ),
-                                      tooltip: isVoicePlaying
-                                          ? 'Pause'
-                                          : 'Play',
+                              ],
+                              if (aiIssues.isNotEmpty) ...[
+                                SizedBox(height: TaqaUiScale.h(6)),
+                                Text(
+                                  'Detected focus areas: ${aiIssues.join(', ')}',
+                                  style: TextStyle(
+                                    fontFamily: TaqaUiFontFamilies.interTight,
+                                    color: TaqaUiColors.charcoal.withValues(
+                                      alpha: 0.55,
                                     ),
-                                    const SizedBox(width: 4),
-                                    OutlinedButton.icon(
-                                      onPressed: isPinningReview
-                                          ? null
-                                          : handleReviewPinToggle,
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor: isReviewPinned
-                                            ? Colors.orangeAccent
-                                            : Colors.white70,
-                                        side: BorderSide(
-                                          color: isReviewPinned
-                                              ? Colors.orangeAccent
-                                              : Colors.white24,
-                                        ),
-                                        minimumSize: const Size(0, 28),
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 6,
-                                        ),
-                                        tapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                        visualDensity: const VisualDensity(
-                                          horizontal: -2,
-                                          vertical: -2,
-                                        ),
-                                      ),
-                                      icon: isPinningReview
-                                          ? const SizedBox(
-                                              width: 12,
-                                              height: 12,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: Colors.white70,
-                                              ),
-                                            )
-                                          : Icon(
-                                              isReviewPinned
-                                                  ? Icons.push_pin
-                                                  : Icons.push_pin_outlined,
-                                              size: 12,
-                                            ),
-                                      label: Text(
-                                        isReviewPinned ? 'Unpin' : 'Pin',
-                                      ),
-                                    ),
-                                  ],
+                                    fontSize: TaqaUiScale.sp(12),
+                                  ),
                                 ),
                               ],
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
+                      ] else if (current.isProcessing) ...[
+                        SizedBox(height: TaqaUiScale.h(12)),
+                        Text(
+                          'Taqa Agent analysis is still processing.',
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            color: TaqaUiColors.charcoal.withValues(
+                              alpha: 0.55,
+                            ),
+                            fontSize: TaqaUiScale.sp(12),
+                          ),
+                        ),
+                      ],
+                      SizedBox(height: TaqaUiScale.h(14)),
+                      TaqaFilledButton(
+                        label: current.coachReview == null
+                            ? 'Write Reply'
+                            : 'Add Reply',
+                        onTap: openReplyComposer,
+                        height: 45,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
                       ),
-                      if (isReviewPinned) ...[
-                        const SizedBox(height: 6),
-                        const Align(
+                      if (replies.isEmpty &&
+                          voiceNoteUrl.isEmpty &&
+                          current.coachReview != null) ...[
+                        SizedBox(height: TaqaUiScale.h(8)),
+                        Align(
                           alignment: Alignment.centerRight,
                           child: Text(
-                            'Pinned correction',
+                            reviewSeenAt == null
+                                ? 'Unseen by client'
+                                : 'Seen by client',
                             style: TextStyle(
-                              color: Colors.orangeAccent,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              color: reviewSeenAt == null
+                                  ? TaqaUiColors.recordRed
+                                  : const Color(0xFF2E8B57),
+                              fontSize: TaqaUiScale.sp(12),
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
                       ],
-                    ],
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Reply History',
-                      style: TextStyle(
-                        color: TaqaUiColors.charcoal,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    if (replies.isEmpty)
-                      const Text(
-                        'No replies yet.',
-                        style: TextStyle(color: Colors.white54),
-                      )
-                    else
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 380),
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: replies.length,
-                          itemBuilder: (context, index) {
-                            final reply = replies[replies.length - 1 - index];
-                            final replyVoiceNoteUrl = _normalizeVoiceNoteUrl(
-                              reply.voiceNoteUrl,
-                            );
-                            final hasReplyVoiceNote =
-                                replyVoiceNoteUrl.isNotEmpty;
-                            final isReplyVoiceLoading =
-                                hasReplyVoiceNote &&
-                                _isVoiceNoteLoading(replyVoiceNoteUrl);
-                            final isReplyVoicePlaying =
-                                hasReplyVoiceNote &&
-                                _isVoiceNotePlaying(replyVoiceNoteUrl);
-                            final replyText = reply.replyText.trim();
-                            final replyMessage = replyText.isNotEmpty
-                                ? replyText
-                                : (hasReplyVoiceNote
-                                      ? 'Voice note from coach.'
-                                      : '');
-                            return Container(
-                              width: double.infinity,
-                              margin: const EdgeInsets.only(bottom: 6),
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.04),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: Colors.white12),
+                      if (replies.isEmpty && voiceNoteUrl.isNotEmpty) ...[
+                        SizedBox(height: TaqaUiScale.h(10)),
+                        TaqaClientDashboardCard(
+                          padding: 10,
+                          radius: 10,
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.mic,
+                                color: TaqaUiColors.charcoal.withValues(
+                                  alpha: 0.7,
+                                ),
                               ),
+                              SizedBox(width: TaqaUiScale.w(8)),
+                              Expanded(
+                                child: TaqaClientDashboardBodyText(
+                                  'Voice note: ${_formatDateTime(current.coachReview?.updatedAt ?? current.coachReview?.reviewedAt)}',
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    reviewSeenAt == null ? 'Unseen' : 'Seen',
+                                    style: TextStyle(
+                                      fontFamily:
+                                          TaqaUiFontFamilies.interTight,
+                                      color: reviewSeenAt == null
+                                          ? TaqaUiColors.recordRed
+                                          : const Color(0xFF2E8B57),
+                                      fontSize: TaqaUiScale.sp(12),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  SizedBox(height: TaqaUiScale.h(2)),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        onPressed: isVoiceLoading
+                                            ? null
+                                            : handleVoicePlayback,
+                                        icon: isVoiceLoading
+                                            ? SizedBox(
+                                                width: TaqaUiScale.w(16),
+                                                height: TaqaUiScale.w(16),
+                                                child:
+                                                    const CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                    ),
+                                              )
+                                            : Icon(
+                                                isVoicePlaying
+                                                    ? Icons.pause_circle_filled
+                                                    : Icons.play_circle_fill,
+                                                color: TaqaUiColors.charcoal,
+                                              ),
+                                        tooltip: isVoicePlaying
+                                            ? 'Pause'
+                                            : 'Play',
+                                      ),
+                                      SizedBox(width: TaqaUiScale.w(4)),
+                                      _reviewPillButton(
+                                        icon: isReviewPinned
+                                            ? Icons.push_pin
+                                            : Icons.push_pin_outlined,
+                                        label: isReviewPinned
+                                            ? 'Unpin'
+                                            : 'Pin',
+                                        onTap: isPinningReview
+                                            ? null
+                                            : handleReviewPinToggle,
+                                        loading: isPinningReview,
+                                        activeColor: isReviewPinned
+                                            ? TaqaUiColors.recordRed
+                                            : null,
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (isReviewPinned) ...[
+                          SizedBox(height: TaqaUiScale.h(6)),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              'Pinned correction',
+                              style: TextStyle(
+                                fontFamily: TaqaUiFontFamilies.interTight,
+                                color: TaqaUiColors.recordRed,
+                                fontSize: TaqaUiScale.sp(11),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                      SizedBox(height: TaqaUiScale.h(12)),
+                      const TaqaClientDashboardTitleText('Reply History'),
+                      SizedBox(height: TaqaUiScale.h(8)),
+                      if (replies.isEmpty)
+                        const TaqaClientDashboardBodyText('No replies yet.')
+                      else
+                        ...replies.reversed.map((reply) {
+                          final replyVoiceNoteUrl = _normalizeVoiceNoteUrl(
+                            reply.voiceNoteUrl,
+                          );
+                          final hasReplyVoiceNote =
+                              replyVoiceNoteUrl.isNotEmpty;
+                          final isReplyVoiceLoading =
+                              hasReplyVoiceNote &&
+                              _isVoiceNoteLoading(replyVoiceNoteUrl);
+                          final isReplyVoicePlaying =
+                              hasReplyVoiceNote &&
+                              _isVoiceNotePlaying(replyVoiceNoteUrl);
+                          final replyText = reply.replyText.trim();
+                          final replyMessage = replyText.isNotEmpty
+                              ? replyText
+                              : (hasReplyVoiceNote
+                                    ? 'Voice note from coach.'
+                                    : '');
+                          final isPinningReply = _pinningReplyIds.contains(
+                            reply.replyId,
+                          );
+                          return Padding(
+                            padding: EdgeInsets.only(
+                              bottom: TaqaUiScale.h(8),
+                            ),
+                            child: TaqaClientDashboardCard(
+                              padding: 10,
+                              radius: 10,
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -1776,86 +1504,54 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                                           _formatDateTime(
                                             reply.createdAt ?? reply.updatedAt,
                                           ),
-                                          style: const TextStyle(
-                                            color: Colors.white54,
-                                            fontSize: 12,
+                                          style: TextStyle(
+                                            fontFamily:
+                                                TaqaUiFontFamilies.interTight,
+                                            color: TaqaUiColors.charcoal
+                                                .withValues(alpha: 0.55),
+                                            fontSize: TaqaUiScale.sp(12),
                                           ),
                                         ),
                                       ),
-                                      OutlinedButton.icon(
-                                        onPressed:
-                                            _pinningReplyIds.contains(
-                                              reply.replyId,
-                                            )
+                                      _reviewPillButton(
+                                        icon: reply.isPinned
+                                            ? Icons.push_pin
+                                            : Icons.push_pin_outlined,
+                                        label: reply.isPinned
+                                            ? 'Unpin'
+                                            : 'Pin',
+                                        onTap: isPinningReply
                                             ? null
                                             : () => handlePinToggle(reply),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: reply.isPinned
-                                              ? Colors.orangeAccent
-                                              : Colors.white70,
-                                          side: BorderSide(
-                                            color: reply.isPinned
-                                                ? Colors.orangeAccent
-                                                : Colors.white24,
-                                          ),
-                                          minimumSize: const Size(0, 26),
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          tapTargetSize:
-                                              MaterialTapTargetSize.shrinkWrap,
-                                          visualDensity: const VisualDensity(
-                                            horizontal: -2,
-                                            vertical: -2,
-                                          ),
-                                        ),
-                                        icon:
-                                            _pinningReplyIds.contains(
-                                              reply.replyId,
-                                            )
-                                            ? const SizedBox(
-                                                width: 12,
-                                                height: 12,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      color: Colors.white70,
-                                                    ),
-                                              )
-                                            : Icon(
-                                                reply.isPinned
-                                                    ? Icons.push_pin
-                                                    : Icons.push_pin_outlined,
-                                                size: 12,
-                                              ),
-                                        label: Text(
-                                          reply.isPinned ? 'Unpin' : 'Pin',
-                                        ),
+                                        loading: isPinningReply,
+                                        activeColor: reply.isPinned
+                                            ? TaqaUiColors.recordRed
+                                            : null,
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 4),
+                                  SizedBox(height: TaqaUiScale.h(4)),
                                   if (replyMessage.isNotEmpty)
-                                    Text(
-                                      replyMessage,
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                      ),
-                                    ),
+                                    TaqaClientDashboardBodyText(replyMessage),
                                   if (hasReplyVoiceNote) ...[
                                     if (replyMessage.isNotEmpty)
-                                      const SizedBox(height: 4),
+                                      SizedBox(height: TaqaUiScale.h(4)),
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.end,
                                       children: [
                                         TextButton.icon(
                                           onPressed: isReplyVoiceLoading
                                               ? null
-                                              : () => _toggleVoiceNotePlayback(
-                                                  replyVoiceNoteUrl,
-                                                ),
+                                              : () async {
+                                                  await _toggleVoiceNotePlayback(
+                                                    replyVoiceNoteUrl,
+                                                  );
+                                                  if (!mounted) return;
+                                                  setSheetState(() {});
+                                                },
                                           style: TextButton.styleFrom(
+                                            foregroundColor:
+                                                TaqaUiColors.charcoal,
                                             minimumSize: const Size(0, 26),
                                             padding: const EdgeInsets.symmetric(
                                               horizontal: 8,
@@ -1875,7 +1571,6 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                                                   child:
                                                       CircularProgressIndicator(
                                                         strokeWidth: 2,
-                                                        color: Colors.white70,
                                                       ),
                                                 )
                                               : Icon(
@@ -1893,26 +1588,28 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                                       ],
                                     ),
                                   ],
-                                  const SizedBox(height: 4),
+                                  SizedBox(height: TaqaUiScale.h(4)),
                                   Text(
                                     reply.clientSeenAt == null
                                         ? 'Unseen by client'
                                         : 'Seen by client',
                                     style: TextStyle(
+                                      fontFamily:
+                                          TaqaUiFontFamilies.interTight,
                                       color: reply.clientSeenAt == null
-                                          ? Colors.orangeAccent
-                                          : Colors.greenAccent,
-                                      fontSize: 12,
+                                          ? TaqaUiColors.recordRed
+                                          : const Color(0xFF2E8B57),
+                                      fontSize: TaqaUiScale.sp(12),
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ],
                               ),
-                            );
-                          },
-                        ),
-                      ),
-                  ],
+                            ),
+                          );
+                        }),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -1953,6 +1650,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
           clientId: widget.client.userId,
           clientName: name,
           avatarUrl: _resolvedAvatarUrl(),
+          clientActivityStatus: _activityStatus ?? widget.client.activityStatus,
         ),
       ),
     );
@@ -2046,6 +1744,8 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
         builder: (_) => ExpertClientDietReviewPage(
           clientUserId: widget.client.userId,
           clientName: clientName,
+          clientAvatarUrl: _resolvedAvatarUrl(),
+          clientActivityStatus: _activityStatus ?? widget.client.activityStatus,
         ),
       ),
     );
@@ -2406,15 +2106,26 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
   }
 
   Widget _buildFormCheckTab() {
+    final noteStyle = TextStyle(
+      fontFamily: TaqaUiFontFamilies.interTight,
+      fontSize: TaqaUiScale.sp(10),
+      fontWeight: FontWeight.w400,
+      height: 12 / 10,
+      letterSpacing: 0,
+      color: TaqaUiColors.unnamedColor1c1d17,
+    );
+    final noteText = _formChecksError != null
+        ? 'Only videos explicitly shared by this client are shown. $_formChecksError'
+        : _sharedFormChecks.isEmpty
+        ? 'Only videos explicitly shared by this client are shown. No videos available for review.'
+        : 'Only videos explicitly shared by this client are shown.';
+
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: TaqaUiScale.insetsLTRB(16, 12, 16, 24),
       children: [
-        const Text(
-          'Only videos explicitly shared by this client are shown.',
-          style: TextStyle(color: Colors.white70),
-        ),
+        Text(noteText, style: noteStyle),
         if (_showFormReviewPendingNote) ...[
-          const SizedBox(height: 8),
+          SizedBox(height: TaqaUiScale.h(8)),
           TaqaClientAlertText(
             text:
                 _sharedFormChecks
@@ -2425,62 +2136,43 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
                 : 'Awaiting your reply',
           ),
         ],
-        const SizedBox(height: 10),
-        if (_formChecksError != null)
-          Text(_formChecksError!, style: const TextStyle(color: Colors.white70))
-        else if (_sharedFormChecks.isEmpty)
-          const Text(
-            'No videos available for review.',
-            style: TextStyle(color: Colors.white70),
-          )
-        else
+        SizedBox(height: TaqaUiScale.h(10)),
+        if (_formChecksError == null && _sharedFormChecks.isNotEmpty)
           ..._sharedFormChecks.map((item) {
             return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(10),
+              padding: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
+              child: TaqaClientDashboardCard(
+                padding: 10,
+                radius: 10,
                 onTap: () => _openFormCheck(item),
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.03),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.white12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              item.exerciseName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TaqaClientDashboardTitleText(
+                            item.exerciseName,
                           ),
-                          const SizedBox(width: 8),
-                          TaqaClientDashboardStatusPill(
-                            label: item.coachReview == null
-                                ? 'Pending reply'
-                                : 'Reviewed',
-                            color: item.coachReview == null
-                                ? Colors.orangeAccent
-                                : const Color(0xFF4ADE80),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        ((item.result.feedbackSummary ?? '').trim().isNotEmpty)
-                            ? item.result.feedbackSummary!.trim()
-                            : 'Open to review this form check.',
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-                    ],
-                  ),
+                        ),
+                        SizedBox(width: TaqaUiScale.w(8)),
+                        TaqaClientDashboardStatusPill(
+                          label: item.coachReview == null
+                              ? 'Pending reply'
+                              : 'Reviewed',
+                          color: item.coachReview == null
+                              ? TaqaUiColors.recordRed
+                              : const Color(0xFF4ADE80),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: TaqaUiScale.h(6)),
+                    TaqaClientDashboardBodyText(
+                      ((item.result.feedbackSummary ?? '').trim().isNotEmpty)
+                          ? item.result.feedbackSummary!.trim()
+                          : 'Open to review this form check.',
+                    ),
+                  ],
                 ),
               ),
             );
@@ -2490,72 +2182,61 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
   }
 
   Widget _buildTrainingSuggestionsTab() {
+    final noteStyle = TextStyle(
+      fontFamily: TaqaUiFontFamilies.interTight,
+      fontSize: TaqaUiScale.sp(10),
+      fontWeight: FontWeight.w400,
+      height: 12 / 10,
+      letterSpacing: 0,
+      color: TaqaUiColors.unnamedColor1c1d17,
+    );
+
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: TaqaUiScale.insetsLTRB(16, 12, 16, 24),
       children: [
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
                 'AI-generated progression reviews for this client.',
-                style: TextStyle(color: Colors.white70),
+                style: noteStyle,
               ),
             ),
-            const SizedBox(width: 10),
-            OutlinedButton(
-              onPressed: _generatingAiReview
+            SizedBox(width: TaqaUiScale.w(10)),
+            TaqaOutlineTagButton(
+              label: _generatingAiReview ? 'Working...' : 'Generate',
+              width: TaqaUiScale.w(54),
+              onTap: _generatingAiReview
                   ? null
                   : () => _generateAiReview(force: false),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white,
-                side: const BorderSide(color: Colors.white24),
-                minimumSize: const Size(0, 34),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: const VisualDensity(
-                  horizontal: -2,
-                  vertical: -2,
-                ),
-              ),
-              child: Text(_generatingAiReview ? 'Working...' : 'Generate'),
             ),
           ],
         ),
         if (_showTrainingPlanPendingNote) ...[
-          const SizedBox(height: 8),
+          SizedBox(height: TaqaUiScale.h(8)),
           TaqaClientAlertText(
             text: widget.client.trainingPlanUncheckedCount > 1
                 ? 'Training plans pending verification (${widget.client.trainingPlanUncheckedCount})'
                 : 'Training plan pending verification',
           ),
         ],
-        const SizedBox(height: 10),
+        SizedBox(height: TaqaUiScale.h(10)),
         if (_clientReviews.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.03),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.white12),
-            ),
-            child: const Text(
+          const TaqaClientDashboardCard(
+            padding: 12,
+            radius: 10,
+            child: TaqaClientDashboardBodyText(
               'No AI training suggestions yet. Generate one for this client from here.',
-              style: TextStyle(color: Colors.white70),
             ),
           )
         else
           ..._clientReviews.map(
             (review) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: TaqaClientAiReviewCard(
-                weekStart: review.weekStart,
-                itemCount: review.itemCount,
-                status: review.status,
-                summary: review.aiSummary,
+              padding: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
+              child: TaqaClientDashboardNavigationCard(
+                title: review.weekStart ?? '-',
+                description: '${review.itemCount} Suggestions',
                 onTap: () => _openAiReview(review),
               ),
             ),
@@ -2568,48 +2249,77 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
-      child: Scaffold(
-        backgroundColor: AppColors.black,
-        appBar: TaqaPageAppBar(
-          backgroundColor: AppColors.black,
-          titleColor: Colors.white,
-          title: 'AI Updates',
-          bottom: const TabBar(
-            dividerColor: Colors.transparent,
-            tabs: [
-              Tab(text: 'Form Check'),
-              Tab(text: 'Training Suggestions'),
-            ],
-          ),
-        ),
-        body: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_showFormReviewPendingNote ||
-                      _showTrainingPlanPendingNote)
-                    Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.cardDark,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white10),
+      child: Builder(
+        builder: (context) {
+          final tabController = DefaultTabController.of(context);
+          return AnimatedBuilder(
+            animation: tabController,
+            builder: (context, _) {
+              return Scaffold(
+                backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+                appBar: TaqaPageAppBar(
+                  backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+                  titleColor: TaqaUiColors.unnamedColor1c1d17,
+                  title: 'AI Updates',
+                ),
+                body: _loading
+                    ? const Center(child: CircularProgressIndicator())
+                    : ListView(
+                        padding: TaqaUiScale.insetsLTRB(16, 12, 16, 0),
+                        children: [
+                          TaqaExpertClientCard(
+                            name: widget.client.name ?? 'Client',
+                            avatarUrl: widget.client.avatarUrl,
+                            status: widget.client.activityStatus,
+                            showStatus:
+                                (widget.client.activityStatus ?? '')
+                                    .trim()
+                                    .isNotEmpty,
+                            subtitle: 'User ID: ${widget.client.userId}',
+                            details: const [
+                              'Expected response within 24-48h',
+                            ],
+                            alerts: (_showFormReviewPendingNote ||
+                                    _showTrainingPlanPendingNote)
+                                ? [_aiUpdatesStatusText()]
+                                : const [],
+                          ),
+                          SizedBox(height: TaqaUiScale.h(12)),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TaqaPillTab(
+                                  label: 'Form Check',
+                                  active: tabController.index == 0,
+                                  onTap: () => tabController.animateTo(0),
+                                ),
+                              ),
+                              SizedBox(width: TaqaUiScale.w(15)),
+                              Expanded(
+                                child: TaqaPillTab(
+                                  label: 'Training Suggestion',
+                                  active: tabController.index == 1,
+                                  onTap: () => tabController.animateTo(1),
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(
+                            height: TaqaUiScale.h(520),
+                            child: TabBarView(
+                              controller: tabController,
+                              children: [
+                                _buildFormCheckTab(),
+                                _buildTrainingSuggestionsTab(),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      child: TaqaClientAlertText(text: _aiUpdatesStatusText()),
-                    ),
-                  Expanded(
-                    child: TabBarView(
-                      children: [
-                        _buildFormCheckTab(),
-                        _buildTrainingSuggestionsTab(),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+              );
+            },
+          );
+        },
       ),
     );
   }

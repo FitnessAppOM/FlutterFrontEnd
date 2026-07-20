@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'taqa_progress_widget_card.dart';
+import '../styles/taqa_ui_scale.dart';
 
 enum TaqaDashboardMetricSource { fitbit, whoop, strava }
 
@@ -13,6 +14,8 @@ class TaqaDashboardMetricCard extends StatelessWidget {
     required this.goalText,
     required this.progress,
     this.showArc = true,
+    this.showSourceLogo = true,
+    this.showArrow = true,
     this.loading = false,
     this.onTap,
   });
@@ -23,6 +26,8 @@ class TaqaDashboardMetricCard extends StatelessWidget {
   final String goalText;
   final double progress;
   final bool showArc;
+  final bool showSourceLogo;
+  final bool showArrow;
   final bool loading;
   final VoidCallback? onTap;
 
@@ -43,14 +48,16 @@ class TaqaDashboardMetricCard extends StatelessWidget {
       showArc: showArc,
       loading: loading,
       onTap: onTap,
-      topRight: Image.asset(
-        logoPath,
-        width: 14,
-        height: 14,
-        fit: BoxFit.contain,
-        color: Colors.black,
-        colorBlendMode: BlendMode.srcIn,
-      ),
+      topRight: showSourceLogo
+          ? Image.asset(
+              logoPath,
+              width: TaqaUiScale.w(14),
+              height: TaqaUiScale.h(14),
+              fit: BoxFit.contain,
+              color: Colors.black,
+              colorBlendMode: BlendMode.srcIn,
+            )
+          : (showArrow ? null : const SizedBox.shrink()),
     );
   }
 }

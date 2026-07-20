@@ -5,6 +5,7 @@ import '../auth/signup.dart';
 import '../core/account_storage.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
+import '../TaqaUI/styles/taqa_ui_styles.dart';
 import '../TaqaUI/components/taqa_steps_ui.dart' show TaqaRangeTab;
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
@@ -574,6 +575,14 @@ class _WelcomePageState extends State<WelcomePage> {
                       height: 26 / 20,
                       color: TaqaUiColors.unnamedColor1c1d17,
                     ),
+                  ),
+
+                  SizedBox(height: TaqaUiScale.h(4)),
+
+                  Text(
+                    t.translate("welcome_tagline_sub"),
+                    textAlign: TextAlign.center,
+                    style: TaqaUiStyles.subtitle,
                   ),
 
                   SizedBox(height: TaqaUiScale.h(24)),

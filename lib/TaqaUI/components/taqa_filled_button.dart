@@ -10,11 +10,17 @@ class TaqaFilledButton extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.loading = false,
+    this.height = 48,
+    this.fontSize = 11,
+    this.fontWeight = FontWeight.w700,
   });
 
   final String label;
   final VoidCallback? onTap;
   final bool loading;
+  final double height;
+  final double fontSize;
+  final FontWeight fontWeight;
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +35,7 @@ class TaqaFilledButton extends StatelessWidget {
         onTap: disabled ? null : onTap,
         child: SizedBox(
           width: double.infinity,
-          height: TaqaUiScale.h(48),
+          height: TaqaUiScale.h(height),
           child: Center(
             child: loading
                 ? SizedBox(
@@ -44,8 +50,9 @@ class TaqaFilledButton extends StatelessWidget {
                     label.toUpperCase(),
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: TaqaUiScale.sp(11),
-                      fontWeight: FontWeight.w700,
+                      fontSize: TaqaUiScale.sp(fontSize),
+                      fontWeight: fontWeight,
+                      height: 12 / fontSize,
                       letterSpacing: 0,
                       color: TaqaUiColors.unnamedColor1c1d17,
                     ),

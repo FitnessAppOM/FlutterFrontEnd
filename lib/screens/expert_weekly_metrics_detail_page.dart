@@ -4,8 +4,20 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_back_button.dart';
+import '../TaqaUI/components/taqa_date_carousel_switcher.dart';
+import '../TaqaUI/components/taqa_dashboard_metric_card.dart';
+import '../TaqaUI/components/taqa_empty_state_row.dart';
+import '../TaqaUI/components/taqa_expert_client_dashboard_ui.dart';
+import '../TaqaUI/components/taqa_expert_dashboard_ui.dart';
+import '../TaqaUI/components/taqa_filled_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
+import '../TaqaUI/components/taqa_pill_tab.dart';
+import '../TaqaUI/components/taqa_profile_info_section.dart';
+import '../TaqaUI/components/taqa_value_box.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 import '../services/coach/progression_review_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/charts/ranged_bar_chart.dart';
@@ -218,62 +230,43 @@ class _ExpertWeeklyMetricsDetailPageState
     }
   }
 
+  DateTime _weekEndDateForOffset(int offset) {
+    final source = _map(_analyticsData['daily_metrics']);
+    final today = DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+    );
+    // Analytics for a historical selection contains that selection's week-end
+    // date. Convert it back to the current-week anchor before positioning the
+    // carousel labels; otherwise the selected offset is applied twice and the
+    // tapped edge label never reaches the centre.
+    final selectedWeekEnd =
+        _dateOnly(source['today']?.toString()) ??
+        today.subtract(Duration(days: _weekOffset * 7));
+    final currentWeekEnd = selectedWeekEnd.add(Duration(days: _weekOffset * 7));
+    return currentWeekEnd.subtract(Duration(days: offset * 7));
+  }
+
+  bool get _usesLightMetricDetail =>
+      widget.type == ExpertWeeklyMetricsDetailType.trainingCardio ||
+      widget.type == ExpertWeeklyMetricsDetailType.waterSteps ||
+      widget.type == ExpertWeeklyMetricsDetailType.wearables;
+
   Widget _buildWeekSwitcher() {
-    final canGoNext = _weekOffset > 0;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(18, 0, 18, 8),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Row(
-        children: [
-          OutlinedButton(
-            onPressed: _loadingWeek ? null : () => _changeWeek(_weekOffset + 1),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white,
-              side: const BorderSide(color: Colors.white24),
-              minimumSize: const Size(0, 32),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
-            ),
-            child: const Text('Prev'),
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton(
-            onPressed: _loadingWeek || !canGoNext
-                ? null
-                : () => _changeWeek(_weekOffset - 1),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white,
-              side: const BorderSide(color: Colors.white24),
-              minimumSize: const Size(0, 32),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
-            ),
-            child: const Text('Next'),
-          ),
-          const Spacer(),
-          if (_loadingWeek)
-            const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          else
-            Text(
-              _weekRangeLabel(),
-              style: const TextStyle(
-                color: Colors.white70,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-        ],
-      ),
+    final canGoNewer = _weekOffset > 0;
+    final previousDate = _weekEndDateForOffset(_weekOffset + 1);
+    final selectedDate = _weekEndDateForOffset(_weekOffset);
+    final nextDate = _weekEndDateForOffset(_weekOffset - 1);
+    return TaqaDateCarouselSwitcher(
+      previousDate: previousDate,
+      selectedDate: selectedDate,
+      nextDate: nextDate,
+      onPrevious: () => _changeWeek(_weekOffset + 1),
+      onSelected: _weekOffset == 0 ? null : () => _changeWeek(0),
+      onNext: canGoNewer ? () => _changeWeek(_weekOffset - 1) : null,
+      loading: _loadingWeek,
+      textColor: TaqaUiColors.charcoal,
     );
   }
 
@@ -293,6 +286,9 @@ class _ExpertWeeklyMetricsDetailPageState
     required String value,
     Color? accent,
   }) {
+    if (_usesLightMetricDetail) {
+      return TaqaValueBox(label: label, value: value);
+    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
@@ -329,6 +325,25 @@ class _ExpertWeeklyMetricsDetailPageState
     required Widget child,
     String? subtitle,
   }) {
+    if (_usesLightMetricDetail) {
+      return TaqaClientDashboardCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TaqaClientDashboardTitleText(title),
+            if (subtitle != null && subtitle.trim().isNotEmpty) ...[
+              SizedBox(height: TaqaUiScale.h(4)),
+              TaqaClientDashboardBodyText(
+                subtitle,
+                color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+              ),
+            ],
+            SizedBox(height: TaqaUiScale.h(12)),
+            child,
+          ],
+        ),
+      );
+    }
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -382,7 +397,7 @@ class _ExpertWeeklyMetricsDetailPageState
     final midValue = maxValue / 2.0;
 
     return SizedBox(
-      height: 210,
+      height: TaqaUiScale.h(210),
       child: RangedBarChart(
         entries: entries,
         maxValue: maxValue,
@@ -393,7 +408,16 @@ class _ExpertWeeklyMetricsDetailPageState
         selectedIndex: selectedIndex,
         onBarTap: onTap,
         useFixedSlots: true,
-        minBarWidth: 8,
+        minBarWidth: TaqaUiScale.w(8),
+        gridLineColor: _usesLightMetricDetail
+            ? TaqaUiColors.charcoal.withValues(alpha: 0.08)
+            : null,
+        axisTextColor: _usesLightMetricDetail
+            ? TaqaUiColors.charcoal.withValues(alpha: 0.58)
+            : Colors.white54,
+        labelTextColor: _usesLightMetricDetail
+            ? TaqaUiColors.charcoal.withValues(alpha: 0.58)
+            : Colors.white54,
       ),
     );
   }
@@ -428,6 +452,15 @@ class _ExpertWeeklyMetricsDetailPageState
         useFixedSlots: true,
         minBarWidth: 8,
         yAxisTitle: yAxisTitle,
+        gridLineColor: _usesLightMetricDetail
+            ? TaqaUiColors.charcoal.withValues(alpha: 0.08)
+            : null,
+        axisTextColor: _usesLightMetricDetail
+            ? TaqaUiColors.charcoal.withValues(alpha: 0.58)
+            : Colors.white54,
+        labelTextColor: _usesLightMetricDetail
+            ? TaqaUiColors.charcoal.withValues(alpha: 0.58)
+            : Colors.white54,
       ),
     );
   }
@@ -471,6 +504,14 @@ class _ExpertWeeklyMetricsDetailPageState
       yLabels: [formatYAxis(top), formatYAxis(mid), formatYAxis(0)],
       xAxisTitle: 'Day',
       yAxisTitle: yAxisTitle,
+      labelColor: _usesLightMetricDetail
+          ? TaqaUiColors.charcoal.withValues(alpha: 0.58)
+          : Colors.white54,
+      titleColor: _usesLightMetricDetail
+          ? TaqaUiColors.charcoal.withValues(alpha: 0.6)
+          : Colors.white60,
+      gridColor: _usesLightMetricDetail ? TaqaUiColors.charcoal : Colors.white,
+      pointColor: _usesLightMetricDetail ? TaqaUiColors.white : Colors.white,
     );
   }
 
@@ -519,74 +560,106 @@ class _ExpertWeeklyMetricsDetailPageState
     }).length;
     final hasStepsData = weekDates.any((day) {
       final row = byDate[_dateKey(day)];
-      return row != null && row['steps'] != null;
+      return row != null && _toInt(row['steps']) > 0;
     });
     final hasWaterData = weekDates.any((day) {
       final row = byDate[_dateKey(day)];
-      return row != null && row['water_liters'] != null;
+      return row != null && _toDouble(row['water_liters']) > 0;
     });
     final hasSleepData = weekDates.any((day) {
       final row = byDate[_dateKey(day)];
-      return row != null && row['sleep_hours'] != null;
+      return row != null && _toDouble(row['sleep_hours']) > 0;
     });
     final hasCaloriesData = weekDates.any((day) {
       final row = byDate[_dateKey(day)];
-      return row != null && row['calories'] != null;
+      return row != null && _toInt(row['calories']) > 0;
     });
     final avgSleep = sleepDays == 0 ? 0.0 : (totalSleepHours / sleepDays);
     final avgCalories = caloriesDays == 0
         ? 0.0
         : (totalCalories / caloriesDays);
+    final hasAnyMetricData =
+        hasStepsData || hasWaterData || hasSleepData || hasCaloriesData;
 
     return ListView(
-      padding: const EdgeInsets.all(18),
+      padding: TaqaUiScale.insetsLTRB(18, 18, 18, 18),
       children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            if (hasStepsData)
-              _buildSummaryPill(
-                label: 'Weekly Steps',
-                value: _formatCompact(totalSteps),
-                accent: const Color(0xFF63D5FF),
+        if (!hasAnyMetricData)
+          const TaqaEmptyStateRow(
+            text: 'No daily metric data available for this week.',
+          )
+        else ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              SizedBox(
+                width: TaqaUiScale.w(171),
+                child: TaqaDashboardMetricCard(
+                  source: TaqaDashboardMetricSource.fitbit,
+                  title: 'Weekly Steps',
+                  valueText: hasStepsData ? _formatCompact(totalSteps) : '0',
+                  goalText: hasStepsData
+                      ? 'Avg ${_formatCompact(avgSteps)} / day'
+                      : 'No data this week',
+                  progress: 0,
+                  showArc: false,
+                  showSourceLogo: false,
+                  showArrow: false,
+                ),
               ),
-            if (hasStepsData)
-              _buildSummaryPill(
-                label: 'Average Steps/Active Day',
-                value: _formatCompact(avgSteps),
-                accent: const Color(0xFF9DA6FF),
+              SizedBox(
+                width: TaqaUiScale.w(171),
+                child: TaqaDashboardMetricCard(
+                  source: TaqaDashboardMetricSource.fitbit,
+                  title: 'Weekly Water',
+                  valueText: hasWaterData
+                      ? '${totalWater.toStringAsFixed(1)} L'
+                      : '0',
+                  goalText: hasWaterData ? 'This week' : 'No data this week',
+                  progress: 0,
+                  showArc: false,
+                  showSourceLogo: false,
+                  showArrow: false,
+                ),
               ),
-            if (hasWaterData)
-              _buildSummaryPill(
-                label: 'Weekly Water',
-                value: '${totalWater.toStringAsFixed(1)} L',
-                accent: const Color(0xFF4BE4C7),
+              SizedBox(
+                width: TaqaUiScale.w(171),
+                child: TaqaDashboardMetricCard(
+                  source: TaqaDashboardMetricSource.fitbit,
+                  title: 'Sleep Avg',
+                  valueText: hasSleepData
+                      ? '${avgSleep.toStringAsFixed(1)} h'
+                      : '0',
+                  goalText: hasSleepData
+                      ? 'Across $sleepDays day${sleepDays == 1 ? '' : 's'}'
+                      : 'No data this week',
+                  progress: 0,
+                  showArc: false,
+                  showSourceLogo: false,
+                  showArrow: false,
+                ),
               ),
-            if (hasSleepData)
-              _buildSummaryPill(
-                label: 'Sleep Avg',
-                value: '${avgSleep.toStringAsFixed(1)} h',
-                accent: const Color(0xFF8F9DFF),
+              SizedBox(
+                width: TaqaUiScale.w(171),
+                child: TaqaDashboardMetricCard(
+                  source: TaqaDashboardMetricSource.fitbit,
+                  title: 'Calories Avg',
+                  valueText: hasCaloriesData
+                      ? '${avgCalories.toStringAsFixed(0)} kcal'
+                      : '0',
+                  goalText: hasCaloriesData
+                      ? 'Across $caloriesDays day${caloriesDays == 1 ? '' : 's'}'
+                      : 'No data this week',
+                  progress: 0,
+                  showArc: false,
+                  showSourceLogo: false,
+                  showArrow: false,
+                ),
               ),
-            if (hasCaloriesData)
-              _buildSummaryPill(
-                label: 'Calories Avg',
-                value: '${avgCalories.toStringAsFixed(0)} kcal',
-                accent: const Color(0xFFFFA85A),
-              ),
-          ],
-        ),
-        if (!(hasStepsData || hasWaterData || hasSleepData || hasCaloriesData))
-          const Padding(
-            padding: EdgeInsets.only(top: 12),
-            child: Text(
-              'No daily metric data available for this week.',
-              style: TextStyle(color: Colors.white70),
-            ),
+            ],
           ),
-        if (hasStepsData) ...[
-          const SizedBox(height: 12),
+          SizedBox(height: TaqaUiScale.h(12)),
           _buildChartCard(
             title: 'Steps Trend (7 Days)',
             subtitle: _selectedPrimaryBar == null
@@ -597,136 +670,53 @@ class _ExpertWeeklyMetricsDetailPageState
               values: steps,
               gradient: const [Color(0xFF35B6FF), Color(0xFF9B8CFF)],
               selectedGradient: const [Color(0xFF5FD8FF), Color(0xFFBAAEFF)],
-              axisFormatter: (v) => _formatCompact(v),
+              axisFormatter: _formatCompact,
               selectedIndex: _selectedPrimaryBar,
-              onTap: (i) => setState(() => _selectedPrimaryBar = i),
+              onTap: (index) => setState(() => _selectedPrimaryBar = index),
             ),
           ),
-        ],
-        if (hasWaterData) ...[
-          const SizedBox(height: 12),
+          SizedBox(height: TaqaUiScale.h(12)),
           _buildChartCard(
             title: 'Water Trend (7 Days)',
-            child: _buildLineChart(
+            child: _buildBarChart(
               weekDates: weekDates,
               values: water,
-              color: const Color(0xFF4BE4C7),
-              yAxisTitle: 'Liters',
-              formatYAxis: (v) => v.toStringAsFixed(1),
+              gradient: const [Color(0xFF4BE4C7), Color(0xFF86F0DB)],
+              selectedGradient: const [Color(0xFF4BE4C7), Color(0xFF4BE4C7)],
+              axisFormatter: (value) => value.toStringAsFixed(1),
+              selectedIndex: null,
+              onTap: (_) {},
             ),
           ),
-        ],
-        if (hasSleepData) ...[
-          const SizedBox(height: 12),
+          SizedBox(height: TaqaUiScale.h(12)),
           _buildChartCard(
             title: 'Sleep Trend (7 Days)',
-            child: _buildLineChart(
+            child: _buildBarChart(
               weekDates: weekDates,
               values: sleep,
-              color: const Color(0xFF8F9DFF),
-              yAxisTitle: 'Hours',
-              formatYAxis: (v) => v.toStringAsFixed(1),
+              gradient: const [Color(0xFF8F9DFF), Color(0xFFBBBFFF)],
+              selectedGradient: const [Color(0xFF8F9DFF), Color(0xFF8F9DFF)],
+              axisFormatter: (value) => value.toStringAsFixed(1),
+              selectedIndex: null,
+              onTap: (_) {},
             ),
           ),
-        ],
-        if (hasCaloriesData) ...[
-          const SizedBox(height: 12),
+          SizedBox(height: TaqaUiScale.h(12)),
           _buildChartCard(
             title: 'Calories Trend (7 Days)',
-            child: _buildLineChart(
+            child: _buildBarChart(
               weekDates: weekDates,
               values: calories,
-              color: const Color(0xFFFFA85A),
-              yAxisTitle: 'kcal',
-              formatYAxis: (v) => _formatCompact(v),
+              gradient: const [Color(0xFFFFA85A), Color(0xFFFFC68A)],
+              selectedGradient: const [Color(0xFFFFA85A), Color(0xFFFFA85A)],
+              axisFormatter: _formatCompact,
+              selectedIndex: null,
+              onTap: (_) {},
             ),
           ),
         ],
       ],
     );
-  }
-
-  List<Map<String, dynamic>> _programDaysSorted() {
-    final days = List<Map<String, dynamic>>.from(
-      _mapList(_activeProgram['days']),
-      growable: true,
-    );
-    if (days.isEmpty) return const [];
-    days.sort(
-      (a, b) => _toInt(a['day_index']).compareTo(_toInt(b['day_index'])),
-    );
-    return days;
-  }
-
-  String _activePlanSource() {
-    final source = (_activeProgram['plan_source'] ?? '').toString().trim();
-    if (source == 'ai_generated' ||
-        source == 'expert_created' ||
-        source == 'ai_coach' ||
-        source == 'coach_edited') {
-      return source;
-    }
-    final createdBy = (_activeProgram['created_by'] ?? '').toString().trim();
-    return createdBy == 'expert' ? 'expert_created' : 'ai_generated';
-  }
-
-  bool _activePlanVerified() {
-    final raw = _activeProgram['expert_verified'];
-    if (raw is bool) return raw;
-    if (raw is num) return raw != 0;
-    final text = (raw ?? '').toString().trim().toLowerCase();
-    return text == 'true' || text == '1' || text == 'yes';
-  }
-
-  String _activePlanState() {
-    final raw = (_activeProgram['plan_state'] ?? '').toString().trim();
-    if (raw == 'ai_generated' ||
-        raw == 'verified' ||
-        raw == 'expert_created' ||
-        raw == 'ai_coach' ||
-        raw == 'coach_edited') {
-      return raw;
-    }
-    final source = _activePlanSource();
-    if (source == 'expert_created' ||
-        source == 'ai_coach' ||
-        source == 'coach_edited') {
-      return source;
-    }
-    return _activePlanVerified() ? 'verified' : 'ai_generated';
-  }
-
-  bool _needsExpertVerification() {
-    if (_activeProgram.isEmpty) return false;
-    return _activePlanSource() == 'ai_generated' && !_activePlanVerified();
-  }
-
-  String _planStateLabel() {
-    switch (_activePlanState()) {
-      case 'coach_edited':
-      case 'expert_created':
-        return 'Coach/editted';
-      case 'ai_coach':
-        return 'AI/Coach';
-      case 'verified':
-        return 'Verified by coach';
-      default:
-        return 'AI';
-    }
-  }
-
-  Color _planStateColor() {
-    switch (_activePlanState()) {
-      case 'coach_edited':
-      case 'expert_created':
-        return const Color(0xFF66E0A3);
-      case 'ai_coach':
-        return const Color(0xFF4BE4C7);
-      case 'verified':
-        return const Color(0xFF74B9FF);
-      default:
-        return const Color(0xFF5FD8FF);
-    }
   }
 
   Future<void> _openTrainingPlanPage() async {
@@ -756,86 +746,9 @@ class _ExpertWeeklyMetricsDetailPageState
   }
 
   Widget _buildTrainingPlanPreviewSection() {
-    final days = _programDaysSorted();
-    final needsVerification = _needsExpertVerification();
-    final stateColor = _planStateColor();
-    final previewText = days.isEmpty
-        ? (_trainingPlanError ?? 'No active training plan yet.')
-        : needsVerification
-        ? 'AI-generated plan pending verification. Tap to check.'
-        : 'Plan loaded for ${days.length} day(s). Tap to preview.';
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: _openTrainingPlanPage,
-        child: Ink(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.cardDark,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white10),
-          ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.checklist_rounded,
-                color: Colors.white70,
-                size: 18,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Check client's plan",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      previewText,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (days.isNotEmpty)
-                Container(
-                  margin: const EdgeInsets.only(left: 8),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: stateColor.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: stateColor.withValues(alpha: 0.5),
-                    ),
-                  ),
-                  child: Text(
-                    _planStateLabel(),
-                    style: TextStyle(
-                      color: stateColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              const SizedBox(width: 8),
-              const Icon(Icons.chevron_right, color: Colors.white54, size: 20),
-            ],
-          ),
-        ),
-      ),
+    return TaqaFilledButton(
+      label: 'Edit Training Plan',
+      onTap: _openTrainingPlanPage,
     );
   }
 
@@ -1077,9 +990,7 @@ class _ExpertWeeklyMetricsDetailPageState
             ),
             _buildSummaryPill(
               label: 'Weekly Adherence',
-              value: totalExercisesThisWeek > 0
-                  ? '${weeklyAdherencePct.toStringAsFixed(0)}% ($completedExercisesThisWeek/$totalExercisesThisWeek exercises)'
-                  : '${weeklyAdherencePct.toStringAsFixed(0)}% (-)',
+              value: '${weeklyAdherencePct.toStringAsFixed(0)}%',
               accent: const Color(0xFFFFA85A),
             ),
             _buildSummaryPill(
@@ -1105,33 +1016,11 @@ class _ExpertWeeklyMetricsDetailPageState
         const SizedBox(height: 12),
         _buildTrainingPlanPreviewSection(),
         const SizedBox(height: 12),
-        _buildChartCard(
-          title: 'Exercises Done',
-          subtitle: 'From training history logs',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${selectedWeekHistory.length} training day(s), $completedExercisesCount completed exercise(s)',
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () =>
-                      _openAllExercisesDonePage(selectedWeekHistory),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white24),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  icon: const Icon(Icons.list_alt_rounded, size: 18),
-                  label: const Text('View all exercises done'),
-                ),
-              ),
-            ],
-          ),
+        TaqaClientDashboardNavigationCard(
+          title: 'Training History',
+          description:
+              '${selectedWeekHistory.length} training day(s), $completedExercisesCount completed exercise(s)',
+          onTap: () => _openAllExercisesDonePage(selectedWeekHistory),
         ),
         const SizedBox(height: 12),
         _buildChartCard(
@@ -1142,7 +1031,7 @@ class _ExpertWeeklyMetricsDetailPageState
           child: trainingDayVolumeEntries.isEmpty
               ? const Text(
                   'No training-day volume data for this week.',
-                  style: TextStyle(color: Colors.white70),
+                  style: TextStyle(color: TaqaUiColors.charcoal),
                 )
               : _buildBarChartEntries(
                   entries: trainingDayVolumeEntries,
@@ -1167,7 +1056,7 @@ class _ExpertWeeklyMetricsDetailPageState
           child: exerciseVolumeEntries.isEmpty
               ? const Text(
                   'No volume data available for this week.',
-                  style: TextStyle(color: Colors.white70),
+                  style: TextStyle(color: TaqaUiColors.charcoal),
                 )
               : _buildBarChartEntries(
                   entries: exerciseVolumeEntries,
@@ -1191,7 +1080,7 @@ class _ExpertWeeklyMetricsDetailPageState
           child: trainingDayAdherenceEntries.isEmpty
               ? const Text(
                   'No training-day adherence data for this week.',
-                  style: TextStyle(color: Colors.white70),
+                  style: TextStyle(color: TaqaUiColors.charcoal),
                 )
               : _buildBarChartEntries(
                   entries: trainingDayAdherenceEntries,
@@ -1283,18 +1172,7 @@ class _ExpertWeeklyMetricsDetailPageState
       endRaw: daily['today']?.toString(),
     );
 
-    final whoopLinked = whoop['linked'] == true;
-    final fitbitLinked = fitbit['linked'] == true;
-    final whoopAvailable =
-        whoop['has_metrics'] == true || whoopRows.isNotEmpty || whoopLinked;
-    final fitbitAvailable =
-        fitbit['has_metrics'] == true || fitbitRows.isNotEmpty || fitbitLinked;
-    final hasWhoop = whoopAvailable;
-    final hasFitbit = fitbitAvailable;
-    final canSwitchProvider = hasWhoop && hasFitbit;
-    final effectiveProvider = canSwitchProvider
-        ? _selectedWearableProvider
-        : (hasWhoop ? _wearableWhoop : _wearableFitbit);
+    final effectiveProvider = _selectedWearableProvider;
     final showWhoopCharts = effectiveProvider == _wearableWhoop;
     final showFitbitCharts = effectiveProvider == _wearableFitbit;
     final selectedIndex =
@@ -1382,128 +1260,67 @@ class _ExpertWeeklyMetricsDetailPageState
             formatValue: _formatSleepHoursLabel,
           ),
           metricCard(
-            title: 'Fitbit Readiness (7 Days)',
+            title: 'Fitbit Active Minutes (7 Days)',
             byDate: fitbitByDate,
-            key: 'readiness_score',
-            gradient: const [Color(0xFF3BC7FF), Color(0xFF7C8BFF)],
-            selectedGradient: const [Color(0xFF6FDCFF), Color(0xFFA1ADFF)],
+            key: 'active_minutes',
+            gradient: const [Color(0xFF4BE4C7), Color(0xFF79E7B3)],
+            selectedGradient: const [Color(0xFF76F1D7), Color(0xFFA0F4CC)],
             formatValue: (v) => v.toStringAsFixed(0),
           ),
           metricCard(
-            title: 'Fitbit Stress Score (7 Days)',
+            title: 'Fitbit Steps (7 Days)',
             byDate: fitbitByDate,
-            key: 'stress_management_score',
-            gradient: const [Color(0xFFFFA65A), Color(0xFFFF6E7B)],
-            selectedGradient: const [Color(0xFFFFC07F), Color(0xFFFF8A94)],
-            formatValue: (v) => v.toStringAsFixed(0),
+            key: 'steps',
+            gradient: const [Color(0xFF3BC7FF), Color(0xFF7C8BFF)],
+            selectedGradient: const [Color(0xFF6FDCFF), Color(0xFFA1ADFF)],
+            formatValue: _formatCompact,
           ),
         ],
       ].whereType<Widget>(),
     ];
 
     return ListView(
-      padding: const EdgeInsets.all(18),
+      padding: TaqaUiScale.insetsLTRB(16, 0, 16, 24),
       children: [
-        if (whoopLinked || fitbitLinked)
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              if (whoopLinked)
-                _buildSummaryPill(
-                  label: 'Whoop',
-                  value: 'Connected',
-                  accent: const Color(0xFF4BE4C7),
-                ),
-              if (fitbitLinked)
-                _buildSummaryPill(
-                  label: 'Fitbit',
-                  value: 'Connected',
-                  accent: const Color(0xFF4BE4C7),
-                ),
-            ],
-          ),
-        if (canSwitchProvider) ...[
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.04),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.white10),
+        SizedBox(height: TaqaUiScale.h(12)),
+        Row(
+          children: [
+            Expanded(
+              child: TaqaPillTab(
+                label: 'Whoop',
+                active: effectiveProvider == _wearableWhoop,
+                onTap: () => setState(() {
+                  _selectedWearableProvider = _wearableWhoop;
+                  _selectedPrimaryBar = null;
+                }),
+              ),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ChoiceChip(
-                    selected: effectiveProvider == _wearableWhoop,
-                    onSelected: (selected) {
-                      if (!selected) return;
-                      setState(() {
-                        _selectedWearableProvider = _wearableWhoop;
-                        _selectedPrimaryBar = null;
-                      });
-                    },
-                    label: const Center(child: Text('Whoop')),
-                    labelStyle: TextStyle(
-                      color: effectiveProvider == _wearableWhoop
-                          ? Colors.white
-                          : Colors.white70,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    selectedColor: AppColors.accent.withValues(alpha: 0.34),
-                    backgroundColor: Colors.white.withValues(alpha: 0.02),
-                    side: BorderSide(
-                      color: effectiveProvider == _wearableWhoop
-                          ? AppColors.accent
-                          : Colors.white24,
-                    ),
-                    showCheckmark: false,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ChoiceChip(
-                    selected: effectiveProvider == _wearableFitbit,
-                    onSelected: (selected) {
-                      if (!selected) return;
-                      setState(() {
-                        _selectedWearableProvider = _wearableFitbit;
-                        _selectedPrimaryBar = null;
-                      });
-                    },
-                    label: const Center(child: Text('Fitbit')),
-                    labelStyle: TextStyle(
-                      color: effectiveProvider == _wearableFitbit
-                          ? Colors.white
-                          : Colors.white70,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    selectedColor: AppColors.accent.withValues(alpha: 0.34),
-                    backgroundColor: Colors.white.withValues(alpha: 0.02),
-                    side: BorderSide(
-                      color: effectiveProvider == _wearableFitbit
-                          ? AppColors.accent
-                          : Colors.white24,
-                    ),
-                    showCheckmark: false,
-                  ),
-                ),
-              ],
+            SizedBox(width: TaqaUiScale.w(8)),
+            Expanded(
+              child: TaqaPillTab(
+                label: 'Fitbit',
+                active: effectiveProvider == _wearableFitbit,
+                onTap: () => setState(() {
+                  _selectedWearableProvider = _wearableFitbit;
+                  _selectedPrimaryBar = null;
+                }),
+              ),
             ),
-          ),
-        ] else if (whoopLinked || fitbitLinked)
-          const SizedBox(height: 12),
+          ],
+        ),
+        SizedBox(height: TaqaUiScale.h(12)),
         if (chartCards.isEmpty)
-          const Text(
-            'No wearable metrics available for this week.',
-            style: TextStyle(color: Colors.white70),
+          const TaqaEmptyStateRow(
+            text: 'No wearable metrics available for this week.',
           )
         else
           ...List<Widget>.generate(chartCards.length, (index) {
             if (index == 0) return chartCards[index];
             return Column(
-              children: [const SizedBox(height: 12), chartCards[index]],
+              children: [
+                SizedBox(height: TaqaUiScale.h(12)),
+                chartCards[index],
+              ],
             );
           }),
       ],
@@ -1511,19 +1328,37 @@ class _ExpertWeeklyMetricsDetailPageState
   }
 
   void _openAllExercisesDonePage(List<Map<String, dynamic>> weekEntries) {
+    final training = _map(_analyticsData['training']);
+    final plannedDays = _toInt(_activeProgram['training_days_per_week']) > 0
+        ? _toInt(_activeProgram['training_days_per_week'])
+        : _toInt(training['plan_days_per_week']);
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => Scaffold(
-          backgroundColor: AppColors.black,
+          backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
           appBar: TaqaPageAppBar(
-            title: 'All Exercises Done',
-            backgroundColor: AppColors.black,
-            titleColor: Colors.white,
-            leading: const TaqaBackButton(color: Colors.white),
+            title: 'Training History',
+            backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+            titleColor: TaqaUiColors.charcoal,
+            leading: const TaqaBackButton(color: TaqaUiColors.charcoal),
           ),
           body: ListView(
-            padding: const EdgeInsets.all(18),
-            children: [_buildSelectedWeekExercisesContent(weekEntries)],
+            padding: TaqaUiScale.insetsLTRB(16, 12, 16, 24),
+            children: [
+              TaqaExpertClientCard(
+                name: widget.clientName,
+                avatarUrl: widget.clientAvatarUrl,
+                status: widget.clientActivityStatus,
+                showStatus: (widget.clientActivityStatus ?? '')
+                    .trim()
+                    .isNotEmpty,
+                subtitle: 'User ID: ${widget.clientUserId}',
+                details: ['Days/week: ${plannedDays > 0 ? plannedDays : '-'}'],
+                alerts: const [],
+              ),
+              SizedBox(height: TaqaUiScale.h(12)),
+              _buildSelectedWeekExercisesContent(weekEntries),
+            ],
           ),
         ),
       ),
@@ -1564,7 +1399,10 @@ class _ExpertWeeklyMetricsDetailPageState
         child: SizedBox(
           width: 20,
           height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2),
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: TaqaUiColors.charcoal,
+          ),
         ),
       );
     }
@@ -1574,14 +1412,16 @@ class _ExpertWeeklyMetricsDetailPageState
         children: [
           Text(
             _exerciseHistoryError!,
-            style: const TextStyle(color: Colors.orangeAccent),
+            style: const TextStyle(color: TaqaUiColors.charcoal),
           ),
           const SizedBox(height: 8),
           OutlinedButton(
             onPressed: _loadExerciseHistory,
             style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white,
-              side: const BorderSide(color: Colors.white24),
+              foregroundColor: TaqaUiColors.charcoal,
+              side: BorderSide(
+                color: TaqaUiColors.charcoal.withValues(alpha: 0.2),
+              ),
             ),
             child: const Text('Retry'),
           ),
@@ -1591,14 +1431,145 @@ class _ExpertWeeklyMetricsDetailPageState
     if (weekEntries.isEmpty) {
       return const Text(
         'No exercises logged.',
-        style: TextStyle(color: Colors.white70),
+        style: TextStyle(color: TaqaUiColors.charcoal),
       );
     }
     return Column(
-      children: weekEntries.map(_buildWeekExerciseDayBlock).toList(),
+      children: weekEntries.map((entry) {
+        final label = (entry['label'] ?? entry['day_label'] ?? 'Training day')
+            .toString();
+        final sessionDate = _dateOnly(
+          entry['session_date']?.toString() ?? entry['latest_date']?.toString(),
+        );
+        final completedCount = _toInt(entry['completed_count']);
+        final totalCount = _toInt(entry['total_count']);
+        final completedExercises = _mapList(entry['completed_exercises']);
+        final sessionStats = _computeSessionDayStats(
+          completedExercises,
+          sessionDate: sessionDate,
+        );
+        final restBetweenExercisesLabel =
+            sessionStats.restBetweenExerciseTransitions > 0
+            ? '${_formatSecondsCompact(sessionStats.restBetweenExercisesSeconds)} total • ${_formatSecondsCompact(sessionStats.avgRestBetweenExercisesSeconds)} avg'
+            : (completedExercises.length > 1 ? 'Insufficient timestamps' : '-');
+        final dateLabel = sessionDate == null
+            ? _weekRangeLabel()
+            : DateFormat('dd MMM yyyy').format(sessionDate);
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: TaqaUiScale.h(20)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: TaqaUiColors.charcoal,
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(15),
+                  fontWeight: FontWeight.w700,
+                  height: 25 / 15,
+                  letterSpacing: 0,
+                ),
+              ),
+              Row(
+                children: [
+                  Text(
+                    '$completedCount/$totalCount completed',
+                    style: TextStyle(
+                      color: TaqaUiColors.charcoal,
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(15),
+                      fontWeight: FontWeight.w400,
+                      height: 25 / 15,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    dateLabel,
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      color: TaqaUiColors.charcoal,
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(15),
+                      fontWeight: FontWeight.w400,
+                      height: 25 / 15,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: TaqaUiScale.h(12)),
+              TaqaProfileInfoSection(
+                title: 'Overall Stats',
+                items: [
+                  TaqaProfileInfoItem(
+                    label: 'Session',
+                    value: sessionStats.sessionSeconds > 0
+                        ? _formatSecondsCompact(sessionStats.sessionSeconds)
+                        : '-',
+                  ),
+                  TaqaProfileInfoItem(
+                    label: 'Active',
+                    value: sessionStats.activeSeconds > 0
+                        ? _formatSecondsCompact(sessionStats.activeSeconds)
+                        : '-',
+                  ),
+                  TaqaProfileInfoItem(
+                    label: 'Rest Between Exercises',
+                    value: restBetweenExercisesLabel,
+                  ),
+                ],
+              ),
+              SizedBox(height: TaqaUiScale.h(12)),
+              if (completedExercises.isEmpty)
+                Text(
+                  'No completed exercises.',
+                  style: TextStyle(
+                    color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: TaqaUiScale.sp(15),
+                  ),
+                )
+              else
+                ...completedExercises.map((exercise) {
+                  final exerciseName = (exercise['exercise_name'] ?? 'Exercise')
+                      .toString();
+                  final loggedAt = _exerciseLoggedDateLabel(exercise) ?? '-';
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
+                    child: TaqaProfileInfoSection(
+                      title: exerciseName,
+                      items: [
+                        TaqaProfileInfoItem(
+                          label: 'Duration',
+                          value: _exerciseDurationLabel(exercise),
+                        ),
+                        TaqaProfileInfoItem(
+                          label: 'Set Rest',
+                          value: _exerciseRestLabel(exercise),
+                        ),
+                        TaqaProfileInfoItem(
+                          label: 'Weight',
+                          value: _exerciseWeightLabel(exercise),
+                        ),
+                        TaqaProfileInfoItem(label: 'Logged', value: loggedAt),
+                      ],
+                    ),
+                  );
+                }),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 
+  // Kept for now because the detailed session timing calculations may be
+  // reused in a future expert-specific drill-down. The active route uses the
+  // shared client training-history day detail instead.
+  // ignore: unused_element
   Widget _buildWeekExerciseDayBlock(Map<String, dynamic> entry) {
     final label = (entry['label'] ?? entry['day_label'] ?? 'Training day')
         .toString();
@@ -2035,54 +2006,82 @@ class _ExpertWeeklyMetricsDetailPageState
     final isWater = widget.type == ExpertWeeklyMetricsDetailType.waterSteps;
     final isTraining =
         widget.type == ExpertWeeklyMetricsDetailType.trainingCardio;
+    final usesClientHeader =
+        isTraining ||
+        isWater ||
+        widget.type == ExpertWeeklyMetricsDetailType.wearables;
     final title = isWater
         ? 'Daily Metrics Details'
         : (isTraining ? 'Training & Cardio Details' : 'Wearables Details');
 
     return Scaffold(
-      backgroundColor: AppColors.black,
+      backgroundColor: usesClientHeader
+          ? TaqaUiColors.unnamedColorE3e3e3
+          : AppColors.black,
       appBar: TaqaPageAppBar(
         title: title,
-        backgroundColor: AppColors.black,
-        titleColor: Colors.white,
-        leading: const TaqaBackButton(color: Colors.white),
+        backgroundColor: usesClientHeader
+            ? TaqaUiColors.unnamedColorE3e3e3
+            : AppColors.black,
+        titleColor: usesClientHeader ? TaqaUiColors.charcoal : Colors.white,
+        leading: TaqaBackButton(
+          color: usesClientHeader ? TaqaUiColors.charcoal : Colors.white,
+        ),
       ),
       body: Column(
         children: [
-          Container(
-            margin: const EdgeInsets.fromLTRB(18, 14, 18, 8),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.cardDark,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white10),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.person_outline,
-                  color: Colors.white70,
-                  size: 18,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    widget.clientName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+          if (usesClientHeader)
+            Padding(
+              padding: TaqaUiScale.insetsLTRB(16, 12, 17, 0),
+              child: TaqaExpertClientCard(
+                name: widget.clientName,
+                avatarUrl: widget.clientAvatarUrl,
+                status: widget.clientActivityStatus,
+                showStatus: (widget.clientActivityStatus ?? '')
+                    .trim()
+                    .isNotEmpty,
+                subtitle: 'User ID: ${widget.clientUserId}',
+                details: (isWater || !isTraining)
+                    ? const ['Weekly (7 days)']
+                    : const [],
+                alerts: const [],
+              ),
+            )
+          else
+            Container(
+              margin: const EdgeInsets.fromLTRB(18, 14, 18, 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.cardDark,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white10),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.person_outline,
+                    color: Colors.white70,
+                    size: 18,
                   ),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Weekly (7 days)',
-                  style: TextStyle(color: Colors.white60, fontSize: 12),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      widget.clientName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Weekly (7 days)',
+                    style: TextStyle(color: Colors.white60, fontSize: 12),
+                  ),
+                ],
+              ),
             ),
-          ),
           _buildWeekSwitcher(),
           if (_weekError != null)
             Container(
@@ -2105,6 +2104,102 @@ class _ExpertWeeklyMetricsDetailPageState
                 : (isTraining
                       ? _buildTrainingCardioContent()
                       : _buildWearablesContent()),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ClientWeeklyMetricDetailPage extends StatelessWidget {
+  const ClientWeeklyMetricDetailPage({
+    super.key,
+    required this.title,
+    required this.clientName,
+    required this.clientUserId,
+    required this.clientAvatarUrl,
+    required this.clientActivityStatus,
+    required this.values,
+    required this.dates,
+    required this.color,
+    required this.unit,
+    required this.formatValue,
+  });
+
+  final String title;
+  final String clientName;
+  final int clientUserId;
+  final String? clientAvatarUrl;
+  final String? clientActivityStatus;
+  final List<double> values;
+  final List<DateTime> dates;
+  final Color color;
+  final String unit;
+  final String Function(double value) formatValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final max = values.fold<double>(0, math.max);
+    final top = max <= 0 ? 1.0 : max;
+    final mid = top / 2;
+    return Scaffold(
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      appBar: TaqaPageAppBar(
+        title: title,
+        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        titleColor: TaqaUiColors.charcoal,
+        leading: const TaqaBackButton(color: TaqaUiColors.charcoal),
+      ),
+      body: ListView(
+        padding: TaqaUiScale.insetsLTRB(16, 12, 16, 24),
+        children: [
+          TaqaExpertClientCard(
+            name: clientName,
+            avatarUrl: clientAvatarUrl,
+            status: clientActivityStatus,
+            showStatus: (clientActivityStatus ?? '').trim().isNotEmpty,
+            subtitle: 'User ID: $clientUserId',
+            details: const ['Weekly (7 days)'],
+            alerts: const [],
+          ),
+          SizedBox(height: TaqaUiScale.h(12)),
+          TaqaClientDashboardCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TaqaClientDashboardTitleText('$title (Last 7 Days)'),
+                SizedBox(height: TaqaUiScale.h(12)),
+                SizedBox(
+                  height: TaqaUiScale.h(242),
+                  child: RangedBarChart(
+                    entries: List<RangedBarChartEntry>.generate(
+                      values.length,
+                      (index) => RangedBarChartEntry(
+                        axisLabel: DateFormat('EEE').format(dates[index]),
+                        value: values[index],
+                      ),
+                    ),
+                    maxValue: top,
+                    midValue: mid,
+                    formatValue: formatValue,
+                    gradient: [color, color.withValues(alpha: 0.58)],
+                    selectedGradient: [color, color],
+                    useFixedSlots: true,
+                    minBarWidth: TaqaUiScale.w(8),
+                    yAxisTitle: unit,
+                    gridLineColor: TaqaUiColors.charcoal.withValues(
+                      alpha: 0.08,
+                    ),
+                    axisTextColor: TaqaUiColors.charcoal.withValues(
+                      alpha: 0.58,
+                    ),
+                    labelTextColor: TaqaUiColors.charcoal.withValues(
+                      alpha: 0.58,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

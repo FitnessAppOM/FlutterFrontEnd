@@ -94,14 +94,6 @@ class TaqaExpertClientView extends StatelessWidget {
         ),
         _gap(),
         TaqaClientDashboardNavigationCard(
-          title: 'Client Plan',
-          description: 'Open and review the client training plan directly.',
-          noticeText: trainingPlanAlert,
-          loading: trainingPlanLoading,
-          onTap: onOpenTrainingPlan,
-        ),
-        _gap(),
-        TaqaClientDashboardNavigationCard(
           title: 'Habits',
           description: habitsDescription,
           onTap: habitsEnabled ? onOpenHabits : null,

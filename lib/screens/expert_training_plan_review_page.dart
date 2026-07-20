@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../TaqaUI/components/taqa_expert_client_dashboard_ui.dart';
 import '../TaqaUI/components/taqa_expert_dashboard_ui.dart';
+import '../TaqaUI/components/taqa_back_button.dart';
 import '../TaqaUI/components/taqa_exercise_picker_sheet.dart';
 import '../TaqaUI/components/taqa_outline_tag_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
@@ -656,10 +657,7 @@ class _ExpertTrainingPlanReviewPageState
         backgroundColor: TaqaUiColors.lightGray,
         appBar: TaqaPageAppBar(
           title: 'Client Training Plan',
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: TaqaUiColors.charcoal),
-            onPressed: _closePage,
-          ),
+          leading: TaqaBackButton(onPressed: _closePage),
         ),
         body: _loadingExercises
             ? Center(

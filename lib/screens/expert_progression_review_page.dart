@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../services/coach/progression_review_service.dart';
-import '../theme/app_theme.dart';
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/components/taqa_expert_client_dashboard_ui.dart';
+import '../TaqaUI/components/taqa_filled_button.dart';
+import '../TaqaUI/components/taqa_outline_tag_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
+import '../TaqaUI/components/taqa_refresh_indicator.dart';
 import '../TaqaUI/components/taqa_toast.dart';
+import '../TaqaUI/components/taqa_value_dialog.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
+
+const Color _successGreen = Color(0xFF2E8B57);
 
 class ExpertProgressionReviewPage extends StatefulWidget {
   const ExpertProgressionReviewPage({super.key, required this.reviewId});
@@ -20,7 +29,6 @@ class _ExpertProgressionReviewPageState
   ProgressionReviewDetail? _review;
   bool _loading = true;
   bool _saving = false;
-  Set<String> _expandedDayKeys = <String>{};
 
   @override
   void initState() {
@@ -35,27 +43,12 @@ class _ExpertProgressionReviewPageState
         widget.reviewId,
       );
       if (!mounted) return;
-      setState(() {
-        _review = review;
-        _ensureExpandedDays(review);
-      });
+      setState(() => _review = review);
     } catch (e) {
       if (!mounted) return;
       AppToast.show(context, e.toString(), type: AppToastType.error);
     } finally {
       if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  void _ensureExpandedDays(ProgressionReviewDetail review) {
-    final dayKeys = _groupedDays(review).map((group) => group.key).toList();
-    if (dayKeys.isEmpty) {
-      _expandedDayKeys = <String>{};
-      return;
-    }
-    _expandedDayKeys = _expandedDayKeys.where(dayKeys.contains).toSet();
-    if (_expandedDayKeys.isEmpty) {
-      _expandedDayKeys = {dayKeys.first};
     }
   }
 
@@ -67,10 +60,7 @@ class _ExpertProgressionReviewPageState
         widget.reviewId,
       );
       if (!mounted) return;
-      setState(() {
-        _review = updated;
-        _ensureExpandedDays(updated);
-      });
+      setState(() => _review = updated);
       AppToast.show(
         context,
         'AI updates applied to the active program.',
@@ -113,55 +103,85 @@ class _ExpertProgressionReviewPageState
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: AppColors.cardDark,
-          title: const Text(
-            'Edit recommendation',
-            style: TextStyle(color: Colors.white),
-          ),
-          content: SingleChildScrollView(
+      barrierColor: const Color(0x66000000),
+      builder: (ctx) {
+        final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
+        return MediaQuery.removeViewInsets(
+          context: ctx,
+          removeBottom: true,
+          child: TaqaPopupDialog(
+            bottomInset: bottomInset,
+            onBackgroundTap: () =>
+                FocusManager.instance.primaryFocus?.unfocus(),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _DialogField(
-                  controller: setsController,
-                  label: 'Sets',
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 10),
-                _DialogField(
-                  controller: repsController,
-                  label: 'Reps',
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 10),
-                _DialogField(
-                  controller: weightController,
-                  label: 'Weight (kg)',
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
+                Align(
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Edit Recommendation',
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(15),
+                      fontWeight: FontWeight.w700,
+                      height: 25 / 15,
+                      color: TaqaUiColors.charcoal,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 10),
-                _DialogField(
+                SizedBox(height: TaqaUiScale.h(12)),
+                _EditField(controller: setsController, label: 'Sets'),
+                SizedBox(height: TaqaUiScale.h(12)),
+                _EditField(controller: repsController, label: 'Reps'),
+                SizedBox(height: TaqaUiScale.h(12)),
+                _EditField(
+                  controller: weightController,
+                  label: 'Weight (kg)',
+                  decimal: true,
+                ),
+                SizedBox(height: TaqaUiScale.h(12)),
+                _EditField(
                   controller: noteController,
                   label: 'Coach note',
-                  keyboardType: TextInputType.text,
+                  numeric: false,
+                ),
+                SizedBox(height: TaqaUiScale.h(20)),
+                SizedBox(
+                  height: TaqaUiScale.h(45),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => Navigator.of(ctx).pop(false),
+                          child: Center(
+                            child: Text(
+                              'CANCEL',
+                              style: TextStyle(
+                                fontFamily: TaqaUiFontFamilies.interTight,
+                                fontSize: TaqaUiScale.sp(10),
+                                fontWeight: FontWeight.w600,
+                                color: TaqaUiColors.charcoal,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: TaqaFilledButton(
+                          label: 'Save',
+                          height: 45,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          onTap: () => Navigator.of(ctx).pop(true),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Save'),
-            ),
-          ],
         );
       },
     );
@@ -198,15 +218,8 @@ class _ExpertProgressionReviewPageState
         expertNote: expertNote,
       );
       if (!mounted) return;
-      setState(() {
-        _review = updated;
-        _ensureExpandedDays(updated);
-      });
-      AppToast.show(
-        context,
-        'Review item updated.',
-        type: AppToastType.success,
-      );
+      setState(() => _review = updated);
+      AppToast.show(context, 'Review item updated.', type: AppToastType.success);
     } catch (e) {
       if (!mounted) return;
       AppToast.show(context, e.toString(), type: AppToastType.error);
@@ -227,64 +240,44 @@ class _ExpertProgressionReviewPageState
         review.items.any((item) => item.isApprovedLike);
 
     return Scaffold(
-      backgroundColor: AppColors.black,
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       appBar: TaqaPageAppBar(
-        backgroundColor: AppColors.black,
-        titleColor: Colors.white,
-        title: review == null
-            ? 'AI Update Review'
-            : 'Review - ${review.weekStart ?? ''}',
-        trailing: canApply
-            ? Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: Center(
-                  child: ElevatedButton(
-                    onPressed: _saving ? null : _applyReview,
-                    child: Text(_saving ? 'Applying...' : 'Apply'),
-                  ),
-                ),
-              )
-            : null,
+        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        titleColor: TaqaUiColors.unnamedColor1c1d17,
+        title: 'AI Updates',
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : review == null
           ? const Center(
-              child: Text(
-                'Review unavailable.',
-                style: TextStyle(color: Colors.white70),
-              ),
+              child: TaqaClientDashboardBodyText('Review unavailable.'),
             )
-          : RefreshIndicator(
+          : TaqaRefreshIndicator(
               onRefresh: _load,
               child: ListView(
-                padding: const EdgeInsets.all(16),
+                padding: TaqaUiScale.insetsLTRB(16, 12, 16, 24),
                 children: [
                   _ReviewHeaderCard(review: review),
-                  const SizedBox(height: 16),
-                  ...groupedDays.map(
-                    (group) => Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
-                      child: _DaySectionCard(
-                        group: group,
-                        locked: review.isApplied,
-                        expanded: _expandedDayKeys.contains(group.key),
-                        busy: _saving,
-                        onToggle: () {
-                          setState(() {
-                            if (_expandedDayKeys.contains(group.key)) {
-                              _expandedDayKeys.remove(group.key);
-                            } else {
-                              _expandedDayKeys.add(group.key);
-                            }
-                          });
-                        },
-                        onApprove: _approveItem,
-                        onReject: _rejectItem,
-                        onEdit: _editItem,
-                      ),
+                  SizedBox(height: TaqaUiScale.h(20)),
+                  for (final group in groupedDays) ...[
+                    _DaySection(
+                      group: group,
+                      locked: review.isApplied,
+                      busy: _saving,
+                      onApprove: _approveItem,
+                      onReject: _rejectItem,
+                      onEdit: _editItem,
                     ),
-                  ),
+                    SizedBox(height: TaqaUiScale.h(20)),
+                  ],
+                  if (canApply)
+                    TaqaFilledButton(
+                      label: _saving ? 'Applying...' : 'Apply to Program',
+                      loading: _saving,
+                      height: 48,
+                      fontSize: 11,
+                      onTap: _saving ? null : _applyReview,
+                    ),
                 ],
               ),
             ),
@@ -292,6 +285,9 @@ class _ExpertProgressionReviewPageState
   }
 }
 
+// -----------------------------------------------------------------------------
+// HEADER CARD
+// -----------------------------------------------------------------------------
 class _ReviewHeaderCard extends StatelessWidget {
   const _ReviewHeaderCard({required this.review});
 
@@ -300,94 +296,76 @@ class _ReviewHeaderCard extends StatelessWidget {
   Color _statusColor() {
     switch (review.status) {
       case 'applied':
-        return AppColors.successGreen;
+        return _successGreen;
       case 'failed':
-        return AppColors.errorRed;
+        return TaqaUiColors.recordRed;
       case 'pending_expert':
-        return Colors.orangeAccent;
+        return TaqaUiColors.recordRed;
       case 'reviewed':
-        return AppColors.accent;
+        return _successGreen;
       default:
-        return Colors.white54;
+        return TaqaUiColors.charcoal;
     }
   }
 
   String _statusLabel() {
     switch (review.status) {
       case 'pending_expert':
-        return 'Pending review';
+        return 'PENDING EXPERT';
       case 'reviewed':
-        return 'Ready to apply';
+        return 'READY TO APPLY';
       case 'applied':
-        return 'Applied';
+        return 'APPLIED';
       case 'failed':
-        return 'Needs retry';
+        return 'NEEDS RETRY';
       default:
-        return review.status;
+        return review.status.toUpperCase();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white10),
-      ),
-      padding: const EdgeInsets.all(16),
+    return TaqaClientDashboardCard(
+      padding: 14,
+      radius: 15,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Text(
+                child: TaqaClientDashboardTitleText(
                   review.clientName ?? 'Client #${review.userId}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                  ),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: _statusColor().withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: _statusColor()),
-                ),
-                child: Text(
-                  _statusLabel(),
-                  style: TextStyle(
-                    color: _statusColor(),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+              SizedBox(width: TaqaUiScale.w(8)),
+              TaqaClientDashboardStatusPill(
+                label: _statusLabel(),
+                color: _statusColor(),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: TaqaUiScale.h(2)),
           Text(
             'Week ${review.weekStart ?? '-'} to ${review.weekEnd ?? '-'}',
-            style: const TextStyle(color: Colors.white70),
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(12),
+              fontWeight: FontWeight.w400,
+              height: 16 / 12,
+              color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+            ),
           ),
           if ((review.aiSummary ?? '').trim().isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text(
-              review.aiSummary!,
-              style: const TextStyle(color: Colors.white),
-            ),
+            SizedBox(height: TaqaUiScale.h(12)),
+            TaqaClientDashboardBodyText(review.aiSummary!),
           ],
           if ((review.lastError ?? '').trim().isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text(
+            SizedBox(height: TaqaUiScale.h(12)),
+            TaqaClientDashboardBodyText(
               review.lastError!,
-              style: const TextStyle(color: AppColors.errorRed),
+              color: TaqaUiColors.recordRed,
             ),
           ],
         ],
@@ -396,17 +374,18 @@ class _ReviewHeaderCard extends StatelessWidget {
   }
 }
 
+// -----------------------------------------------------------------------------
+// DAY GROUPING
+// -----------------------------------------------------------------------------
 class _DayGroup {
   const _DayGroup({
     required this.key,
     required this.title,
-    required this.subtitle,
     required this.items,
   });
 
   final String key;
   final String title;
-  final String subtitle;
   final List<ProgressionReviewItem> items;
 
   int get suggestedCount =>
@@ -438,12 +417,7 @@ List<_DayGroup> _groupedDays(ProgressionReviewDetail review) {
     final title = index != null
         ? 'Day $index${label.isNotEmpty ? ' - $label' : ''}'
         : (label.isNotEmpty ? label : 'Training Day');
-    return _DayGroup(
-      key: entry.key,
-      title: title,
-      subtitle: '${entry.value.length} exercises',
-      items: entry.value,
-    );
+    return _DayGroup(key: entry.key, title: title, items: entry.value);
   }).toList();
 
   groups.sort((a, b) {
@@ -455,13 +429,14 @@ List<_DayGroup> _groupedDays(ProgressionReviewDetail review) {
   return groups;
 }
 
-class _DaySectionCard extends StatelessWidget {
-  const _DaySectionCard({
+// -----------------------------------------------------------------------------
+// DAY SECTION (header + tags + exercise cards)
+// -----------------------------------------------------------------------------
+class _DaySection extends StatelessWidget {
+  const _DaySection({
     required this.group,
     required this.locked,
-    required this.expanded,
     required this.busy,
-    required this.onToggle,
     required this.onApprove,
     required this.onReject,
     required this.onEdit,
@@ -469,122 +444,75 @@ class _DaySectionCard extends StatelessWidget {
 
   final _DayGroup group;
   final bool locked;
-  final bool expanded;
   final bool busy;
-  final VoidCallback onToggle;
   final Future<void> Function(ProgressionReviewItem item) onApprove;
   final Future<void> Function(ProgressionReviewItem item) onReject;
   final Future<void> Function(ProgressionReviewItem item) onEdit;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
-        children: [
-          InkWell(
-            onTap: onToggle,
-            borderRadius: BorderRadius.circular(14),
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          group.title,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                      Icon(
-                        expanded ? Icons.expand_less : Icons.expand_more,
-                        color: Colors.white70,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    group.subtitle,
-                    style: const TextStyle(color: Colors.white60),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _SummaryChip(label: '${group.suggestedCount} suggested'),
-                      _SummaryChip(label: '${group.pendingCount} pending'),
-                      _SummaryChip(label: '${group.approvedCount} approved'),
-                      _SummaryChip(label: '${group.editedCount} edited'),
-                      _SummaryChip(label: '${group.rejectedCount} rejected'),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TaqaClientDashboardTitleText(group.title),
+        SizedBox(height: TaqaUiScale.h(2)),
+        Text(
+          '${group.items.length} exercise(s)',
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(10),
+            fontWeight: FontWeight.w400,
+            height: 12 / 10,
+            color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
           ),
-          if (expanded) ...[
-            const Divider(height: 1, color: Colors.white10),
-            Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                children: [
-                  for (var i = 0; i < group.items.length; i++) ...[
-                    _ReviewItemCard(
-                      item: group.items[i],
-                      locked: locked,
-                      busy: busy,
-                      onApprove: () => onApprove(group.items[i]),
-                      onReject: () => onReject(group.items[i]),
-                      onEdit: () => onEdit(group.items[i]),
-                    ),
-                    if (i < group.items.length - 1) const SizedBox(height: 12),
-                  ],
-                ],
-              ),
-            ),
+        ),
+        SizedBox(height: TaqaUiScale.h(10)),
+        Row(
+          children: [
+            _CountTag(label: '${group.suggestedCount} Suggested'),
+            SizedBox(width: TaqaUiScale.w(6)),
+            _CountTag(label: '${group.pendingCount} Pending'),
+            SizedBox(width: TaqaUiScale.w(6)),
+            _CountTag(label: '${group.approvedCount} Approved'),
+            SizedBox(width: TaqaUiScale.w(6)),
+            _CountTag(label: '${group.editedCount} Edited'),
+            SizedBox(width: TaqaUiScale.w(6)),
+            _CountTag(label: '${group.rejectedCount} Rejected'),
           ],
+        ),
+        SizedBox(height: TaqaUiScale.h(10)),
+        for (var i = 0; i < group.items.length; i++) ...[
+          _ReviewItemCard(
+            item: group.items[i],
+            locked: locked,
+            busy: busy,
+            onApprove: () => onApprove(group.items[i]),
+            onReject: () => onReject(group.items[i]),
+            onEdit: () => onEdit(group.items[i]),
+          ),
+          if (i < group.items.length - 1) SizedBox(height: TaqaUiScale.h(16)),
         ],
-      ),
+      ],
     );
   }
 }
 
-class _SummaryChip extends StatelessWidget {
-  const _SummaryChip({required this.label});
+class _CountTag extends StatelessWidget {
+  const _CountTag({required this.label});
 
   final String label;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white10,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white70,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+    return Expanded(
+      child: TaqaOutlineTagButton(label: label, width: double.infinity),
     );
   }
 }
 
+// -----------------------------------------------------------------------------
+// EXERCISE CARD + ACTION BUTTONS
+// -----------------------------------------------------------------------------
 class _ReviewItemCard extends StatelessWidget {
   const _ReviewItemCard({
     required this.item,
@@ -602,193 +530,254 @@ class _ReviewItemCard extends StatelessWidget {
   final VoidCallback onReject;
   final VoidCallback onEdit;
 
-  String _fmtWeight(double? value) {
-    if (value == null) return '-';
-    return '${value.toStringAsFixed(1)} kg';
-  }
+  static String _sets(int? n) =>
+      n == null ? '-' : '$n ${n == 1 ? 'set' : 'sets'}';
+  static String _reps(int? n) =>
+      n == null ? '-' : '$n ${n == 1 ? 'rep' : 'reps'}';
+  static String _wt(double? v) => v == null ? '-' : '${v.toStringAsFixed(1)}kg';
 
-  Widget _metricRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 86,
-            child: Text(label, style: const TextStyle(color: Colors.white60)),
-          ),
-          Expanded(
-            child: Text(value, style: const TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
+  String get _currentValue =>
+      '${_sets(item.currentSets)}, ${_reps(item.currentReps)}, ${_wt(item.currentWeightKg)}';
 
-  Color _decisionColor() {
-    switch (item.expertDecision) {
-      case 'approved':
-        return AppColors.successGreen;
-      case 'edited':
-        return AppColors.accent;
-      case 'rejected':
-        return AppColors.errorRed;
-      default:
-        return Colors.white54;
+  String get _observedValue {
+    if (item.observedSets == null &&
+        item.observedReps == null &&
+        item.observedWeightKg == null) {
+      return 'No data logged';
     }
+    return '${_sets(item.observedSets)}, ${_reps(item.observedReps)}, '
+        '${_wt(item.observedWeightKg)}, RIR ${item.observedRir ?? '-'}';
   }
 
-  String _decisionLabel() {
-    switch (item.expertDecision) {
-      case 'approved':
-        return 'Approved';
-      case 'edited':
-        return 'Edited';
-      case 'rejected':
-        return 'Rejected';
-      default:
-        return 'Pending';
-    }
+  String get _aiValue =>
+      '${item.aiAction.replaceAll('_', ' ')}, ${_sets(item.aiRecommendedSets)}, '
+      '${_reps(item.aiRecommendedReps)}, ${_wt(item.aiRecommendedWeightKg)}';
+
+  String get _finalValue {
+    final s = item.finalSets ?? item.aiRecommendedSets;
+    final r = item.finalReps ?? item.aiRecommendedReps;
+    final w = item.finalWeightKg ?? item.aiRecommendedWeightKg;
+    return '${_sets(s)}, ${_reps(r)}, ${_wt(w)}';
   }
 
   @override
   Widget build(BuildContext context) {
-    final finalSets = item.finalSets ?? item.aiRecommendedSets;
-    final finalReps = item.finalReps ?? item.aiRecommendedReps;
-    final finalWeight = item.finalWeightKg ?? item.aiRecommendedWeightKg;
-    final decisionColor = _decisionColor();
+    final isApproved = item.expertDecision == 'approved';
+    final isRejected = item.expertDecision == 'rejected';
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white10),
-      ),
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TaqaClientDashboardCard(
+          padding: 14,
+          radius: 15,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(
-                  item.exerciseName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
-                  ),
+              TaqaClientDashboardTitleText(item.exerciseName),
+              SizedBox(height: TaqaUiScale.h(10)),
+              _MetricRow(label: 'Current', value: _currentValue),
+              SizedBox(height: TaqaUiScale.h(4)),
+              _MetricRow(label: 'Observed', value: _observedValue),
+              SizedBox(height: TaqaUiScale.h(4)),
+              _MetricRow(label: 'AI', value: _aiValue),
+              SizedBox(height: TaqaUiScale.h(4)),
+              _MetricRow(label: 'Final', value: _finalValue),
+              if ((item.aiReason ?? '').trim().isNotEmpty) ...[
+                SizedBox(height: TaqaUiScale.h(10)),
+                TaqaClientDashboardBodyText(item.aiReason!),
+              ],
+              if ((item.expertNote ?? '').trim().isNotEmpty) ...[
+                SizedBox(height: TaqaUiScale.h(8)),
+                TaqaClientDashboardBodyText(
+                  'Coach note: ${item.expertNote!}',
+                  color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
                 ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                decoration: BoxDecoration(
-                  color: decisionColor.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: decisionColor),
-                ),
-                child: Text(
-                  _decisionLabel(),
-                  style: TextStyle(
-                    color: decisionColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
+              ],
             ],
           ),
-          const SizedBox(height: 12),
-          _metricRow(
-            'Current',
-            '${item.currentSets} sets / ${item.currentReps} reps / ${_fmtWeight(item.currentWeightKg)}',
-          ),
-          _metricRow(
-            'Observed',
-            '${item.observedSets ?? '-'} sets / ${item.observedReps ?? '-'} reps / ${_fmtWeight(item.observedWeightKg)} / RIR ${item.observedRir ?? '-'}',
-          ),
-          _metricRow(
-            'AI',
-            '${item.aiAction} / ${item.aiRecommendedSets} sets / ${item.aiRecommendedReps} reps / ${_fmtWeight(item.aiRecommendedWeightKg)}',
-          ),
-          _metricRow(
-            'Final',
-            '$finalSets sets / $finalReps reps / ${_fmtWeight(finalWeight)}',
-          ),
-          if ((item.aiReason ?? '').trim().isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(item.aiReason!, style: const TextStyle(color: Colors.white70)),
-          ],
-          if ((item.expertNote ?? '').trim().isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Coach note: ${item.expertNote!}',
-              style: const TextStyle(color: Colors.white60),
+        ),
+        SizedBox(height: TaqaUiScale.h(10)),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionButton(
+                label: isRejected ? 'Rejected' : 'Reject',
+                textColor: TaqaUiColors.recordRed,
+                borderColor: TaqaUiColors.recordRed,
+                onTap: busy || locked || isRejected ? null : onReject,
+              ),
+            ),
+            SizedBox(width: TaqaUiScale.w(10)),
+            Expanded(
+              child: _ActionButton(
+                label: 'Edit',
+                textColor: TaqaUiColors.charcoal,
+                borderColor: TaqaUiColors.charcoal.withValues(alpha: 0.12),
+                onTap: busy || locked ? null : onEdit,
+              ),
+            ),
+            SizedBox(width: TaqaUiScale.w(10)),
+            Expanded(
+              child: _ActionButton(
+                label: isApproved ? 'Approved' : 'Approve',
+                textColor: TaqaUiColors.charcoal,
+                fillColor: TaqaUiColors.lime,
+                onTap: busy || locked || isApproved ? null : onApprove,
+              ),
             ),
           ],
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: busy || locked || item.expertDecision == 'rejected'
-                      ? null
-                      : onReject,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.errorRed,
-                    side: const BorderSide(color: AppColors.errorRed),
-                  ),
-                  child: Text(
-                    item.expertDecision == 'rejected' ? 'Rejected' : 'Reject',
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: busy || locked ? null : onEdit,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white24),
-                  ),
-                  child: const Text('Edit'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: busy || locked || item.expertDecision == 'approved'
-                      ? null
-                      : onApprove,
-                  child: Text(
-                    item.expertDecision == 'approved' ? 'Approved' : 'Approve',
-                  ),
-                ),
-              ),
-            ],
+        ),
+      ],
+    );
+  }
+}
+
+class _MetricRow extends StatelessWidget {
+  const _MetricRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(15),
+            fontWeight: FontWeight.w400,
+            height: 18 / 15,
+            letterSpacing: 0,
+            color: TaqaUiColors.charcoal.withValues(alpha: 0.62),
           ),
-        ],
+        ),
+        SizedBox(width: TaqaUiScale.w(8)),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(15),
+              fontWeight: FontWeight.w400,
+              height: 18 / 15,
+              letterSpacing: 0,
+              color: TaqaUiColors.charcoal,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.label,
+    required this.textColor,
+    this.fillColor,
+    this.borderColor,
+    this.onTap,
+  });
+
+  final String label;
+  final Color textColor;
+  final Color? fillColor;
+  final Color? borderColor;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = onTap == null;
+    return Opacity(
+      opacity: disabled ? 0.5 : 1,
+      child: Material(
+        color: fillColor ?? TaqaUiColors.white,
+        borderRadius: TaqaUiScale.radius(5),
+        child: InkWell(
+          borderRadius: TaqaUiScale.radius(5),
+          onTap: onTap,
+          child: Container(
+            height: TaqaUiScale.h(48),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: TaqaUiScale.radius(5),
+              border: borderColor == null
+                  ? null
+                  : Border.all(color: borderColor!),
+            ),
+            child: Text(
+              label.toUpperCase(),
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(11),
+                fontWeight: FontWeight.w700,
+                height: 12 / 11,
+                letterSpacing: 0,
+                color: textColor,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
-class _DialogField extends StatelessWidget {
-  const _DialogField({
+class _EditField extends StatelessWidget {
+  const _EditField({
     required this.controller,
     required this.label,
-    required this.keyboardType,
+    this.numeric = true,
+    this.decimal = false,
   });
 
   final TextEditingController controller;
   final String label;
-  final TextInputType keyboardType;
+  final bool numeric;
+  final bool decimal;
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(labelText: label),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(10),
+            fontWeight: FontWeight.w400,
+            color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+          ),
+        ),
+        TextField(
+          controller: controller,
+          keyboardType: numeric
+              ? TextInputType.numberWithOptions(decimal: decimal)
+              : TextInputType.text,
+          cursorColor: TaqaUiColors.charcoal,
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontSize: TaqaUiScale.sp(15),
+            height: 21 / 15,
+            color: TaqaUiColors.charcoal,
+          ),
+          decoration: const InputDecoration(
+            isDense: true,
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: TaqaUiColors.charcoal, width: 0.5),
+            ),
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: TaqaUiColors.charcoal, width: 0.5),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

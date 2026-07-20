@@ -662,7 +662,7 @@ class TaqaClientAvatar extends StatelessWidget {
       radius: TaqaUiScale.r(radius),
       backgroundColor: TaqaUiColors.charcoal,
       foregroundImage: url.isNotEmpty ? NetworkImage(url) : null,
-      onForegroundImageError: (_, _) {},
+      onForegroundImageError: url.isNotEmpty ? (_, _) {} : null,
       child: url.isNotEmpty
           ? null
           : Text(

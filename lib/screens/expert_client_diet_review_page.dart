@@ -12,18 +12,33 @@ import 'package:record/record.dart';
 import '../services/coach/progression_review_service.dart';
 import '../services/coach/voice_note_audio_service.dart';
 import '../theme/app_theme.dart';
+import '../TaqaUI/components/taqa_date_carousel_switcher.dart';
+import '../TaqaUI/components/taqa_diet_targets_editor.dart';
+import '../TaqaUI/components/taqa_comment_composer_page.dart';
+import '../TaqaUI/components/taqa_expert_dashboard_ui.dart';
+import '../TaqaUI/components/taqa_filled_button.dart';
+import '../TaqaUI/components/taqa_outline_tag_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
+import '../TaqaUI/components/taqa_profile_info_section.dart';
+import '../TaqaUI/components/taqa_refresh_indicator.dart';
 import '../TaqaUI/components/taqa_toast.dart';
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 
 class ExpertClientDietReviewPage extends StatefulWidget {
   const ExpertClientDietReviewPage({
     super.key,
     required this.clientUserId,
     required this.clientName,
+    this.clientAvatarUrl,
+    this.clientActivityStatus,
   });
 
   final int clientUserId;
   final String clientName;
+  final String? clientAvatarUrl;
+  final String? clientActivityStatus;
 
   @override
   State<ExpertClientDietReviewPage> createState() =>
@@ -96,24 +111,6 @@ class _ExpertClientDietReviewPageState
     final m = date.month.toString().padLeft(2, '0');
     final d = date.day.toString().padLeft(2, '0');
     return '$y-$m-$d';
-  }
-
-  String _prettyDate(DateTime date) {
-    const months = <String>[
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
   }
 
   String _formatDateTime(DateTime? dateTime) {
@@ -473,6 +470,7 @@ class _ExpertClientDietReviewPageState
     }
   }
 
+  // ignore: unused_element
   Future<void> _openEditTargetsSheet() async {
     if (_dietTargets == null || _loadingTargets || _savingTargets) return;
 
@@ -515,14 +513,14 @@ class _ExpertClientDietReviewPageState
     final shouldSubmit = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.cardDark,
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
       ),
       builder: (ctx) {
         final viewInsets = MediaQuery.of(ctx).viewInsets;
         return Padding(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + viewInsets.bottom),
+          padding: TaqaUiScale.insetsLTRB(16, 12, 17, 16 + viewInsets.bottom),
           child: SafeArea(
             child: SingleChildScrollView(
               child: Column(
@@ -534,7 +532,7 @@ class _ExpertClientDietReviewPageState
                         child: Text(
                           'Edit Client Targets',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: TaqaUiColors.charcoal,
                             fontWeight: FontWeight.w700,
                             fontSize: 16,
                           ),
@@ -542,7 +540,10 @@ class _ExpertClientDietReviewPageState
                       ),
                       IconButton(
                         onPressed: () => Navigator.of(ctx).pop(false),
-                        icon: const Icon(Icons.close, color: Colors.white70),
+                        icon: const Icon(
+                          Icons.close,
+                          color: TaqaUiColors.charcoal,
+                        ),
                       ),
                     ],
                   ),
@@ -551,16 +552,16 @@ class _ExpertClientDietReviewPageState
                     width: double.infinity,
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2D7CFF).withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(10),
+                      color: TaqaUiColors.white,
+                      borderRadius: TaqaUiScale.radius(15),
                       border: Border.all(
-                        color: const Color(0xFF2D7CFF).withValues(alpha: 0.5),
+                        color: TaqaUiColors.charcoal.withValues(alpha: 0.1),
                       ),
                     ),
                     child: const Text(
                       'Note: Client-visible calorie targets may appear higher than entered values for today because burned calories are added automatically.',
                       style: TextStyle(
-                        color: Colors.white70,
+                        color: TaqaUiColors.charcoal,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -570,7 +571,7 @@ class _ExpertClientDietReviewPageState
                   const Text(
                     'Rest day',
                     style: TextStyle(
-                      color: Colors.white70,
+                      color: TaqaUiColors.charcoal,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -719,17 +720,12 @@ class _ExpertClientDietReviewPageState
                     ],
                   ],
                   const SizedBox(height: 6),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => Navigator.of(ctx).pop(true),
-                      icon: const Icon(Icons.save_outlined),
-                      label: const Text('Save Targets'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accent,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
+                  TaqaFilledButton(
+                    label: 'Save Targets',
+                    onTap: () => Navigator.of(ctx).pop(true),
+                    height: 45,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
                   ),
                 ],
               ),
@@ -819,6 +815,94 @@ class _ExpertClientDietReviewPageState
     }
   }
 
+  Future<void> _openSharedTargetsEditor() async {
+    final targets = _dietTargets;
+    if (targets == null || _loadingTargets || _savingTargets) return;
+    var activeTrainingDays = _trainingDayTargets();
+    try {
+      final program = await ProgressionReviewService.fetchClientActiveTrainingProgram(
+        widget.clientUserId,
+      );
+      if (!mounted) return;
+      final plannedDays = _asInt(
+        program['training_days_per_week'] ??
+            _asMap(program['program'])['training_days_per_week'],
+      );
+      if (plannedDays > 0 && activeTrainingDays.length > plannedDays) {
+        activeTrainingDays = activeTrainingDays.take(plannedDays).toList();
+      }
+      final planDaysRaw = program['days'] ??
+          program['training_days'] ??
+          _asMap(program['program'])['days'];
+      if (planDaysRaw is List) {
+        final planDays = planDaysRaw.whereType<Map>().toList();
+        activeTrainingDays = activeTrainingDays.asMap().entries.map((entry) {
+          final targetDay = Map<String, dynamic>.from(entry.value);
+          final planDay = entry.key < planDays.length
+              ? Map<String, dynamic>.from(planDays[entry.key])
+              : const <String, dynamic>{};
+          final label = (planDay['day_label'] ??
+                  planDay['name'] ??
+                  planDay['title'] ??
+                  planDay['day_name'] ??
+                  '')
+              .toString()
+              .trim();
+          if (label.isNotEmpty) targetDay['day_label'] = label;
+          return targetDay;
+        }).toList();
+      }
+    } catch (_) {
+      // Keep the available target rows if the plan cannot be loaded.
+    }
+    final result = await Navigator.of(context)
+        .push<TaqaDietTargetsEditorResult>(
+          MaterialPageRoute(
+            builder: (_) => TaqaDietTargetsEditorPage(
+              restCalories: _asInt(targets['rest_calories']),
+              restProtein: _asInt(targets['rest_protein_g']),
+              restCarbs: _asInt(targets['rest_carbs_g']),
+              restFat: _asInt(targets['rest_fat_g']),
+          trainingDays: activeTrainingDays,
+            ),
+          ),
+        );
+    if (result == null || !mounted) return;
+    setState(() => _savingTargets = true);
+    try {
+      final updated = await ProgressionReviewService.patchClientDietTargets(
+        clientUserId: widget.clientUserId,
+        rest: {
+          'calories': result.restCalories,
+          'protein_g': result.restProtein,
+          'carbs_g': result.restCarbs,
+          'fat_g': result.restFat,
+        },
+        trainingDays: result.trainingDays,
+      );
+      if (!mounted) return;
+      setState(() => _dietTargets = updated);
+      await _loadDietLog(forceRefresh: true);
+      if (mounted) {
+        AppToast.show(
+          context,
+          'Diet targets updated for client.',
+          type: AppToastType.success,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.show(
+          context,
+          e.toString().replaceFirst('Exception: ', ''),
+          type: AppToastType.error,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingTargets = false);
+    }
+  }
+
   Future<void> _loadComments() async {
     if (mounted) {
       setState(() {
@@ -885,40 +969,44 @@ class _ExpertClientDietReviewPageState
   Future<bool> _startVoiceNoteRecording() async {
     final mealId = _selectedMealId;
     if (mealId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select a logged meal before recording.')),
+      AppToast.show(
+        context,
+        'Select a logged meal before recording.',
+        type: AppToastType.info,
       );
       return false;
     }
     if (_sendingVoiceNote) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Voice note is still uploading.')),
+      AppToast.show(
+        context,
+        'Voice note is still uploading.',
+        type: AppToastType.info,
       );
       return false;
     }
     if ((_pendingVoiceNotePath ?? '').trim().isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Send or cancel the pending voice note first.'),
-        ),
+      AppToast.show(
+        context,
+        'Send or cancel the pending voice note first.',
+        type: AppToastType.info,
       );
       return false;
     }
     if (_isRecordingVoiceNote) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('A voice note is already recording.')),
+      AppToast.show(
+        context,
+        'A voice note is already recording.',
+        type: AppToastType.info,
       );
       return false;
     }
     final hasPermission = await _requestMicrophonePermission();
     if (!mounted) return false;
     if (!hasPermission) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Microphone permission is required. Enable it in app settings.',
-          ),
-        ),
+      AppToast.show(
+        context,
+        'Microphone permission is required. Enable it in app settings.',
+        type: AppToastType.error,
       );
       return false;
     }
@@ -932,9 +1020,11 @@ class _ExpertClientDietReviewPageState
       );
     } catch (e) {
       if (!mounted) return false;
-      ScaffoldMessenger.of(
+      AppToast.show(
         context,
-      ).showSnackBar(SnackBar(content: Text('Could not start recording: $e')));
+        'Could not start recording: $e',
+        type: AppToastType.error,
+      );
       return false;
     }
     if (!mounted) {
@@ -961,8 +1051,10 @@ class _ExpertClientDietReviewPageState
       recordedPath = await _audioRecorder.stop();
     } catch (_) {
       if (!mounted) return false;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not finish voice recording.')),
+      AppToast.show(
+        context,
+        'Could not finish voice recording.',
+        type: AppToastType.error,
       );
       return false;
     }
@@ -980,8 +1072,10 @@ class _ExpertClientDietReviewPageState
     }
     if (audioPath.isEmpty) {
       if (!mounted) return false;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No voice note was recorded.')),
+      AppToast.show(
+        context,
+        'No voice note was recorded.',
+        type: AppToastType.info,
       );
       return false;
     }
@@ -991,8 +1085,10 @@ class _ExpertClientDietReviewPageState
         _pendingVoiceNotePath = audioPath;
       });
       if (showHint) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Recording stopped. Send or cancel.')),
+        AppToast.show(
+          context,
+          'Recording stopped. Send or cancel.',
+          type: AppToastType.info,
         );
       }
     } else {
@@ -1002,7 +1098,7 @@ class _ExpertClientDietReviewPageState
     return true;
   }
 
-  Future<void> _sendPendingVoiceNote() async {
+  Future<void> _sendPendingVoiceNote({String? commentText}) async {
     final mealId = _selectedMealId;
     if (mealId == null || !_hasPendingVoiceNoteForSelectedMeal()) return;
     if (_sendingVoiceNote) return;
@@ -1015,9 +1111,9 @@ class _ExpertClientDietReviewPageState
         mealDate: _selectedDate,
         mealId: mealId,
         audioFilePath: audioPath,
-        commentText: _commentController.text.trim().isEmpty
+        commentText: (commentText ?? _commentController.text).trim().isEmpty
             ? null
-            : _commentController.text.trim(),
+            : (commentText ?? _commentController.text).trim(),
       );
       if (!mounted) return;
       _commentController.clear();
@@ -1026,13 +1122,13 @@ class _ExpertClientDietReviewPageState
       });
       await _clearPendingVoiceNote(deleteFile: true);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Voice note sent.')));
+      AppToast.show(context, 'Voice note sent.', type: AppToastType.success);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      AppToast.show(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
       );
     } finally {
       if (mounted) {
@@ -1214,8 +1310,10 @@ class _ExpertClientDietReviewPageState
       final size = file?.size ?? 0;
       if (size > 10 * 1024 * 1024) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Document must be 10 MB or smaller.')),
+        AppToast.show(
+          context,
+          'Document must be 10 MB or smaller.',
+          type: AppToastType.info,
         );
         return;
       }
@@ -1229,17 +1327,17 @@ class _ExpertClientDietReviewPageState
       final title =
           (uploaded.documentTitle ?? uploaded.originalFilename ?? 'Document')
               .trim();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Uploaded "$title" (${_formatBytes(uploaded.fileSizeBytes)}).',
-          ),
-        ),
+      AppToast.show(
+        context,
+        'Uploaded "$title" (${_formatBytes(uploaded.fileSizeBytes)}).',
+        type: AppToastType.success,
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      AppToast.show(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
       );
     } finally {
       if (mounted) setState(() => _uploadingDietDocument = false);
@@ -1261,334 +1359,347 @@ class _ExpertClientDietReviewPageState
     final remainingCalories = _asInt(remaining['calories']);
     final targetProtein = _asInt(target['protein_g']);
     final consumedProtein = _asInt(consumed['protein_g']);
-    final remainingProtein = _asInt(remaining['protein_g']);
     final targetCarbs = _asInt(target['carbs_g']);
     final consumedCarbs = _asInt(consumed['carbs_g']);
-    final remainingCarbs = _asInt(remaining['carbs_g']);
     final targetFat = _asInt(target['fat_g']);
     final consumedFat = _asInt(consumed['fat_g']);
-    final remainingFat = _asInt(remaining['fat_g']);
     final scorePct = targetCalories > 0
         ? (consumedCalories / targetCalories * 100.0)
         : null;
-    final progress = scorePct == null
-        ? 0.0
-        : ((scorePct / 100.0).clamp(0.0, 1.0)).toDouble();
     final hasSummary = summary.isNotEmpty;
-    final createdBy = (_dietTargets?['created_by'] ?? '').toString().trim();
-    final updatedAt = (_dietTargets?['updated_at'] ?? '').toString().trim();
+    if (!hasSummary) {
+      return TaqaProfileInfoSection(
+        title: 'Daily Summary',
+        items: const [TaqaProfileInfoItem(label: 'Summary', value: 'No data')],
+      );
+    }
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Daily Summary',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-              IconButton(
-                onPressed: (_loadingTargets || _savingTargets)
-                    ? null
-                    : _openEditTargetsSheet,
-                tooltip: 'Edit client diet targets',
-                icon: _savingTargets
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.tune, color: Colors.white70, size: 18),
-              ),
-            ],
-          ),
-          if (_targetsError != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              _targetsError!,
-              style: const TextStyle(color: Colors.orangeAccent, fontSize: 12),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TaqaProfileInfoSection(
+          title: 'Daily Summary',
+          items: [
+            TaqaProfileInfoItem(label: 'Day type', value: dayTypeLabel),
+            TaqaProfileInfoItem(label: 'Target kcal', value: '$targetCalories'),
+            TaqaProfileInfoItem(
+              label: 'Consumed kcal',
+              value: '$consumedCalories',
             ),
-          ],
-          if (createdBy.isNotEmpty || updatedAt.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              [
-                if (createdBy.isNotEmpty) 'Source: ${createdBy.toUpperCase()}',
-                if (updatedAt.isNotEmpty) 'Updated: $updatedAt',
-              ].join(' • '),
-              style: const TextStyle(color: Colors.white54, fontSize: 11),
+            TaqaProfileInfoItem(
+              label: 'Remaining kcal',
+              value: '$remainingCalories',
             ),
-          ],
-          const SizedBox(height: 8),
-          if (!hasSummary)
-            const Text(
-              'No day summary for this date.',
-              style: TextStyle(color: Colors.white70),
-            )
-          else ...[
-            _InfoRow(label: 'Day type', value: dayTypeLabel),
-            const SizedBox(height: 6),
-            _InfoRow(label: 'Target kcal', value: '$targetCalories'),
-            const SizedBox(height: 6),
-            _InfoRow(label: 'Consumed kcal', value: '$consumedCalories'),
-            const SizedBox(height: 6),
-            _InfoRow(label: 'Remaining kcal', value: '$remainingCalories'),
-            const SizedBox(height: 6),
-            _InfoRow(
+            TaqaProfileInfoItem(
               label: 'Goal done',
               value: targetCalories > 0
                   ? '$consumedCalories / $targetCalories kcal'
                   : '-',
             ),
-            const SizedBox(height: 6),
-            _InfoRow(
+            TaqaProfileInfoItem(
               label: 'Goal score',
               value: scorePct == null ? '-' : '${scorePct.toStringAsFixed(0)}%',
             ),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 8,
-                backgroundColor: Colors.white12,
-                valueColor: const AlwaysStoppedAnimation<Color>(
-                  AppColors.accent,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Target vs consumed',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 8),
-            _MacroProgressRow(
+            if (_targetsError != null)
+              const TaqaProfileInfoItem(label: 'Targets', value: 'Unavailable'),
+          ],
+        ),
+        SizedBox(height: TaqaUiScale.h(12)),
+        TaqaProfileInfoSection(
+          title: 'Target vs Consumed',
+          items: [
+            TaqaProfileInfoItem(
               label: 'Calories',
-              consumed: consumedCalories,
-              target: targetCalories,
-              remaining: remainingCalories,
-              unit: 'kcal',
+              value: '$targetCalories / $consumedCalories kcal',
             ),
-            const SizedBox(height: 6),
-            _MacroProgressRow(
+            TaqaProfileInfoItem(
               label: 'Protein',
-              consumed: consumedProtein,
-              target: targetProtein,
-              remaining: remainingProtein,
-              unit: 'g',
+              value: '$targetProtein / $consumedProtein g',
             ),
-            const SizedBox(height: 6),
-            _MacroProgressRow(
+            TaqaProfileInfoItem(
               label: 'Carbs',
-              consumed: consumedCarbs,
-              target: targetCarbs,
-              remaining: remainingCarbs,
-              unit: 'g',
+              value: '$targetCarbs / $consumedCarbs g',
             ),
-            const SizedBox(height: 6),
-            _MacroProgressRow(
+            TaqaProfileInfoItem(
               label: 'Fat',
-              consumed: consumedFat,
-              target: targetFat,
-              remaining: remainingFat,
-              unit: 'g',
+              value: '$targetFat / $consumedFat g',
             ),
           ],
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildMealsCard() {
-    final daySummary = _asMap(_asMap(_dietLog?['diet_log'])['day_summary']);
-    final dayTarget = _asMap(daySummary['target']);
-    final dayTargetCalories = _asInt(dayTarget['calories']);
-    final dayTargetProtein = _asInt(dayTarget['protein_g']);
-    final dayTargetCarbs = _asInt(dayTarget['carbs_g']);
-    final dayTargetFat = _asInt(dayTarget['fat_g']);
     final meals = _loggedMealsFromLog(_dietLog);
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Logged Meals (Select One)',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Logged Meals',
+                style: TextStyle(
+                  color: TaqaUiColors.charcoal,
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(15),
+                  fontWeight: FontWeight.w700,
+                  height: 25 / 15,
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Coach comments are attached to the selected meal.',
-            style: TextStyle(color: Colors.white54, fontSize: 12),
-          ),
-          if (dayTarget.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Day target: $dayTargetCalories kcal • P $dayTargetProtein g • C $dayTargetCarbs g • F $dayTargetFat g',
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+            TaqaOutlineTagButton(
+              label: 'Edit Target',
+              width: TaqaUiScale.w(73),
+              height: TaqaUiScale.h(20),
+              onTap: (_loadingTargets || _savingTargets)
+                  ? null
+                  : _openSharedTargetsEditor,
+              icon: Icon(
+                Icons.tune,
+                size: TaqaUiScale.w(8),
+                color: TaqaUiColors.charcoal,
               ),
             ),
           ],
-          const SizedBox(height: 8),
-          if (meals.isEmpty)
-            const Text(
-              'No logged meals found for this date.',
-              style: TextStyle(color: Colors.white70),
-            )
-          else
-            ...meals.map((meal) {
-              final mealId = _asInt(meal['meal_id']);
-              final mealLabel = _mealLabel(meal);
-              final totals = _asMap(meal['totals']);
-              final mealCalories = _asInt(totals['calories']);
-              final mealProtein = _asInt(totals['protein_g']);
-              final mealCarbs = _asInt(totals['carbs_g']);
-              final mealFat = _asInt(totals['fat_g']);
-              final mealCaloriesScore = dayTargetCalories > 0
-                  ? (mealCalories / dayTargetCalories * 100.0)
-                  : null;
-              final items = _asMapList(meal['items']);
-              final isSelected = mealId > 0 && mealId == _selectedMealId;
-              final previewItems = items
-                  .take(3)
-                  .map((item) {
-                    final itemName = (item['item_name'] ?? '')
-                        .toString()
-                        .trim();
-                    if (itemName.isEmpty) return null;
-                    return itemName;
-                  })
-                  .whereType<String>()
-                  .toList();
-              return InkWell(
-                onTap: mealId <= 0
-                    ? null
-                    : () {
-                        if (_isRecordingVoiceNote ||
-                            (_pendingVoiceNotePath ?? '').trim().isNotEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Finish or cancel the current voice note before changing meal.',
-                              ),
-                            ),
-                          );
-                          return;
-                        }
-                        setState(() => _selectedMealId = mealId);
-                      },
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.accent.withValues(alpha: 0.12)
-                        : Colors.white.withValues(alpha: 0.03),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isSelected ? AppColors.accent : Colors.white12,
-                      width: isSelected ? 1.4 : 1.0,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              mealLabel,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          if (isSelected)
-                            const Padding(
-                              padding: EdgeInsets.only(right: 8),
-                              child: Icon(
-                                Icons.check_circle,
-                                size: 18,
-                                color: AppColors.accent,
-                              ),
-                            ),
-                          Text(
-                            mealCaloriesScore == null
-                                ? '$mealCalories kcal'
-                                : '$mealCalories kcal (${mealCaloriesScore.toStringAsFixed(0)}%)',
-                            style: const TextStyle(color: Colors.white70),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'P $mealProtein g • C $mealCarbs g • F $mealFat g',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${items.length} item(s)',
-                        style: const TextStyle(
-                          color: Colors.white54,
-                          fontSize: 12,
-                        ),
-                      ),
-                      if (previewItems.isNotEmpty) ...[
-                        const SizedBox(height: 4),
+        ),
+        SizedBox(height: TaqaUiScale.h(8)),
+        if (meals.isEmpty)
+          const TaqaProfileInfoSection(
+            title: 'Meals',
+            items: [
+              TaqaProfileInfoItem(label: 'Logged meals', value: 'No data'),
+            ],
+          )
+        else
+          ...meals.map((meal) {
+            final mealId = _asInt(meal['meal_id']);
+            final mealLabel = _mealLabel(meal);
+            final totals = _asMap(meal['totals']);
+            final mealCalories = _asInt(totals['calories']);
+            final mealProtein = _asInt(totals['protein_g']);
+            final mealCarbs = _asInt(totals['carbs_g']);
+            final mealFat = _asInt(totals['fat_g']);
+            final items = _asMapList(meal['items']);
+            final previewItems = items
+                .take(3)
+                .map((item) {
+                  final itemName = (item['item_name'] ?? '').toString().trim();
+                  if (itemName.isEmpty) return null;
+                  return itemName;
+                })
+                .whereType<String>()
+                .toList();
+            final mealTitle = previewItems.isEmpty
+                ? mealLabel
+                : '$mealLabel (${previewItems.join(' • ')})';
+            final commentsForMeal = _comments
+                .where(
+                  (comment) =>
+                      comment.mealDate.trim() == _dateToken(_selectedDate),
+                )
+                .where((comment) => comment.mealId == mealId)
+                .toList();
+            return Column(
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(bottom: TaqaUiScale.h(8)),
+                  child: TaqaManagementListCard(
+                    radius: 15,
+                    showBorder: false,
+                    padding: TaqaUiScale.insetsLTRB(14, 10, 14, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          previewItems.join(' • '),
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
+                          mealTitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: TaqaUiColors.charcoal,
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(15),
+                            fontWeight: FontWeight.w700,
+                            height: 25 / 15,
                           ),
+                        ),
+                        TaqaProfileInfoRow(
+                          label: 'Calories',
+                          value: '$mealCalories kcal',
+                        ),
+                        TaqaProfileInfoRow(
+                          label: 'Protein',
+                          value: '$mealProtein g',
+                        ),
+                        TaqaProfileInfoRow(
+                          label: 'Carbs',
+                          value: '$mealCarbs g',
+                        ),
+                        TaqaProfileInfoRow(label: 'Fat', value: '$mealFat g'),
+                        SizedBox(height: TaqaUiScale.h(8)),
+                        TaqaFilledButton(
+                          label: 'Leave Comment',
+                          onTap: mealId <= 0
+                              ? null
+                              : () => _openMealCommentComposer(
+                                  mealId: mealId,
+                                  mealTitle: mealTitle,
+                                ),
+                          height: 45,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
                         ),
                       ],
-                    ],
+                    ),
                   ),
                 ),
-              );
-            }),
-        ],
+                if (commentsForMeal.isNotEmpty)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: TaqaUiScale.h(8)),
+                    child: _buildGivenCommentsCard(commentsForMeal),
+                  ),
+              ],
+            );
+          }),
+      ],
+    );
+  }
+
+  Widget _buildGivenCommentsCard(List<CoachDietComment> comments) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ...comments.map(
+          (comment) => Padding(
+            padding: EdgeInsets.only(bottom: TaqaUiScale.h(8)),
+            child: TaqaManagementListCard(
+              radius: 15,
+              showBorder: false,
+              padding: TaqaUiScale.insetsLTRB(14, 10, 14, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Given Comments',
+                        style: TextStyle(
+                          color: TaqaUiColors.charcoal,
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          fontSize: TaqaUiScale.sp(15),
+                          fontWeight: FontWeight.w700,
+                          height: 25 / 15,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        _formatDateTime(comment.createdAt ?? comment.updatedAt),
+                        style: TextStyle(
+                          color: TaqaUiColors.charcoal,
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          fontSize: TaqaUiScale.sp(10),
+                          fontWeight: FontWeight.w400,
+                          height: 12 / 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (comment.commentText.trim().isNotEmpty) ...[
+                    SizedBox(height: TaqaUiScale.h(6)),
+                    Text(
+                      comment.commentText.trim(),
+                      style: TextStyle(
+                        color: TaqaUiColors.charcoal,
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(15),
+                        fontWeight: FontWeight.w400,
+                        height: 21 / 15,
+                      ),
+                    ),
+                  ],
+                  if (_normalizeVoiceNoteUrl(
+                    comment.voiceNoteUrl,
+                  ).isNotEmpty) ...[
+                    SizedBox(height: TaqaUiScale.h(8)),
+                    TaqaOutlineTagButton(
+                      label: _isVoiceNotePlaying(comment.voiceNoteUrl)
+                          ? 'Pause Voice'
+                          : 'Play Voice',
+                      width: TaqaUiScale.w(94),
+                      height: TaqaUiScale.h(20),
+                      onTap: () =>
+                          _toggleVoiceNotePlayback(comment.voiceNoteUrl),
+                      icon: Icon(
+                        _isVoiceNotePlaying(comment.voiceNoteUrl)
+                            ? Icons.pause
+                            : Icons.play_arrow,
+                        size: TaqaUiScale.w(10),
+                        color: TaqaUiColors.charcoal,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openMealCommentComposer({
+    required int mealId,
+    required String mealTitle,
+  }) async {
+    if (_isRecordingVoiceNote ||
+        (_pendingVoiceNotePath ?? '').trim().isNotEmpty) {
+      AppToast.show(
+        context,
+        'Finish or cancel the current voice note first.',
+        type: AppToastType.info,
+      );
+      return;
+    }
+    setState(() => _selectedMealId = mealId);
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => TaqaCommentComposerPage(
+          subject: mealTitle,
+          onSubmit: (text) => _submitMealComment(text: text, mealId: mealId),
+          onStartVoiceNote: _startVoiceNoteRecording,
+          onStopVoiceNote: _stopVoiceNoteRecording,
+          onSendVoiceNote: (text) => _sendPendingVoiceNote(commentText: text),
+          onCancelVoiceNote: _cancelComposerVoiceNote,
+        ),
       ),
     );
   }
 
+  Future<void> _cancelComposerVoiceNote() async {
+    if (_isRecordingVoiceNote) {
+      await _stopVoiceNoteRecording(showHint: false);
+    }
+    await _clearPendingVoiceNote(deleteFile: true);
+  }
+
+  Future<void> _submitMealComment({
+    required String text,
+    required int mealId,
+  }) async {
+    final created = await ProgressionReviewService.addClientDietComment(
+      clientUserId: widget.clientUserId,
+      mealDate: _selectedDate,
+      mealId: mealId,
+      commentText: text,
+    );
+    if (!mounted) return;
+    setState(() => _comments = [created, ..._comments]);
+    AppToast.show(context, 'Diet comment sent.', type: AppToastType.success);
+  }
+
+  // ignore: unused_element
   Widget _buildCommentsCard() {
     final selectedDateToken = _dateToken(_selectedDate);
     final selectedMealId = _selectedMealId;
@@ -2051,68 +2162,72 @@ class _ExpertClientDietReviewPageState
     final canGoNext = _selectedDate.isBefore(today);
 
     return Scaffold(
-      backgroundColor: AppColors.black,
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       appBar: TaqaPageAppBar(
-        backgroundColor: AppColors.black,
-        titleColor: Colors.white,
-        title: '${widget.clientName} • Diet Review',
-        trailing: TextButton.icon(
-          onPressed: _uploadingDietDocument ? null : _uploadDietDocument,
-          icon: _uploadingDietDocument
-              ? const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.upload_file),
-          label: Text(
-            _uploadingDietDocument ? 'Uploading...' : 'Upload a plan',
-          ),
-          style: TextButton.styleFrom(
-            foregroundColor: Colors.white,
-            textStyle: const TextStyle(fontWeight: FontWeight.w700),
+        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        titleColor: TaqaUiColors.charcoal,
+        title: 'Diet Review',
+        trailing: Transform.translate(
+          offset: Offset(0, TaqaUiScale.h(8)),
+          child: Padding(
+            padding: EdgeInsets.only(right: TaqaUiScale.w(9)),
+            child: TaqaOutlineTagButton(
+              label: _uploadingDietDocument ? 'Uploading' : 'Upload Plan',
+              width: TaqaUiScale.w(73),
+              height: TaqaUiScale.h(20),
+              onTap: _uploadingDietDocument ? null : _uploadDietDocument,
+              icon: Text(
+                '+',
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+                  fontSize: TaqaUiScale.sp(8),
+                  fontWeight: FontWeight.w400,
+                  height: 10 / 8,
+                  color: TaqaUiColors.charcoal,
+                ),
+              ),
+            ),
           ),
         ),
       ),
-      body: RefreshIndicator(
+      body: TaqaRefreshIndicator(
         onRefresh: () => _loadAll(forceRefresh: true),
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(20),
+          padding: TaqaUiScale.insetsLTRB(16, 12, 17, 24),
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.cardDark,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white10),
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: _loadingLog ? null : () => _shiftDay(-1),
-                    icon: const Icon(Icons.chevron_left),
-                  ),
-                  Expanded(
-                    child: Text(
-                      _prettyDate(_selectedDate),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: (_loadingLog || !canGoNext)
-                        ? null
-                        : () => _shiftDay(1),
-                    icon: const Icon(Icons.chevron_right),
-                  ),
-                ],
-              ),
+            TaqaExpertClientCard(
+              name: widget.clientName,
+              avatarUrl: widget.clientAvatarUrl,
+              status: widget.clientActivityStatus,
+              showStatus: (widget.clientActivityStatus ?? '').trim().isNotEmpty,
+              subtitle: 'User ID: ${widget.clientUserId}',
+              details: const ['Daily diet review'],
+              alerts: const [],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: TaqaUiScale.h(12)),
+            TaqaDateCarouselSwitcher(
+              previousDate: _dayKey(
+                DateTime(
+                  _selectedDate.year,
+                  _selectedDate.month,
+                  _selectedDate.day - 1,
+                ),
+              ),
+              selectedDate: _selectedDate,
+              nextDate: _dayKey(
+                DateTime(
+                  _selectedDate.year,
+                  _selectedDate.month,
+                  _selectedDate.day + 1,
+                ),
+              ),
+              onPrevious: _loadingLog ? null : () => _shiftDay(-1),
+              onSelected: null,
+              onNext: (_loadingLog || !canGoNext) ? null : () => _shiftDay(1),
+              loading: _loadingLog,
+            ),
+            SizedBox(height: TaqaUiScale.h(12)),
             if (_loadingLog)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 30),
@@ -2139,91 +2254,13 @@ class _ExpertClientDietReviewPageState
               )
             else ...[
               _buildSummaryCard(),
-              const SizedBox(height: 12),
+              SizedBox(height: TaqaUiScale.h(12)),
               _buildMealsCard(),
             ],
-            const SizedBox(height: 12),
-            _buildCommentsCard(),
-            const SizedBox(height: 24),
+            SizedBox(height: TaqaUiScale.h(24)),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _MacroProgressRow extends StatelessWidget {
-  const _MacroProgressRow({
-    required this.label,
-    required this.consumed,
-    required this.target,
-    required this.remaining,
-    required this.unit,
-  });
-
-  final String label;
-  final int consumed;
-  final int target;
-  final int remaining;
-  final String unit;
-
-  @override
-  Widget build(BuildContext context) {
-    final score = target > 0 ? (consumed / target * 100.0) : null;
-    return Row(
-      children: [
-        SizedBox(
-          width: 68,
-          child: Text(
-            label,
-            style: const TextStyle(color: Colors.white60, fontSize: 12),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            '$consumed / $target $unit',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        Text(
-          'Rem $remaining $unit${score == null ? '' : ' • ${score.toStringAsFixed(0)}%'}',
-          style: const TextStyle(color: Colors.white54, fontSize: 11),
-        ),
-      ],
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(color: Colors.white60, fontSize: 13),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-          ),
-        ),
-      ],
     );
   }
 }

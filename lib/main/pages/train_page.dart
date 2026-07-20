@@ -5383,6 +5383,9 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                                                 ),
                                                 Text(
                                                   exercisePreview,
+                                                  maxLines: 2,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                   style: TextStyle(
                                                     fontFamily:
                                                         TaqaUiFontFamilies

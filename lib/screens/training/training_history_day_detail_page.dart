@@ -70,7 +70,7 @@ class TrainingHistoryDayDetailPage extends StatelessWidget {
             ...completedExercises.map((ex) {
               return Padding(
                 padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
-                child: _HistoryExerciseCard(exercise: ex),
+                child: TaqaTrainingHistoryExerciseCard(exercise: ex),
               );
             }),
         ],
@@ -79,8 +79,9 @@ class TrainingHistoryDayDetailPage extends StatelessWidget {
   }
 }
 
-class _HistoryExerciseCard extends StatelessWidget {
-  const _HistoryExerciseCard({required this.exercise});
+/// Shared completed-exercise card for training history views.
+class TaqaTrainingHistoryExerciseCard extends StatelessWidget {
+  const TaqaTrainingHistoryExerciseCard({super.key, required this.exercise});
 
   final Map<String, dynamic> exercise;
 

@@ -5,9 +5,17 @@ import 'package:intl/intl.dart';
 
 import '../core/account_storage.dart';
 import '../services/coach/coach_habits_service.dart';
-import '../theme/app_theme.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_toast.dart';
+import '../TaqaUI/components/taqa_expert_dashboard_ui.dart';
+import '../TaqaUI/components/taqa_expert_client_dashboard_ui.dart';
+import '../TaqaUI/components/taqa_empty_state_row.dart';
+import '../TaqaUI/components/taqa_filled_button.dart';
+import '../TaqaUI/components/taqa_pill_tab.dart';
+import '../TaqaUI/components/taqa_refresh_indicator.dart';
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 
 class ExpertClientHabitsPage extends StatefulWidget {
   const ExpertClientHabitsPage({
@@ -15,11 +23,13 @@ class ExpertClientHabitsPage extends StatefulWidget {
     required this.clientId,
     required this.clientName,
     this.avatarUrl,
+    this.clientActivityStatus,
   });
 
   final int clientId;
   final String clientName;
   final String? avatarUrl;
+  final String? clientActivityStatus;
 
   @override
   State<ExpertClientHabitsPage> createState() => _ExpertClientHabitsPageState();
@@ -33,6 +43,7 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
   final TextEditingController _habitController = TextEditingController();
 
   bool _loading = true;
+  bool _hasCompletedInitialLoad = false;
   bool _saving = false;
   bool _sendingReminder = false;
   String _newHabitType = CoachHabitItem.weeklyType;
@@ -105,6 +116,7 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
         _habits = const [];
         _errorText = 'Non available';
         _loading = false;
+        _hasCompletedInitialLoad = true;
       });
       return;
     }
@@ -121,6 +133,7 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
         _habits = habits;
         _errorText = null;
         _loading = false;
+        _hasCompletedInitialLoad = true;
       });
     } catch (e) {
       if (!mounted) return;
@@ -129,6 +142,7 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
         _habits = const [];
         _errorText = _normalizeError(e);
         _loading = false;
+        _hasCompletedInitialLoad = true;
       });
     }
   }
@@ -144,19 +158,6 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
       if (clean.isNotEmpty) return clean;
     }
     return raw.isEmpty ? 'Non available' : raw;
-  }
-
-  String _initials() {
-    final trimmed = widget.clientName.trim();
-    if (trimmed.isEmpty) return '?';
-    final parts = trimmed
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
-        .toList();
-    if (parts.isEmpty) return '?';
-    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-    return '${parts.first.substring(0, 1)}${parts.last.substring(0, 1)}'
-        .toUpperCase();
   }
 
   String _formatDateTime(CoachHabitItem habit) {
@@ -294,7 +295,6 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
   }
 
   Widget _buildHeaderCard() {
-    final imageUrl = (widget.avatarUrl ?? '').trim();
     final checkedCount = _habits.where((h) => h.isCompleted).length;
     final totalCount = _habits.length;
     final canManage = _canManageHabits();
@@ -305,192 +305,142 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
         _uncheckedHabitsCount() > 0 &&
         !isCooldownActive;
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: Colors.white10,
-                foregroundImage: imageUrl.isNotEmpty
-                    ? NetworkImage(imageUrl)
-                    : null,
-                onForegroundImageError: (_, _) {},
-                child: Text(
-                  _initials(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.clientName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Checked in current cycle: $checkedCount / $totalCount',
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _sendingReminder || !canSendReminder
-                  ? null
-                  : _sendReminder,
-              icon: _sendingReminder
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Icon(
-                      isCooldownActive
-                          ? Icons.hourglass_top_rounded
-                          : Icons.notifications_active_outlined,
-                    ),
-              label: Text(
-                _sendingReminder
-                    ? 'Sending...'
-                    : isCooldownActive
-                    ? 'Reminder Cooldown Active'
-                    : 'Remind Client to Check Habits',
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                foregroundColor: Colors.black,
-                disabledBackgroundColor: Colors.white12,
-                disabledForegroundColor: Colors.white54,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TaqaExpertClientCard(
+          name: widget.clientName,
+          avatarUrl: widget.avatarUrl,
+          status: widget.clientActivityStatus,
+          showStatus: (widget.clientActivityStatus ?? '').trim().isNotEmpty,
+          subtitle: 'User ID: ${widget.clientId}',
+          details: ['Checked in current cycle: $checkedCount / $totalCount'],
+          alerts: const [],
+        ),
+        SizedBox(height: TaqaUiScale.h(12)),
+        TaqaFilledButton(
+          label: _sendingReminder
+              ? 'Sending...'
+              : 'Remind Client to Check Habits',
+          onTap: _sendingReminder || !canSendReminder ? null : _sendReminder,
+          loading: _sendingReminder,
+          height: 45,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+        ),
+        if (!canSendReminder)
+          Padding(
+            padding: EdgeInsets.only(top: TaqaUiScale.h(7)),
+            child: Text(
+              'Reminder is available only when at least one assigned habit is unchecked.',
+              style: TextStyle(
+                color: TaqaUiColors.charcoal,
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(10),
+                fontWeight: FontWeight.w400,
+                height: 12 / 10,
               ),
             ),
           ),
-          if (!canSendReminder && canManage)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(
-                isCooldownActive
-                    ? 'Reminder cooldown is active for this client.'
-                    : 'Reminder is available only when at least one assigned habit is unchecked.',
-                style: const TextStyle(color: Colors.white60, fontSize: 12),
-              ),
-            ),
-        ],
-      ),
+      ],
     );
   }
 
   Widget _buildAddCard() {
     final canManage = _canManageHabits();
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-      ),
+    return TaqaManagementListCard(
+      minHeight: 206,
+      radius: 15,
+      showBorder: false,
+      padding: TaqaUiScale.insetsLTRB(14, 10, 14, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Set Habits',
+          Text(
+            'Habit',
             style: TextStyle(
-              color: Colors.white,
+              color: TaqaUiColors.charcoal,
+              fontFamily: TaqaUiFontFamilies.interTight,
               fontWeight: FontWeight.w700,
-              fontSize: 16,
+              fontSize: TaqaUiScale.sp(15),
+              height: 25 / 15,
             ),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: TaqaUiScale.h(6)),
           TextField(
             controller: _habitController,
             enabled: canManage,
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _addHabit(),
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(
+              color: TaqaUiColors.charcoal,
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(15),
+              fontWeight: FontWeight.w400,
+              height: 21 / 15,
+            ),
             decoration: InputDecoration(
               hintText: 'Example: 20 min walk daily',
-              hintStyle: const TextStyle(color: Colors.white38),
-              filled: true,
-              fillColor: Colors.white.withValues(alpha: 0.04),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Colors.white12),
+              hintStyle: TextStyle(
+                color: TaqaUiColors.unnamedColorE3e3e3,
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(15),
+                fontWeight: FontWeight.w400,
+                height: 21 / 15,
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Colors.white12),
+              isDense: true,
+              contentPadding: EdgeInsets.only(bottom: TaqaUiScale.h(6)),
+              border: const UnderlineInputBorder(
+                borderSide: BorderSide(color: TaqaUiColors.charcoal, width: .5),
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(
-                  color: AppColors.accent.withValues(alpha: 0.8),
-                ),
+              enabledBorder: const UnderlineInputBorder(
+                borderSide: BorderSide(color: TaqaUiColors.charcoal, width: .5),
               ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 10,
+              focusedBorder: const UnderlineInputBorder(
+                borderSide: BorderSide(color: TaqaUiColors.charcoal, width: .5),
               ),
             ),
           ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
+          SizedBox(height: TaqaUiScale.h(14)),
+          Row(
             children: [
-              ChoiceChip(
-                label: const Text('Weekly'),
-                selected: _newHabitType == CoachHabitItem.weeklyType,
-                onSelected: !canManage
-                    ? null
-                    : (_) {
-                        setState(
+              Expanded(
+                child: TaqaPillTab(
+                  label: 'Weekly',
+                  active: _newHabitType == CoachHabitItem.weeklyType,
+                  activeColor: TaqaUiColors.charcoal,
+                  activeTextColor: TaqaUiColors.white,
+                  onTap: !canManage
+                      ? null
+                      : () => setState(
                           () => _newHabitType = CoachHabitItem.weeklyType,
-                        );
-                      },
+                        ),
+                ),
               ),
-              ChoiceChip(
-                label: const Text('Daily'),
-                selected: _newHabitType == CoachHabitItem.dailyType,
-                onSelected: !canManage
-                    ? null
-                    : (_) {
-                        setState(
+              SizedBox(width: TaqaUiScale.w(15)),
+              Expanded(
+                child: TaqaPillTab(
+                  label: 'Daily',
+                  active: _newHabitType == CoachHabitItem.dailyType,
+                  activeColor: TaqaUiColors.charcoal,
+                  activeTextColor: TaqaUiColors.white,
+                  onTap: !canManage
+                      ? null
+                      : () => setState(
                           () => _newHabitType = CoachHabitItem.dailyType,
-                        );
-                      },
+                        ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _saving || !canManage ? null : _addHabit,
-              child: Text(_saving ? 'Saving...' : 'Add Habit'),
-            ),
+          SizedBox(height: TaqaUiScale.h(16)),
+          TaqaFilledButton(
+            label: _saving ? 'Saving...' : 'Add Habit',
+            onTap: _saving || !canManage ? null : _addHabit,
+            loading: _saving,
+            height: 45,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
           ),
         ],
       ),
@@ -509,148 +459,132 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
         return bd.compareTo(ad);
       });
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Habits',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Habits',
+          style: TextStyle(
+            color: TaqaUiColors.charcoal,
+            fontFamily: TaqaUiFontFamilies.interTight,
+            fontWeight: FontWeight.w700,
+            fontSize: TaqaUiScale.sp(15),
+            height: 25 / 15,
           ),
-          const SizedBox(height: 10),
-          if (_errorText != null)
-            Text(_errorText!, style: const TextStyle(color: Colors.white70))
-          else if (habits.isEmpty)
-            const Text(
-              'No habits set yet.',
-              style: TextStyle(color: Colors.white70),
-            )
-          else
-            ...habits.map(
-              (habit) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.03),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white10),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        habit.isCompleted
-                            ? Icons.check_circle
-                            : Icons.radio_button_unchecked,
-                        size: 18,
-                        color: habit.isCompleted
-                            ? AppColors.successGreen
-                            : Colors.white38,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              habit.habit,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
+        ),
+        SizedBox(height: TaqaUiScale.h(8)),
+        if (_errorText != null)
+          const TaqaEmptyStateRow(text: 'Habits are not available.')
+        else if (habits.isEmpty)
+          const TaqaEmptyStateRow(text: 'No habits set yet.')
+        else
+          ...habits.map(
+            (habit) => Padding(
+              padding: EdgeInsets.only(bottom: TaqaUiScale.h(8)),
+              child: TaqaManagementListCard(
+                radius: 15,
+                showBorder: false,
+                padding: TaqaUiScale.insetsLTRB(14, 10, 6, 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            habit.habit,
+                            style: TextStyle(
+                              color: TaqaUiColors.charcoal,
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: TaqaUiScale.sp(15),
+                              fontWeight: FontWeight.w700,
+                              height: 25 / 15,
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Type: ${_habitTypeLabel(habit.habitType)}',
-                              style: const TextStyle(
-                                color: Colors.white60,
-                                fontSize: 12,
-                              ),
+                          ),
+                          SizedBox(height: TaqaUiScale.h(2)),
+                          Text(
+                            'Type: ${_habitTypeLabel(habit.habitType)}',
+                            style: TextStyle(
+                              color: TaqaUiColors.charcoal,
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: TaqaUiScale.sp(15),
+                              fontWeight: FontWeight.w400,
+                              height: 25 / 15,
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              _formatDateTime(habit),
-                              style: const TextStyle(
-                                color: Colors.white60,
-                                fontSize: 12,
-                              ),
-                            ),
-                            if (habit.isDaily &&
-                                habit.weekStart != null &&
-                                habit.today != null) ...[
-                              const SizedBox(height: 6),
-                              _WeekChecklistRow(habit: habit),
-                            ],
+                          ),
+                          if (habit.isDaily &&
+                              habit.weekStart != null &&
+                              habit.today != null) ...[
+                            SizedBox(height: TaqaUiScale.h(5)),
+                            _WeekChecklistRow(habit: habit),
+                            SizedBox(height: TaqaUiScale.h(7)),
                           ],
+                          TaqaClientAlertText(text: _formatDateTime(habit)),
+                        ],
+                      ),
+                    ),
+                    Tooltip(
+                      message: 'Delete',
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _saving || !_canManageHabits()
+                              ? null
+                              : () => _deleteHabit(habit),
+                          borderRadius: TaqaUiScale.radius(5),
+                          child: SizedBox(
+                            width: TaqaUiScale.w(20),
+                            height: TaqaUiScale.h(20),
+                            child: Center(
+                              child: Icon(
+                                Icons.close,
+                                color: TaqaUiColors.charcoal,
+                                size: TaqaUiScale.w(8),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                      IconButton(
-                        onPressed: _saving || !_canManageHabits()
-                            ? null
-                            : () => _deleteHabit(habit),
-                        tooltip: 'Delete',
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          color: Colors.white60,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final body = RefreshIndicator(
+    final body = TaqaRefreshIndicator(
       onRefresh: _load,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(20),
+        padding: TaqaUiScale.insetsLTRB(16, 12, 17, 24),
         children: [
           _buildHeaderCard(),
-          const SizedBox(height: 12),
+          SizedBox(height: TaqaUiScale.h(12)),
           _buildAddCard(),
-          const SizedBox(height: 12),
+          SizedBox(height: TaqaUiScale.h(12)),
           _buildHabitsListCard(),
-          const SizedBox(height: 20),
+          SizedBox(height: TaqaUiScale.h(20)),
         ],
       ),
     );
 
     return Scaffold(
-      backgroundColor: AppColors.black,
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       appBar: TaqaPageAppBar(
-        backgroundColor: AppColors.black,
-        titleColor: Colors.white,
-        title: 'Client Habits',
-        trailing: IconButton(
-          onPressed: _loading ? null : _load,
-          tooltip: 'Refresh',
-          icon: const Icon(Icons.refresh),
-        ),
+        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        titleColor: TaqaUiColors.unnamedColor1c1d17,
+        title: 'Habits',
       ),
       body: Stack(
         children: [
           body,
-          if (_loading)
+          if (_loading && !_hasCompletedInitialLoad)
             const Positioned.fill(
               child: IgnorePointer(
                 child: Center(child: CircularProgressIndicator()),
@@ -695,39 +629,47 @@ class _WeekChecklistRow extends StatelessWidget {
         Color foreground;
         if (isFuture) {
           background = Colors.transparent;
-          foreground = Colors.white24;
+          foreground = TaqaUiColors.charcoal.withValues(alpha: 0.24);
         } else if (isChecked) {
-          background = AppColors.successGreen.withValues(alpha: 0.18);
-          foreground = AppColors.successGreen;
+          background = const Color(0xFF3BE971).withValues(alpha: 0.18);
+          foreground = const Color(0xFF3BE971);
         } else {
-          background = Colors.white.withValues(alpha: 0.05);
-          foreground = Colors.white38;
+          background = TaqaUiColors.charcoal.withValues(alpha: 0.05);
+          foreground = TaqaUiColors.charcoal.withValues(alpha: 0.38);
         }
 
         return Padding(
-          padding: const EdgeInsets.only(right: 5),
+          padding: EdgeInsets.only(right: TaqaUiScale.w(5)),
           child: Column(
             children: [
               Container(
-                width: 18,
-                height: 18,
+                width: TaqaUiScale.w(18),
+                height: TaqaUiScale.h(18),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: background,
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: isFuture ? Colors.white12 : foreground,
-                    width: 1,
+                    width: TaqaUiScale.r(1),
                   ),
                 ),
                 child: isChecked
-                    ? Icon(Icons.check, size: 11, color: foreground)
+                    ? Icon(
+                        Icons.check,
+                        size: TaqaUiScale.w(11),
+                        color: foreground,
+                      )
                     : null,
               ),
-              const SizedBox(height: 2),
+              SizedBox(height: TaqaUiScale.h(2)),
               Text(
                 _dayLabels[index],
-                style: TextStyle(fontSize: 9, color: foreground),
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(9),
+                  color: foreground,
+                ),
               ),
             ],
           ),
