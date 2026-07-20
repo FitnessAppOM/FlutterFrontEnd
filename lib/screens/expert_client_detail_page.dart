@@ -1539,59 +1539,26 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                                   if (hasReplyVoiceNote) ...[
                                     if (replyMessage.isNotEmpty)
                                       SizedBox(height: TaqaUiScale.h(4)),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      children: [
-                                        TextButton.icon(
-                                          onPressed: isReplyVoiceLoading
-                                              ? null
-                                              : () async {
-                                                  await _toggleVoiceNotePlayback(
-                                                    replyVoiceNoteUrl,
-                                                  );
-                                                  if (!mounted) return;
-                                                  setSheetState(() {});
-                                                },
-                                          style: TextButton.styleFrom(
-                                            foregroundColor:
-                                                TaqaUiColors.charcoal,
-                                            minimumSize: Size(
-                                              0,
-                                              TaqaUiScale.h(26),
-                                            ),
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: TaqaUiScale.w(8),
-                                              vertical: TaqaUiScale.h(4),
-                                            ),
-                                            tapTargetSize: MaterialTapTargetSize
-                                                .shrinkWrap,
-                                            visualDensity: const VisualDensity(
-                                              horizontal: -2,
-                                              vertical: -3,
-                                            ),
-                                          ),
-                                          icon: isReplyVoiceLoading
-                                              ? SizedBox(
-                                                  width: TaqaUiScale.w(14),
-                                                  height: TaqaUiScale.h(14),
-                                                  child:
-                                                      const CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                      ),
-                                                )
-                                              : Icon(
-                                                  isReplyVoicePlaying
-                                                      ? Icons.pause
-                                                      : Icons.play_arrow,
-                                                  size: TaqaUiScale.w(16),
-                                                ),
-                                          label: Text(
-                                            isReplyVoicePlaying
-                                                ? 'Pause'
-                                                : 'Play',
-                                          ),
-                                        ),
-                                      ],
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: _reviewPillButton(
+                                        icon: isReplyVoicePlaying
+                                            ? Icons.pause
+                                            : Icons.play_arrow,
+                                        label: isReplyVoicePlaying
+                                            ? 'Pause'
+                                            : 'Play',
+                                        loading: isReplyVoiceLoading,
+                                        onTap: isReplyVoiceLoading
+                                            ? null
+                                            : () async {
+                                                await _toggleVoiceNotePlayback(
+                                                  replyVoiceNoteUrl,
+                                                );
+                                                if (!mounted) return;
+                                                setSheetState(() {});
+                                              },
+                                      ),
                                     ),
                                   ],
                                   SizedBox(height: TaqaUiScale.h(4)),

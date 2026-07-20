@@ -15,13 +15,13 @@ import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../TaqaUI/components/taqa_expert_dashboard_ui.dart';
 import '../../TaqaUI/components/taqa_loading_indicator.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
 import '../../config/base_url.dart';
 import '../../core/user_friendly_error.dart';
 import '../../services/coach/chat_attachment_file_service.dart';
 import '../../services/coach/coach_support_chat_service.dart';
 import '../../services/coach/voice_note_audio_service.dart';
 import '../../services/core/pdf_open_service.dart';
-import '../../theme/app_theme.dart';
 import 'chat_video_player_page.dart';
 import 'chat_video_preview_tile.dart';
 
@@ -240,19 +240,17 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
     try {
       await CoachSupportChatService.reportMessage(messageId: message.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Message reported.')));
+      AppToast.show(context, 'Message reported.', type: AppToastType.success);
     } catch (e) {
       if (!mounted) return;
       final text = userFriendlyErrorMessage(
         e,
         fallback: 'Failed to report message. Please try again.',
       );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(text.isEmpty ? 'Failed to report message.' : text),
-        ),
+      AppToast.show(
+        context,
+        text.isEmpty ? 'Failed to report message.' : text,
+        type: AppToastType.error,
       );
     }
   }
@@ -311,9 +309,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
         : '.${picked.extension!.trim().toLowerCase()}';
     final type = _inferAttachmentType(extension: ext);
     if (type == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Unsupported file type.')));
+      AppToast.show(context, 'Unsupported file type.', type: AppToastType.error);
       return;
     }
 
@@ -417,9 +413,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
           : '.${picked.path.split('.').last.toLowerCase()}';
       final type = _inferAttachmentType(extension: ext);
       if (type == null || (type != 'image' && type != 'video')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unsupported media type.')),
-        );
+        AppToast.show(context, 'Unsupported media type.', type: AppToastType.error);
         return;
       }
 
@@ -439,17 +433,17 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not open gallery: $e')));
+      AppToast.show(context, 'Could not open gallery: $e', type: AppToastType.error);
     }
   }
 
   Future<void> _startVoiceRecording() async {
     if (_sending || _isRecordingVoice) return;
     if (_pendingAttachmentFile != null && _pendingAttachmentType != 'voice') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Remove selected attachment first.')),
+      AppToast.show(
+        context,
+        'Remove selected attachment first.',
+        type: AppToastType.info,
       );
       return;
     }
@@ -457,8 +451,10 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       final hasPermission = await _audioRecorder.hasPermission();
       if (!hasPermission) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Microphone permission is required.')),
+        AppToast.show(
+          context,
+          'Microphone permission is required.',
+          type: AppToastType.error,
         );
         return;
       }
@@ -517,9 +513,11 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      AppToast.show(
         context,
-      ).showSnackBar(SnackBar(content: Text(_voiceStartErrorMessage(e))));
+        _voiceStartErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -596,9 +594,11 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       setState(() => _activeVoiceKey = key);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      AppToast.show(
         context,
-      ).showSnackBar(SnackBar(content: Text('Could not play voice note: $e')));
+        'Could not play voice note: $e',
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -626,9 +626,11 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       setState(() => _activeVoiceKey = key);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      AppToast.show(
         context,
-      ).showSnackBar(SnackBar(content: Text('Could not play voice note: $e')));
+        'Could not play voice note: $e',
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -677,9 +679,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not open image: $e')));
+      AppToast.show(context, 'Could not open image: $e', type: AppToastType.error);
     } finally {
       if (mounted) {
         setState(() => _openingAttachment = false);
@@ -738,9 +738,11 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      AppToast.show(
         context,
-      ).showSnackBar(SnackBar(content: Text('Could not open document: $e')));
+        'Could not open document: $e',
+        type: AppToastType.error,
+      );
     } finally {
       if (mounted) {
         setState(() => _openingAttachment = false);
@@ -770,9 +772,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not open video: $e')));
+      AppToast.show(context, 'Could not open video: $e', type: AppToastType.error);
     } finally {
       if (mounted) {
         setState(() => _openingAttachment = false);
@@ -850,9 +850,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
     if (action == 'copy') {
       await Clipboard.setData(ClipboardData(text: message.messageText));
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Message copied.')));
+      AppToast.show(context, 'Message copied.', type: AppToastType.success);
     } else if (action == 'report' && canReport) {
       await _reportMessage(message);
     }
@@ -1015,9 +1013,11 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
           fallback: 'Could not open chat. Please try again.',
         );
       });
-      ScaffoldMessenger.of(
+      AppToast.show(
         context,
-      ).showSnackBar(SnackBar(content: Text(_error ?? 'Failed to open chat')));
+        _error ?? 'Failed to open chat',
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -1031,9 +1031,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
     final isCoachRole = widget.role == CoachChatRole.coach;
     final coachUserId = _selectedCoachUserId;
     if (!isCoachRole && (coachUserId == null || coachUserId <= 0)) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Select a coach first.')));
+      AppToast.show(context, 'Select a coach first.', type: AppToastType.info);
       return;
     }
 
@@ -1081,8 +1079,10 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
           fallback: 'Could not send message. Please try again.',
         );
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_error ?? 'Failed to send message')),
+      AppToast.show(
+        context,
+        _error ?? 'Failed to send message',
+        type: AppToastType.error,
       );
     }
   }
@@ -1172,7 +1172,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                 ],
               ],
             ),
-            selectedColor: AppColors.accent.withValues(alpha: 0.22),
+            selectedColor: TaqaUiColors.accent.withValues(alpha: 0.22),
             backgroundColor: TaqaUiColors.white,
             labelStyle: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
@@ -1181,7 +1181,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
             ),
             side: BorderSide(
               color: selected
-                  ? AppColors.accent.withValues(alpha: 0.65)
+                  ? TaqaUiColors.accent.withValues(alpha: 0.65)
                   : TaqaUiColors.charcoal.withValues(alpha: 0.1),
             ),
             showCheckmark: false,
@@ -1883,7 +1883,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
           Expanded(
             child: RefreshIndicator(
               onRefresh: _loadChat,
-              color: AppColors.accent,
+              color: TaqaUiColors.accent,
               backgroundColor: TaqaUiColors.white,
               child: _buildBody(),
             ),

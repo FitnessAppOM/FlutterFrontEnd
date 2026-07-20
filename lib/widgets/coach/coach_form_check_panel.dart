@@ -7,8 +7,12 @@ import 'package:intl/intl.dart';
 
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/components/taqa_mini_tag.dart';
+import '../../TaqaUI/components/taqa_filled_button.dart';
 import '../../TaqaUI/components/taqa_refresh_indicator.dart';
 import '../../TaqaUI/components/taqa_switch.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
+import '../../TaqaUI/components/taqa_underline_field.dart';
+import '../../TaqaUI/components/taqa_value_dialog.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../consents/consent_manager.dart';
@@ -16,7 +20,6 @@ import '../../core/user_friendly_error.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/coach/chat_attachment_file_service.dart';
 import '../../services/coach/form_check_service.dart';
-import '../../theme/app_theme.dart';
 import 'chat_video_player_page.dart';
 
 String _tr(BuildContext context, String key, String fallback) {
@@ -173,63 +176,59 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
     final controller = TextEditingController();
     final name = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: TaqaUiColors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(TaqaUiScale.r(15)),
-        ),
-        title: Text(
-          _tr(dialogContext, 'coach_form_check_exercise_label', 'Exercise'),
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            color: TaqaUiColors.charcoal,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            color: TaqaUiColors.charcoal,
-          ),
-          decoration: InputDecoration(
-            hintText: _tr(
-              dialogContext,
-              'coach_form_check_exercise_hint',
-              'Example: Squat or Romanian deadlift',
-            ),
-            hintStyle: TextStyle(
-              color: TaqaUiColors.charcoal.withValues(alpha: 0.4),
-            ),
-            enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(
-                color: TaqaUiColors.charcoal.withValues(alpha: 0.2),
+      builder: (dialogContext) => TaqaPopupDialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _tr(dialogContext, 'coach_form_check_exercise_label', 'Exercise'),
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(15),
+                fontWeight: FontWeight.w700,
+                color: TaqaUiColors.charcoal,
               ),
             ),
-            focusedBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: AppColors.accent),
+            SizedBox(height: TaqaUiScale.h(12)),
+            TaqaUnderlineTextField(
+              controller: controller,
+              hint: _tr(
+                dialogContext,
+                'coach_form_check_exercise_hint',
+                'Example: Squat or Romanian deadlift',
+              ),
             ),
-          ),
-          onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
+            SizedBox(height: TaqaUiScale.h(20)),
+            Row(
+              children: [
+                Expanded(
+                  child: TaqaTextActionButton(
+                    label: _tr(dialogContext, 'common_close', 'Cancel'),
+                    onTap: () => Navigator.of(dialogContext).pop(),
+                  ),
+                ),
+                SizedBox(width: TaqaUiScale.w(10)),
+                Expanded(
+                  child: TaqaFilledButton(
+                    label: _tr(
+                      dialogContext,
+                      'coach_form_check_submit',
+                      'Continue',
+                    ),
+                    height: 45,
+                    onTap: () {
+                      final value = controller.text.trim();
+                      if (value.isNotEmpty) {
+                        Navigator.of(dialogContext).pop(value);
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(_tr(dialogContext, 'common_close', 'Cancel')),
-          ),
-          TextButton(
-            onPressed: () {
-              final value = controller.text.trim();
-              if (value.isEmpty) return;
-              Navigator.of(dialogContext).pop(value);
-            },
-            child: Text(
-              _tr(dialogContext, 'coach_form_check_submit', 'Continue'),
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
       ),
     );
     controller.dispose();
@@ -374,57 +373,21 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
   }
 
   Future<void> _deleteSubmission(FormCheckSubmission item) async {
-    final confirmed =
-        await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            backgroundColor: TaqaUiColors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(TaqaUiScale.r(15)),
-            ),
-            title: Text(
-              _tr(
-                dialogContext,
-                'coach_form_check_delete_title',
-                'Delete Form Check',
-              ),
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                color: TaqaUiColors.charcoal,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            content: Text(
-              _tr(
-                dialogContext,
-                'coach_form_check_delete_body',
-                'This removes the submission and its analysis from your account.',
-              ),
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: Text(_tr(dialogContext, 'common_close', 'Close')),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: Text(
-                  _tr(
-                    dialogContext,
-                    'coach_form_check_delete_confirm',
-                    'Delete',
-                  ),
-                  style: const TextStyle(color: Color(0xFFE84C4F)),
-                ),
-              ),
-            ],
-          ),
-        ) ??
-        false;
+    final confirmed = await showTaqaConfirmDialog(
+      context: context,
+      title: _tr(context, 'coach_form_check_delete_title', 'Delete Form Check'),
+      message: _tr(
+        context,
+        'coach_form_check_delete_body',
+        'This removes the submission and its analysis from your account.',
+      ),
+      confirmLabel: _tr(
+        context,
+        'coach_form_check_delete_confirm',
+        'Delete',
+      ),
+      cancelLabel: _tr(context, 'common_close', 'Close'),
+    );
     if (!confirmed) return;
 
     try {
@@ -476,9 +439,7 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
 
   void _showToast(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    AppToast.show(context, message);
   }
 
   String _formatDate(DateTime? value) {
@@ -580,7 +541,7 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
             Padding(
               padding: EdgeInsets.only(top: TaqaUiScale.h(24)),
               child: const Center(
-                child: CircularProgressIndicator(color: AppColors.accent),
+                child: CircularProgressIndicator(color: TaqaUiColors.accent),
               ),
             )
           else if (_error != null)
@@ -787,7 +748,7 @@ class _UploadCard extends StatelessWidget {
                   height: TaqaUiScale.w(14),
                   child: const CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: AppColors.accent,
+                    color: TaqaUiColors.accent,
                   ),
                 ),
                 SizedBox(width: TaqaUiScale.w(10)),
@@ -823,13 +784,22 @@ class _UploadCard extends StatelessWidget {
                     margin: EdgeInsets.only(top: TaqaUiScale.h(2)),
                     decoration: BoxDecoration(
                       color: consentAccepted
-                          ? AppColors.accent
+                          ? TaqaUiColors.accent
                           : TaqaUiColors.white,
                       border: Border.all(
-                        color: TaqaUiColors.charcoal.withValues(alpha: 0.8),
+                        color: consentAccepted
+                            ? TaqaUiColors.accent
+                            : TaqaUiColors.charcoal.withValues(alpha: 0.8),
                         width: 0.5,
                       ),
                     ),
+                    child: consentAccepted
+                        ? Icon(
+                            Icons.check,
+                            color: TaqaUiColors.white,
+                            size: TaqaUiScale.w(9),
+                          )
+                        : null,
                   ),
                   SizedBox(width: TaqaUiScale.w(13)),
                   Expanded(
@@ -1056,7 +1026,7 @@ class _SubmissionCard extends StatelessWidget {
                   width: TaqaUiScale.w(16),
                   child: const CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: AppColors.accent,
+                    color: TaqaUiColors.accent,
                   ),
                 ),
                 SizedBox(width: TaqaUiScale.w(10)),
@@ -1112,7 +1082,7 @@ class _SubmissionCard extends StatelessWidget {
                         child: Icon(
                           Icons.circle,
                           size: TaqaUiScale.sp(7),
-                          color: AppColors.accent,
+                          color: TaqaUiColors.accent,
                         ),
                       ),
                       SizedBox(width: TaqaUiScale.w(8)),

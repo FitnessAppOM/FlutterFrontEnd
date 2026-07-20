@@ -831,24 +831,14 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
 
   Future<void> _deleteNutritionDocument(CoachDietDocument document) async {
     if (_deletingNutritionDocumentIds.contains(document.documentId)) return;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showTaqaConfirmDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete plan document?'),
-        content: const Text('This will remove it for the client and coach.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      title: 'Delete plan document?',
+      message: 'This will remove it for the client and coach.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     setState(() => _deletingNutritionDocumentIds.add(document.documentId));
     try {
       await ProgressionReviewService.deleteClientDietDocument(

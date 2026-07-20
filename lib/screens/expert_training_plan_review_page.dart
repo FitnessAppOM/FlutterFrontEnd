@@ -4,6 +4,7 @@ import '../TaqaUI/components/taqa_expert_client_dashboard_ui.dart';
 import '../TaqaUI/components/taqa_expert_dashboard_ui.dart';
 import '../TaqaUI/components/taqa_back_button.dart';
 import '../TaqaUI/components/taqa_exercise_picker_sheet.dart';
+import '../TaqaUI/components/taqa_filled_button.dart';
 import '../TaqaUI/components/taqa_loading_indicator.dart';
 import '../TaqaUI/components/taqa_outline_tag_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
@@ -565,72 +566,29 @@ class _ExpertTrainingPlanReviewPageState
       return Row(
         children: [
           Expanded(
-            child: SizedBox(
-              height: TaqaUiScale.h(45),
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: TaqaUiScale.radius(5),
-                  ),
-                  side: const BorderSide(color: TaqaUiColors.charcoal),
-                  foregroundColor: TaqaUiColors.charcoal,
-                ),
-                onPressed: !_saving && !_verifying ? _resetDraft : null,
-                child: const Text('Reset'),
-              ),
+            child: TaqaTextActionButton(
+              label: 'Reset',
+              onTap: !_saving && !_verifying ? _resetDraft : null,
             ),
           ),
           SizedBox(width: TaqaUiScale.w(8)),
           Expanded(
-            child: SizedBox(
-              height: TaqaUiScale.h(45),
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: TaqaUiScale.radius(5),
-                  ),
-                  backgroundColor: TaqaUiColors.lime,
-                  foregroundColor: TaqaUiColors.charcoal,
-                ),
-                onPressed: canConfirm ? _confirmChanges : null,
-                child: _saving
-                    ? SizedBox(
-                        width: TaqaUiScale.w(16),
-                        height: TaqaUiScale.h(16),
-                        child: const CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: TaqaUiColors.charcoal,
-                        ),
-                      )
-                    : const Text('Confirm'),
-              ),
+            child: TaqaFilledButton(
+              label: 'Confirm',
+              onTap: canConfirm ? _confirmChanges : null,
+              loading: _saving,
+              height: 45,
             ),
           ),
         ],
       );
     }
 
-    return SizedBox(
-      width: double.infinity,
-      height: TaqaUiScale.h(45),
-      child: FilledButton(
-        style: FilledButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: TaqaUiScale.radius(5)),
-          backgroundColor: TaqaUiColors.lime,
-          foregroundColor: TaqaUiColors.charcoal,
-        ),
-        onPressed: canVerifyOnly ? _verifyOnly : null,
-        child: _verifying
-            ? SizedBox(
-                width: TaqaUiScale.w(16),
-                height: TaqaUiScale.h(16),
-                child: const CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: TaqaUiColors.charcoal,
-                ),
-              )
-            : const Text('Verify'),
-      ),
+    return TaqaFilledButton(
+      label: 'Verify',
+      onTap: canVerifyOnly ? _verifyOnly : null,
+      loading: _verifying,
+      height: 45,
     );
   }
 

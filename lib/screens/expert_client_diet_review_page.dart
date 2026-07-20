@@ -23,6 +23,7 @@ import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_profile_info_section.dart';
 import '../TaqaUI/components/taqa_refresh_indicator.dart';
 import '../TaqaUI/components/taqa_toast.dart';
+import '../TaqaUI/components/taqa_value_dialog.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
@@ -264,8 +265,10 @@ class _ExpertClientDietReviewPageState
       await _voicePlayer.play();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      AppToast.show(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
       );
     } finally {
       if (mounted) {
@@ -318,8 +321,10 @@ class _ExpertClientDietReviewPageState
       await _voicePlayer.play();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      AppToast.show(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
       );
     } finally {
       if (mounted) {
@@ -995,12 +1000,10 @@ class _ExpertClientDietReviewPageState
   Future<void> _shiftDay(int delta) async {
     if (_isRecordingVoiceNote ||
         (_pendingVoiceNotePath ?? '').trim().isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Finish or cancel the current voice note before changing date.',
-          ),
-        ),
+      AppToast.show(
+        context,
+        'Finish or cancel the current voice note before changing date.',
+        type: AppToastType.info,
       );
       return;
     }
@@ -1196,10 +1199,10 @@ class _ExpertClientDietReviewPageState
     final mealId = _selectedMealId;
     if (text.isEmpty || _sendingComment) return;
     if (mealId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Select a logged meal before commenting.'),
-        ),
+      AppToast.show(
+        context,
+        'Select a logged meal before commenting.',
+        type: AppToastType.info,
       );
       return;
     }
@@ -1217,13 +1220,17 @@ class _ExpertClientDietReviewPageState
         _comments = [created, ..._comments];
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      AppToast.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Diet comment sent.')));
+        'Diet comment sent.',
+        type: AppToastType.success,
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      AppToast.show(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
       );
     } finally {
       if (mounted) setState(() => _sendingComment = false);
@@ -1234,17 +1241,19 @@ class _ExpertClientDietReviewPageState
     if (_sendingComment || _sendingVoiceNote) return;
     final mealId = _selectedMealId;
     if (mealId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Select a logged meal before commenting.'),
-        ),
+      AppToast.show(
+        context,
+        'Select a logged meal before commenting.',
+        type: AppToastType.info,
       );
       return;
     }
 
     if (_isRecordingVoiceNote) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Stop recording before sending.')),
+      AppToast.show(
+        context,
+        'Stop recording before sending.',
+        type: AppToastType.info,
       );
       return;
     }
@@ -1258,8 +1267,10 @@ class _ExpertClientDietReviewPageState
     if (text.isEmpty) {
       if (!mounted) return;
       FocusScope.of(context).unfocus();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Write your comment before sending.')),
+      AppToast.show(
+        context,
+        'Write your comment before sending.',
+        type: AppToastType.info,
       );
       return;
     }
@@ -1293,8 +1304,10 @@ class _ExpertClientDietReviewPageState
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      AppToast.show(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
       );
     } finally {
       if (mounted) {
@@ -1305,24 +1318,14 @@ class _ExpertClientDietReviewPageState
 
   Future<void> _deleteComment(CoachDietComment comment) async {
     if (_deletingCommentIds.contains(comment.commentId)) return;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showTaqaConfirmDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete comment?'),
-        content: const Text('This will remove the comment for the client.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      title: 'Delete comment?',
+      message: 'This will remove the comment for the client.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     setState(() => _deletingCommentIds.add(comment.commentId));
     try {
       await ProgressionReviewService.deleteClientDietComment(
@@ -1337,8 +1340,10 @@ class _ExpertClientDietReviewPageState
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      AppToast.show(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
       );
     } finally {
       if (mounted) {
@@ -1791,7 +1796,7 @@ class _ExpertClientDietReviewPageState
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: TaqaUiColors.charcoal,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white10),
       ),
@@ -1831,7 +1836,7 @@ class _ExpertClientDietReviewPageState
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppColors.accent),
+                borderSide: const BorderSide(color: TaqaUiColors.accent),
               ),
               isDense: true,
               contentPadding: const EdgeInsets.all(10),
@@ -1848,7 +1853,7 @@ class _ExpertClientDietReviewPageState
                     ? null
                     : _handlePrimarySend,
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.accent,
+                  backgroundColor: TaqaUiColors.accent,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(0, 34),
                   padding: const EdgeInsets.symmetric(
@@ -2291,7 +2296,7 @@ class _ExpertClientDietReviewPageState
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: AppColors.cardDark,
+                  color: TaqaUiColors.charcoal,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.white10),
                 ),
