@@ -75,6 +75,10 @@ class TaqaTextField extends StatelessWidget {
               hintText: hint,
               counterText: '',
               suffixIcon: suffixIcon,
+              suffixIconConstraints: const BoxConstraints(
+                minWidth: 0,
+                minHeight: 0,
+              ),
               hintStyle: TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(14),

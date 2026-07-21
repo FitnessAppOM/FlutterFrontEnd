@@ -5,11 +5,8 @@ import '../localization/app_localizations.dart';
 import '../services/auth/profile_service.dart';
 import '../services/diet/diet_service.dart';
 import '../services/diet/diet_targets_storage.dart';
-import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_toast.dart';
-import '../TaqaUI/styles/taqa_ui_scale.dart';
-import '../TaqaUI/taqa_ui_colors.dart';
-import '../widgets/training_loading_indicator.dart';
+import '../widgets/taqa_bolt_loading_screen.dart';
 import '../main/main_layout.dart';
 import '../core/user_friendly_error.dart';
 
@@ -182,100 +179,40 @@ class _UpdatingDietScreenState extends State<UpdatingDietScreen> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
 
+    if (_isWorking) {
+      return PopScope(
+        canPop: _cooldownBlocked,
+        child: Scaffold(
+          backgroundColor: TaqaBoltLoadingScreen.background,
+          body: TaqaBoltLoadingScreen(
+            note: t.translate("updating_diet_note"),
+          ),
+        ),
+      );
+    }
+
     return PopScope(
       canPop: _cooldownBlocked,
       child: Scaffold(
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-        body: Center(
-          child: Padding(
-            padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 480),
-              child: Container(
-                padding: TaqaUiScale.insetsLTRB(20, 24, 20, 24),
-                decoration: BoxDecoration(
-                  color: TaqaUiColors.white,
-                  borderRadius: TaqaUiScale.radius(20),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _GenerationIcon(showError: _showFinalError),
-                    SizedBox(height: TaqaUiScale.h(16)),
-                    _GenerationText(
-                      title: t.translate("updating_diet_title"),
-                      body: t.translate("updating_diet_body"),
-                    ),
-                    SizedBox(height: TaqaUiScale.h(12)),
-                    if (_isWorking) ...[
-                      const TrainingLoadingIndicator(),
-                      SizedBox(height: TaqaUiScale.h(12)),
-                      if (!_showFinalError)
-                        Text(
-                          t.translate("generating_waiting_hint"),
-                          style: _generationTextStyle(
-                            11,
-                            TaqaUiColors.unnamedColor1c1d17.withValues(
-                              alpha: 0.5,
-                            ),
-                          ),
-                        ),
-                    ],
-                    if (_showFinalError) ...[
-                      SizedBox(height: TaqaUiScale.h(8)),
-                      Text(
-                        _cooldownBlocked
-                            ? "Profile edit is temporarily locked"
-                            : t.translate("generating_error_title"),
-                        style: _generationTextStyle(
-                          13,
-                          TaqaUiColors.unnamedColorE93b3b,
-                          weight: FontWeight.w600,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      if (_cooldownBlocked && _cooldownUntil != null) ...[
-                        SizedBox(height: TaqaUiScale.h(6)),
-                        Text(
-                          "Profile updates are limited to once each 30 days.",
-                          textAlign: TextAlign.center,
-                          style: _generationTextStyle(
-                            12,
-                            TaqaUiColors.unnamedColor1c1d17.withValues(
-                              alpha: 0.7,
-                            ),
-                            weight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                      SizedBox(height: TaqaUiScale.h(6)),
-                      Text(
-                        _error ?? '',
-                        textAlign: TextAlign.center,
-                        style: _generationTextStyle(
-                          11,
-                          TaqaUiColors.unnamedColorE93b3b.withValues(
-                            alpha: 0.9,
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: TaqaUiScale.h(16)),
-                      _UpdatingDietActionButton(
-                        label: _cooldownBlocked
-                            ? "Back"
-                            : t.translate("generating_retry"),
-                        onTap: _cooldownBlocked ? _goBack : _retry,
-                      ),
-                    ],
-                    if (!_cooldownBlocked) ...[
-                      SizedBox(height: TaqaUiScale.h(16)),
-                      _GenerationNote(text: t.translate("updating_diet_note")),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ),
+        backgroundColor: TaqaBoltLoadingScreen.background,
+        body: TaqaBoltStatusScreen(
+          title: t.translate("updating_diet_title"),
+          body: t.translate("updating_diet_body"),
+          showError: _showFinalError,
+          errorHeadline: _cooldownBlocked
+              ? t.translate("profile_edit_locked_title")
+              : t.translate("generating_error_title"),
+          cooldownNote: _cooldownBlocked && _cooldownUntil != null
+              ? t.translate("profile_edit_locked_note")
+              : null,
+          errorDetail: _error,
+          buttonLabel: _showFinalError
+              ? (_cooldownBlocked
+                    ? t.translate("back")
+                    : t.translate("generating_retry"))
+              : null,
+          onButtonTap: _cooldownBlocked ? _goBack : _retry,
+          note: _cooldownBlocked ? null : t.translate("updating_diet_note"),
         ),
       ),
     );
@@ -300,123 +237,3 @@ class _UpdatingDietScreenState extends State<UpdatingDietScreen> {
   }
 }
 
-TextStyle _generationTextStyle(
-  double size,
-  Color color, {
-  FontWeight weight = FontWeight.w400,
-}) => TextStyle(
-  fontFamily: TaqaUiFontFamilies.interTight,
-  fontSize: TaqaUiScale.sp(size),
-  fontWeight: weight,
-  color: color,
-);
-
-class _GenerationIcon extends StatelessWidget {
-  const _GenerationIcon({required this.showError});
-  final bool showError;
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: TaqaUiScale.insetsLTRB(10, 10, 10, 10),
-    decoration: BoxDecoration(
-      color: showError
-          ? TaqaUiColors.unnamedColorE93b3b.withValues(alpha: 0.12)
-          : TaqaUiColors.unnamedColorE4e93b,
-      shape: BoxShape.circle,
-    ),
-    child: Icon(
-      showError ? Icons.error_outline : Icons.auto_awesome,
-      color: showError
-          ? TaqaUiColors.unnamedColorE93b3b
-          : TaqaUiColors.unnamedColor1c1d17,
-      size: TaqaUiScale.w(22),
-    ),
-  );
-}
-
-class _GenerationText extends StatelessWidget {
-  const _GenerationText({required this.title, required this.body});
-  final String title;
-  final String body;
-  @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      Text(
-        title,
-        textAlign: TextAlign.center,
-        style: _generationTextStyle(
-          17,
-          TaqaUiColors.unnamedColor1c1d17,
-          weight: FontWeight.w700,
-        ),
-      ),
-      SizedBox(height: TaqaUiScale.h(8)),
-      Text(
-        body,
-        textAlign: TextAlign.center,
-        style: _generationTextStyle(
-          13,
-          TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
-        ),
-      ),
-    ],
-  );
-}
-
-class _GenerationNote extends StatelessWidget {
-  const _GenerationNote({required this.text});
-  final String text;
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: TaqaUiScale.insetsLTRB(14, 14, 14, 14),
-    decoration: BoxDecoration(
-      color: TaqaUiColors.unnamedColorE3e3e3,
-      borderRadius: TaqaUiScale.radius(12),
-    ),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(
-          Icons.verified_user,
-          color: TaqaUiColors.unnamedColor1c1d17,
-          size: TaqaUiScale.w(20),
-        ),
-        SizedBox(width: TaqaUiScale.w(10)),
-        Expanded(
-          child: Text(
-            text,
-            style: _generationTextStyle(12, TaqaUiColors.unnamedColor1c1d17),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _UpdatingDietActionButton extends StatelessWidget {
-  const _UpdatingDietActionButton({required this.label, required this.onTap});
-  final String label;
-  final VoidCallback onTap;
-  @override
-  Widget build(BuildContext context) => Material(
-    color: TaqaUiColors.unnamedColorE4e93b,
-    borderRadius: TaqaUiScale.radius(12),
-    child: InkWell(
-      borderRadius: TaqaUiScale.radius(12),
-      onTap: onTap,
-      child: SizedBox(
-        width: double.infinity,
-        height: TaqaUiScale.h(46),
-        child: Center(
-          child: Text(
-            label,
-            style: _generationTextStyle(
-              14,
-              TaqaUiColors.unnamedColor1c1d17,
-              weight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-}

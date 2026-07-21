@@ -3,11 +3,8 @@ import 'package:flutter/material.dart';
 import '../services/training/training_service.dart';
 import '../services/training/training_progress_storage.dart';
 import '../core/account_storage.dart';
-import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_toast.dart';
-import '../TaqaUI/styles/taqa_ui_scale.dart';
-import '../TaqaUI/taqa_ui_colors.dart';
-import '../widgets/training_loading_indicator.dart';
+import '../widgets/taqa_bolt_loading_screen.dart';
 import '../main/main_layout.dart';
 import '../localization/app_localizations.dart';
 import '../core/user_friendly_error.dart';
@@ -162,145 +159,29 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
 
-    return WillPopScope(
-      onWillPop: () async => false,
-      child: Scaffold(
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-        body: Center(
-          child: Padding(
-            padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 480),
-              child: Container(
-                padding: TaqaUiScale.insetsLTRB(20, 24, 20, 24),
-                decoration: BoxDecoration(
-                  color: TaqaUiColors.white,
-                  borderRadius: TaqaUiScale.radius(20),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: TaqaUiScale.insetsLTRB(10, 10, 10, 10),
-                      decoration: BoxDecoration(
-                        color: _showFinalError
-                            ? TaqaUiColors.unnamedColorE93b3b.withValues(
-                                alpha: 0.12,
-                              )
-                            : TaqaUiColors.unnamedColorE4e93b,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        _showFinalError
-                            ? Icons.error_outline
-                            : Icons.auto_awesome,
-                        color: _showFinalError
-                            ? TaqaUiColors.unnamedColorE93b3b
-                            : TaqaUiColors.unnamedColor1c1d17,
-                        size: TaqaUiScale.w(22),
-                      ),
-                    ),
-                    SizedBox(height: TaqaUiScale.h(16)),
-                    Text(
-                      t.translate("generating_training_title"),
-                      style: TextStyle(
-                        fontFamily: TaqaUiFontFamilies.interTight,
-                        fontSize: TaqaUiScale.sp(17),
-                        fontWeight: FontWeight.w700,
-                        color: TaqaUiColors.unnamedColor1c1d17,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: TaqaUiScale.h(8)),
-                    Text(
-                      t.translate("generating_training_body"),
-                      style: TextStyle(
-                        fontFamily: TaqaUiFontFamilies.interTight,
-                        fontSize: TaqaUiScale.sp(13),
-                        fontWeight: FontWeight.w400,
-                        color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                          alpha: 0.6,
-                        ),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: TaqaUiScale.h(12)),
-                    if (_isGenerating) ...[
-                      const TrainingLoadingIndicator(),
-                      SizedBox(height: TaqaUiScale.h(12)),
-                      if (!_showFinalError)
-                        Text(
-                          t.translate("generating_waiting_hint"),
-                          style: TextStyle(
-                            fontFamily: TaqaUiFontFamilies.interTight,
-                            fontSize: TaqaUiScale.sp(11),
-                            fontWeight: FontWeight.w400,
-                            color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                              alpha: 0.5,
-                            ),
-                          ),
-                        ),
-                    ],
-                    if (_showFinalError) ...[
-                      SizedBox(height: TaqaUiScale.h(8)),
-                      Text(
-                        t.translate("generating_error_title"),
-                        style: TextStyle(
-                          fontFamily: TaqaUiFontFamilies.interTight,
-                          fontSize: TaqaUiScale.sp(13),
-                          fontWeight: FontWeight.w700,
-                          color: TaqaUiColors.unnamedColorE93b3b,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: TaqaUiScale.h(6)),
-                      Text(
-                        _error!,
-                        style: TextStyle(
-                          fontFamily: TaqaUiFontFamilies.interTight,
-                          fontSize: TaqaUiScale.sp(11),
-                          color: TaqaUiColors.unnamedColorE93b3b.withValues(
-                            alpha: 0.9,
-                          ),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                    SizedBox(height: TaqaUiScale.h(16)),
-                    Container(
-                      padding: TaqaUiScale.insetsLTRB(14, 14, 14, 14),
-                      decoration: BoxDecoration(
-                        color: TaqaUiColors.unnamedColorE3e3e3,
-                        borderRadius: TaqaUiScale.radius(12),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            Icons.verified_user,
-                            color: TaqaUiColors.unnamedColor1c1d17,
-                            size: TaqaUiScale.w(20),
-                          ),
-                          SizedBox(width: TaqaUiScale.w(10)),
-                          Expanded(
-                            child: Text(
-                              t.translate("generating_training_note"),
-                              style: TextStyle(
-                                fontFamily: TaqaUiFontFamilies.interTight,
-                                fontSize: TaqaUiScale.sp(12),
-                                fontWeight: FontWeight.w400,
-                                color: TaqaUiColors.unnamedColor1c1d17,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+    if (_isGenerating) {
+      return PopScope(
+        canPop: false,
+        child: Scaffold(
+          backgroundColor: TaqaBoltLoadingScreen.background,
+          body: TaqaBoltLoadingScreen(
+            note: t.translate("generating_training_note"),
           ),
+        ),
+      );
+    }
+
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: TaqaBoltLoadingScreen.background,
+        body: TaqaBoltStatusScreen(
+          title: t.translate("generating_training_title"),
+          body: t.translate("generating_training_body"),
+          showError: _showFinalError,
+          errorHeadline: t.translate("generating_error_title"),
+          errorDetail: _error,
+          note: t.translate("generating_training_note"),
         ),
       ),
     );

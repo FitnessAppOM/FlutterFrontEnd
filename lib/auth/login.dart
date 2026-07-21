@@ -44,6 +44,7 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController password = TextEditingController();
 
   bool loading = false;
+  bool passwordVisible = false;
 
   String? lastEmail;
   String? lastName;
@@ -549,8 +550,20 @@ class _LoginPageState extends State<LoginPage> {
                   controller: password,
                   label: t.translate("password"),
                   hint: t.translate("password_hint"),
-                  obscureText: true,
+                  obscureText: !passwordVisible,
                   onChanged: (_) => setState(() {}),
+                  suffixIcon: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () =>
+                        setState(() => passwordVisible = !passwordVisible),
+                    child: Icon(
+                      passwordVisible ? Icons.visibility_off : Icons.visibility,
+                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                        alpha: 0.6,
+                      ),
+                      size: TaqaUiScale.w(18),
+                    ),
+                  ),
                 ),
 
                 if (lastAuthProvider != "google" && lastAuthProvider != "apple")

@@ -366,6 +366,11 @@ class AppLocalizations {
       "generating_error_body":
           "We couldn't generate your plan yet. You can try again, or continue to the app while we keep working in the background.",
       "generating_retry": "Try again",
+      "bolt_loading_caption": "Hang tight, we're charging up your {taqa}",
+      "bolt_loading_taqa_word": "Taqa",
+      "profile_edit_locked_title": "Profile edit is temporarily locked",
+      "profile_edit_locked_note":
+          "Profile updates are limited to once each 30 days.",
       "training_instructions_title": "Instructions",
       "training_start_exercise": "Start Exercise",
       "training_session_title": "Your session",
@@ -1689,6 +1694,11 @@ class AppLocalizations {
       "generating_error_body":
           "لم نتمكن من إنشاء خطتك بعد. يمكنك المحاولة مرة أخرى أو المتابعة إلى التطبيق بينما نتابع العمل في الخلفية.",
       "generating_retry": "إعادة المحاولة",
+      "bolt_loading_caption": "لحظة من فضلك، نقوم بشحن {taqa} الخاصة بك",
+      "bolt_loading_taqa_word": "طاقة",
+      "profile_edit_locked_title": "تعديل الملف الشخصي مقفل مؤقتاً",
+      "profile_edit_locked_note":
+          "التحديثات على الملف الشخصي مسموحة مرة واحدة كل 30 يوماً.",
       "training_instructions_title": "التعليمات",
       "training_start_exercise": "ابدأ التمرين",
       "training_session_title": "جلستك",

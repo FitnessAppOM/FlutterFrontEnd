@@ -694,16 +694,17 @@ class _SignupPageState extends State<SignupPage> {
                   obscureText: !passwordVisible,
                   maxLength: 128,
                   onChanged: (_) => _onPasswordChanged(),
-                  suffixIcon: IconButton(
-                    icon: Icon(
+                  suffixIcon: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () =>
+                        setState(() => passwordVisible = !passwordVisible),
+                    child: Icon(
                       passwordVisible ? Icons.visibility_off : Icons.visibility,
                       color: TaqaUiColors.unnamedColor1c1d17.withValues(
                         alpha: 0.6,
                       ),
-                      size: TaqaUiScale.w(20),
+                      size: TaqaUiScale.w(18),
                     ),
-                    onPressed: () =>
-                        setState(() => passwordVisible = !passwordVisible),
                   ),
                 ),
 

@@ -1184,7 +1184,7 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
       body: Column(
         children: [
           Padding(
-            padding: TaqaUiScale.insetsLTRB(16, 20, 16, 0),
+            padding: TaqaUiScale.insetsLTRB(16, 20, 16, 12),
             child: Row(
               children: [
                 Expanded(

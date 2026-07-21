@@ -554,7 +554,11 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -637,7 +641,11 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     } finally {
       if (mounted) setState(() => _generating = false);
     }
@@ -894,7 +902,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
   }
 
   Widget _buildMyClientsTab() {
-    if (_loading) {
+    if (_loading && _clients.isEmpty) {
       return const Center(child: TaqaLoadingIndicator());
     }
 
@@ -973,6 +981,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
     return TaqaRefreshIndicator(
       onRefresh: _load,
       child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: TaqaUiScale.insetsLTRB(20, 20, 20, 20),
         children: [
           const TaqaManagementSectionTitle(title: 'My Clients'),
@@ -1019,227 +1028,244 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
 
     return Stack(
       children: [
-        ListView(
-          padding: TaqaUiScale.insetsLTRB(16, 20, 16, 96),
-          children: [
-            const TaqaManagementSectionTitle(
-              title: 'Programs',
-              subtitle:
-                  'Create training templates and assign them to your clients.',
-            ),
-            SizedBox(height: TaqaUiScale.h(14)),
-            Wrap(
-              spacing: TaqaUiScale.w(10),
-              runSpacing: TaqaUiScale.h(8),
-              children: [
-                TaqaOutlineTagButton(
-                  label: '$clientCount clients',
-                  width: TaqaUiScale.w(59),
-                  height: TaqaUiScale.h(20),
-                ),
-                TaqaOutlineTagButton(
-                  label: '$templateCount templates',
-                  width: TaqaUiScale.w(69),
-                  height: TaqaUiScale.h(20),
-                ),
-                TaqaOutlineTagButton(
-                  label: '$assignedTemplateCount assigned',
-                  width: TaqaUiScale.w(64),
-                  height: TaqaUiScale.h(20),
-                ),
-              ],
-            ),
-            SizedBox(height: TaqaUiScale.h(22)),
-            Text(
-              'Template Library',
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: TaqaUiScale.sp(15),
-                fontWeight: FontWeight.w700,
-                height: 25 / 15,
-                letterSpacing: 0,
-                color: TaqaUiColors.unnamedColor1c1d17,
+        TaqaRefreshIndicator(
+          onRefresh: _load,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: TaqaUiScale.insetsLTRB(16, 20, 16, 96),
+            children: [
+              const TaqaManagementSectionTitle(
+                title: 'Programs',
+                subtitle:
+                    'Create training templates and assign them to your clients.',
               ),
-            ),
-            SizedBox(height: TaqaUiScale.h(10)),
-            if (sortedTemplates.isEmpty)
-              const TaqaEmptyStateRow(text: 'No templates saved yet.')
-            else
-              ...sortedTemplates.map((template) {
-                final templateId =
-                    int.tryParse('${template['template_id'] ?? ''}') ?? 0;
-                final title = (template['title'] ?? '').toString().trim();
-                final dayCount =
-                    int.tryParse('${template['day_count'] ?? 0}') ?? 0;
-                final exerciseCount =
-                    int.tryParse('${template['exercise_count'] ?? 0}') ?? 0;
-                final assignedClientsRaw = template['assigned_clients'];
-                final assignedClients = assignedClientsRaw is List
-                    ? assignedClientsRaw
-                          .whereType<Map>()
-                          .map((item) => Map<String, dynamic>.from(item))
-                          .toList(growable: false)
-                    : const <Map<String, dynamic>>[];
-                final assignedClientsResolved = _enrichAssignedClientsAvatar(
-                  assignedClients,
-                );
-                final assignedClientRaw = template['assigned_client'];
-                final assignedClient = assignedClientRaw is Map
-                    ? _enrichAssignedClientAvatar(
-                        Map<String, dynamic>.from(assignedClientRaw),
-                      )
-                    : null;
-                final assignedClientCount =
-                    int.tryParse('${template['assigned_client_count'] ?? 0}') ??
-                    0;
-                final previewClients = assignedClientsResolved.isNotEmpty
-                    ? assignedClientsResolved.take(3).toList(growable: false)
-                    : (assignedClient != null
-                          ? <Map<String, dynamic>>[assignedClient]
-                          : const <Map<String, dynamic>>[]);
-                final assigning = _assigningPlanTemplateIds.contains(
-                  templateId,
-                );
-                final deleting = _deletingPlanTemplateIds.contains(templateId);
-                return Padding(
-                  padding: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
-                  child: TaqaManagementListCard(
-                    onTap: templateId <= 0
-                        ? null
-                        : () => _openTemplatePreviewSheet(template),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    title.isEmpty ? 'Untitled template' : title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontFamily: TaqaUiFontFamilies.interTight,
-                                      color: TaqaUiColors.unnamedColor1c1d17,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: TaqaUiScale.sp(15),
-                                      height: 18 / 15,
-                                    ),
-                                  ),
-                                  SizedBox(height: TaqaUiScale.h(8)),
-                                  Wrap(
-                                    spacing: TaqaUiScale.w(8),
-                                    runSpacing: TaqaUiScale.h(8),
-                                    children: [
-                                      TaqaManagementTag(
-                                        label: '$dayCount days',
-                                      ),
-                                      TaqaManagementTag(
-                                        label: '$exerciseCount exercises',
-                                      ),
-                                      if (assignedClientCount == 0)
-                                        const TaqaManagementTag(
-                                          label: 'Not assigned',
-                                        )
-                                      else
-                                        TaqaManagementTag(
-                                          label:
-                                              '$assignedClientCount assigned',
-                                        ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            SizedBox(width: TaqaUiScale.w(10)),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                TaqaCompactActionButton(
-                                  label: assigning ? 'Assigning...' : 'Assign',
-                                  icon: Icons.group_add_outlined,
-                                  loading: assigning,
-                                  height: 38,
-                                  onTap:
-                                      (templateId <= 0 || assigning || deleting)
-                                      ? null
-                                      : () =>
-                                            _openAssignTemplateSheet(template),
-                                ),
-                                SizedBox(width: TaqaUiScale.w(6)),
-                                TaqaIconActionButton(
-                                  tooltip: 'Delete template',
-                                  icon: Icons.delete_outline,
-                                  color: Colors.redAccent,
-                                  loading: deleting,
-                                  onTap:
-                                      (templateId <= 0 || assigning || deleting)
-                                      ? null
-                                      : () => _deletePlanTemplate(template),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        if (assignedClientCount > 0 &&
-                            previewClients.isNotEmpty) ...[
-                          SizedBox(height: TaqaUiScale.h(10)),
-                          InkWell(
-                            borderRadius: TaqaUiScale.radius(5),
-                            onTap: () => _openAssignedClientsSheet(
-                              title.isEmpty ? 'Untitled template' : title,
-                              assignedClientsResolved.isNotEmpty
-                                  ? assignedClientsResolved
-                                  : previewClients,
-                            ),
-                            child: Padding(
-                              padding: TaqaUiScale.insetsLTRB(4, 4, 4, 4),
-                              child: Row(
-                                children: [
-                                  TaqaAssignedClientsStack(
-                                    clients: previewClients,
-                                    totalCount: assignedClientCount,
-                                  ),
-                                  SizedBox(width: TaqaUiScale.w(10)),
-                                  Expanded(
-                                    child: Text(
-                                      assignedClientCount == 1
-                                          ? '1 assigned client'
-                                          : '$assignedClientCount assigned clients',
+              SizedBox(height: TaqaUiScale.h(14)),
+              Wrap(
+                spacing: TaqaUiScale.w(10),
+                runSpacing: TaqaUiScale.h(8),
+                children: [
+                  TaqaOutlineTagButton(
+                    label: '$clientCount clients',
+                    width: TaqaUiScale.w(59),
+                    height: TaqaUiScale.h(20),
+                  ),
+                  TaqaOutlineTagButton(
+                    label: '$templateCount templates',
+                    width: TaqaUiScale.w(69),
+                    height: TaqaUiScale.h(20),
+                  ),
+                  TaqaOutlineTagButton(
+                    label: '$assignedTemplateCount assigned',
+                    width: TaqaUiScale.w(64),
+                    height: TaqaUiScale.h(20),
+                  ),
+                ],
+              ),
+              SizedBox(height: TaqaUiScale.h(22)),
+              Text(
+                'Template Library',
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(15),
+                  fontWeight: FontWeight.w700,
+                  height: 25 / 15,
+                  letterSpacing: 0,
+                  color: TaqaUiColors.unnamedColor1c1d17,
+                ),
+              ),
+              SizedBox(height: TaqaUiScale.h(10)),
+              if (sortedTemplates.isEmpty)
+                const TaqaEmptyStateRow(text: 'No templates saved yet.')
+              else
+                ...sortedTemplates.map((template) {
+                  final templateId =
+                      int.tryParse('${template['template_id'] ?? ''}') ?? 0;
+                  final title = (template['title'] ?? '').toString().trim();
+                  final dayCount =
+                      int.tryParse('${template['day_count'] ?? 0}') ?? 0;
+                  final exerciseCount =
+                      int.tryParse('${template['exercise_count'] ?? 0}') ?? 0;
+                  final assignedClientsRaw = template['assigned_clients'];
+                  final assignedClients = assignedClientsRaw is List
+                      ? assignedClientsRaw
+                            .whereType<Map>()
+                            .map((item) => Map<String, dynamic>.from(item))
+                            .toList(growable: false)
+                      : const <Map<String, dynamic>>[];
+                  final assignedClientsResolved = _enrichAssignedClientsAvatar(
+                    assignedClients,
+                  );
+                  final assignedClientRaw = template['assigned_client'];
+                  final assignedClient = assignedClientRaw is Map
+                      ? _enrichAssignedClientAvatar(
+                          Map<String, dynamic>.from(assignedClientRaw),
+                        )
+                      : null;
+                  final assignedClientCount =
+                      int.tryParse(
+                        '${template['assigned_client_count'] ?? 0}',
+                      ) ??
+                      0;
+                  final previewClients = assignedClientsResolved.isNotEmpty
+                      ? assignedClientsResolved.take(3).toList(growable: false)
+                      : (assignedClient != null
+                            ? <Map<String, dynamic>>[assignedClient]
+                            : const <Map<String, dynamic>>[]);
+                  final assigning = _assigningPlanTemplateIds.contains(
+                    templateId,
+                  );
+                  final deleting = _deletingPlanTemplateIds.contains(
+                    templateId,
+                  );
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
+                    child: TaqaManagementListCard(
+                      onTap: templateId <= 0
+                          ? null
+                          : () => _openTemplatePreviewSheet(template),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      title.isEmpty
+                                          ? 'Untitled template'
+                                          : title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         fontFamily:
                                             TaqaUiFontFamilies.interTight,
-                                        color: TaqaUiColors.charcoal.withValues(
-                                          alpha: 0.70,
-                                        ),
-                                        fontSize: TaqaUiScale.sp(12),
-                                        fontWeight: FontWeight.w600,
+                                        color: TaqaUiColors.unnamedColor1c1d17,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: TaqaUiScale.sp(15),
+                                        height: 18 / 15,
                                       ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
                                     ),
+                                    SizedBox(height: TaqaUiScale.h(8)),
+                                    Wrap(
+                                      spacing: TaqaUiScale.w(8),
+                                      runSpacing: TaqaUiScale.h(8),
+                                      children: [
+                                        TaqaManagementTag(
+                                          label: '$dayCount days',
+                                        ),
+                                        TaqaManagementTag(
+                                          label: '$exerciseCount exercises',
+                                        ),
+                                        if (assignedClientCount == 0)
+                                          const TaqaManagementTag(
+                                            label: 'Not assigned',
+                                          )
+                                        else
+                                          TaqaManagementTag(
+                                            label:
+                                                '$assignedClientCount assigned',
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(width: TaqaUiScale.w(10)),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  TaqaCompactActionButton(
+                                    label: assigning
+                                        ? 'Assigning...'
+                                        : 'Assign',
+                                    icon: Icons.group_add_outlined,
+                                    loading: assigning,
+                                    height: 38,
+                                    onTap:
+                                        (templateId <= 0 ||
+                                            assigning ||
+                                            deleting)
+                                        ? null
+                                        : () => _openAssignTemplateSheet(
+                                            template,
+                                          ),
                                   ),
-                                  Icon(
-                                    Icons.chevron_right,
-                                    color: TaqaUiColors.charcoal.withValues(
-                                      alpha: 0.54,
-                                    ),
-                                    size: TaqaUiScale.w(18),
+                                  SizedBox(width: TaqaUiScale.w(6)),
+                                  TaqaIconActionButton(
+                                    tooltip: 'Delete template',
+                                    icon: Icons.delete_outline,
+                                    color: Colors.redAccent,
+                                    loading: deleting,
+                                    onTap:
+                                        (templateId <= 0 ||
+                                            assigning ||
+                                            deleting)
+                                        ? null
+                                        : () => _deletePlanTemplate(template),
                                   ),
                                 ],
                               ),
-                            ),
+                            ],
                           ),
+                          if (assignedClientCount > 0 &&
+                              previewClients.isNotEmpty) ...[
+                            SizedBox(height: TaqaUiScale.h(10)),
+                            InkWell(
+                              borderRadius: TaqaUiScale.radius(5),
+                              onTap: () => _openAssignedClientsSheet(
+                                title.isEmpty ? 'Untitled template' : title,
+                                assignedClientsResolved.isNotEmpty
+                                    ? assignedClientsResolved
+                                    : previewClients,
+                              ),
+                              child: Padding(
+                                padding: TaqaUiScale.insetsLTRB(4, 4, 4, 4),
+                                child: Row(
+                                  children: [
+                                    TaqaAssignedClientsStack(
+                                      clients: previewClients,
+                                      totalCount: assignedClientCount,
+                                    ),
+                                    SizedBox(width: TaqaUiScale.w(10)),
+                                    Expanded(
+                                      child: Text(
+                                        assignedClientCount == 1
+                                            ? '1 assigned client'
+                                            : '$assignedClientCount assigned clients',
+                                        style: TextStyle(
+                                          fontFamily:
+                                              TaqaUiFontFamilies.interTight,
+                                          color: TaqaUiColors.charcoal
+                                              .withValues(alpha: 0.70),
+                                          fontSize: TaqaUiScale.sp(12),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.chevron_right,
+                                      color: TaqaUiColors.charcoal.withValues(
+                                        alpha: 0.54,
+                                      ),
+                                      size: TaqaUiScale.w(18),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                );
-              }),
-          ],
+                  );
+                }),
+            ],
+          ),
         ),
         PositionedDirectional(
           end: TaqaUiScale.w(16),
@@ -1271,13 +1297,14 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       });
     final pinnedCount = items.where((item) => item.isPinned).length;
 
-    if (_loading) {
+    if (_loading && _nutritionDocuments.isEmpty) {
       return const Center(child: TaqaLoadingIndicator());
     }
 
     return TaqaRefreshIndicator(
       onRefresh: _load,
       child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
         children: [
           const TaqaManagementSectionTitle(
