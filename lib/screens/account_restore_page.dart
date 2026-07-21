@@ -15,6 +15,7 @@ import '../services/core/notification_service.dart';
 import '../services/core/daily_provider_push_service.dart';
 import '../screens/welcome.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
+import '../core/user_friendly_error.dart';
 
 class AccountRestorePage extends StatefulWidget {
   const AccountRestorePage({
@@ -146,7 +147,7 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
       if (!mounted) return;
       AppToast.show(
         context,
-        e.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
     } finally {
@@ -187,7 +188,7 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
       if (!mounted) return;
       AppToast.show(
         context,
-        e.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
     } finally {
@@ -261,7 +262,7 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
       if (!mounted) return;
       AppToast.show(
         context,
-        e.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
     } finally {

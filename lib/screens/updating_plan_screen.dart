@@ -14,6 +14,7 @@ import '../TaqaUI/components/taqa_toast.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../widgets/training_loading_indicator.dart';
+import '../core/user_friendly_error.dart';
 
 /// Shown after editing profile when training days change.
 /// Saves the profile first, then regenerates training + diet.
@@ -183,7 +184,7 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
 
       if (!mounted) return;
 
-      final msg = e.toString().replaceFirst('Exception: ', '');
+      final msg = userFriendlyErrorMessage(e);
       final elapsed = DateTime.now().difference(_startedAt);
       final shouldShowToast = elapsed >= _toastThreshold;
       if (shouldShowToast && msg.isNotEmpty) {

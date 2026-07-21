@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../config/base_url.dart';
+import '../core/user_friendly_error.dart';
 import '../services/coach/coach_support_chat_service.dart';
 import '../services/coach/diet_document_file_service.dart';
 import '../services/core/pdf_open_service.dart';
@@ -186,7 +187,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       if (!mounted) return;
       AppToast.show(
         context,
-        error.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(error),
         type: AppToastType.error,
       );
     } finally {
@@ -254,7 +255,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
           );
           assignedCount += 1;
         } catch (error) {
-          failures.add(error.toString().replaceFirst('Exception: ', ''));
+          failures.add(userFriendlyErrorMessage(error));
         }
       }
       if (assignedCount > 0) {
@@ -288,7 +289,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       if (!mounted) return;
       AppToast.show(
         context,
-        error.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(error),
         type: AppToastType.error,
       );
     } finally {
@@ -333,7 +334,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       if (!mounted) return;
       AppToast.show(
         context,
-        e.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
     } finally {
@@ -553,7 +554,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -636,7 +637,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     } finally {
       if (mounted) setState(() => _generating = false);
     }
@@ -783,7 +784,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       if (!mounted) return;
       AppToast.show(
         context,
-        e.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
     } finally {
@@ -817,7 +818,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       if (!mounted) return;
       AppToast.show(
         context,
-        e.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
     } finally {
@@ -855,7 +856,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       if (!mounted) return;
       AppToast.show(
         context,
-        e.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
     } finally {

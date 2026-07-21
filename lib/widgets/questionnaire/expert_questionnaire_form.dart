@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/user_friendly_error.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/auth/affiliation_service.dart';
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
@@ -1174,7 +1175,7 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = userFriendlyErrorMessage(e);
       });
     }
   }
@@ -1196,7 +1197,7 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = userFriendlyErrorMessage(e);
       });
     } finally {
       if (mounted) setState(() => _loading = false);

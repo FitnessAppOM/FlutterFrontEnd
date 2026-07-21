@@ -23,6 +23,7 @@ import '../theme/app_theme.dart';
 import '../widgets/charts/ranged_bar_chart.dart';
 import '../widgets/charts/simple_line_chart.dart';
 import 'expert_training_plan_review_page.dart';
+import '../core/user_friendly_error.dart';
 
 enum ExpertWeeklyMetricsDetailType { waterSteps, trainingCardio, wearables }
 
@@ -198,7 +199,7 @@ class _ExpertWeeklyMetricsDetailPageState
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _weekError = e.toString();
+        _weekError = userFriendlyErrorMessage(e);
         _loadingWeek = false;
       });
     }
@@ -224,7 +225,7 @@ class _ExpertWeeklyMetricsDetailPageState
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _exerciseHistoryError = e.toString().replaceFirst('Exception: ', '');
+        _exerciseHistoryError = userFriendlyErrorMessage(e);
         _loadingExerciseHistory = false;
       });
     }

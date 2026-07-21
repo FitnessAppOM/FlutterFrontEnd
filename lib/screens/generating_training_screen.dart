@@ -10,6 +10,7 @@ import '../TaqaUI/taqa_ui_colors.dart';
 import '../widgets/training_loading_indicator.dart';
 import '../main/main_layout.dart';
 import '../localization/app_localizations.dart';
+import '../core/user_friendly_error.dart';
 
 class GeneratingTrainingScreen extends StatefulWidget {
   const GeneratingTrainingScreen({super.key});
@@ -105,7 +106,7 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
 
       if (!mounted) return;
 
-      final msg = e.toString().replaceFirst('Exception: ', '');
+      final msg = userFriendlyErrorMessage(e);
       final elapsed = DateTime.now().difference(_startedAt);
 
       final shouldShowToast = elapsed >= _toastThreshold;

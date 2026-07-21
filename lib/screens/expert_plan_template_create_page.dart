@@ -10,6 +10,7 @@ import '../TaqaUI/components/taqa_training_plan_ui.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../services/coach/progression_review_service.dart';
+import '../core/user_friendly_error.dart';
 
 class ExpertPlanTemplateCreatePage extends StatefulWidget {
   const ExpertPlanTemplateCreatePage({
@@ -141,7 +142,7 @@ class _ExpertPlanTemplateCreatePageState
     } catch (error) {
       if (!mounted) return;
       setState(() => _saving = false);
-      _showError(error.toString().replaceFirst('Exception: ', ''));
+      _showError(userFriendlyErrorMessage(error));
     }
   }
 

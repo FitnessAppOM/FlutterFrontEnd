@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/account_storage.dart';
+import '../../core/user_friendly_error.dart';
 import '../../services/community/community_models.dart';
 import '../../services/community/community_service.dart';
 import '../../theme/app_theme.dart';
@@ -104,7 +105,7 @@ class _CommunityPageState extends State<CommunityPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString().replaceFirst('Exception: ', '');
+        _error = userFriendlyErrorMessage(e);
         _loading = false;
         _myEarnedBadges = const [];
       });
@@ -136,7 +137,7 @@ class _CommunityPageState extends State<CommunityPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString().replaceFirst('Exception: ', '');
+        _error = userFriendlyErrorMessage(e);
       });
     }
   }
@@ -158,7 +159,7 @@ class _CommunityPageState extends State<CommunityPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _loadingMore = false);
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -193,7 +194,7 @@ class _CommunityPageState extends State<CommunityPage> {
             )
             .toList(growable: false);
       });
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -233,7 +234,7 @@ class _CommunityPageState extends State<CommunityPage> {
       AppToast.show(context, 'Report submitted.', type: AppToastType.success);
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -252,7 +253,7 @@ class _CommunityPageState extends State<CommunityPage> {
       AppToast.show(context, 'Feed item hidden.', type: AppToastType.success);
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -289,7 +290,7 @@ class _CommunityPageState extends State<CommunityPage> {
       await _refreshFeed();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -315,7 +316,7 @@ class _CommunityPageState extends State<CommunityPage> {
       await _refreshFeed();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -763,7 +764,7 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = userFriendlyErrorMessage(e);
         _loading = false;
       });
     }
@@ -954,7 +955,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = userFriendlyErrorMessage(e);
         _loading = false;
       });
     }
@@ -1023,7 +1024,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       });
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
       await _load();
     }
   }
@@ -1044,7 +1045,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -1058,7 +1059,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -1074,7 +1075,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -1097,7 +1098,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -1121,7 +1122,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -1137,7 +1138,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -1160,7 +1161,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -1250,7 +1251,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -1450,7 +1451,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       AppToast.show(context, 'Report submitted.', type: AppToastType.success);
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -1487,7 +1488,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 }
@@ -1643,7 +1644,7 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = userFriendlyErrorMessage(e);
         _loading = false;
       });
     }
@@ -1674,7 +1675,7 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
       });
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -1711,7 +1712,7 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -1767,7 +1768,7 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -1788,7 +1789,7 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -1901,7 +1902,7 @@ class _CommunityBadgesPageState extends State<CommunityBadgesPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = userFriendlyErrorMessage(e);
         _loading = false;
       });
     }
@@ -2117,7 +2118,7 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = userFriendlyErrorMessage(e);
         _loading = false;
       });
     }
@@ -2131,7 +2132,7 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -2157,7 +2158,7 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -2297,7 +2298,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = userFriendlyErrorMessage(e);
         _loading = false;
       });
     }
@@ -2322,7 +2323,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -2340,7 +2341,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
       AppToast.show(context, 'Comment reported.', type: AppToastType.success);
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -2557,7 +2558,7 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = userFriendlyErrorMessage(e);
         _loading = false;
       });
     }
@@ -2579,7 +2580,7 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -2609,7 +2610,7 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -2629,7 +2630,7 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -3163,7 +3164,7 @@ class _CommunityLeaderboardPageState extends State<CommunityLeaderboardPage> {
       await _refresh();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -3312,7 +3313,7 @@ class _CommunityPinnedItemsPageState extends State<CommunityPinnedItemsPage> {
       await _refresh();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -3331,7 +3332,7 @@ class _CommunityPinnedItemsPageState extends State<CommunityPinnedItemsPage> {
       await _refresh();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 

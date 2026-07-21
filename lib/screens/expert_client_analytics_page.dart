@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../core/user_friendly_error.dart';
+
 import '../TaqaUI/components/taqa_expert_client_dashboard_ui.dart';
 import '../TaqaUI/components/taqa_expert_dashboard_ui.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
@@ -137,16 +139,11 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
   }
 
   String _normalizeError(Object error) {
-    final raw = error.toString().trim();
-    final lower = raw.toLowerCase();
+    final lower = error.toString().toLowerCase();
     if (lower.contains('forbidden') || lower.contains('403')) {
       return 'Non available';
     }
-    if (raw.startsWith('Exception: ')) {
-      final clean = raw.substring('Exception: '.length).trim();
-      if (clean.isNotEmpty) return clean;
-    }
-    return raw.isEmpty ? 'Non available' : raw;
+    return userFriendlyErrorMessage(error, fallback: 'Non available');
   }
 
   String _formatIsoDate(String? raw) {

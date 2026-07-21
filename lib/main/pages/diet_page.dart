@@ -29,6 +29,7 @@ import '../../TaqaUI/components/taqa_steps_ui.dart'
     show TaqaTagButton, TaqaRangeTab;
 import '../../TaqaUI/components/taqa_progress_widget_card.dart';
 import '../../TaqaUI/components/taqa_record_dot.dart';
+import '../../core/user_friendly_error.dart';
 
 class DietPage extends StatefulWidget {
   const DietPage({super.key});
@@ -176,7 +177,7 @@ class DietPageState extends State<DietPage> {
       if (!mounted) return false;
       AppToast.show(
         context,
-        e.toString().replaceFirst("Exception: ", ""),
+        userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
       return false;
@@ -885,7 +886,7 @@ class DietPageState extends State<DietPage> {
       setState(() {
         _mealsLoading = false;
         _mealsFromCache = false;
-        _mealsError = e.toString().replaceFirst('Exception: ', '');
+        _mealsError = userFriendlyErrorMessage(e);
       });
     }
   }
@@ -1721,9 +1722,7 @@ class DietPageState extends State<DietPage> {
       await _loadMeals();
     } catch (e) {
       if (!mounted) return;
-      final msg = e is Exception
-          ? e.toString().replaceFirst('Exception: ', '')
-          : e.toString();
+      final msg = userFriendlyErrorMessage(e);
       AppToast.show(
         context,
         "${t.translate("diet_add_meal_failed")}: $msg",
@@ -2119,7 +2118,7 @@ class DietPageState extends State<DietPage> {
       if (!mounted) return;
       AppToast.show(
         context,
-        e.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
     } finally {
@@ -2620,7 +2619,7 @@ class DietPageState extends State<DietPage> {
       if (!mounted) return;
       AppToast.show(
         context,
-        e.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
     } finally {

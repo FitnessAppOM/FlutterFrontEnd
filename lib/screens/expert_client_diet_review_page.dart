@@ -27,6 +27,7 @@ import '../TaqaUI/components/taqa_value_dialog.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
+import '../core/user_friendly_error.dart';
 
 class ExpertClientDietReviewPage extends StatefulWidget {
   const ExpertClientDietReviewPage({
@@ -267,7 +268,7 @@ class _ExpertClientDietReviewPageState
       if (!mounted) return;
       AppToast.show(
         context,
-        e.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
     } finally {
@@ -323,7 +324,7 @@ class _ExpertClientDietReviewPageState
       if (!mounted) return;
       AppToast.show(
         context,
-        e.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
     } finally {
@@ -464,7 +465,7 @@ class _ExpertClientDietReviewPageState
         _loadingLog = false;
         _dietLog = null;
         _selectedMealId = null;
-        _logError = e.toString().replaceFirst('Exception: ', '');
+        _logError = userFriendlyErrorMessage(e);
       });
     }
   }
@@ -513,7 +514,7 @@ class _ExpertClientDietReviewPageState
       setState(() {
         _dietTargets = null;
         _loadingTargets = false;
-        _targetsError = e.toString().replaceFirst('Exception: ', '');
+        _targetsError = userFriendlyErrorMessage(e);
       });
     }
   }
@@ -854,7 +855,7 @@ class _ExpertClientDietReviewPageState
       if (!mounted) return;
       AppToast.show(
         context,
-        e.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
     } finally {
@@ -945,7 +946,7 @@ class _ExpertClientDietReviewPageState
       if (mounted) {
         AppToast.show(
           context,
-          e.toString().replaceFirst('Exception: ', ''),
+          userFriendlyErrorMessage(e),
           type: AppToastType.error,
         );
       }
@@ -981,7 +982,7 @@ class _ExpertClientDietReviewPageState
       setState(() {
         _comments = const [];
         _loadingComments = false;
-        _commentsError = e.toString().replaceFirst('Exception: ', '');
+        _commentsError = userFriendlyErrorMessage(e);
       });
     }
   }
@@ -1184,7 +1185,7 @@ class _ExpertClientDietReviewPageState
       if (!mounted) return;
       AppToast.show(
         context,
-        e.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
     } finally {
@@ -1229,7 +1230,7 @@ class _ExpertClientDietReviewPageState
       if (!mounted) return;
       AppToast.show(
         context,
-        e.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
     } finally {
@@ -1306,7 +1307,7 @@ class _ExpertClientDietReviewPageState
       if (!mounted) return;
       AppToast.show(
         context,
-        e.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
     } finally {
@@ -1342,7 +1343,7 @@ class _ExpertClientDietReviewPageState
       if (!mounted) return;
       AppToast.show(
         context,
-        e.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
     } finally {
@@ -1395,7 +1396,7 @@ class _ExpertClientDietReviewPageState
       if (!mounted) return;
       AppToast.show(
         context,
-        e.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
     } finally {

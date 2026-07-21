@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../core/user_friendly_error.dart';
 import '../../theme/app_theme.dart';
 import '../../TaqaUI/components/taqa_page_app_bar.dart';
 
@@ -42,7 +43,7 @@ class _ChatVideoPlayerPageState extends State<ChatVideoPlayerPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = userFriendlyErrorMessage(e);
         _loading = false;
       });
     }

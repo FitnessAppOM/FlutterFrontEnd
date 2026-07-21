@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../core/user_friendly_error.dart';
 import '../localization/app_localizations.dart';
 import '../services/diet/nutrition_search_service.dart';
 import '../theme/app_theme.dart';
@@ -61,7 +62,7 @@ class _DietFoodsMasterPickerSheetState extends State<DietFoodsMasterPickerSheet>
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = e.toString().replaceFirst('Exception: ', '');
+        _error = userFriendlyErrorMessage(e);
       });
     }
   }

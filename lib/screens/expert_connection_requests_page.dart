@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/user_friendly_error.dart';
 import '../services/coach/coach_support_chat_service.dart';
 import '../services/coach/progression_review_service.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
@@ -54,7 +55,7 @@ class _ExpertConnectionRequestsPageState
       });
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -84,7 +85,7 @@ class _ExpertConnectionRequestsPageState
       );
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     } finally {
       if (mounted) {
         setState(() {
@@ -113,7 +114,7 @@ class _ExpertConnectionRequestsPageState
       );
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     } finally {
       if (mounted) {
         setState(() {
@@ -223,7 +224,7 @@ class _ExpertConnectionRequestsPageState
       if (!mounted) return;
       AppToast.show(
         context,
-        e.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
     } finally {

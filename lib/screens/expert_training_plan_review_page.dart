@@ -14,6 +14,7 @@ import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../services/coach/progression_review_service.dart';
 import '../services/training/training_service.dart';
+import '../core/user_friendly_error.dart';
 
 class ExpertTrainingPlanReviewPage extends StatefulWidget {
   const ExpertTrainingPlanReviewPage({
@@ -255,7 +256,7 @@ class _ExpertTrainingPlanReviewPageState
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _exerciseLoadError = e.toString().replaceFirst('Exception: ', '');
+        _exerciseLoadError = userFriendlyErrorMessage(e);
         _loadingExercises = false;
       });
     }
@@ -285,25 +286,36 @@ class _ExpertTrainingPlanReviewPageState
     if (!_needsVerification() || _isDirty() || _verifying) return;
     setState(() => _verifying = true);
     try {
-      await ProgressionReviewService.markClientTrainingPlanVerified(
+      final result = await ProgressionReviewService.markClientTrainingPlanVerified(
         clientUserId: widget.clientUserId,
       );
       if (!mounted) return;
+      // 'noop' means there was nothing to verify -- don't claim success.
+      final verified = (result['status'] ?? '').toString() == 'verified';
       setState(() {
         _verifying = false;
         _didCheckPlan = true;
-        _activeProgram = <String, dynamic>{
-          ..._activeProgram,
-          'expert_verified': true,
-          'expert_verified_at': DateTime.now().toUtc().toIso8601String(),
-          'plan_state': 'verified',
-        };
+        if (verified) {
+          _activeProgram = <String, dynamic>{
+            ..._activeProgram,
+            'expert_verified': true,
+            'expert_verified_at':
+                (result['verified_at'] ??
+                        DateTime.now().toUtc().toIso8601String())
+                    .toString(),
+            'plan_state': 'verified',
+          };
+        }
       });
-      AppToast.show(context, 'Plan verified.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        verified ? 'Plan verified.' : 'This plan does not need verification.',
+        type: verified ? AppToastType.success : AppToastType.info,
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _verifying = false);
-      final msg = e.toString().replaceFirst('Exception: ', '');
+      final msg = userFriendlyErrorMessage(e);
       AppToast.show(
         context,
         msg.isEmpty ? 'Failed to verify plan.' : msg,
@@ -417,7 +429,7 @@ class _ExpertTrainingPlanReviewPageState
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      final msg = e.toString().replaceFirst('Exception: ', '');
+      final msg = userFriendlyErrorMessage(e);
       AppToast.show(
         context,
         msg.isEmpty ? 'Failed to save changes.' : msg,

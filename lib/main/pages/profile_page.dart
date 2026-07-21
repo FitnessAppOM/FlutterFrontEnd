@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../core/user_friendly_error.dart';
 import '../../widgets/profile/profile_header.dart';
 import '../../TaqaUI/components/taqa_profile_info_section.dart';
 import '../../widgets/profile/profile_goals_section.dart';
@@ -162,7 +163,7 @@ class _ProfilePageState extends State<ProfilePage> {
       if (activeUserId != requestUserId) return;
       setState(() {
         if (_profile == null) {
-          _error = e.toString();
+          _error = userFriendlyErrorMessage(e);
         }
         _loading = false;
         _avatarUrl = cachedAvatar;

@@ -338,6 +338,7 @@ class ProgressionReview {
   final String? lastError;
   final String? clientName;
   final int itemCount;
+  final int pendingItemCount;
 
   const ProgressionReview({
     required this.reviewId,
@@ -346,6 +347,7 @@ class ProgressionReview {
     required this.programId,
     required this.status,
     required this.itemCount,
+    this.pendingItemCount = 0,
     this.weekStart,
     this.weekEnd,
     this.triggerSource,
@@ -362,6 +364,17 @@ class ProgressionReview {
   bool get isPendingExpert => status == 'pending_expert';
   bool get isReviewed => status == 'reviewed';
 
+  /// Its week has passed, so the numbers describe a week that already ended.
+  /// Read-only: it can no longer be edited or applied.
+  bool get isExpired => status == 'cancelled';
+
+  /// Still waiting on the coach: either undecided items, or decided but never
+  /// pushed to the client's program.
+  bool get needsCoachAction => !isApplied && !isExpired;
+
+  /// No further coach action is possible on this review.
+  bool get isLocked => isApplied || isExpired;
+
   factory ProgressionReview.fromJson(Map<String, dynamic> json) {
     int parseInt(dynamic value) {
       if (value is int) return value;
@@ -376,6 +389,7 @@ class ProgressionReview {
       programId: parseInt(json['program_id']),
       status: (json['status'] ?? '').toString(),
       itemCount: parseInt(json['item_count']),
+      pendingItemCount: parseInt(json['pending_item_count']),
       weekStart: json['week_start']?.toString(),
       weekEnd: json['week_end']?.toString(),
       triggerSource: json['trigger_source']?.toString(),
@@ -416,6 +430,10 @@ class ProgressionReviewItem {
   final int? finalReps;
   final double? finalWeightKg;
   final String? expertNote;
+  final int? appliedSets;
+  final int? appliedReps;
+  final double? appliedWeightKg;
+  final String? appliedAt;
 
   const ProgressionReviewItem({
     required this.reviewItemId,
@@ -443,10 +461,37 @@ class ProgressionReviewItem {
     this.finalReps,
     this.finalWeightKg,
     this.expertNote,
+    this.appliedSets,
+    this.appliedReps,
+    this.appliedWeightKg,
+    this.appliedAt,
   });
 
   bool get isApprovedLike =>
       expertDecision == 'approved' || expertDecision == 'edited';
+
+  /// The coach has not decided this suggestion yet.
+  bool get isPending => expertDecision.isEmpty || expertDecision == 'pending';
+
+  /// Decided either way -- approved, edited or rejected.
+  bool get isDone => !isPending;
+
+  bool get isEdited => expertDecision == 'edited';
+  bool get isRejected => expertDecision == 'rejected';
+
+  /// Short caption describing how this suggestion was settled.
+  String get decisionLabel {
+    switch (expertDecision) {
+      case 'approved':
+        return 'Approved by you';
+      case 'edited':
+        return 'Edited by you';
+      case 'rejected':
+        return 'Skipped - no change';
+      default:
+        return 'Awaiting your decision';
+    }
+  }
 
   factory ProgressionReviewItem.fromJson(Map<String, dynamic> json) {
     int parseInt(dynamic value) {
@@ -510,6 +555,14 @@ class ProgressionReviewItem {
           : parseInt(json['final_reps']),
       finalWeightKg: parseDouble(json['final_weight_kg']),
       expertNote: json['expert_note']?.toString(),
+      appliedSets: json['applied_sets'] == null
+          ? null
+          : parseInt(json['applied_sets']),
+      appliedReps: json['applied_reps'] == null
+          ? null
+          : parseInt(json['applied_reps']),
+      appliedWeightKg: parseDouble(json['applied_weight_kg']),
+      appliedAt: json['applied_at']?.toString(),
     );
   }
 }
@@ -524,6 +577,7 @@ class ProgressionReviewDetail extends ProgressionReview {
     required super.programId,
     required super.status,
     required super.itemCount,
+    required super.pendingItemCount,
     required this.items,
     super.weekStart,
     super.weekEnd,
@@ -557,6 +611,7 @@ class ProgressionReviewDetail extends ProgressionReview {
       programId: base.programId,
       status: base.status,
       itemCount: items.length,
+      pendingItemCount: items.where((item) => item.isPending).length,
       items: items,
       weekStart: base.weekStart,
       weekEnd: base.weekEnd,
@@ -1429,7 +1484,12 @@ class ProgressionReviewService {
     return <String, dynamic>{};
   }
 
-  static Future<void> markClientTrainingPlanVerified({
+  /// Verifies the client's active AI-generated plan.
+  ///
+  /// Returns the backend payload; `status` is `verified` when a plan was
+  /// actually verified and `noop` when there was nothing to verify (already
+  /// verified, or coach-authored). Callers must not report success on `noop`.
+  static Future<Map<String, dynamic>> markClientTrainingPlanVerified({
     required int clientUserId,
   }) async {
     final res = await http.post(
@@ -1442,6 +1502,10 @@ class ProgressionReviewService {
         _extractError('Failed to verify training plan', res.body),
       );
     }
+    final decoded = jsonDecode(res.body);
+    if (decoded is Map<String, dynamic>) return decoded;
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    return <String, dynamic>{};
   }
 
   static Future<FormCheckSubmission> submitFormCheckReview({
@@ -1606,6 +1670,13 @@ class ProgressionReviewService {
     );
   }
 
+  /// Records a coach decision on one suggestion.
+  ///
+  /// [expertDecision] is `pending` / `approved` / `edited` / `rejected`; passing
+  /// `pending` undoes an earlier decision. Only non-null values are sent -- the
+  /// backend leaves omitted fields untouched, so this can never clear a weight
+  /// the coach previously typed. Pass [clearWeight] to deliberately set an
+  /// exercise back to no external load.
   static Future<ProgressionReviewDetail> updateReviewItem({
     required int reviewItemId,
     required String expertDecision,
@@ -1613,17 +1684,22 @@ class ProgressionReviewService {
     int? finalReps,
     double? finalWeightKg,
     String? expertNote,
+    bool clearWeight = false,
   }) async {
+    final body = <String, dynamic>{'expert_decision': expertDecision};
+    if (finalSets != null) body['final_sets'] = finalSets;
+    if (finalReps != null) body['final_reps'] = finalReps;
+    if (finalWeightKg != null) {
+      body['final_weight_kg'] = finalWeightKg;
+    } else if (clearWeight) {
+      body['final_weight_kg'] = null;
+    }
+    if (expertNote != null) body['expert_note'] = expertNote;
+
     final res = await http.patch(
       _uri('/coach/progression/items/$reviewItemId'),
       headers: await _authHeaders(jsonBody: true),
-      body: jsonEncode({
-        'expert_decision': expertDecision,
-        'final_sets': finalSets,
-        'final_reps': finalReps,
-        'final_weight_kg': finalWeightKg,
-        'expert_note': expertNote,
-      }),
+      body: jsonEncode(body),
     );
     await _handleAuth(res);
     if (res.statusCode != 200) {
@@ -1636,9 +1712,20 @@ class ProgressionReviewService {
     );
   }
 
-  static Future<ProgressionReviewDetail> applyReview(int reviewId) async {
+  /// Pushes the approved/edited suggestions onto the client's active program.
+  ///
+  /// The backend refuses with 409 while any suggestion is still undecided --
+  /// applying locks the whole review, so those would be dropped for good. Set
+  /// [skipPending] once the coach has confirmed they want to drop them.
+  static Future<ProgressionReviewDetail> applyReview(
+    int reviewId, {
+    bool skipPending = false,
+  }) async {
     final res = await http.post(
-      _uri('/coach/progression/reviews/$reviewId/apply'),
+      _uri(
+        '/coach/progression/reviews/$reviewId/apply',
+        skipPending ? const {'skip_pending': 'true'} : null,
+      ),
       headers: await _authHeaders(),
     );
     await _handleAuth(res);

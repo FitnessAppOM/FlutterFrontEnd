@@ -297,33 +297,16 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     });
   }
 
-  List<ProgressionReview> _clientAiReviews() {
-    final items = List<ProgressionReview>.from(_clientReviews);
-    items.sort((a, b) {
-      final aPriority = a.isPendingExpert
-          ? 0
-          : a.isReviewed
-          ? 1
-          : a.isApplied
-          ? 2
-          : 3;
-      final bPriority = b.isPendingExpert
-          ? 0
-          : b.isReviewed
-          ? 1
-          : b.isApplied
-          ? 2
-          : 3;
-      if (aPriority != bPriority) return aPriority.compareTo(bPriority);
-      final aDate = a.reviewedAt ?? a.appliedAt ?? a.weekStart ?? '';
-      final bDate = b.reviewedAt ?? b.appliedAt ?? b.weekStart ?? '';
-      return bDate.compareTo(aDate);
-    });
-    return items;
-  }
+  /// AI training suggestions the coach has not finished acting on. Kept separate
+  /// from [_showTrainingPlanPendingNote], which drives the analytics and
+  /// training-plan alerts and means something else entirely.
+  int get _openSuggestionReviewCount =>
+      _clientReviews.where((review) => review.needsCoachAction).length;
 
   bool get _hasAiUpdatesPending =>
-      _showFormReviewPendingNote || _showTrainingPlanPendingNote;
+      _showFormReviewPendingNote ||
+      _showTrainingPlanPendingNote ||
+      _openSuggestionReviewCount > 0;
 
   int get _pendingAiUpdateCount {
     var count = 0;
@@ -333,13 +316,17 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     if (_showTrainingPlanPendingNote) {
       count += math.max(widget.client.trainingPlanUncheckedCount, 1);
     }
+    count += _openSuggestionReviewCount;
     return count;
   }
 
   String _aiUpdatesStatusText() {
     final hasForm = _showFormReviewPendingNote;
     final hasTraining = _showTrainingPlanPendingNote;
-    if (hasForm && hasTraining) {
+    final openReviews = _openSuggestionReviewCount;
+    final sources =
+        (hasForm ? 1 : 0) + (hasTraining ? 1 : 0) + (openReviews > 0 ? 1 : 0);
+    if (sources > 1) {
       final count = _pendingAiUpdateCount;
       return count > 1
           ? 'AI updates pending review ($count)'
@@ -355,10 +342,12 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
           ? 'Training plans pending verification (${widget.client.trainingPlanUncheckedCount})'
           : 'Training plan pending verification';
     }
-    final reviewCount = _clientAiReviews().length;
-    return reviewCount > 0
-        ? 'Latest AI updates ready'
-        : 'No AI updates pending';
+    if (openReviews > 0) {
+      return openReviews > 1
+          ? 'Training suggestions awaiting review ($openReviews)'
+          : 'Training suggestion awaiting review';
+    }
+    return 'No AI updates pending';
   }
 
   Future<void> _openAiUpdatesPage() async {
@@ -374,16 +363,11 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   }
 
   String _normalizeHabitsError(Object error) {
-    final raw = error.toString().trim();
-    final lower = raw.toLowerCase();
+    final lower = error.toString().toLowerCase();
     if (lower.contains('forbidden') || lower.contains('403')) {
       return 'Non available';
     }
-    if (raw.startsWith('Exception: ')) {
-      final clean = raw.substring('Exception: '.length).trim();
-      if (clean.isNotEmpty) return clean;
-    }
-    return raw.isEmpty ? 'Non available' : raw;
+    return userFriendlyErrorMessage(error, fallback: 'Non available');
   }
 
   String _normalizeProfileError(Object error) {
@@ -462,7 +446,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     } catch (e) {
       if (!mounted) return;
       _showSnack(
-        'Could not open video: ${e.toString().replaceFirst('Exception: ', '')}',
+        'Could not open video: ${userFriendlyErrorMessage(e)}',
       );
     }
   }
@@ -529,7 +513,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      _showSnack(e.toString().replaceFirst('Exception: ', ''));
+      _showSnack(userFriendlyErrorMessage(e));
     } finally {
       if (mounted) {
         setState(() => _detachingClient = false);
@@ -560,7 +544,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       _showSnack('Client report submitted. Our team will review it.');
     } catch (e) {
       if (!mounted) return;
-      _showSnack(e.toString().replaceFirst('Exception: ', ''));
+      _showSnack(userFriendlyErrorMessage(e));
     } finally {
       if (mounted) {
         setState(() => _reportingClient = false);
@@ -627,7 +611,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       _activeVoiceNoteUrl = normalized;
       await _voicePlayer.play();
     } catch (e) {
-      _showSnack(e.toString().replaceFirst('Exception: ', ''));
+      _showSnack(userFriendlyErrorMessage(e));
     } finally {
       if (mounted) {
         setState(() {
@@ -678,7 +662,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       _showSnack('Comment sent.');
       return updated;
     } catch (e) {
-      _showSnack(e.toString().replaceFirst('Exception: ', ''));
+      _showSnack(userFriendlyErrorMessage(e));
       return null;
     } finally {
       if (mounted) {
@@ -934,7 +918,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       _showSnack('Voice note sent.');
       return updated;
     } catch (e) {
-      _showSnack(e.toString().replaceFirst('Exception: ', ''));
+      _showSnack(userFriendlyErrorMessage(e));
       return null;
     } finally {
       if (mounted) {
@@ -964,7 +948,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       _showSnack(reply.isPinned ? 'Reply unpinned.' : 'Reply pinned.');
       return updated;
     } catch (e) {
-      _showSnack(e.toString().replaceFirst('Exception: ', ''));
+      _showSnack(userFriendlyErrorMessage(e));
       return null;
     } finally {
       if (mounted) {
@@ -996,7 +980,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       );
       return updated;
     } catch (e) {
-      _showSnack(e.toString().replaceFirst('Exception: ', ''));
+      _showSnack(userFriendlyErrorMessage(e));
       return null;
     } finally {
       if (mounted) {
@@ -1998,13 +1982,13 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
     });
   }
 
-  String _normalizeError(Object error) {
-    final raw = error.toString().trim();
-    if (raw.startsWith('Exception: ')) {
-      return raw.substring('Exception: '.length).trim();
-    }
-    return raw.isEmpty ? 'Unavailable' : raw;
-  }
+  String _normalizeError(Object error) =>
+      userFriendlyErrorMessage(error, fallback: 'Unavailable');
+
+  /// Training suggestions still waiting on the coach. Deliberately independent
+  /// of [_showTrainingPlanPendingNote], which is about plan verification.
+  int get _openSuggestionReviewCount =>
+      _clientReviews.where((review) => review.needsCoachAction).length;
 
   int get _pendingAiUpdateCount {
     var count = 0;
@@ -2017,13 +2001,17 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
     if (_showTrainingPlanPendingNote) {
       count += math.max(widget.client.trainingPlanUncheckedCount, 1);
     }
+    count += _openSuggestionReviewCount;
     return count;
   }
 
   String _aiUpdatesStatusText() {
     final hasForm = _showFormReviewPendingNote;
     final hasTraining = _showTrainingPlanPendingNote;
-    if (hasForm && hasTraining) {
+    final openReviews = _openSuggestionReviewCount;
+    final sources =
+        (hasForm ? 1 : 0) + (hasTraining ? 1 : 0) + (openReviews > 0 ? 1 : 0);
+    if (sources > 1) {
       final count = _pendingAiUpdateCount;
       return count > 1
           ? 'AI updates pending review ($count)'
@@ -2042,9 +2030,35 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
           ? 'Training plans pending verification (${widget.client.trainingPlanUncheckedCount})'
           : 'Training plan pending verification';
     }
-    return _clientReviews.isNotEmpty
-        ? 'Latest AI updates ready'
-        : 'No AI updates pending';
+    if (openReviews > 0) {
+      return openReviews > 1
+          ? 'Training suggestions awaiting review ($openReviews)'
+          : 'Training suggestion awaiting review';
+    }
+    return 'No AI updates pending';
+  }
+
+  /// Red alert line on a review card -- only when the coach still owes an action.
+  /// `statusText` renders through the red alert style, so applied reviews must
+  /// not use it.
+  String? _reviewNoticeText(ProgressionReview review) {
+    if (review.isLocked) return null;
+    if (review.pendingItemCount > 0) {
+      return review.pendingItemCount > 1
+          ? '${review.pendingItemCount} suggestions pending'
+          : '1 suggestion pending';
+    }
+    return 'Reviewed - ready to apply';
+  }
+
+  String _reviewDescription(ProgressionReview review) {
+    final suffix = review.isApplied
+        ? ' - Applied'
+        : review.isExpired
+        ? ' - Expired'
+        : '';
+    return '${review.itemCount} '
+        '${review.itemCount == 1 ? 'Suggestion' : 'Suggestions'}$suffix';
   }
 
   Future<void> _generateAiReview({required bool force}) async {
@@ -2081,7 +2095,7 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
       _showSnack(message);
       await _load();
     } catch (e) {
-      _showSnack(e.toString().replaceFirst('Exception: ', ''));
+      _showSnack(userFriendlyErrorMessage(e));
     } finally {
       if (mounted) {
         setState(() => _generatingAiReview = false);
@@ -2234,7 +2248,8 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
               padding: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
               child: TaqaClientDashboardNavigationCard(
                 title: review.weekStart ?? '-',
-                description: '${review.itemCount} Suggestions',
+                description: _reviewDescription(review),
+                statusText: _reviewNoticeText(review),
                 onTap: () => _openAiReview(review),
               ),
             ),
@@ -2281,8 +2296,10 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
                                   details: const [
                                     'Expected response within 24-48h',
                                   ],
-                                  alerts: (_showFormReviewPendingNote ||
-                                          _showTrainingPlanPendingNote)
+                                  alerts:
+                                      (_showFormReviewPendingNote ||
+                                          _showTrainingPlanPendingNote ||
+                                          _openSuggestionReviewCount > 0)
                                       ? [_aiUpdatesStatusText()]
                                       : const [],
                                 ),

@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../core/user_friendly_error.dart';
+
 import '../core/account_storage.dart';
 import '../services/coach/coach_habits_service.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
@@ -160,16 +162,11 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
   }
 
   String _normalizeError(Object error) {
-    final raw = error.toString().trim();
-    final lower = raw.toLowerCase();
+    final lower = error.toString().toLowerCase();
     if (lower.contains('forbidden') || lower.contains('403')) {
       return 'Non available';
     }
-    if (raw.startsWith('Exception: ')) {
-      final clean = raw.substring('Exception: '.length).trim();
-      if (clean.isNotEmpty) return clean;
-    }
-    return raw.isEmpty ? 'Non available' : raw;
+    return userFriendlyErrorMessage(error, fallback: 'Non available');
   }
 
   String _formatDateTime(CoachHabitItem habit) {

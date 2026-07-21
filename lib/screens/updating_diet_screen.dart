@@ -11,6 +11,7 @@ import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../widgets/training_loading_indicator.dart';
 import '../main/main_layout.dart';
+import '../core/user_friendly_error.dart';
 
 /// Shown after editing profile when only goal or nutrition (diet type) changed.
 /// Saves the profile (backend regenerates diet in background), then polls until
@@ -124,7 +125,7 @@ class _UpdatingDietScreenState extends State<UpdatingDietScreen> {
 
       if (!mounted) return;
 
-      final msg = e.toString().replaceFirst('Exception: ', '');
+      final msg = userFriendlyErrorMessage(e);
       final elapsed = DateTime.now().difference(_startedAt);
       final shouldShowToast = elapsed >= _toastThreshold;
       if (shouldShowToast && msg.isNotEmpty) {

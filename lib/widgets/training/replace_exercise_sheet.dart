@@ -4,6 +4,7 @@ import 'package:taqaproject/TaqaUI/components/taqa_action_controls.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_value_dialog.dart';
 import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
+import '../../core/user_friendly_error.dart';
 import '../../services/training/training_service.dart';
 import '../../services/training/exercise_action_queue.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
@@ -241,7 +242,7 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
       if (e is TrainingApiException && !e.isRetryable) {
         if (!mounted) return;
         setState(() => submitting = false);
-        AppToast.show(context, e.toString(), type: AppToastType.error);
+        AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
         return;
       }
 
@@ -283,7 +284,7 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
         setState(() => submitting = false);
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+        ).showSnackBar(SnackBar(content: Text(userFriendlyErrorMessage(e))));
       }
     }
   }

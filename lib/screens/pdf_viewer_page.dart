@@ -5,6 +5,7 @@ import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
+import '../core/user_friendly_error.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_back_button.dart';
@@ -89,7 +90,7 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
       setState(() => _localPath = file.path);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString());
+      setState(() => _error = userFriendlyErrorMessage(e));
     }
   }
 

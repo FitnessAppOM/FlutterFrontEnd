@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/user_friendly_error.dart';
 import '../services/coach/progression_review_service.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_expert_client_dashboard_ui.dart';
@@ -47,7 +48,7 @@ class _ExpertProgressionReviewPageState
       setState(() => _review = review);
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -55,10 +56,26 @@ class _ExpertProgressionReviewPageState
 
   Future<void> _applyReview() async {
     if (_saving) return;
+    final review = _review;
+    if (review == null) return;
+
+    // Applying locks the review, so anything still undecided is dropped for
+    // good. Never let that happen silently.
+    final pending = review.pendingItemCount;
+    final applying = review.items.where((item) => item.isApprovedLike).length;
+    if (pending > 0) {
+      final proceed = await _confirmApply(
+        applying: applying,
+        pending: pending,
+      );
+      if (proceed != true) return;
+    }
+
     setState(() => _saving = true);
     try {
       final updated = await ProgressionReviewService.applyReview(
         widget.reviewId,
+        skipPending: pending > 0,
       );
       if (!mounted) return;
       setState(() => _review = updated);
@@ -69,10 +86,81 @@ class _ExpertProgressionReviewPageState
       );
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  Future<bool?> _confirmApply({
+    required int applying,
+    required int pending,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      barrierColor: const Color(0x66000000),
+      builder: (ctx) => TaqaPopupDialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Align(
+              alignment: Alignment.center,
+              child: Text(
+                'Apply to Program',
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(15),
+                  fontWeight: FontWeight.w700,
+                  height: 25 / 15,
+                  color: TaqaUiColors.charcoal,
+                ),
+              ),
+            ),
+            SizedBox(height: TaqaUiScale.h(12)),
+            TaqaClientDashboardBodyText(
+              '$applying ${applying == 1 ? 'change' : 'changes'} will be sent to '
+              'the client. $pending undecided '
+              '${pending == 1 ? 'suggestion' : 'suggestions'} will be skipped '
+              'and can no longer be reviewed.',
+            ),
+            SizedBox(height: TaqaUiScale.h(20)),
+            SizedBox(
+              height: TaqaUiScale.h(45),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => Navigator.of(ctx).pop(false),
+                      child: Center(
+                        child: Text(
+                          'CANCEL',
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(10),
+                            fontWeight: FontWeight.w600,
+                            color: TaqaUiColors.charcoal,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: TaqaFilledButton(
+                      label: 'Apply',
+                      height: 45,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      onTap: () => Navigator.of(ctx).pop(true),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _approveItem(ProgressionReviewItem item) async {
@@ -89,6 +177,14 @@ class _ExpertProgressionReviewPageState
     );
   }
 
+  /// Undoes an earlier decision so the suggestion goes back to the pending pile.
+  Future<void> _resetItem(ProgressionReviewItem item) async {
+    await _submitDecision(
+      reviewItemId: item.reviewItemId,
+      expertDecision: 'pending',
+    );
+  }
+
   Future<void> _editItem(ProgressionReviewItem item) async {
     final setsController = TextEditingController(
       text: (item.finalSets ?? item.aiRecommendedSets).toString(),
@@ -96,9 +192,11 @@ class _ExpertProgressionReviewPageState
     final repsController = TextEditingController(
       text: (item.finalReps ?? item.aiRecommendedReps).toString(),
     );
+    // Leave the field blank when there is no weight to show. Pre-filling "0.0"
+    // made an edit of sets alone silently write 0kg onto every set.
+    final resolvedWeight = item.finalWeightKg ?? item.aiRecommendedWeightKg;
     final weightController = TextEditingController(
-      text: ((item.finalWeightKg ?? item.aiRecommendedWeightKg) ?? 0)
-          .toStringAsFixed(1),
+      text: resolvedWeight == null ? '' : resolvedWeight.toStringAsFixed(1),
     );
     final noteController = TextEditingController(text: item.expertNote ?? '');
 
@@ -187,15 +285,27 @@ class _ExpertProgressionReviewPageState
       },
     );
 
+    final weightText = weightController.text.trim();
+    final setsText = setsController.text.trim();
+    final repsText = repsController.text.trim();
+    final noteText = noteController.text.trim();
+
+    setsController.dispose();
+    repsController.dispose();
+    weightController.dispose();
+    noteController.dispose();
+
     if (confirmed != true) return;
 
     await _submitDecision(
       reviewItemId: item.reviewItemId,
       expertDecision: 'edited',
-      finalSets: int.tryParse(setsController.text.trim()),
-      finalReps: int.tryParse(repsController.text.trim()),
-      finalWeightKg: double.tryParse(weightController.text.trim()),
-      expertNote: noteController.text.trim(),
+      finalSets: int.tryParse(setsText),
+      finalReps: int.tryParse(repsText),
+      finalWeightKg: double.tryParse(weightText),
+      // An emptied field means "no external load", not "leave it as it was".
+      clearWeight: weightText.isEmpty,
+      expertNote: noteText,
     );
   }
 
@@ -205,6 +315,7 @@ class _ExpertProgressionReviewPageState
     int? finalSets,
     int? finalReps,
     double? finalWeightKg,
+    bool clearWeight = false,
     String? expertNote,
   }) async {
     if (_saving) return;
@@ -216,14 +327,21 @@ class _ExpertProgressionReviewPageState
         finalSets: finalSets,
         finalReps: finalReps,
         finalWeightKg: finalWeightKg,
+        clearWeight: clearWeight,
         expertNote: expertNote,
       );
       if (!mounted) return;
       setState(() => _review = updated);
-      AppToast.show(context, 'Review item updated.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        expertDecision == 'pending'
+            ? 'Moved back to pending.'
+            : 'Review item updated.',
+        type: AppToastType.success,
+      );
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -237,7 +355,7 @@ class _ExpertProgressionReviewPageState
         : _groupedDays(review);
     final canApply =
         review != null &&
-        !review.isApplied &&
+        !review.isLocked &&
         review.items.any((item) => item.isApprovedLike);
 
     return Scaffold(
@@ -263,11 +381,12 @@ class _ExpertProgressionReviewPageState
                   for (final group in groupedDays) ...[
                     _DaySection(
                       group: group,
-                      locked: review.isApplied,
+                      locked: review.isLocked,
                       busy: _saving,
                       onApprove: _approveItem,
                       onReject: _rejectItem,
                       onEdit: _editItem,
+                      onReset: _resetItem,
                     ),
                     SizedBox(height: TaqaUiScale.h(20)),
                   ],
@@ -304,6 +423,8 @@ class _ReviewHeaderCard extends StatelessWidget {
         return TaqaUiColors.recordRed;
       case 'reviewed':
         return _successGreen;
+      case 'cancelled':
+        return TaqaUiColors.charcoal;
       default:
         return TaqaUiColors.charcoal;
     }
@@ -312,15 +433,20 @@ class _ReviewHeaderCard extends StatelessWidget {
   String _statusLabel() {
     switch (review.status) {
       case 'pending_expert':
-        return 'PENDING EXPERT';
+        final pending = review.pendingItemCount;
+        return pending > 0 ? 'PENDING - $pending LEFT' : 'PENDING';
       case 'reviewed':
         return 'READY TO APPLY';
       case 'applied':
         return 'APPLIED';
       case 'failed':
         return 'NEEDS RETRY';
+      case 'pending_ai':
+        return 'GENERATING';
+      case 'cancelled':
+        return 'EXPIRED - WEEK ENDED';
       default:
-        return review.status.toUpperCase();
+        return review.status.replaceAll('_', ' ').toUpperCase();
     }
   }
 
@@ -389,16 +515,8 @@ class _DayGroup {
   final String title;
   final List<ProgressionReviewItem> items;
 
-  int get suggestedCount =>
-      items.where((item) => item.aiAction != 'no_change').length;
-  int get approvedCount =>
-      items.where((item) => item.expertDecision == 'approved').length;
-  int get editedCount =>
-      items.where((item) => item.expertDecision == 'edited').length;
-  int get rejectedCount =>
-      items.where((item) => item.expertDecision == 'rejected').length;
-  int get pendingCount =>
-      items.where((item) => item.expertDecision == 'pending').length;
+  int get pendingCount => items.where((item) => item.isPending).length;
+  int get doneCount => items.where((item) => item.isDone).length;
 }
 
 List<_DayGroup> _groupedDays(ProgressionReviewDetail review) {
@@ -441,6 +559,7 @@ class _DaySection extends StatelessWidget {
     required this.onApprove,
     required this.onReject,
     required this.onEdit,
+    required this.onReset,
   });
 
   final _DayGroup group;
@@ -449,6 +568,7 @@ class _DaySection extends StatelessWidget {
   final Future<void> Function(ProgressionReviewItem item) onApprove;
   final Future<void> Function(ProgressionReviewItem item) onReject;
   final Future<void> Function(ProgressionReviewItem item) onEdit;
+  final Future<void> Function(ProgressionReviewItem item) onReset;
 
   @override
   Widget build(BuildContext context) {
@@ -470,15 +590,17 @@ class _DaySection extends StatelessWidget {
         SizedBox(height: TaqaUiScale.h(10)),
         Row(
           children: [
-            _CountTag(label: '${group.suggestedCount} Suggested'),
+            _CountTag(
+              label: '${group.pendingCount} Pending',
+              borderColor: group.pendingCount > 0
+                  ? TaqaUiColors.recordRed
+                  : null,
+            ),
             SizedBox(width: TaqaUiScale.w(6)),
-            _CountTag(label: '${group.pendingCount} Pending'),
-            SizedBox(width: TaqaUiScale.w(6)),
-            _CountTag(label: '${group.approvedCount} Approved'),
-            SizedBox(width: TaqaUiScale.w(6)),
-            _CountTag(label: '${group.editedCount} Edited'),
-            SizedBox(width: TaqaUiScale.w(6)),
-            _CountTag(label: '${group.rejectedCount} Rejected'),
+            _CountTag(
+              label: '${group.doneCount} Done',
+              borderColor: group.doneCount > 0 ? _successGreen : null,
+            ),
           ],
         ),
         SizedBox(height: TaqaUiScale.h(10)),
@@ -490,6 +612,7 @@ class _DaySection extends StatelessWidget {
             onApprove: () => onApprove(group.items[i]),
             onReject: () => onReject(group.items[i]),
             onEdit: () => onEdit(group.items[i]),
+            onReset: () => onReset(group.items[i]),
           ),
           if (i < group.items.length - 1) SizedBox(height: TaqaUiScale.h(16)),
         ],
@@ -499,14 +622,19 @@ class _DaySection extends StatelessWidget {
 }
 
 class _CountTag extends StatelessWidget {
-  const _CountTag({required this.label});
+  const _CountTag({required this.label, this.borderColor});
 
   final String label;
+  final Color? borderColor;
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: TaqaOutlineTagButton(label: label, width: double.infinity),
+      child: TaqaOutlineTagButton(
+        label: label,
+        width: double.infinity,
+        borderColor: borderColor,
+      ),
     );
   }
 }
@@ -522,6 +650,7 @@ class _ReviewItemCard extends StatelessWidget {
     required this.onApprove,
     required this.onReject,
     required this.onEdit,
+    required this.onReset,
   });
 
   final ProgressionReviewItem item;
@@ -530,6 +659,7 @@ class _ReviewItemCard extends StatelessWidget {
   final VoidCallback onApprove;
   final VoidCallback onReject;
   final VoidCallback onEdit;
+  final VoidCallback onReset;
 
   static String _sets(int? n) =>
       n == null ? '-' : '$n ${n == 1 ? 'set' : 'sets'}';
@@ -555,16 +685,28 @@ class _ReviewItemCard extends StatelessWidget {
       '${_reps(item.aiRecommendedReps)}, ${_wt(item.aiRecommendedWeightKg)}';
 
   String get _finalValue {
+    if (item.isRejected) return 'No change';
     final s = item.finalSets ?? item.aiRecommendedSets;
     final r = item.finalReps ?? item.aiRecommendedReps;
     final w = item.finalWeightKg ?? item.aiRecommendedWeightKg;
     return '${_sets(s)}, ${_reps(r)}, ${_wt(w)}';
   }
 
+  /// Durable record of what the coach settled on, shown once it is on the plan.
+  String? get _appliedCaption {
+    if (item.appliedAt == null) return null;
+    final stamp = item.appliedAt!.split('T').first;
+    final values =
+        '${_sets(item.appliedSets)}, ${_reps(item.appliedReps)}, '
+        '${_wt(item.appliedWeightKg)}';
+    return '${item.decisionLabel} - $values - applied $stamp';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isApproved = item.expertDecision == 'approved';
-    final isRejected = item.expertDecision == 'rejected';
+    final isRejected = item.isRejected;
+    final done = item.isDone;
+    final appliedCaption = _appliedCaption;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -575,7 +717,19 @@ class _ReviewItemCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TaqaClientDashboardTitleText(item.exerciseName),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TaqaClientDashboardTitleText(item.exerciseName),
+                  ),
+                  SizedBox(width: TaqaUiScale.w(8)),
+                  TaqaClientDashboardStatusPill(
+                    label: done ? 'DONE' : 'PENDING',
+                    color: done ? _successGreen : TaqaUiColors.recordRed,
+                  ),
+                ],
+              ),
               SizedBox(height: TaqaUiScale.h(10)),
               _MetricRow(label: 'Current', value: _currentValue),
               SizedBox(height: TaqaUiScale.h(4)),
@@ -595,6 +749,13 @@ class _ReviewItemCard extends StatelessWidget {
                   color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
                 ),
               ],
+              SizedBox(height: TaqaUiScale.h(8)),
+              TaqaClientDashboardBodyText(
+                appliedCaption ?? item.decisionLabel,
+                color: done
+                    ? _successGreen
+                    : TaqaUiColors.charcoal.withValues(alpha: 0.6),
+              ),
             ],
           ),
         ),
@@ -606,26 +767,41 @@ class _ReviewItemCard extends StatelessWidget {
                 label: isRejected ? 'Rejected' : 'Reject',
                 textColor: TaqaUiColors.recordRed,
                 borderColor: TaqaUiColors.recordRed,
+                fillColor: isRejected
+                    ? TaqaUiColors.recordRed.withValues(alpha: 0.14)
+                    : null,
                 onTap: busy || locked || isRejected ? null : onReject,
               ),
             ),
             SizedBox(width: TaqaUiScale.w(10)),
             Expanded(
               child: _ActionButton(
-                label: 'Edit',
+                label: item.isEdited ? 'Edited' : 'Edit',
                 textColor: TaqaUiColors.charcoal,
-                borderColor: TaqaUiColors.charcoal.withValues(alpha: 0.12),
+                borderColor: item.isEdited
+                    ? _successGreen
+                    : TaqaUiColors.charcoal.withValues(alpha: 0.12),
                 onTap: busy || locked ? null : onEdit,
               ),
             ),
             SizedBox(width: TaqaUiScale.w(10)),
             Expanded(
-              child: _ActionButton(
-                label: isApproved ? 'Approved' : 'Approve',
-                textColor: TaqaUiColors.charcoal,
-                fillColor: TaqaUiColors.lime,
-                onTap: busy || locked || isApproved ? null : onApprove,
-              ),
+              // Once decided, this slot becomes the single undo affordance -- so
+              // every done state (approved, edited, rejected) has one way back
+              // to pending.
+              child: done
+                  ? _ActionButton(
+                      label: 'Undo',
+                      textColor: TaqaUiColors.charcoal,
+                      borderColor: TaqaUiColors.charcoal.withValues(alpha: 0.35),
+                      onTap: busy || locked ? null : onReset,
+                    )
+                  : _ActionButton(
+                      label: 'Approve',
+                      textColor: TaqaUiColors.charcoal,
+                      fillColor: TaqaUiColors.lime,
+                      onTap: busy || locked ? null : onApprove,
+                    ),
             ),
           ],
         ),

@@ -1046,7 +1046,7 @@ class _SettingsPageState extends State<SettingsPage> {
       await _showSuccessDialog("${t.translate("username_updated")}: $updated");
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, e.toString(), type: AppToastType.error);
+      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
     }
   }
 
@@ -1731,7 +1731,7 @@ class _HabitReminderCardState extends State<_HabitReminderCard> {
       if (!mounted) return;
       AppToast.show(
         context,
-        e.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
     } finally {
@@ -1762,7 +1762,7 @@ class _HabitReminderCardState extends State<_HabitReminderCard> {
       if (!mounted) return;
       AppToast.show(
         context,
-        e.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
     } finally {
@@ -1789,7 +1789,7 @@ class _HabitReminderCardState extends State<_HabitReminderCard> {
       if (!mounted) return;
       AppToast.show(
         context,
-        e.toString().replaceFirst('Exception: ', ''),
+        userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
     } finally {

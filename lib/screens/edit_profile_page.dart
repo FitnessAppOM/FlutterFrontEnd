@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/user_friendly_error.dart';
 import '../TaqaUI/components/taqa_back_button.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
@@ -216,7 +217,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _universityError = e.toString();
+        _universityError = userFriendlyErrorMessage(e);
       });
     } finally {
       if (mounted) {
@@ -1182,7 +1183,7 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
       setState(() => _categories = cats);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString());
+      setState(() => _error = userFriendlyErrorMessage(e));
     }
   }
 
@@ -1200,7 +1201,7 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
       setState(() => _affiliations = items);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString());
+      setState(() => _error = userFriendlyErrorMessage(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
