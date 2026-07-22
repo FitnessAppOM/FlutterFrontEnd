@@ -166,19 +166,103 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
     }
   }
 
+  // --- Portion variants (per-100g "weight" vs per-serving) ------------------
+  // Search results collapse a food's portion variants into one row and carry
+  // them in item['variants']. When a food has BOTH a weight (per_100g) and a
+  // serving variant we let the user choose; otherwise we go straight to
+  // whichever the food actually has.
+
+  List<Map<String, dynamic>> _variantsOf(Map<String, dynamic> item) {
+    final raw = item['variants'];
+    if (raw is List && raw.isNotEmpty) {
+      return raw
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList();
+    }
+    // Fallback (single-variant / older payloads): treat the row itself as one.
+    return [
+      {
+        'id': item['id'],
+        'portion_type': item['portion_type'],
+        'serving_size_qty': item['serving_size_qty'],
+        'serving_size_unit': item['serving_size_unit'],
+        'calories_kcal': item['calories_kcal'],
+        'protein_g': item['protein_g'],
+        'carbs_g': item['carbs_g'],
+        'fat_g': item['fat_g'],
+      },
+    ];
+  }
+
+  Map<String, dynamic>? _weightVariant(List<Map<String, dynamic>> vs) {
+    for (final v in vs) {
+      if ((v['portion_type'] ?? '').toString() == 'per_100g') return v;
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _servingVariant(List<Map<String, dynamic>> vs) {
+    for (final v in vs) {
+      if ((v['portion_type'] ?? '').toString() != 'per_100g') return v;
+    }
+    return null;
+  }
+
+  /// Human label for a serving, e.g. "1 plate", "170 g", "1 unit".
+  String _servingLabel(Map<String, dynamic> v) {
+    final qtyRaw = v['serving_size_qty'];
+    final unit = (v['serving_size_unit'] ?? '').toString().trim();
+    String qty = '';
+    if (qtyRaw != null) {
+      final d = double.tryParse(qtyRaw.toString());
+      if (d != null) {
+        qty = d == d.roundToDouble() ? d.toInt().toString() : d.toString();
+      }
+    }
+    if (qty.isEmpty && unit.isEmpty) {
+      return AppLocalizations.of(context).translate("diet_servings_unit");
+    }
+    return [qty, unit].where((s) => s.isNotEmpty).join(' ').trim();
+  }
+
   Future<void> _promptAndLogFood(Map<String, dynamic> item) async {
+    final vs = _variantsOf(item);
+    final weight = _weightVariant(vs);
+    final serving = _servingVariant(vs);
+
+    if (weight != null && serving != null) {
+      final mode = await _choosePortionMode(weight: weight, serving: serving);
+      if (mode == null || !mounted) return;
+      if (mode == 'serving') {
+        await _logFoodByServing(serving);
+      } else {
+        await _logFoodByWeight(weight);
+      }
+    } else if (serving != null) {
+      await _logFoodByServing(serving);
+    } else {
+      await _logFoodByWeight(weight ?? vs.first);
+    }
+  }
+
+  Future<void> _logFoodByWeight(Map<String, dynamic> variant) async {
     final t = AppLocalizations.of(context);
-    final foodId = int.tryParse(item['id']?.toString() ?? '');
+    final foodId = int.tryParse(variant['id']?.toString() ?? '');
     if (foodId == null) return;
 
-    final grams = await _numberDialog(
+    // per_100g row -> base macros are per 100g, so factor = grams / 100.
+    final grams = await _promptAmountWithPreview(
       title: t.translate("diet_enter_grams_title"),
-      hint: t.translate("diet_grams_hint"),
-      unit: t.translate("diet_grams_unit"),
+      fieldUnit: t.translate("diet_grams_unit"),
       initial: "100",
+      baseKcal: _numOf(variant['calories_kcal']),
+      baseP: _numOf(variant['protein_g']),
+      baseC: _numOf(variant['carbs_g']),
+      baseF: _numOf(variant['fat_g']),
+      factor: (v) => v / 100.0,
     );
-    if (!mounted || grams == null) return;
-    if (grams <= 0) return;
+    if (!mounted || grams == null || grams <= 0) return;
 
     Map<String, dynamic>? daySummary;
     await _runLogAction(() async {
@@ -195,16 +279,335 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
     }, successToast: t.translate("diet_item_added"));
 
     if (!mounted) return;
+    _finishAndClose(daySummary);
+  }
+
+  Future<void> _logFoodByServing(Map<String, dynamic> variant) async {
+    final t = AppLocalizations.of(context);
+    final foodId = int.tryParse(variant['id']?.toString() ?? '');
+    if (foodId == null) return;
+
+    // per_serving row -> base macros are per 1 serving, so factor = servings.
+    final servings = await _promptAmountWithPreview(
+      title: t.translate("diet_enter_servings_title"),
+      fieldUnit: t.translate("diet_servings_unit"),
+      initial: "1",
+      baseKcal: _numOf(variant['calories_kcal']),
+      baseP: _numOf(variant['protein_g']),
+      baseC: _numOf(variant['carbs_g']),
+      baseF: _numOf(variant['fat_g']),
+      factor: (v) => v,
+    );
+    if (!mounted || servings == null || servings <= 0) return;
+
+    Map<String, dynamic>? daySummary;
+    await _runLogAction(() async {
+      final response = await DietService.addItemFromFoodsMasterServing(
+        userId: widget.userId,
+        mealId: widget.mealId,
+        foodId: foodId,
+        servings: servings,
+        trainingDayId: widget.trainingDayId,
+      );
+      daySummary = response["day_summary"] is Map
+          ? (response["day_summary"] as Map).cast<String, dynamic>()
+          : null;
+    }, successToast: t.translate("diet_item_added"));
+
+    if (!mounted) return;
+    _finishAndClose(daySummary);
+  }
+
+  void _finishAndClose(Map<String, dynamic>? daySummary) {
     final onLogged = widget.onLogged;
-    final summary = daySummary;
     setState(() => _isPopping = true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       Navigator.of(context).pop();
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        onLogged(summary);
+        onLogged(daySummary);
       });
     });
+  }
+
+  /// Bottom sheet asking "by serving" vs "by weight". Returns 'serving',
+  /// 'weight', or null if dismissed. No "recommended" badge — both are shown
+  /// plainly, serving first.
+  Future<String?> _choosePortionMode({
+    required Map<String, dynamic> weight,
+    required Map<String, dynamic> serving,
+  }) async {
+    final t = AppLocalizations.of(context);
+    return showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: TaqaUiColors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: TaqaUiScale.insetsLTRB(16, 16, 16, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                t.translate("diet_choose_portion_title"),
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(16),
+                  fontWeight: FontWeight.w800,
+                  color: TaqaUiColors.unnamedColor1c1d17,
+                ),
+              ),
+              SizedBox(height: TaqaUiScale.h(14)),
+              _portionOption(
+                icon: Icons.restaurant_outlined,
+                title: t.translate("diet_portion_by_serving"),
+                subtitle: _servingLabel(serving),
+                onTap: () => Navigator.of(ctx).pop('serving'),
+              ),
+              _portionOption(
+                icon: Icons.scale_outlined,
+                title: t.translate("diet_portion_by_weight"),
+                subtitle: t.translate("diet_portion_by_weight_sub"),
+                onTap: () => Navigator.of(ctx).pop('weight'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _portionOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
+      child: InkWell(
+        borderRadius: TaqaUiScale.radius(14),
+        onTap: onTap,
+        child: Container(
+          padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
+          decoration: BoxDecoration(
+            color: TaqaUiColors.white,
+            borderRadius: TaqaUiScale.radius(14),
+            border: Border.all(
+              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.15),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: TaqaUiScale.sp(22),
+                color: TaqaUiColors.unnamedColor1c1d17,
+              ),
+              SizedBox(width: TaqaUiScale.w(12)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(15),
+                        fontWeight: FontWeight.w700,
+                        color: TaqaUiColors.unnamedColor1c1d17,
+                      ),
+                    ),
+                    if (subtitle.isNotEmpty)
+                      Padding(
+                        padding: EdgeInsets.only(top: TaqaUiScale.h(2)),
+                        child: Text(
+                          subtitle,
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(12),
+                            color: TaqaUiColors.unnamedColor1c1d17
+                                .withValues(alpha: 0.55),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                size: TaqaUiScale.sp(20),
+                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.4),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  double _numOf(dynamic v) {
+    if (v == null) return 0;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString().replaceAll(',', '.')) ?? 0;
+  }
+
+  /// Amount input with a LIVE macro preview that updates as the user types.
+  /// [factor] converts the entered amount into a multiplier over the base
+  /// (per-serving or per-100g) macros — servings: (v)=>v ; grams: (v)=>v/100.
+  /// Returns the entered amount, or null if cancelled.
+  Future<double?> _promptAmountWithPreview({
+    required String title,
+    required String fieldUnit,
+    required String initial,
+    required double baseKcal,
+    required double baseP,
+    required double baseC,
+    required double baseF,
+    required double Function(double input) factor,
+  }) async {
+    final t = AppLocalizations.of(context);
+    final ctrl = TextEditingController(text: initial);
+    final dark = TaqaUiColors.unnamedColor1c1d17;
+
+    final result = await showModalBottomSheet<double>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: TaqaUiColors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          final val =
+              double.tryParse(ctrl.text.trim().replaceAll(',', '.')) ?? 0;
+          final f = val > 0 ? factor(val) : 0.0;
+          int r(double x) => (!x.isFinite || x < 0) ? 0 : x.round();
+          final kcal = r(baseKcal * f);
+          final p = r(baseP * f);
+          final c = r(baseC * f);
+          final fat = r(baseF * f);
+
+          return Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+            child: SafeArea(
+              child: Padding(
+                padding: TaqaUiScale.insetsLTRB(16, 16, 16, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(16),
+                        fontWeight: FontWeight.w800,
+                        color: dark,
+                      ),
+                    ),
+                    SizedBox(height: TaqaUiScale.h(12)),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: ctrl,
+                            autofocus: true,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            onChanged: (_) => setSheet(() {}),
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: TaqaUiScale.sp(20),
+                              fontWeight: FontWeight.w700,
+                              color: dark,
+                            ),
+                            decoration: InputDecoration(
+                              isDense: true,
+                              contentPadding:
+                                  TaqaUiScale.insetsLTRB(14, 12, 14, 12),
+                              filled: true,
+                              fillColor: dark.withValues(alpha: 0.04),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: TaqaUiScale.radius(12),
+                                borderSide: BorderSide(
+                                  color: dark.withValues(alpha: 0.15),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: TaqaUiScale.radius(12),
+                                borderSide: BorderSide(color: dark, width: 1.2),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: TaqaUiScale.w(10)),
+                        Text(
+                          fieldUnit,
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(15),
+                            fontWeight: FontWeight.w600,
+                            color: dark.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: TaqaUiScale.h(14)),
+                    Text(
+                      "$kcal ${t.translate("diet_kcal_label")} • "
+                      "${t.translate("diet_p_short")} $p • "
+                      "${t.translate("diet_c_short")} $c • "
+                      "${t.translate("diet_f_short")} $fat",
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(15),
+                        fontWeight: FontWeight.w600,
+                        color: dark,
+                      ),
+                    ),
+                    SizedBox(height: TaqaUiScale.h(16)),
+                    InkWell(
+                      borderRadius: TaqaUiScale.radius(14),
+                      onTap: val > 0 ? () => Navigator.of(ctx).pop(val) : null,
+                      child: Container(
+                        width: double.infinity,
+                        padding: TaqaUiScale.insetsLTRB(16, 14, 16, 14),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: val > 0
+                              ? dark
+                              : dark.withValues(alpha: 0.25),
+                          borderRadius: TaqaUiScale.radius(14),
+                        ),
+                        child: Text(
+                          t.translate("diet_log").toUpperCase(),
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(14),
+                            fontWeight: FontWeight.w800,
+                            color: TaqaUiColors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+
+    ctrl.dispose();
+    return result;
   }
 
   Future<void> _promptAndLogRestaurant(Map<String, dynamic> item) async {
@@ -268,63 +671,77 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
     Map<String, dynamic>? ingredient;
 
     if (_tabIndex == 0) {
-      final foodId = int.tryParse(item['id']?.toString() ?? '');
+      // Same smart flow as logging: pick weight vs serving when both exist,
+      // then a live-preview amount input. Macros computed locally (multiplying
+      // the chosen variant's base macros) so they match the backend exactly.
+      final vs = _variantsOf(item);
+      final weight = _weightVariant(vs);
+      final serving = _servingVariant(vs);
+
+      String mode;
+      Map<String, dynamic> chosen;
+      if (weight != null && serving != null) {
+        final m = await _choosePortionMode(weight: weight, serving: serving);
+        if (m == null || !mounted) return;
+        mode = m;
+        chosen = m == 'serving' ? serving : weight;
+      } else if (serving != null) {
+        mode = 'serving';
+        chosen = serving;
+      } else {
+        mode = 'weight';
+        chosen = weight ?? vs.first;
+      }
+
+      final foodId = int.tryParse(chosen['id']?.toString() ?? '');
       if (foodId == null) return;
 
-      final grams = await _numberDialog(
-        title: t.translate("diet_enter_grams_title"),
-        hint: t.translate("diet_grams_hint"),
-        unit: t.translate("diet_grams_unit"),
-        initial: "100",
-      );
-      if (!mounted || grams == null || grams <= 0) return;
+      final isServing = mode == 'serving';
+      final baseKcal = _numOf(chosen['calories_kcal']);
+      final baseP = _numOf(chosen['protein_g']);
+      final baseC = _numOf(chosen['carbs_g']);
+      final baseF = _numOf(chosen['fat_g']);
 
-      setState(() => _loading = true);
-      try {
-        final preview = await DietService.previewManualItemFromFoodsMaster(
-          userId: widget.userId,
-          foodId: foodId,
-          grams: grams,
-        );
-        if (!mounted) return;
-        final itemName = (preview['item_name'] ?? '').toString().trim();
-        ingredient = {
-          'name': itemName.isNotEmpty ? itemName : _foodName(item),
-          'grams': grams,
-          'calories': _numFrom(preview, const [
-            'calories',
-            'calories_kcal',
-            'kcal',
-          ]),
-          'protein': _numFrom(preview, const ['protein_g', 'protein']),
-          'carbs': _numFrom(preview, const [
-            'carbs_g',
-            'carbs',
-            'carbohydrates_g',
-            'carbohydrate_g',
-          ]),
-          'fat': _numFrom(preview, const [
-            'fat_g',
-            'fats_g',
-            'fat',
-            'total_fat_g',
-            'total_fat',
-          ]),
-          'food_id': foodId,
-        };
-      } catch (e) {
-        if (!mounted) return;
-        if (widget.rootContext.mounted) {
-          AppToast.show(
-            widget.rootContext,
-            "${t.translate("diet_failed_to_add_item")}: $e",
-            type: AppToastType.error,
-          );
-        }
-        return;
-      } finally {
-        if (mounted) setState(() => _loading = false);
+      final amount = await _promptAmountWithPreview(
+        title: isServing
+            ? t.translate("diet_enter_servings_title")
+            : t.translate("diet_enter_grams_title"),
+        fieldUnit: isServing
+            ? t.translate("diet_servings_unit")
+            : t.translate("diet_grams_unit"),
+        initial: isServing ? "1" : "100",
+        baseKcal: baseKcal,
+        baseP: baseP,
+        baseC: baseC,
+        baseF: baseF,
+        factor: isServing ? (v) => v : (v) => v / 100.0,
+      );
+      if (!mounted || amount == null || amount <= 0) return;
+
+      final f = isServing ? amount : amount / 100.0;
+      int r(double x) => (!x.isFinite || x < 0) ? 0 : x.round();
+
+      double? grams;
+      if (isServing) {
+        final unit =
+            (chosen['serving_size_unit'] ?? '').toString().toLowerCase();
+        final ssq = _numOf(chosen['serving_size_qty']);
+        grams = (unit == 'g' || unit == 'gram' || unit == 'grams') && ssq > 0
+            ? ssq * amount
+            : null;
+      } else {
+        grams = amount;
       }
+
+      ingredient = {
+        'name': _foodName(item),
+        'grams': grams,
+        'calories': r(baseKcal * f),
+        'protein': r(baseP * f),
+        'carbs': r(baseC * f),
+        'fat': r(baseF * f),
+        'food_id': foodId,
+      };
     } else {
       final qty = await _intDialog(
         title: t.translate("diet_enter_quantity_title"),
@@ -386,25 +803,6 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  Future<double?> _numberDialog({
-    required String title,
-    required String hint,
-    required String unit,
-    required String initial,
-  }) async {
-    final t = AppLocalizations.of(context);
-    final text = await showTaqaTextValueDialog(
-      context: context,
-      title: title,
-      initialValue: initial,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      unit: unit,
-      confirmLabel: t.translate("diet_log").toUpperCase(),
-    );
-    if (text == null) return null;
-    return double.tryParse(text.trim());
   }
 
   Future<int?> _intDialog({

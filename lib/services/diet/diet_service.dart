@@ -604,6 +604,46 @@ class DietService {
     return parsed;
   }
 
+  /// Add an item to a meal from foods-master by number of servings (for
+  /// count/volume foods like "1 apple", "1 plate") instead of grams.
+  static Future<Map<String, dynamic>> addItemFromFoodsMasterServing({
+    required int userId,
+    required int mealId,
+    required int foodId,
+    required double servings,
+    int? trainingDayId,
+  }) async {
+    final url = Uri.parse(
+      '$baseUrl/diet/meals/$userId/items/search/foods-master/serving',
+    );
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
+    final response = await http.post(
+      url,
+      headers: headers,
+      body: json.encode({
+        'meal_id': mealId,
+        'food_id': foodId,
+        'servings': servings,
+        if (trainingDayId != null) 'training_day_id': trainingDayId,
+      }),
+    );
+
+    await AccountStorage.handle401(response.statusCode);
+    if (response.statusCode != 200) {
+      final body = response.body.isNotEmpty ? json.decode(response.body) : {};
+      throw Exception(body['detail'] ?? 'Failed to add item');
+    }
+
+    final parsed = response.body.isNotEmpty
+        ? (json.decode(response.body) as Map<String, dynamic>)
+        : <String, dynamic>{};
+    _notifyDietChanged();
+    return parsed;
+  }
+
   /// Add an item to a meal from nutrition_local_restaurants (quantity required).
   static Future<Map<String, dynamic>> addItemFromRestaurants({
     required int userId,
@@ -818,6 +858,38 @@ class DietService {
       url,
       headers: headers,
       body: json.encode({'food_id': foodId, 'grams': grams}),
+    );
+
+    await AccountStorage.handle401(response.statusCode);
+    if (response.statusCode != 200) {
+      final body = response.body.isNotEmpty ? json.decode(response.body) : {};
+      throw Exception(body['detail'] ?? 'Failed to preview food');
+    }
+
+    final parsed = response.body.isNotEmpty
+        ? (json.decode(response.body) as Map<String, dynamic>)
+        : <String, dynamic>{};
+    return parsed;
+  }
+
+  /// Preview macros for N servings of a foods-master item (no DB write).
+  /// Serving-based counterpart of [previewManualItemFromFoodsMaster].
+  static Future<Map<String, dynamic>> previewManualItemFromFoodsMasterServing({
+    required int userId,
+    required int foodId,
+    required double servings,
+  }) async {
+    final url = Uri.parse(
+      '$baseUrl/diet/meals/$userId/items/manual/preview/foods-master/serving',
+    );
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
+    final response = await http.post(
+      url,
+      headers: headers,
+      body: json.encode({'food_id': foodId, 'servings': servings}),
     );
 
     await AccountStorage.handle401(response.statusCode);

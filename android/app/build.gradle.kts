@@ -65,8 +65,8 @@ android {
         // REQUIRED by health, identity, permissions, geolocator
         minSdk = 26
 
-        // Google Play 2025 requirement
-        targetSdk = 35
+        // Google Play requirement (Aug 31, 2026): must target Android 16 (API 36)
+        targetSdk = 36
 
         versionCode = flutter.versionCode
         versionName = flutter.versionName
