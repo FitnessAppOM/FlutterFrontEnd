@@ -18,16 +18,18 @@ import '../services/core/notification_service.dart';
 import '../services/core/daily_provider_push_service.dart';
 
 class EmailVerificationPage extends StatefulWidget {
-  final String email;
+  final String? email;
   final bool isExpert;
   final bool initialDeliveryPending;
+  final bool studentPlanVerification;
 
   const EmailVerificationPage({
     super.key,
-    required this.email,
+    this.email,
     this.isExpert = false,
     this.initialDeliveryPending = false,
-  });
+    this.studentPlanVerification = false,
+  }) : assert(email != null || studentPlanVerification);
 
   @override
   State<EmailVerificationPage> createState() => _EmailVerificationPageState();
@@ -35,8 +37,11 @@ class EmailVerificationPage extends StatefulWidget {
 
 class _EmailVerificationPageState extends State<EmailVerificationPage> {
   final TextEditingController codeController = TextEditingController();
+  final TextEditingController studentEmailController = TextEditingController();
 
   bool loading = false;
+  bool _studentCodeSent = false;
+  String? _studentEmail;
 
   bool resendCooldown = false;
   int cooldownSeconds = 30;
@@ -53,12 +58,17 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
   @override
   void dispose() {
     codeController.dispose();
+    studentEmailController.dispose();
     timer?.cancel();
     super.dispose();
   }
 
   // ---------------- VERIFY CODE ----------------
   Future<void> verifyCode() async {
+    if (widget.studentPlanVerification) {
+      await _verifyStudentCode();
+      return;
+    }
     final t = AppLocalizations.of(context);
 
     final code = codeController.text.trim();
@@ -76,7 +86,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
       final response = await http.post(
         url,
         headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"email": widget.email, "code": code}),
+        body: jsonEncode({"email": widget.email!, "code": code}),
       );
 
       setState(() => loading = false);
@@ -87,7 +97,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
         final int userId = rawId is int
             ? rawId
             : (int.tryParse(rawId?.toString() ?? '') ?? 0);
-        final email = widget.email;
+        final email = widget.email!;
         final token =
             (data["access_token"] ??
                     data["accessToken"] ??
@@ -151,6 +161,10 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
 
   // ---------------- RESEND CODE ----------------
   Future<void> resendCode() async {
+    if (widget.studentPlanVerification) {
+      await _startStudentVerification(resend: true);
+      return;
+    }
     final t = AppLocalizations.of(context);
 
     if (resendCooldown) return;
@@ -178,6 +192,105 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
     } catch (e) {
       _show("${t.translate("network_error")}: $e");
     }
+  }
+
+  Future<void> _startStudentVerification({bool resend = false}) async {
+    if (resend && resendCooldown) return;
+    final email = studentEmailController.text.trim().toLowerCase();
+    if (!email.contains('@') || email.startsWith('@') || email.endsWith('@')) {
+      _show('Enter your institution email address.');
+      return;
+    }
+
+    final authHeaders = await AccountStorage.getAuthHeaders();
+    if (!authHeaders.containsKey('Authorization')) {
+      _show('Please sign in again before verifying your student status.');
+      return;
+    }
+
+    setState(() => loading = true);
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/student-verification/start'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...authHeaders,
+        },
+        body: jsonEncode({'email': email}),
+      );
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        setState(() {
+          _studentEmail = email;
+          _studentCodeSent = true;
+          loading = false;
+        });
+        _startResendCooldown();
+        _show(
+          resend
+              ? 'A new verification code was sent.'
+              : 'Verification code sent.',
+        );
+        return;
+      }
+      setState(() => loading = false);
+      _show(_responseMessage(response, 'Could not send a verification code.'));
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => loading = false);
+      _show('Network error: $error');
+    }
+  }
+
+  Future<void> _verifyStudentCode() async {
+    final code = codeController.text.trim();
+    if (code.length != 6) {
+      _show('Enter the 6-digit verification code.');
+      return;
+    }
+
+    final authHeaders = await AccountStorage.getAuthHeaders();
+    if (!authHeaders.containsKey('Authorization')) {
+      _show('Please sign in again before verifying your student status.');
+      return;
+    }
+
+    setState(() => loading = true);
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/student-verification/confirm'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...authHeaders,
+        },
+        body: jsonEncode({'code': code}),
+      );
+      if (!mounted) return;
+      setState(() => loading = false);
+      if (response.statusCode == 200) {
+        Navigator.of(context).pop(true);
+        return;
+      }
+      _show(
+        _responseMessage(response, 'Could not verify your student status.'),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => loading = false);
+      _show('Network error: $error');
+    }
+  }
+
+  String _responseMessage(http.Response response, String fallback) {
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map && decoded['detail'] != null) {
+        return decoded['detail'].toString();
+      }
+    } catch (_) {}
+    return fallback;
   }
 
   void _startResendCooldown() {
@@ -224,7 +337,12 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context); // Translator
-    final canSubmit = !loading && codeController.text.trim().length == 6;
+    final isStudentFlow = widget.studentPlanVerification;
+    final canSubmit =
+        !loading &&
+        (isStudentFlow && !_studentCodeSent
+            ? studentEmailController.text.trim().contains('@')
+            : codeController.text.trim().length == 6);
 
     final bodyStyle = TextStyle(
       fontFamily: TaqaUiFontFamilies.interTight,
@@ -235,7 +353,11 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
 
     return Scaffold(
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-      appBar: TaqaPageAppBar(title: t.translate("verification_title")),
+      appBar: TaqaPageAppBar(
+        title: isStudentFlow
+            ? 'Verify student status'
+            : t.translate("verification_title"),
+      ),
       body: Column(
         children: [
           Expanded(
@@ -244,64 +366,84 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(t.translate("verification_sent"), style: bodyStyle),
-                  if (widget.initialDeliveryPending) ...[
+                  if (isStudentFlow && !_studentCodeSent) ...[
+                    Text(
+                      'Enter the email provided by your selected university. We will send a code before you can purchase the student plan.',
+                      style: bodyStyle,
+                    ),
+                    SizedBox(height: TaqaUiScale.h(24)),
+                    TaqaUnderlineTextField(
+                      controller: studentEmailController,
+                      label: 'Institution email',
+                      hint: 'you@university.edu',
+                      keyboardType: TextInputType.emailAddress,
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ] else ...[
+                    Text(
+                      isStudentFlow
+                          ? 'Enter the code sent to your institution email.'
+                          : t.translate("verification_sent"),
+                      style: bodyStyle,
+                    ),
+                    if (widget.initialDeliveryPending) ...[
+                      SizedBox(height: TaqaUiScale.h(8)),
+                      Text(
+                        'Your account was created, but the first email was delayed. '
+                        'Use Resend Code when the timer finishes.',
+                        style: bodyStyle.copyWith(
+                          color: Colors.orange.shade800,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                    SizedBox(height: TaqaUiScale.h(6)),
+                    Text(
+                      _obfuscateEmail(_studentEmail ?? widget.email ?? ''),
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(15),
+                        fontWeight: FontWeight.w700,
+                        color: TaqaUiColors.unnamedColor1c1d17,
+                      ),
+                    ),
                     SizedBox(height: TaqaUiScale.h(8)),
                     Text(
-                      'Your account was created, but the first email was delayed. '
-                      'Use Resend Code when the timer finishes.',
+                      t.translate("verification_spam_hint"),
                       style: bodyStyle.copyWith(
-                        color: Colors.orange.shade800,
-                        fontWeight: FontWeight.w600,
+                        fontSize: TaqaUiScale.sp(12),
+                        color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                          alpha: 0.5,
+                        ),
                       ),
+                    ),
+                    SizedBox(height: TaqaUiScale.h(24)),
+                    TaqaUnderlineTextField(
+                      controller: codeController,
+                      label: t.translate("enter_code"),
+                      hint: t.translate("hint_code"),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(6),
+                      ],
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    SizedBox(height: TaqaUiScale.h(20)),
+                    Center(
+                      child: resendCooldown
+                          ? Text(
+                              t
+                                  .translate("resend_wait")
+                                  .replaceAll("{seconds}", "$cooldownSeconds"),
+                              style: bodyStyle,
+                            )
+                          : TaqaTextActionButton(
+                              label: t.translate("resend_btn"),
+                              onTap: resendCode,
+                            ),
                     ),
                   ],
-                  SizedBox(height: TaqaUiScale.h(6)),
-                  Text(
-                    _obfuscateEmail(widget.email),
-                    style: TextStyle(
-                      fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: TaqaUiScale.sp(15),
-                      fontWeight: FontWeight.w700,
-                      color: TaqaUiColors.unnamedColor1c1d17,
-                    ),
-                  ),
-                  SizedBox(height: TaqaUiScale.h(8)),
-                  Text(
-                    t.translate("verification_spam_hint"),
-                    style: bodyStyle.copyWith(
-                      fontSize: TaqaUiScale.sp(12),
-                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                        alpha: 0.5,
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: TaqaUiScale.h(24)),
-                  TaqaUnderlineTextField(
-                    controller: codeController,
-                    label: t.translate("enter_code"),
-                    hint: t.translate("hint_code"),
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(6),
-                    ],
-                    onChanged: (_) => setState(() {}),
-                  ),
-                  SizedBox(height: TaqaUiScale.h(20)),
-                  Center(
-                    child: resendCooldown
-                        ? Text(
-                            t
-                                .translate("resend_wait")
-                                .replaceAll("{seconds}", "$cooldownSeconds"),
-                            style: bodyStyle,
-                          )
-                        : TaqaTextActionButton(
-                            label: t.translate("resend_btn"),
-                            onTap: resendCode,
-                          ),
-                  ),
                 ],
               ),
             ),
@@ -309,8 +451,18 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
           Padding(
             padding: TaqaUiScale.insetsLTRB(16, 0, 16, 20),
             child: TaqaFilledButton(
-              label: t.translate("verify_btn"),
-              onTap: canSubmit ? verifyCode : null,
+              label: isStudentFlow && !_studentCodeSent
+                  ? 'Send verification code'
+                  : t.translate("verify_btn"),
+              onTap: canSubmit
+                  ? () {
+                      if (isStudentFlow && !_studentCodeSent) {
+                        _startStudentVerification();
+                      } else {
+                        verifyCode();
+                      }
+                    }
+                  : null,
               loading: loading,
             ),
           ),
