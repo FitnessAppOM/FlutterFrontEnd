@@ -30,7 +30,7 @@ class TaqaSubscriptionCatalog {
   static const studentMonthly = TaqaSubscriptionPlan(
     productId: String.fromEnvironment(
       'TAQA_STUDENT_MONTHLY_SUBSCRIPTION_ID',
-      defaultValue: 'com.taqafitness.app.subscription.student.monthly',
+      defaultValue: 'com.taqa.premium.student.monthly',
     ),
     title: 'Taqa Fitness Student Monthly',
     periodLabel: 'Monthly',
@@ -39,7 +39,7 @@ class TaqaSubscriptionCatalog {
   static const annual = TaqaSubscriptionPlan(
     productId: String.fromEnvironment(
       'TAQA_ANNUAL_SUBSCRIPTION_ID',
-      defaultValue: 'com.taqafitness.app.subscription.annual',
+      defaultValue: 'com.taqa.premium.annual',
     ),
     title: 'Taqa Fitness Annual',
     periodLabel: 'Annual',
@@ -48,7 +48,7 @@ class TaqaSubscriptionCatalog {
   static const studentAnnual = TaqaSubscriptionPlan(
     productId: String.fromEnvironment(
       'TAQA_STUDENT_ANNUAL_SUBSCRIPTION_ID',
-      defaultValue: 'com.taqafitness.app.subscription.student.annual',
+      defaultValue: 'com.taqa.premium.student.annual',
     ),
     title: 'Taqa Fitness Student Annual',
     periodLabel: 'Annual',

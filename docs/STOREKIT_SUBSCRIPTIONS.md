@@ -12,9 +12,9 @@ Create these four auto-renewable subscriptions for bundle ID
 | Plan | Default product ID |
 | --- | --- |
 | Taqa Fitness Monthly Subscription | `com.taqa.premium.monthly` |
-| Taqa Fitness Student Monthly Subscription | `com.taqafitness.app.subscription.student.monthly` |
-| Taqa Fitness Annual Subscription | `com.taqafitness.app.subscription.annual` |
-| Taqa Fitness Student Annual Subscription | `com.taqafitness.app.subscription.student.annual` |
+| Taqa Fitness Student Monthly Subscription | `com.taqa.premium.student.monthly` |
+| Taqa Fitness Annual Subscription | `com.taqa.premium.annual` |
+| Taqa Fitness Student Annual Subscription | `com.taqa.premium.student.annual` |
 
 If App Store Connect uses different product IDs, supply them at build time:
 
