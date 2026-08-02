@@ -330,6 +330,9 @@ class _TaqaPillarCardState extends State<TaqaPillarCard> {
       return rawVal ? 'Yes' : 'No';
     }
     if (rawVal is num) {
+      if (key == 'hrv_ratio' || key == 'rhr_ratio') {
+        return rawVal.toStringAsFixed(3);
+      }
       if (key == 'active_days_7d' || key == 'phase') {
         return rawVal.toInt().toString();
       }

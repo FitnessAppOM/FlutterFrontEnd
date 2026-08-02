@@ -221,12 +221,19 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
       }
     }
 
-    if (!mounted) return;
+    // A user action (including "Same as last time") may complete while the
+    // device and hydration lookups above are still in flight. Never overwrite
+    // values after that action has claimed the form.
+    if (!mounted || _seededFromWidgets) return;
     if (sleepEmpty && sleepHours != null && sleepHours > 0) {
-      _sleepHoursCtrl.text = sleepHours.toStringAsFixed(1);
+      if (_sleepHoursCtrl.text.trim().isEmpty) {
+        _sleepHoursCtrl.text = sleepHours.toStringAsFixed(1);
+      }
     }
     if (hydrationEmpty && hydrationLiters != null && hydrationLiters > 0) {
-      _hydrationCtrl.text = hydrationLiters.toStringAsFixed(1);
+      if (_hydrationCtrl.text.trim().isEmpty) {
+        _hydrationCtrl.text = hydrationLiters.toStringAsFixed(1);
+      }
     }
     setState(() => _seededFromWidgets = true);
   }
@@ -256,6 +263,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
       return;
     }
 
+    if (!mounted) return;
     final t = AppLocalizations.of(context).translate;
     setState(() => _isSubmitting = true);
     try {
@@ -337,6 +345,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
       return;
     }
 
+    if (!mounted) return;
     final t = AppLocalizations.of(context).translate;
     setState(() => _isSubmitting = true);
     try {
