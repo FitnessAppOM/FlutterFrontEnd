@@ -121,7 +121,8 @@ class FitbitSummaryService {
     final cacheKey = _todayCacheKey(userId: userId, date: date);
     if (!forceRefresh && _todaySummaryCache.containsKey(cacheKey)) {
       final cachedAt = _todaySummaryCachedAt[cacheKey];
-      final fresh = cachedAt != null &&
+      final fresh =
+          cachedAt != null &&
           DateTime.now().difference(cachedAt) <= _todayCacheTtl;
       if (fresh) {
         return _todaySummaryCache[cacheKey];
@@ -504,25 +505,37 @@ class FitbitSummaryService {
     }
 
     double? tempC;
-    final tempList = tempData?['tempSkin'];
-    if (tempList is List && tempList.isNotEmpty) {
-      final entry = tempList.first;
-      if (entry is Map) {
-        final value = entry['value'];
-        if (value is Map) {
-          tempC = _double(value['nightlyRelative']);
+    final tempValue = tempData?['value'];
+    if (tempValue is Map) {
+      tempC = _double(tempValue['nightlyRelative']);
+    } else {
+      // Backward compatibility with the legacy Fitbit Web API payload.
+      final tempList = tempData?['tempSkin'];
+      if (tempList is List && tempList.isNotEmpty) {
+        final entry = tempList.first;
+        if (entry is Map) {
+          final value = entry['value'];
+          if (value is Map) {
+            tempC = _double(value['nightlyRelative']);
+          }
         }
       }
     }
 
     double? breathing;
-    final brList = breathingData?['br'];
-    if (brList is List && brList.isNotEmpty) {
-      final entry = brList.first;
-      if (entry is Map) {
-        final value = entry['value'];
-        if (value is Map) {
-          breathing = _double(value['breathingRate']);
+    final breathingValue = breathingData?['value'];
+    if (breathingValue is Map) {
+      breathing = _double(breathingValue['breathingRate']);
+    } else {
+      // Backward compatibility with the legacy Fitbit Web API payload.
+      final brList = breathingData?['br'];
+      if (brList is List && brList.isNotEmpty) {
+        final entry = brList.first;
+        if (entry is Map) {
+          final value = entry['value'];
+          if (value is Map) {
+            breathing = _double(value['breathingRate']);
+          }
         }
       }
     }

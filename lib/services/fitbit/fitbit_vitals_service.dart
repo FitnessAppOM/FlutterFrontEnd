@@ -82,10 +82,18 @@ class FitbitVitalsService {
     final dateStr = _dateParam(date);
     final headers = await AccountStorage.getAuthHeaders();
 
-    final spo2Url = Uri.parse("${ApiConfig.baseUrl}/fitbit/spo2?user_id=$userId&date=$dateStr");
-    final tempUrl = Uri.parse("${ApiConfig.baseUrl}/fitbit/temperature?user_id=$userId&date=$dateStr");
-    final breathingUrl = Uri.parse("${ApiConfig.baseUrl}/fitbit/breathing?user_id=$userId&date=$dateStr");
-    final ecgUrl = Uri.parse("${ApiConfig.baseUrl}/fitbit/ecg?user_id=$userId&date=$dateStr");
+    final spo2Url = Uri.parse(
+      "${ApiConfig.baseUrl}/fitbit/spo2?user_id=$userId&date=$dateStr",
+    );
+    final tempUrl = Uri.parse(
+      "${ApiConfig.baseUrl}/fitbit/temperature?user_id=$userId&date=$dateStr",
+    );
+    final breathingUrl = Uri.parse(
+      "${ApiConfig.baseUrl}/fitbit/breathing?user_id=$userId&date=$dateStr",
+    );
+    final ecgUrl = Uri.parse(
+      "${ApiConfig.baseUrl}/fitbit/ecg?user_id=$userId&date=$dateStr",
+    );
 
     double? _double(dynamic v) {
       if (v == null) return null;
@@ -134,25 +142,37 @@ class FitbitVitalsService {
     }
 
     double? tempC;
-    final tempList = tempData?['tempSkin'];
-    if (tempList is List && tempList.isNotEmpty) {
-      final entry = tempList.first;
-      if (entry is Map) {
-        final value = entry['value'];
-        if (value is Map) {
-          tempC = _double(value['nightlyRelative']);
+    final tempValue = tempData?['value'];
+    if (tempValue is Map) {
+      tempC = _double(tempValue['nightlyRelative']);
+    } else {
+      // Backward compatibility with the legacy Fitbit Web API payload.
+      final tempList = tempData?['tempSkin'];
+      if (tempList is List && tempList.isNotEmpty) {
+        final entry = tempList.first;
+        if (entry is Map) {
+          final value = entry['value'];
+          if (value is Map) {
+            tempC = _double(value['nightlyRelative']);
+          }
         }
       }
     }
 
     double? breathing;
-    final brList = breathingData?['br'];
-    if (brList is List && brList.isNotEmpty) {
-      final entry = brList.first;
-      if (entry is Map) {
-        final value = entry['value'];
-        if (value is Map) {
-          breathing = _double(value['breathingRate']);
+    final breathingValue = breathingData?['value'];
+    if (breathingValue is Map) {
+      breathing = _double(breathingValue['breathingRate']);
+    } else {
+      // Backward compatibility with the legacy Fitbit Web API payload.
+      final brList = breathingData?['br'];
+      if (brList is List && brList.isNotEmpty) {
+        final entry = brList.first;
+        if (entry is Map) {
+          final value = entry['value'];
+          if (value is Map) {
+            breathing = _double(value['breathingRate']);
+          }
         }
       }
     }

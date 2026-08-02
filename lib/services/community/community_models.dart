@@ -550,6 +550,40 @@ class CommunityComment {
   }
 }
 
+class CommunityChallengeSegment {
+  const CommunityChallengeSegment({
+    required this.segmentIndex,
+    required this.progressValue,
+    required this.isCompleted,
+    this.periodStart,
+    this.periodEnd,
+    this.targetValue,
+    this.metadata = const {},
+  });
+
+  final int segmentIndex;
+  final DateTime? periodStart;
+  final DateTime? periodEnd;
+  final double progressValue;
+  final double? targetValue;
+  final bool isCompleted;
+  final Map<String, dynamic> metadata;
+
+  factory CommunityChallengeSegment.fromJson(Map<String, dynamic> json) {
+    return CommunityChallengeSegment(
+      segmentIndex: _asInt(json['segment_index']),
+      periodStart: DateTime.tryParse(_asString(json['period_start']) ?? ''),
+      periodEnd: DateTime.tryParse(_asString(json['period_end']) ?? ''),
+      progressValue: _asDouble(json['progress_value']),
+      targetValue: json['target_value'] == null
+          ? null
+          : _asDouble(json['target_value']),
+      isCompleted: _asBool(json['is_completed']),
+      metadata: json['metadata'] == null ? const {} : _asMap(json['metadata']),
+    );
+  }
+}
+
 class CommunityChallenge {
   const CommunityChallenge({
     required this.challengeId,
@@ -568,6 +602,15 @@ class CommunityChallenge {
     this.progressUnit,
     this.completedAt,
     this.groupId,
+    this.challengeKey,
+    this.ruleType,
+    this.ruleConfig = const {},
+    this.recurrenceType = 'none',
+    this.ruleVersion = 1,
+    this.currentPeriodStart,
+    this.currentPeriodEnd,
+    this.progressMetadata = const {},
+    this.segments = const [],
   });
 
   final int challengeId;
@@ -586,6 +629,28 @@ class CommunityChallenge {
   final String? progressUnit;
   final DateTime? completedAt;
   final int? groupId;
+  final String? challengeKey;
+  final String? ruleType;
+  final Map<String, dynamic> ruleConfig;
+  final String recurrenceType;
+  final int ruleVersion;
+  final DateTime? currentPeriodStart;
+  final DateTime? currentPeriodEnd;
+  final Map<String, dynamic> progressMetadata;
+  final List<CommunityChallengeSegment> segments;
+
+  String get displayRuleName {
+    final raw =
+        (challengeKey?.isNotEmpty == true ? challengeKey : ruleType) ??
+        challengeType;
+    return raw
+        .split('_')
+        .map((part) {
+          if (part.isEmpty) return part;
+          return '${part[0].toUpperCase()}${part.substring(1)}';
+        })
+        .join(' ');
+  }
 
   bool get isUpcoming => startAt != null && startAt!.isAfter(DateTime.now());
   bool get isGlobal => scope == 'global';
@@ -611,6 +676,30 @@ class CommunityChallenge {
       mutedNotifications: _asBool(json['muted_notifications']),
       scope: _asString(json['scope']) ?? 'global',
       groupId: json['group_id'] == null ? null : _asInt(json['group_id']),
+      challengeKey: _asString(json['challenge_key']),
+      ruleType: _asString(json['rule_type']),
+      ruleConfig: json['rule_config'] == null
+          ? const {}
+          : _asMap(json['rule_config']),
+      recurrenceType: _asString(json['recurrence_type']) ?? 'none',
+      ruleVersion: _asInt(json['rule_version'] ?? 1),
+      currentPeriodStart: DateTime.tryParse(
+        _asString(json['current_period_start']) ?? '',
+      ),
+      currentPeriodEnd: DateTime.tryParse(
+        _asString(json['current_period_end']) ?? '',
+      ),
+      progressMetadata: json['progress_metadata'] == null
+          ? const {}
+          : _asMap(json['progress_metadata']),
+      segments: (json['segments'] as List<dynamic>? ?? const [])
+          .whereType<Map>()
+          .map(
+            (item) => CommunityChallengeSegment.fromJson(
+              Map<String, dynamic>.from(item),
+            ),
+          )
+          .toList(growable: false),
     );
   }
 
@@ -632,6 +721,15 @@ class CommunityChallenge {
       mutedNotifications: mutedNotifications ?? this.mutedNotifications,
       scope: scope,
       groupId: groupId,
+      challengeKey: challengeKey,
+      ruleType: ruleType,
+      ruleConfig: ruleConfig,
+      recurrenceType: recurrenceType,
+      ruleVersion: ruleVersion,
+      currentPeriodStart: currentPeriodStart,
+      currentPeriodEnd: currentPeriodEnd,
+      progressMetadata: progressMetadata,
+      segments: segments,
     );
   }
 }
@@ -648,6 +746,11 @@ class CommunityBadge {
     this.triggerType,
     this.awardedAt,
     this.awardMetadata,
+    this.progressValue,
+    this.targetValue,
+    this.progressPercent,
+    this.progressUnit,
+    this.ruleVersion,
   });
 
   final int? badgeId;
@@ -660,6 +763,11 @@ class CommunityBadge {
   final bool isEarned;
   final DateTime? awardedAt;
   final Map<String, dynamic>? awardMetadata;
+  final double? progressValue;
+  final double? targetValue;
+  final double? progressPercent;
+  final String? progressUnit;
+  final int? ruleVersion;
 
   factory CommunityBadge.fromJson(Map<String, dynamic> json) {
     return CommunityBadge(
@@ -677,6 +785,19 @@ class CommunityBadge {
       awardMetadata: json['award_metadata'] == null
           ? null
           : _asMap(json['award_metadata']),
+      progressValue: json['progress_value'] == null
+          ? null
+          : _asDouble(json['progress_value']),
+      targetValue: json['target_value'] == null
+          ? null
+          : _asDouble(json['target_value']),
+      progressPercent: json['progress_percent'] == null
+          ? null
+          : _asDouble(json['progress_percent']),
+      progressUnit: _asString(json['progress_unit']),
+      ruleVersion: json['rule_version'] == null
+          ? null
+          : _asInt(json['rule_version']),
     );
   }
 }

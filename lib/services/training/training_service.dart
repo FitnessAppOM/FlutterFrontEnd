@@ -220,11 +220,7 @@ class TrainingService {
   /// GCS signed URL that had expired) would be replayed from cache forever
   /// even after a fresh, valid URL is available for the same blob, because
   /// providers are keyed on the url with its signing query stripped.
-  static void evictGif(
-    String url, {
-    int? cacheWidth,
-    int? cacheHeight,
-  }) {
+  static void evictGif(String url, {int? cacheWidth, int? cacheHeight}) {
     final key = _gifKey(url, cacheWidth, cacheHeight);
     final provider = _gifProviders.remove(key);
     _gifFrames.remove(key);
@@ -793,7 +789,10 @@ class TrainingService {
     final res = await http.post(
       url,
       headers: headers,
-      body: json.encode({'entry_date': _dateParam(entryDate)}),
+      body: json.encode({
+        'entry_date': _dateParam(entryDate),
+        'utc_offset_minutes': entryDate.timeZoneOffset.inMinutes,
+      }),
     );
     _recordServerClock(res);
     await AccountStorage.handle401(res.statusCode);
@@ -840,6 +839,9 @@ class TrainingService {
     double? inclinePercent,
     List<Map<String, dynamic>>? routePoints,
     DateTime? entryDate,
+    String? activityKind,
+    DateTime? occurredAt,
+    int? utcOffsetMinutes,
   }) async {
     final url = Uri.parse('$baseUrl/training/cardio/finish');
     final headers = {
@@ -858,6 +860,13 @@ class TrainingService {
     if (exerciseId != null) body['exercise_id'] = exerciseId;
     if (routePoints != null) body['route_points'] = routePoints;
     if (entryDate != null) body['entry_date'] = _dateParam(entryDate);
+    if (activityKind != null) body['activity_kind'] = activityKind;
+    final resolvedOccurredAt = occurredAt ?? entryDate;
+    if (resolvedOccurredAt != null) {
+      body['occurred_at'] = resolvedOccurredAt.toUtc().toIso8601String();
+      body['utc_offset_minutes'] =
+          utcOffsetMinutes ?? resolvedOccurredAt.timeZoneOffset.inMinutes;
+    }
     final res = await http.post(url, headers: headers, body: json.encode(body));
     _recordServerClock(res);
     await AccountStorage.handle401(res.statusCode);
@@ -1216,8 +1225,6 @@ class TrainingService {
     // instructions, animation_url, ...) so callers can update the UI
     // immediately instead of waiting for a full program reload.
     final decoded = response.body.isNotEmpty ? json.decode(response.body) : {};
-    return decoded is Map<String, dynamic>
-        ? decoded
-        : <String, dynamic>{};
+    return decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
   }
 }

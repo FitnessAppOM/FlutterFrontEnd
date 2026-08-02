@@ -142,7 +142,7 @@ class DashboardPage extends StatefulWidget {
 }
 
 class DashboardPageState extends State<DashboardPage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   static const int _journalResetHour = 6;
   static const String _journalPromptShownKey =
       "daily_journal_prompt_shown_date_6am";
@@ -654,6 +654,7 @@ class DashboardPageState extends State<DashboardPage>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _ensureWiggle();
     AccountStorage.whoopChange.addListener(_onWhoopChanged);
     AccountStorage.stravaChange.addListener(_onStravaChanged);
@@ -825,6 +826,7 @@ class DashboardPageState extends State<DashboardPage>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _wiggleController?.dispose();
     AccountStorage.whoopChange.removeListener(_onWhoopChanged);
     AccountStorage.stravaChange.removeListener(_onStravaChanged);
@@ -834,6 +836,13 @@ class DashboardPageState extends State<DashboardPage>
     AccountStorage.dietChange.removeListener(_onDietChanged);
     AccountStorage.journalChange.removeListener(_onJournalChanged);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(refreshLiveSteps());
+    }
   }
 
   void _ensureWiggle() {
@@ -3092,6 +3101,15 @@ class DashboardPageState extends State<DashboardPage>
     } finally {
       if (mounted) setState(() => _streakLoading = false);
     }
+  }
+
+  /// Refreshes the live Apple Health / Health Connect step total without
+  /// reloading the rest of the dashboard.
+  Future<void> refreshLiveSteps() async {
+    if (!mounted || !_isToday() || _stepsLoading) return;
+    await _loadSteps();
+    if (!mounted) return;
+    await _loadWeeklySteps();
   }
 
   Future<void> _loadSteps() async {

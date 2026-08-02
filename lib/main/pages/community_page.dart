@@ -159,7 +159,11 @@ class _CommunityPageState extends State<CommunityPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _loadingMore = false);
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -194,7 +198,11 @@ class _CommunityPageState extends State<CommunityPage> {
             )
             .toList(growable: false);
       });
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -234,7 +242,11 @@ class _CommunityPageState extends State<CommunityPage> {
       AppToast.show(context, 'Report submitted.', type: AppToastType.success);
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -253,7 +265,11 @@ class _CommunityPageState extends State<CommunityPage> {
       AppToast.show(context, 'Feed item hidden.', type: AppToastType.success);
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -290,7 +306,11 @@ class _CommunityPageState extends State<CommunityPage> {
       await _refreshFeed();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -316,7 +336,11 @@ class _CommunityPageState extends State<CommunityPage> {
       await _refreshFeed();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -548,7 +572,7 @@ class _CommunityPageState extends State<CommunityPage> {
                 (challenge) => Padding(
                   padding: EdgeInsets.only(bottom: TaqaUiScale.h(15)),
                   child: TaqaCommunityChallengeCard(
-                    tag: challenge.challengeType.replaceAll('_', ' '),
+                    tag: challenge.displayRuleName,
                     name: challenge.name,
                     progress: challenge.progressPercent / 100,
                   ),
@@ -1024,7 +1048,11 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       });
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
       await _load();
     }
   }
@@ -1045,7 +1073,11 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -1059,7 +1091,11 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -1075,7 +1111,11 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -1098,7 +1138,11 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -1122,7 +1166,11 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -1138,7 +1186,11 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -1161,7 +1213,11 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -1251,7 +1307,11 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -1451,7 +1511,11 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       AppToast.show(context, 'Report submitted.', type: AppToastType.success);
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -1488,7 +1552,11 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 }
@@ -1675,7 +1743,11 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
       });
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -1712,7 +1784,11 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -1722,6 +1798,10 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
       context: context,
       title: challenge.name,
       options: [
+        const TaqaDialogOption(
+          value: 'details',
+          title: 'View progress details',
+        ),
         TaqaDialogOption(
           value: 'mute',
           title: challenge.mutedNotifications
@@ -1735,13 +1815,83 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
       ],
     );
     if (action == null) return;
-    if (action == 'mute') {
+    if (action == 'details') {
+      await _showChallengeProgress(challenge);
+    } else if (action == 'mute') {
       await _toggleMute(challenge, !challenge.mutedNotifications);
     } else if (action == 'edit') {
       await _editChallenge(challenge);
     } else if (action == 'delete') {
       await _deleteChallenge(challenge);
     }
+  }
+
+  Future<void> _showChallengeProgress(CommunityChallenge challenge) async {
+    final unit = challenge.progressUnit?.trim();
+    final valueLabel = unit == null || unit.isEmpty
+        ? challenge.progressValue.toStringAsFixed(1)
+        : '${challenge.progressValue.toStringAsFixed(1)} $unit';
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.appBackground,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                challenge.name,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${challenge.progressPercent.toStringAsFixed(0)}% | $valueLabel',
+              ),
+              if (challenge.currentPeriodStart != null &&
+                  challenge.currentPeriodEnd != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  '${challenge.currentPeriodStart!.toLocal().toIso8601String().substring(0, 10)}'
+                  ' - ${challenge.currentPeriodEnd!.toLocal().toIso8601String().substring(0, 10)}',
+                ),
+              ],
+              if (challenge.segments.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 320),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: challenge.segments.length,
+                    separatorBuilder: (_, _) => const Divider(),
+                    itemBuilder: (context, index) {
+                      final segment = challenge.segments[index];
+                      final target = segment.targetValue;
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(
+                          segment.isCompleted
+                              ? Icons.check_circle
+                              : Icons.radio_button_unchecked,
+                        ),
+                        title: Text('Week ${segment.segmentIndex + 1}'),
+                        subtitle: Text(
+                          target == null
+                              ? segment.progressValue.toStringAsFixed(1)
+                              : '${segment.progressValue.toStringAsFixed(1)} / ${target.toStringAsFixed(1)}',
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   bool _canManageChallenge(CommunityChallenge challenge) {
@@ -1768,7 +1918,11 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -1789,7 +1943,11 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -1847,7 +2005,7 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
                 (challenge) => Padding(
                   padding: EdgeInsets.only(bottom: TaqaUiScale.h(15)),
                   child: TaqaCommunityChallengeCard(
-                    tag: challenge.challengeType.replaceAll('_', ' '),
+                    tag: challenge.displayRuleName,
                     name: challenge.name,
                     progress: challenge.progressPercent / 100,
                     onTap: () => _openChallengeActions(challenge),
@@ -2052,6 +2210,20 @@ class _CommunityBadgeCard extends StatelessWidget {
                     color: TaqaUiColors.unnamedColor1c1d17,
                   ),
                 ),
+                if (!badge.isEarned && badge.progressValue != null) ...[
+                  SizedBox(height: TaqaUiScale.h(8)),
+                  Text(
+                    '${badge.progressValue!.toStringAsFixed(0)}'
+                    '${badge.targetValue == null ? '' : ' / ${badge.targetValue!.toStringAsFixed(0)}'}'
+                    '${badge.progressUnit == null ? '' : ' ${badge.progressUnit}'}',
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(13),
+                      fontWeight: FontWeight.w600,
+                      color: TaqaUiColors.unnamedColor1c1d17,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -2132,7 +2304,11 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -2158,7 +2334,11 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -2323,7 +2503,11 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -2341,7 +2525,11 @@ class _CommentsSheetState extends State<_CommentsSheet> {
       AppToast.show(context, 'Comment reported.', type: AppToastType.success);
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -2580,7 +2768,11 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -2610,7 +2802,11 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -2630,7 +2826,11 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -3164,7 +3364,11 @@ class _CommunityLeaderboardPageState extends State<CommunityLeaderboardPage> {
       await _refresh();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -3313,7 +3517,11 @@ class _CommunityPinnedItemsPageState extends State<CommunityPinnedItemsPage> {
       await _refresh();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -3332,7 +3540,11 @@ class _CommunityPinnedItemsPageState extends State<CommunityPinnedItemsPage> {
       await _refresh();
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 

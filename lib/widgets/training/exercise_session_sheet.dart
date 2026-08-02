@@ -897,13 +897,15 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     // which is what caused the semantics/hit-test crashes for those
     // exercises. Fall back to the same name-based check so both agree.
     return [
-              category,
-              exType,
-              animName,
-              name,
-            ].any((v) => v.contains('cardio')) ||
+          category,
+          exType,
+          animName,
+          name,
+        ].any((v) => v.contains('cardio')) ||
         animName.startsWith('cardio -') ||
-        isIndoorCardioExerciseName(widget.exercise['exercise_name']?.toString());
+        isIndoorCardioExerciseName(
+          widget.exercise['exercise_name']?.toString(),
+        );
   }
 
   bool _isIndoorCardioExercise() {
@@ -924,6 +926,22 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
             .trim()
             .toLowerCase();
     return name.contains('treadmill') || name.contains('treadmil');
+  }
+
+  String _communityActivityKind() {
+    final name =
+        (widget.exercise['exercise_name'] ?? widget.exercise['name'] ?? '')
+            .toString()
+            .trim()
+            .toLowerCase();
+    if (name.contains('treadmill') || name.contains('treadmil')) {
+      return 'treadmill';
+    }
+    if (name.contains('run') || name.contains('jog')) return 'outdoor_run';
+    if (name.contains('cycle') || name.contains('bike')) return 'cycling';
+    if (name.contains('row')) return 'rowing';
+    if (name.contains('swim')) return 'swimming';
+    return 'other_cardio';
   }
 
   bool _isTimerOnlyIndoorCardio() {
@@ -3034,6 +3052,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
             "route_points": routePoints,
             "entry_date":
                 "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
+            "activity_kind": _communityActivityKind(),
+            "occurred_at": now.toUtc().toIso8601String(),
+            "utc_offset_minutes": now.timeZoneOffset.inMinutes,
           };
           try {
             await TrainingNetworkResilience.withTimeout(
@@ -3047,6 +3068,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                 inclinePercent: inclinePercent,
                 routePoints: routePoints,
                 entryDate: now,
+                activityKind: _communityActivityKind(),
+                occurredAt: now,
+                utcOffsetMinutes: now.timeZoneOffset.inMinutes,
               ),
               TrainingNetworkResilience.sheetMutation,
             );

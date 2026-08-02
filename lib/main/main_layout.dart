@@ -129,6 +129,11 @@ class _MainLayoutState extends State<MainLayout> {
       _index = idx;
       _pages[idx] ??= _buildPage(idx);
     });
+    if (idx == MainLayout._dashboardTab) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _dashboardKey.currentState?.refreshLiveSteps();
+      });
+    }
     if (idx == MainLayout._dietTab) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         final selectedDate = _dashboardKey.currentState?.selectedDate;
