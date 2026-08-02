@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_storekit/store_kit_2_wrappers.dart';
 
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
@@ -52,11 +54,38 @@ class _CoachApplicationStatusPageState
 
   Future<void> _restoreCoachMembership() async {
     try {
+      if (await _hasActiveCoachStoreKitEntitlement()) {
+        await AccountStorage.setCoachMembershipActive(true);
+        await _continueIfCoachMembershipIsActive();
+        return;
+      }
       await _store.restorePurchases();
     } catch (_) {
       // Checkout still offers a manual restore if StoreKit is unavailable.
     } finally {
       if (mounted) setState(() => _checkingStoreEntitlement = false);
+    }
+  }
+
+  Future<bool> _hasActiveCoachStoreKitEntitlement() async {
+    if (!Platform.isIOS) return false;
+    try {
+      final transactions = await SK2Transaction.transactions();
+      final now = DateTime.now().toUtc();
+      return transactions.any((transaction) {
+        if (transaction.productId !=
+            TaqaSubscriptionCatalog.coachMonthly.productId) {
+          return false;
+        }
+        final expirationRaw = transaction.expirationDate;
+        final expiration = expirationRaw == null
+            ? null
+            : DateTime.tryParse(expirationRaw)?.toUtc();
+        return expiration != null && expiration.isAfter(now);
+      });
+    } catch (_) {
+      // StoreKit 1 and older iOS versions fall back to restorePurchases().
+      return false;
     }
   }
 
