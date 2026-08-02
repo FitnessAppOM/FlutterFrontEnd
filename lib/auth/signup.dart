@@ -326,7 +326,9 @@ class _SignupPageState extends State<SignupPage> {
       final serverDone = profile["filled_user_questionnaire"] == true;
       final expertQuestionnaireDone =
           profile["filled_expert_questionnaire"] == true;
-      final hasData = serverDone || _hasQuestionnaireData(profile);
+      final hasData = expertQuestionnaireDone ||
+          serverDone ||
+          _hasQuestionnaireData(profile);
       await AccountStorage.setQuestionnaireDone(serverDone);
       await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
       if (!mounted) return;
@@ -442,7 +444,9 @@ class _SignupPageState extends State<SignupPage> {
       final serverDone = profile["filled_user_questionnaire"] == true;
       final expertQuestionnaireDone =
           profile["filled_expert_questionnaire"] == true;
-      final hasData = serverDone || _hasQuestionnaireData(profile);
+      final hasData = expertQuestionnaireDone ||
+          serverDone ||
+          _hasQuestionnaireData(profile);
       await AccountStorage.setQuestionnaireDone(serverDone);
       await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
       if (!mounted) return;

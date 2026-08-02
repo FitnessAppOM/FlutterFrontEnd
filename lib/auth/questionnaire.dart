@@ -176,6 +176,7 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
             type: AppToastType.success,
           );
           await AccountStorage.setQuestionnaireDone(true);
+          await AccountStorage.setSubscriptionRequired(true);
           if (!mounted) return;
 
           Navigator.pushAndRemoveUntil(

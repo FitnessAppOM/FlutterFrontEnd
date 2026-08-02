@@ -6,6 +6,7 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../auth/email_verification_page.dart';
+import '../../core/account_storage.dart';
 import '../../services/purchases/taqa_subscription_catalog.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../components/taqa_filled_button.dart';
@@ -17,7 +18,23 @@ import '../taqa_ui_colors.dart';
 
 /// Taqa Fitness subscriptions purchased through the App Store / StoreKit.
 class TaqaSubscriptionPage extends StatefulWidget {
-  const TaqaSubscriptionPage({super.key});
+  const TaqaSubscriptionPage({
+    super.key,
+    this.mandatory = false,
+    this.plans,
+    this.coachMembership = false,
+  });
+
+  /// When opened after onboarding, the user must subscribe or restore a
+  /// subscription before the app can continue to their generated plan.
+  final bool mandatory;
+
+  /// Limits checkout to a particular subscription offering, such as the
+  /// coach membership.
+  final List<TaqaSubscriptionPlan>? plans;
+
+  /// Marks a completed StoreKit transaction as an active coach membership.
+  final bool coachMembership;
 
   @override
   State<TaqaSubscriptionPage> createState() => _TaqaSubscriptionPageState();
@@ -65,7 +82,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       }
 
       final response = await _store.queryProductDetails(
-        TaqaSubscriptionCatalog.plans.map((plan) => plan.productId).toSet(),
+        _catalogPlans.map((plan) => plan.productId).toSet(),
       );
       if (!mounted) return;
       setState(() {
@@ -108,7 +125,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
 
   Future<void> _handlePurchaseUpdates(List<PurchaseDetails> purchases) async {
     for (final purchase in purchases) {
-      if (!TaqaSubscriptionCatalog.plans
+      if (!_catalogPlans
           .map((plan) => plan.productId)
           .contains(purchase.productID)) {
         continue;
@@ -119,6 +136,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         continue;
       }
 
+      var completedMandatorySubscription = false;
       if (purchase.status == PurchaseStatus.error) {
         _setMessage(
           purchase.error?.message ?? 'The purchase could not be completed.',
@@ -130,8 +148,21 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
               ? 'Your purchases have been restored.'
               : 'Your subscription is active.',
         );
+        completedMandatorySubscription = widget.mandatory;
       }
 
+      if (completedMandatorySubscription && mounted) {
+        await AccountStorage.setSubscriptionRequired(false);
+        if (widget.coachMembership) {
+          await AccountStorage.setCoachMembershipActive(true);
+        }
+        if (!mounted) return;
+        if (purchase.pendingCompletePurchase) {
+          unawaited(_completePurchaseInBackground(purchase));
+        }
+        Navigator.of(context).pop(true);
+        return;
+      }
       if (purchase.pendingCompletePurchase) {
         await _store.completePurchase(purchase);
       }
@@ -141,6 +172,15 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
           _restoring = false;
         });
       }
+    }
+  }
+
+  Future<void> _completePurchaseInBackground(PurchaseDetails purchase) async {
+    try {
+      await _store.completePurchase(purchase);
+    } catch (_) {
+      // StoreKit will provide the unfinished transaction again on the next
+      // launch, where it can be completed without blocking access.
     }
   }
 
@@ -197,6 +237,9 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         productId == TaqaSubscriptionCatalog.studentAnnual.productId;
   }
 
+  List<TaqaSubscriptionPlan> get _catalogPlans =>
+      widget.plans ?? TaqaSubscriptionCatalog.plans;
+
   Future<void> _restorePurchases() async {
     if (_restoring) return;
     setState(() {
@@ -235,7 +278,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     final selectedProduct = _selectedProductId == null
         ? null
         : _products[_selectedProductId];
-    final availablePlans = TaqaSubscriptionCatalog.plans
+    final availablePlans = _catalogPlans
         .where((plan) => _products.containsKey(plan.productId))
         .toList(growable: false);
     final canSubscribe =
@@ -245,75 +288,88 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         !_purchasePending;
     final canChoosePlan = !_loading && availablePlans.isNotEmpty;
 
-    return Scaffold(
-      backgroundColor: TaqaUiColors.lightGray,
-      appBar: const TaqaPageAppBar(title: 'Subscriptions'),
-      body: SafeArea(
-        top: false,
-        child: ListView(
-          padding: TaqaUiScale.insetsLTRB(16, 20, 16, 28),
-          children: [
-            Text(
-              'Taqa Fitness Premium',
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: TaqaUiScale.sp(25),
-                fontWeight: FontWeight.w700,
-                height: 1,
-                color: TaqaUiColors.charcoal,
+    return PopScope(
+      canPop: !widget.mandatory,
+      child: Scaffold(
+        backgroundColor: TaqaUiColors.lightGray,
+        appBar: TaqaPageAppBar(
+          title: 'Subscriptions',
+          showBackButton: !widget.mandatory,
+        ),
+        body: SafeArea(
+          top: false,
+          child: ListView(
+            padding: TaqaUiScale.insetsLTRB(16, 20, 16, 28),
+            children: [
+              Text(
+                widget.coachMembership
+                    ? 'Taqa Coach Membership'
+                    : 'Taqa Subscription',
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(25),
+                  fontWeight: FontWeight.w700,
+                  height: 1,
+                  color: TaqaUiColors.charcoal,
+                ),
               ),
-            ),
-            SizedBox(height: TaqaUiScale.h(8)),
-            Text(
-              'One membership for your full Taqa Fitness experience.',
-              style: _bodyStyle,
-            ),
-            SizedBox(height: TaqaUiScale.h(16)),
-            _PremiumOverviewCard(
-              selectedProduct: selectedProduct,
-              onChoosePlan: canChoosePlan
-                  ? () => _showPlanPicker(availablePlans)
-                  : null,
-            ),
-            SizedBox(height: TaqaUiScale.h(16)),
-            if (_message != null) ...[
-              _MessageCard(message: _message!),
+              SizedBox(height: TaqaUiScale.h(8)),
+              Text(
+                widget.coachMembership
+                    ? 'Start your membership to access your coach tools.'
+                    : widget.mandatory
+                    ? 'Your plan is ready. Subscribe or restore a purchase to unlock it.'
+                    : 'One membership for your full Taqa Subscription experience.',
+                style: _bodyStyle,
+              ),
+              SizedBox(height: TaqaUiScale.h(16)),
+              _PremiumOverviewCard(
+                selectedProduct: selectedProduct,
+                coachMembership: widget.coachMembership,
+                onChoosePlan: canChoosePlan
+                    ? () => _showPlanPicker(availablePlans)
+                    : null,
+              ),
+              SizedBox(height: TaqaUiScale.h(16)),
+              if (_message != null) ...[
+                _MessageCard(message: _message!),
+                SizedBox(height: TaqaUiScale.h(12)),
+              ],
+              TaqaFilledButton(
+                label: selectedProduct == null
+                    ? 'Choose a plan'
+                    : 'Subscribe for ${selectedProduct.price}',
+                loading: _purchasePending,
+                onTap: canSubscribe ? _subscribe : null,
+              ),
+              SizedBox(height: TaqaUiScale.h(6)),
+              TextButton(
+                onPressed: _storeAvailable && !_restoring
+                    ? _restorePurchases
+                    : null,
+                child: _restoring
+                    ? SizedBox(
+                        width: TaqaUiScale.w(18),
+                        height: TaqaUiScale.h(18),
+                        child: const CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: TaqaUiColors.charcoal,
+                        ),
+                      )
+                    : Text('Restore Purchases', style: _linkStyle),
+              ),
+              SizedBox(height: TaqaUiScale.h(8)),
+              Text(
+                'Payment will be charged to your Apple ID when you confirm. '
+                'Your subscription automatically renews unless you cancel at '
+                'least 24 hours before the end of the current period. You can '
+                'manage or cancel it in your App Store account settings.',
+                style: _bodyStyle,
+              ),
               SizedBox(height: TaqaUiScale.h(12)),
+              _LegalLinks(onOpen: _openLegalLink),
             ],
-            TaqaFilledButton(
-              label: selectedProduct == null
-                  ? 'Choose a plan'
-                  : 'Subscribe for ${selectedProduct.price}',
-              loading: _purchasePending,
-              onTap: canSubscribe ? _subscribe : null,
-            ),
-            SizedBox(height: TaqaUiScale.h(6)),
-            TextButton(
-              onPressed: _storeAvailable && !_restoring
-                  ? _restorePurchases
-                  : null,
-              child: _restoring
-                  ? SizedBox(
-                      width: TaqaUiScale.w(18),
-                      height: TaqaUiScale.h(18),
-                      child: const CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: TaqaUiColors.charcoal,
-                      ),
-                    )
-                  : Text('Restore Purchases', style: _linkStyle),
-            ),
-            SizedBox(height: TaqaUiScale.h(8)),
-            Text(
-              'Payment will be charged to your Apple ID when you confirm. '
-              'Your subscription automatically renews unless you cancel at '
-              'least 24 hours before the end of the current period. You can '
-              'manage or cancel it in your App Store account settings.',
-              style: _bodyStyle,
-            ),
-            SizedBox(height: TaqaUiScale.h(12)),
-            _LegalLinks(onOpen: _openLegalLink),
-          ],
+          ),
         ),
       ),
     );
@@ -352,8 +408,8 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     if (student) {
       return 'Full access with student pricing, billed monthly.';
     }
-    if (annual) return 'Full premium access, billed annually.';
-    return 'Full premium access, billed monthly.';
+    if (annual) return 'Full Taqa Subscription access, billed annually.';
+    return 'Full Taqa Subscription access, billed monthly.';
   }
 
   Future<void> _showPlanPicker(List<TaqaSubscriptionPlan> plans) async {
@@ -395,10 +451,12 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
 class _PremiumOverviewCard extends StatelessWidget {
   const _PremiumOverviewCard({
     required this.selectedProduct,
+    required this.coachMembership,
     required this.onChoosePlan,
   });
 
   final ProductDetails? selectedProduct;
+  final bool coachMembership;
   final VoidCallback? onChoosePlan;
 
   @override
@@ -414,7 +472,9 @@ class _PremiumOverviewCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Everything in Taqa Premium',
+            coachMembership
+                ? 'Everything in Taqa Coach'
+                : 'Everything in Taqa Subscription',
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(15),
@@ -424,7 +484,9 @@ class _PremiumOverviewCard extends StatelessWidget {
           ),
           SizedBox(height: TaqaUiScale.h(6)),
           Text(
-            'One membership, all the tools you need to train with intent.',
+            coachMembership
+                ? 'The tools you need to coach clients, review their progress and grow your practice.'
+                : 'One membership, all the tools you need to train with intent.',
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(13),
@@ -434,27 +496,51 @@ class _PremiumOverviewCard extends StatelessWidget {
             ),
           ),
           SizedBox(height: TaqaUiScale.h(14)),
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _PremiumFeatureBullet(
-                label: 'Personalised training plans and workout logging',
-              ),
-              _PremiumFeatureBullet(
-                label: 'Nutrition guidance, meal tracking and daily targets',
-              ),
-              _PremiumFeatureBullet(
-                label: 'Progress, recovery and wearable health insights',
-              ),
-              _PremiumFeatureBullet(
-                label: 'Message your coach and receive feedback',
-              ),
-              _PremiumFeatureBullet(
-                label: 'Connect with the Taqa Fitness community',
-              ),
-              _PremiumFeatureBullet(label: 'And more!'),
-            ],
-          ),
+          if (coachMembership)
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _PremiumFeatureBullet(
+                  label: 'Create and manage personalised training plans',
+                ),
+                _PremiumFeatureBullet(
+                  label: 'Review client progress, feedback and check-ins',
+                ),
+                _PremiumFeatureBullet(
+                  label:
+                      'Message clients and manage your coaching relationships',
+                ),
+                _PremiumFeatureBullet(
+                  label: 'Access coach dashboards and client insights',
+                ),
+                _PremiumFeatureBullet(
+                  label:
+                      'Share your referral code—referred coaches get \$1 off their first month',
+                ),
+              ],
+            )
+          else
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _PremiumFeatureBullet(
+                  label: 'Personalised training plans and workout logging',
+                ),
+                _PremiumFeatureBullet(
+                  label: 'Nutrition guidance, meal tracking and daily targets',
+                ),
+                _PremiumFeatureBullet(
+                  label: 'Progress, recovery and wearable health insights',
+                ),
+                _PremiumFeatureBullet(
+                  label: 'Message your coach and receive feedback',
+                ),
+                _PremiumFeatureBullet(
+                  label: 'Connect with the Taqa Fitness community',
+                ),
+                _PremiumFeatureBullet(label: 'And more!'),
+              ],
+            ),
           SizedBox(height: TaqaUiScale.h(18)),
           _PlanChoiceButton(
             label: selectedPrice == null
@@ -614,7 +700,7 @@ class _PlanPickerOverlay extends StatelessWidget {
                         ),
                         SizedBox(height: TaqaUiScale.h(2)),
                         Text(
-                          'Every plan includes the same Taqa Premium features. Tap a plan to select it.',
+                          'Every plan includes the same Taqa Subscription features. Tap a plan to select it.',
                           style: TextStyle(
                             fontFamily: TaqaUiFontFamilies.interTight,
                             fontSize: TaqaUiScale.sp(13),

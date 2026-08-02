@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show Platform;
 import 'dart:math';
 
+import 'package:app_links/app_links.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -21,6 +23,8 @@ class RemotePushService {
   static const _currentPushTokenRefreshEpoch = 'ios_prod_apns_2026_05_04';
 
   static bool _initialized = false;
+  static final AppLinks _appLinks = AppLinks();
+  static StreamSubscription<Uri>? _deepLinkSubscription;
   static int? _lastSyncedUserId;
   static String? _lastSyncedToken;
   static String? _cachedDeviceId;
@@ -67,6 +71,8 @@ class RemotePushService {
       }
     } catch (_) {}
 
+    await _initDeepLinks();
+
     FirebaseMessaging.instance.onTokenRefresh.listen((String token) {
       syncTokenForCurrentUser(
         force: true,
@@ -86,10 +92,7 @@ class RemotePushService {
     return int.tryParse(value.toString().trim());
   }
 
-  static int? _firstIntFromKeys(
-    Map<String, dynamic> data,
-    List<String> keys,
-  ) {
+  static int? _firstIntFromKeys(Map<String, dynamic> data, List<String> keys) {
     for (final key in keys) {
       final parsed = _parseIntOrNull(data[key]);
       if (parsed != null) return parsed;
@@ -130,8 +133,8 @@ class RemotePushService {
                 data['from_role'] ??
                 data['fromRole'] ??
                 data['role'])
-        ?.toString()
-        .trim();
+            ?.toString()
+            .trim();
 
     NavigationService.handleNotificationTap(
       type: type,
@@ -140,6 +143,26 @@ class RemotePushService {
       clientUserId: clientUserId,
       coachUserId: coachUserId,
     );
+  }
+
+  static Future<void> _initDeepLinks() async {
+    _deepLinkSubscription ??= _appLinks.uriLinkStream.listen(
+      _handleDeepLink,
+      onError: (_) {},
+    );
+    try {
+      final initialLink = await _appLinks.getInitialLink();
+      if (initialLink != null) _handleDeepLink(initialLink);
+    } catch (_) {}
+  }
+
+  static void _handleDeepLink(Uri link) {
+    if (link.scheme.toLowerCase() != 'taqa' ||
+        link.host.toLowerCase() != 'coach' ||
+        link.path.toLowerCase() != '/application') {
+      return;
+    }
+    NavigationService.handleNotificationTap(type: 'coach_application_decision');
   }
 
   static Future<void> _ensureFcmPermission() async {

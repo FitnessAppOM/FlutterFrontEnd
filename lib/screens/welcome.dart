@@ -187,7 +187,8 @@ class _WelcomePageState extends State<WelcomePage> {
       final expertQuestionnaireDone =
           profile["filled_expert_questionnaire"] == true;
       final isExpert = profile["is_expert"] == true;
-      final hasData = serverDone || _hasQuestionnaireData(profile);
+      final hasData =
+          expertQuestionnaireDone || serverDone || _hasQuestionnaireData(profile);
       await AccountStorage.setQuestionnaireDone(serverDone);
       await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
       await AccountStorage.setIsExpert(isExpert);
@@ -664,6 +665,18 @@ class _WelcomePageState extends State<WelcomePage> {
                         ),
                       ),
                     ],
+                  ),
+                  SizedBox(height: TaqaUiScale.h(10)),
+                  TaqaTextActionButton(
+                    label: 'Sign up as coach',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SignupPage(isExpert: true),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),

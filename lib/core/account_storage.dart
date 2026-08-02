@@ -31,6 +31,8 @@ class AccountStorage {
   static const _kSkipDailyJournalPromptOnce = 'skip_daily_journal_prompt_once';
   static const _kProfileEditBlockedUntil = 'profile_edit_blocked_until';
   static const _kDismissDeactivatedPrompt = 'dismiss_deactivated_prompt';
+  static const _kSubscriptionRequired = 'subscription_required';
+  static const _kCoachMembershipActive = 'coach_membership_active';
   static String _whoopLinkedKey(int? userId) =>
       userId == null ? _kWhoopLinked : "${_kWhoopLinked}_u$userId";
   static String _fitbitLinkedKey(int? userId) =>
@@ -49,6 +51,12 @@ class AccountStorage {
       "${_kProfileEditBlockedUntil}_u$userId";
   static String _dismissDeactivatedPromptKey(int userId) =>
       "${_kDismissDeactivatedPrompt}_u$userId";
+  static String _subscriptionRequiredKey(int? userId) => userId == null
+      ? _kSubscriptionRequired
+      : "${_kSubscriptionRequired}_u$userId";
+  static String _coachMembershipActiveKey(int? userId) => userId == null
+      ? _kCoachMembershipActive
+      : "${_kCoachMembershipActive}_u$userId";
   static String _avatarPathKey(int? userId) =>
       userId == null ? _kAvatarPath : "${_kAvatarPath}_u$userId";
   static String _avatarUrlKey(int? userId) =>
@@ -380,6 +388,29 @@ class AccountStorage {
     return sp.getBool(_kExpertQuestionnaireDone) ?? false;
   }
 
+  /// Persists the new-user subscription gate across app restarts until StoreKit
+  /// reports a completed purchase or restoration.
+  static Future<void> setSubscriptionRequired(bool required) async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    await sp.setBool(_subscriptionRequiredKey(userId), required);
+  }
+
+  static Future<bool> isSubscriptionRequired() async {
+    final sp = await SharedPreferences.getInstance();
+    return sp.getBool(_subscriptionRequiredKey(sp.getInt(_kUserId))) ?? false;
+  }
+
+  static Future<void> setCoachMembershipActive(bool active) async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setBool(_coachMembershipActiveKey(sp.getInt(_kUserId)), active);
+  }
+
+  static Future<bool> isCoachMembershipActive() async {
+    final sp = await SharedPreferences.getInstance();
+    return sp.getBool(_coachMembershipActiveKey(sp.getInt(_kUserId))) ?? false;
+  }
+
   /// JWT access token returned by login / Google login. Used for Authorization header on protected APIs.
   static Future<String?> getAccessToken() async {
     final secureToken = await _secureStorage.read(key: _kToken);
@@ -690,6 +721,8 @@ class AccountStorage {
       await sp.remove(_skipDailyJournalPromptOnceKey(currentUserId));
       await sp.remove(_profileEditBlockedUntilKey(currentUserId));
       await sp.remove(_dismissDeactivatedPromptKey(currentUserId));
+      await sp.remove(_subscriptionRequiredKey(currentUserId));
+      await sp.remove(_coachMembershipActiveKey(currentUserId));
     }
     await sp.remove(_kWhoopLinked);
     await sp.remove(_kFitbitLinked);

@@ -6,6 +6,7 @@ import '../../screens/coach_page.dart';
 import '../../screens/expert_client_chat_page.dart';
 import '../../screens/expert_client_habits_page.dart';
 import '../../screens/expert_client_diet_review_page.dart';
+import '../../auth/coach_application_status_page.dart';
 
 class NavigationService {
   static final GlobalKey<NavigatorState> navigatorKey =
@@ -139,6 +140,18 @@ class NavigationService {
     launchedFromNotificationPayload = false;
 
     final effectiveClientId = clientUserId ?? senderUserId;
+    if (type == 'coach_application_decision') {
+      final hasCoachMembership = await AccountStorage.isCoachMembershipActive();
+      nav.pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => hasCoachMembership
+              ? const MainLayout()
+              : const CoachApplicationStatusPage(),
+        ),
+        (_) => false,
+      );
+      return true;
+    }
     if (type == 'coach_chat') {
       await navigateToChatFromNotification(
         senderUserId: senderUserId ?? clientUserId,
@@ -219,6 +232,11 @@ class NavigationService {
     _pendingNotificationCoachUserId = null;
     launchedFromNotificationPayload = false;
 
+    if (type == 'coach_application_decision') {
+      return await AccountStorage.isCoachMembershipActive()
+          ? const MainLayout()
+          : const CoachApplicationStatusPage();
+    }
     if (type == 'training_plan_change') {
       markTrainingPlanChangeNotificationPending();
       return const MainLayout(initialIndex: 1);

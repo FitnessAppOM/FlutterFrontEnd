@@ -8,6 +8,7 @@ import '../widgets/taqa_bolt_loading_screen.dart';
 import '../main/main_layout.dart';
 import '../localization/app_localizations.dart';
 import '../core/user_friendly_error.dart';
+import '../TaqaUI/screens/taqa_subscription_page.dart';
 
 class GeneratingTrainingScreen extends StatefulWidget {
   const GeneratingTrainingScreen({super.key});
@@ -88,11 +89,7 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
 
       if (!mounted) return;
 
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const MainLayout()),
-            (_) => false,
-      );
+      await _continueToSubscription();
     } catch (e) {
       if (!mounted) return;
 
@@ -144,15 +141,28 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
           .timeout(const Duration(seconds: 20));
       AccountStorage.notifyTrainingChanged();
       if (!mounted) return true;
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const MainLayout()),
-            (_) => false,
-      );
+      await _continueToSubscription();
       return true;
     } catch (_) {
       return false;
     }
+  }
+
+  /// A generated first plan is unlocked only after a completed or restored
+  /// App Store subscription. The subscription route cannot be dismissed.
+  Future<void> _continueToSubscription() async {
+    if (!mounted) return;
+    final subscribed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => const TaqaSubscriptionPage(mandatory: true),
+      ),
+    );
+    if (!mounted || subscribed != true) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const MainLayout()),
+      (_) => false,
+    );
   }
 
   @override

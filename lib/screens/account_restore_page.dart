@@ -278,7 +278,8 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
       final expertQuestionnaireDone =
           profile["filled_expert_questionnaire"] == true;
       final isExpert = profile["is_expert"] == true;
-      final hasData = serverDone || _hasQuestionnaireData(profile);
+      final hasData =
+          expertQuestionnaireDone || serverDone || _hasQuestionnaireData(profile);
       await AccountStorage.setQuestionnaireDone(serverDone);
       await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
       await AccountStorage.setIsExpert(isExpert);

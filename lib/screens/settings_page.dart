@@ -35,7 +35,6 @@ import '../screens/welcome.dart';
 import '../screens/account_restore_page.dart';
 import '../TaqaUI/components/taqa_value_dialog.dart';
 import '../TaqaUI/components/taqa_steps_ui.dart' show TaqaRangeTab;
-import '../TaqaUI/screens/taqa_subscription_page.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
@@ -1345,18 +1344,6 @@ class _SettingsPageState extends State<SettingsPage> {
                     SizedBox(height: TaqaUiScale.h(12)),
                     const _HabitReminderCard(),
                   ],
-                  const SizedBox(height: 12),
-                  _sectionTitle('Subscriptions'),
-                  SizedBox(height: TaqaUiScale.h(12)),
-                  _SettingsTile(
-                    title: 'Taqa Fitness Subscription',
-                    subtitle: 'Choose a plan or restore your purchases.',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const TaqaSubscriptionPage(),
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 12),
                   _sectionTitle(t.translate("settings_security")),
                   SizedBox(height: TaqaUiScale.h(12)),

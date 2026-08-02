@@ -8,7 +8,7 @@ import '../core/account_storage.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
-import 'expert_submission_success.dart';
+import 'coach_application_status_page.dart';
 import '../services/core/expert_questionnaire_service.dart';
 
 class ExpertQuestionnairePage extends StatefulWidget {
@@ -145,7 +145,7 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
       if (!mounted) return;
       AppToast.show(context, _t("save_success"), type: AppToastType.success);
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const ExpertSubmissionSuccessPage()),
+        MaterialPageRoute(builder: (_) => const CoachApplicationStatusPage()),
       );
     } catch (e) {
       if (!mounted) return;

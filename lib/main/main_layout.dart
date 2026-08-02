@@ -16,6 +16,8 @@ import '../screens/coach_page.dart';
 import '../screens/expert_dashboard_page.dart';
 import '../TaqaUI/components/taqa_bottom_nav_bar.dart';
 import '../TaqaUI/components/taqa_value_dialog.dart';
+import '../TaqaUI/screens/taqa_subscription_page.dart';
+import '../auth/coach_application_status_page.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({
@@ -52,6 +54,7 @@ class MainLayout extends StatefulWidget {
 class _MainLayoutState extends State<MainLayout> {
   late int _index;
   bool _expertStatusRefreshedThisSession = false;
+  bool _subscriptionGateChecked = false;
 
   final GlobalKey<DashboardPageState> _dashboardKey =
       GlobalKey<DashboardPageState>();
@@ -71,10 +74,52 @@ class _MainLayoutState extends State<MainLayout> {
       _pages[_index] = _buildPage(_index);
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _enforceAccessGates();
       NavigationService.setNotificationNavigationReady(true);
       NavigationService.flushPendingNotificationNavigation();
       ScreeningPromptService.checkAndPromptIfDue();
     });
+  }
+
+  Future<void> _enforceAccessGates() async {
+    await _enforceCoachApplicationGate();
+    if (mounted) await _enforceSubscriptionGate();
+  }
+
+  Future<void> _enforceCoachApplicationGate() async {
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null || userId <= 0) return;
+      final profile = await ProfileApi.fetchProfile(userId);
+      if (profile['filled_expert_questionnaire'] != true) return;
+      final status = (profile['expert_profile_status'] ?? '')
+          .toString()
+          .trim()
+          .toLowerCase();
+      if (status == 'approved' &&
+          await AccountStorage.isCoachMembershipActive()) {
+        return;
+      }
+      if (!mounted) return;
+      await Navigator.of(context).push<bool>(
+        MaterialPageRoute(builder: (_) => const CoachApplicationStatusPage()),
+      );
+    } catch (_) {
+      // The application-status page will retry if it is required. Avoid
+      // blocking an established session on a transient profile request.
+    }
+  }
+
+  Future<void> _enforceSubscriptionGate() async {
+    if (_subscriptionGateChecked) return;
+    _subscriptionGateChecked = true;
+    if (!await AccountStorage.isSubscriptionRequired() || !mounted) return;
+
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => const TaqaSubscriptionPage(mandatory: true),
+      ),
+    );
   }
 
   @override

@@ -93,6 +93,7 @@
                 <data android:scheme="taqa" android:host="whoop"/>
                 <data android:scheme="taqa" android:host="fitbit"/>
                 <data android:scheme="taqa" android:host="strava"/>
+                <data android:scheme="taqa" android:host="coach" android:pathPrefix="/application"/>
             </intent-filter>
         </activity>
         <activity-alias
