@@ -7,6 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../auth/email_verification_page.dart';
 import '../../core/account_storage.dart';
+import '../../screens/welcome.dart';
+import '../../services/core/notification_service.dart';
 import '../../services/purchases/taqa_subscription_catalog.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../components/taqa_filled_button.dart';
@@ -273,6 +275,16 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     if (!opened) _setMessage('This legal page could not be opened.');
   }
 
+  Future<void> _logout() async {
+    await AccountStorage.logoutSession();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const WelcomePage(fromLogout: true)),
+      (route) => false,
+    );
+    NotificationService.refreshDailyJournalRemindersForCurrentUser();
+  }
+
   @override
   Widget build(BuildContext context) {
     final selectedProduct = _selectedProductId == null
@@ -358,6 +370,8 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                       )
                     : Text('Restore Purchases', style: _linkStyle),
               ),
+              SizedBox(height: TaqaUiScale.h(4)),
+              _SubscriptionLogoutButton(onTap: _logout),
               SizedBox(height: TaqaUiScale.h(8)),
               Text(
                 'Payment will be charged to your Apple ID when you confirm. '
@@ -446,6 +460,40 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     fontWeight: FontWeight.w700,
     color: TaqaUiColors.charcoal,
   );
+}
+
+class _SubscriptionLogoutButton extends StatelessWidget {
+  const _SubscriptionLogoutButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: TaqaUiColors.unnamedColor1c1d17,
+      borderRadius: TaqaUiScale.radius(5),
+      child: InkWell(
+        borderRadius: TaqaUiScale.radius(5),
+        onTap: onTap,
+        child: SizedBox(
+          width: double.infinity,
+          height: TaqaUiScale.h(45),
+          child: Center(
+            child: Text(
+              'SIGN OUT',
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(10),
+                fontWeight: FontWeight.w600,
+                height: 12 / 10,
+                color: TaqaUiColors.white,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _PremiumOverviewCard extends StatelessWidget {
