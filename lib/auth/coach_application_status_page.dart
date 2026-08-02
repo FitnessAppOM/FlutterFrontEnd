@@ -94,8 +94,7 @@ class _CoachApplicationStatusPageState
       (purchase) =>
           purchase.productID ==
               TaqaSubscriptionCatalog.coachMonthly.productId &&
-          (purchase.status == PurchaseStatus.purchased ||
-              purchase.status == PurchaseStatus.restored),
+          purchase.status == PurchaseStatus.restored,
     );
     if (coachPurchases.isEmpty) return;
 
