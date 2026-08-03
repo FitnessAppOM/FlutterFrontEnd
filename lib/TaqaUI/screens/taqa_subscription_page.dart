@@ -307,6 +307,14 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         appBar: TaqaPageAppBar(
           title: 'Subscriptions',
           showBackButton: !widget.mandatory,
+          trailing: IconButton(
+            tooltip: 'Sign out',
+            onPressed: _logout,
+            icon: const Icon(
+              Icons.logout_rounded,
+              color: TaqaUiColors.unnamedColor1c1d17,
+            ),
+          ),
         ),
         body: SafeArea(
           top: false,
@@ -370,8 +378,6 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                       )
                     : Text('Restore Purchases', style: _linkStyle),
               ),
-              SizedBox(height: TaqaUiScale.h(4)),
-              _SubscriptionLogoutButton(onTap: _logout),
               SizedBox(height: TaqaUiScale.h(8)),
               Text(
                 'Payment will be charged to your Apple ID when you confirm. '
@@ -460,40 +466,6 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     fontWeight: FontWeight.w700,
     color: TaqaUiColors.charcoal,
   );
-}
-
-class _SubscriptionLogoutButton extends StatelessWidget {
-  const _SubscriptionLogoutButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: TaqaUiColors.unnamedColor1c1d17,
-      borderRadius: TaqaUiScale.radius(5),
-      child: InkWell(
-        borderRadius: TaqaUiScale.radius(5),
-        onTap: onTap,
-        child: SizedBox(
-          width: double.infinity,
-          height: TaqaUiScale.h(45),
-          child: Center(
-            child: Text(
-              'SIGN OUT',
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: TaqaUiScale.sp(10),
-                fontWeight: FontWeight.w600,
-                height: 12 / 10,
-                color: TaqaUiColors.white,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _PremiumOverviewCard extends StatelessWidget {
