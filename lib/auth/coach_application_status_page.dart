@@ -33,7 +33,7 @@ class _CoachApplicationStatusPageState
   late final StreamSubscription<List<PurchaseDetails>> _purchaseSubscription;
   String _status = 'pending';
   bool _loading = true;
-  bool _checkingStoreEntitlement = true;
+  bool _checkingStoreEntitlement = false;
   String? _error;
 
   @override
@@ -43,7 +43,6 @@ class _CoachApplicationStatusPageState
       _handlePurchaseUpdates,
     );
     _refreshStatus();
-    _restoreCoachMembership();
   }
 
   @override
@@ -53,6 +52,9 @@ class _CoachApplicationStatusPageState
   }
 
   Future<void> _restoreCoachMembership() async {
+    if (mounted) {
+      setState(() => _checkingStoreEntitlement = true);
+    }
     try {
       if (await _hasActiveCoachStoreKitEntitlement()) {
         await AccountStorage.setCoachMembershipActive(true);
@@ -125,6 +127,9 @@ class _CoachApplicationStatusPageState
         _status = status.isEmpty ? 'pending' : status;
         _loading = false;
       });
+      if (_status == 'approved') {
+        await _restoreCoachMembership();
+      }
       await _continueIfCoachMembershipIsActive();
     } catch (_) {
       if (!mounted) return;
