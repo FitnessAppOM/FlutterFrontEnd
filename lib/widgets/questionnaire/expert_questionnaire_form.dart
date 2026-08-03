@@ -25,10 +25,12 @@ class ExpertQuestionnaireForm extends StatefulWidget {
     super.key,
     required this.onSubmit,
     required this.submitting,
+    required this.onCancel,
   });
 
   final Future<void> Function(Map<String, dynamic>)? onSubmit;
   final bool submitting;
+  final VoidCallback onCancel;
 
   @override
   State<ExpertQuestionnaireForm> createState() =>
@@ -204,7 +206,13 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      _toast(
+        "Please complete all required fields before submitting.",
+        type: AppToastType.error,
+      );
+      return;
+    }
     _formKey.currentState!.save();
 
     // required multi-selects
@@ -684,7 +692,7 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
             Material(
               color: Colors.transparent,
               child: InkWell(
-                onTap: () => Navigator.of(context).pop(),
+                onTap: widget.onCancel,
                 child: SizedBox(
                   width: double.infinity,
                   height: TaqaUiScale.h(44),

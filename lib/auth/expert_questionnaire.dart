@@ -9,6 +9,7 @@ import '../TaqaUI/components/taqa_toast.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
 import 'coach_application_status_page.dart';
+import '../screens/welcome.dart';
 import '../services/core/expert_questionnaire_service.dart';
 
 class ExpertQuestionnairePage extends StatefulWidget {
@@ -42,6 +43,7 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
                 child: ExpertQuestionnaireForm(
                   onSubmit: _submitting ? null : _submit,
                   submitting: _submitting,
+                  onCancel: _exitToWelcome,
                 ),
               )
             : Column(
@@ -114,12 +116,16 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
             onTap: () => setState(() => _started = true),
           ),
           SizedBox(height: TaqaUiScale.h(10)),
-          TaqaTextActionButton(
-            label: _t("cancel"),
-            onTap: () => Navigator.of(context).pop(),
-          ),
+          TaqaTextActionButton(label: _t("cancel"), onTap: _exitToWelcome),
         ],
       ),
+    );
+  }
+
+  void _exitToWelcome() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const WelcomePage(fromLogout: true)),
+      (_) => false,
     );
   }
 

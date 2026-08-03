@@ -31,14 +31,16 @@ class ExpertDocumentUpload {
 class ExpertQuestionnaireApi {
   static Future<void> submit(Map<String, dynamic> data) async {
     final url = Uri.parse("${ApiConfig.baseUrl}/expert-questionnaire/submit");
-    final res = await http.post(
-      url,
-      headers: {
-        "Content-Type": "application/json",
-        ...await AccountStorage.getAuthHeaders(),
-      },
-      body: jsonEncode(data),
-    );
+    final res = await http
+        .post(
+          url,
+          headers: {
+            "Content-Type": "application/json",
+            ...await AccountStorage.getAuthHeaders(),
+          },
+          body: jsonEncode(data),
+        )
+        .timeout(const Duration(seconds: 30));
     await AccountStorage.handle401(res.statusCode);
     if (res.statusCode == 200) return;
     String msg = "Failed to submit questionnaire";
