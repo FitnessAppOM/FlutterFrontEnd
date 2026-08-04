@@ -130,22 +130,23 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
   }
 
   Future<void> _submit(Map<String, dynamic> values) async {
-    final t = AppLocalizations.of(context);
-    final expertId = await AccountStorage.getUserId();
-    if (expertId == null) {
-      if (!mounted) return;
-      AppToast.show(
-        context,
-        t.translate("user_missing"),
-        type: AppToastType.error,
-      );
-      return;
-    }
-
-    final payload = {"expert_id": expertId, ...values};
-
+    if (_submitting) return;
     setState(() => _submitting = true);
+
+    final t = AppLocalizations.of(context);
     try {
+      final expertId = await AccountStorage.getUserId();
+      if (expertId == null) {
+        if (!mounted) return;
+        AppToast.show(
+          context,
+          t.translate("user_missing"),
+          type: AppToastType.error,
+        );
+        return;
+      }
+
+      final payload = {"expert_id": expertId, ...values};
       await ExpertQuestionnaireApi.submit(payload);
       await AccountStorage.setExpertQuestionnaireDone(true);
       if (!mounted) return;

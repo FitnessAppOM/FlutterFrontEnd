@@ -20,7 +20,9 @@ import 'expert_questionnaire.dart';
 /// Locks coach applicants out of the app until an admin decision is made and,
 /// once approved, until their coach membership is started.
 class CoachApplicationStatusPage extends StatefulWidget {
-  const CoachApplicationStatusPage({super.key});
+  const CoachApplicationStatusPage({super.key, this.initialStatus});
+
+  final String? initialStatus;
 
   @override
   State<CoachApplicationStatusPage> createState() =>
@@ -39,6 +41,10 @@ class _CoachApplicationStatusPageState
   @override
   void initState() {
     super.initState();
+    final initialStatus = widget.initialStatus?.trim().toLowerCase();
+    if (initialStatus != null && initialStatus.isNotEmpty) {
+      _status = initialStatus;
+    }
     _purchaseSubscription = _store.purchaseStream.listen(
       _handlePurchaseUpdates,
     );
@@ -122,6 +128,9 @@ class _CoachApplicationStatusPageState
           .toString()
           .trim()
           .toLowerCase();
+      await AccountStorage.setCoachApplicationStatus(
+        status.isEmpty ? 'pending' : status,
+      );
       if (!mounted) return;
       setState(() {
         _status = status.isEmpty ? 'pending' : status;
@@ -132,8 +141,10 @@ class _CoachApplicationStatusPageState
       }
       await _continueIfCoachMembershipIsActive();
     } catch (_) {
+      final cachedStatus = await AccountStorage.getCoachApplicationStatus();
       if (!mounted) return;
       setState(() {
+        if (cachedStatus != null) _status = cachedStatus;
         _error = 'We could not check your application yet. Try again.';
         _loading = false;
       });
@@ -258,11 +269,6 @@ class _CoachApplicationStatusPageState
                   )
                 else if (rejected)
                   TaqaFilledButton(label: 'Reapply', onTap: _reapply)
-                else
-                  TaqaFilledButton(
-                    label: 'Check application status',
-                    onTap: _refreshStatus,
-                  ),
               ],
             ),
           ),

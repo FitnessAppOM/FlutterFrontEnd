@@ -25,6 +25,7 @@ import 'email_verification_page.dart';
 import '../services/auth/profile_service.dart';
 import 'questionnaire.dart';
 import 'expert_questionnaire.dart';
+import 'coach_application_status_page.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../services/core/notification_service.dart';
 import '../services/core/navigation_service.dart';
@@ -106,14 +107,42 @@ class _LoginPageState extends State<LoginPage> {
       final expertQuestionnaireDone =
           profile["filled_expert_questionnaire"] == true;
       final isExpert = profile["is_expert"] == true;
-      final hasData = expertQuestionnaireDone ||
+      final applicationStatus = (profile['expert_profile_status'] ?? '')
+          .toString()
+          .trim()
+          .toLowerCase();
+      final hasData =
+          expertQuestionnaireDone ||
           serverDone ||
           _hasQuestionnaireData(profile);
       await AccountStorage.setQuestionnaireDone(serverDone);
       await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
       await AccountStorage.setIsExpert(isExpert);
+      await AccountStorage.setCoachApplicationStatus(
+        expertQuestionnaireDone
+            ? (applicationStatus.isEmpty ? 'pending' : applicationStatus)
+            : null,
+      );
       if (!mounted) return;
       if (NavigationService.isOnJournalPage) {
+        return;
+      }
+      final hasActiveCoachMembership =
+          await AccountStorage.isCoachMembershipActive();
+      if (!mounted) return;
+      if (expertQuestionnaireDone &&
+          (applicationStatus != 'approved' || !hasActiveCoachMembership)) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CoachApplicationStatusPage(
+              initialStatus: applicationStatus.isEmpty
+                  ? 'pending'
+                  : applicationStatus,
+            ),
+          ),
+          (route) => false,
+        );
         return;
       }
       if (hasData) {
@@ -254,8 +283,7 @@ class _LoginPageState extends State<LoginPage> {
         // Login never returns username/full_name; leave it blank rather than
         // falling back to the email's local part, which flashes as a raw,
         // unformatted string until the profile fetch resolves the real name.
-        final name = (data?['username'] ?? data?['full_name'] ?? '')
-            .toString();
+        final name = (data?['username'] ?? data?['full_name'] ?? '').toString();
         await AccountStorage.saveUserSession(
           userId: userId,
           email: emailFromApi,

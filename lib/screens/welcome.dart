@@ -19,6 +19,7 @@ import '../config/base_url.dart';
 import '../services/auth/profile_service.dart';
 import '../auth/questionnaire.dart';
 import '../auth/expert_questionnaire.dart';
+import '../auth/coach_application_status_page.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../services/core/navigation_service.dart';
 import '../services/core/notification_service.dart';
@@ -28,7 +29,6 @@ import 'package:http/http.dart' as http;
 import 'dart:async';
 import 'dart:io';
 
-
 // -----------------------------------------------------------------------------
 // FIX: Model must be OUTSIDE the widget
 // -----------------------------------------------------------------------------
@@ -37,7 +37,6 @@ class UserCheckResult {
   final bool offline;
   const UserCheckResult({this.id, this.offline = false});
 }
-
 
 // -----------------------------------------------------------------------------
 // WELCOME PAGE
@@ -49,7 +48,7 @@ class WelcomePage extends StatefulWidget {
   const WelcomePage({
     super.key,
     this.onChangeLanguage,
-    this.fromLogout = false,   // <-- ADD THIS
+    this.fromLogout = false, // <-- ADD THIS
   });
 
   @override
@@ -91,9 +90,7 @@ class _WelcomePageState extends State<WelcomePage> {
         "${ApiConfig.baseUrl}/profile/$userId/account-status",
       );
       final headers = await AccountStorage.getAuthHeaders();
-      final res = await http
-          .get(url, headers: headers)
-          .timeout(_checkTimeout);
+      final res = await http.get(url, headers: headers).timeout(_checkTimeout);
 
       if (res.statusCode == 200) {
         return UserCheckResult(id: userId);
@@ -124,15 +121,46 @@ class _WelcomePageState extends State<WelcomePage> {
     final provider = await AccountStorage.getAuthProvider();
     final savedUserId = await AccountStorage.getUserId();
     final token = await AccountStorage.getAccessToken();
-    final hasSession = savedUserId != null &&
+    final hasSession =
+        savedUserId != null &&
         savedUserId > 0 &&
         token != null &&
         token.trim().isNotEmpty;
 
-  if (!mounted) return;
+    if (!mounted) return;
 
-  //  Don't auto-redirect if coming from logout
-  if (widget.fromLogout) {
+    //  Don't auto-redirect if coming from logout
+    if (widget.fromLogout) {
+      setState(() {
+        lastEmail = e;
+        lastVerified = v;
+        lastIsExpert = isExpert;
+        lastQuestionnaireDone = qDone;
+        lastExpertQuestionnaireDone = qExpertDone;
+        final trimmedName = n?.trim() ?? '';
+        lastName = trimmedName.isNotEmpty ? trimmedName : null;
+        lastAuthProvider = provider;
+      });
+      return;
+    }
+
+    // Normal auto-redirect
+    // Auto-redirect only if verified AND questionnaire was completed
+    final questionnaireDone = qDone || qExpertDone;
+    if (e != null && e.isNotEmpty && v == true && questionnaireDone) {
+      if (hasSession) {
+        final exists = await checkSessionBackend(savedUserId);
+        if (exists.offline) {
+          await _navigateOfflineMain();
+          return;
+        }
+        if (exists.id != null) {
+          await _navigatePostAuth(userId: exists.id!);
+          return;
+        }
+      }
+    }
+
     setState(() {
       lastEmail = e;
       lastVerified = v;
@@ -143,43 +171,9 @@ class _WelcomePageState extends State<WelcomePage> {
       lastName = trimmedName.isNotEmpty ? trimmedName : null;
       lastAuthProvider = provider;
     });
-    return;
   }
 
-  // Normal auto-redirect
-  // Auto-redirect only if verified AND questionnaire was completed
-  final questionnaireDone = qDone || qExpertDone;
-  if (e != null && e.isNotEmpty && v == true && questionnaireDone) {
-    if (hasSession) {
-      final exists = await checkSessionBackend(savedUserId);
-      if (exists.offline) {
-        await _navigateOfflineMain();
-        return;
-      }
-      if (exists.id != null) {
-        await _navigatePostAuth(
-          userId: exists.id!,
-        );
-        return;
-      }
-    }
-  }
-
-  setState(() {
-    lastEmail = e;
-    lastVerified = v;
-    lastIsExpert = isExpert;
-    lastQuestionnaireDone = qDone;
-    lastExpertQuestionnaireDone = qExpertDone;
-    final trimmedName = n?.trim() ?? '';
-    lastName = trimmedName.isNotEmpty ? trimmedName : null;
-    lastAuthProvider = provider;
-  });
-}
-
-  Future<void> _navigatePostAuth({
-    required int userId,
-  }) async {
+  Future<void> _navigatePostAuth({required int userId}) async {
     try {
       final lang = AppLocalizations.of(context).locale.languageCode;
       final profile = await ProfileApi.fetchProfile(userId, lang: lang);
@@ -187,13 +181,42 @@ class _WelcomePageState extends State<WelcomePage> {
       final expertQuestionnaireDone =
           profile["filled_expert_questionnaire"] == true;
       final isExpert = profile["is_expert"] == true;
+      final applicationStatus = (profile['expert_profile_status'] ?? '')
+          .toString()
+          .trim()
+          .toLowerCase();
       final hasData =
-          expertQuestionnaireDone || serverDone || _hasQuestionnaireData(profile);
+          expertQuestionnaireDone ||
+          serverDone ||
+          _hasQuestionnaireData(profile);
       await AccountStorage.setQuestionnaireDone(serverDone);
       await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
       await AccountStorage.setIsExpert(isExpert);
+      await AccountStorage.setCoachApplicationStatus(
+        expertQuestionnaireDone
+            ? (applicationStatus.isEmpty ? 'pending' : applicationStatus)
+            : null,
+      );
       if (!mounted) return;
       if (NavigationService.isOnJournalPage) {
+        return;
+      }
+      final hasActiveCoachMembership =
+          await AccountStorage.isCoachMembershipActive();
+      if (!mounted) return;
+      if (expertQuestionnaireDone &&
+          (applicationStatus != 'approved' || !hasActiveCoachMembership)) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CoachApplicationStatusPage(
+              initialStatus: applicationStatus.isEmpty
+                  ? 'pending'
+                  : applicationStatus,
+            ),
+          ),
+          (route) => false,
+        );
         return;
       }
       if (hasData) {
@@ -204,17 +227,18 @@ class _WelcomePageState extends State<WelcomePage> {
         }
         final directNotificationTarget =
             await NavigationService.consumeDirectNotificationTarget();
-        final target = directNotificationTarget ??
+        final target =
+            directNotificationTarget ??
             (NavigationService.journalNotificationPending
-            ? const DailyJournalPage()
-            : (NavigationService.dietNotificationPending
-                ? const MainLayout(initialIndex: 0)
-                : (expertAiPending
-                    ? const MainLayout(
-                        initialIndex: MainLayout.coachTabIndex,
-                        autoOpenExpertDashboard: true,
-                      )
-                    : const MainLayout())));
+                ? const DailyJournalPage()
+                : (NavigationService.dietNotificationPending
+                      ? const MainLayout(initialIndex: 0)
+                      : (expertAiPending
+                            ? const MainLayout(
+                                initialIndex: MainLayout.coachTabIndex,
+                                autoOpenExpertDashboard: true,
+                              )
+                            : const MainLayout())));
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => target),
@@ -256,6 +280,23 @@ class _WelcomePageState extends State<WelcomePage> {
 
   Future<void> _navigateOfflineMain() async {
     if (!mounted) return;
+    final hasSubmittedApplication =
+        await AccountStorage.isExpertQuestionnaireDone();
+    final cachedStatus = await AccountStorage.getCoachApplicationStatus();
+    final hasActiveMembership = await AccountStorage.isCoachMembershipActive();
+    if (!mounted) return;
+    if ((hasSubmittedApplication || cachedStatus != null) &&
+        (cachedStatus != 'approved' || !hasActiveMembership)) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              CoachApplicationStatusPage(initialStatus: cachedStatus),
+        ),
+        (route) => false,
+      );
+      return;
+    }
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const MainLayout()),
@@ -292,14 +333,16 @@ class _WelcomePageState extends State<WelcomePage> {
       }
 
       final rawId = result["user_id"] ?? result["id"];
-      final int userId =
-          rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
-      final accessToken = (result["access_token"] ??
-              result["accessToken"] ??
-              result["jwt"] ??
-              result["token"])
-          ?.toString()
-          .trim();
+      final int userId = rawId is int
+          ? rawId
+          : int.tryParse(rawId?.toString() ?? '') ?? 0;
+      final accessToken =
+          (result["access_token"] ??
+                  result["accessToken"] ??
+                  result["jwt"] ??
+                  result["token"])
+              ?.toString()
+              .trim();
 
       if (userId <= 0 || accessToken == null || accessToken.isEmpty) {
         if (!mounted) return;
@@ -344,9 +387,7 @@ class _WelcomePageState extends State<WelcomePage> {
 
       if (!mounted) return;
 
-      await _navigatePostAuth(
-        userId: userId,
-      );
+      await _navigatePostAuth(userId: userId);
 
       NotificationService.refreshDailyJournalRemindersForCurrentUser();
       DailyProviderPushService().pushIfAfterOneAmLocal().catchError((_) {});
@@ -373,14 +414,16 @@ class _WelcomePageState extends State<WelcomePage> {
       }
 
       final rawId = result["user_id"] ?? result["id"];
-      final int userId =
-          rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
-      final accessToken = (result["access_token"] ??
-              result["accessToken"] ??
-              result["jwt"] ??
-              result["token"])
-          ?.toString()
-          .trim();
+      final int userId = rawId is int
+          ? rawId
+          : int.tryParse(rawId?.toString() ?? '') ?? 0;
+      final accessToken =
+          (result["access_token"] ??
+                  result["accessToken"] ??
+                  result["jwt"] ??
+                  result["token"])
+              ?.toString()
+              .trim();
 
       if (userId <= 0 || accessToken == null || accessToken.isEmpty) {
         if (!mounted) return;
@@ -425,9 +468,7 @@ class _WelcomePageState extends State<WelcomePage> {
 
       if (!mounted) return;
 
-      await _navigatePostAuth(
-        userId: userId,
-      );
+      await _navigatePostAuth(userId: userId);
 
       NotificationService.refreshDailyJournalRemindersForCurrentUser();
       DailyProviderPushService().pushIfAfterOneAmLocal().catchError((_) {});
@@ -543,8 +584,9 @@ class _WelcomePageState extends State<WelcomePage> {
                           borderRadius: TaqaUiScale.radius(28),
                           boxShadow: [
                             BoxShadow(
-                              color: TaqaUiColors.unnamedColorE4e93b
-                                  .withValues(alpha: 0.35),
+                              color: TaqaUiColors.unnamedColorE4e93b.withValues(
+                                alpha: 0.35,
+                              ),
                               blurRadius: 40,
                               spreadRadius: 2,
                             ),
@@ -607,7 +649,8 @@ class _WelcomePageState extends State<WelcomePage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => LoginPage(prefilledEmail: lastEmail),
+                            builder: (_) =>
+                                LoginPage(prefilledEmail: lastEmail),
                           ),
                         );
                       },
@@ -649,7 +692,9 @@ class _WelcomePageState extends State<WelcomePage> {
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const SignupPage()),
+                            MaterialPageRoute(
+                              builder: (_) => const SignupPage(),
+                            ),
                           );
                         },
                         child: Text(

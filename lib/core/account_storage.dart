@@ -33,6 +33,7 @@ class AccountStorage {
   static const _kDismissDeactivatedPrompt = 'dismiss_deactivated_prompt';
   static const _kSubscriptionRequired = 'subscription_required';
   static const _kCoachMembershipActive = 'coach_membership_active';
+  static const _kCoachApplicationStatus = 'coach_application_status';
   static String _whoopLinkedKey(int? userId) =>
       userId == null ? _kWhoopLinked : "${_kWhoopLinked}_u$userId";
   static String _fitbitLinkedKey(int? userId) =>
@@ -57,6 +58,9 @@ class AccountStorage {
   static String _coachMembershipActiveKey(int? userId) => userId == null
       ? _kCoachMembershipActive
       : "${_kCoachMembershipActive}_u$userId";
+  static String _coachApplicationStatusKey(int? userId) => userId == null
+      ? _kCoachApplicationStatus
+      : "${_kCoachApplicationStatus}_u$userId";
   static String _avatarPathKey(int? userId) =>
       userId == null ? _kAvatarPath : "${_kAvatarPath}_u$userId";
   static String _avatarUrlKey(int? userId) =>
@@ -363,6 +367,27 @@ class AccountStorage {
     notifyAccountChanged();
   }
 
+  /// Stores the last server-confirmed coach application decision for the
+  /// active account. This lets the launch gate remain safe while offline.
+  static Future<void> setCoachApplicationStatus(String? status) async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    final key = _coachApplicationStatusKey(userId);
+    final normalized = status?.trim().toLowerCase();
+    if (normalized == null || normalized.isEmpty) {
+      await sp.remove(key);
+      return;
+    }
+    await sp.setString(key, normalized);
+  }
+
+  static Future<String?> getCoachApplicationStatus() async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    final value = sp.getString(_coachApplicationStatusKey(userId))?.trim();
+    return value == null || value.isEmpty ? null : value.toLowerCase();
+  }
+
   static Future<String?> getAuthProvider() async {
     final sp = await SharedPreferences.getInstance();
     return sp.getString(_kAuthProvider);
@@ -459,7 +484,10 @@ class AccountStorage {
     try {
       final response = await http.post(
         Uri.parse('${ApiConfig.baseUrl}/auth/refresh'),
-        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         body: jsonEncode({'refresh_token': refreshToken.trim()}),
       );
       if (response.statusCode != 200) {
@@ -686,7 +714,10 @@ class AccountStorage {
       try {
         await http.post(
           Uri.parse('${ApiConfig.baseUrl}/auth/logout'),
-          headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
           body: jsonEncode({'refresh_token': refreshToken.trim()}),
         );
       } catch (_) {}

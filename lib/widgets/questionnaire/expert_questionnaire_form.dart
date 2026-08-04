@@ -77,6 +77,9 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
   final TextEditingController _languageOtherCtrl = TextEditingController();
   final TextEditingController _certOtherCtrl = TextEditingController();
   final TextEditingController _certFileCtrl = TextEditingController();
+  bool _submitting = false;
+
+  bool get _isSubmitting => widget.submitting || _submitting;
 
   final List<String> _genderOpts = ["Male", "Female"];
   final List<String> _roleOpts = [
@@ -206,169 +209,178 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) {
-      _toast(
-        "Please complete all required fields before submitting.",
-        type: AppToastType.error,
-      );
-      return;
-    }
-    _formKey.currentState!.save();
+    if (_isSubmitting) return;
+    FocusScope.of(context).unfocus();
+    setState(() => _submitting = true);
 
-    // required multi-selects
-    if (_coreSpecialties.isEmpty ||
-        _preferredClients.isEmpty ||
-        _servicesOffer.isEmpty ||
-        _languages.isEmpty ||
-        _workSettings.isEmpty) {
-      _toast("Please complete all required selections.");
-      return;
-    }
-
-    if (_coreSpecialties.contains("Other") &&
-        _coreOtherCtrl.text.trim().isEmpty) {
-      _toast("Please specify the other specialty.");
-      return;
-    }
-    if (_workSettings.contains("Other") && _workOtherCtrl.text.trim().isEmpty) {
-      _toast("Please specify the other work setting.");
-      return;
-    }
-    if (_languages.contains("Other") &&
-        _languageOtherCtrl.text.trim().isEmpty) {
-      _toast("Please specify the other language.");
-      return;
-    }
-    if (_heardAbout == "Other" && _heardOtherCtrl.text.trim().isEmpty) {
-      _toast("Please specify how you heard about Taqa Fitness.");
-      return;
-    }
-    if (_joinReason == "Other" && _joinOtherCtrl.text.trim().isEmpty) {
-      _toast("Please specify why you want to join Taqa Fitness.");
-      return;
-    }
-
-    // Certification validation (default to "No" if not selected)
-    final certChoice = _hasCertification ?? "No";
-    if (certChoice == "Yes") {
-      if (_certType == null || _certType!.isEmpty) {
-        _toast("Select certification type.");
+    try {
+      if (!_formKey.currentState!.validate()) {
+        _toast(
+          "Please complete all required fields before submitting.",
+          type: AppToastType.error,
+        );
         return;
       }
-      if (_certType == "Other" && _certOtherCtrl.text.trim().isEmpty) {
-        _toast("Enter your certification type.");
+      _formKey.currentState!.save();
+
+      // required multi-selects
+      if (_coreSpecialties.isEmpty ||
+          _preferredClients.isEmpty ||
+          _servicesOffer.isEmpty ||
+          _languages.isEmpty ||
+          _workSettings.isEmpty) {
+        _toast("Please complete all required selections.");
         return;
       }
-      if (_certFileCtrl.text.trim().isEmpty) {
-        _toast("Enter certification file URL.");
+
+      if (_coreSpecialties.contains("Other") &&
+          _coreOtherCtrl.text.trim().isEmpty) {
+        _toast("Please specify the other specialty.");
         return;
       }
-    }
+      if (_workSettings.contains("Other") &&
+          _workOtherCtrl.text.trim().isEmpty) {
+        _toast("Please specify the other work setting.");
+        return;
+      }
+      if (_languages.contains("Other") &&
+          _languageOtherCtrl.text.trim().isEmpty) {
+        _toast("Please specify the other language.");
+        return;
+      }
+      if (_heardAbout == "Other" && _heardOtherCtrl.text.trim().isEmpty) {
+        _toast("Please specify how you heard about Taqa Fitness.");
+        return;
+      }
+      if (_joinReason == "Other" && _joinOtherCtrl.text.trim().isEmpty) {
+        _toast("Please specify why you want to join Taqa Fitness.");
+        return;
+      }
 
-    final isAffiliated = _isAffiliated;
-    final hasAffiliationId =
-        _affiliationId != null && _affiliationId!.isNotEmpty;
-    final otherAffiliation = (_affiliationOtherText ?? "").trim();
-    if (isAffiliated && !hasAffiliationId && otherAffiliation.isEmpty) {
-      _toast("Please add your affiliation.");
-      return;
-    }
+      // Certification validation (default to "No" if not selected)
+      final certChoice = _hasCertification ?? "No";
+      if (certChoice == "Yes") {
+        if (_certType == null || _certType!.isEmpty) {
+          _toast("Select certification type.");
+          return;
+        }
+        if (_certType == "Other" && _certOtherCtrl.text.trim().isEmpty) {
+          _toast("Enter your certification type.");
+          return;
+        }
+        if (_certFileCtrl.text.trim().isEmpty) {
+          _toast("Enter certification file URL.");
+          return;
+        }
+      }
 
-    // Date validation
-    final dob = _selectedDob != null
-        ? DateFormat("yyyy-MM-dd").format(_selectedDob!)
-        : null;
-    if (dob == null) {
-      _toast("Enter a valid date of birth.");
-      return;
-    }
-
-    final selfieRaw = _c("selfie_file_url").text.trim();
-    if (selfieRaw.isEmpty) {
-      _toast("Please upload a selfie.");
-      return;
-    }
-    if (_c("government_id_file_url").text.trim().isEmpty) {
-      _toast("Please upload a government ID.");
-      return;
-    }
-    if (!await _requiredDocumentScansAreClean(certChoice)) return;
-
-    final selfieUrl = selfieRaw;
-    final certFileUrl = certChoice == "No" ? "" : _certFileCtrl.text.trim();
-
-    final data = <String, dynamic>{
-      "full_name": _c("full_name").text.trim(),
-      "date_of_birth": dob,
-      "gender": _gender,
-      "nationality": _nationality ?? "",
-      "country_of_residence": _residence ?? "",
-      "city_of_residence": _c("city_of_residence").text.trim(),
-      "primary_phone_number": _c("primary_phone_number").text.trim(),
-      "email_address": _c("email_address").text.trim(),
-      "professional_role": _role,
-      "professional_role_other": _c("professional_role_other").text.trim(),
-      "certification_type": certChoice == "No" ? "" : _certType,
-      "certification_type_other": certChoice == "No"
-          ? ""
-          : _certOtherCtrl.text.trim(),
-      "certification_file_url": certFileUrl,
-      "government_id_file_url": _c("government_id_file_url").text.trim(),
-      "selfie_file_url": selfieUrl,
-      "years_experience": _yearsExperience,
-      "core_specialties": _coreSpecialties
-          .map(
-            (o) => o == "Other" && _coreOtherCtrl.text.trim().isNotEmpty
-                ? _coreOtherCtrl.text.trim()
-                : o,
-          )
-          .toList(),
-      "preferred_client_types": _preferredClients.toList(),
-      "services_to_offer": _servicesOffer.toList(),
-      "expected_response_time": _responseTime,
-      "languages": _languages
-          .map(
-            (lang) =>
-                lang == "Other" && _languageOtherCtrl.text.trim().isNotEmpty
-                ? _languageOtherCtrl.text.trim()
-                : lang,
-          )
-          .toList(),
-      "previous_work_settings": _workSettings
-          .map(
-            (o) => o == "Other" && _workOtherCtrl.text.trim().isNotEmpty
-                ? _workOtherCtrl.text.trim()
-                : o,
-          )
-          .toList(),
-      "social_links": _c("social_links").text.trim(),
-      "heard_about_taqa": _heardAbout == "Other"
-          ? _heardOtherCtrl.text.trim()
-          : _heardAbout,
-      "join_reason": _joinReason == "Other"
-          ? _joinOtherCtrl.text.trim()
-          : _joinReason,
-      "onboarding_availability": _onboarding,
-      "refer_as_unassigned_coach": _referAsCoach == "Yes",
-    };
-
-    if (_isAffiliated) {
-      if (_affiliationId != null && _affiliationId!.isNotEmpty) {
-        data["affiliation_id"] = int.parse(_affiliationId!);
-        data["affiliation_other_text"] = "";
-      } else if ((_affiliationOtherText ?? "").trim().isNotEmpty) {
-        data["affiliation_id"] = null;
-        data["affiliation_other_text"] = _affiliationOtherText!.trim();
-      } else {
+      final isAffiliated = _isAffiliated;
+      final hasAffiliationId =
+          _affiliationId != null && _affiliationId!.isNotEmpty;
+      final otherAffiliation = (_affiliationOtherText ?? "").trim();
+      if (isAffiliated && !hasAffiliationId && otherAffiliation.isEmpty) {
         _toast("Please add your affiliation.");
         return;
       }
-    } else {
-      data["affiliation_id"] = null;
-      data["affiliation_other_text"] = "";
-    }
 
-    await widget.onSubmit?.call(data);
+      // Date validation
+      final dob = _selectedDob != null
+          ? DateFormat("yyyy-MM-dd").format(_selectedDob!)
+          : null;
+      if (dob == null) {
+        _toast("Enter a valid date of birth.");
+        return;
+      }
+
+      final selfieRaw = _c("selfie_file_url").text.trim();
+      if (selfieRaw.isEmpty) {
+        _toast("Please upload a selfie.");
+        return;
+      }
+      if (_c("government_id_file_url").text.trim().isEmpty) {
+        _toast("Please upload a government ID.");
+        return;
+      }
+      if (!await _requiredDocumentScansAreClean(certChoice)) return;
+
+      final selfieUrl = selfieRaw;
+      final certFileUrl = certChoice == "No" ? "" : _certFileCtrl.text.trim();
+
+      final data = <String, dynamic>{
+        "full_name": _c("full_name").text.trim(),
+        "date_of_birth": dob,
+        "gender": _gender,
+        "nationality": _nationality ?? "",
+        "country_of_residence": _residence ?? "",
+        "city_of_residence": _c("city_of_residence").text.trim(),
+        "primary_phone_number": _c("primary_phone_number").text.trim(),
+        "email_address": _c("email_address").text.trim(),
+        "professional_role": _role,
+        "professional_role_other": _c("professional_role_other").text.trim(),
+        "certification_type": certChoice == "No" ? "" : _certType,
+        "certification_type_other": certChoice == "No"
+            ? ""
+            : _certOtherCtrl.text.trim(),
+        "certification_file_url": certFileUrl,
+        "government_id_file_url": _c("government_id_file_url").text.trim(),
+        "selfie_file_url": selfieUrl,
+        "years_experience": _yearsExperience,
+        "core_specialties": _coreSpecialties
+            .map(
+              (o) => o == "Other" && _coreOtherCtrl.text.trim().isNotEmpty
+                  ? _coreOtherCtrl.text.trim()
+                  : o,
+            )
+            .toList(),
+        "preferred_client_types": _preferredClients.toList(),
+        "services_to_offer": _servicesOffer.toList(),
+        "expected_response_time": _responseTime,
+        "languages": _languages
+            .map(
+              (lang) =>
+                  lang == "Other" && _languageOtherCtrl.text.trim().isNotEmpty
+                  ? _languageOtherCtrl.text.trim()
+                  : lang,
+            )
+            .toList(),
+        "previous_work_settings": _workSettings
+            .map(
+              (o) => o == "Other" && _workOtherCtrl.text.trim().isNotEmpty
+                  ? _workOtherCtrl.text.trim()
+                  : o,
+            )
+            .toList(),
+        "social_links": _c("social_links").text.trim(),
+        "heard_about_taqa": _heardAbout == "Other"
+            ? _heardOtherCtrl.text.trim()
+            : _heardAbout,
+        "join_reason": _joinReason == "Other"
+            ? _joinOtherCtrl.text.trim()
+            : _joinReason,
+        "onboarding_availability": _onboarding,
+        "refer_as_unassigned_coach": _referAsCoach == "Yes",
+      };
+
+      if (_isAffiliated) {
+        if (_affiliationId != null && _affiliationId!.isNotEmpty) {
+          data["affiliation_id"] = int.parse(_affiliationId!);
+          data["affiliation_other_text"] = "";
+        } else if ((_affiliationOtherText ?? "").trim().isNotEmpty) {
+          data["affiliation_id"] = null;
+          data["affiliation_other_text"] = _affiliationOtherText!.trim();
+        } else {
+          _toast("Please add your affiliation.");
+          return;
+        }
+      } else {
+        data["affiliation_id"] = null;
+        data["affiliation_other_text"] = "";
+      }
+
+      await widget.onSubmit?.call(data);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   void _toast(String msg, {AppToastType type = AppToastType.info}) {
@@ -381,339 +393,349 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
     final t = AppLocalizations.of(context);
     return Form(
       key: _formKey,
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Form description: ${t.translate("expert_questionnaire_intro_text")}",
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: TaqaUiScale.sp(12),
-                fontWeight: FontWeight.w400,
-                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
-              ),
-            ),
-            SizedBox(height: TaqaUiScale.h(24)),
-
-            const TaqaSectionHeading(title: "Affiliation"),
-            Row(
-              children: [
-                TaqaPillChoice(
-                  label: "Affiliated",
-                  selected: _isAffiliated,
-                  onTap: () => setState(() => _isAffiliated = true),
+      child: AbsorbPointer(
+        absorbing: _isSubmitting,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Form description: ${t.translate("expert_questionnaire_intro_text")}",
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(12),
+                  fontWeight: FontWeight.w400,
+                  color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
                 ),
-                SizedBox(width: TaqaUiScale.w(10)),
-                TaqaPillChoice(
-                  label: "Not affiliated",
-                  selected: !_isAffiliated,
-                  onTap: () {
-                    setState(() {
-                      _isAffiliated = false;
-                      _affiliationId = null;
-                      _affiliationOtherText = "";
-                      _affiliationName = null;
-                    });
-                  },
+              ),
+              SizedBox(height: TaqaUiScale.h(24)),
+
+              const TaqaSectionHeading(title: "Affiliation"),
+              Row(
+                children: [
+                  TaqaPillChoice(
+                    label: "Affiliated",
+                    selected: _isAffiliated,
+                    onTap: () => setState(() => _isAffiliated = true),
+                  ),
+                  SizedBox(width: TaqaUiScale.w(10)),
+                  TaqaPillChoice(
+                    label: "Not affiliated",
+                    selected: !_isAffiliated,
+                    onTap: () {
+                      setState(() {
+                        _isAffiliated = false;
+                        _affiliationId = null;
+                        _affiliationOtherText = "";
+                        _affiliationName = null;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              const TaqaSectionDivider(),
+
+              const TaqaSectionHeading(title: "Certification & Files"),
+              _affiliationSummary(),
+              SizedBox(height: TaqaUiScale.h(12)),
+              _certificateSummary(),
+              SizedBox(height: TaqaUiScale.h(16)),
+              Text(
+                "Government Id",
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(15),
+                  fontWeight: FontWeight.w700,
+                  color: TaqaUiColors.unnamedColor1c1d17,
+                ),
+              ),
+              SizedBox(height: TaqaUiScale.h(8)),
+              TaqaUploadRow(
+                display: _documentDisplay("gov", _c("government_id_file_url")),
+                actionLabel: "Upload",
+                onTap: () =>
+                    _pickAndUpload("gov", _c("government_id_file_url")),
+              ),
+              SizedBox(height: TaqaUiScale.h(16)),
+              Text(
+                "Selfie",
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(15),
+                  fontWeight: FontWeight.w700,
+                  color: TaqaUiColors.unnamedColor1c1d17,
+                ),
+              ),
+              SizedBox(height: TaqaUiScale.h(8)),
+              TaqaUploadRow(
+                display: _documentDisplay("selfie", _c("selfie_file_url")),
+                actionLabel: "Upload",
+                onTap: () => _captureSelfie(_c("selfie_file_url")),
+              ),
+              const TaqaSectionDivider(),
+
+              const TaqaSectionHeading(title: "Experience"),
+              TaqaUnderlineDropdown(
+                label: "Years of experience",
+                value: _yearsExperience,
+                options: _yearsOpts,
+                onChanged: (v) => setState(() => _yearsExperience = v),
+                validator: (val) =>
+                    (val == null || val.isEmpty) ? "Required" : null,
+              ),
+              SizedBox(height: TaqaUiScale.h(16)),
+              _multiChoiceWithOther(
+                label: "Core Specialties",
+                options: _coreOpts,
+                target: _coreSpecialties,
+                otherCtrl: _coreOtherCtrl,
+              ),
+              SizedBox(height: TaqaUiScale.h(16)),
+              _multiChoice(
+                "Preferred client types",
+                _preferredOpts,
+                _preferredClients,
+              ),
+              SizedBox(height: TaqaUiScale.h(16)),
+              _multiChoice("Services to offer", _servicesOpts, _servicesOffer),
+              const TaqaSectionDivider(),
+
+              const TaqaSectionHeading(title: "Languages"),
+              _multiChoiceWithOther(
+                label: "Languages",
+                options: _languageOpts,
+                target: _languages,
+                otherCtrl: _languageOtherCtrl,
+                showLabel: false,
+              ),
+              const TaqaSectionDivider(),
+
+              const TaqaSectionHeading(title: "Professional Role"),
+              TaqaUnderlineDropdown(
+                label: "Role",
+                value: _role,
+                options: _roleOpts,
+                onChanged: (v) {
+                  setState(() {
+                    _role = v;
+                    if (v != "Other") _c("professional_role_other").clear();
+                  });
+                },
+                validator: (val) =>
+                    (val == null || val.isEmpty) ? "Required" : null,
+              ),
+              if (_role == "Other") ...[
+                SizedBox(height: TaqaUiScale.h(12)),
+                TaqaUnderlineTextField(
+                  controller: _c("professional_role_other"),
+                  label: "Specify role",
+                  validator: (val) =>
+                      (val == null || val.trim().isEmpty) ? "Required" : null,
                 ),
               ],
-            ),
-            const TaqaSectionDivider(),
+              const TaqaSectionDivider(),
 
-            const TaqaSectionHeading(title: "Certification & Files"),
-            _affiliationSummary(),
-            SizedBox(height: TaqaUiScale.h(12)),
-            _certificateSummary(),
-            SizedBox(height: TaqaUiScale.h(16)),
-            Text(
-              "Government Id",
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: TaqaUiScale.sp(15),
-                fontWeight: FontWeight.w700,
-                color: TaqaUiColors.unnamedColor1c1d17,
+              const TaqaSectionHeading(title: "Expectations & Preferences"),
+              TaqaUnderlineDropdown(
+                label: "Expected response time",
+                value: _responseTime,
+                options: _responseOpts,
+                onChanged: (v) => setState(() => _responseTime = v),
+                validator: (val) =>
+                    (val == null || val.isEmpty) ? "Required" : null,
               ),
-            ),
-            SizedBox(height: TaqaUiScale.h(8)),
-            TaqaUploadRow(
-              display: _documentDisplay("gov", _c("government_id_file_url")),
-              actionLabel: "Upload",
-              onTap: () => _pickAndUpload("gov", _c("government_id_file_url")),
-            ),
-            SizedBox(height: TaqaUiScale.h(16)),
-            Text(
-              "Selfie",
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: TaqaUiScale.sp(15),
-                fontWeight: FontWeight.w700,
-                color: TaqaUiColors.unnamedColor1c1d17,
+              SizedBox(height: TaqaUiScale.h(16)),
+              _multiChoiceWithOther(
+                label: "Previous work settings",
+                options: _workSettingOpts,
+                target: _workSettings,
+                otherCtrl: _workOtherCtrl,
               ),
-            ),
-            SizedBox(height: TaqaUiScale.h(8)),
-            TaqaUploadRow(
-              display: _documentDisplay("selfie", _c("selfie_file_url")),
-              actionLabel: "Upload",
-              onTap: () => _captureSelfie(_c("selfie_file_url")),
-            ),
-            const TaqaSectionDivider(),
-
-            const TaqaSectionHeading(title: "Experience"),
-            TaqaUnderlineDropdown(
-              label: "Years of experience",
-              value: _yearsExperience,
-              options: _yearsOpts,
-              onChanged: (v) => setState(() => _yearsExperience = v),
-              validator: (val) =>
-                  (val == null || val.isEmpty) ? "Required" : null,
-            ),
-            SizedBox(height: TaqaUiScale.h(16)),
-            _multiChoiceWithOther(
-              label: "Core Specialties",
-              options: _coreOpts,
-              target: _coreSpecialties,
-              otherCtrl: _coreOtherCtrl,
-            ),
-            SizedBox(height: TaqaUiScale.h(16)),
-            _multiChoice(
-              "Preferred client types",
-              _preferredOpts,
-              _preferredClients,
-            ),
-            SizedBox(height: TaqaUiScale.h(16)),
-            _multiChoice("Services to offer", _servicesOpts, _servicesOffer),
-            const TaqaSectionDivider(),
-
-            const TaqaSectionHeading(title: "Languages"),
-            _multiChoiceWithOther(
-              label: "Languages",
-              options: _languageOpts,
-              target: _languages,
-              otherCtrl: _languageOtherCtrl,
-              showLabel: false,
-            ),
-            const TaqaSectionDivider(),
-
-            const TaqaSectionHeading(title: "Professional Role"),
-            TaqaUnderlineDropdown(
-              label: "Role",
-              value: _role,
-              options: _roleOpts,
-              onChanged: (v) {
-                setState(() {
-                  _role = v;
-                  if (v != "Other") _c("professional_role_other").clear();
-                });
-              },
-              validator: (val) =>
-                  (val == null || val.isEmpty) ? "Required" : null,
-            ),
-            if (_role == "Other") ...[
-              SizedBox(height: TaqaUiScale.h(12)),
+              SizedBox(height: TaqaUiScale.h(16)),
               TaqaUnderlineTextField(
-                controller: _c("professional_role_other"),
-                label: "Specify role",
+                controller: _c("social_links"),
+                label: "Professional social links",
+              ),
+              SizedBox(height: TaqaUiScale.h(16)),
+              _dropdownWithOther(
+                label: "How did you hear about Taqa Fitness?",
+                value: _heardAbout,
+                options: _heardOpts,
+                otherCtrl: _heardOtherCtrl,
+                onChanged: (v) => setState(() => _heardAbout = v),
+              ),
+              SizedBox(height: TaqaUiScale.h(16)),
+              _dropdownWithOther(
+                label: "Why do you want to join Taqa Fitness?",
+                value: _joinReason,
+                options: _joinReasonOpts,
+                otherCtrl: _joinOtherCtrl,
+                onChanged: (v) => setState(() => _joinReason = v),
+              ),
+              SizedBox(height: TaqaUiScale.h(16)),
+              TaqaUnderlineDropdown(
+                label: "Onboarding call availability",
+                value: _onboarding,
+                options: _onboardingOpts,
+                onChanged: (v) => setState(() => _onboarding = v),
+                validator: (val) =>
+                    (val == null || val.isEmpty) ? "Required" : null,
+              ),
+              SizedBox(height: TaqaUiScale.h(16)),
+              TaqaUnderlineDropdown(
+                label: "Be referred clients automatically?",
+                value: _referAsCoach,
+                options: const ["Yes", "No"],
+                onChanged: (v) => setState(() => _referAsCoach = v),
+                validator: (val) =>
+                    (val == null || val.isEmpty) ? "Required" : null,
+              ),
+              const TaqaSectionDivider(),
+
+              const TaqaSectionHeading(title: "Basics"),
+              Text(
+                "Full Name",
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(11),
+                  fontWeight: FontWeight.w400,
+                  color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                    alpha: 0.55,
+                  ),
+                ),
+              ),
+              SizedBox(height: TaqaUiScale.h(4)),
+              Row(
+                children: [
+                  Expanded(
+                    child: TaqaUnderlineTextField(
+                      controller: _c("first_name"),
+                      hint: "First Name",
+                      validator: (val) => (val == null || val.trim().isEmpty)
+                          ? "Required"
+                          : null,
+                      onChanged: (_) => _syncFullName(),
+                    ),
+                  ),
+                  SizedBox(width: TaqaUiScale.w(14)),
+                  Expanded(
+                    child: TaqaUnderlineTextField(
+                      controller: _c("last_name"),
+                      hint: "Last Name",
+                      validator: (val) => (val == null || val.trim().isEmpty)
+                          ? "Required"
+                          : null,
+                      onChanged: (_) => _syncFullName(),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: TaqaUiScale.h(16)),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: _dobField()),
+                  SizedBox(width: TaqaUiScale.w(14)),
+                  Expanded(
+                    child: TaqaUnderlineDropdown(
+                      label: "Gender",
+                      value: _gender,
+                      options: _genderOpts,
+                      onChanged: (v) => setState(() => _gender = v),
+                      validator: (val) =>
+                          (val == null || val.isEmpty) ? "Required" : null,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: TaqaUiScale.h(16)),
+              TaqaUnderlineDropdown(
+                label: "Nationality",
+                value: _nationality,
+                options: _countryOpts,
+                onChanged: (v) => setState(() => _nationality = v),
+                validator: (val) =>
+                    (val == null || val.isEmpty) ? "Required" : null,
+              ),
+              SizedBox(height: TaqaUiScale.h(16)),
+              TaqaUnderlineDropdown(
+                label: "Country Of Residence",
+                value: _residence,
+                options: _countryOpts,
+                onChanged: (v) => setState(() => _residence = v),
+                validator: (val) =>
+                    (val == null || val.isEmpty) ? "Required" : null,
+              ),
+              SizedBox(height: TaqaUiScale.h(16)),
+              TaqaUnderlineTextField(
+                controller: _c("city_of_residence"),
+                label: "City",
+                hint: "City",
                 validator: (val) =>
                     (val == null || val.trim().isEmpty) ? "Required" : null,
               ),
-            ],
-            const TaqaSectionDivider(),
-
-            const TaqaSectionHeading(title: "Expectations & Preferences"),
-            TaqaUnderlineDropdown(
-              label: "Expected response time",
-              value: _responseTime,
-              options: _responseOpts,
-              onChanged: (v) => setState(() => _responseTime = v),
-              validator: (val) =>
-                  (val == null || val.isEmpty) ? "Required" : null,
-            ),
-            SizedBox(height: TaqaUiScale.h(16)),
-            _multiChoiceWithOther(
-              label: "Previous work settings",
-              options: _workSettingOpts,
-              target: _workSettings,
-              otherCtrl: _workOtherCtrl,
-            ),
-            SizedBox(height: TaqaUiScale.h(16)),
-            TaqaUnderlineTextField(
-              controller: _c("social_links"),
-              label: "Professional social links",
-            ),
-            SizedBox(height: TaqaUiScale.h(16)),
-            _dropdownWithOther(
-              label: "How did you hear about Taqa Fitness?",
-              value: _heardAbout,
-              options: _heardOpts,
-              otherCtrl: _heardOtherCtrl,
-              onChanged: (v) => setState(() => _heardAbout = v),
-            ),
-            SizedBox(height: TaqaUiScale.h(16)),
-            _dropdownWithOther(
-              label: "Why do you want to join Taqa Fitness?",
-              value: _joinReason,
-              options: _joinReasonOpts,
-              otherCtrl: _joinOtherCtrl,
-              onChanged: (v) => setState(() => _joinReason = v),
-            ),
-            SizedBox(height: TaqaUiScale.h(16)),
-            TaqaUnderlineDropdown(
-              label: "Onboarding call availability",
-              value: _onboarding,
-              options: _onboardingOpts,
-              onChanged: (v) => setState(() => _onboarding = v),
-              validator: (val) =>
-                  (val == null || val.isEmpty) ? "Required" : null,
-            ),
-            SizedBox(height: TaqaUiScale.h(16)),
-            TaqaUnderlineDropdown(
-              label: "Be referred clients automatically?",
-              value: _referAsCoach,
-              options: const ["Yes", "No"],
-              onChanged: (v) => setState(() => _referAsCoach = v),
-              validator: (val) =>
-                  (val == null || val.isEmpty) ? "Required" : null,
-            ),
-            const TaqaSectionDivider(),
-
-            const TaqaSectionHeading(title: "Basics"),
-            Text(
-              "Full Name",
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: TaqaUiScale.sp(11),
-                fontWeight: FontWeight.w400,
-                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.55),
+              SizedBox(height: TaqaUiScale.h(16)),
+              Text(
+                "Phone Number",
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(11),
+                  fontWeight: FontWeight.w400,
+                  color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                    alpha: 0.55,
+                  ),
+                ),
               ),
-            ),
-            SizedBox(height: TaqaUiScale.h(4)),
-            Row(
-              children: [
-                Expanded(
-                  child: TaqaUnderlineTextField(
-                    controller: _c("first_name"),
-                    hint: "First Name",
-                    validator: (val) =>
-                        (val == null || val.trim().isEmpty) ? "Required" : null,
-                    onChanged: (_) => _syncFullName(),
-                  ),
-                ),
-                SizedBox(width: TaqaUiScale.w(14)),
-                Expanded(
-                  child: TaqaUnderlineTextField(
-                    controller: _c("last_name"),
-                    hint: "Last Name",
-                    validator: (val) =>
-                        (val == null || val.trim().isEmpty) ? "Required" : null,
-                    onChanged: (_) => _syncFullName(),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: TaqaUiScale.h(16)),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: _dobField()),
-                SizedBox(width: TaqaUiScale.w(14)),
-                Expanded(
-                  child: TaqaUnderlineDropdown(
-                    label: "Gender",
-                    value: _gender,
-                    options: _genderOpts,
-                    onChanged: (v) => setState(() => _gender = v),
-                    validator: (val) =>
-                        (val == null || val.isEmpty) ? "Required" : null,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: TaqaUiScale.h(16)),
-            TaqaUnderlineDropdown(
-              label: "Nationality",
-              value: _nationality,
-              options: _countryOpts,
-              onChanged: (v) => setState(() => _nationality = v),
-              validator: (val) =>
-                  (val == null || val.isEmpty) ? "Required" : null,
-            ),
-            SizedBox(height: TaqaUiScale.h(16)),
-            TaqaUnderlineDropdown(
-              label: "Country Of Residence",
-              value: _residence,
-              options: _countryOpts,
-              onChanged: (v) => setState(() => _residence = v),
-              validator: (val) =>
-                  (val == null || val.isEmpty) ? "Required" : null,
-            ),
-            SizedBox(height: TaqaUiScale.h(16)),
-            TaqaUnderlineTextField(
-              controller: _c("city_of_residence"),
-              label: "City",
-              hint: "City",
-              validator: (val) =>
-                  (val == null || val.trim().isEmpty) ? "Required" : null,
-            ),
-            SizedBox(height: TaqaUiScale.h(16)),
-            Text(
-              "Phone Number",
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: TaqaUiScale.sp(11),
-                fontWeight: FontWeight.w400,
-                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.55),
+              SizedBox(height: TaqaUiScale.h(4)),
+              TaqaUnderlineTextField(
+                controller: _c("primary_phone_number"),
+                hint: "Number",
+                keyboardType: TextInputType.phone,
+                validator: (val) =>
+                    (val == null || val.trim().isEmpty) ? "Required" : null,
               ),
-            ),
-            SizedBox(height: TaqaUiScale.h(4)),
-            TaqaUnderlineTextField(
-              controller: _c("primary_phone_number"),
-              hint: "Number",
-              keyboardType: TextInputType.phone,
-              validator: (val) =>
-                  (val == null || val.trim().isEmpty) ? "Required" : null,
-            ),
-            SizedBox(height: TaqaUiScale.h(16)),
-            TaqaUnderlineTextField(
-              controller: _c("email_address"),
-              label: "Email",
-              hint: "example@email.com",
-              keyboardType: TextInputType.emailAddress,
-              validator: (val) =>
-                  (val == null || val.trim().isEmpty) ? "Required" : null,
-            ),
-            SizedBox(height: TaqaUiScale.h(28)),
-            TaqaFilledButton(
-              label: t.translate("expert_questionnaire_submit"),
-              loading: widget.submitting,
-              onTap: widget.submitting ? null : _submit,
-            ),
-            SizedBox(height: TaqaUiScale.h(12)),
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: widget.onCancel,
-                child: SizedBox(
-                  width: double.infinity,
-                  height: TaqaUiScale.h(44),
-                  child: Center(
-                    child: Text(
-                      t.translate("cancel").toUpperCase(),
-                      style: TextStyle(
-                        fontFamily: TaqaUiFontFamilies.interTight,
-                        fontSize: TaqaUiScale.sp(10),
-                        fontWeight: FontWeight.w600,
-                        color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                          alpha: 0.6,
+              SizedBox(height: TaqaUiScale.h(16)),
+              TaqaUnderlineTextField(
+                controller: _c("email_address"),
+                label: "Email",
+                hint: "example@email.com",
+                keyboardType: TextInputType.emailAddress,
+                validator: (val) =>
+                    (val == null || val.trim().isEmpty) ? "Required" : null,
+              ),
+              SizedBox(height: TaqaUiScale.h(28)),
+              TaqaFilledButton(
+                label: t.translate("expert_questionnaire_submit"),
+                loading: _isSubmitting,
+                onTap: _isSubmitting ? null : _submit,
+              ),
+              SizedBox(height: TaqaUiScale.h(12)),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: widget.onCancel,
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: TaqaUiScale.h(44),
+                    child: Center(
+                      child: Text(
+                        t.translate("cancel").toUpperCase(),
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          fontSize: TaqaUiScale.sp(10),
+                          fontWeight: FontWeight.w600,
+                          color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                            alpha: 0.6,
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-            SizedBox(height: TaqaUiScale.h(12)),
-          ],
+              SizedBox(height: TaqaUiScale.h(12)),
+            ],
+          ),
         ),
       ),
     );
