@@ -34,6 +34,9 @@ class AccountStorage {
   static const _kSubscriptionRequired = 'subscription_required';
   static const _kCoachMembershipActive = 'coach_membership_active';
   static const _kCoachMembershipVerifiedAt = 'coach_membership_verified_at';
+  static const _kCoachMembershipVerificationVersion =
+      'coach_membership_verification_version';
+  static const _coachMembershipVerificationVersion = 2;
   static const _kCoachApplicationStatus = 'coach_application_status';
   static String _whoopLinkedKey(int? userId) =>
       userId == null ? _kWhoopLinked : "${_kWhoopLinked}_u$userId";
@@ -62,6 +65,10 @@ class AccountStorage {
   static String _coachMembershipVerifiedAtKey(int? userId) => userId == null
       ? _kCoachMembershipVerifiedAt
       : "${_kCoachMembershipVerifiedAt}_u$userId";
+  static String _coachMembershipVerificationVersionKey(int? userId) =>
+      userId == null
+      ? _kCoachMembershipVerificationVersion
+      : "${_kCoachMembershipVerificationVersion}_u$userId";
   static String _coachApplicationStatusKey(int? userId) => userId == null
       ? _kCoachApplicationStatus
       : "${_kCoachApplicationStatus}_u$userId";
@@ -437,8 +444,13 @@ class AccountStorage {
     final verifiedAtKey = _coachMembershipVerifiedAtKey(userId);
     if (active) {
       await sp.setInt(verifiedAtKey, DateTime.now().millisecondsSinceEpoch);
+      await sp.setInt(
+        _coachMembershipVerificationVersionKey(userId),
+        _coachMembershipVerificationVersion,
+      );
     } else {
       await sp.remove(verifiedAtKey);
+      await sp.remove(_coachMembershipVerificationVersionKey(userId));
     }
   }
 
@@ -448,7 +460,9 @@ class AccountStorage {
     // Old boolean-only values are not a valid entitlement. They are renewed
     // only after a StoreKit purchase or restore is confirmed.
     return (sp.getBool(_coachMembershipActiveKey(userId)) ?? false) &&
-        sp.containsKey(_coachMembershipVerifiedAtKey(userId));
+        sp.containsKey(_coachMembershipVerifiedAtKey(userId)) &&
+        sp.getInt(_coachMembershipVerificationVersionKey(userId)) ==
+            _coachMembershipVerificationVersion;
   }
 
   /// JWT access token returned by login / Google login. Used for Authorization header on protected APIs.
@@ -770,6 +784,7 @@ class AccountStorage {
       await sp.remove(_subscriptionRequiredKey(currentUserId));
       await sp.remove(_coachMembershipActiveKey(currentUserId));
       await sp.remove(_coachMembershipVerifiedAtKey(currentUserId));
+      await sp.remove(_coachMembershipVerificationVersionKey(currentUserId));
     }
     await sp.remove(_kWhoopLinked);
     await sp.remove(_kFitbitLinked);
