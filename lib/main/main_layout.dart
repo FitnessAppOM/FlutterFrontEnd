@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
@@ -11,6 +12,7 @@ import '../localization/app_localizations.dart';
 import '../services/auth/profile_service.dart';
 import '../services/core/navigation_service.dart';
 import '../services/screenings/screening_prompt_service.dart';
+import '../services/purchases/billing_api.dart';
 import '../services/training/training_activity_service.dart';
 import '../screens/coach_page.dart';
 import '../screens/expert_dashboard_page.dart';
@@ -113,6 +115,15 @@ class _MainLayoutState extends State<MainLayout> {
   Future<void> _enforceSubscriptionGate() async {
     if (_subscriptionGateChecked) return;
     _subscriptionGateChecked = true;
+    if (Platform.isAndroid) {
+      try {
+        final result = await BillingApi.entitlements();
+        await AccountStorage.setSubscriptionRequired(!result.active);
+        await AccountStorage.setCoachMembershipActive(result.coachActive);
+      } catch (_) {
+        // Keep the last known local gate on temporary network/server failure.
+      }
+    }
     if (!await AccountStorage.isSubscriptionRequired() || !mounted) return;
 
     await Navigator.of(context).push<bool>(

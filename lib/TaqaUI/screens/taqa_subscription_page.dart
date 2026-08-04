@@ -1,14 +1,17 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../auth/email_verification_page.dart';
 import '../../core/account_storage.dart';
 import '../../screens/welcome.dart';
 import '../../services/core/notification_service.dart';
+import '../../services/purchases/billing_api.dart';
 import '../../services/purchases/taqa_subscription_catalog.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../components/taqa_filled_button.dart';
@@ -18,7 +21,7 @@ import '../components/taqa_value_dialog.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
 
-/// Taqa Fitness subscriptions purchased through the App Store / StoreKit.
+/// Taqa Fitness subscriptions purchased through the platform store.
 class TaqaSubscriptionPage extends StatefulWidget {
   const TaqaSubscriptionPage({
     super.key,
@@ -47,6 +50,8 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   late final StreamSubscription<List<PurchaseDetails>> _purchaseSubscription;
 
   final Map<String, ProductDetails> _products = {};
+  final Map<String, GoogleBillingOffering> _googleOfferings = {};
+  String? _googleObfuscatedAccountId;
   bool _loading = true;
   bool _storeAvailable = false;
   bool _purchasePending = false;
@@ -60,7 +65,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     _purchaseSubscription = _store.purchaseStream.listen(
       _handlePurchaseUpdates,
       onError: (_) =>
-          _setMessage('The App Store could not process the purchase.'),
+          _setMessage('$_storeName could not process the purchase.'),
     );
     _loadProducts();
   }
@@ -83,26 +88,33 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         return;
       }
 
-      final response = await _store.queryProductDetails(
-        _catalogPlans.map((plan) => plan.productId).toSet(),
-      );
+      Set<String> productIds = _catalogPlans
+          .map((plan) => plan.productId)
+          .toSet();
+      if (Platform.isAndroid) {
+        final offerings = await BillingApi.googleOfferings();
+        _googleObfuscatedAccountId = offerings.obfuscatedAccountId;
+        _googleOfferings
+          ..clear()
+          ..addEntries(
+            offerings.products.map((item) => MapEntry(item.productId, item)),
+          );
+        productIds = productIds.intersection(_googleOfferings.keys.toSet());
+      }
+      final response = await _store.queryProductDetails(productIds);
       if (!mounted) return;
       setState(() {
         _storeAvailable = true;
         _products
           ..clear()
-          ..addEntries(
-            response.productDetails.map(
-              (product) => MapEntry(product.id, product),
-            ),
-          );
+          ..addEntries(_selectStoreProducts(response.productDetails).entries);
         _selectedProductId = _products.containsKey(_selectedProductId)
             ? _selectedProductId
             : _products.keys.firstOrNull;
         _message = response.error?.message;
         if (_products.isEmpty && response.notFoundIDs.isNotEmpty) {
           _message =
-              'Subscriptions are not available from the App Store yet. Please try again soon.';
+              'Subscriptions are not available from $_storeName yet. Please try again soon.';
         }
         _loading = false;
       });
@@ -116,13 +128,21 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     setState(() {
       _loading = false;
       _storeAvailable = false;
-      _message = 'The App Store is unavailable. Please try again later.';
+      _message = '$_storeName is unavailable. Please try again later.';
     });
   }
 
   void _setMessage(String message) {
     if (!mounted) return;
     setState(() => _message = message);
+  }
+
+  void _resetPurchaseProgress() {
+    if (!mounted) return;
+    setState(() {
+      _purchasePending = false;
+      _restoring = false;
+    });
   }
 
   Future<void> _handlePurchaseUpdates(List<PurchaseDetails> purchases) async {
@@ -145,6 +165,42 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         );
       } else if (purchase.status == PurchaseStatus.purchased ||
           purchase.status == PurchaseStatus.restored) {
+        if (Platform.isAndroid) {
+          try {
+            final verification = await BillingApi.verifyGooglePurchase(
+              productId: purchase.productID,
+              purchaseToken: purchase.verificationData.serverVerificationData,
+              purchaseId: purchase.purchaseID,
+            );
+            if (!verification.active) {
+              _setMessage('This subscription is not currently active.');
+              if (purchase.pendingCompletePurchase) {
+                await _store.completePurchase(purchase);
+              }
+              _resetPurchaseProgress();
+              continue;
+            }
+            if (widget.coachMembership && !verification.coachActive) {
+              _setMessage('This purchase does not include coach access.');
+              _resetPurchaseProgress();
+              continue;
+            }
+          } on BillingApiException catch (error) {
+            _setMessage(
+              'Google Play received the purchase, but TAQA could not verify it yet. '
+              '${error.message} Use Restore Purchases to retry.',
+            );
+            _resetPurchaseProgress();
+            continue;
+          } catch (_) {
+            _setMessage(
+              'Google Play received the purchase, but TAQA could not verify it yet. '
+              'Use Restore Purchases to retry.',
+            );
+            _resetPurchaseProgress();
+            continue;
+          }
+        }
         _setMessage(
           purchase.status == PurchaseStatus.restored
               ? 'Your purchases have been restored.'
@@ -205,7 +261,8 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       context: context,
       title: 'Confirm subscription',
       message:
-          'Subscribe for ${product.price}. Your Apple ID will be charged when you confirm in the App Store.',
+          'Subscribe for ${_displayPrice(product)} after any displayed free trial. '
+          'Your $_accountName will be charged when you confirm in $_storeName.',
       cancelLabel: 'Cancel',
       confirmLabel: 'Continue',
     );
@@ -216,13 +273,22 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       _message = null;
     });
     try {
+      final purchaseParam = Platform.isAndroid
+          ? GooglePlayPurchaseParam(
+              productDetails: product,
+              applicationUserName: _googleObfuscatedAccountId,
+              offerToken: product is GooglePlayProductDetails
+                  ? product.offerToken
+                  : null,
+            )
+          : PurchaseParam(productDetails: product);
       final started = await _store.buyNonConsumable(
-        purchaseParam: PurchaseParam(productDetails: product),
+        purchaseParam: purchaseParam,
       );
       if (!started && mounted) {
         setState(() {
           _purchasePending = false;
-          _message = 'The App Store could not start the purchase.';
+          _message = '$_storeName could not start the purchase.';
         });
       }
     } catch (_) {
@@ -242,6 +308,54 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   List<TaqaSubscriptionPlan> get _catalogPlans =>
       widget.plans ?? TaqaSubscriptionCatalog.plans;
 
+  String get _storeName => Platform.isAndroid ? 'Google Play' : 'the App Store';
+  String get _accountName => Platform.isAndroid ? 'Google Account' : 'Apple ID';
+
+  String _displayPrice(ProductDetails product) {
+    if (product is GooglePlayProductDetails) {
+      final index = product.subscriptionIndex;
+      final phases = index == null
+          ? null
+          : product
+                .productDetails
+                .subscriptionOfferDetails?[index]
+                .pricingPhases;
+      if (phases != null && phases.isNotEmpty) {
+        return phases.last.formattedPrice;
+      }
+    }
+    return product.price;
+  }
+
+  Map<String, ProductDetails> _selectStoreProducts(
+    List<ProductDetails> products,
+  ) {
+    final selected = <String, ProductDetails>{};
+    for (final product in products) {
+      if (!Platform.isAndroid || product is! GooglePlayProductDetails) {
+        selected[product.id] = product;
+        continue;
+      }
+      final offering = _googleOfferings[product.id];
+      final index = product.subscriptionIndex;
+      final details = index == null
+          ? null
+          : product.productDetails.subscriptionOfferDetails?[index];
+      final basePlanMatches =
+          offering?.basePlanId == null ||
+          details?.basePlanId == offering!.basePlanId;
+      final offerMatches =
+          offering?.offerTag == null ||
+          details?.offerTags.contains(offering!.offerTag) == true;
+      if (basePlanMatches && offerMatches) {
+        selected[product.id] = product;
+      } else if (!selected.containsKey(product.id) && basePlanMatches) {
+        selected[product.id] = product;
+      }
+    }
+    return selected;
+  }
+
   Future<void> _restorePurchases() async {
     if (_restoring) return;
     setState(() {
@@ -253,7 +367,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       if (mounted) {
         setState(() {
           _restoring = false;
-          _message = 'Your App Store purchases have been checked.';
+          _message = 'Your $_storeName purchases have been checked.';
         });
       }
     } catch (_) {
@@ -344,7 +458,9 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
               ),
               SizedBox(height: TaqaUiScale.h(16)),
               _PremiumOverviewCard(
-                selectedProduct: selectedProduct,
+                selectedPrice: selectedProduct == null
+                    ? null
+                    : _displayPrice(selectedProduct),
                 coachMembership: widget.coachMembership,
                 onChoosePlan: canChoosePlan
                     ? () => _showPlanPicker(availablePlans)
@@ -358,7 +474,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
               TaqaFilledButton(
                 label: selectedProduct == null
                     ? 'Choose a plan'
-                    : 'Subscribe for ${selectedProduct.price}',
+                    : 'Subscribe for ${_displayPrice(selectedProduct)}',
                 loading: _purchasePending,
                 onTap: canSubscribe ? _subscribe : null,
               ),
@@ -380,10 +496,10 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
               ),
               SizedBox(height: TaqaUiScale.h(8)),
               Text(
-                'Payment will be charged to your Apple ID when you confirm. '
+                'Payment will be charged to your $_accountName when you confirm. '
                 'Your subscription automatically renews unless you cancel at '
                 'least 24 hours before the end of the current period. You can '
-                'manage or cancel it in your App Store account settings.',
+                'manage or cancel it in your $_storeName account settings.',
                 style: _bodyStyle,
               ),
               SizedBox(height: TaqaUiScale.h(12)),
@@ -400,7 +516,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     return TaqaSubscriptionPlanCard(
       title: plan.title,
       period: plan.periodLabel,
-      price: product?.price ?? '',
+      price: product == null ? '' : _displayPrice(product),
       description: _planDescription(plan),
       student:
           plan == TaqaSubscriptionCatalog.studentMonthly ||
@@ -470,18 +586,17 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
 
 class _PremiumOverviewCard extends StatelessWidget {
   const _PremiumOverviewCard({
-    required this.selectedProduct,
+    required this.selectedPrice,
     required this.coachMembership,
     required this.onChoosePlan,
   });
 
-  final ProductDetails? selectedProduct;
+  final String? selectedPrice;
   final bool coachMembership;
   final VoidCallback? onChoosePlan;
 
   @override
   Widget build(BuildContext context) {
-    final selectedPrice = selectedProduct?.price;
     return Container(
       padding: TaqaUiScale.insetsLTRB(14, 13, 14, 13),
       decoration: BoxDecoration(

@@ -15,6 +15,7 @@ import '../core/account_storage.dart';
 import '../main/main_layout.dart';
 import '../services/auth/profile_service.dart';
 import '../services/purchases/taqa_subscription_catalog.dart';
+import '../services/purchases/billing_api.dart';
 import 'expert_questionnaire.dart';
 
 /// Locks coach applicants out of the app until an admin decision is made and,
@@ -56,6 +57,14 @@ class _CoachApplicationStatusPageState
       setState(() => _checkingStoreEntitlement = true);
     }
     try {
+      if (Platform.isAndroid) {
+        final entitlements = await BillingApi.entitlements();
+        await AccountStorage.setCoachMembershipActive(entitlements.coachActive);
+        if (entitlements.coachActive) {
+          await _continueIfCoachMembershipIsActive();
+          return;
+        }
+      }
       if (await _hasActiveCoachStoreKitEntitlement()) {
         await AccountStorage.setCoachMembershipActive(true);
         await _continueIfCoachMembershipIsActive();
@@ -76,7 +85,9 @@ class _CoachApplicationStatusPageState
       final now = DateTime.now().toUtc();
       return transactions.any((transaction) {
         if (transaction.productId !=
-            TaqaSubscriptionCatalog.coachMonthly.productId) {
+                TaqaSubscriptionCatalog.coachMonthly.productId &&
+            transaction.productId !=
+                TaqaSubscriptionCatalog.coachAnnual.productId) {
           return false;
         }
         final expirationRaw = transaction.expirationDate;
@@ -94,17 +105,34 @@ class _CoachApplicationStatusPageState
   Future<void> _handlePurchaseUpdates(List<PurchaseDetails> purchases) async {
     final coachPurchases = purchases.where(
       (purchase) =>
-          purchase.productID ==
-              TaqaSubscriptionCatalog.coachMonthly.productId &&
+          (purchase.productID ==
+                  TaqaSubscriptionCatalog.coachMonthly.productId ||
+              purchase.productID ==
+                  TaqaSubscriptionCatalog.coachAnnual.productId) &&
           purchase.status == PurchaseStatus.restored,
     );
     if (coachPurchases.isEmpty) return;
 
+    var activeCoachPurchase = !Platform.isAndroid;
     for (final purchase in coachPurchases) {
+      if (Platform.isAndroid) {
+        try {
+          final result = await BillingApi.verifyGooglePurchase(
+            productId: purchase.productID,
+            purchaseToken: purchase.verificationData.serverVerificationData,
+            purchaseId: purchase.purchaseID,
+          );
+          if (!result.coachActive) continue;
+          activeCoachPurchase = true;
+        } catch (_) {
+          continue;
+        }
+      }
       if (purchase.pendingCompletePurchase) {
         await _store.completePurchase(purchase);
       }
     }
+    if (!activeCoachPurchase) return;
     await AccountStorage.setCoachMembershipActive(true);
     await _continueIfCoachMembershipIsActive();
   }
@@ -158,7 +186,10 @@ class _CoachApplicationStatusPageState
         builder: (_) => const TaqaSubscriptionPage(
           mandatory: true,
           coachMembership: true,
-          plans: [TaqaSubscriptionCatalog.coachMonthly],
+          plans: [
+            TaqaSubscriptionCatalog.coachMonthly,
+            TaqaSubscriptionCatalog.coachAnnual,
+          ],
         ),
       ),
     );
