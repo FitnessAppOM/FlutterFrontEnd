@@ -1,9 +1,4 @@
-import 'dart:async';
-import 'dart:io' show Platform;
-
 import 'package:flutter/material.dart';
-import 'package:in_app_purchase/in_app_purchase.dart';
-import 'package:in_app_purchase_storekit/store_kit_2_wrappers.dart';
 
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
@@ -33,11 +28,8 @@ class CoachApplicationStatusPage extends StatefulWidget {
 
 class _CoachApplicationStatusPageState
     extends State<CoachApplicationStatusPage> {
-  final InAppPurchase _store = InAppPurchase.instance;
-  late final StreamSubscription<List<PurchaseDetails>> _purchaseSubscription;
   String _status = 'pending';
   bool _loading = true;
-  bool _checkingStoreEntitlement = false;
   String? _error;
 
   @override
@@ -47,72 +39,7 @@ class _CoachApplicationStatusPageState
     if (initialStatus != null && initialStatus.isNotEmpty) {
       _status = initialStatus;
     }
-    _purchaseSubscription = _store.purchaseStream.listen(
-      _handlePurchaseUpdates,
-    );
     _refreshStatus();
-  }
-
-  @override
-  void dispose() {
-    _purchaseSubscription.cancel();
-    super.dispose();
-  }
-
-  Future<void> _restoreCoachMembership() async {
-    if (mounted) {
-      setState(() => _checkingStoreEntitlement = true);
-    }
-    try {
-      if (await _hasActiveCoachStoreKitEntitlement()) {
-        await AccountStorage.setCoachMembershipActive(true);
-        await _continueIfCoachMembershipIsActive();
-        return;
-      }
-      await _store.restorePurchases();
-    } catch (_) {
-      // Checkout still offers a manual restore if StoreKit is unavailable.
-    } finally {
-      if (mounted) setState(() => _checkingStoreEntitlement = false);
-    }
-  }
-
-  Future<bool> _hasActiveCoachStoreKitEntitlement() async {
-    if (!Platform.isIOS) return false;
-    try {
-      final transactions = await SK2Transaction.transactions();
-      final now = DateTime.now().toUtc();
-      return transactions.any((transaction) {
-        if (!_coachProductIds.contains(transaction.productId)) {
-          return false;
-        }
-        final expirationRaw = transaction.expirationDate;
-        final expiration = expirationRaw == null
-            ? null
-            : DateTime.tryParse(expirationRaw)?.toUtc();
-        return expiration != null && expiration.isAfter(now);
-      });
-    } catch (_) {
-      // StoreKit 1 and older iOS versions fall back to restorePurchases().
-      return false;
-    }
-  }
-
-  Future<void> _handlePurchaseUpdates(List<PurchaseDetails> purchases) async {
-    final coachPurchases = purchases.where(
-      (purchase) =>
-          _coachProductIds.contains(purchase.productID) &&
-          purchase.status == PurchaseStatus.restored,
-    );
-    if (coachPurchases.isEmpty) return;
-
-    for (final purchase in coachPurchases) {
-      if (purchase.pendingCompletePurchase) {
-        await _store.completePurchase(purchase);
-      }
-    }
-    await AccountStorage.setCoachMembershipActive(true);
-    await _continueIfCoachMembershipIsActive();
   }
 
   Future<void> _refreshStatus() async {
@@ -136,9 +63,6 @@ class _CoachApplicationStatusPageState
         _status = status.isEmpty ? 'pending' : status;
         _loading = false;
       });
-      if (_status == 'approved') {
-        await _restoreCoachMembership();
-      }
       await _continueIfCoachMembershipIsActive();
     } catch (_) {
       final cachedStatus = await AccountStorage.getCoachApplicationStatus();
@@ -195,9 +119,6 @@ class _CoachApplicationStatusPageState
     );
     NotificationService.refreshDailyJournalRemindersForCurrentUser();
   }
-
-  Set<String> get _coachProductIds =>
-      TaqaSubscriptionCatalog.coachPlans.map((plan) => plan.productId).toSet();
 
   @override
   Widget build(BuildContext context) {
@@ -281,7 +202,7 @@ class _CoachApplicationStatusPageState
                   ),
                 ),
                 const Spacer(),
-                if (_loading || _checkingStoreEntitlement)
+                if (_loading)
                   const CircularProgressIndicator(color: TaqaUiColors.charcoal)
                 else if (approved)
                   TaqaFilledButton(
