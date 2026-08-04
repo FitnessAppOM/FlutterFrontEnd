@@ -14,7 +14,9 @@ import '../TaqaUI/screens/taqa_subscription_page.dart';
 import '../core/account_storage.dart';
 import '../main/main_layout.dart';
 import '../services/auth/profile_service.dart';
+import '../services/core/notification_service.dart';
 import '../services/purchases/taqa_subscription_catalog.dart';
+import '../screens/welcome.dart';
 import 'expert_questionnaire.dart';
 
 /// Locks coach applicants out of the app until an admin decision is made and,
@@ -81,8 +83,7 @@ class _CoachApplicationStatusPageState
       final transactions = await SK2Transaction.transactions();
       final now = DateTime.now().toUtc();
       return transactions.any((transaction) {
-        if (transaction.productId !=
-            TaqaSubscriptionCatalog.coachMonthly.productId) {
+        if (!_coachProductIds.contains(transaction.productId)) {
           return false;
         }
         final expirationRaw = transaction.expirationDate;
@@ -100,8 +101,7 @@ class _CoachApplicationStatusPageState
   Future<void> _handlePurchaseUpdates(List<PurchaseDetails> purchases) async {
     final coachPurchases = purchases.where(
       (purchase) =>
-          purchase.productID ==
-              TaqaSubscriptionCatalog.coachMonthly.productId &&
+          _coachProductIds.contains(purchase.productID) &&
           purchase.status == PurchaseStatus.restored,
     );
     if (coachPurchases.isEmpty) return;
@@ -169,7 +169,7 @@ class _CoachApplicationStatusPageState
         builder: (_) => const TaqaSubscriptionPage(
           mandatory: true,
           coachMembership: true,
-          plans: [TaqaSubscriptionCatalog.coachMonthly],
+          plans: TaqaSubscriptionCatalog.coachPlans,
         ),
       ),
     );
@@ -185,6 +185,19 @@ class _CoachApplicationStatusPageState
       MaterialPageRoute(builder: (_) => const ExpertQuestionnairePage()),
     );
   }
+
+  Future<void> _logout() async {
+    await AccountStorage.logoutSession();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const WelcomePage(fromLogout: true)),
+      (_) => false,
+    );
+    NotificationService.refreshDailyJournalRemindersForCurrentUser();
+  }
+
+  Set<String> get _coachProductIds =>
+      TaqaSubscriptionCatalog.coachPlans.map((plan) => plan.productId).toSet();
 
   @override
   Widget build(BuildContext context) {
@@ -205,9 +218,17 @@ class _CoachApplicationStatusPageState
       canPop: false,
       child: Scaffold(
         backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-        appBar: const TaqaPageAppBar(
+        appBar: TaqaPageAppBar(
           title: 'Coach application',
           showBackButton: false,
+          trailing: IconButton(
+            tooltip: 'Sign out',
+            onPressed: _logout,
+            icon: const Icon(
+              Icons.logout_rounded,
+              color: TaqaUiColors.unnamedColor1c1d17,
+            ),
+          ),
         ),
         body: SafeArea(
           top: false,
@@ -268,7 +289,7 @@ class _CoachApplicationStatusPageState
                     onTap: _startMembership,
                   )
                 else if (rejected)
-                  TaqaFilledButton(label: 'Reapply', onTap: _reapply)
+                  TaqaFilledButton(label: 'Reapply', onTap: _reapply),
               ],
             ),
           ),

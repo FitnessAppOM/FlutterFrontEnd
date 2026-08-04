@@ -63,12 +63,23 @@ class TaqaSubscriptionCatalog {
     periodLabel: 'Monthly',
   );
 
+  static const coachAnnual = TaqaSubscriptionPlan(
+    productId: String.fromEnvironment(
+      'TAQA_COACH_ANNUAL_SUBSCRIPTION_ID',
+      defaultValue: 'taqa_coach_annual',
+    ),
+    title: 'Taqa Coach Annual',
+    periodLabel: 'Annual',
+  );
+
   static const plans = <TaqaSubscriptionPlan>[
     monthly,
     studentMonthly,
     annual,
     studentAnnual,
   ];
+
+  static const coachPlans = <TaqaSubscriptionPlan>[coachMonthly, coachAnnual];
 
   static const termsOfUseUrl = String.fromEnvironment(
     'TAQA_TERMS_OF_USE_URL',
