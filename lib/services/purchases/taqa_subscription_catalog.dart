@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 /// Store product and legal-link configuration for Taqa Fitness subscriptions.
 ///
 /// The defaults are the product identifiers intended for App Store Connect.
@@ -5,21 +7,26 @@
 /// corresponding `--dart-define` values at build time.
 class TaqaSubscriptionPlan {
   const TaqaSubscriptionPlan({
-    required this.productId,
+    required this.appleProductId,
+    this.googleProductId,
     required this.title,
     required this.periodLabel,
   });
 
-  final String productId;
+  final String appleProductId;
+  final String? googleProductId;
   final String title;
   final String periodLabel;
+
+  String get productId =>
+      Platform.isAndroid ? googleProductId ?? appleProductId : appleProductId;
 }
 
 class TaqaSubscriptionCatalog {
   TaqaSubscriptionCatalog._();
 
   static const monthly = TaqaSubscriptionPlan(
-    productId: String.fromEnvironment(
+    appleProductId: String.fromEnvironment(
       'TAQA_MONTHLY_SUBSCRIPTION_ID',
       defaultValue: 'com.taqa.premium.monthly',
     ),
@@ -28,7 +35,7 @@ class TaqaSubscriptionCatalog {
   );
 
   static const studentMonthly = TaqaSubscriptionPlan(
-    productId: String.fromEnvironment(
+    appleProductId: String.fromEnvironment(
       'TAQA_STUDENT_MONTHLY_SUBSCRIPTION_ID',
       defaultValue: 'com.taqa.premium.student.monthly',
     ),
@@ -37,7 +44,7 @@ class TaqaSubscriptionCatalog {
   );
 
   static const annual = TaqaSubscriptionPlan(
-    productId: String.fromEnvironment(
+    appleProductId: String.fromEnvironment(
       'TAQA_ANNUAL_SUBSCRIPTION_ID',
       defaultValue: 'com.taqa.premium.annual',
     ),
@@ -46,7 +53,7 @@ class TaqaSubscriptionCatalog {
   );
 
   static const studentAnnual = TaqaSubscriptionPlan(
-    productId: String.fromEnvironment(
+    appleProductId: String.fromEnvironment(
       'TAQA_STUDENT_ANNUAL_SUBSCRIPTION_ID',
       defaultValue: 'com.taqa.premium.student.annual',
     ),
@@ -55,7 +62,7 @@ class TaqaSubscriptionCatalog {
   );
 
   static const coachMonthly = TaqaSubscriptionPlan(
-    productId: String.fromEnvironment(
+    appleProductId: String.fromEnvironment(
       'TAQA_COACH_MONTHLY_SUBSCRIPTION_ID',
       defaultValue: 'taqa_coach_monthly',
     ),
@@ -64,8 +71,12 @@ class TaqaSubscriptionCatalog {
   );
 
   static const coachAnnual = TaqaSubscriptionPlan(
-    productId: String.fromEnvironment(
+    appleProductId: String.fromEnvironment(
       'TAQA_COACH_ANNUAL_SUBSCRIPTION_ID',
+      defaultValue: 'taqa_coach_annual',
+    ),
+    googleProductId: String.fromEnvironment(
+      'TAQA_GOOGLE_COACH_ANNUAL_SUBSCRIPTION_ID',
       defaultValue: 'com.taqa.premium.coach.annual',
     ),
     title: 'Taqa Coach Annual',
@@ -78,6 +89,8 @@ class TaqaSubscriptionCatalog {
     annual,
     studentAnnual,
   ];
+
+  static const coachPlans = <TaqaSubscriptionPlan>[coachMonthly, coachAnnual];
 
   static const termsOfUseUrl = String.fromEnvironment(
     'TAQA_TERMS_OF_USE_URL',

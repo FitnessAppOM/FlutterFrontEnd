@@ -14,7 +14,7 @@ import '../../services/core/university_service.dart';
 class QuestionnaireForm extends StatefulWidget {
   const QuestionnaireForm({super.key, this.onSubmit});
 
-  final void Function(Map<String, String>)? onSubmit;
+  final Future<void> Function(Map<String, String>)? onSubmit;
 
   @override
   State<QuestionnaireForm> createState() => _QuestionnaireFormState();
@@ -41,6 +41,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
   List<Map<String, dynamic>> _universities = [];
   bool _universitiesLoading = false;
   String? _selectedUniversityId;
+  bool _submitting = false;
 
   @override
   void initState() {
@@ -203,6 +204,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
   }
 
   Future<void> _next() async {
+    if (_submitting) return;
     if (!_formKey.currentState!.validate()) return;
     _formKey.currentState!.save();
 
@@ -241,11 +243,18 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       });
       _scrollToTop();
     } else {
-      await _submit();
+      FocusScope.of(context).unfocus();
+      setState(() => _submitting = true);
+      try {
+        await _submit();
+      } finally {
+        if (mounted) setState(() => _submitting = false);
+      }
     }
   }
 
   void _back() {
+    if (_submitting) return;
     if (_currentSection > 0) {
       setState(() {
         _currentSection--;
@@ -449,7 +458,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       cleanedValues.remove('affiliation_id');
     }
 
-    widget.onSubmit?.call(cleanedValues);
+    await widget.onSubmit?.call(cleanedValues);
     if (!mounted) return;
   }
 
@@ -524,37 +533,40 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
           _StepProgressBar(current: _currentSection, total: _totalSections),
           SizedBox(height: TaqaUiScale.h(16)),
           Expanded(
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _sectionTitle,
-                    style: TextStyle(
-                      fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: TaqaUiScale.sp(20),
-                      fontWeight: FontWeight.w700,
-                      height: 26 / 20,
-                      color: TaqaUiColors.unnamedColor1c1d17,
-                    ),
-                  ),
-                  SizedBox(height: TaqaUiScale.h(4)),
-                  Text(
-                    _sectionSubtitle,
-                    style: TextStyle(
-                      fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: TaqaUiScale.sp(13),
-                      fontWeight: FontWeight.w400,
-                      height: 18 / 13,
-                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                        alpha: 0.6,
+            child: AbsorbPointer(
+              absorbing: _submitting,
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _sectionTitle,
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(20),
+                        fontWeight: FontWeight.w700,
+                        height: 26 / 20,
+                        color: TaqaUiColors.unnamedColor1c1d17,
                       ),
                     ),
-                  ),
-                  SizedBox(height: TaqaUiScale.h(20)),
-                  ..._buildCurrentSectionFields(),
-                ],
+                    SizedBox(height: TaqaUiScale.h(4)),
+                    Text(
+                      _sectionSubtitle,
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(13),
+                        fontWeight: FontWeight.w400,
+                        height: 18 / 13,
+                        color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                          alpha: 0.6,
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: TaqaUiScale.h(20)),
+                    ..._buildCurrentSectionFields(),
+                  ],
+                ),
               ),
             ),
           ),
@@ -570,7 +582,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                       child: Material(
                         color: Colors.transparent,
                         child: InkWell(
-                          onTap: _back,
+                          onTap: _submitting ? null : _back,
                           child: SizedBox(
                             height: TaqaUiScale.h(48),
                             child: Center(
@@ -595,7 +607,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                       label: _currentSection == _totalSections - 1
                           ? _t("finish")
                           : _t("next"),
-                      onTap: _next,
+                      loading: _submitting,
+                      onTap: _submitting ? null : _next,
                     ),
                   ),
                 ],

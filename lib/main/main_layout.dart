@@ -92,19 +92,50 @@ class _MainLayoutState extends State<MainLayout> {
     try {
       final userId = await AccountStorage.getUserId();
       if (userId == null || userId <= 0) return;
+      final hasSubmittedApplication =
+          await AccountStorage.isExpertQuestionnaireDone();
+      final cachedStatus = await AccountStorage.getCoachApplicationStatus();
+      final hasActiveMembership =
+          await AccountStorage.isCoachMembershipActive();
+
+      // Never let an existing applicant into the main app while offline.
+      // The status page can refresh if the connection is available.
+      if ((hasSubmittedApplication || cachedStatus != null) &&
+          (cachedStatus != 'approved' || !hasActiveMembership)) {
+        if (!mounted) return;
+        await Navigator.of(context).pushAndRemoveUntil<void>(
+          MaterialPageRoute(
+            builder: (_) =>
+                CoachApplicationStatusPage(initialStatus: cachedStatus),
+          ),
+          (_) => false,
+        );
+        return;
+      }
+
       final profile = await ProfileApi.fetchProfile(userId);
-      if (profile['filled_expert_questionnaire'] != true) return;
+      final hasServerApplication =
+          profile['filled_expert_questionnaire'] == true;
+      if (!hasServerApplication) {
+        await AccountStorage.setCoachApplicationStatus(null);
+        return;
+      }
       final status = (profile['expert_profile_status'] ?? '')
           .toString()
           .trim()
           .toLowerCase();
-      if (status == 'approved' &&
-          await AccountStorage.isCoachMembershipActive()) {
+      final resolvedStatus = status.isEmpty ? 'pending' : status;
+      await AccountStorage.setCoachApplicationStatus(resolvedStatus);
+      if (status == 'approved' && hasActiveMembership) {
         return;
       }
       if (!mounted) return;
-      await Navigator.of(context).push<bool>(
-        MaterialPageRoute(builder: (_) => const CoachApplicationStatusPage()),
+      await Navigator.of(context).pushAndRemoveUntil<void>(
+        MaterialPageRoute(
+          builder: (_) =>
+              CoachApplicationStatusPage(initialStatus: resolvedStatus),
+        ),
+        (_) => false,
       );
     } catch (_) {
       // The application-status page will retry if it is required. Avoid
@@ -213,10 +244,18 @@ class _MainLayoutState extends State<MainLayout> {
       final filledExpertQuestionnaire =
           profile["filled_expert_questionnaire"] == true;
       final isExpert = profile["is_expert"] == true;
+      final applicationStatus = (profile['expert_profile_status'] ?? '')
+          .toString()
+          .trim();
       await AccountStorage.setExpertQuestionnaireDone(
         filledExpertQuestionnaire,
       );
       await AccountStorage.setIsExpert(isExpert);
+      await AccountStorage.setCoachApplicationStatus(
+        filledExpertQuestionnaire
+            ? (applicationStatus.isEmpty ? 'pending' : applicationStatus)
+            : null,
+      );
     } catch (_) {
       // Best-effort refresh; the cached value from before this tap is
       // still used for the current navigation decision either way.

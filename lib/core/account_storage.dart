@@ -33,6 +33,8 @@ class AccountStorage {
   static const _kDismissDeactivatedPrompt = 'dismiss_deactivated_prompt';
   static const _kSubscriptionRequired = 'subscription_required';
   static const _kCoachMembershipActive = 'coach_membership_active';
+  static const _kCoachMembershipVerifiedAt = 'coach_membership_verified_at';
+  static const _kCoachApplicationStatus = 'coach_application_status';
   static String _whoopLinkedKey(int? userId) =>
       userId == null ? _kWhoopLinked : "${_kWhoopLinked}_u$userId";
   static String _fitbitLinkedKey(int? userId) =>
@@ -57,6 +59,12 @@ class AccountStorage {
   static String _coachMembershipActiveKey(int? userId) => userId == null
       ? _kCoachMembershipActive
       : "${_kCoachMembershipActive}_u$userId";
+  static String _coachMembershipVerifiedAtKey(int? userId) => userId == null
+      ? _kCoachMembershipVerifiedAt
+      : "${_kCoachMembershipVerifiedAt}_u$userId";
+  static String _coachApplicationStatusKey(int? userId) => userId == null
+      ? _kCoachApplicationStatus
+      : "${_kCoachApplicationStatus}_u$userId";
   static String _avatarPathKey(int? userId) =>
       userId == null ? _kAvatarPath : "${_kAvatarPath}_u$userId";
   static String _avatarUrlKey(int? userId) =>
@@ -363,6 +371,27 @@ class AccountStorage {
     notifyAccountChanged();
   }
 
+  /// Stores the last server-confirmed coach application decision for the
+  /// active account. This lets the launch gate remain safe while offline.
+  static Future<void> setCoachApplicationStatus(String? status) async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    final key = _coachApplicationStatusKey(userId);
+    final normalized = status?.trim().toLowerCase();
+    if (normalized == null || normalized.isEmpty) {
+      await sp.remove(key);
+      return;
+    }
+    await sp.setString(key, normalized);
+  }
+
+  static Future<String?> getCoachApplicationStatus() async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    final value = sp.getString(_coachApplicationStatusKey(userId))?.trim();
+    return value == null || value.isEmpty ? null : value.toLowerCase();
+  }
+
   static Future<String?> getAuthProvider() async {
     final sp = await SharedPreferences.getInstance();
     return sp.getString(_kAuthProvider);
@@ -403,12 +432,23 @@ class AccountStorage {
 
   static Future<void> setCoachMembershipActive(bool active) async {
     final sp = await SharedPreferences.getInstance();
-    await sp.setBool(_coachMembershipActiveKey(sp.getInt(_kUserId)), active);
+    final userId = sp.getInt(_kUserId);
+    await sp.setBool(_coachMembershipActiveKey(userId), active);
+    final verifiedAtKey = _coachMembershipVerifiedAtKey(userId);
+    if (active) {
+      await sp.setInt(verifiedAtKey, DateTime.now().millisecondsSinceEpoch);
+    } else {
+      await sp.remove(verifiedAtKey);
+    }
   }
 
   static Future<bool> isCoachMembershipActive() async {
     final sp = await SharedPreferences.getInstance();
-    return sp.getBool(_coachMembershipActiveKey(sp.getInt(_kUserId))) ?? false;
+    final userId = sp.getInt(_kUserId);
+    // Old boolean-only values are not a valid entitlement. They are renewed
+    // only after a StoreKit purchase or restore is confirmed.
+    return (sp.getBool(_coachMembershipActiveKey(userId)) ?? false) &&
+        sp.containsKey(_coachMembershipVerifiedAtKey(userId));
   }
 
   /// JWT access token returned by login / Google login. Used for Authorization header on protected APIs.
@@ -459,7 +499,10 @@ class AccountStorage {
     try {
       final response = await http.post(
         Uri.parse('${ApiConfig.baseUrl}/auth/refresh'),
-        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         body: jsonEncode({'refresh_token': refreshToken.trim()}),
       );
       if (response.statusCode != 200) {
@@ -686,7 +729,10 @@ class AccountStorage {
       try {
         await http.post(
           Uri.parse('${ApiConfig.baseUrl}/auth/logout'),
-          headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
           body: jsonEncode({'refresh_token': refreshToken.trim()}),
         );
       } catch (_) {}
@@ -723,6 +769,7 @@ class AccountStorage {
       await sp.remove(_dismissDeactivatedPromptKey(currentUserId));
       await sp.remove(_subscriptionRequiredKey(currentUserId));
       await sp.remove(_coachMembershipActiveKey(currentUserId));
+      await sp.remove(_coachMembershipVerifiedAtKey(currentUserId));
     }
     await sp.remove(_kWhoopLinked);
     await sp.remove(_kFitbitLinked);

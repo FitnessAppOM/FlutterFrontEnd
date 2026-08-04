@@ -1,9 +1,4 @@
-import 'dart:async';
-import 'dart:io' show Platform;
-
 import 'package:flutter/material.dart';
-import 'package:in_app_purchase/in_app_purchase.dart';
-import 'package:in_app_purchase_storekit/store_kit_2_wrappers.dart';
 
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
@@ -14,14 +9,17 @@ import '../TaqaUI/screens/taqa_subscription_page.dart';
 import '../core/account_storage.dart';
 import '../main/main_layout.dart';
 import '../services/auth/profile_service.dart';
+import '../services/core/notification_service.dart';
 import '../services/purchases/taqa_subscription_catalog.dart';
-import '../services/purchases/billing_api.dart';
+import '../screens/welcome.dart';
 import 'expert_questionnaire.dart';
 
 /// Locks coach applicants out of the app until an admin decision is made and,
 /// once approved, until their coach membership is started.
 class CoachApplicationStatusPage extends StatefulWidget {
-  const CoachApplicationStatusPage({super.key});
+  const CoachApplicationStatusPage({super.key, this.initialStatus});
+
+  final String? initialStatus;
 
   @override
   State<CoachApplicationStatusPage> createState() =>
@@ -30,111 +28,18 @@ class CoachApplicationStatusPage extends StatefulWidget {
 
 class _CoachApplicationStatusPageState
     extends State<CoachApplicationStatusPage> {
-  final InAppPurchase _store = InAppPurchase.instance;
-  late final StreamSubscription<List<PurchaseDetails>> _purchaseSubscription;
   String _status = 'pending';
   bool _loading = true;
-  bool _checkingStoreEntitlement = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _purchaseSubscription = _store.purchaseStream.listen(
-      _handlePurchaseUpdates,
-    );
+    final initialStatus = widget.initialStatus?.trim().toLowerCase();
+    if (initialStatus != null && initialStatus.isNotEmpty) {
+      _status = initialStatus;
+    }
     _refreshStatus();
-  }
-
-  @override
-  void dispose() {
-    _purchaseSubscription.cancel();
-    super.dispose();
-  }
-
-  Future<void> _restoreCoachMembership() async {
-    if (mounted) {
-      setState(() => _checkingStoreEntitlement = true);
-    }
-    try {
-      if (Platform.isAndroid) {
-        final entitlements = await BillingApi.entitlements();
-        await AccountStorage.setCoachMembershipActive(entitlements.coachActive);
-        if (entitlements.coachActive) {
-          await _continueIfCoachMembershipIsActive();
-          return;
-        }
-      }
-      if (await _hasActiveCoachStoreKitEntitlement()) {
-        await AccountStorage.setCoachMembershipActive(true);
-        await _continueIfCoachMembershipIsActive();
-        return;
-      }
-      await _store.restorePurchases();
-    } catch (_) {
-      // Checkout still offers a manual restore if StoreKit is unavailable.
-    } finally {
-      if (mounted) setState(() => _checkingStoreEntitlement = false);
-    }
-  }
-
-  Future<bool> _hasActiveCoachStoreKitEntitlement() async {
-    if (!Platform.isIOS) return false;
-    try {
-      final transactions = await SK2Transaction.transactions();
-      final now = DateTime.now().toUtc();
-      return transactions.any((transaction) {
-        if (transaction.productId !=
-                TaqaSubscriptionCatalog.coachMonthly.productId &&
-            transaction.productId !=
-                TaqaSubscriptionCatalog.coachAnnual.productId) {
-          return false;
-        }
-        final expirationRaw = transaction.expirationDate;
-        final expiration = expirationRaw == null
-            ? null
-            : DateTime.tryParse(expirationRaw)?.toUtc();
-        return expiration != null && expiration.isAfter(now);
-      });
-    } catch (_) {
-      // StoreKit 1 and older iOS versions fall back to restorePurchases().
-      return false;
-    }
-  }
-
-  Future<void> _handlePurchaseUpdates(List<PurchaseDetails> purchases) async {
-    final coachPurchases = purchases.where(
-      (purchase) =>
-          (purchase.productID ==
-                  TaqaSubscriptionCatalog.coachMonthly.productId ||
-              purchase.productID ==
-                  TaqaSubscriptionCatalog.coachAnnual.productId) &&
-          purchase.status == PurchaseStatus.restored,
-    );
-    if (coachPurchases.isEmpty) return;
-
-    var activeCoachPurchase = !Platform.isAndroid;
-    for (final purchase in coachPurchases) {
-      if (Platform.isAndroid) {
-        try {
-          final result = await BillingApi.verifyGooglePurchase(
-            productId: purchase.productID,
-            purchaseToken: purchase.verificationData.serverVerificationData,
-            purchaseId: purchase.purchaseID,
-          );
-          if (!result.coachActive) continue;
-          activeCoachPurchase = true;
-        } catch (_) {
-          continue;
-        }
-      }
-      if (purchase.pendingCompletePurchase) {
-        await _store.completePurchase(purchase);
-      }
-    }
-    if (!activeCoachPurchase) return;
-    await AccountStorage.setCoachMembershipActive(true);
-    await _continueIfCoachMembershipIsActive();
   }
 
   Future<void> _refreshStatus() async {
@@ -150,18 +55,20 @@ class _CoachApplicationStatusPageState
           .toString()
           .trim()
           .toLowerCase();
+      await AccountStorage.setCoachApplicationStatus(
+        status.isEmpty ? 'pending' : status,
+      );
       if (!mounted) return;
       setState(() {
         _status = status.isEmpty ? 'pending' : status;
         _loading = false;
       });
-      if (_status == 'approved') {
-        await _restoreCoachMembership();
-      }
       await _continueIfCoachMembershipIsActive();
     } catch (_) {
+      final cachedStatus = await AccountStorage.getCoachApplicationStatus();
       if (!mounted) return;
       setState(() {
+        if (cachedStatus != null) _status = cachedStatus;
         _error = 'We could not check your application yet. Try again.';
         _loading = false;
       });
@@ -186,10 +93,7 @@ class _CoachApplicationStatusPageState
         builder: (_) => const TaqaSubscriptionPage(
           mandatory: true,
           coachMembership: true,
-          plans: [
-            TaqaSubscriptionCatalog.coachMonthly,
-            TaqaSubscriptionCatalog.coachAnnual,
-          ],
+          plans: TaqaSubscriptionCatalog.coachPlans,
         ),
       ),
     );
@@ -204,6 +108,16 @@ class _CoachApplicationStatusPageState
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const ExpertQuestionnairePage()),
     );
+  }
+
+  Future<void> _logout() async {
+    await AccountStorage.logoutSession();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const WelcomePage(fromLogout: true)),
+      (_) => false,
+    );
+    NotificationService.refreshDailyJournalRemindersForCurrentUser();
   }
 
   @override
@@ -225,9 +139,17 @@ class _CoachApplicationStatusPageState
       canPop: false,
       child: Scaffold(
         backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-        appBar: const TaqaPageAppBar(
+        appBar: TaqaPageAppBar(
           title: 'Coach application',
           showBackButton: false,
+          trailing: IconButton(
+            tooltip: 'Sign out',
+            onPressed: _logout,
+            icon: const Icon(
+              Icons.logout_rounded,
+              color: TaqaUiColors.unnamedColor1c1d17,
+            ),
+          ),
         ),
         body: SafeArea(
           top: false,
@@ -280,7 +202,7 @@ class _CoachApplicationStatusPageState
                   ),
                 ),
                 const Spacer(),
-                if (_loading || _checkingStoreEntitlement)
+                if (_loading)
                   const CircularProgressIndicator(color: TaqaUiColors.charcoal)
                 else if (approved)
                   TaqaFilledButton(
@@ -288,12 +210,7 @@ class _CoachApplicationStatusPageState
                     onTap: _startMembership,
                   )
                 else if (rejected)
-                  TaqaFilledButton(label: 'Reapply', onTap: _reapply)
-                else
-                  TaqaFilledButton(
-                    label: 'Check application status',
-                    onTap: _refreshStatus,
-                  ),
+                  TaqaFilledButton(label: 'Reapply', onTap: _reapply),
               ],
             ),
           ),

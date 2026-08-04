@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../../auth/expert_questionnaire.dart';
+import '../../auth/coach_application_status_page.dart';
 import '../../auth/questionnaire.dart';
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
@@ -46,9 +47,7 @@ class _BootGateState extends State<BootGate> {
         "${ApiConfig.baseUrl}/profile/$userId/account-status",
       );
       final headers = await AccountStorage.getAuthHeaders();
-      final res = await http
-          .get(url, headers: headers)
-          .timeout(_checkTimeout);
+      final res = await http.get(url, headers: headers).timeout(_checkTimeout);
       if (res.statusCode != 200) return const _CheckUserResult();
       return _CheckUserResult(userId: userId);
     } on SocketException {
@@ -80,22 +79,49 @@ class _BootGateState extends State<BootGate> {
     });
   }
 
-  Future<void> _navigatePostAuth({
-    required int userId,
-  }) async {
+  Future<void> _navigatePostAuth({required int userId}) async {
     final lang = localeController.locale.languageCode;
     final profile = await ProfileApi.fetchProfile(userId, lang: lang);
     final serverDone = profile["filled_user_questionnaire"] == true;
     final expertQuestionnaireDone =
         profile["filled_expert_questionnaire"] == true;
     final isExpert = profile["is_expert"] == true;
+    final applicationStatus = (profile['expert_profile_status'] ?? '')
+        .toString()
+        .trim()
+        .toLowerCase();
     final hasData =
         expertQuestionnaireDone || serverDone || _hasQuestionnaireData(profile);
     await AccountStorage.setQuestionnaireDone(serverDone);
     await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
     await AccountStorage.setIsExpert(isExpert);
+    await AccountStorage.setCoachApplicationStatus(
+      expertQuestionnaireDone
+          ? (applicationStatus.isEmpty ? 'pending' : applicationStatus)
+          : null,
+    );
     if (!mounted) return;
     if (NavigationService.isOnJournalPage) {
+      return;
+    }
+    final hasActiveCoachMembership =
+        await AccountStorage.isCoachMembershipActive();
+    if (!mounted) return;
+    final needsCoachApplicationGate =
+        expertQuestionnaireDone &&
+        (applicationStatus != 'approved' || !hasActiveCoachMembership);
+    if (needsCoachApplicationGate) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CoachApplicationStatusPage(
+            initialStatus: applicationStatus.isEmpty
+                ? 'pending'
+                : applicationStatus,
+          ),
+        ),
+        (route) => false,
+      );
       return;
     }
     if (hasData) {
@@ -106,17 +132,18 @@ class _BootGateState extends State<BootGate> {
       }
       final directNotificationTarget =
           await NavigationService.consumeDirectNotificationTarget();
-      final target = directNotificationTarget ??
+      final target =
+          directNotificationTarget ??
           (NavigationService.journalNotificationPending
-          ? const DailyJournalPage()
-          : (NavigationService.dietNotificationPending
-              ? const MainLayout(initialIndex: 0)
-              : (expertAiPending
-                  ? const MainLayout(
-                      initialIndex: MainLayout.coachTabIndex,
-                      autoOpenExpertDashboard: true,
-                    )
-                  : const MainLayout())));
+              ? const DailyJournalPage()
+              : (NavigationService.dietNotificationPending
+                    ? const MainLayout(initialIndex: 0)
+                    : (expertAiPending
+                          ? const MainLayout(
+                              initialIndex: MainLayout.coachTabIndex,
+                              autoOpenExpertDashboard: true,
+                            )
+                          : const MainLayout())));
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => target),
@@ -141,6 +168,23 @@ class _BootGateState extends State<BootGate> {
 
   Future<void> _navigateOfflineMain() async {
     if (!mounted) return;
+    final hasSubmittedApplication =
+        await AccountStorage.isExpertQuestionnaireDone();
+    final cachedStatus = await AccountStorage.getCoachApplicationStatus();
+    final hasActiveMembership = await AccountStorage.isCoachMembershipActive();
+    if (!mounted) return;
+    if ((hasSubmittedApplication || cachedStatus != null) &&
+        (cachedStatus != 'approved' || !hasActiveMembership)) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              CoachApplicationStatusPage(initialStatus: cachedStatus),
+        ),
+        (route) => false,
+      );
+      return;
+    }
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const MainLayout()),
@@ -167,7 +211,8 @@ class _BootGateState extends State<BootGate> {
     final qExpertDone = await AccountStorage.isExpertQuestionnaireDone();
     final storedUserId = await AccountStorage.getUserId();
     final token = await AccountStorage.getAccessToken();
-    final hasSession = storedUserId != null &&
+    final hasSession =
+        storedUserId != null &&
         storedUserId > 0 &&
         token != null &&
         token.trim().isNotEmpty;
@@ -200,7 +245,8 @@ class _BootGateState extends State<BootGate> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => WelcomePage(onChangeLanguage: localeController.setLocale),
+        builder: (_) =>
+            WelcomePage(onChangeLanguage: localeController.setLocale),
       ),
     );
   }
