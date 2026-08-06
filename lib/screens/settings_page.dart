@@ -20,6 +20,7 @@ import '../TaqaUI/components/taqa_toast.dart';
 import '../core/user_friendly_error.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../config/base_url.dart';
 import '../consents/consent_manager.dart';
 import '../auth/expert_questionnaire.dart';
@@ -38,6 +39,9 @@ import '../TaqaUI/components/taqa_steps_ui.dart' show TaqaRangeTab;
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/screens/taqa_subscription_page.dart';
+import '../services/purchases/taqa_subscription_catalog.dart';
+import '../services/referrals/referral_api.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -112,6 +116,75 @@ class _SettingsPageState extends State<SettingsPage> {
       message: message,
       confirmLabel: t.translate("ok"),
     );
+  }
+
+  Future<void> _showReferralCode() async {
+    final t = AppLocalizations.of(context);
+    try {
+      final identity = await ReferralApi.myReferralIdentity();
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(t.translate('settings_referral_code')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(t.translate('settings_referral_code_explanation')),
+              const SizedBox(height: 12),
+              SelectableText(
+                identity.code,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 20,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: identity.code));
+                if (!mounted) return;
+                AppToast.show(
+                  context,
+                  t.translate('settings_referral_code_copied'),
+                  type: AppToastType.success,
+                );
+              },
+              child: Text(t.translate('settings_referral_copy')),
+            ),
+            TextButton(
+              onPressed: () async {
+                final renderBox = dialogContext.findRenderObject() as RenderBox?;
+                final origin = renderBox == null
+                    ? null
+                    : renderBox.localToGlobal(Offset.zero) & renderBox.size;
+                await Share.share(
+                  '${t.translate('settings_referral_share_message')} '
+                  '${identity.code}\n${identity.shareUrl}',
+                  sharePositionOrigin: origin,
+                );
+              },
+              child: Text(t.translate('settings_referral_share')),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(t.translate('common_close')),
+            ),
+          ],
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(error),
+        type: AppToastType.error,
+      );
+    }
   }
 
   Future<void> _showJwtTokenDialog() async {
@@ -1287,6 +1360,26 @@ class _SettingsPageState extends State<SettingsPage> {
                     subtitle: t.translate("settings_change_avatar_sub"),
                     onTap: _isDeactivated ? null : _pickAvatar,
                   ),
+                  _SettingsTile(
+                    title: t.translate("settings_referral_code"),
+                    subtitle: t.translate("settings_referral_code_sub"),
+                    onTap: _isDeactivated ? null : _showReferralCode,
+                  ),
+                  if (Platform.isAndroid)
+                    _SettingsTile(
+                      title: t.translate("settings_manage_subscription"),
+                      subtitle: t.translate("settings_manage_subscription_sub"),
+                      onTap: _isDeactivated
+                          ? null
+                          : () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const TaqaSubscriptionPage(
+                                  plans:
+                                      TaqaSubscriptionCatalog.roleChangePlans,
+                                ),
+                              ),
+                            ),
+                    ),
                   if (_showBeExpertButton)
                     _SettingsTile(
                       title: t.translate("settings_be_expert"),

@@ -50,11 +50,45 @@ class BillingVerificationResult {
   const BillingVerificationResult({
     required this.active,
     required this.entitlementCodes,
+    this.pendingProductId,
+    this.changeEffectiveAt,
   });
 
   final bool active;
   final Set<String> entitlementCodes;
+  final String? pendingProductId;
+  final DateTime? changeEffectiveAt;
   bool get coachActive => entitlementCodes.contains('coach_tools');
+  bool get changePending => pendingProductId != null;
+}
+
+class GoogleSubscriptionChange {
+  const GoogleSubscriptionChange({
+    required this.action,
+    required this.targetProductId,
+    this.currentProductId,
+    this.replacementMode,
+    this.effectiveAt,
+  });
+
+  final String action;
+  final String? currentProductId;
+  final String targetProductId;
+  final String? replacementMode;
+  final DateTime? effectiveAt;
+
+  bool get isInitialPurchase => action == 'initial_purchase';
+  bool get isAlreadySubscribed => action == 'already_subscribed';
+
+  factory GoogleSubscriptionChange.fromJson(Map<String, dynamic> json) {
+    return GoogleSubscriptionChange(
+      action: json['action'] as String,
+      currentProductId: json['current_product_id'] as String?,
+      targetProductId: json['target_product_id'] as String,
+      replacementMode: json['replacement_mode'] as String?,
+      effectiveAt: DateTime.tryParse(json['effective_at'] as String? ?? ''),
+    );
+  }
 }
 
 class BillingApi {
@@ -106,6 +140,7 @@ class BillingApi {
     required String productId,
     required String purchaseToken,
     String? purchaseId,
+    String? replacementProductId,
   }) async {
     final response = await http.post(
       Uri.parse('${ApiConfig.baseUrl}/billing/purchases/verify'),
@@ -115,6 +150,8 @@ class BillingApi {
         'product_id': productId,
         'purchase_token': purchaseToken,
         if (purchaseId != null) 'purchase_id': purchaseId,
+        if (replacementProductId != null)
+          'replacement_product_id': replacementProductId,
       }),
     );
     final json = _decode(response);
@@ -123,7 +160,26 @@ class BillingApi {
       entitlementCodes: Set<String>.from(
         json['entitlement_codes'] as List<dynamic>? ?? const [],
       ),
+      pendingProductId:
+          (json['subscription'] as Map<String, dynamic>?)?['pending_product_id']
+              as String?,
+      changeEffectiveAt: DateTime.tryParse(
+        (json['subscription'] as Map<String, dynamic>?)?['change_effective_at']
+                as String? ??
+            '',
+      ),
     );
+  }
+
+  static Future<GoogleSubscriptionChange> prepareGoogleSubscriptionChange({
+    required String targetProductId,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${ApiConfig.baseUrl}/billing/subscriptions/change/prepare'),
+      headers: await _headers(),
+      body: jsonEncode({'target_product_id': targetProductId}),
+    );
+    return GoogleSubscriptionChange.fromJson(_decode(response));
   }
 
   static Future<BillingVerificationResult> entitlements() async {

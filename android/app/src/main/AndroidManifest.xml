@@ -94,6 +94,7 @@
                 <data android:scheme="taqa" android:host="fitbit"/>
                 <data android:scheme="taqa" android:host="strava"/>
                 <data android:scheme="taqa" android:host="coach" android:pathPrefix="/application"/>
+                <data android:scheme="taqa" android:host="referral"/>
             </intent-filter>
         </activity>
         <activity-alias

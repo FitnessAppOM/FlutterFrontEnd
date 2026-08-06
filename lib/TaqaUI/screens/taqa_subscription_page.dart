@@ -4,6 +4,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/billing_client_wrappers.dart'
+    show ReplacementMode;
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -57,6 +59,8 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   bool _purchasePending = false;
   bool _restoring = false;
   String? _selectedProductId;
+  String? _pendingReplacementProductId;
+  String? _pendingChangeAction;
   String? _message;
 
   @override
@@ -142,6 +146,8 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     setState(() {
       _purchasePending = false;
       _restoring = false;
+      _pendingReplacementProductId = null;
+      _pendingChangeAction = null;
     });
   }
 
@@ -159,6 +165,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       }
 
       var completedMandatorySubscription = false;
+      BillingVerificationResult? billingVerification;
       if (purchase.status == PurchaseStatus.error) {
         _setMessage(
           purchase.error?.message ?? 'The purchase could not be completed.',
@@ -167,12 +174,13 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
           purchase.status == PurchaseStatus.restored) {
         if (Platform.isAndroid) {
           try {
-            final verification = await BillingApi.verifyGooglePurchase(
+            billingVerification = await BillingApi.verifyGooglePurchase(
               productId: purchase.productID,
               purchaseToken: purchase.verificationData.serverVerificationData,
               purchaseId: purchase.purchaseID,
+              replacementProductId: _pendingReplacementProductId,
             );
-            if (!verification.active) {
+            if (!billingVerification.active) {
               _setMessage('This subscription is not currently active.');
               if (purchase.pendingCompletePurchase) {
                 await _store.completePurchase(purchase);
@@ -180,21 +188,24 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
               _resetPurchaseProgress();
               continue;
             }
-            if (widget.coachMembership && !verification.coachActive) {
+            if (widget.coachMembership && !billingVerification.coachActive) {
               _setMessage('This purchase does not include coach access.');
               _resetPurchaseProgress();
               continue;
             }
+            await AccountStorage.setCoachMembershipActive(
+              billingVerification.coachActive,
+            );
           } on BillingApiException catch (error) {
             _setMessage(
-              'Google Play received the purchase, but TAQA could not verify it yet. '
+              'Google Play received the purchase, but Taqa could not verify it yet. '
               '${error.message} Use Restore Purchases to retry.',
             );
             _resetPurchaseProgress();
             continue;
           } catch (_) {
             _setMessage(
-              'Google Play received the purchase, but TAQA could not verify it yet. '
+              'Google Play received the purchase, but Taqa could not verify it yet. '
               'Use Restore Purchases to retry.',
             );
             _resetPurchaseProgress();
@@ -202,8 +213,12 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
           }
         }
         _setMessage(
-          purchase.status == PurchaseStatus.restored
+          billingVerification?.changePending == true
+              ? 'Your change is scheduled for the next renewal date.'
+              : purchase.status == PurchaseStatus.restored
               ? 'Your purchases have been restored.'
+              : _pendingChangeAction == 'upgrade_to_coach'
+              ? 'Your Taqa Coach membership is active.'
               : 'Your subscription is active.',
         );
         completedMandatorySubscription = widget.mandatory;
@@ -228,6 +243,8 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         setState(() {
           _purchasePending = false;
           _restoring = false;
+          _pendingReplacementProductId = null;
+          _pendingChangeAction = null;
         });
       }
     }
@@ -257,12 +274,40 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       if (!mounted || verified != true) return;
     }
 
+    GoogleSubscriptionChange? change;
+    ChangeSubscriptionParam? changeParam;
+    if (Platform.isAndroid) {
+      try {
+        change = await BillingApi.prepareGoogleSubscriptionChange(
+          targetProductId: product.id,
+        );
+        if (change.isAlreadySubscribed) {
+          _setMessage('This is already your active subscription.');
+          return;
+        }
+        if (!change.isInitialPurchase) {
+          changeParam = await _googleChangeSubscriptionParam(change);
+        }
+      } on BillingApiException catch (error) {
+        _setMessage(error.message);
+        return;
+      } catch (_) {
+        _setMessage(
+          'Your current Google Play subscription could not be checked.',
+        );
+        return;
+      }
+    }
+    if (!mounted) return;
+
     final confirmed = await showTaqaConfirmDialog(
       context: context,
-      title: 'Confirm subscription',
-      message:
-          'Subscribe for ${_displayPrice(product)} after any displayed free trial. '
-          'Your $_accountName will be charged when you confirm in $_storeName.',
+      title: change?.action == 'upgrade_to_coach'
+          ? 'Confirm coach upgrade'
+          : change?.action == 'downgrade_to_standard'
+          ? 'Confirm plan change'
+          : 'Confirm subscription',
+      message: _confirmationMessage(product, change),
       cancelLabel: 'Cancel',
       confirmLabel: 'Continue',
     );
@@ -270,6 +315,10 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
 
     setState(() {
       _purchasePending = true;
+      _pendingReplacementProductId = change?.isInitialPurchase == false
+          ? product.id
+          : null;
+      _pendingChangeAction = change?.action;
       _message = null;
     });
     try {
@@ -280,6 +329,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
               offerToken: product is GooglePlayProductDetails
                   ? product.offerToken
                   : null,
+              changeSubscriptionParam: changeParam,
             )
           : PurchaseParam(productDetails: product);
       final started = await _store.buyNonConsumable(
@@ -298,6 +348,59 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         _message = 'The purchase could not be started. Please try again.';
       });
     }
+  }
+
+  Future<ChangeSubscriptionParam> _googleChangeSubscriptionParam(
+    GoogleSubscriptionChange change,
+  ) async {
+    final currentProductId = change.currentProductId;
+    if (currentProductId == null) {
+      throw const BillingApiException(
+        'The current Google Play subscription is missing.',
+      );
+    }
+    final addition = _store
+        .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
+    final response = await addition.queryPastPurchases();
+    if (response.error != null) {
+      throw BillingApiException(
+        response.error?.message ??
+            'The current Google Play subscription could not be loaded.',
+      );
+    }
+    final oldPurchase = response.pastPurchases
+        .where((purchase) => purchase.productID == currentProductId)
+        .firstOrNull;
+    if (oldPurchase == null) {
+      throw const BillingApiException(
+        'Open Google Play with the account that owns the current subscription, then try again.',
+      );
+    }
+    final replacementMode = switch (change.replacementMode) {
+      'CHARGE_PRORATED_PRICE' => ReplacementMode.chargeProratedPrice,
+      'DEFERRED' => ReplacementMode.deferred,
+      _ => throw const BillingApiException(
+        'This subscription change is not supported.',
+      ),
+    };
+    return ChangeSubscriptionParam(
+      oldPurchaseDetails: oldPurchase,
+      replacementMode: replacementMode,
+    );
+  }
+
+  String _confirmationMessage(
+    ProductDetails product,
+    GoogleSubscriptionChange? change,
+  ) {
+    if (change?.action == 'upgrade_to_coach') {
+      return 'Upgrade to Taqa Coach now. Google Play will apply credit from your current plan and show the prorated charge before you confirm.';
+    }
+    if (change?.action == 'downgrade_to_standard') {
+      return 'Keep Taqa Coach until the current paid period ends, then switch to the normal ${_displayPrice(product)} plan. Google Play will show the effective date before you confirm.';
+    }
+    return 'Subscribe for ${_displayPrice(product)} after any displayed free trial. '
+        'Your $_accountName will be charged when you confirm in $_storeName.';
   }
 
   bool _isStudentProduct(String productId) {

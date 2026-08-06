@@ -157,12 +157,30 @@ class RemotePushService {
   }
 
   static void _handleDeepLink(Uri link) {
-    if (link.scheme.toLowerCase() != 'taqa' ||
-        link.host.toLowerCase() != 'coach' ||
-        link.path.toLowerCase() != '/application') {
+    if (link.scheme.toLowerCase() != 'taqa') {
       return;
     }
-    NavigationService.handleNotificationTap(type: 'coach_application_decision');
+    if (link.host.toLowerCase() == 'referral') {
+      final code = link.queryParameters['code']?.trim().toUpperCase();
+      if (code != null &&
+          code.length == 18 &&
+          code.startsWith('TQ') &&
+          RegExp(r'^[A-Z0-9]+$').hasMatch(code)) {
+        unawaited(_rememberPendingReferralCode(code));
+      }
+      return;
+    }
+    if (link.host.toLowerCase() == 'coach' &&
+        link.path.toLowerCase() == '/application') {
+      NavigationService.handleNotificationTap(
+        type: 'coach_application_decision',
+      );
+    }
+  }
+
+  static Future<void> _rememberPendingReferralCode(String code) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('pending_referral_code', code);
   }
 
   static Future<void> _ensureFcmPermission() async {

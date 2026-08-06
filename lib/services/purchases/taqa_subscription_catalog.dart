@@ -92,6 +92,13 @@ class TaqaSubscriptionCatalog {
 
   static const coachPlans = <TaqaSubscriptionPlan>[coachMonthly, coachAnnual];
 
+  static const roleChangePlans = <TaqaSubscriptionPlan>[
+    monthly,
+    annual,
+    coachMonthly,
+    coachAnnual,
+  ];
+
   static const termsOfUseUrl = String.fromEnvironment(
     'TAQA_TERMS_OF_USE_URL',
     defaultValue: 'https://taqafitness.com/terms',
