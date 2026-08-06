@@ -9,7 +9,12 @@ import '../services/core/questionnaire_service.dart';
 import '../core/account_storage.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
+import '../TaqaUI/components/taqa_back_button.dart';
+import '../TaqaUI/components/taqa_value_dialog.dart';
 import '../screens/generating_training_screen.dart';
+import '../screens/welcome.dart';
+import '../services/auth/profile_service.dart';
+import 'expert_questionnaire.dart';
 
 class QuestionnairePage extends StatefulWidget {
   const QuestionnairePage({super.key});
@@ -20,6 +25,7 @@ class QuestionnairePage extends StatefulWidget {
 
 class _QuestionnairePageState extends State<QuestionnairePage> {
   bool _started = false;
+  bool _switchingAccountType = false;
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +35,8 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
       appBar: TaqaPageAppBar(
         title: t.translate("questionnaire_title"),
         backgroundColor: TaqaUiColors.white,
-        showBackButton: false,
+        showBackButton: !_started,
+        leading: TaqaBackButton(onPressed: _handleBack),
       ),
       backgroundColor: TaqaUiColors.white,
       body: AnimatedSwitcher(
@@ -133,16 +140,10 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
             label: t.translate("start_questionnaire"),
             onTap: () => setState(() => _started = true),
           ),
-          SizedBox(height: TaqaUiScale.h(10)),
-          Text(
-            t.translate("update_later"),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: TaqaUiFontFamilies.interTight,
-              fontSize: TaqaUiScale.sp(11),
-              fontWeight: FontWeight.w400,
-              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.5),
-            ),
+          SizedBox(height: TaqaUiScale.h(6)),
+          TaqaTextActionButton(
+            label: t.translate("switch_to_coach_form"),
+            onTap: _switchingAccountType ? null : _switchToCoachForm,
           ),
         ],
       ),
@@ -153,6 +154,7 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
     final t = AppLocalizations.of(context);
 
     return QuestionnaireForm(
+      onCancel: () => setState(() => _started = false),
       onSubmit: (values) async {
         try {
           final userId = await AccountStorage.getUserId();
@@ -194,6 +196,60 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
         }
       },
     );
+  }
+
+  void _handleBack() {
+    if (_started) {
+      setState(() => _started = false);
+      return;
+    }
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+      return;
+    }
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const WelcomePage(fromLogout: true)),
+      (_) => false,
+    );
+  }
+
+  Future<void> _switchToCoachForm() async {
+    final t = AppLocalizations.of(context);
+    final confirmed = await showTaqaConfirmDialog(
+      context: context,
+      title: t.translate("switch_account_type_title"),
+      message: t.translate("switch_to_coach_message"),
+      cancelLabel: t.translate("switch_account_type_cancel"),
+      confirmLabel: t.translate("switch_account_type_confirm"),
+    );
+    if (!mounted || !confirmed) return;
+
+    setState(() => _switchingAccountType = true);
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null || userId <= 0) {
+        throw Exception(t.translate("user_missing"));
+      }
+      await ProfileApi.updateAccountType(userId: userId, accountType: "coach");
+      await AccountStorage.setIsExpert(true);
+      await AccountStorage.setQuestionnaireDone(false);
+      await AccountStorage.setExpertQuestionnaireDone(false);
+      await AccountStorage.setCoachApplicationStatus(null);
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const ExpertQuestionnairePage()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final message = e.toString().replaceFirst("Exception: ", "").trim();
+      AppToast.show(
+        context,
+        message.isEmpty ? t.translate("switch_account_type_failed") : message,
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _switchingAccountType = false);
+    }
   }
 }
 

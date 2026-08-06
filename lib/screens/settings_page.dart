@@ -21,6 +21,7 @@ import '../core/user_friendly_error.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../config/base_url.dart';
 import '../consents/consent_manager.dart';
 import '../auth/expert_questionnaire.dart';
@@ -35,13 +36,14 @@ import '../services/auth/profile_storage.dart';
 import '../screens/welcome.dart';
 import '../screens/account_restore_page.dart';
 import '../TaqaUI/components/taqa_value_dialog.dart';
+import '../TaqaUI/screens/taqa_subscription_page.dart';
 import '../TaqaUI/components/taqa_steps_ui.dart' show TaqaRangeTab;
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
-import '../TaqaUI/screens/taqa_subscription_page.dart';
-import '../services/purchases/taqa_subscription_catalog.dart';
 import '../services/referrals/referral_api.dart';
+import '../services/purchases/apple_billing_service.dart';
+import '../services/purchases/taqa_subscription_catalog.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -50,7 +52,8 @@ class SettingsPage extends StatefulWidget {
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
+class _SettingsPageState extends State<SettingsPage>
+    with WidgetsBindingObserver {
   final RegExp _usernameRegex = RegExp(r'^[A-Za-z0-9._-]+$');
   bool _updatingAvatar = false;
   bool _deletingAccount = false;
@@ -74,6 +77,12 @@ class _SettingsPageState extends State<SettingsPage> {
   bool? _appleWatchDetected;
   String? _wearableDetectedType;
   bool _appleWatchChecking = false;
+  AppleBillingEntitlement? _currentPlan;
+  String? _pendingPlanProductId;
+  DateTime? _pendingPlanEffectiveAt;
+  bool _currentPlanLoading = true;
+  bool _currentPlanLoadFailed = false;
+  bool _subscriptionManagementOpen = false;
 
   bool _isAuthCancelled(Object e) {
     if (e is PlatformException) {
@@ -96,6 +105,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadEmail();
     _loadAuthProvider();
     _loadExpertFlag();
@@ -103,6 +113,7 @@ class _SettingsPageState extends State<SettingsPage> {
     _loadFitbitStatus();
     _loadStravaStatus();
     _loadAppleWatchStatus();
+    _loadCurrentPlan();
     _refreshAccountStatus();
     AccountStorage.accountChange.addListener(_handleAccountChanged);
   }
@@ -158,7 +169,8 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             TextButton(
               onPressed: () async {
-                final renderBox = dialogContext.findRenderObject() as RenderBox?;
+                final renderBox =
+                    dialogContext.findRenderObject() as RenderBox?;
                 final origin = renderBox == null
                     ? null
                     : renderBox.localToGlobal(Offset.zero) & renderBox.size;
@@ -284,8 +296,17 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     AccountStorage.accountChange.removeListener(_handleAccountChanged);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _subscriptionManagementOpen) {
+      _subscriptionManagementOpen = false;
+      _loadCurrentPlan();
+    }
   }
 
   void _handleAccountChanged() {
@@ -303,7 +324,249 @@ class _SettingsPageState extends State<SettingsPage> {
     _loadFitbitStatus();
     _loadStravaStatus();
     _loadAppleWatchStatus();
+    _loadCurrentPlan();
     _refreshAccountStatus();
+  }
+
+  Future<void> _loadCurrentPlan() async {
+    if (mounted) {
+      setState(() {
+        _currentPlanLoading = true;
+        _currentPlanLoadFailed = false;
+      });
+    }
+    try {
+      final normalEntitlement = await AppleBillingService.fetchEntitlement(
+        'app_full',
+      );
+      final entitlement = normalEntitlement.active
+          ? normalEntitlement
+          : await AppleBillingService.fetchEntitlement('coach_tools');
+      final pendingChange = entitlement.pendingChange;
+      if (!mounted) return;
+      setState(() {
+        _currentPlan = entitlement;
+        _pendingPlanProductId = pendingChange?.targetProductId;
+        _pendingPlanEffectiveAt = pendingChange?.effectiveAt;
+        _currentPlanLoading = false;
+        _currentPlanLoadFailed = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _currentPlan = null;
+        _pendingPlanProductId = null;
+        _pendingPlanEffectiveAt = null;
+        _currentPlanLoading = false;
+        _currentPlanLoadFailed = true;
+      });
+    }
+  }
+
+  String _currentPlanName(AppLocalizations t) {
+    if (_currentPlanLoading) return t.translate('settings_plan_checking');
+    final plan = _currentPlan;
+    if (plan == null || !plan.active) {
+      return t.translate('settings_plan_none');
+    }
+
+    final code = (plan.planCode ?? '').toLowerCase();
+    final productId = (plan.productId ?? '').toLowerCase();
+    if (code == 'coach_monthly' || productId.contains('coach_monthly')) {
+      return t.translate('settings_plan_coach_monthly');
+    }
+    if (code == 'coach_yearly' ||
+        code == 'coach_annual' ||
+        productId.contains('coach_annual')) {
+      return t.translate('settings_plan_coach_annual');
+    }
+    if (code == 'student_monthly' || productId.contains('student.monthly')) {
+      return t.translate('settings_plan_student_monthly');
+    }
+    if (code == 'student_yearly' ||
+        code == 'student_annual' ||
+        productId.contains('student.annual')) {
+      return t.translate('settings_plan_student_annual');
+    }
+    if (code == 'standard_yearly' ||
+        code == 'standard_annual' ||
+        productId.contains('annual')) {
+      return t.translate('settings_plan_normal_annual');
+    }
+    if (code == 'standard_monthly' || productId.contains('monthly')) {
+      return t.translate('settings_plan_normal_monthly');
+    }
+    return t.translate('settings_plan_active');
+  }
+
+  String _planNameForProductId(AppLocalizations t, String productId) {
+    final normalized = productId.toLowerCase();
+    if (normalized.contains('coach_monthly')) {
+      return t.translate('settings_plan_coach_monthly');
+    }
+    if (normalized.contains('coach_annual')) {
+      return t.translate('settings_plan_coach_annual');
+    }
+    if (normalized.contains('student.monthly')) {
+      return t.translate('settings_plan_student_monthly');
+    }
+    if (normalized.contains('student.annual')) {
+      return t.translate('settings_plan_student_annual');
+    }
+    if (normalized.contains('annual')) {
+      return t.translate('settings_plan_normal_annual');
+    }
+    if (normalized.contains('monthly')) {
+      return t.translate('settings_plan_normal_monthly');
+    }
+    return t.translate('settings_plan_active');
+  }
+
+  String _currentPlanSubtitle(AppLocalizations t) {
+    if (_currentPlanLoading) return t.translate('settings_plan_checking_sub');
+    if (_currentPlanLoadFailed) {
+      return t.translate('settings_plan_unavailable');
+    }
+    final plan = _currentPlan;
+    if (plan == null || !plan.active) {
+      return t.translate('settings_plan_none_sub');
+    }
+    final pendingProductId = _pendingPlanProductId;
+    final pendingEffectiveAt = _pendingPlanEffectiveAt;
+    if (pendingProductId != null && pendingEffectiveAt != null) {
+      final pendingName = _planNameForProductId(t, pendingProductId);
+      final date = _formatPlanDate(pendingEffectiveAt);
+      return t
+          .translate('settings_plan_switches_to_on')
+          .replaceAll('{plan}', pendingName)
+          .replaceAll('{date}', date);
+    }
+    final expiresAt = plan.expiresAt;
+    if (expiresAt == null) return t.translate('settings_plan_active');
+    final date = _currentPlanEndDate()!;
+    final key = plan.autoRenew == false
+        ? 'settings_plan_ends_on'
+        : plan.autoRenew == true
+        ? 'settings_plan_renews_on'
+        : 'settings_plan_active_until';
+    return t.translate(key).replaceAll('{date}', date);
+  }
+
+  String? _currentPlanEndDate() {
+    final expiresAt = _currentPlan?.expiresAt;
+    if (expiresAt == null) return null;
+    return _formatPlanDate(expiresAt);
+  }
+
+  String _formatPlanDate(DateTime value) {
+    final local = value.toLocal();
+    String two(int value) => value.toString().padLeft(2, '0');
+    return '${local.year}-${two(local.month)}-${two(local.day)}';
+  }
+
+  String _renewalStoreName(AppLocalizations t) {
+    final platform = (_currentPlan?.platform ?? '').toLowerCase();
+    if (platform == 'google' || (platform.isEmpty && Platform.isAndroid)) {
+      return t.translate('settings_google_play');
+    }
+    return t.translate('settings_apple_app_store');
+  }
+
+  Uri? _subscriptionManagementUri() {
+    final plan = _currentPlan;
+    if (plan == null) return null;
+    final platform = (plan.platform ?? '').toLowerCase();
+    if (platform == 'google' || (platform.isEmpty && Platform.isAndroid)) {
+      return Uri.https('play.google.com', '/store/account/subscriptions', {
+        if ((plan.productId ?? '').isNotEmpty) 'sku': plan.productId!,
+        'package': 'com.taqaapp.fitness',
+      });
+    }
+    return Uri.parse('https://apps.apple.com/account/subscriptions');
+  }
+
+  Future<void> _manageAutoRenewal(bool enable) async {
+    final plan = _currentPlan;
+    if (plan == null || !plan.active) return;
+    final t = AppLocalizations.of(context);
+    final store = _renewalStoreName(t);
+    final expiration =
+        _currentPlanEndDate() ??
+        t.translate('settings_current_paid_period_end');
+    final confirmed = await showTaqaConfirmDialog(
+      context: context,
+      title: t.translate(
+        enable
+            ? 'settings_turn_on_renewal_title'
+            : 'settings_turn_off_renewal_title',
+      ),
+      message: t
+          .translate(
+            enable
+                ? 'settings_turn_on_renewal_message'
+                : 'settings_turn_off_renewal_message',
+          )
+          .replaceAll('{store}', store)
+          .replaceAll('{expiration}', expiration),
+      cancelLabel: t.translate('switch_account_type_cancel'),
+      confirmLabel: t.translate('settings_manage_renewal_continue'),
+    );
+    if (!confirmed || !mounted) return;
+
+    final uri = _subscriptionManagementUri();
+    if (uri == null) return;
+    _subscriptionManagementOpen = true;
+    var opened = false;
+    try {
+      opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      opened = false;
+    }
+    if (!opened) {
+      _subscriptionManagementOpen = false;
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        t.translate('settings_manage_renewal_failed'),
+        type: AppToastType.error,
+      );
+    }
+  }
+
+  Future<void> _openNormalPlans() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            const TaqaSubscriptionPage(plans: TaqaSubscriptionCatalog.plans),
+      ),
+    );
+    await _loadCurrentPlan();
+  }
+
+  Future<void> _openCoachPlans() async {
+    if (!_expertFlagReady) {
+      await _loadExpertFlag();
+      if (!mounted) return;
+    }
+    final t = AppLocalizations.of(context);
+    if (!_isExpert) {
+      await showTaqaInfoDialog(
+        context: context,
+        title: t.translate('settings_coach_plan_requires_approval_title'),
+        message: t.translate('settings_coach_plan_requires_approval_message'),
+        confirmLabel: t.translate('ok'),
+      );
+      return;
+    }
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const TaqaSubscriptionPage(
+          plans: TaqaSubscriptionCatalog.coachPlans,
+          coachMembership: true,
+        ),
+      ),
+    );
+    await _loadCurrentPlan();
   }
 
   String? _normalizeDate(String? raw) {
@@ -626,7 +889,9 @@ class _SettingsPageState extends State<SettingsPage> {
       throw StateError('Could not start $provider connection');
     }
     final decoded = jsonDecode(response.body);
-    final url = decoded is Map ? decoded['authorization_url']?.toString() : null;
+    final url = decoded is Map
+        ? decoded['authorization_url']?.toString()
+        : null;
     if (url == null || Uri.tryParse(url)?.hasScheme != true) {
       throw StateError('Invalid $provider authorization URL');
     }
@@ -1119,7 +1384,11 @@ class _SettingsPageState extends State<SettingsPage> {
       await _showSuccessDialog("${t.translate("username_updated")}: $updated");
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -1318,6 +1587,41 @@ class _SettingsPageState extends State<SettingsPage> {
                     ],
                   ),
                   SizedBox(height: TaqaUiScale.h(24)),
+                  _sectionTitle(t.translate('settings_plans')),
+                  SizedBox(height: TaqaUiScale.h(12)),
+                  _SettingsTile(
+                    title: t.translate('settings_current_plan'),
+                    subtitle:
+                        _currentPlanLoading || _currentPlan?.active != true
+                        ? _currentPlanSubtitle(t)
+                        : '${_currentPlanName(t)} · ${_currentPlanSubtitle(t)}',
+                    onTap: _currentPlanLoadFailed ? _loadCurrentPlan : null,
+                    footer:
+                        _currentPlan?.active == true &&
+                            _currentPlan?.autoRenew != null
+                        ? _RenewalControl(
+                            label: t.translate('settings_auto_renewal'),
+                            status: t.translate(
+                              _currentPlan?.autoRenew == false
+                                  ? 'settings_auto_renewal_off'
+                                  : 'settings_auto_renewal_on',
+                            ),
+                            value: _currentPlan?.autoRenew != false,
+                            onChanged: _manageAutoRenewal,
+                          )
+                        : null,
+                  ),
+                  _SettingsTile(
+                    title: t.translate('settings_normal_plans'),
+                    subtitle: t.translate('settings_normal_plans_sub'),
+                    onTap: _isDeactivated ? null : _openNormalPlans,
+                  ),
+                  _SettingsTile(
+                    title: t.translate('settings_coach_plans'),
+                    subtitle: t.translate('settings_coach_plans_sub'),
+                    onTap: _isDeactivated ? null : _openCoachPlans,
+                  ),
+                  SizedBox(height: TaqaUiScale.h(12)),
                   if (_isDeactivated) ...[
                     Container(
                       width: double.infinity,
@@ -1619,12 +1923,14 @@ class _SettingsTile extends StatelessWidget {
     required this.subtitle,
     required this.onTap,
     this.badge,
+    this.footer,
   });
 
   final String title;
   final String subtitle;
   final VoidCallback? onTap;
   final Widget? badge;
+  final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
@@ -1677,12 +1983,75 @@ class _SettingsTile extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (footer != null) ...[
+                    SizedBox(height: TaqaUiScale.h(12)),
+                    footer!,
+                  ],
                 ],
               ),
               if (badge != null) Positioned(top: 0, right: 0, child: badge!),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _RenewalControl extends StatelessWidget {
+  const _RenewalControl({
+    required this.label,
+    required this.status,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final String status;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: TaqaUiScale.insetsLTRB(12, 9, 12, 9),
+      decoration: BoxDecoration(
+        color: TaqaUiColors.unnamedColorE3e3e3.withValues(alpha: 0.55),
+        borderRadius: TaqaUiScale.radius(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: TaqaUiScale.sp(13),
+                    fontWeight: FontWeight.w600,
+                    color: TaqaUiColors.unnamedColor1c1d17,
+                  ),
+                ),
+                SizedBox(height: TaqaUiScale.h(2)),
+                Text(
+                  status,
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: TaqaUiScale.sp(11),
+                    fontWeight: FontWeight.w400,
+                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                      alpha: 0.6,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: TaqaUiScale.w(12)),
+          TaqaSwitch(value: value, onChanged: onChanged),
+        ],
       ),
     );
   }
@@ -1929,9 +2298,7 @@ class _HabitReminderCardState extends State<_HabitReminderCard> {
         options: hourOptions.map(_hourLabel).toList(growable: false),
         selectedValue: selectedLabel,
         onSelected: (value) {
-          final hour = hourOptions.firstWhere(
-            (h) => _hourLabel(h) == value,
-          );
+          final hour = hourOptions.firstWhere((h) => _hourLabel(h) == value);
           setState(() => _hourOfDay = hour);
           Navigator.of(context).pop();
         },
@@ -2049,9 +2416,7 @@ class _HabitReminderCardState extends State<_HabitReminderCard> {
                 valueLabel: _weekdayOptions
                     .firstWhere((e) => e.key == _weeklyDay)
                     .value,
-                onTap: controlsDisabled
-                    ? null
-                    : () => _pickWeekday(context),
+                onTap: controlsDisabled ? null : () => _pickWeekday(context),
               ),
               SizedBox(height: TaqaUiScale.h(10)),
             ],

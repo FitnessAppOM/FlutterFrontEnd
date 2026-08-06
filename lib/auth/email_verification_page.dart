@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import '../core/account_storage.dart';
+import '../core/account_type.dart';
 import '../config/base_url.dart';
 import '../localization/app_localizations.dart'; // ADDED
 import 'verification_success_page.dart';
@@ -110,6 +111,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
           _show(t.translate("network_error"));
           return;
         }
+        final isCoachAccount = AccountType.isCoach(data) || widget.isExpert;
 
         await AccountStorage.saveUserSession(
           userId: userId,
@@ -118,7 +120,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
           verified: true,
           token: token,
           refreshToken: data["refresh_token"]?.toString(),
-          isExpert: widget.isExpert,
+          isExpert: isCoachAccount,
           questionnaireDone: false,
           expertQuestionnaireDone: false,
           authProvider: "email",
@@ -135,7 +137,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
           MaterialPageRoute(
             builder: (_) => VerificationSuccessPage(
               email: email,
-              isExpert: widget.isExpert,
+              isExpert: isCoachAccount,
               canContinue: canContinue,
             ),
           ),

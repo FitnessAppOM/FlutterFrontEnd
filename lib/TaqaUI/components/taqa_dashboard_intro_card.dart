@@ -74,8 +74,10 @@ class TaqaDashboardIntroCard extends StatelessWidget {
         );
         final weekdaysWidth = TaqaUiStyles.weekdayTrackWidth * layoutScale;
         final weekdayDotSize = TaqaUiStyles.weekdayDotSize * layoutScale;
-        final weekdaysHeight =
-            weekdayDotSize + (TaqaUiScale.h(20) * layoutScale);
+        // The label and gap keep their screen-scaled font metrics even when
+        // the card layout shrinks. Reserve one logical pixel of rounding room
+        // so the weekday Column never overflows by a fractional device pixel.
+        final weekdaysHeight = weekdayDotSize + TaqaUiScale.h(21);
         final buttonsTop = TaqaUiScale.h(172) * layoutScale;
         final buttonRowWidth = TaqaUiScale.w(329) * layoutScale;
         final buttonHeight = TaqaUiStyles.actionButtonHeight * layoutScale;

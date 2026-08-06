@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../auth/login.dart';
 import '../auth/signup.dart';
 import '../core/account_storage.dart';
+import '../core/account_type.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
 import '../TaqaUI/styles/taqa_ui_styles.dart';
@@ -19,7 +20,6 @@ import '../config/base_url.dart';
 import '../services/auth/profile_service.dart';
 import '../auth/questionnaire.dart';
 import '../auth/expert_questionnaire.dart';
-import '../auth/coach_application_status_page.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../services/core/navigation_service.dart';
 import '../services/core/notification_service.dart';
@@ -180,7 +180,8 @@ class _WelcomePageState extends State<WelcomePage> {
       final serverDone = profile["filled_user_questionnaire"] == true;
       final expertQuestionnaireDone =
           profile["filled_expert_questionnaire"] == true;
-      final isExpert = profile["is_expert"] == true;
+      final isApprovedExpert = profile["is_expert"] == true;
+      final isCoachAccount = AccountType.isCoach(profile);
       final applicationStatus = (profile['expert_profile_status'] ?? '')
           .toString()
           .trim()
@@ -191,7 +192,7 @@ class _WelcomePageState extends State<WelcomePage> {
           _hasQuestionnaireData(profile);
       await AccountStorage.setQuestionnaireDone(serverDone);
       await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
-      await AccountStorage.setIsExpert(isExpert);
+      await AccountStorage.setIsExpert(isCoachAccount);
       await AccountStorage.setCoachApplicationStatus(
         expertQuestionnaireDone
             ? (applicationStatus.isEmpty ? 'pending' : applicationStatus)
@@ -201,27 +202,11 @@ class _WelcomePageState extends State<WelcomePage> {
       if (NavigationService.isOnJournalPage) {
         return;
       }
-      final hasActiveCoachMembership =
-          await AccountStorage.isCoachMembershipActive();
-      if (!mounted) return;
-      if (expertQuestionnaireDone &&
-          (applicationStatus != 'approved' || !hasActiveCoachMembership)) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (_) => CoachApplicationStatusPage(
-              initialStatus: applicationStatus.isEmpty
-                  ? 'pending'
-                  : applicationStatus,
-            ),
-          ),
-          (route) => false,
-        );
-        return;
-      }
+      // Coach approval and membership are evaluated inside the Coach tab.
       if (hasData) {
         final expertAiPending =
-            isExpert && NavigationService.expertAiUpdatesNotificationPending;
+            isApprovedExpert &&
+            NavigationService.expertAiUpdatesNotificationPending;
         if (expertAiPending) {
           NavigationService.consumeExpertAiUpdatesNotification();
         }
@@ -252,7 +237,7 @@ class _WelcomePageState extends State<WelcomePage> {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
-            builder: (_) => isExpert
+            builder: (_) => isCoachAccount
                 ? const ExpertQuestionnairePage()
                 : const QuestionnairePage(),
           ),
@@ -280,23 +265,6 @@ class _WelcomePageState extends State<WelcomePage> {
 
   Future<void> _navigateOfflineMain() async {
     if (!mounted) return;
-    final hasSubmittedApplication =
-        await AccountStorage.isExpertQuestionnaireDone();
-    final cachedStatus = await AccountStorage.getCoachApplicationStatus();
-    final hasActiveMembership = await AccountStorage.isCoachMembershipActive();
-    if (!mounted) return;
-    if ((hasSubmittedApplication || cachedStatus != null) &&
-        (cachedStatus != 'approved' || !hasActiveMembership)) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (_) =>
-              CoachApplicationStatusPage(initialStatus: cachedStatus),
-        ),
-        (route) => false,
-      );
-      return;
-    }
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const MainLayout()),
@@ -364,7 +332,7 @@ class _WelcomePageState extends State<WelcomePage> {
         verified: true,
         token: accessToken,
         refreshToken: result["refresh_token"]?.toString(),
-        isExpert: false,
+        isExpert: AccountType.isCoach(result),
         questionnaireDone: false,
         expertQuestionnaireDone: false,
         authProvider: "google",
@@ -445,7 +413,7 @@ class _WelcomePageState extends State<WelcomePage> {
         verified: true,
         token: accessToken,
         refreshToken: result["refresh_token"]?.toString(),
-        isExpert: false,
+        isExpert: AccountType.isCoach(result),
         questionnaireDone: false,
         expertQuestionnaireDone: false,
         authProvider: "apple",
@@ -710,18 +678,6 @@ class _WelcomePageState extends State<WelcomePage> {
                         ),
                       ),
                     ],
-                  ),
-                  SizedBox(height: TaqaUiScale.h(10)),
-                  TaqaTextActionButton(
-                    label: 'Sign up as coach',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const SignupPage(isExpert: true),
-                        ),
-                      );
-                    },
                   ),
                 ],
               ),

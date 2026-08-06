@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/account_storage.dart';
+import '../core/account_type.dart';
 import '../localization/app_localizations.dart';
 import '../main/main_layout.dart';
 import '../services/auth/profile_service.dart';
@@ -277,16 +278,20 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
       final serverDone = profile["filled_user_questionnaire"] == true;
       final expertQuestionnaireDone =
           profile["filled_expert_questionnaire"] == true;
-      final isExpert = profile["is_expert"] == true;
+      final isApprovedExpert = profile["is_expert"] == true;
+      final isCoachAccount = AccountType.isCoach(profile);
       final hasData =
-          expertQuestionnaireDone || serverDone || _hasQuestionnaireData(profile);
+          expertQuestionnaireDone ||
+          serverDone ||
+          _hasQuestionnaireData(profile);
       await AccountStorage.setQuestionnaireDone(serverDone);
       await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
-      await AccountStorage.setIsExpert(isExpert);
+      await AccountStorage.setIsExpert(isCoachAccount);
       if (!mounted) return;
       if (hasData) {
         final expertAiPending =
-            isExpert && NavigationService.expertAiUpdatesNotificationPending;
+            isApprovedExpert &&
+            NavigationService.expertAiUpdatesNotificationPending;
         if (expertAiPending) {
           NavigationService.consumeExpertAiUpdatesNotification();
         }
@@ -317,7 +322,7 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
-            builder: (_) => isExpert
+            builder: (_) => isCoachAccount
                 ? const ExpertQuestionnairePage()
                 : const QuestionnairePage(),
           ),

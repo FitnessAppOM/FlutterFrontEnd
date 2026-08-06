@@ -200,6 +200,7 @@ class _SignupPageState extends State<SignupPage> {
       "first_name": firstName.text.trim(),
       "last_name": lastName.text.trim(),
       "password": password.text.trim(),
+      "account_type": widget.isExpert ? "coach" : "client",
     });
 
     try {
@@ -250,7 +251,9 @@ class _SignupPageState extends State<SignupPage> {
     if (!mounted) return;
     setState(() => loading = true);
 
-    final result = await signInWithGoogle();
+    final result = await signInWithGoogle(
+      accountType: widget.isExpert ? 'coach' : 'client',
+    );
 
     if (!mounted) return;
     setState(() => loading = false);
@@ -326,12 +329,21 @@ class _SignupPageState extends State<SignupPage> {
       final serverDone = profile["filled_user_questionnaire"] == true;
       final expertQuestionnaireDone =
           profile["filled_expert_questionnaire"] == true;
-      final hasData = expertQuestionnaireDone ||
+      final hasData =
+          expertQuestionnaireDone ||
           serverDone ||
           _hasQuestionnaireData(profile);
       await AccountStorage.setQuestionnaireDone(serverDone);
       await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
       if (!mounted) return;
+      if (widget.isExpert && !expertQuestionnaireDone) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const ExpertQuestionnairePage()),
+          (route) => false,
+        );
+        return;
+      }
       if (hasData) {
         Navigator.pushAndRemoveUntil(
           context,
@@ -369,7 +381,9 @@ class _SignupPageState extends State<SignupPage> {
     if (!mounted) return;
     setState(() => loading = true);
 
-    final result = await signInWithApple();
+    final result = await signInWithApple(
+      accountType: widget.isExpert ? 'coach' : 'client',
+    );
 
     if (!mounted) return;
     setState(() => loading = false);
@@ -444,12 +458,21 @@ class _SignupPageState extends State<SignupPage> {
       final serverDone = profile["filled_user_questionnaire"] == true;
       final expertQuestionnaireDone =
           profile["filled_expert_questionnaire"] == true;
-      final hasData = expertQuestionnaireDone ||
+      final hasData =
+          expertQuestionnaireDone ||
           serverDone ||
           _hasQuestionnaireData(profile);
       await AccountStorage.setQuestionnaireDone(serverDone);
       await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
       if (!mounted) return;
+      if (widget.isExpert && !expertQuestionnaireDone) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const ExpertQuestionnairePage()),
+          (route) => false,
+        );
+        return;
+      }
       if (hasData) {
         Navigator.pushAndRemoveUntil(
           context,

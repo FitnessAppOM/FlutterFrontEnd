@@ -34,9 +34,13 @@ class AccountStorage {
   static const _kSubscriptionRequired = 'subscription_required';
   static const _kCoachMembershipActive = 'coach_membership_active';
   static const _kCoachMembershipVerifiedAt = 'coach_membership_verified_at';
+  static const _kCoachMembershipExpiresAt = 'coach_membership_expires_at';
   static const _kCoachMembershipVerificationVersion =
       'coach_membership_verification_version';
-  static const _coachMembershipVerificationVersion = 2;
+  // Version 3 requires a current server-verified expiration. Incrementing this also
+  // invalidates access accidentally granted from unsolicited purchase events
+  // by older builds.
+  static const _coachMembershipVerificationVersion = 3;
   static const _kCoachApplicationStatus = 'coach_application_status';
   static String _whoopLinkedKey(int? userId) =>
       userId == null ? _kWhoopLinked : "${_kWhoopLinked}_u$userId";
@@ -65,6 +69,9 @@ class AccountStorage {
   static String _coachMembershipVerifiedAtKey(int? userId) => userId == null
       ? _kCoachMembershipVerifiedAt
       : "${_kCoachMembershipVerifiedAt}_u$userId";
+  static String _coachMembershipExpiresAtKey(int? userId) => userId == null
+      ? _kCoachMembershipExpiresAt
+      : "${_kCoachMembershipExpiresAt}_u$userId";
   static String _coachMembershipVerificationVersionKey(int? userId) =>
       userId == null
       ? _kCoachMembershipVerificationVersion
@@ -437,19 +444,30 @@ class AccountStorage {
     return sp.getBool(_subscriptionRequiredKey(sp.getInt(_kUserId))) ?? false;
   }
 
-  static Future<void> setCoachMembershipActive(bool active) async {
+  static Future<void> setCoachMembershipActive(
+    bool active, {
+    DateTime? expiresAt,
+  }) async {
     final sp = await SharedPreferences.getInstance();
     final userId = sp.getInt(_kUserId);
-    await sp.setBool(_coachMembershipActiveKey(userId), active);
+    final validExpiration = expiresAt?.toUtc();
+    final shouldActivate =
+        active &&
+        validExpiration != null &&
+        validExpiration.isAfter(DateTime.now().toUtc());
+    await sp.setBool(_coachMembershipActiveKey(userId), shouldActivate);
     final verifiedAtKey = _coachMembershipVerifiedAtKey(userId);
-    if (active) {
+    final expiresAtKey = _coachMembershipExpiresAtKey(userId);
+    if (shouldActivate) {
       await sp.setInt(verifiedAtKey, DateTime.now().millisecondsSinceEpoch);
+      await sp.setInt(expiresAtKey, validExpiration.millisecondsSinceEpoch);
       await sp.setInt(
         _coachMembershipVerificationVersionKey(userId),
         _coachMembershipVerificationVersion,
       );
     } else {
       await sp.remove(verifiedAtKey);
+      await sp.remove(expiresAtKey);
       await sp.remove(_coachMembershipVerificationVersionKey(userId));
     }
   }
@@ -457,12 +475,18 @@ class AccountStorage {
   static Future<bool> isCoachMembershipActive() async {
     final sp = await SharedPreferences.getInstance();
     final userId = sp.getInt(_kUserId);
-    // Old boolean-only values are not a valid entitlement. They are renewed
-    // only after a StoreKit purchase or restore is confirmed.
+    final expirationMs = sp.getInt(_coachMembershipExpiresAtKey(userId));
+    final expiration = expirationMs == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(expirationMs, isUtc: true);
+    // Boolean-only and expired values are not valid entitlements. Access is
+    // renewed only after the backend confirms a current purchase or restoration.
     return (sp.getBool(_coachMembershipActiveKey(userId)) ?? false) &&
         sp.containsKey(_coachMembershipVerifiedAtKey(userId)) &&
         sp.getInt(_coachMembershipVerificationVersionKey(userId)) ==
-            _coachMembershipVerificationVersion;
+            _coachMembershipVerificationVersion &&
+        expiration != null &&
+        expiration.isAfter(DateTime.now().toUtc());
   }
 
   /// JWT access token returned by login / Google login. Used for Authorization header on protected APIs.
@@ -784,6 +808,7 @@ class AccountStorage {
       await sp.remove(_subscriptionRequiredKey(currentUserId));
       await sp.remove(_coachMembershipActiveKey(currentUserId));
       await sp.remove(_coachMembershipVerifiedAtKey(currentUserId));
+      await sp.remove(_coachMembershipExpiresAtKey(currentUserId));
       await sp.remove(_coachMembershipVerificationVersionKey(currentUserId));
     }
     await sp.remove(_kWhoopLinked);

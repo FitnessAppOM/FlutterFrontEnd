@@ -89,6 +89,16 @@ class AppLocalizations {
       "questionnaire_intro_title": "Let’s personalize your plan",
       "questionnaire_intro_text":
           "Answer a few questions so we can adapt your workouts and nutrition to your body, lifestyle, and goals.",
+      "switch_to_coach_form": "Switch to coach form",
+      "switch_to_personalized_form": "Switch to personalized form",
+      "switch_account_type_title": "Change account type?",
+      "switch_to_coach_message":
+          "Changing your account type from Client to Coach will change some of the app services available to you and can also change which subscription plans you can access. You’ll continue with the coach questionnaire. Do you want to proceed?",
+      "switch_to_personalized_message":
+          "Changing your account type from Coach to Client will change some of the app services available to you and can also change which subscription plans you can access. You’ll continue with the personalized questionnaire. Do you want to proceed?",
+      "switch_account_type_cancel": "Keep current",
+      "switch_account_type_confirm": "Change account type",
+      "switch_account_type_failed": "Could not switch forms. Please try again.",
       "questionnaire_consent_notice":
           "By signing up for TAQA Fitness and completing the onboarding questionnaire, you consent to the collection and analysis of your personal, health, and activity data—including information from connected wearables and health apps, training data, self-reported inputs, PROMs, and journal entries—to personalize your training, recovery, and health insights in accordance with our Privacy Policy.",
       "questionnaire_chip_time": "Takes ~3–5 min",
@@ -157,7 +167,7 @@ class AppLocalizations {
       "generating_training_body":
           "Hang tight while we tailor your workouts and nutrition.",
       "generating_training_note":
-          "AI builds your template instantly. An expert will review and verify it within 24–48 hours.",
+          "TAQA prepares your template right away. An expert will review and verify it within 24–48 hours.",
       "updating_plan_title": "Updating your plan",
       "updating_plan_body":
           "We’re saving your profile and rebuilding your training and diet.",
@@ -672,12 +682,14 @@ class AppLocalizations {
       "strava_connect_failed": "Strava connect failed.",
       "strava_connect_failed_detail": "Strava connect failed: {error}",
       "fitbit_disconnect_title": "Disconnect Fitbit",
-      "fitbit_disconnect_confirm": "Are you sure you want to disconnect Fitbit?",
+      "fitbit_disconnect_confirm":
+          "Are you sure you want to disconnect Fitbit?",
       "common_disconnect": "Disconnect",
       "fitbit_disconnected": "Fitbit disconnected.",
       "fitbit_disconnect_failed_detail": "Fitbit disconnect failed: {error}",
       "strava_disconnect_title": "Disconnect Strava",
-      "strava_disconnect_confirm": "Are you sure you want to disconnect Strava?",
+      "strava_disconnect_confirm":
+          "Are you sure you want to disconnect Strava?",
       "strava_disconnected": "Strava disconnected.",
       "strava_disconnect_failed_detail": "Strava disconnect failed: {error}",
       "please_login": "Please log in.",
@@ -713,6 +725,47 @@ class AppLocalizations {
       "settings": "Settings",
       "coming_soon": "Coming soon",
       "settings_language": "Language",
+      "settings_plans": "Plans",
+      "settings_current_plan": "Current plan",
+      "settings_plan_checking": "Checking your plan...",
+      "settings_plan_checking_sub": "Syncing your subscription status",
+      "settings_plan_unavailable":
+          "Could not load your plan. Tap to try again.",
+      "settings_plan_none": "No active plan",
+      "settings_plan_none_sub": "You do not have an active subscription yet.",
+      "settings_plan_active": "Active subscription",
+      "settings_plan_active_until": "Active until {date}",
+      "settings_plan_renews_on": "Renews on {date}",
+      "settings_plan_ends_on": "Ends on {date}",
+      "settings_plan_switches_to_on": "Switches to {plan} on {date}",
+      "settings_current_paid_period_end": "the end of the current paid period",
+      "settings_auto_renewal": "Auto-renewal",
+      "settings_auto_renewal_on": "On · Tap to manage",
+      "settings_auto_renewal_off": "Off · Access remains until plan ends",
+      "settings_apple_app_store": "Apple App Store",
+      "settings_google_play": "Google Play",
+      "settings_turn_off_renewal_title": "Turn off auto-renewal?",
+      "settings_turn_off_renewal_message":
+          "Your plan will remain active until its paid period ends ({expiration}). Continue to {store} to confirm turning off auto-renewal.",
+      "settings_turn_on_renewal_title": "Turn on auto-renewal?",
+      "settings_turn_on_renewal_message":
+          "Continue to {store} to renew or reactivate this subscription.",
+      "settings_manage_renewal_continue": "Continue",
+      "settings_manage_renewal_failed":
+          "Could not open subscription management. Please try again.",
+      "settings_plan_normal_monthly": "Taqa Normal · Monthly",
+      "settings_plan_normal_annual": "Taqa Normal · Annual",
+      "settings_plan_student_monthly": "Taqa Student · Monthly",
+      "settings_plan_student_annual": "Taqa Student · Annual",
+      "settings_plan_coach_monthly": "Taqa Coach · Monthly",
+      "settings_plan_coach_annual": "Taqa Coach · Annual",
+      "settings_normal_plans": "Normal plans",
+      "settings_normal_plans_sub": "View monthly, annual, and student options",
+      "settings_coach_plans": "Coach plans",
+      "settings_coach_plans_sub": "View monthly and annual coach options",
+      "settings_coach_plan_requires_approval_title": "Coach approval required",
+      "settings_coach_plan_requires_approval_message":
+          "You need to apply for coach approval and be verified before you are eligible for a Taqa Coach plan. Complete the coach application from Profile settings first.",
       "settings_change_password": "Change password",
       "settings_change_password_sub": "Reset your password via email",
       "settings_security": "Security",
@@ -1206,7 +1259,8 @@ class AppLocalizations {
       // Water intake sheet
       "water_enter_goal_or_intake": "Enter goal or intake",
       "error_not_authenticated": "Not authenticated",
-      "water_saved_sync_failed": "Saved locally. DB sync failed, will retry later.",
+      "water_saved_sync_failed":
+          "Saved locally. DB sync failed, will retry later.",
       "water_saved": "Water saved.",
       "water_failed_to_save": "Failed to save: {error}",
       "water_today_intake_l": "Today intake (L)",
@@ -1294,7 +1348,8 @@ class AppLocalizations {
       "strava_distance_positive": "Distance must be a valid positive number.",
       // Dashboard page
       "dash_journal_title": "Daily journal check-in",
-      "dash_journal_message": "Take 60 seconds to log how you're feeling today.",
+      "dash_journal_message":
+          "Take 60 seconds to log how you're feeling today.",
       "dash_journal_later": "Later",
       "dash_journal_go": "Take me there",
       "dash_widget_body_title": "Body measurements",
@@ -1337,7 +1392,8 @@ class AppLocalizations {
       "dash_hours_per_night": "Hours per night",
       "dash_calories_goal_title": "Calories burn goal",
       "dash_kcal_per_day": "kcal per day",
-      "dash_intro_message": "Get ready and start logging your workouts and caloric intake for the week",
+      "dash_intro_message":
+          "Get ready and start logging your workouts and caloric intake for the week",
       "dash_go_to_training": "GO TO TRAINING",
       "dash_go_to_diet": "GO TO DIET",
       "body_card_title": "Body",
@@ -1441,6 +1497,16 @@ class AppLocalizations {
       "questionnaire_intro_title": "لنخصّص خطتك",
       "questionnaire_intro_text":
           "أجب عن بعض الأسئلة لنكي نكيّف التمارين والتغذية حسب جسمك وأسلوب حياتك وأهدافك.",
+      "switch_to_coach_form": "التبديل إلى نموذج المدرب",
+      "switch_to_personalized_form": "التبديل إلى النموذج الشخصي",
+      "switch_account_type_title": "تغيير نوع الحساب؟",
+      "switch_to_coach_message":
+          "سيؤدي تغيير نوع حسابك من عميل إلى مدرب إلى تغيير بعض خدمات التطبيق المتاحة لك، وقد يغيّر أيضًا خطط الاشتراك التي يمكنك الوصول إليها. ستتابع عبر استبيان المدرب. هل تريد المتابعة؟",
+      "switch_to_personalized_message":
+          "سيؤدي تغيير نوع حسابك من مدرب إلى عميل إلى تغيير بعض خدمات التطبيق المتاحة لك، وقد يغيّر أيضًا خطط الاشتراك التي يمكنك الوصول إليها. ستتابع عبر الاستبيان الشخصي. هل تريد المتابعة؟",
+      "switch_account_type_cancel": "الاحتفاظ بالحالي",
+      "switch_account_type_confirm": "تغيير نوع الحساب",
+      "switch_account_type_failed": "تعذر تبديل النموذج. يرجى المحاولة مجددًا.",
       "questionnaire_consent_notice":
           "عند التسجيل في TAQA Fitness وإكمال استبيان البدء، فإنك توافق على جمع وتحليل بياناتك الشخصية والصحية وبيانات النشاط -بما في ذلك معلومات الأجهزة القابلة للارتداء والتطبيقات الصحية المتصلة وبيانات التدريب والمدخلات التي تُدخلها ذاتيًا ونتائج PROMs ومدخلات اليوميات- بهدف تخصيص التدريب والاستشفاء والرؤى الصحية وفقًا لسياسة الخصوصية.",
       "questionnaire_chip_time": "يستغرق ~3–5 دقائق",
@@ -1506,7 +1572,7 @@ class AppLocalizations {
       "generating_training_title": "جارٍ إعداد خطتك التدريبية",
       "generating_training_body": "يرجى الانتظار بينما نخصّص تمارينك وتغذيتك.",
       "generating_training_note":
-          "سيُنشئ الذكاء الاصطناعي القالب فوراً، وسيقوم خبير بمراجعته وتأكيده خلال 24–48 ساعة.",
+          "تُنشئ TAQA قالبك مباشرةً، وسيقوم خبير بمراجعته وتأكيده خلال 24–48 ساعة.",
       "updating_plan_title": "جارٍ تحديث خطتك",
       "updating_plan_body":
           "نقوم بحفظ ملفك الشخصي وإعادة إنشاء التدريب والتغذية.",
@@ -1999,7 +2065,8 @@ class AppLocalizations {
           "تم تعطيل حسابك. تعطيل تعديل الملف الشخصي حتى تتم إعادة التفعيل.",
       "settings_devices": "الأجهزة",
       "jwt_token_title": "رمز JWT",
-      "jwt_token_missing": "لم يتم العثور على رمز JWT. يرجى تسجيل الدخول مرة أخرى.",
+      "jwt_token_missing":
+          "لم يتم العثور على رمز JWT. يرجى تسجيل الدخول مرة أخرى.",
       "jwt_token_copied": "تم نسخ الرمز",
       "whoop_login_required": "يرجى تسجيل الدخول لربط Whoop.",
       "please_login_again": "يرجى تسجيل الدخول مرة أخرى.",
@@ -2055,6 +2122,47 @@ class AppLocalizations {
       "settings": "الإعدادات",
       "coming_soon": "قريباً",
       "settings_language": "اللغة",
+      "settings_plans": "الخطط",
+      "settings_current_plan": "خطتك الحالية",
+      "settings_plan_checking": "جارٍ التحقق من خطتك...",
+      "settings_plan_checking_sub": "جارٍ مزامنة حالة اشتراكك",
+      "settings_plan_unavailable": "تعذر تحميل خطتك. اضغط للمحاولة مرة أخرى.",
+      "settings_plan_none": "لا توجد خطة نشطة",
+      "settings_plan_none_sub": "ليس لديك اشتراك نشط بعد.",
+      "settings_plan_active": "اشتراك نشط",
+      "settings_plan_active_until": "نشطة حتى {date}",
+      "settings_plan_renews_on": "يتجدد في {date}",
+      "settings_plan_ends_on": "ينتهي في {date}",
+      "settings_plan_switches_to_on": "سيتم التبديل إلى {plan} في {date}",
+      "settings_current_paid_period_end": "نهاية الفترة المدفوعة الحالية",
+      "settings_auto_renewal": "التجديد التلقائي",
+      "settings_auto_renewal_on": "مفعّل · اضغط للإدارة",
+      "settings_auto_renewal_off": "متوقف · يبقى الوصول حتى نهاية الخطة",
+      "settings_apple_app_store": "متجر Apple App Store",
+      "settings_google_play": "Google Play",
+      "settings_turn_off_renewal_title": "إيقاف التجديد التلقائي؟",
+      "settings_turn_off_renewal_message":
+          "ستبقى خطتك نشطة حتى نهاية الفترة المدفوعة ({expiration}). تابع إلى {store} لتأكيد إيقاف التجديد التلقائي.",
+      "settings_turn_on_renewal_title": "تشغيل التجديد التلقائي؟",
+      "settings_turn_on_renewal_message":
+          "تابع إلى {store} لتجديد هذا الاشتراك أو إعادة تفعيله.",
+      "settings_manage_renewal_continue": "متابعة",
+      "settings_manage_renewal_failed":
+          "تعذر فتح إدارة الاشتراك. يرجى المحاولة مرة أخرى.",
+      "settings_plan_normal_monthly": "طاقة العادية · شهرية",
+      "settings_plan_normal_annual": "طاقة العادية · سنوية",
+      "settings_plan_student_monthly": "طاقة للطلاب · شهرية",
+      "settings_plan_student_annual": "طاقة للطلاب · سنوية",
+      "settings_plan_coach_monthly": "طاقة للمدربين · شهرية",
+      "settings_plan_coach_annual": "طاقة للمدربين · سنوية",
+      "settings_normal_plans": "الخطط العادية",
+      "settings_normal_plans_sub":
+          "عرض الخيارات الشهرية والسنوية وخيارات الطلاب",
+      "settings_coach_plans": "خطط المدربين",
+      "settings_coach_plans_sub": "عرض خطط المدربين الشهرية والسنوية",
+      "settings_coach_plan_requires_approval_title": "مطلوب اعتماد المدرب",
+      "settings_coach_plan_requires_approval_message":
+          "يجب أن تتقدم بطلب اعتماد كمدرب ويتم التحقق من حسابك قبل أن تصبح مؤهلاً لخطة طاقة للمدربين. أكمل طلب المدرب من إعدادات الملف الشخصي أولاً.",
       "settings_change_password": "تغيير كلمة المرور",
       "settings_change_password_sub":
           "أعد تعيين كلمة المرور عبر البريد الإلكتروني",
@@ -2300,7 +2408,8 @@ class AppLocalizations {
       "daily_journal_retry": "اسحب للتحديث أو حاول لاحقاً.",
       "daily_journal_no_entry_today": "لا يوجد إدخال ليوم أمس",
       "daily_journal_no_entry_date": "لا يوجد إدخال في هذا التاريخ",
-      "daily_journal_prompt_today": "أجب عن أسئلة أمس ليتم احتساب درجات لياقة TAQA.",
+      "daily_journal_prompt_today":
+          "أجب عن أسئلة أمس ليتم احتساب درجات لياقة TAQA.",
       "daily_journal_prompt_other": "استخدم الأسهم لعرض الأيام الأخرى.",
       "daily_journal_record_today": "سجّل أمس",
       "daily_journal_sleep_hours_label": "ساعات النوم",
@@ -2533,7 +2642,8 @@ class AppLocalizations {
       // Water intake sheet
       "water_enter_goal_or_intake": "أدخل الهدف أو الكمية",
       "error_not_authenticated": "غير مصادق",
-      "water_saved_sync_failed": "تم الحفظ محلياً. فشل المزامنة، ستُعاد المحاولة.",
+      "water_saved_sync_failed":
+          "تم الحفظ محلياً. فشل المزامنة، ستُعاد المحاولة.",
       "water_saved": "تم حفظ الماء.",
       "water_failed_to_save": "فشل الحفظ: {error}",
       "water_today_intake_l": "كمية اليوم (لتر)",
@@ -2581,7 +2691,8 @@ class AppLocalizations {
       "whoop_max_hr_label": "الحد الأقصى",
       "whoop_energy_label": "الطاقة",
       "whoop_avg_hr_up": "ارتفع معدل القلب بمقدار {delta} نبضة/د مقارنة بالأمس",
-      "whoop_avg_hr_down": "انخفض معدل القلب بمقدار {delta} نبضة/د مقارنة بالأمس",
+      "whoop_avg_hr_down":
+          "انخفض معدل القلب بمقدار {delta} نبضة/د مقارنة بالأمس",
       "whoop_body_insights_title": "تحليلات الجسم",
       "body_height_label": "الطول",
       "body_weight_label": "الوزن",
