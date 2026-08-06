@@ -21,7 +21,6 @@ class TaqaWeekdaysRow extends StatefulWidget {
   final int maxPastWeeks;
   final ValueChanged<DateTime>? onDateTap;
 
-
   @override
   State<TaqaWeekdaysRow> createState() => _TaqaWeekdaysRowState();
 }
@@ -109,7 +108,7 @@ class _TaqaWeekdaysRowState extends State<TaqaWeekdaysRow> {
         final rowWidth = constraints.maxWidth;
         return SizedBox(
           width: rowWidth,
-          height: responsiveDotSize + TaqaUiScale.h(20),
+          height: responsiveDotSize + TaqaUiScale.h(21),
           child: PageView.builder(
             controller: _pageController,
             itemCount: window.totalWeeks,

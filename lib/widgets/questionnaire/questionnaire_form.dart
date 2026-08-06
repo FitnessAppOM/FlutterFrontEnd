@@ -12,8 +12,9 @@ import '../../services/auth/affiliation_service.dart';
 import '../../services/core/university_service.dart';
 
 class QuestionnaireForm extends StatefulWidget {
-  const QuestionnaireForm({super.key, this.onSubmit});
+  const QuestionnaireForm({super.key, required this.onCancel, this.onSubmit});
 
+  final VoidCallback onCancel;
   final Future<void> Function(Map<String, String>)? onSubmit;
 
   @override
@@ -575,41 +576,22 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
             top: false,
             child: Padding(
               padding: EdgeInsets.only(top: TaqaUiScale.h(12)),
-              child: Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (_currentSection > 0)
-                    Expanded(
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: _submitting ? null : _back,
-                          child: SizedBox(
-                            height: TaqaUiScale.h(48),
-                            child: Center(
-                              child: Text(
-                                _t("back").toUpperCase(),
-                                style: TextStyle(
-                                  fontFamily: TaqaUiFontFamilies.interTight,
-                                  fontSize: TaqaUiScale.sp(11),
-                                  fontWeight: FontWeight.w700,
-                                  color: TaqaUiColors.unnamedColor1c1d17
-                                      .withValues(alpha: 0.6),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (_currentSection > 0) SizedBox(width: TaqaUiScale.w(12)),
-                  Expanded(
-                    child: TaqaFilledButton(
-                      label: _currentSection == _totalSections - 1
-                          ? _t("finish")
-                          : _t("next"),
-                      loading: _submitting,
-                      onTap: _submitting ? null : _next,
-                    ),
+                  TaqaFilledButton(
+                    label: _currentSection == _totalSections - 1
+                        ? _t("finish")
+                        : _t("next"),
+                    loading: _submitting,
+                    onTap: _submitting ? null : _next,
+                  ),
+                  SizedBox(height: TaqaUiScale.h(6)),
+                  TaqaTextActionButton(
+                    label: _currentSection == 0 ? _t("cancel") : _t("back"),
+                    onTap: _submitting
+                        ? null
+                        : (_currentSection == 0 ? widget.onCancel : _back),
                   ),
                 ],
               ),

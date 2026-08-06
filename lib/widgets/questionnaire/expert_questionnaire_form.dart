@@ -436,8 +436,10 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
               const TaqaSectionDivider(),
 
               const TaqaSectionHeading(title: "Certification & Files"),
-              _affiliationSummary(),
-              SizedBox(height: TaqaUiScale.h(12)),
+              if (_isAffiliated) ...[
+                _affiliationSummary(),
+                SizedBox(height: TaqaUiScale.h(12)),
+              ],
               _certificateSummary(),
               SizedBox(height: TaqaUiScale.h(16)),
               Text(
@@ -593,24 +595,14 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
               const TaqaSectionDivider(),
 
               const TaqaSectionHeading(title: "Basics"),
-              Text(
-                "Full Name",
-                style: TextStyle(
-                  fontFamily: TaqaUiFontFamilies.interTight,
-                  fontSize: TaqaUiScale.sp(11),
-                  fontWeight: FontWeight.w400,
-                  color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                    alpha: 0.55,
-                  ),
-                ),
-              ),
-              SizedBox(height: TaqaUiScale.h(4)),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: TaqaUnderlineTextField(
                       controller: _c("first_name"),
-                      hint: "First Name",
+                      label: "First Name",
+                      hint: "First name",
                       validator: (val) => (val == null || val.trim().isEmpty)
                           ? "Required"
                           : null,
@@ -621,7 +613,8 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
                   Expanded(
                     child: TaqaUnderlineTextField(
                       controller: _c("last_name"),
-                      hint: "Last Name",
+                      label: "Last Name",
+                      hint: "Last name",
                       validator: (val) => (val == null || val.trim().isEmpty)
                           ? "Required"
                           : null,
@@ -710,28 +703,9 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
                 onTap: _isSubmitting ? null : _submit,
               ),
               SizedBox(height: TaqaUiScale.h(12)),
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: widget.onCancel,
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: TaqaUiScale.h(44),
-                    child: Center(
-                      child: Text(
-                        t.translate("cancel").toUpperCase(),
-                        style: TextStyle(
-                          fontFamily: TaqaUiFontFamilies.interTight,
-                          fontSize: TaqaUiScale.sp(10),
-                          fontWeight: FontWeight.w600,
-                          color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                            alpha: 0.6,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+              TaqaTextActionButton(
+                label: t.translate("cancel"),
+                onTap: widget.onCancel,
               ),
               SizedBox(height: TaqaUiScale.h(12)),
             ],
@@ -779,16 +753,17 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
   String _documentDisplay(String kind, TextEditingController controller) {
     if (controller.text.trim().isEmpty) return "No file uploaded";
     final upload = _documentUploads[kind];
-    if (upload == null) return "File uploaded";
+    if (upload == null) return "Uploaded";
     switch (upload.status) {
       case "clean":
-        return "Ready - security scan passed";
+      case "pending":
+        return "Uploaded";
       case "rejected":
-        return "Rejected - upload another file";
+        return "Upload rejected - choose another file";
       case "failed":
-        return "Scan failed - upload again";
+        return "Upload failed - try again";
       default:
-        return "Security scan pending";
+        return "Uploaded";
     }
   }
 
@@ -816,10 +791,10 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
       final status = _documentUploads[kind]?.status;
       if (status == null || status == "clean") continue;
       if (status == "pending") {
-        _toast("Document security scanning is still in progress.");
+        _toast("Your upload is still processing. Please try again shortly.");
       } else {
         _toast(
-          "A document did not pass security scanning. Upload it again.",
+          "An uploaded document could not be accepted. Please upload it again.",
           type: AppToastType.error,
         );
       }
@@ -914,6 +889,7 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _choiceQuestionLabel(label),
         Wrap(
           spacing: TaqaUiScale.w(10),
           runSpacing: TaqaUiScale.h(10),
@@ -949,6 +925,7 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (showLabel) _choiceQuestionLabel(label),
         Wrap(
           spacing: TaqaUiScale.w(10),
           runSpacing: TaqaUiScale.h(10),
@@ -1070,7 +1047,7 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
         controller.text = upload.reference;
         _documentUploads[kind] = upload;
       });
-      _toast("Uploaded. Security scan pending.", type: AppToastType.success);
+      _toast("Uploaded.", type: AppToastType.success);
     } catch (e) {
       _toast("$e", type: AppToastType.error);
     }
@@ -1115,7 +1092,7 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
         controller.text = upload.reference;
         _documentUploads["selfie"] = upload;
       });
-      _toast("Uploaded. Security scan pending.", type: AppToastType.success);
+      _toast("Uploaded.", type: AppToastType.success);
     } catch (e) {
       _toast("$e", type: AppToastType.error);
     }
@@ -1152,6 +1129,21 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
             child: const Text("Open Settings"),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _choiceQuestionLabel(String label) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: TaqaUiScale.h(8)),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontFamily: TaqaUiFontFamilies.interTight,
+          fontSize: TaqaUiScale.sp(13),
+          fontWeight: FontWeight.w600,
+          color: TaqaUiColors.unnamedColor1c1d17,
+        ),
       ),
     );
   }
@@ -1483,11 +1475,11 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
               TaqaUploadRow(
                 display: _fileCtrl.text.isEmpty
                     ? "No file uploaded"
-                    : _scanStatus == "clean"
-                    ? "Ready - security scan passed"
-                    : _scanStatus == "rejected" || _scanStatus == "failed"
-                    ? "Scan failed - upload again"
-                    : "Security scan pending",
+                    : _scanStatus == "rejected"
+                    ? "Upload rejected - choose another file"
+                    : _scanStatus == "failed"
+                    ? "Upload failed - try again"
+                    : "Uploaded",
                 actionLabel: "Upload",
                 onTap: () => _pickAndUpload("cert"),
               ),
@@ -1529,7 +1521,7 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
         _documentId = upload.documentId;
         _scanStatus = upload.status;
       });
-      _toast("Uploaded. Security scan pending.", type: AppToastType.success);
+      _toast("Uploaded.", type: AppToastType.success);
     } catch (e) {
       _toast("$e", type: AppToastType.error);
     }

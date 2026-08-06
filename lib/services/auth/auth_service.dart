@@ -10,7 +10,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
 
-Future<Map<String, dynamic>?> signInWithGoogle() async {
+Future<Map<String, dynamic>?> signInWithGoogle({String? accountType}) async {
   try {
     final googleUser = await GoogleSignIn().signIn();
     if (googleUser == null) return null;
@@ -22,8 +22,9 @@ Future<Map<String, dynamic>?> signInWithGoogle() async {
       accessToken: googleAuth.accessToken,
     );
 
-    final userCredential =
-    await FirebaseAuth.instance.signInWithCredential(credential);
+    final userCredential = await FirebaseAuth.instance.signInWithCredential(
+      credential,
+    );
 
     final firebaseUser = userCredential.user;
     if (firebaseUser == null) return null;
@@ -35,6 +36,7 @@ Future<Map<String, dynamic>?> signInWithGoogle() async {
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "token": firebaseIdToken,
+        if (accountType != null) "account_type": accountType,
       }),
     );
 
@@ -54,7 +56,8 @@ Future<Map<String, dynamic>?> signInWithGoogle() async {
 }
 
 String _generateNonce([int length = 32]) {
-  const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+  const charset =
+      '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
   final random = Random.secure();
   return List<String>.generate(
     length,
@@ -90,13 +93,15 @@ Map<String, dynamic>? _decodeJwtPayload(String token) {
   return null;
 }
 
-Future<Map<String, dynamic>?> signInWithApple() async {
+Future<Map<String, dynamic>?> signInWithApple({String? accountType}) async {
   try {
     final rawNonce = _generateNonce();
     final nonce = _sha256ofString(rawNonce);
     final pkg = await PackageInfo.fromPlatform();
     final expectedAud = pkg.packageName;
-    _debugApple("Apple nonce: rawLen=${rawNonce.length} hashPrefix=${nonce.substring(0, 8)}");
+    _debugApple(
+      "Apple nonce: rawLen=${rawNonce.length} hashPrefix=${nonce.substring(0, 8)}",
+    );
 
     final appleCredential = await SignInWithApple.getAppleIDCredential(
       scopes: [
@@ -126,7 +131,9 @@ Future<Map<String, dynamic>?> signInWithApple() async {
         "Apple JWT: aud=$audText iss=${payload['iss']} nonce=${payload['nonce']} "
         "exp=${payload['exp']} iat=${payload['iat']} sub=${payload['sub']}",
       );
-      _debugApple("Expected aud(bundleId)=$expectedAud nonceHashPrefix=${nonce.substring(0, 8)}");
+      _debugApple(
+        "Expected aud(bundleId)=$expectedAud nonceHashPrefix=${nonce.substring(0, 8)}",
+      );
     } else {
       _debugApple("Apple JWT: failed to decode payload");
     }
@@ -138,18 +145,19 @@ Future<Map<String, dynamic>?> signInWithApple() async {
       accessToken: appleCredential.authorizationCode,
     );
 
-    final userCredential =
-        await FirebaseAuth.instance.signInWithCredential(oauthCredential);
+    final userCredential = await FirebaseAuth.instance.signInWithCredential(
+      oauthCredential,
+    );
 
     final firebaseUser = userCredential.user;
     if (firebaseUser == null) return null;
 
     final firebaseIdToken = await firebaseUser.getIdToken();
 
-    final fullName = [
-      appleCredential.givenName,
-      appleCredential.familyName,
-    ].where((p) => p != null && p!.trim().isNotEmpty).map((p) => p!.trim()).join(' ');
+    final fullName = [appleCredential.givenName, appleCredential.familyName]
+        .where((p) => p != null && p!.trim().isNotEmpty)
+        .map((p) => p!.trim())
+        .join(' ');
 
     final response = await http.post(
       Uri.parse("${ApiConfig.baseUrl}/auth/apple"),
@@ -157,6 +165,7 @@ Future<Map<String, dynamic>?> signInWithApple() async {
       body: jsonEncode({
         "token": firebaseIdToken,
         if (fullName.isNotEmpty) "name": fullName,
+        if (accountType != null) "account_type": accountType,
       }),
     );
 

@@ -32,7 +32,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   @override
   void initState() {
     super.initState();
-    if (widget.lockedEmail != null && widget.lockEmailField) {
+    if (widget.lockedEmail != null) {
       emailCtrl.text = widget.lockedEmail!;
     }
   }

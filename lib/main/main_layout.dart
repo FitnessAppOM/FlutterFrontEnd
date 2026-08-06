@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
@@ -8,11 +7,11 @@ import 'pages/train_page.dart';
 import 'pages/diet_page.dart';
 import 'pages/community_page.dart';
 import '../core/account_storage.dart';
+import '../core/account_type.dart';
 import '../localization/app_localizations.dart';
 import '../services/auth/profile_service.dart';
 import '../services/core/navigation_service.dart';
 import '../services/screenings/screening_prompt_service.dart';
-import '../services/purchases/billing_api.dart';
 import '../services/training/training_activity_service.dart';
 import '../screens/coach_page.dart';
 import '../screens/expert_dashboard_page.dart';
@@ -20,6 +19,7 @@ import '../TaqaUI/components/taqa_bottom_nav_bar.dart';
 import '../TaqaUI/components/taqa_value_dialog.dart';
 import '../TaqaUI/screens/taqa_subscription_page.dart';
 import '../auth/coach_application_status_page.dart';
+import '../services/purchases/apple_billing_service.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({
@@ -53,10 +53,12 @@ class MainLayout extends StatefulWidget {
   State<MainLayout> createState() => _MainLayoutState();
 }
 
-class _MainLayoutState extends State<MainLayout> {
+class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
   late int _index;
   bool _expertStatusRefreshedThisSession = false;
   bool _subscriptionGateChecked = false;
+  bool _subscriptionGateInProgress = false;
+  bool _accessGatesResolved = false;
 
   final GlobalKey<DashboardPageState> _dashboardKey =
       GlobalKey<DashboardPageState>();
@@ -68,104 +70,98 @@ class _MainLayoutState extends State<MainLayout> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     final idx = widget.initialIndex;
     _index = (idx >= 0 && idx < 5) ? idx : 0;
-    if (_index == MainLayout._coachTab && widget.autoOpenExpertDashboard) {
-      _pages[_index] = const ExpertDashboardPage();
-    } else {
-      _pages[_index] = _buildPage(_index);
-    }
+    _pages[_index] = _buildPage(_index);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _enforceAccessGates();
-      NavigationService.setNotificationNavigationReady(true);
-      NavigationService.flushPendingNotificationNavigation();
-      ScreeningPromptService.checkAndPromptIfDue();
+      unawaited(_resolveAccessGates());
     });
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !_accessGatesResolved) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+      unawaited(_enforceSubscriptionGate(force: true));
+    });
+  }
+
+  Future<void> _resolveAccessGates() async {
+    await _enforceAccessGates();
+    if (!mounted) return;
+    setState(() => _accessGatesResolved = true);
+    if (_index == MainLayout._coachTab) {
+      unawaited(_openCoach(autoOpen: widget.autoOpenExpertDashboard));
+    }
+    NavigationService.setNotificationNavigationReady(true);
+    NavigationService.flushPendingNotificationNavigation();
+    ScreeningPromptService.checkAndPromptIfDue();
+  }
+
   Future<void> _enforceAccessGates() async {
-    await _enforceCoachApplicationGate();
-    if (mounted) await _enforceSubscriptionGate();
+    // A normal subscription is the only app-wide gate. Coach approval and
+    // coach membership are intentionally evaluated only when the Coach tab
+    // is opened, so all other tabs remain available.
+    await _enforceSubscriptionGate();
   }
 
-  Future<void> _enforceCoachApplicationGate() async {
-    try {
-      final userId = await AccountStorage.getUserId();
-      if (userId == null || userId <= 0) return;
-      final hasSubmittedApplication =
-          await AccountStorage.isExpertQuestionnaireDone();
-      final cachedStatus = await AccountStorage.getCoachApplicationStatus();
-      final hasActiveMembership =
-          await AccountStorage.isCoachMembershipActive();
-
-      // Never let an existing applicant into the main app while offline.
-      // The status page can refresh if the connection is available.
-      if ((hasSubmittedApplication || cachedStatus != null) &&
-          (cachedStatus != 'approved' || !hasActiveMembership)) {
-        if (!mounted) return;
-        await Navigator.of(context).pushAndRemoveUntil<void>(
-          MaterialPageRoute(
-            builder: (_) =>
-                CoachApplicationStatusPage(initialStatus: cachedStatus),
-          ),
-          (_) => false,
-        );
-        return;
-      }
-
-      final profile = await ProfileApi.fetchProfile(userId);
-      final hasServerApplication =
-          profile['filled_expert_questionnaire'] == true;
-      if (!hasServerApplication) {
-        await AccountStorage.setCoachApplicationStatus(null);
-        return;
-      }
-      final status = (profile['expert_profile_status'] ?? '')
-          .toString()
-          .trim()
-          .toLowerCase();
-      final resolvedStatus = status.isEmpty ? 'pending' : status;
-      await AccountStorage.setCoachApplicationStatus(resolvedStatus);
-      if (status == 'approved' && hasActiveMembership) {
-        return;
-      }
-      if (!mounted) return;
-      await Navigator.of(context).pushAndRemoveUntil<void>(
-        MaterialPageRoute(
-          builder: (_) =>
-              CoachApplicationStatusPage(initialStatus: resolvedStatus),
-        ),
-        (_) => false,
-      );
-    } catch (_) {
-      // The application-status page will retry if it is required. Avoid
-      // blocking an established session on a transient profile request.
-    }
-  }
-
-  Future<void> _enforceSubscriptionGate() async {
-    if (_subscriptionGateChecked) return;
+  Future<void> _enforceSubscriptionGate({bool force = false}) async {
+    if (_subscriptionGateInProgress) return;
+    if (_subscriptionGateChecked && !force) return;
     _subscriptionGateChecked = true;
-    if (Platform.isAndroid) {
-      try {
-        final result = await BillingApi.entitlements();
-        await AccountStorage.setSubscriptionRequired(!result.active);
-        await AccountStorage.setCoachMembershipActive(result.coachActive);
-      } catch (_) {
-        // Keep the last known local gate on temporary network/server failure.
-      }
-    }
-    if (!await AccountStorage.isSubscriptionRequired() || !mounted) return;
+    _subscriptionGateInProgress = true;
 
-    await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => const TaqaSubscriptionPage(mandatory: true),
-      ),
-    );
+    try {
+      var subscriptionRequired = await AccountStorage.isSubscriptionRequired();
+      final completedOnboarding =
+          await AccountStorage.isQuestionnaireDone() ||
+          await AccountStorage.isExpertQuestionnaireDone();
+      if (completedOnboarding) {
+        try {
+          final normalEntitlement = await AppleBillingService.fetchEntitlement(
+            'app_full',
+          );
+          // Coach plans include the full app. Older linked coach purchases may
+          // have only persisted `coach_tools`, so accept that entitlement too.
+          final coachEntitlement = normalEntitlement.active
+              ? null
+              : await AppleBillingService.fetchEntitlement('coach_tools');
+          subscriptionRequired =
+              !normalEntitlement.active && !(coachEntitlement?.active ?? false);
+          await AccountStorage.setSubscriptionRequired(subscriptionRequired);
+        } catch (_) {
+          // Keep the last verified state during a temporary backend outage.
+        }
+      }
+      if (!subscriptionRequired || !mounted) return;
+
+      await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => const TaqaSubscriptionPage(mandatory: true),
+        ),
+      );
+    } finally {
+      _subscriptionGateInProgress = false;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_accessGatesResolved) {
+      return const Scaffold(
+        backgroundColor: AppColors.black,
+        body: SizedBox.expand(),
+      );
+    }
+
     final isDarkPage = _index == MainLayout._dietTab;
     return Scaffold(
       backgroundColor: isDarkPage
@@ -243,7 +239,7 @@ class _MainLayoutState extends State<MainLayout> {
       final profile = await ProfileApi.fetchProfile(userId, lang: lang);
       final filledExpertQuestionnaire =
           profile["filled_expert_questionnaire"] == true;
-      final isExpert = profile["is_expert"] == true;
+      final isExpert = AccountType.isCoach(profile);
       final applicationStatus = (profile['expert_profile_status'] ?? '')
           .toString()
           .trim();
@@ -262,24 +258,49 @@ class _MainLayoutState extends State<MainLayout> {
     }
   }
 
-  Future<void> _openCoach() async {
+  Future<void> _openCoach({bool autoOpen = false}) async {
     // Use the fast local cache to decide instantly instead of blocking the
     // whole tap on a network round-trip (ProfileApi.fetchProfile) the way
     // _resolveIsExpert() used to — that's what made this tab feel slow next
     // to the other 4, which are just local IndexedStack switches. Refresh
     // the cached value in the background so it's accurate next time.
     final isExpert = await AccountStorage.isExpert();
+    final applicationStatus = await AccountStorage.getCoachApplicationStatus();
+    final hasActiveCoachMembership =
+        await AccountStorage.isCoachMembershipActive();
     if (!mounted) return;
     if (!_expertStatusRefreshedThisSession) {
       _expertStatusRefreshedThisSession = true;
       unawaited(_refreshExpertStatusInBackground());
     }
 
-    if (!isExpert) {
+    if (applicationStatus != 'approved' || !hasActiveCoachMembership) {
       setState(() {
-        _pages[MainLayout._coachTab] = const CoachPage(
-          showBottomNavigation: false,
+        _pages[MainLayout._coachTab] = CoachModuleGate(
+          initialStatus: applicationStatus,
+          onCoachMembershipReady: () => _openCoach(autoOpen: true),
         );
+        _index = MainLayout._coachTab;
+      });
+      return;
+    }
+
+    if (!isExpert) {
+      // The status cache may have been refreshed before the expert flag. The
+      // tab gate will refresh it again rather than exposing coach tools.
+      setState(() {
+        _pages[MainLayout._coachTab] = CoachModuleGate(
+          initialStatus: applicationStatus,
+          onCoachMembershipReady: () => _openCoach(autoOpen: true),
+        );
+        _index = MainLayout._coachTab;
+      });
+      return;
+    }
+
+    if (autoOpen) {
+      setState(() {
+        _pages[MainLayout._coachTab] = const ExpertDashboardPage();
         _index = MainLayout._coachTab;
       });
       return;

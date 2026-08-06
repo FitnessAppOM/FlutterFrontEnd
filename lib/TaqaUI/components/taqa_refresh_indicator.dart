@@ -4,6 +4,21 @@ import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
 import 'taqa_toast.dart';
 
+/// Standalone form of the refresh spinner for operations that are not caused
+/// by a pull gesture, while keeping the exact same TAQA refresh appearance.
+class TaqaRefreshSpinner extends StatelessWidget {
+  const TaqaRefreshSpinner({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshProgressIndicator(
+      color: TaqaUiColors.charcoal,
+      backgroundColor: TaqaUiColors.white,
+      strokeWidth: TaqaUiScale.w(2),
+    );
+  }
+}
+
 /// Pull-to-refresh wrapper matching the community page's design (charcoal
 /// spinner on a white puck) plus a short cooldown so a user yanking the
 /// pull-to-refresh gesture repeatedly can't hammer the backend — repeat
@@ -55,11 +70,7 @@ class _TaqaRefreshIndicatorState extends State<TaqaRefreshIndicator> {
     if (lastRefreshAt != null &&
         DateTime.now().difference(lastRefreshAt) < widget.cooldown) {
       if (widget.showCooldownToast && mounted) {
-        AppToast.show(
-          context,
-          "Already up to date",
-          type: AppToastType.info,
-        );
+        AppToast.show(context, "Already up to date", type: AppToastType.info);
       }
       return;
     }

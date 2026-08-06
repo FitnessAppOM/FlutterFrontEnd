@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../config/base_url.dart';
+import '../core/account_type.dart';
 import '../core/account_storage.dart';
 import '../services/auth/auth_service.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
@@ -25,7 +26,6 @@ import 'email_verification_page.dart';
 import '../services/auth/profile_service.dart';
 import 'questionnaire.dart';
 import 'expert_questionnaire.dart';
-import 'coach_application_status_page.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../services/core/notification_service.dart';
 import '../services/core/navigation_service.dart';
@@ -106,7 +106,8 @@ class _LoginPageState extends State<LoginPage> {
       final serverDone = profile["filled_user_questionnaire"] == true;
       final expertQuestionnaireDone =
           profile["filled_expert_questionnaire"] == true;
-      final isExpert = profile["is_expert"] == true;
+      final isApprovedExpert = profile["is_expert"] == true;
+      final isCoachAccount = AccountType.isCoach(profile);
       final applicationStatus = (profile['expert_profile_status'] ?? '')
           .toString()
           .trim()
@@ -117,7 +118,7 @@ class _LoginPageState extends State<LoginPage> {
           _hasQuestionnaireData(profile);
       await AccountStorage.setQuestionnaireDone(serverDone);
       await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
-      await AccountStorage.setIsExpert(isExpert);
+      await AccountStorage.setIsExpert(isCoachAccount);
       await AccountStorage.setCoachApplicationStatus(
         expertQuestionnaireDone
             ? (applicationStatus.isEmpty ? 'pending' : applicationStatus)
@@ -127,27 +128,11 @@ class _LoginPageState extends State<LoginPage> {
       if (NavigationService.isOnJournalPage) {
         return;
       }
-      final hasActiveCoachMembership =
-          await AccountStorage.isCoachMembershipActive();
-      if (!mounted) return;
-      if (expertQuestionnaireDone &&
-          (applicationStatus != 'approved' || !hasActiveCoachMembership)) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (_) => CoachApplicationStatusPage(
-              initialStatus: applicationStatus.isEmpty
-                  ? 'pending'
-                  : applicationStatus,
-            ),
-          ),
-          (route) => false,
-        );
-        return;
-      }
+      // Coach approval and membership are evaluated inside the Coach tab.
       if (hasData) {
         final expertAiPending =
-            isExpert && NavigationService.expertAiUpdatesNotificationPending;
+            isApprovedExpert &&
+            NavigationService.expertAiUpdatesNotificationPending;
         if (expertAiPending) {
           NavigationService.consumeExpertAiUpdatesNotification();
         }
@@ -178,7 +163,7 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
-            builder: (_) => isExpert
+            builder: (_) => isCoachAccount
                 ? const ExpertQuestionnairePage()
                 : const QuestionnairePage(),
           ),
@@ -291,7 +276,7 @@ class _LoginPageState extends State<LoginPage> {
           verified: true,
           token: token,
           refreshToken: data?["refresh_token"]?.toString(),
-          isExpert: false,
+          isExpert: AccountType.isCoach(data),
           questionnaireDone: false,
           expertQuestionnaireDone: false,
           authProvider: "email",
@@ -424,7 +409,7 @@ class _LoginPageState extends State<LoginPage> {
       verified: true,
       token: accessToken,
       refreshToken: result["refresh_token"]?.toString(),
-      isExpert: false,
+      isExpert: AccountType.isCoach(result),
       questionnaireDone: false,
       expertQuestionnaireDone: false,
       authProvider: "google",
@@ -512,7 +497,7 @@ class _LoginPageState extends State<LoginPage> {
       verified: true,
       token: accessToken,
       refreshToken: result["refresh_token"]?.toString(),
-      isExpert: false,
+      isExpert: AccountType.isCoach(result),
       questionnaireDone: false,
       expertQuestionnaireDone: false,
       authProvider: "apple",
@@ -596,29 +581,33 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
 
-                if (lastAuthProvider != "google" && lastAuthProvider != "apple")
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ForgotPasswordPage(),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      final enteredEmail = email.text.trim();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ForgotPasswordPage(
+                            lockedEmail: enteredEmail.isEmpty
+                                ? null
+                                : enteredEmail,
                           ),
-                        );
-                      },
-                      child: Text(
-                        t.translate("forgot_password"),
-                        style: TextStyle(
-                          fontFamily: TaqaUiFontFamilies.interTight,
-                          fontSize: TaqaUiScale.sp(12),
-                          fontWeight: FontWeight.w600,
-                          color: TaqaUiColors.unnamedColor1c1d17,
                         ),
+                      );
+                    },
+                    child: Text(
+                      t.translate("forgot_password"),
+                      style: TextStyle(
+                        fontFamily: TaqaUiFontFamilies.interTight,
+                        fontSize: TaqaUiScale.sp(12),
+                        fontWeight: FontWeight.w600,
+                        color: TaqaUiColors.unnamedColor1c1d17,
                       ),
                     ),
                   ),
+                ),
 
                 SizedBox(height: TaqaUiScale.h(8)),
                 TaqaFilledButton(

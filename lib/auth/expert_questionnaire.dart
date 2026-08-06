@@ -8,8 +8,12 @@ import '../core/account_storage.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
-import 'coach_application_status_page.dart';
+import '../TaqaUI/components/taqa_back_button.dart';
+import '../TaqaUI/components/taqa_value_dialog.dart';
+import 'questionnaire.dart';
+import '../main/main_layout.dart';
 import '../screens/welcome.dart';
+import '../services/auth/profile_service.dart';
 import '../services/core/expert_questionnaire_service.dart';
 
 class ExpertQuestionnairePage extends StatefulWidget {
@@ -23,6 +27,7 @@ class ExpertQuestionnairePage extends StatefulWidget {
 class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
   bool _started = false;
   bool _submitting = false;
+  bool _switchingAccountType = false;
 
   String _t(String key) => AppLocalizations.of(context).translate(key);
 
@@ -32,7 +37,8 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
       appBar: TaqaPageAppBar(
         title: _t("expert_questionnaire_title"),
         backgroundColor: TaqaUiColors.white,
-        showBackButton: false,
+        showBackButton: !_started,
+        leading: TaqaBackButton(onPressed: _handleBack),
       ),
       backgroundColor: TaqaUiColors.white,
       body: AnimatedSwitcher(
@@ -111,11 +117,16 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _FilledActionButton(
+          TaqaFilledButton(
             label: _t("start_questionnaire"),
             onTap: () => setState(() => _started = true),
           ),
-          SizedBox(height: TaqaUiScale.h(10)),
+          SizedBox(height: TaqaUiScale.h(6)),
+          TaqaTextActionButton(
+            label: _t("switch_to_personalized_form"),
+            onTap: _switchingAccountType ? null : _switchToPersonalizedForm,
+          ),
+          SizedBox(height: TaqaUiScale.h(4)),
           TaqaTextActionButton(label: _t("cancel"), onTap: _exitToWelcome),
         ],
       ),
@@ -127,6 +138,56 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
       MaterialPageRoute(builder: (_) => const WelcomePage(fromLogout: true)),
       (_) => false,
     );
+  }
+
+  void _handleBack() {
+    if (_started) {
+      setState(() => _started = false);
+      return;
+    }
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+      return;
+    }
+    _exitToWelcome();
+  }
+
+  Future<void> _switchToPersonalizedForm() async {
+    final confirmed = await showTaqaConfirmDialog(
+      context: context,
+      title: _t("switch_account_type_title"),
+      message: _t("switch_to_personalized_message"),
+      cancelLabel: _t("switch_account_type_cancel"),
+      confirmLabel: _t("switch_account_type_confirm"),
+    );
+    if (!mounted || !confirmed) return;
+
+    setState(() => _switchingAccountType = true);
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null || userId <= 0) {
+        throw Exception(_t("user_missing"));
+      }
+      await ProfileApi.updateAccountType(userId: userId, accountType: "client");
+      await AccountStorage.setIsExpert(false);
+      await AccountStorage.setQuestionnaireDone(false);
+      await AccountStorage.setExpertQuestionnaireDone(false);
+      await AccountStorage.setCoachApplicationStatus(null);
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const QuestionnairePage()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final message = e.toString().replaceFirst("Exception: ", "").trim();
+      AppToast.show(
+        context,
+        message.isEmpty ? _t("switch_account_type_failed") : message,
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _switchingAccountType = false);
+    }
   }
 
   Future<void> _submit(Map<String, dynamic> values) async {
@@ -151,8 +212,12 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
       await AccountStorage.setExpertQuestionnaireDone(true);
       if (!mounted) return;
       AppToast.show(context, _t("save_success"), type: AppToastType.success);
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const CoachApplicationStatusPage()),
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) =>
+              const MainLayout(initialIndex: MainLayout.coachTabIndex),
+        ),
+        (_) => false,
       );
     } catch (e) {
       if (!mounted) return;
@@ -198,42 +263,6 @@ class _ExpertSection extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _FilledActionButton extends StatelessWidget {
-  const _FilledActionButton({required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: TaqaUiColors.unnamedColorE4e93b,
-      borderRadius: TaqaUiScale.radius(5),
-      child: InkWell(
-        borderRadius: TaqaUiScale.radius(5),
-        onTap: onTap,
-        child: SizedBox(
-          width: double.infinity,
-          height: TaqaUiScale.h(45),
-          child: Center(
-            child: Text(
-              label.toUpperCase(),
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: TaqaUiScale.sp(10),
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0,
-                height: 12 / 10,
-                color: TaqaUiColors.unnamedColor1c1d17,
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

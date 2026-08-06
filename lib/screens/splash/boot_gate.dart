@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../../auth/expert_questionnaire.dart';
-import '../../auth/coach_application_status_page.dart';
 import '../../auth/questionnaire.dart';
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import '../../core/account_type.dart';
 import '../../core/locale_controller.dart';
 import '../../main/main_layout.dart';
 import '../../screens/daily_journal.dart';
@@ -85,7 +85,8 @@ class _BootGateState extends State<BootGate> {
     final serverDone = profile["filled_user_questionnaire"] == true;
     final expertQuestionnaireDone =
         profile["filled_expert_questionnaire"] == true;
-    final isExpert = profile["is_expert"] == true;
+    final isApprovedExpert = profile["is_expert"] == true;
+    final isCoachAccount = AccountType.isCoach(profile);
     final applicationStatus = (profile['expert_profile_status'] ?? '')
         .toString()
         .trim()
@@ -94,7 +95,7 @@ class _BootGateState extends State<BootGate> {
         expertQuestionnaireDone || serverDone || _hasQuestionnaireData(profile);
     await AccountStorage.setQuestionnaireDone(serverDone);
     await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
-    await AccountStorage.setIsExpert(isExpert);
+    await AccountStorage.setIsExpert(isCoachAccount);
     await AccountStorage.setCoachApplicationStatus(
       expertQuestionnaireDone
           ? (applicationStatus.isEmpty ? 'pending' : applicationStatus)
@@ -104,29 +105,11 @@ class _BootGateState extends State<BootGate> {
     if (NavigationService.isOnJournalPage) {
       return;
     }
-    final hasActiveCoachMembership =
-        await AccountStorage.isCoachMembershipActive();
-    if (!mounted) return;
-    final needsCoachApplicationGate =
-        expertQuestionnaireDone &&
-        (applicationStatus != 'approved' || !hasActiveCoachMembership);
-    if (needsCoachApplicationGate) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (_) => CoachApplicationStatusPage(
-            initialStatus: applicationStatus.isEmpty
-                ? 'pending'
-                : applicationStatus,
-          ),
-        ),
-        (route) => false,
-      );
-      return;
-    }
+    // Coach approval and membership are evaluated inside the Coach tab.
     if (hasData) {
       final expertAiPending =
-          isExpert && NavigationService.expertAiUpdatesNotificationPending;
+          isApprovedExpert &&
+          NavigationService.expertAiUpdatesNotificationPending;
       if (expertAiPending) {
         NavigationService.consumeExpertAiUpdatesNotification();
       }
@@ -157,7 +140,7 @@ class _BootGateState extends State<BootGate> {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (_) => isExpert
+          builder: (_) => isCoachAccount
               ? const ExpertQuestionnairePage()
               : const QuestionnairePage(),
         ),
@@ -168,23 +151,6 @@ class _BootGateState extends State<BootGate> {
 
   Future<void> _navigateOfflineMain() async {
     if (!mounted) return;
-    final hasSubmittedApplication =
-        await AccountStorage.isExpertQuestionnaireDone();
-    final cachedStatus = await AccountStorage.getCoachApplicationStatus();
-    final hasActiveMembership = await AccountStorage.isCoachMembershipActive();
-    if (!mounted) return;
-    if ((hasSubmittedApplication || cachedStatus != null) &&
-        (cachedStatus != 'approved' || !hasActiveMembership)) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (_) =>
-              CoachApplicationStatusPage(initialStatus: cachedStatus),
-        ),
-        (route) => false,
-      );
-      return;
-    }
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const MainLayout()),

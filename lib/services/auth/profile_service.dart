@@ -90,6 +90,32 @@ class ProfileApi {
     throw Exception("Failed to load profile (${res.statusCode})");
   }
 
+  static Future<String> updateAccountType({
+    required int userId,
+    required String accountType,
+  }) async {
+    final url = Uri.parse("${ApiConfig.baseUrl}/profile/$userId/account-type");
+    final headers = await AccountStorage.getAuthHeaders();
+    headers['Content-Type'] = 'application/json';
+    final res = await http.patch(
+      url,
+      headers: headers,
+      body: jsonEncode({'account_type': accountType}),
+    );
+    await AccountStorage.handleAuthStatus(
+      res.statusCode,
+      responseBody: res.body,
+    );
+
+    final data = _decodeMap(res.body);
+    if (res.statusCode == 200) {
+      return data['account_type']?.toString() ?? accountType;
+    }
+    throw Exception(
+      data['detail']?.toString() ?? 'Account type could not be changed.',
+    );
+  }
+
   static Future<Map<String, dynamic>> fetchCoachClientProfile(
     int clientUserId,
   ) async {
