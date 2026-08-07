@@ -567,17 +567,10 @@ class _LoginPageState extends State<LoginPage> {
                   hint: t.translate("password_hint"),
                   obscureText: !passwordVisible,
                   onChanged: (_) => setState(() {}),
-                  suffixIcon: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
+                  suffixIcon: TaqaPasswordVisibilityButton(
+                    visible: passwordVisible,
                     onTap: () =>
                         setState(() => passwordVisible = !passwordVisible),
-                    child: Icon(
-                      passwordVisible ? Icons.visibility_off : Icons.visibility,
-                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                        alpha: 0.6,
-                      ),
-                      size: TaqaUiScale.w(18),
-                    ),
                   ),
                 ),
 

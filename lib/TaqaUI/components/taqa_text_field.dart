@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
@@ -16,6 +17,10 @@ class TaqaTextField extends StatelessWidget {
     this.suffixIcon,
     this.onChanged,
     this.maxLength,
+    this.enabled = true,
+    this.readOnly = false,
+    this.inputFormatters,
+    this.autofillHints,
   });
 
   final TextEditingController controller;
@@ -27,6 +32,10 @@ class TaqaTextField extends StatelessWidget {
   final Widget? suffixIcon;
   final ValueChanged<String>? onChanged;
   final int? maxLength;
+  final bool enabled;
+  final bool readOnly;
+  final List<TextInputFormatter>? inputFormatters;
+  final Iterable<String>? autofillHints;
 
   @override
   Widget build(BuildContext context) {
@@ -52,11 +61,15 @@ class TaqaTextField extends StatelessWidget {
           padding: TaqaUiScale.insetsLTRB(14, 2, 10, 2),
           child: TextField(
             controller: controller,
+            enabled: enabled,
+            readOnly: readOnly,
             obscureText: obscureText,
             keyboardType: keyboardType,
             textInputAction: textInputAction,
             onChanged: onChanged,
             maxLength: maxLength,
+            inputFormatters: inputFormatters,
+            autofillHints: autofillHints,
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(14),
@@ -89,6 +102,38 @@ class TaqaTextField extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Shared password visibility control used by Taqa authentication forms.
+class TaqaPasswordVisibilityButton extends StatelessWidget {
+  const TaqaPasswordVisibilityButton({
+    super.key,
+    required this.visible,
+    required this.onTap,
+  });
+
+  final bool visible;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: visible ? 'Hide password' : 'Show password',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Padding(
+          padding: TaqaUiScale.symmetric(horizontal: 4, vertical: 8),
+          child: Icon(
+            visible ? Icons.visibility_off : Icons.visibility,
+            color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+            size: TaqaUiScale.w(18),
+          ),
+        ),
+      ),
     );
   }
 }
