@@ -20,7 +20,6 @@ import '../TaqaUI/components/taqa_toast.dart';
 import '../core/user_friendly_error.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/base_url.dart';
 import '../consents/consent_manager.dart';
@@ -41,7 +40,7 @@ import '../TaqaUI/components/taqa_steps_ui.dart' show TaqaRangeTab;
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
-import '../services/referrals/referral_api.dart';
+import 'referral_dashboard_page.dart';
 import '../services/purchases/apple_billing_service.dart';
 import '../services/purchases/taqa_subscription_catalog.dart';
 
@@ -130,73 +129,9 @@ class _SettingsPageState extends State<SettingsPage>
   }
 
   Future<void> _showReferralCode() async {
-    final t = AppLocalizations.of(context);
-    try {
-      final identity = await ReferralApi.myReferralIdentity();
-      if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(t.translate('settings_referral_code')),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(t.translate('settings_referral_code_explanation')),
-              const SizedBox(height: 12),
-              SelectableText(
-                identity.code,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 20,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: identity.code));
-                if (!mounted) return;
-                AppToast.show(
-                  context,
-                  t.translate('settings_referral_code_copied'),
-                  type: AppToastType.success,
-                );
-              },
-              child: Text(t.translate('settings_referral_copy')),
-            ),
-            TextButton(
-              onPressed: () async {
-                final renderBox =
-                    dialogContext.findRenderObject() as RenderBox?;
-                final origin = renderBox == null
-                    ? null
-                    : renderBox.localToGlobal(Offset.zero) & renderBox.size;
-                await Share.share(
-                  '${t.translate('settings_referral_share_message')} '
-                  '${identity.code}\n${identity.shareUrl}',
-                  sharePositionOrigin: origin,
-                );
-              },
-              child: Text(t.translate('settings_referral_share')),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(t.translate('common_close')),
-            ),
-          ],
-        ),
-      );
-    } catch (error) {
-      if (!mounted) return;
-      AppToast.show(
-        context,
-        userFriendlyErrorMessage(error),
-        type: AppToastType.error,
-      );
-    }
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ReferralDashboardPage()));
   }
 
   Future<void> _showJwtTokenDialog() async {

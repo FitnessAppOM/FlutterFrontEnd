@@ -38,6 +38,9 @@ class TaqaSubscriptionPage extends StatefulWidget {
     this.coachMembership = false,
     this.allowPlanTypeSwitch = true,
     this.allowBackNavigation = false,
+    this.referralClaimToken,
+    this.googleReferralOfferTag,
+    this.referralProductId,
   });
 
   /// When opened after onboarding, the user must subscribe or restore a
@@ -59,6 +62,10 @@ class TaqaSubscriptionPage extends StatefulWidget {
   /// Lets an in-app, feature-specific checkout return to the feature lock
   /// screen. The app-wide mandatory subscription flow remains non-dismissible.
   final bool allowBackNavigation;
+
+  final String? referralClaimToken;
+  final String? googleReferralOfferTag;
+  final String? referralProductId;
 
   @override
   State<TaqaSubscriptionPage> createState() => _TaqaSubscriptionPageState();
@@ -89,6 +96,8 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   bool _billingPreflightFailed = false;
   String? _googleAccountId;
   Map<String, String> _googleProductIdsByPlanCode = const {};
+  Map<String, GoogleBillingProductOffering> _googleOfferingsByProductId =
+      const {};
   Set<String> _storeProductIds = const {};
 
   @override
@@ -182,6 +191,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         final offerings = await AppleBillingService.fetchGoogleOfferings();
         _googleAccountId = offerings.obfuscatedAccountId;
         _googleProductIdsByPlanCode = offerings.productIdsByPlanCode;
+        _googleOfferingsByProductId = offerings.productsById;
         productIds = offerings.productIds;
       }
       _storeProductIds = productIds;
@@ -192,11 +202,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         _storeAvailable = true;
         _products
           ..clear()
-          ..addEntries(
-            response.productDetails.map(
-              (product) => MapEntry(product.id, product),
-            ),
-          );
+          ..addAll(_selectStoreProducts(response.productDetails));
         _selectedProductId =
             _catalogPlans
                 .map(_storeProductIdForPlan)
@@ -339,6 +345,13 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
               : 'Your subscription is active and linked.',
           type: AppToastType.success,
         );
+        if (widget.referralClaimToken != null && mounted) {
+          if (purchase.pendingCompletePurchase) {
+            await _store.completePurchase(purchase);
+          }
+          if (mounted) Navigator.of(context).pop(true);
+          return;
+        }
         if (widget.mandatory && mounted) {
           await _finishMandatorySubscription(purchase: purchase);
           return;
@@ -405,12 +418,14 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
               purchaseToken: purchase.verificationData.serverVerificationData,
               entitlementCode: entitlementCode,
               replacementProductId: _pendingReplacementProductId,
+              referralClaimToken: widget.referralClaimToken,
             )
           : await AppleBillingService.verifyPurchase(
               productId: purchase.productID,
               signedTransaction:
                   purchase.verificationData.serverVerificationData,
               entitlementCode: entitlementCode,
+              referralClaimToken: widget.referralClaimToken,
             );
       if (!entitlement.active) return false;
       final requestedProductId = _checkoutProductId;
@@ -499,9 +514,24 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     ChangeSubscriptionParam? changeParam;
     if (Platform.isAndroid) {
       try {
-        change = await BillingApi.prepareGoogleSubscriptionChange(
-          targetProductId: product.id,
-        );
+        if (widget.referralClaimToken != null) {
+          if (activeProductId != product.id) {
+            _setMessage(
+              'This referral reward must be claimed on your active subscription.',
+            );
+            return;
+          }
+          change = GoogleSubscriptionChange(
+            action: 'referral_reward',
+            currentProductId: product.id,
+            targetProductId: product.id,
+            replacementMode: 'DEFERRED',
+          );
+        } else {
+          change = await BillingApi.prepareGoogleSubscriptionChange(
+            targetProductId: product.id,
+          );
+        }
         if (change.isAlreadySubscribed) {
           _setMessage('This is already your active subscription.');
           return;
@@ -639,6 +669,9 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     if (change?.action == 'downgrade_to_standard') {
       return 'Keep Taqa Coach until the current paid period ends, then switch to the normal ${product.price} plan. Google Play will show the effective date before you confirm.';
     }
+    if (change?.action == 'referral_reward') {
+      return 'Apply the referral reward at your next renewal. Google Play will show the discounted renewal terms before you confirm.';
+    }
     return 'Subscribe for ${product.price} after any displayed free trial. '
         'Your ${Platform.isAndroid ? 'Google Play account' : 'Apple ID'} will be charged when you confirm in ${_storeName()}.';
   }
@@ -711,6 +744,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       accountId = offerings.obfuscatedAccountId;
       _googleAccountId = accountId;
       _googleProductIdsByPlanCode = offerings.productIdsByPlanCode;
+      _googleOfferingsByProductId = offerings.productsById;
       _storeProductIds = offerings.productIds;
     }
 
@@ -829,6 +863,52 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     return null;
   }
 
+  Map<String, ProductDetails> _selectStoreProducts(
+    List<ProductDetails> candidates,
+  ) {
+    if (!Platform.isAndroid) {
+      return {for (final product in candidates) product.id: product};
+    }
+    final selected = <String, ProductDetails>{};
+    final scores = <String, int>{};
+    for (final product in candidates) {
+      if (product is! GooglePlayProductDetails ||
+          product.subscriptionIndex == null) {
+        continue;
+      }
+      final offering = _googleOfferingsByProductId[product.id];
+      final details = product.productDetails.subscriptionOfferDetails;
+      final index = product.subscriptionIndex!;
+      if (offering == null || details == null || index >= details.length) {
+        continue;
+      }
+      if (widget.referralProductId != null &&
+          product.id != widget.referralProductId) {
+        continue;
+      }
+      final offer = details[index];
+      if (offering.basePlanId != null &&
+          offer.basePlanId != offering.basePlanId) {
+        continue;
+      }
+      final matchesReferral = widget.googleReferralOfferTag != null &&
+          offer.offerTags.contains(widget.googleReferralOfferTag);
+      if (widget.googleReferralOfferTag != null && !matchesReferral) continue;
+      final matchesDefault = offering.defaultOfferTag != null &&
+          offer.offerTags.contains(offering.defaultOfferTag);
+      final isPlainBasePlan = offer.offerId == null;
+      final score = matchesReferral
+          ? 3
+          : matchesDefault
+          ? 2
+          : (isPlainBasePlan ? 1 : 0);
+      if (score == 0 || score <= (scores[product.id] ?? -1)) continue;
+      selected[product.id] = product;
+      scores[product.id] = score;
+    }
+    return selected;
+  }
+
   Set<String> get _knownProductIds => _storeProductIds.isNotEmpty
       ? _storeProductIds
       : {
@@ -937,6 +1017,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     final offerings = await AppleBillingService.fetchGoogleOfferings();
     _googleAccountId = offerings.obfuscatedAccountId;
     _googleProductIdsByPlanCode = offerings.productIdsByPlanCode;
+    _googleOfferingsByProductId = offerings.productsById;
     _storeProductIds = offerings.productIds;
     return offerings.obfuscatedAccountId;
   }

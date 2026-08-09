@@ -141,6 +141,7 @@ class BillingApi {
     required String purchaseToken,
     String? purchaseId,
     String? replacementProductId,
+    String? referralClaimToken,
   }) async {
     final response = await http.post(
       Uri.parse('${ApiConfig.baseUrl}/billing/purchases/verify'),
@@ -152,6 +153,8 @@ class BillingApi {
         if (purchaseId != null) 'purchase_id': purchaseId,
         if (replacementProductId != null)
           'replacement_product_id': replacementProductId,
+        if (referralClaimToken != null)
+          'referral_claim_token': referralClaimToken,
       }),
     );
     final json = _decode(response);

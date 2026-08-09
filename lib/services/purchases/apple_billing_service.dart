@@ -86,12 +86,28 @@ class GoogleBillingOfferings {
   const GoogleBillingOfferings({
     required this.productIds,
     required this.productIdsByPlanCode,
+    required this.productsById,
     required this.obfuscatedAccountId,
   });
 
   final Set<String> productIds;
   final Map<String, String> productIdsByPlanCode;
+  final Map<String, GoogleBillingProductOffering> productsById;
   final String obfuscatedAccountId;
+}
+
+class GoogleBillingProductOffering {
+  const GoogleBillingProductOffering({
+    required this.productId,
+    required this.planCode,
+    this.basePlanId,
+    this.defaultOfferTag,
+  });
+
+  final String productId;
+  final String planCode;
+  final String? basePlanId;
+  final String? defaultOfferTag;
 }
 
 /// Connects App Store and Google Play purchases to Taqa's entitlement server.
@@ -124,6 +140,7 @@ class AppleBillingService {
     required String productId,
     required String signedTransaction,
     required String entitlementCode,
+    String? referralClaimToken,
   }) async {
     if (signedTransaction.trim().isEmpty) {
       throw const AppleBillingException(
@@ -138,6 +155,8 @@ class AppleBillingService {
             'platform': 'ios',
             'product_id': productId,
             'signed_transaction': signedTransaction,
+            if (referralClaimToken != null)
+              'referral_claim_token': referralClaimToken,
           }),
         )
         .timeout(_timeout);
@@ -170,6 +189,7 @@ class AppleBillingService {
     required String purchaseToken,
     required String entitlementCode,
     String? replacementProductId,
+    String? referralClaimToken,
   }) async {
     if (purchaseToken.trim().isEmpty) {
       throw const AppleBillingException(
@@ -186,6 +206,8 @@ class AppleBillingService {
             'purchase_token': purchaseToken,
             if (replacementProductId != null)
               'replacement_product_id': replacementProductId,
+            if (referralClaimToken != null)
+              'referral_claim_token': referralClaimToken,
           }),
         )
         .timeout(_timeout);
@@ -216,6 +238,7 @@ class AppleBillingService {
     }
     final productIds = <String>{};
     final productIdsByPlanCode = <String, String>{};
+    final productsById = <String, GoogleBillingProductOffering>{};
     final products = body['products'];
     if (products is List) {
       for (final raw in products) {
@@ -224,13 +247,22 @@ class AppleBillingService {
         final planCode = _nonEmptyString(raw['plan_code']);
         if (productId != null) {
           productIds.add(productId);
-          if (planCode != null) productIdsByPlanCode[planCode] = productId;
+          if (planCode != null) {
+            productIdsByPlanCode[planCode] = productId;
+            productsById[productId] = GoogleBillingProductOffering(
+              productId: productId,
+              planCode: planCode,
+              basePlanId: _nonEmptyString(raw['base_plan_id']),
+              defaultOfferTag: _nonEmptyString(raw['offer_tag']),
+            );
+          }
         }
       }
     }
     return GoogleBillingOfferings(
       productIds: productIds,
       productIdsByPlanCode: productIdsByPlanCode,
+      productsById: productsById,
       obfuscatedAccountId: accountId,
     );
   }

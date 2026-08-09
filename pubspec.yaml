@@ -2,7 +2,7 @@ name: taqaproject
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.0.38+17
+version: 1.0.40+19
 
 environment:
   sdk: ^3.10.0

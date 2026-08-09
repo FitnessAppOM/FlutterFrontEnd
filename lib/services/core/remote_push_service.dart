@@ -7,12 +7,14 @@ import 'package:app_links/app_links.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import '../../screens/referral_dashboard_page.dart';
 import 'navigation_service.dart';
 import 'notification_service.dart';
 
@@ -181,6 +183,13 @@ class RemotePushService {
   static Future<void> _rememberPendingReferralCode(String code) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('pending_referral_code', code);
+    final token = await AccountStorage.getAccessToken();
+    final navigator = NavigationService.navigatorKey.currentState;
+    if (token != null && token.trim().isNotEmpty && navigator != null) {
+      await navigator.push(
+        MaterialPageRoute(builder: (_) => const ReferralDashboardPage()),
+      );
+    }
   }
 
   static Future<void> _ensureFcmPermission() async {
