@@ -32,6 +32,8 @@ class AccountStorage {
   static const _kProfileEditBlockedUntil = 'profile_edit_blocked_until';
   static const _kDismissDeactivatedPrompt = 'dismiss_deactivated_prompt';
   static const _kSubscriptionRequired = 'subscription_required';
+  static const _kPostPurchaseIntroPending = 'post_purchase_intro_pending';
+  static const _kPostPurchaseIntroSeen = 'post_purchase_intro_seen';
   static const _kCoachMembershipActive = 'coach_membership_active';
   static const _kCoachMembershipVerifiedAt = 'coach_membership_verified_at';
   static const _kCoachMembershipExpiresAt = 'coach_membership_expires_at';
@@ -63,6 +65,10 @@ class AccountStorage {
   static String _subscriptionRequiredKey(int? userId) => userId == null
       ? _kSubscriptionRequired
       : "${_kSubscriptionRequired}_u$userId";
+  static String _postPurchaseIntroPendingKey(int userId) =>
+      "${_kPostPurchaseIntroPending}_u$userId";
+  static String _postPurchaseIntroSeenKey(int userId) =>
+      "${_kPostPurchaseIntroSeen}_u$userId";
   static String _coachMembershipActiveKey(int? userId) => userId == null
       ? _kCoachMembershipActive
       : "${_kCoachMembershipActive}_u$userId";
@@ -444,6 +450,33 @@ class AccountStorage {
     return sp.getBool(_subscriptionRequiredKey(sp.getInt(_kUserId))) ?? false;
   }
 
+  /// Queues the feature introduction after this account's first verified
+  /// store purchase. Restores and already-active subscriptions do not call
+  /// this method, so returning users are not shown new-user onboarding again.
+  static Future<void> schedulePostPurchaseIntro() async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    if (userId == null || userId <= 0) return;
+    if (sp.getBool(_postPurchaseIntroSeenKey(userId)) == true) return;
+    await sp.setBool(_postPurchaseIntroPendingKey(userId), true);
+  }
+
+  static Future<bool> shouldShowPostPurchaseIntro() async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    if (userId == null || userId <= 0) return false;
+    return sp.getBool(_postPurchaseIntroPendingKey(userId)) == true &&
+        sp.getBool(_postPurchaseIntroSeenKey(userId)) != true;
+  }
+
+  static Future<void> completePostPurchaseIntro() async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    if (userId == null || userId <= 0) return;
+    await sp.setBool(_postPurchaseIntroSeenKey(userId), true);
+    await sp.remove(_postPurchaseIntroPendingKey(userId));
+  }
+
   static Future<void> setCoachMembershipActive(
     bool active, {
     DateTime? expiresAt,
@@ -806,6 +839,8 @@ class AccountStorage {
       await sp.remove(_profileEditBlockedUntilKey(currentUserId));
       await sp.remove(_dismissDeactivatedPromptKey(currentUserId));
       await sp.remove(_subscriptionRequiredKey(currentUserId));
+      await sp.remove(_postPurchaseIntroPendingKey(currentUserId));
+      await sp.remove(_postPurchaseIntroSeenKey(currentUserId));
       await sp.remove(_coachMembershipActiveKey(currentUserId));
       await sp.remove(_coachMembershipVerifiedAtKey(currentUserId));
       await sp.remove(_coachMembershipExpiresAtKey(currentUserId));

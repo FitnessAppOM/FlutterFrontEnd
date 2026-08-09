@@ -18,14 +18,16 @@ import '../screens/expert_dashboard_page.dart';
 import '../TaqaUI/components/taqa_bottom_nav_bar.dart';
 import '../TaqaUI/components/taqa_value_dialog.dart';
 import '../TaqaUI/screens/taqa_subscription_page.dart';
-import '../auth/coach_application_status_page.dart';
+import '../TaqaUI/screens/taqa_post_purchase_intro_page.dart';
 import '../services/purchases/apple_billing_service.dart';
+import '../services/purchases/taqa_subscription_catalog.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({
     super.key,
     this.initialIndex = _dashboardTab,
     this.autoOpenExpertDashboard = false,
+    this.initialSubscriptionRequired,
   });
 
   static const int _dietTab = 0;
@@ -49,6 +51,10 @@ class MainLayout extends StatefulWidget {
   /// shows when a user manually taps the Coach tab in the bottom nav.
   final bool autoOpenExpertDashboard;
 
+  /// Server-verified access state supplied by the cold-start bootstrap. When
+  /// present, the first layout avoids repeating the entitlement request.
+  final bool? initialSubscriptionRequired;
+
   @override
   State<MainLayout> createState() => _MainLayoutState();
 }
@@ -59,6 +65,7 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
   bool _subscriptionGateChecked = false;
   bool _subscriptionGateInProgress = false;
   bool _accessGatesResolved = false;
+  bool _postPurchaseIntroInProgress = false;
 
   final GlobalKey<DashboardPageState> _dashboardKey =
       GlobalKey<DashboardPageState>();
@@ -98,12 +105,32 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
     await _enforceAccessGates();
     if (!mounted) return;
     setState(() => _accessGatesResolved = true);
+    await _showPostPurchaseIntroIfNeeded();
+    if (!mounted) return;
     if (_index == MainLayout._coachTab) {
       unawaited(_openCoach(autoOpen: widget.autoOpenExpertDashboard));
     }
     NavigationService.setNotificationNavigationReady(true);
     NavigationService.flushPendingNotificationNavigation();
     ScreeningPromptService.checkAndPromptIfDue();
+  }
+
+  Future<void> _showPostPurchaseIntroIfNeeded() async {
+    if (_postPurchaseIntroInProgress) return;
+    final shouldShow = await AccountStorage.shouldShowPostPurchaseIntro();
+    if (!shouldShow || !mounted) return;
+
+    _postPurchaseIntroInProgress = true;
+    try {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => const TaqaPostPurchaseIntroPage(),
+        ),
+      );
+    } finally {
+      _postPurchaseIntroInProgress = false;
+    }
   }
 
   Future<void> _enforceAccessGates() async {
@@ -120,11 +147,14 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
     _subscriptionGateInProgress = true;
 
     try {
-      var subscriptionRequired = await AccountStorage.isSubscriptionRequired();
-      final completedOnboarding =
-          await AccountStorage.isQuestionnaireDone() ||
-          await AccountStorage.isExpertQuestionnaireDone();
-      if (completedOnboarding) {
+      var subscriptionRequired =
+          widget.initialSubscriptionRequired ??
+          await AccountStorage.isSubscriptionRequired();
+      if (force || widget.initialSubscriptionRequired == null) {
+        final completedOnboarding =
+            await AccountStorage.isQuestionnaireDone() ||
+            await AccountStorage.isExpertQuestionnaireDone();
+        if (!completedOnboarding) return;
         try {
           final normalEntitlement = await AppleBillingService.fetchEntitlement(
             'app_full',
@@ -274,35 +304,19 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
       unawaited(_refreshExpertStatusInBackground());
     }
 
-    if (applicationStatus != 'approved' || !hasActiveCoachMembership) {
-      setState(() {
-        _pages[MainLayout._coachTab] = CoachModuleGate(
-          initialStatus: applicationStatus,
-          onCoachMembershipReady: () => _openCoach(autoOpen: true),
-        );
-        _index = MainLayout._coachTab;
-      });
-      return;
-    }
-
-    if (!isExpert) {
-      // The status cache may have been refreshed before the expert flag. The
-      // tab gate will refresh it again rather than exposing coach tools.
-      setState(() {
-        _pages[MainLayout._coachTab] = CoachModuleGate(
-          initialStatus: applicationStatus,
-          onCoachMembershipReady: () => _openCoach(autoOpen: true),
-        );
-        _index = MainLayout._coachTab;
-      });
+    final isVerifiedCoach = isExpert && applicationStatus == 'approved';
+    if (!isVerifiedCoach) {
+      _showClientCoachPage();
       return;
     }
 
     if (autoOpen) {
-      setState(() {
-        _pages[MainLayout._coachTab] = const ExpertDashboardPage();
-        _index = MainLayout._coachTab;
-      });
+      if (hasActiveCoachMembership) {
+        _showExpertDashboard();
+      } else {
+        _showClientCoachPage();
+        await _openCoachMembershipPaywall();
+      }
       return;
     }
 
@@ -325,12 +339,54 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
     );
 
     if (!mounted || choice == null) return;
+    if (choice == 'client') {
+      _showClientCoachPage();
+      return;
+    }
+    if (hasActiveCoachMembership) {
+      _showExpertDashboard();
+      return;
+    }
+
+    // Keep the client-facing module underneath the purchase route so closing
+    // the paywall returns to a usable Coach tab instead of the previous tab.
+    _showClientCoachPage();
+    await _openCoachMembershipPaywall();
+  }
+
+  void _showClientCoachPage() {
+    if (!mounted) return;
     setState(() {
-      _pages[MainLayout._coachTab] = choice == 'expert'
-          ? const ExpertDashboardPage()
-          : const CoachPage(showBottomNavigation: false);
+      _pages[MainLayout._coachTab] = const CoachPage(
+        showBottomNavigation: false,
+      );
       _index = MainLayout._coachTab;
     });
+  }
+
+  void _showExpertDashboard() {
+    if (!mounted) return;
+    setState(() {
+      _pages[MainLayout._coachTab] = const ExpertDashboardPage();
+      _index = MainLayout._coachTab;
+    });
+  }
+
+  Future<void> _openCoachMembershipPaywall() async {
+    if (!mounted) return;
+    final subscribed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => const TaqaSubscriptionPage(
+          mandatory: true,
+          coachMembership: true,
+          plans: TaqaSubscriptionCatalog.coachPlans,
+          allowPlanTypeSwitch: false,
+          allowBackNavigation: true,
+        ),
+      ),
+    );
+    if (!mounted || subscribed != true) return;
+    _showExpertDashboard();
   }
 
   Widget _buildBottomNav() {

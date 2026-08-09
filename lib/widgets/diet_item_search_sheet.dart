@@ -59,6 +59,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
   int _offset = 0;
   bool _hasMore = true;
   bool _loadingMore = false;
+
   /// Increments on every fresh search so stale in-flight pages are discarded.
   int _searchToken = 0;
 
@@ -265,7 +266,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
     if (!mounted || grams == null || grams <= 0) return;
 
     Map<String, dynamic>? daySummary;
-    await _runLogAction(() async {
+    final logged = await _runLogAction(() async {
       final response = await DietService.addItemFromFoodsMaster(
         userId: widget.userId,
         mealId: widget.mealId,
@@ -278,7 +279,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
           : null;
     }, successToast: t.translate("diet_item_added"));
 
-    if (!mounted) return;
+    if (!mounted || !logged) return;
     _finishAndClose(daySummary);
   }
 
@@ -301,7 +302,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
     if (!mounted || servings == null || servings <= 0) return;
 
     Map<String, dynamic>? daySummary;
-    await _runLogAction(() async {
+    final logged = await _runLogAction(() async {
       final response = await DietService.addItemFromFoodsMasterServing(
         userId: widget.userId,
         mealId: widget.mealId,
@@ -314,7 +315,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
           : null;
     }, successToast: t.translate("diet_item_added"));
 
-    if (!mounted) return;
+    if (!mounted || !logged) return;
     _finishAndClose(daySummary);
   }
 
@@ -431,8 +432,9 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                           style: TextStyle(
                             fontFamily: TaqaUiFontFamilies.interTight,
                             fontSize: TaqaUiScale.sp(12),
-                            color: TaqaUiColors.unnamedColor1c1d17
-                                .withValues(alpha: 0.55),
+                            color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                              alpha: 0.55,
+                            ),
                           ),
                         ),
                       ),
@@ -472,7 +474,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
     required double Function(double input) factor,
   }) async {
     final t = AppLocalizations.of(context);
-    final ctrl = TextEditingController(text: initial);
+    var currentValue = initial;
     final dark = TaqaUiColors.unnamedColor1c1d17;
 
     final result = await showModalBottomSheet<double>(
@@ -485,7 +487,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) {
           final val =
-              double.tryParse(ctrl.text.trim().replaceAll(',', '.')) ?? 0;
+              double.tryParse(currentValue.trim().replaceAll(',', '.')) ?? 0;
           final f = val > 0 ? factor(val) : 0.0;
           int r(double x) => (!x.isFinite || x < 0) ? 0 : x.round();
           final kcal = r(baseKcal * f);
@@ -494,7 +496,9 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
           final fat = r(baseF * f);
 
           return Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.viewInsetsOf(ctx).bottom,
+            ),
             child: SafeArea(
               child: Padding(
                 padding: TaqaUiScale.insetsLTRB(16, 16, 16, 16),
@@ -515,13 +519,16 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                     Row(
                       children: [
                         Expanded(
-                          child: TextField(
-                            controller: ctrl,
+                          child: TextFormField(
+                            initialValue: initial,
                             autofocus: true,
                             keyboardType: const TextInputType.numberWithOptions(
                               decimal: true,
                             ),
-                            onChanged: (_) => setSheet(() {}),
+                            onChanged: (value) {
+                              currentValue = value;
+                              setSheet(() {});
+                            },
                             style: TextStyle(
                               fontFamily: TaqaUiFontFamilies.interTight,
                               fontSize: TaqaUiScale.sp(20),
@@ -530,8 +537,12 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                             ),
                             decoration: InputDecoration(
                               isDense: true,
-                              contentPadding:
-                                  TaqaUiScale.insetsLTRB(14, 12, 14, 12),
+                              contentPadding: TaqaUiScale.insetsLTRB(
+                                14,
+                                12,
+                                14,
+                                12,
+                              ),
                               filled: true,
                               fillColor: dark.withValues(alpha: 0.04),
                               enabledBorder: OutlineInputBorder(
@@ -581,9 +592,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                         padding: TaqaUiScale.insetsLTRB(16, 14, 16, 14),
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: val > 0
-                              ? dark
-                              : dark.withValues(alpha: 0.25),
+                          color: val > 0 ? dark : dark.withValues(alpha: 0.25),
                           borderRadius: TaqaUiScale.radius(14),
                         ),
                         child: Text(
@@ -605,8 +614,6 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
         },
       ),
     );
-
-    ctrl.dispose();
     return result;
   }
 
@@ -625,7 +632,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
     if (qty < 1) return;
 
     Map<String, dynamic>? daySummary;
-    await _runLogAction(() async {
+    final logged = await _runLogAction(() async {
       final response = await DietService.addItemFromRestaurants(
         userId: widget.userId,
         mealId: widget.mealId,
@@ -638,7 +645,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
           : null;
     }, successToast: t.translate("diet_item_added"));
 
-    if (!mounted) return;
+    if (!mounted || !logged) return;
     final onLogged = widget.onLogged;
     final summary = daySummary;
     setState(() => _isPopping = true);
@@ -723,8 +730,9 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
 
       double? grams;
       if (isServing) {
-        final unit =
-            (chosen['serving_size_unit'] ?? '').toString().toLowerCase();
+        final unit = (chosen['serving_size_unit'] ?? '')
+            .toString()
+            .toLowerCase();
         final ssq = _numOf(chosen['serving_size_qty']);
         grams = (unit == 'g' || unit == 'gram' || unit == 'grams') && ssq > 0
             ? ssq * amount
@@ -774,7 +782,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
     });
   }
 
-  Future<void> _runLogAction(
+  Future<bool> _runLogAction(
     Future<void> Function() action, {
     required String successToast,
   }) async {
@@ -782,7 +790,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
     setState(() => _loading = true);
     try {
       await action();
-      if (!mounted) return;
+      if (!mounted) return false;
       if (widget.rootContext.mounted) {
         AppToast.show(
           widget.rootContext,
@@ -790,8 +798,9 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
           type: AppToastType.success,
         );
       }
+      return true;
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) return false;
       if (widget.rootContext.mounted) {
         AppToast.show(
           widget.rootContext,
@@ -799,7 +808,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
           type: AppToastType.error,
         );
       }
-      rethrow;
+      return false;
     } finally {
       if (mounted) setState(() => _loading = false);
     }

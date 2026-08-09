@@ -10,35 +10,12 @@ import '../localization/app_localizations.dart';
 /// regenerates a plan (training, diet, or a combined update). Used after
 /// sign-up questionnaire completion and after profile edits that trigger
 /// regeneration.
-class TaqaBoltLoadingScreen extends StatefulWidget {
+class TaqaBoltLoadingScreen extends StatelessWidget {
   const TaqaBoltLoadingScreen({super.key, required this.note});
 
   final String note;
 
   static const Color background = Color(0xFF050505);
-
-  @override
-  State<TaqaBoltLoadingScreen> createState() => _TaqaBoltLoadingScreenState();
-}
-
-class _TaqaBoltLoadingScreenState extends State<TaqaBoltLoadingScreen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 5),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,23 +59,7 @@ class _TaqaBoltLoadingScreenState extends State<TaqaBoltLoadingScreen>
                   ),
                 ),
                 SizedBox(height: TaqaUiScale.h(28)),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final w = constraints.maxWidth * 0.6;
-                    return SizedBox(
-                      width: w,
-                      child: AspectRatio(
-                        aspectRatio: 749 / 1012,
-                        child: AnimatedBuilder(
-                          animation: _controller,
-                          builder: (_, _) => CustomPaint(
-                            painter: _BoltPainter(_controller.value),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                const TaqaBoltLoadingAnimation(),
                 SizedBox(height: TaqaUiScale.h(16)),
                 Text(
                   t.translate("generating_waiting_hint"),
@@ -111,7 +72,7 @@ class _TaqaBoltLoadingScreenState extends State<TaqaBoltLoadingScreen>
                 ),
                 SizedBox(height: TaqaUiScale.h(10)),
                 Text(
-                  widget.note,
+                  note,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontFamily: TaqaUiFontFamilies.interTight,
@@ -126,6 +87,110 @@ class _TaqaBoltLoadingScreenState extends State<TaqaBoltLoadingScreen>
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The animated Taqa bolt used by plan generation and short app loading gates.
+class TaqaBoltLoadingAnimation extends StatefulWidget {
+  const TaqaBoltLoadingAnimation({
+    super.key,
+    this.widthFactor = 0.6,
+    this.collapseAndExpand = false,
+  });
+
+  final double widthFactor;
+  final bool collapseAndExpand;
+
+  @override
+  State<TaqaBoltLoadingAnimation> createState() =>
+      _TaqaBoltLoadingAnimationState();
+}
+
+class _TaqaBoltLoadingAnimationState extends State<TaqaBoltLoadingAnimation>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _paintProgress;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: widget.collapseAndExpand
+          ? const Duration(milliseconds: 1800)
+          : const Duration(seconds: 5),
+    );
+    if (widget.collapseAndExpand) {
+      _paintProgress = Tween<double>(begin: 0.85, end: 0).animate(
+        CurvedAnimation(
+          parent: _controller,
+          curve: Curves.easeInOutCubic,
+          reverseCurve: Curves.easeInOutCubic,
+        ),
+      );
+      _controller.repeat(reverse: true);
+    } else {
+      _paintProgress = _controller;
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth * widget.widthFactor;
+        return SizedBox(
+          width: width,
+          child: AspectRatio(
+            aspectRatio: 749 / 1012,
+            child: RepaintBoundary(
+              child: CustomPaint(painter: _BoltPainter(_paintProgress)),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class TaqaAppLaunchLoader extends StatelessWidget {
+  const TaqaAppLaunchLoader({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text.rich(
+          TextSpan(
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(26),
+              fontWeight: FontWeight.w700,
+              height: 1,
+              color: const Color(0xFFF2F2F2),
+            ),
+            children: const [
+              TextSpan(
+                text: 'Taqa',
+                style: TextStyle(color: Color(0xFFE4E93B)),
+              ),
+              TextSpan(text: ' Fitness'),
+            ],
+          ),
+          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: TaqaUiScale.h(28)),
+        const TaqaBoltLoadingAnimation(collapseAndExpand: true),
+      ],
     );
   }
 }
@@ -352,10 +417,7 @@ class _BoltSegment {
     }
     if (t < shrinkStart) return 1;
     if (t < shrinkEnd) {
-      final f = ((t - shrinkStart) / (shrinkEnd - shrinkStart)).clamp(
-        0.0,
-        1.0,
-      );
+      final f = ((t - shrinkStart) / (shrinkEnd - shrinkStart)).clamp(0.0, 1.0);
       return 1 - Curves.easeOut.transform(f);
     }
     return 0;
@@ -363,38 +425,239 @@ class _BoltSegment {
 }
 
 const List<_BoltSegment> _boltSegments = [
-  _BoltSegment(y: 984, h: 26, radius: 13.0, staticX: 188.5, staticW: 26, activeX: 181, activeW: 41, growStart: 0.00000, growEnd: 0.20000),
-  _BoltSegment(y: 932, h: 27, radius: 13.5, staticX: 217.5, staticW: 27, activeX: 200, activeW: 62, growStart: 0.03158, growEnd: 0.23158),
-  _BoltSegment(y: 881, h: 27, radius: 13.5, staticX: 247.0, staticW: 27, activeX: 218, activeW: 85, growStart: 0.06316, growEnd: 0.26316),
-  _BoltSegment(y: 829, h: 27, radius: 13.5, staticX: 277.0, staticW: 27, activeX: 237, activeW: 107, growStart: 0.09474, growEnd: 0.29474),
-  _BoltSegment(y: 778, h: 27, radius: 13.5, staticX: 306.0, staticW: 27, activeX: 255, activeW: 129, growStart: 0.12632, growEnd: 0.32632),
-  _BoltSegment(y: 726, h: 27, radius: 13.5, staticX: 336.0, staticW: 27, activeX: 274, activeW: 151, growStart: 0.15789, growEnd: 0.35789),
-  _BoltSegment(y: 674, h: 28, radius: 14.0, staticX: 365.0, staticW: 28, activeX: 292, activeW: 174, growStart: 0.18947, growEnd: 0.38947),
-  _BoltSegment(y: 623, h: 27, radius: 13.5, staticX: 395.5, staticW: 27, activeX: 311, activeW: 196, growStart: 0.22105, growEnd: 0.42105),
-  _BoltSegment(y: 571, h: 27, radius: 13.5, staticX: 296.5, staticW: 27, activeX: 73, activeW: 474, growStart: 0.25263, growEnd: 0.45263),
-  _BoltSegment(y: 520, h: 27, radius: 13.5, staticX: 337.0, staticW: 27, activeX: 113, activeW: 475, growStart: 0.28421, growEnd: 0.48421),
-  _BoltSegment(y: 468, h: 27, radius: 13.5, staticX: 378.0, staticW: 27, activeX: 154, activeW: 475, growStart: 0.31579, growEnd: 0.51579),
-  _BoltSegment(y: 417, h: 27, radius: 13.5, staticX: 418.5, staticW: 27, activeX: 195, activeW: 474, growStart: 0.34737, growEnd: 0.54737),
-  _BoltSegment(y: 365, h: 27, radius: 13.5, staticX: 319.5, staticW: 27, activeX: 235, activeW: 196, growStart: 0.37895, growEnd: 0.57895),
-  _BoltSegment(y: 313, h: 28, radius: 14.0, staticX: 349.0, staticW: 28, activeX: 276, activeW: 174, growStart: 0.41053, growEnd: 0.61053),
-  _BoltSegment(y: 262, h: 27, radius: 13.5, staticX: 379.0, staticW: 27, activeX: 317, activeW: 151, growStart: 0.44211, growEnd: 0.64211),
-  _BoltSegment(y: 210, h: 27, radius: 13.5, staticX: 409.0, staticW: 27, activeX: 358, activeW: 129, growStart: 0.47368, growEnd: 0.67368),
-  _BoltSegment(y: 159, h: 27, radius: 13.5, staticX: 438.0, staticW: 27, activeX: 398, activeW: 107, growStart: 0.50526, growEnd: 0.70526),
-  _BoltSegment(y: 107, h: 27, radius: 13.5, staticX: 468.0, staticW: 27, activeX: 439, activeW: 85, growStart: 0.53684, growEnd: 0.73684),
-  _BoltSegment(y: 56, h: 27, radius: 13.5, staticX: 498.0, staticW: 27, activeX: 480, activeW: 63, growStart: 0.56842, growEnd: 0.76842),
-  _BoltSegment(y: 4, h: 27, radius: 13.5, staticX: 527.0, staticW: 27, activeX: 520, activeW: 41, growStart: 0.60000, growEnd: 0.80000),
+  _BoltSegment(
+    y: 984,
+    h: 26,
+    radius: 13.0,
+    staticX: 188.5,
+    staticW: 26,
+    activeX: 181,
+    activeW: 41,
+    growStart: 0.00000,
+    growEnd: 0.20000,
+  ),
+  _BoltSegment(
+    y: 932,
+    h: 27,
+    radius: 13.5,
+    staticX: 217.5,
+    staticW: 27,
+    activeX: 200,
+    activeW: 62,
+    growStart: 0.03158,
+    growEnd: 0.23158,
+  ),
+  _BoltSegment(
+    y: 881,
+    h: 27,
+    radius: 13.5,
+    staticX: 247.0,
+    staticW: 27,
+    activeX: 218,
+    activeW: 85,
+    growStart: 0.06316,
+    growEnd: 0.26316,
+  ),
+  _BoltSegment(
+    y: 829,
+    h: 27,
+    radius: 13.5,
+    staticX: 277.0,
+    staticW: 27,
+    activeX: 237,
+    activeW: 107,
+    growStart: 0.09474,
+    growEnd: 0.29474,
+  ),
+  _BoltSegment(
+    y: 778,
+    h: 27,
+    radius: 13.5,
+    staticX: 306.0,
+    staticW: 27,
+    activeX: 255,
+    activeW: 129,
+    growStart: 0.12632,
+    growEnd: 0.32632,
+  ),
+  _BoltSegment(
+    y: 726,
+    h: 27,
+    radius: 13.5,
+    staticX: 336.0,
+    staticW: 27,
+    activeX: 274,
+    activeW: 151,
+    growStart: 0.15789,
+    growEnd: 0.35789,
+  ),
+  _BoltSegment(
+    y: 674,
+    h: 28,
+    radius: 14.0,
+    staticX: 365.0,
+    staticW: 28,
+    activeX: 292,
+    activeW: 174,
+    growStart: 0.18947,
+    growEnd: 0.38947,
+  ),
+  _BoltSegment(
+    y: 623,
+    h: 27,
+    radius: 13.5,
+    staticX: 395.5,
+    staticW: 27,
+    activeX: 311,
+    activeW: 196,
+    growStart: 0.22105,
+    growEnd: 0.42105,
+  ),
+  _BoltSegment(
+    y: 571,
+    h: 27,
+    radius: 13.5,
+    staticX: 296.5,
+    staticW: 27,
+    activeX: 73,
+    activeW: 474,
+    growStart: 0.25263,
+    growEnd: 0.45263,
+  ),
+  _BoltSegment(
+    y: 520,
+    h: 27,
+    radius: 13.5,
+    staticX: 337.0,
+    staticW: 27,
+    activeX: 113,
+    activeW: 475,
+    growStart: 0.28421,
+    growEnd: 0.48421,
+  ),
+  _BoltSegment(
+    y: 468,
+    h: 27,
+    radius: 13.5,
+    staticX: 378.0,
+    staticW: 27,
+    activeX: 154,
+    activeW: 475,
+    growStart: 0.31579,
+    growEnd: 0.51579,
+  ),
+  _BoltSegment(
+    y: 417,
+    h: 27,
+    radius: 13.5,
+    staticX: 418.5,
+    staticW: 27,
+    activeX: 195,
+    activeW: 474,
+    growStart: 0.34737,
+    growEnd: 0.54737,
+  ),
+  _BoltSegment(
+    y: 365,
+    h: 27,
+    radius: 13.5,
+    staticX: 319.5,
+    staticW: 27,
+    activeX: 235,
+    activeW: 196,
+    growStart: 0.37895,
+    growEnd: 0.57895,
+  ),
+  _BoltSegment(
+    y: 313,
+    h: 28,
+    radius: 14.0,
+    staticX: 349.0,
+    staticW: 28,
+    activeX: 276,
+    activeW: 174,
+    growStart: 0.41053,
+    growEnd: 0.61053,
+  ),
+  _BoltSegment(
+    y: 262,
+    h: 27,
+    radius: 13.5,
+    staticX: 379.0,
+    staticW: 27,
+    activeX: 317,
+    activeW: 151,
+    growStart: 0.44211,
+    growEnd: 0.64211,
+  ),
+  _BoltSegment(
+    y: 210,
+    h: 27,
+    radius: 13.5,
+    staticX: 409.0,
+    staticW: 27,
+    activeX: 358,
+    activeW: 129,
+    growStart: 0.47368,
+    growEnd: 0.67368,
+  ),
+  _BoltSegment(
+    y: 159,
+    h: 27,
+    radius: 13.5,
+    staticX: 438.0,
+    staticW: 27,
+    activeX: 398,
+    activeW: 107,
+    growStart: 0.50526,
+    growEnd: 0.70526,
+  ),
+  _BoltSegment(
+    y: 107,
+    h: 27,
+    radius: 13.5,
+    staticX: 468.0,
+    staticW: 27,
+    activeX: 439,
+    activeW: 85,
+    growStart: 0.53684,
+    growEnd: 0.73684,
+  ),
+  _BoltSegment(
+    y: 56,
+    h: 27,
+    radius: 13.5,
+    staticX: 498.0,
+    staticW: 27,
+    activeX: 480,
+    activeW: 63,
+    growStart: 0.56842,
+    growEnd: 0.76842,
+  ),
+  _BoltSegment(
+    y: 4,
+    h: 27,
+    radius: 13.5,
+    staticX: 527.0,
+    staticW: 27,
+    activeX: 520,
+    activeW: 41,
+    growStart: 0.60000,
+    growEnd: 0.80000,
+  ),
 ];
 
 class _BoltPainter extends CustomPainter {
-  _BoltPainter(this.t);
+  _BoltPainter(this.animation) : super(repaint: animation);
 
-  final double t;
+  final Animation<double> animation;
 
   static const Color _gray = Color(0xFF3A3A3A);
   static const Color _lime = Color(0xFFE4E93B);
 
   @override
   void paint(Canvas canvas, Size size) {
+    final t = animation.value;
     final sx = size.width / 749.0;
     final sy = size.height / 1012.0;
     final paint = Paint()..style = PaintingStyle.fill;
@@ -417,5 +680,5 @@ class _BoltPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _BoltPainter oldDelegate) =>
-      oldDelegate.t != t;
+      oldDelegate.animation != animation;
 }

@@ -109,9 +109,8 @@ class FitbitVitalsDetailPage extends StatelessWidget {
                         color: const Color(0xFFE84C4F),
                         details: const {},
                         detailLabels: const {},
-                        valueDisplay: summary?.ecgSummary == null
-                            ? null
-                            : _fmtEcg(summary!.ecgSummary!, summary!.ecgAvgHr),
+                        valueDisplay: summary?.ecgAvgHr?.toString() ?? "--",
+                        unit: summary?.ecgAvgHr == null ? null : "bpm",
                       ),
                     ],
                   ),
@@ -131,10 +130,5 @@ class FitbitVitalsDetailPage extends StatelessWidget {
   String _fmtTemp(double v) {
     final sign = v >= 0 ? "+" : "";
     return "$sign${v.toStringAsFixed(1)}°C";
-  }
-
-  String _fmtEcg(String summary, int? avgHr) {
-    if (avgHr == null) return summary;
-    return "$summary • $avgHr bpm";
   }
 }

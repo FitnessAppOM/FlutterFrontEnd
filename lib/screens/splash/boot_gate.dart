@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 import '../../auth/expert_questionnaire.dart';
@@ -13,16 +15,13 @@ import '../../main/main_layout.dart';
 import '../../screens/daily_journal.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/core/navigation_service.dart';
-import '../../theme/app_theme.dart';
+import '../../services/purchases/apple_billing_service.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
+import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../localization/app_localizations.dart';
+import '../../widgets/taqa_bolt_loading_screen.dart';
+import '../account_restore_page.dart';
 import '../welcome.dart';
-
-class _CheckUserResult {
-  final int? userId;
-  final bool offline;
-  const _CheckUserResult({this.userId, this.offline = false});
-}
 
 class BootGate extends StatefulWidget {
   const BootGate({super.key});
@@ -41,47 +40,10 @@ class _BootGateState extends State<BootGate> {
     _boot();
   }
 
-  Future<_CheckUserResult> _checkSessionBackend(int userId) async {
-    try {
-      final url = Uri.parse(
-        "${ApiConfig.baseUrl}/profile/$userId/account-status",
-      );
-      final headers = await AccountStorage.getAuthHeaders();
-      final res = await http.get(url, headers: headers).timeout(_checkTimeout);
-      if (res.statusCode != 200) return const _CheckUserResult();
-      return _CheckUserResult(userId: userId);
-    } on SocketException {
-      return const _CheckUserResult(offline: true);
-    } on TimeoutException {
-      return const _CheckUserResult(offline: true);
-    } on http.ClientException {
-      return const _CheckUserResult(offline: true);
-    } catch (_) {
-      return const _CheckUserResult();
-    }
-  }
-
-  bool _hasQuestionnaireData(Map<String, dynamic> profile) {
-    const keys = [
-      "age",
-      "fitness_goal",
-      "training_days",
-      "diet_type",
-      "height_cm",
-      "weight_kg",
-      "sex",
-    ];
-    return keys.any((k) {
-      final v = profile[k];
-      if (v == null) return false;
-      final s = v.toString().trim();
-      return s.isNotEmpty && s != "null";
-    });
-  }
-
-  Future<void> _navigatePostAuth({required int userId}) async {
-    final lang = localeController.locale.languageCode;
-    final profile = await ProfileApi.fetchProfile(userId, lang: lang);
+  Future<void> _navigatePostAuth({
+    required Map<String, dynamic> profile,
+    required bool subscriptionRequired,
+  }) async {
     final serverDone = profile["filled_user_questionnaire"] == true;
     final expertQuestionnaireDone =
         profile["filled_expert_questionnaire"] == true;
@@ -92,15 +54,20 @@ class _BootGateState extends State<BootGate> {
         .trim()
         .toLowerCase();
     final hasData =
-        expertQuestionnaireDone || serverDone || _hasQuestionnaireData(profile);
-    await AccountStorage.setQuestionnaireDone(serverDone);
-    await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
-    await AccountStorage.setIsExpert(isCoachAccount);
-    await AccountStorage.setCoachApplicationStatus(
-      expertQuestionnaireDone
-          ? (applicationStatus.isEmpty ? 'pending' : applicationStatus)
-          : null,
-    );
+        expertQuestionnaireDone ||
+        serverDone ||
+        profile['has_questionnaire_data'] == true;
+    await Future.wait<void>([
+      AccountStorage.setQuestionnaireDone(serverDone),
+      AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone),
+      AccountStorage.setIsExpert(isCoachAccount),
+      AccountStorage.setCoachApplicationStatus(
+        expertQuestionnaireDone
+            ? (applicationStatus.isEmpty ? 'pending' : applicationStatus)
+            : null,
+      ),
+      AccountStorage.setSubscriptionRequired(subscriptionRequired),
+    ]);
     if (!mounted) return;
     if (NavigationService.isOnJournalPage) {
       return;
@@ -113,29 +80,42 @@ class _BootGateState extends State<BootGate> {
       if (expertAiPending) {
         NavigationService.consumeExpertAiUpdatesNotification();
       }
-      final directNotificationTarget =
-          await NavigationService.consumeDirectNotificationTarget();
-      final target =
-          directNotificationTarget ??
-          (NavigationService.journalNotificationPending
-              ? const DailyJournalPage()
-              : (NavigationService.dietNotificationPending
-                    ? const MainLayout(initialIndex: 0)
-                    : (expertAiPending
+      final directNotificationTarget = subscriptionRequired
+          ? null
+          : await NavigationService.consumeDirectNotificationTarget(
+              initialSubscriptionRequired: false,
+            );
+      if (!mounted) return;
+      final target = subscriptionRequired
+          ? const MainLayout(initialSubscriptionRequired: true)
+          : directNotificationTarget ??
+                (NavigationService.journalNotificationPending
+                    ? const DailyJournalPage()
+                    : (NavigationService.dietNotificationPending
                           ? const MainLayout(
-                              initialIndex: MainLayout.coachTabIndex,
-                              autoOpenExpertDashboard: true,
+                              initialIndex: 0,
+                              initialSubscriptionRequired: false,
                             )
-                          : const MainLayout())));
+                          : (expertAiPending
+                                ? const MainLayout(
+                                    initialIndex: MainLayout.coachTabIndex,
+                                    autoOpenExpertDashboard: true,
+                                    initialSubscriptionRequired: false,
+                                  )
+                                : const MainLayout(
+                                    initialSubscriptionRequired: false,
+                                  ))));
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => target),
         (route) => false,
       );
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        NavigationService.setNotificationNavigationReady(true);
-        NavigationService.flushPendingNotificationNavigation();
-      });
+      if (target is! MainLayout) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          NavigationService.setNotificationNavigationReady(true);
+          NavigationService.flushPendingNotificationNavigation();
+        });
+      }
     } else {
       Navigator.pushAndRemoveUntil(
         context,
@@ -150,10 +130,15 @@ class _BootGateState extends State<BootGate> {
   }
 
   Future<void> _navigateOfflineMain() async {
+    final cachedSubscriptionRequired =
+        await AccountStorage.isSubscriptionRequired();
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => const MainLayout()),
+      MaterialPageRoute(
+        builder: (_) =>
+            MainLayout(initialSubscriptionRequired: cachedSubscriptionRequired),
+      ),
       (route) => false,
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -170,40 +155,120 @@ class _BootGateState extends State<BootGate> {
     });
   }
 
+  Future<StartupBootstrapSnapshot> _fetchStartup(int userId) async {
+    try {
+      return await AppleBillingService.fetchStartupBootstrap();
+    } on AppleBillingException catch (error) {
+      if (error.statusCode != 404) rethrow;
+      return _fetchLegacyStartup(userId);
+    }
+  }
+
+  Future<StartupBootstrapSnapshot> _fetchLegacyStartup(int userId) async {
+    final accountResponse = await http.get(
+      Uri.parse('${ApiConfig.baseUrl}/profile/$userId/account-status'),
+      headers: await AccountStorage.getAuthHeaders(),
+    );
+    if (accountResponse.statusCode != 200) {
+      await AccountStorage.handleAuthStatus(
+        accountResponse.statusCode,
+        responseBody: accountResponse.body,
+      );
+      throw AppleBillingException(
+        'Your account could not be checked.',
+        statusCode: accountResponse.statusCode,
+      );
+    }
+    var account = <String, dynamic>{};
+    try {
+      final decoded = jsonDecode(accountResponse.body);
+      if (decoded is Map) account = Map<String, dynamic>.from(decoded);
+    } catch (_) {}
+    if (account['status']?.toString().trim().toLowerCase() == 'deactivated') {
+      return StartupBootstrapSnapshot(
+        account: account,
+        profile: const <String, dynamic>{},
+        subscriptionRequired: false,
+      );
+    }
+
+    final profile = await ProfileApi.fetchProfile(
+      userId,
+      lang: localeController.locale.languageCode,
+    );
+    final normalEntitlement = await AppleBillingService.fetchEntitlement(
+      'app_full',
+    );
+    final coachEntitlement = normalEntitlement.active
+        ? null
+        : await AppleBillingService.fetchEntitlement('coach_tools');
+    final completedOnboarding =
+        profile['filled_user_questionnaire'] == true ||
+        profile['filled_expert_questionnaire'] == true;
+    return StartupBootstrapSnapshot(
+      account: account,
+      profile: profile,
+      subscriptionRequired:
+          completedOnboarding &&
+          !normalEntitlement.active &&
+          !(coachEntitlement?.active ?? false),
+    );
+  }
+
   Future<void> _boot() async {
-    final email = await AccountStorage.getEmail();
-    final verified = await AccountStorage.isVerified();
-    final qDone = await AccountStorage.isQuestionnaireDone();
-    final qExpertDone = await AccountStorage.isExpertQuestionnaireDone();
-    final storedUserId = await AccountStorage.getUserId();
-    final token = await AccountStorage.getAccessToken();
+    final stored = await Future.wait<Object?>([
+      AccountStorage.getEmail(),
+      AccountStorage.isVerified(),
+      AccountStorage.getUserId(),
+      AccountStorage.getAccessToken(),
+    ]);
+    final email = stored[0] as String?;
+    final verified = stored[1] as bool;
+    final storedUserId = stored[2] as int?;
+    final token = stored[3] as String?;
     final hasSession =
         storedUserId != null &&
         storedUserId > 0 &&
         token != null &&
         token.trim().isNotEmpty;
 
-    final questionnaireDone = qDone || qExpertDone;
-    if (email != null &&
-        email.isNotEmpty &&
-        verified == true &&
-        questionnaireDone &&
-        hasSession) {
-      final result = await _checkSessionBackend(storedUserId);
-      if (result.offline) {
+    if (email != null && email.isNotEmpty && verified == true && hasSession) {
+      try {
+        final startup = await _fetchStartup(
+          storedUserId,
+        ).timeout(_checkTimeout);
+        if (startup.accountDeactivated) {
+          if (!mounted) return;
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (_) => AccountRestorePage(
+                initialPayload: startup.account,
+                prefilledEmail: email,
+              ),
+            ),
+            (route) => false,
+          );
+          return;
+        }
+        await _navigatePostAuth(
+          profile: startup.profile,
+          subscriptionRequired: startup.subscriptionRequired,
+        );
+        return;
+      } on SocketException {
         await _navigateOfflineMain();
         return;
-      }
-      if (result.userId != null) {
-        try {
-          await _navigatePostAuth(userId: result.userId!);
-          return;
-        } catch (e) {
-          final msg = e.toString().toLowerCase();
-          if (msg.contains('deactivated') || msg.contains('reactivate')) {
-            return;
-          }
-        }
+      } on TimeoutException {
+        await _navigateOfflineMain();
+        return;
+      } on http.ClientException {
+        await _navigateOfflineMain();
+        return;
+      } catch (_) {
+        // Auth handling in the bootstrap service may already have navigated.
+        final remainingToken = await AccountStorage.getAccessToken();
+        if (remainingToken == null || remainingToken.trim().isEmpty) return;
       }
     }
 
@@ -219,9 +284,17 @@ class _BootGateState extends State<BootGate> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: AppColors.black,
-      body: SizedBox.expand(),
+    return Scaffold(
+      backgroundColor: TaqaBoltLoadingScreen.background,
+      body: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light,
+        child: SafeArea(
+          child: Padding(
+            padding: TaqaUiScale.insetsLTRB(24, 24, 24, 24),
+            child: const Center(child: TaqaAppLaunchLoader()),
+          ),
+        ),
+      ),
     );
   }
 }

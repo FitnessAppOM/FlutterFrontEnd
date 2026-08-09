@@ -44,4 +44,22 @@ void main() {
 
     expect(await AccountStorage.isCoachMembershipActive(), isFalse);
   });
+
+  test('queues and completes the post-purchase intro per account', () async {
+    await AccountStorage.schedulePostPurchaseIntro();
+    expect(await AccountStorage.shouldShowPostPurchaseIntro(), isTrue);
+
+    await AccountStorage.completePostPurchaseIntro();
+    expect(await AccountStorage.shouldShowPostPurchaseIntro(), isFalse);
+
+    await AccountStorage.schedulePostPurchaseIntro();
+    expect(await AccountStorage.shouldShowPostPurchaseIntro(), isFalse);
+  });
+
+  test('does not leak a pending intro to another account', () async {
+    await AccountStorage.schedulePostPurchaseIntro();
+
+    SharedPreferences.setMockInitialValues({'user_id': userId + 1});
+    expect(await AccountStorage.shouldShowPostPurchaseIntro(), isFalse);
+  });
 }

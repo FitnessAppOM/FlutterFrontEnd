@@ -816,6 +816,7 @@ class _CoachPageState extends State<CoachPage> {
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       appBar: TaqaPageAppBar(
         title: 'Expert Dashboard',
+        showBackButton: false,
         trailing: IconButton(
           tooltip: 'My Coaches',
           onPressed: _openCoachesSheet,

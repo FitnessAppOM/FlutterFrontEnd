@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../main/main_layout.dart';
 import '../../core/account_storage.dart';
@@ -17,6 +19,7 @@ class NavigationService {
   static bool _expertAiUpdatesNotificationPending = false;
   static bool _trainingPlanChangeNotificationPending = false;
   static bool _notificationNavigationReady = false;
+  static Completer<void> _startupReady = Completer<void>();
   static String? _pendingNotificationType;
   static int? _pendingNotificationSenderUserId;
   static String? _pendingNotificationSenderRole;
@@ -29,8 +32,26 @@ class NavigationService {
       _expertAiUpdatesNotificationPending;
   static bool get notificationNavigationReady => _notificationNavigationReady;
 
+  static Future<void> waitUntilStartupReady({Duration? timeout}) async {
+    if (timeout == null) {
+      await _startupReady.future;
+      return;
+    }
+    try {
+      await _startupReady.future.timeout(timeout);
+    } on TimeoutException {
+      // Optional bounded waits may continue with best-effort background work.
+    }
+  }
+
   static void setNotificationNavigationReady(bool value) {
+    if (!value && _notificationNavigationReady) {
+      _startupReady = Completer<void>();
+    }
     _notificationNavigationReady = value;
+    if (value && !_startupReady.isCompleted) {
+      _startupReady.complete();
+    }
   }
 
   static void markJournalNotificationPending() {
@@ -209,7 +230,9 @@ class NavigationService {
     return false;
   }
 
-  static Future<Widget?> consumeDirectNotificationTarget() async {
+  static Future<Widget?> consumeDirectNotificationTarget({
+    bool? initialSubscriptionRequired,
+  }) async {
     final pendingType = (_pendingNotificationType ?? '').trim();
     if (pendingType.isEmpty) return null;
 
@@ -230,14 +253,23 @@ class NavigationService {
     launchedFromNotificationPayload = false;
 
     if (type == 'coach_application_decision') {
-      return const MainLayout(initialIndex: MainLayout.coachTabIndex);
+      return MainLayout(
+        initialIndex: MainLayout.coachTabIndex,
+        initialSubscriptionRequired: initialSubscriptionRequired,
+      );
     }
     if (type == 'training_plan_change') {
       markTrainingPlanChangeNotificationPending();
-      return const MainLayout(initialIndex: 1);
+      return MainLayout(
+        initialIndex: 1,
+        initialSubscriptionRequired: initialSubscriptionRequired,
+      );
     }
     if (type == 'diet_target_change') {
-      return const MainLayout(initialIndex: 0);
+      return MainLayout(
+        initialIndex: 0,
+        initialSubscriptionRequired: initialSubscriptionRequired,
+      );
     }
     if (type == 'coach_connection_request_decision') {
       return const CoachPage(initialTabIndex: 0);

@@ -224,6 +224,10 @@ Future<void> _bootstrap() async {
         }
       }
 
+      // Keep startup validation uncontended. Network sync and permission work
+      // can begin once the first authenticated route has resolved its gates.
+      await NavigationService.waitUntilStartupReady();
+
       // Keep push listeners initialized, but don't sync token at startup.
       try {
         await timed(
@@ -283,10 +287,7 @@ class _MyAppState extends State<MyApp> {
     localeController.addListener(_handleLocaleChange);
     _lifecycleListener.add(_handleLifecycle);
     AccountStorage.accountChange.addListener(_handleAccountChange);
-    unawaited(_prefetchTrainingHistorySnapshot());
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _maybeRequestAndroidHealthPermission();
-    });
+    unawaited(_runPostStartupWork());
   }
 
   @override
@@ -324,6 +325,11 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _handleAccountChange() {
+    unawaited(_handleAccountChangeAfterStartup());
+  }
+
+  Future<void> _handleAccountChangeAfterStartup() async {
+    await NavigationService.waitUntilStartupReady();
     NotificationService.refreshDailyJournalRemindersForCurrentUser();
     NotificationService.refreshExpertAiUpdatesReminderForCurrentUser();
     DailyProviderPushService().pushIfAfterOneAmLocal().catchError((_) {});
@@ -332,6 +338,13 @@ class _MyAppState extends State<MyApp> {
         .catchError((_) {});
     _maybeRequestAndroidHealthPermission();
     unawaited(_prefetchTrainingHistorySnapshot(force: true));
+  }
+
+  Future<void> _runPostStartupWork() async {
+    await NavigationService.waitUntilStartupReady();
+    if (!mounted) return;
+    unawaited(_prefetchTrainingHistorySnapshot());
+    unawaited(_maybeRequestAndroidHealthPermission());
   }
 
   Future<void> _prefetchTrainingHistorySnapshot({bool force = false}) async {

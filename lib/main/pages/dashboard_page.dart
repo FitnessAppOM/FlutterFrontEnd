@@ -677,7 +677,10 @@ class DashboardPageState extends State<DashboardPage>
   }
 
   Future<void> _showUpdateAndReleaseNotes() async {
+    if (await AccountStorage.shouldShowPostPurchaseIntro()) return;
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
     await ReleaseNotesNotice.showIfNeeded(context);
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
     await _maybeShowDailyJournalPrompt();
   }
 

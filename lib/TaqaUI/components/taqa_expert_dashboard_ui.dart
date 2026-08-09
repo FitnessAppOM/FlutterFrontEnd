@@ -9,12 +9,12 @@ class TaqaDashboardPageHeader extends StatelessWidget {
   const TaqaDashboardPageHeader({
     super.key,
     required this.title,
-    required this.onBack,
+    this.onBack,
     this.trailing,
   });
 
   final String title;
-  final VoidCallback onBack;
+  final VoidCallback? onBack;
   final Widget? trailing;
 
   @override
@@ -38,19 +38,20 @@ class TaqaDashboardPageHeader extends StatelessWidget {
               color: TaqaUiColors.charcoal,
             ),
           ),
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: IconButton(
-              onPressed: onBack,
-              icon: Icon(
-                Directionality.of(context) == TextDirection.rtl
-                    ? Icons.arrow_forward_ios
-                    : Icons.arrow_back_ios_new,
-                size: TaqaUiScale.w(18),
-                color: TaqaUiColors.charcoal,
+          if (onBack != null)
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: IconButton(
+                onPressed: onBack,
+                icon: Icon(
+                  Directionality.of(context) == TextDirection.rtl
+                      ? Icons.arrow_forward_ios
+                      : Icons.arrow_back_ios_new,
+                  size: TaqaUiScale.w(18),
+                  color: TaqaUiColors.charcoal,
+                ),
               ),
             ),
-          ),
           if (trailing != null)
             Align(alignment: AlignmentDirectional.centerEnd, child: trailing!),
         ],

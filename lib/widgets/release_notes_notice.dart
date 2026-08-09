@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../localization/app_localizations.dart';
+
 class ReleaseNotesNotice {
   static const String _prefsKey = 'release_notes_shown_version';
 
@@ -32,6 +34,8 @@ class ReleaseNotesDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 24),
@@ -54,7 +58,7 @@ class ReleaseNotesDialog extends StatelessWidget {
               child: Column(
                 children: [
                   Text(
-                    'What’s New',
+                    l10n.translate('release_notes_title'),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 24,
@@ -64,7 +68,9 @@ class ReleaseNotesDialog extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Version $version',
+                    l10n
+                        .translate('release_notes_version')
+                        .replaceAll('{version}', version),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 13,
@@ -76,21 +82,25 @@ class ReleaseNotesDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 18),
-            const Text(
-              'What Changed',
-              style: TextStyle(
+            Text(
+              l10n.translate('release_notes_changes'),
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
                 color: Color(0xFF1C1D17),
               ),
             ),
             const SizedBox(height: 8),
-            const _ReleaseNoteItem(text: 'Security updates.'),
-            const _ReleaseNoteItem(text: 'Bugs and fixes.'),
-            const _ReleaseNoteItem(text: 'Expert module UI done.'),
+            _ReleaseNoteItem(
+              text: l10n.translate('release_notes_subscription_testing'),
+            ),
+            _ReleaseNoteItem(text: l10n.translate('release_notes_carousel')),
+            _ReleaseNoteItem(
+              text: l10n.translate('release_notes_general_updates'),
+            ),
             const SizedBox(height: 18),
             Align(
-              alignment: Alignment.centerRight,
+              alignment: AlignmentDirectional.centerEnd,
               child: SizedBox(
                 width: 132,
                 height: 46,
@@ -104,9 +114,12 @@ class ReleaseNotesDialog extends StatelessWidget {
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  child: const Text(
-                    'GOT IT',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                  child: Text(
+                    l10n.translate('release_notes_got_it'),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),

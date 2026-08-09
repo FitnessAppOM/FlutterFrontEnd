@@ -8,10 +8,14 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_android/billing_client_wrappers.dart'
     show ReplacementMode;
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
+import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
+import 'package:in_app_purchase_storekit/store_kit_2_wrappers.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../auth/email_verification_page.dart';
 import '../../core/account_storage.dart';
+import '../../core/user_friendly_error.dart';
+import '../../localization/app_localizations.dart';
 import '../../screens/welcome.dart';
 import '../../services/core/notification_service.dart';
 import '../../services/auth/profile_service.dart';
@@ -28,6 +32,8 @@ import '../components/taqa_toast.dart';
 import '../components/taqa_value_dialog.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
+
+enum _SubscriptionAccountAction { freeze, delete, logout }
 
 /// Taqa Fitness subscriptions purchased through the App Store / StoreKit.
 class TaqaSubscriptionPage extends StatefulWidget {
@@ -80,6 +86,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   bool _storeAvailable = false;
   bool _purchasePending = false;
   bool _restoring = false;
+  bool _accountActionInProgress = false;
   String? _checkoutProductId;
   bool _restoreRequested = false;
   bool _mandatoryRouteFinished = false;
@@ -353,7 +360,12 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
           return;
         }
         if (widget.mandatory && mounted) {
-          await _finishMandatorySubscription(purchase: purchase);
+          await _finishMandatorySubscription(
+            purchase: purchase,
+            scheduleIntro:
+                purchase.status == PurchaseStatus.purchased &&
+                !_lastActivationChangePending,
+          );
           return;
         }
       }
@@ -425,6 +437,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
               signedTransaction:
                   purchase.verificationData.serverVerificationData,
               entitlementCode: entitlementCode,
+              reactivateAutoRenew: purchase.status == PurchaseStatus.purchased,
               referralClaimToken: widget.referralClaimToken,
             );
       if (!entitlement.active) return false;
@@ -471,9 +484,15 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     }
   }
 
-  Future<void> _finishMandatorySubscription({PurchaseDetails? purchase}) async {
+  Future<void> _finishMandatorySubscription({
+    PurchaseDetails? purchase,
+    bool scheduleIntro = false,
+  }) async {
     if (_mandatoryRouteFinished) return;
     _mandatoryRouteFinished = true;
+    if (scheduleIntro) {
+      await AccountStorage.schedulePostPurchaseIntro();
+    }
     await AccountStorage.setSubscriptionRequired(false);
     if (purchase?.pendingCompletePurchase == true) {
       unawaited(_completePurchaseInBackground(purchase!));
@@ -608,6 +627,28 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       _setMessage(error.message);
     } catch (error) {
       final startError = _purchaseStartErrorMessage(error);
+      if (error is PlatformException &&
+          error.code == 'storekit_duplicate_product_object' &&
+          await _recoverUnfinishedAppleTransaction(product.id)) {
+        if (!mounted) return;
+        final active = await _performSubscriptionActivation();
+        if (!mounted) return;
+        if (active && widget.mandatory) {
+          await _finishMandatorySubscription(scheduleIntro: true);
+          return;
+        }
+        setState(() {
+          _purchasePending = false;
+          _checkoutProductId = null;
+        });
+        _setMessage(
+          active
+              ? 'Your subscription is active and linked.'
+              : 'Apple finished the previous purchase attempt. Tap Subscribe again to continue.',
+          type: AppToastType.info,
+        );
+        return;
+      }
       if (await _resumeExistingMandatorySubscription()) return;
       await _restorePurchases(automatic: true, emptyResultMessage: startError);
       if (_restoring || _mandatoryRouteFinished) return;
@@ -617,6 +658,46 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         _checkoutProductId = null;
       });
       _setMessage(startError);
+    }
+  }
+
+  Future<bool> _recoverUnfinishedAppleTransaction(String productId) async {
+    if (!Platform.isIOS || !InAppPurchaseStoreKitPlatform.isStoreKit2Enabled) {
+      return false;
+    }
+
+    try {
+      final unfinished = await SK2Transaction.unfinishedTransactions();
+      var recovered = false;
+      for (final transaction in unfinished) {
+        if (transaction.productId != productId) continue;
+
+        final signedTransaction = transaction.receiptData?.trim() ?? '';
+        if (signedTransaction.isNotEmpty) {
+          try {
+            await AppleBillingService.verifyPurchase(
+              productId: productId,
+              signedTransaction: signedTransaction,
+              entitlementCode: _coachMembership ? 'coach_tools' : 'app_full',
+              reactivateAutoRenew: true,
+              referralClaimToken: widget.referralClaimToken,
+            );
+          } catch (_) {
+            // A transaction linked to another Taqa account must still be
+            // finished locally so it cannot block this Apple ID forever.
+            // Finishing does not grant an entitlement; the backend remains
+            // the authority for account ownership.
+          }
+        }
+
+        final transactionId = int.tryParse(transaction.id);
+        if (transactionId == null) continue;
+        await SK2Transaction.finish(transactionId);
+        recovered = true;
+      }
+      return recovered;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -768,6 +849,9 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
 
   String _purchaseStartErrorMessage(Object error) {
     if (error is PlatformException) {
+      if (error.code == 'storekit_duplicate_product_object') {
+        return 'Apple is finishing a previous purchase attempt. Wait a moment, then try again.';
+      }
       final message = error.message?.trim() ?? '';
       if (message.isNotEmpty) return message;
       if (error.code.trim().isNotEmpty) {
@@ -891,10 +975,12 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
           offer.basePlanId != offering.basePlanId) {
         continue;
       }
-      final matchesReferral = widget.googleReferralOfferTag != null &&
+      final matchesReferral =
+          widget.googleReferralOfferTag != null &&
           offer.offerTags.contains(widget.googleReferralOfferTag);
       if (widget.googleReferralOfferTag != null && !matchesReferral) continue;
-      final matchesDefault = offering.defaultOfferTag != null &&
+      final matchesDefault =
+          offering.defaultOfferTag != null &&
           offer.offerTags.contains(offering.defaultOfferTag);
       final isPlainBasePlan = offer.offerId == null;
       final score = matchesReferral
@@ -1032,6 +1118,100 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     if (!opened) _setMessage('This legal page could not be opened.');
   }
 
+  Future<void> _showAccountActions() async {
+    if (_accountActionInProgress || _purchasePending || _restoring) return;
+    final t = AppLocalizations.of(context);
+    final action = await showTaqaOptionDialog<_SubscriptionAccountAction>(
+      context: context,
+      title: t.translate('subscription_account_actions_title'),
+      cancelLabel: t.translate('cancel'),
+      options: [
+        TaqaDialogOption(
+          value: _SubscriptionAccountAction.freeze,
+          title: t.translate('subscription_freeze_account'),
+          subtitle: t.translate('subscription_freeze_account_sub'),
+        ),
+        TaqaDialogOption(
+          value: _SubscriptionAccountAction.delete,
+          title: t.translate('settings_delete_account'),
+          subtitle: t.translate('settings_delete_account_sub'),
+        ),
+        TaqaDialogOption(
+          value: _SubscriptionAccountAction.logout,
+          title: t.translate('subscription_sign_out'),
+          subtitle: t.translate('subscription_sign_out_sub'),
+        ),
+      ],
+    );
+    if (!mounted || action == null) return;
+    if (action == _SubscriptionAccountAction.logout) {
+      await _logout();
+      return;
+    }
+    await _confirmAccountAction(action);
+  }
+
+  Future<void> _confirmAccountAction(_SubscriptionAccountAction action) async {
+    if (_accountActionInProgress) return;
+    final t = AppLocalizations.of(context);
+    final freeze = action == _SubscriptionAccountAction.freeze;
+    final confirmed = await showTaqaConfirmDialog(
+      context: context,
+      title: freeze
+          ? t.translate('subscription_freeze_account')
+          : t.translate('settings_delete_account'),
+      message: freeze
+          ? t.translate('settings_deactivate_account_confirm_body')
+          : t.translate('settings_delete_account_confirm_body'),
+      cancelLabel: t.translate('cancel'),
+      confirmLabel: freeze
+          ? t.translate('subscription_freeze_account')
+          : t.translate('settings_delete_account_confirm_yes'),
+    );
+    if (!confirmed || !mounted) return;
+
+    final userId = await AccountStorage.getUserId();
+    if (!mounted) return;
+    if (userId == null || userId <= 0) {
+      _showToast(t.translate('user_missing'));
+      return;
+    }
+
+    setState(() => _accountActionInProgress = true);
+    try {
+      final result = freeze
+          ? await ProfileApi.deactivateAccount(userId)
+          : await ProfileApi.deleteAccount(userId);
+      if (!freeze) await AccountStorage.clear();
+      await NotificationService.refreshDailyJournalRemindersForCurrentUser();
+      if (!mounted) return;
+
+      final serverMessage = result['message']?.toString().trim() ?? '';
+      _showToast(
+        serverMessage.isNotEmpty
+            ? serverMessage
+            : freeze
+            ? t.translate('settings_deactivate_account_success')
+            : t.translate('settings_delete_account_success'),
+        type: AppToastType.success,
+      );
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const WelcomePage(fromLogout: true)),
+        (route) => false,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      _showToast(
+        userFriendlyErrorMessage(
+          error,
+          fallback: t.translate('subscription_account_action_failed'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _accountActionInProgress = false);
+    }
+  }
+
   Future<void> _logout() async {
     await AccountStorage.logoutSession();
     if (!mounted) return;
@@ -1044,6 +1224,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final selectedProduct = _selectedProductId == null
         ? null
         : _products[_selectedProductId];
@@ -1055,9 +1236,11 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         _storeAvailable &&
         !_loading &&
         !_purchasePending &&
-        !_restoring;
+        !_restoring &&
+        !_accountActionInProgress;
     final canChoosePlan = !_loading && availablePlans.isNotEmpty;
-    final operationInProgress = _purchasePending || _restoring;
+    final operationInProgress =
+        _purchasePending || _restoring || _accountActionInProgress;
 
     return PopScope(
       canPop: !widget.mandatory || widget.allowBackNavigation,
@@ -1067,10 +1250,16 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
           title: 'Subscriptions',
           showBackButton: !widget.mandatory || widget.allowBackNavigation,
           trailing: IconButton(
-            tooltip: 'Sign out',
-            onPressed: _logout,
-            icon: const Icon(
-              Icons.logout_rounded,
+            tooltip: widget.mandatory
+                ? t.translate('subscription_account_actions_title')
+                : t.translate('subscription_sign_out'),
+            onPressed: operationInProgress
+                ? null
+                : widget.mandatory
+                ? _showAccountActions
+                : _logout,
+            icon: Icon(
+              widget.mandatory ? Icons.more_vert_rounded : Icons.logout_rounded,
               color: TaqaUiColors.unnamedColor1c1d17,
             ),
           ),

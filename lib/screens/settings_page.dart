@@ -36,6 +36,7 @@ import '../screens/welcome.dart';
 import '../screens/account_restore_page.dart';
 import '../TaqaUI/components/taqa_value_dialog.dart';
 import '../TaqaUI/screens/taqa_subscription_page.dart';
+import '../TaqaUI/screens/taqa_post_purchase_intro_page.dart';
 import '../TaqaUI/components/taqa_steps_ui.dart' show TaqaRangeTab;
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
@@ -381,9 +382,7 @@ class _SettingsPageState extends State<SettingsPage>
     final date = _currentPlanEndDate()!;
     final key = plan.autoRenew == false
         ? 'settings_plan_ends_on'
-        : plan.autoRenew == true
-        ? 'settings_plan_renews_on'
-        : 'settings_plan_active_until';
+        : 'settings_plan_renews_on';
     return t.translate(key).replaceAll('{date}', date);
   }
 
@@ -1531,9 +1530,7 @@ class _SettingsPageState extends State<SettingsPage>
                         ? _currentPlanSubtitle(t)
                         : '${_currentPlanName(t)} · ${_currentPlanSubtitle(t)}',
                     onTap: _currentPlanLoadFailed ? _loadCurrentPlan : null,
-                    footer:
-                        _currentPlan?.active == true &&
-                            _currentPlan?.autoRenew != null
+                    footer: _currentPlan?.active == true
                         ? _RenewalControl(
                             label: t.translate('settings_auto_renewal'),
                             status: t.translate(
@@ -1811,6 +1808,16 @@ class _SettingsPageState extends State<SettingsPage>
                   SizedBox(height: TaqaUiScale.h(24)),
                   _sectionTitle(t.translate("settings_support")),
                   SizedBox(height: TaqaUiScale.h(12)),
+                  _SettingsTile(
+                    title: t.translate('settings_taqa_tutorial'),
+                    subtitle: t.translate('settings_taqa_tutorial_sub'),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        fullscreenDialog: true,
+                        builder: (_) => const TaqaPostPurchaseIntroPage(),
+                      ),
+                    ),
+                  ),
                   _SettingsTile(
                     title: t.translate("settings_contact"),
                     subtitle: t.translate("settings_contact_sub"),

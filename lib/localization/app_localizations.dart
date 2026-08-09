@@ -19,6 +19,7 @@ class AppLocalizations {
       'login_as': 'Log in as',
       'new_to_taqa': 'New to Taqa Fitness? ',
       'signup': 'Sign up',
+      'cancel': 'Cancel',
 
       'verification_title': 'Verify Email',
       'verification_sent': 'A verification code has been sent to:',
@@ -379,6 +380,47 @@ class AppLocalizations {
       "next": "Next",
       "finish": "Finish",
       "common_continue": "Continue",
+      "post_purchase_intro_skip": "Skip",
+      "post_purchase_intro_done": "Start using Taqa",
+      "post_purchase_intro_1_title": "Welcome to your Taqa",
+      "post_purchase_intro_1_body":
+          "Your training, nutrition, recovery and daily progress—together in one dashboard.",
+      "post_purchase_intro_2_title": "Make it yours",
+      "post_purchase_intro_2_body":
+          "Choose the dashboard widgets that matter most and arrange your day around your goals.",
+      "post_purchase_intro_3_title": "See progress at a glance",
+      "post_purchase_intro_3_body":
+          "Follow training, nutrition, steps, sleep, hydration and calories from one place.",
+      "post_purchase_intro_4_title": "Know your daily Taqa",
+      "post_purchase_intro_4_body":
+          "Turn recovery, sleep, stress and training load into a clear daily readiness score.",
+      "post_purchase_intro_5_title": "Follow your training plan",
+      "post_purchase_intro_5_body":
+          "Open each training day and follow the exercises, sets and reps prepared for you.",
+      "post_purchase_intro_6_title": "Own every set",
+      "post_purchase_intro_6_body":
+          "Log weight, reps and effort while Taqa keeps your rest and session progress organized.",
+      "post_purchase_intro_7_title": "Take cardio outside",
+      "post_purchase_intro_7_body":
+          "Track outdoor routes, distance, pace, time and steps while you move.",
+      "post_purchase_intro_8_title": "Share the win",
+      "post_purchase_intro_8_body":
+          "Create a clean activity card, save it to Photos or share it on Instagram.",
+      "post_purchase_intro_9_title": "Stay on top of nutrition",
+      "post_purchase_intro_9_body":
+          "See daily calorie and macro targets, then log meals as your day unfolds.",
+      "post_purchase_intro_10_title": "Turn recovery into action",
+      "post_purchase_intro_10_body":
+          "Bring Whoop recovery, HRV, resting heart rate and trends into your Taqa plan.",
+      "post_purchase_intro_11_title": "Understand your sleep",
+      "post_purchase_intro_11_body":
+          "Review sleep duration, efficiency, stages, disturbances and cycles in detail.",
+      "post_purchase_intro_12_title": "Keep daily activity visible",
+      "post_purchase_intro_12_body":
+          "Follow steps, distance, calories, floors and active minutes from connected data.",
+      "post_purchase_intro_13_title": "Connect the full picture",
+      "post_purchase_intro_13_body":
+          "Use Fitbit health metrics alongside training, nutrition and recovery for richer insights.",
       "generating_waiting_hint": "This may take a few seconds.",
       "generating_error_title": "Taking longer than usual",
       "generating_error_body":
@@ -867,6 +909,14 @@ class AppLocalizations {
       "expert_dash_sec_workflow_body":
           "Manage feedback queue, training plans, and nutrition schedule updates.",
       "settings_delete_account": "Delete account",
+      "subscription_account_actions_title": "Account options",
+      "subscription_freeze_account": "Freeze account",
+      "subscription_freeze_account_sub":
+          "Temporarily deactivate it for up to 30 days",
+      "subscription_sign_out": "Sign out",
+      "subscription_sign_out_sub": "Return to the welcome screen",
+      "subscription_account_action_failed":
+          "Could not update this account. Please try again.",
       "settings_delete_account_sub":
           "Permanently remove your account immediately",
       "settings_delete_account_confirm_body":
@@ -908,6 +958,15 @@ class AppLocalizations {
       "account_restore_success": "Account restored successfully!",
       "account_restore_failed": "Account restoration failed. Please try again.",
       "settings_support": "Support",
+      "settings_taqa_tutorial": "Taqa Tutorial",
+      "settings_taqa_tutorial_sub": "Replay the app tour and feature guide",
+      "release_notes_title": "What's New",
+      "release_notes_version": "Version {version}",
+      "release_notes_changes": "What Changed",
+      "release_notes_subscription_testing": "Testing subscription plans.",
+      "release_notes_carousel": "New Taqa tutorial carousel.",
+      "release_notes_general_updates": "General fixes and updates.",
+      "release_notes_got_it": "GOT IT",
       "settings_contact": "Contact us",
       "settings_contact_sub": "Reach our support team",
       "settings_contact_body":
@@ -1432,6 +1491,7 @@ class AppLocalizations {
       'login_as': 'تسجيل الدخول باسم',
       'new_to_taqa': 'هل أنت جديد في Taqa Fitness؟ ',
       'signup': 'إنشاء حساب',
+      'cancel': 'إلغاء',
 
       'verification_title': 'تأكيد البريد الإلكتروني',
       'verification_sent': 'تم إرسال رمز التحقق إلى:',
@@ -1787,6 +1847,47 @@ class AppLocalizations {
       "next": "التالي",
       "finish": "إنهاء",
       "common_continue": "متابعة",
+      "post_purchase_intro_skip": "تخطي",
+      "post_purchase_intro_done": "ابدأ باستخدام Taqa",
+      "post_purchase_intro_1_title": "مرحباً بك في Taqa",
+      "post_purchase_intro_1_body":
+          "تمارينك وتغذيتك واستشفاؤك وتقدمك اليومي معاً في لوحة واحدة.",
+      "post_purchase_intro_2_title": "اجعلها تناسبك",
+      "post_purchase_intro_2_body":
+          "اختر عناصر لوحة التحكم الأهم لك ونظّم يومك حول أهدافك.",
+      "post_purchase_intro_3_title": "تابع تقدمك بسرعة",
+      "post_purchase_intro_3_body":
+          "راقب التدريب والتغذية والخطوات والنوم والماء والسعرات من مكان واحد.",
+      "post_purchase_intro_4_title": "اعرف Taqa اليومية",
+      "post_purchase_intro_4_body":
+          "حوّل الاستشفاء والنوم والضغط والحمل التدريبي إلى درجة جاهزية واضحة.",
+      "post_purchase_intro_5_title": "اتبع خطتك التدريبية",
+      "post_purchase_intro_5_body":
+          "افتح كل يوم تدريبي واتبع التمارين والمجموعات والتكرارات المعدّة لك.",
+      "post_purchase_intro_6_title": "سجّل كل مجموعة",
+      "post_purchase_intro_6_body":
+          "سجّل الوزن والتكرارات والجهد ودع Taqa ينظّم الراحة وتقدم الجلسة.",
+      "post_purchase_intro_7_title": "خذ الكارديو إلى الخارج",
+      "post_purchase_intro_7_body":
+          "تتبّع المسار والمسافة والسرعة والوقت والخطوات أثناء الحركة.",
+      "post_purchase_intro_8_title": "شارك إنجازك",
+      "post_purchase_intro_8_body":
+          "أنشئ بطاقة نشاط واحفظها في الصور أو شاركها على Instagram.",
+      "post_purchase_intro_9_title": "نظّم تغذيتك",
+      "post_purchase_intro_9_body":
+          "راجع أهداف السعرات والماكرو اليومية وسجّل وجباتك على مدار اليوم.",
+      "post_purchase_intro_10_title": "حوّل الاستشفاء إلى قرار",
+      "post_purchase_intro_10_body":
+          "أضف بيانات Whoop للاستشفاء وتقلب النبض ونبض الراحة والاتجاهات إلى خطتك.",
+      "post_purchase_intro_11_title": "افهم نومك",
+      "post_purchase_intro_11_body":
+          "راجع مدة النوم وكفاءته ومراحله والانقطاعات والدورات بالتفصيل.",
+      "post_purchase_intro_12_title": "راقب نشاطك اليومي",
+      "post_purchase_intro_12_body":
+          "تابع الخطوات والمسافة والسعرات والطوابق والدقائق النشطة من بياناتك المتصلة.",
+      "post_purchase_intro_13_title": "اربط الصورة الكاملة",
+      "post_purchase_intro_13_body":
+          "استخدم مؤشرات Fitbit الصحية مع التدريب والتغذية والاستشفاء لرؤية أوضح.",
       "generating_waiting_hint": "قد يستغرق الأمر بضع ثوانٍ.",
       "generating_error_title": "الأمر يستغرق وقتاً أطول من المعتاد",
       "generating_error_body":
@@ -2267,6 +2368,14 @@ class AppLocalizations {
       "expert_dash_sec_workflow_body":
           "أدر قائمة الملاحظات وخطط التدريب وتحديثات البرامج الغذائية.",
       "settings_delete_account": "حذف الحساب",
+      "subscription_account_actions_title": "خيارات الحساب",
+      "subscription_freeze_account": "تجميد الحساب",
+      "subscription_freeze_account_sub":
+          "تعطيل الحساب مؤقتاً لمدة تصل إلى 30 يوماً",
+      "subscription_sign_out": "تسجيل الخروج",
+      "subscription_sign_out_sub": "العودة إلى شاشة الترحيب",
+      "subscription_account_action_failed":
+          "تعذر تحديث هذا الحساب. يرجى المحاولة مرة أخرى.",
       "settings_delete_account_sub": "احذف حسابك نهائياً وبشكل فوري",
       "settings_delete_account_confirm_body":
           "هل تريد حذف الحساب نهائياً؟ هذا الإجراء فوري ولا يمكن التراجع عنه.",
@@ -2304,6 +2413,15 @@ class AppLocalizations {
       "account_restore_success": "تم استعادة الحساب بنجاح!",
       "account_restore_failed": "فشل استعادة الحساب. يرجى المحاولة مرة أخرى.",
       "settings_support": "الدعم",
+      "settings_taqa_tutorial": "دليل Taqa",
+      "settings_taqa_tutorial_sub": "أعد مشاهدة جولة التطبيق ودليل الميزات",
+      "release_notes_title": "ما الجديد",
+      "release_notes_version": "الإصدار {version}",
+      "release_notes_changes": "التغييرات",
+      "release_notes_subscription_testing": "اختبار خطط الاشتراك.",
+      "release_notes_carousel": "جولة تعليمية جديدة لتطبيق Taqa.",
+      "release_notes_general_updates": "إصلاحات وتحديثات عامة.",
+      "release_notes_got_it": "فهمت",
       "settings_contact": "اتصل بنا",
       "settings_contact_sub": "تواصل مع فريق الدعم",
       "settings_contact_body":

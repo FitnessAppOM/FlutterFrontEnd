@@ -1472,7 +1472,6 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
             padding: TaqaUiScale.insetsLTRB(16, 12, 20, 0),
             child: TaqaDashboardPageHeader(
               title: 'Coach Dashboard',
-              onBack: () => Navigator.of(context).maybePop(),
               trailing: _buildInboxButton(),
             ),
           ),

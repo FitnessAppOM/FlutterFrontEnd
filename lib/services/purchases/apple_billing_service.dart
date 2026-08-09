@@ -7,9 +7,10 @@ import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
 
 class AppleBillingException implements Exception {
-  const AppleBillingException(this.message);
+  const AppleBillingException(this.message, {this.statusCode});
 
   final String message;
+  final int? statusCode;
 
   @override
   String toString() => message;
@@ -82,6 +83,21 @@ class PendingSubscriptionChange {
   final DateTime effectiveAt;
 }
 
+class StartupBootstrapSnapshot {
+  const StartupBootstrapSnapshot({
+    required this.account,
+    required this.profile,
+    required this.subscriptionRequired,
+  });
+
+  final Map<String, dynamic> account;
+  final Map<String, dynamic> profile;
+  final bool subscriptionRequired;
+
+  bool get accountDeactivated =>
+      account['status']?.toString().trim().toLowerCase() == 'deactivated';
+}
+
 class GoogleBillingOfferings {
   const GoogleBillingOfferings({
     required this.productIds,
@@ -116,6 +132,37 @@ class AppleBillingService {
 
   static const _timeout = Duration(seconds: 12);
 
+  static Future<StartupBootstrapSnapshot> fetchStartupBootstrap() async {
+    final response = await http
+        .get(
+          Uri.parse('${ApiConfig.baseUrl}/billing/startup'),
+          headers: await _headers(),
+        )
+        .timeout(_timeout);
+    final body = _decode(response);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      await AccountStorage.handleAuthStatus(
+        response.statusCode,
+        responseBody: response.body,
+      );
+      throw AppleBillingException(
+        _errorMessage(body),
+        statusCode: response.statusCode,
+      );
+    }
+    final account = body['account'];
+    final profile = body['profile'];
+    return StartupBootstrapSnapshot(
+      account: account is Map
+          ? Map<String, dynamic>.from(account)
+          : <String, dynamic>{},
+      profile: profile is Map
+          ? Map<String, dynamic>.from(profile)
+          : <String, dynamic>{},
+      subscriptionRequired: body['subscription_required'] == true,
+    );
+  }
+
   static Future<String> fetchAccountToken() async {
     final response = await http
         .get(
@@ -140,6 +187,7 @@ class AppleBillingService {
     required String productId,
     required String signedTransaction,
     required String entitlementCode,
+    bool reactivateAutoRenew = false,
     String? referralClaimToken,
   }) async {
     if (signedTransaction.trim().isEmpty) {
@@ -155,6 +203,7 @@ class AppleBillingService {
             'platform': 'ios',
             'product_id': productId,
             'signed_transaction': signedTransaction,
+            'reactivate_auto_renew': reactivateAutoRenew,
             if (referralClaimToken != null)
               'referral_claim_token': referralClaimToken,
           }),
