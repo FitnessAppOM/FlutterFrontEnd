@@ -11,7 +11,6 @@ import 'package:record/record.dart';
 
 import '../services/coach/progression_review_service.dart';
 import '../services/coach/voice_note_audio_service.dart';
-import '../theme/app_theme.dart';
 import '../TaqaUI/components/taqa_date_carousel_switcher.dart';
 import '../TaqaUI/components/taqa_diet_targets_editor.dart';
 import '../TaqaUI/components/taqa_comment_composer_page.dart';
@@ -1221,11 +1220,7 @@ class _ExpertClientDietReviewPageState
         _comments = [created, ..._comments];
       });
       if (!mounted) return;
-      AppToast.show(
-        context,
-        'Diet comment sent.',
-        type: AppToastType.success,
-      );
+      AppToast.show(context, 'Diet comment sent.', type: AppToastType.success);
     } catch (e) {
       if (!mounted) return;
       AppToast.show(
@@ -1302,6 +1297,7 @@ class _ExpertClientDietReviewPageState
         _comments = _comments
             .map((item) => item.commentId == updated.commentId ? updated : item)
             .toList(growable: false);
+        _commentsCache[widget.clientUserId] = _comments;
       });
     } catch (e) {
       if (!mounted) return;
@@ -1631,8 +1627,11 @@ class _ExpertClientDietReviewPageState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ...comments.map(
-          (comment) => Padding(
+        ...comments.map((comment) {
+          final isPinUpdating = _updatingPinnedCommentIds.contains(
+            comment.commentId,
+          );
+          return Padding(
             padding: EdgeInsets.only(bottom: TaqaUiScale.h(8)),
             child: TaqaManagementListCard(
               radius: 15,
@@ -1643,28 +1642,43 @@ class _ExpertClientDietReviewPageState
                 children: [
                   Row(
                     children: [
-                      Text(
-                        'Given Comments',
-                        style: TextStyle(
-                          color: TaqaUiColors.charcoal,
-                          fontFamily: TaqaUiFontFamilies.interTight,
-                          fontSize: TaqaUiScale.sp(15),
-                          fontWeight: FontWeight.w700,
-                          height: 25 / 15,
+                      Expanded(
+                        child: Text(
+                          'Given Comments',
+                          style: TextStyle(
+                            color: TaqaUiColors.charcoal,
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(15),
+                            fontWeight: FontWeight.w700,
+                            height: 25 / 15,
+                          ),
                         ),
                       ),
-                      const Spacer(),
-                      Text(
-                        _formatDateTime(comment.createdAt ?? comment.updatedAt),
-                        style: TextStyle(
-                          color: TaqaUiColors.charcoal,
-                          fontFamily: TaqaUiFontFamilies.interTight,
-                          fontSize: TaqaUiScale.sp(10),
-                          fontWeight: FontWeight.w400,
-                          height: 12 / 10,
-                        ),
+                      TaqaCompactActionButton(
+                        label: comment.isPinned ? 'Unpin' : 'Pin',
+                        icon: comment.isPinned
+                            ? Icons.push_pin
+                            : Icons.push_pin_outlined,
+                        loading: isPinUpdating,
+                        color: comment.isPinned
+                            ? TaqaUiColors.recordRed
+                            : TaqaUiColors.charcoal,
+                        onTap: isPinUpdating
+                            ? null
+                            : () => _toggleCommentPin(comment),
                       ),
                     ],
+                  ),
+                  SizedBox(height: TaqaUiScale.h(4)),
+                  Text(
+                    _formatDateTime(comment.createdAt ?? comment.updatedAt),
+                    style: TextStyle(
+                      color: TaqaUiColors.charcoal.withValues(alpha: 0.55),
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(10),
+                      fontWeight: FontWeight.w400,
+                      height: 12 / 10,
+                    ),
                   ),
                   if (comment.commentText.trim().isNotEmpty) ...[
                     SizedBox(height: TaqaUiScale.h(6)),
@@ -1700,11 +1714,34 @@ class _ExpertClientDietReviewPageState
                       ),
                     ),
                   ],
+                  if (comment.isPinned) ...[
+                    SizedBox(height: TaqaUiScale.h(8)),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.push_pin,
+                          size: TaqaUiScale.w(12),
+                          color: TaqaUiColors.recordRed,
+                        ),
+                        SizedBox(width: TaqaUiScale.w(4)),
+                        Text(
+                          'Pinned for client',
+                          style: TextStyle(
+                            color: TaqaUiColors.recordRed,
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(10),
+                            fontWeight: FontWeight.w700,
+                            height: 12 / 10,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
-          ),
-        ),
+          );
+        }),
       ],
     );
   }

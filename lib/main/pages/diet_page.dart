@@ -29,6 +29,9 @@ import '../../TaqaUI/components/taqa_steps_ui.dart'
     show TaqaTagButton, TaqaRangeTab;
 import '../../TaqaUI/components/taqa_progress_widget_card.dart';
 import '../../TaqaUI/components/taqa_record_dot.dart';
+import '../../TaqaUI/components/taqa_community_option_picker_sheet.dart';
+import '../../TaqaUI/components/taqa_empty_card.dart';
+import '../../TaqaUI/components/taqa_selection_card.dart';
 import '../../core/user_friendly_error.dart';
 
 class DietPage extends StatefulWidget {
@@ -2782,7 +2785,6 @@ class DietPageState extends State<DietPage> {
               if (_modeIndex == 1) ...[
                 const SizedBox(height: 12),
                 _buildTrainingDayPicker(
-                  theme,
                   onChanged: () => _loadMeals(clearExisting: true),
                 ),
               ],
@@ -3554,78 +3556,85 @@ class DietPageState extends State<DietPage> {
     );
   }
 
-  Widget _buildTrainingDayPicker(ThemeData theme, {VoidCallback? onChanged}) {
+  Widget _buildTrainingDayPicker({VoidCallback? onChanged}) {
     final t = AppLocalizations.of(context);
     final days = _trainingDays;
     if (days.isEmpty) {
-      return Text(
-        t.translate("diet_training_day_targets_unavailable"),
-        style: theme.textTheme.bodySmall?.copyWith(color: Colors.white60),
+      return TaqaEmptyCard(
+        title: t.translate("diet_training_day_targets_unavailable"),
+        icon: Icons.event_busy_outlined,
+        minHeight: TaqaUiScale.h(112),
       );
     }
 
-    final items = <DropdownMenuItem<int>>[];
+    final labels = <String>[];
     for (var i = 0; i < days.length; i++) {
       final d = days[i];
       final label = _asString(d["day_label"]);
       final dayId = _asInt(d["day_id"], fallback: i + 1);
-      items.add(
-        DropdownMenuItem(
-          value: i,
-          child: Text(
-            label.isNotEmpty ? label : "${t.translate("diet_day")} $dayId",
-            style: const TextStyle(color: Colors.white),
-          ),
-        ),
+      labels.add(
+        label.isNotEmpty ? label : "${t.translate("diet_day")} $dayId",
       );
     }
+    for (var i = 0; i < labels.length; i++) {
+      if (labels.where((label) => label == labels[i]).length <= 1) continue;
+      final dayId = _asInt(days[i]["day_id"], fallback: i + 1);
+      labels[i] = '${labels[i]} · ${t.translate("diet_day")} $dayId';
+    }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-        ),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<int>(
-          value: _selectedTrainingDayIndex.clamp(0, items.length - 1),
-          items: items,
-          isExpanded: true,
-          dropdownColor: AppColors.cardDark,
-          iconEnabledColor: Colors.white70,
-          onChanged: _trainDayLockedByExercise
-              ? null
-              : (v) async {
-                  if (v == null) return;
-                  setState(() => _selectedTrainingDayIndex = v);
-                  // If user is on training mode, persist calendar mapping for today.
-                  if (_modeIndex == 1) {
-                    try {
-                      final userId = await AccountStorage.getUserId();
-                      if (userId != null) {
-                        final tdId = _asInt(
-                          _selectedTrainingDay?["day_id"],
-                          fallback: 0,
-                        );
-                        await TrainingCalendarService.setDay(
-                          userId: userId,
-                          entryDate: _mealDate,
-                          dayType: 'training',
-                          trainingDayId: tdId > 0 ? tdId : 1,
-                        );
-                      }
-                    } catch (_) {
-                      // ignore
-                    }
-                  }
-                  onChanged?.call();
-                },
-        ),
-      ),
+    final selectedIndex = _selectedTrainingDayIndex.clamp(0, labels.length - 1);
+    final locked = _trainDayLockedByExercise;
+
+    return TaqaSelectionCard(
+      label: t.translate("diet_training_day"),
+      value: labels[selectedIndex],
+      buttonLabel: locked ? 'Locked' : 'Change',
+      onTap: locked
+          ? null
+          : () {
+              showModalBottomSheet<void>(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (sheetContext) => TaqaCommunityOptionPickerSheet(
+                  title: t.translate("diet_training_day"),
+                  options: labels,
+                  selectedValue: labels[selectedIndex],
+                  onSelected: (value) {
+                    final index = labels.indexOf(value);
+                    Navigator.of(sheetContext).pop();
+                    if (index < 0) return;
+                    unawaited(_selectTrainingDay(index, onChanged: onChanged));
+                  },
+                ),
+              );
+            },
     );
+  }
+
+  Future<void> _selectTrainingDay(int index, {VoidCallback? onChanged}) async {
+    if (index < 0 || index >= _trainingDays.length) return;
+    setState(() => _selectedTrainingDayIndex = index);
+    // If user is on training mode, persist calendar mapping for today.
+    if (_modeIndex == 1) {
+      try {
+        final userId = await AccountStorage.getUserId();
+        if (userId != null) {
+          final tdId = _asInt(_selectedTrainingDay?["day_id"], fallback: 0);
+          await TrainingCalendarService.setDay(
+            userId: userId,
+            entryDate: _mealDate,
+            dayType: 'training',
+            trainingDayId: tdId > 0 ? tdId : 1,
+          );
+        }
+      } catch (_) {
+        // Diet can still reload from the selected day if calendar persistence
+        // is temporarily unavailable.
+      }
+    }
+    if (!mounted) return;
+    onChanged?.call();
   }
 
   Widget _buildDaySummaryCard(BuildContext context) {

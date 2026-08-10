@@ -15,6 +15,8 @@ class CoachHabitItem {
   final String habit;
   final String habitType;
   final bool isCompleted;
+  final bool isNew;
+  final DateTime? clientSeenAt;
   final DateTime? addedAt;
   final DateTime? completedAt;
 
@@ -35,6 +37,8 @@ class CoachHabitItem {
     required this.habit,
     required this.habitType,
     required this.isCompleted,
+    this.isNew = false,
+    this.clientSeenAt,
     this.addedAt,
     this.completedAt,
     this.completedDatesThisWeek = const [],
@@ -49,6 +53,8 @@ class CoachHabitItem {
     String? habit,
     String? habitType,
     bool? isCompleted,
+    bool? isNew,
+    DateTime? clientSeenAt,
     DateTime? addedAt,
     DateTime? completedAt,
     bool clearCompletedAt = false,
@@ -63,6 +69,8 @@ class CoachHabitItem {
       habit: habit ?? this.habit,
       habitType: habitType ?? this.habitType,
       isCompleted: isCompleted ?? this.isCompleted,
+      isNew: isNew ?? this.isNew,
+      clientSeenAt: clientSeenAt ?? this.clientSeenAt,
       addedAt: addedAt ?? this.addedAt,
       completedAt: clearCompletedAt ? null : (completedAt ?? this.completedAt),
       completedDatesThisWeek:
@@ -94,8 +102,8 @@ class CoachHabitItem {
       // habit timestamps with an explicit 'Z'; this fallback keeps old
       // responses and cached payloads rendering in the correct timezone via
       // .toLocal() instead of being silently parsed as device-local.
-      final hasTz = raw.endsWith('Z') ||
-          RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(raw);
+      final hasTz =
+          raw.endsWith('Z') || RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(raw);
       return DateTime.tryParse(hasTz ? raw : '${raw}Z');
     }
 
@@ -108,9 +116,9 @@ class CoachHabitItem {
     final rawCompletedDates = json['completed_dates'];
     final completedDates = rawCompletedDates is List
         ? rawCompletedDates
-            .map(parseDateOnly)
-            .whereType<DateTime>()
-            .toList(growable: false)
+              .map(parseDateOnly)
+              .whereType<DateTime>()
+              .toList(growable: false)
         : const <DateTime>[];
 
     return CoachHabitItem(
@@ -118,10 +126,14 @@ class CoachHabitItem {
       expertId: parseInt(json['expert_id']),
       clientId: parseInt(json['client_id']),
       habit: (json['habit'] ?? '').toString(),
-      habitType: ((json['habit_type'] ?? weeklyType).toString().trim().toLowerCase() == dailyType)
+      habitType:
+          ((json['habit_type'] ?? weeklyType).toString().trim().toLowerCase() ==
+              dailyType)
           ? dailyType
           : weeklyType,
       isCompleted: json['is_completed'] == true,
+      isNew: json['is_new'] == true,
+      clientSeenAt: parseDate(json['client_seen_at']),
       addedAt: parseDate(json['added_at']),
       completedAt: parseDate(json['completed_at']),
       completedDatesThisWeek: completedDates,

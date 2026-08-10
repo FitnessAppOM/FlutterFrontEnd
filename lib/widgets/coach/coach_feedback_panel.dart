@@ -15,6 +15,7 @@ import '../../services/coach/voice_note_audio_service.dart';
 import '../../services/core/pdf_open_service.dart';
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/components/taqa_mini_tag.dart';
+import '../../TaqaUI/components/taqa_new_indicator.dart';
 import '../../TaqaUI/components/taqa_refresh_indicator.dart';
 import '../../TaqaUI/components/taqa_value_dialog.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
@@ -583,168 +584,173 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
     return TaqaRefreshIndicator(
       onRefresh: () => Future.wait([_loadHabits(), _loadFeedbackFeed()]),
       child: ListView(
-      padding: TaqaUiScale.insetsLTRB(20, 20, 20, 24),
-      children: [
-        Text(
-          t.translate('coach_tasks_title'),
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: TaqaUiScale.sp(25),
-            fontWeight: FontWeight.w700,
-            height: 25 / 25,
-            letterSpacing: 0,
-            color: TaqaUiColors.unnamedColor1c1d17,
+        padding: TaqaUiScale.insetsLTRB(20, 20, 20, 24),
+        children: [
+          Text(
+            t.translate('coach_tasks_title'),
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(25),
+              fontWeight: FontWeight.w700,
+              height: 25 / 25,
+              letterSpacing: 0,
+              color: TaqaUiColors.unnamedColor1c1d17,
+            ),
           ),
-        ),
-        SizedBox(height: TaqaUiScale.h(5)),
-        Text(
-          t.translate('coach_tasks_subtitle'),
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            fontSize: TaqaUiScale.sp(15),
-            fontWeight: FontWeight.w400,
-            height: 18 / 15,
-            letterSpacing: 0,
-            color: TaqaUiColors.unnamedColor1c1d17,
+          SizedBox(height: TaqaUiScale.h(5)),
+          Text(
+            t.translate('coach_tasks_subtitle'),
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(15),
+              fontWeight: FontWeight.w400,
+              height: 18 / 15,
+              letterSpacing: 0,
+              color: TaqaUiColors.unnamedColor1c1d17,
+            ),
           ),
-        ),
-        SizedBox(height: TaqaUiScale.h(20)),
-        _TaskSectionCard(
-          title: t.translate('coach_tasks_daily_habits'),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (_loadingHabits)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Center(
-                    child: SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: TaqaUiColors.lime,
+          SizedBox(height: TaqaUiScale.h(20)),
+          _TaskSectionCard(
+            title: t.translate('coach_tasks_daily_habits'),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_loadingHabits)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Center(
+                      child: SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: TaqaUiColors.lime,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              if (!_loadingHabits && _habitsError != null)
-                _InlineInfo(
-                  icon: Icons.info_outline,
-                  label:
-                      '${t.translate('coach_habits_load_failed')}: $_habitsError',
-                ),
-              if (!_loadingHabits && _habitsError == null && _habits.isEmpty)
-                _InlineInfo(
-                  icon: Icons.inbox_outlined,
-                  label: t.translate('coach_habits_empty'),
-                ),
-              if (!_loadingHabits && _habitsError == null)
-                ..._habits.map(
-                  (habit) => _HabitRow(
-                    habit: habit,
-                    isUpdating: _updatingHabitIds.contains(habit.id),
-                    onTap: () => _toggleHabit(habit),
+                if (!_loadingHabits && _habitsError != null)
+                  _InlineInfo(
+                    icon: Icons.info_outline,
+                    label:
+                        '${t.translate('coach_habits_load_failed')}: $_habitsError',
+                  ),
+                if (!_loadingHabits && _habitsError == null && _habits.isEmpty)
+                  _InlineInfo(
+                    icon: Icons.inbox_outlined,
+                    label: t.translate('coach_habits_empty'),
+                  ),
+                if (!_loadingHabits && _habitsError == null)
+                  ..._habits.map(
+                    (habit) => _HabitRow(
+                      habit: habit,
+                      isUpdating: _updatingHabitIds.contains(habit.id),
+                      onTap: () => _toggleHabit(habit),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          SizedBox(height: TaqaUiScale.h(14)),
+          _TaskSectionCard(
+            title: t.translate('coach_tasks_pinned_corrections'),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (pinnedCorrections.isEmpty)
+                  const _InlineInfo(
+                    icon: Icons.push_pin_outlined,
+                    label: 'No pinned replies yet.',
+                  ),
+                ...pinnedCorrections.map(
+                  (correction) => _PinnedCorrectionRow(
+                    correction: correction,
+                    isVoiceLoading: _isVoiceNoteLoading(
+                      correction.voiceNoteUrl,
+                    ),
+                    isVoicePlaying: _isVoiceNotePlaying(
+                      correction.voiceNoteUrl,
+                    ),
+                    onVoiceToggle: correction.isVoiceNote
+                        ? () =>
+                              _toggleVoiceNotePlayback(correction.voiceNoteUrl)
+                        : null,
+                    onOpenDocument: correction.isDocument
+                        ? () => _openDocument(
+                            correction.documentUrl,
+                            suggestedFileName: correction.documentFileName,
+                          )
+                        : null,
                   ),
                 ),
-            ],
+              ],
+            ),
           ),
-        ),
-        SizedBox(height: TaqaUiScale.h(14)),
-        _TaskSectionCard(
-          title: t.translate('coach_tasks_pinned_corrections'),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (pinnedCorrections.isEmpty)
-                const _InlineInfo(
-                  icon: Icons.push_pin_outlined,
-                  label: 'No pinned replies yet.',
-                ),
-              ...pinnedCorrections.map(
-                (correction) => _PinnedCorrectionRow(
-                  correction: correction,
-                  isVoiceLoading: _isVoiceNoteLoading(correction.voiceNoteUrl),
-                  isVoicePlaying: _isVoiceNotePlaying(correction.voiceNoteUrl),
-                  onVoiceToggle: correction.isVoiceNote
-                      ? () => _toggleVoiceNotePlayback(correction.voiceNoteUrl)
-                      : null,
-                  onOpenDocument: correction.isDocument
-                      ? () => _openDocument(
-                          correction.documentUrl,
-                          suggestedFileName: correction.documentFileName,
-                        )
-                      : null,
-                ),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(height: TaqaUiScale.h(14)),
-        _TaskSectionCard(
-          title: t.translate('coach_feedback_feed_title'),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (_loadingFeedback)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Center(
-                    child: SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: TaqaUiColors.lime,
+          SizedBox(height: TaqaUiScale.h(14)),
+          _TaskSectionCard(
+            title: t.translate('coach_feedback_feed_title'),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_loadingFeedback)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Center(
+                      child: SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: TaqaUiColors.lime,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              if (!_loadingFeedback && _feedbackError != null)
-                _InlineInfo(
-                  icon: Icons.info_outline,
-                  label:
-                      '${t.translate('coach_habits_load_failed')}: $_feedbackError',
-                ),
-              if (!_loadingFeedback &&
-                  _feedbackError == null &&
-                  nonPinnedFeedbackEntries.isEmpty)
-                const _InlineInfo(
-                  icon: Icons.chat_bubble_outline,
-                  label: 'No coach replies yet.',
-                ),
-              if (!_loadingFeedback && _feedbackError == null)
-                ...nonPinnedFeedbackEntries.map(
-                  (entry) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: _FeedbackEntryCard(
-                      dateLabel: _formatFeedDate(entry.timestamp),
-                      workoutLabel: entry.workoutLabel,
-                      message: entry.message,
-                      isVoiceNote: entry.isVoiceNote,
-                      isDocument: entry.isDocument,
-                      hasNutritionNote: entry.hasNutritionNote,
-                      hasVideoNote: entry.hasVideoNote,
-                      isPinned: entry.isPinned,
-                      isNew: entry.isNew,
-                      isVoiceLoading: _isVoiceNoteLoading(entry.voiceNoteUrl),
-                      isVoicePlaying: _isVoiceNotePlaying(entry.voiceNoteUrl),
-                      onVoiceToggle: entry.isVoiceNote
-                          ? () => _toggleVoiceNotePlayback(entry.voiceNoteUrl)
-                          : null,
-                      onOpenDocument: entry.isDocument
-                          ? () => _openDocument(
-                              entry.documentUrl,
-                              suggestedFileName: entry.documentFileName,
-                            )
-                          : null,
+                if (!_loadingFeedback && _feedbackError != null)
+                  _InlineInfo(
+                    icon: Icons.info_outline,
+                    label:
+                        '${t.translate('coach_habits_load_failed')}: $_feedbackError',
+                  ),
+                if (!_loadingFeedback &&
+                    _feedbackError == null &&
+                    nonPinnedFeedbackEntries.isEmpty)
+                  const _InlineInfo(
+                    icon: Icons.chat_bubble_outline,
+                    label: 'No coach replies yet.',
+                  ),
+                if (!_loadingFeedback && _feedbackError == null)
+                  ...nonPinnedFeedbackEntries.map(
+                    (entry) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: _FeedbackEntryCard(
+                        dateLabel: _formatFeedDate(entry.timestamp),
+                        workoutLabel: entry.workoutLabel,
+                        message: entry.message,
+                        isVoiceNote: entry.isVoiceNote,
+                        isDocument: entry.isDocument,
+                        hasNutritionNote: entry.hasNutritionNote,
+                        hasVideoNote: entry.hasVideoNote,
+                        isPinned: entry.isPinned,
+                        isNew: entry.isNew,
+                        isVoiceLoading: _isVoiceNoteLoading(entry.voiceNoteUrl),
+                        isVoicePlaying: _isVoiceNotePlaying(entry.voiceNoteUrl),
+                        onVoiceToggle: entry.isVoiceNote
+                            ? () => _toggleVoiceNotePlayback(entry.voiceNoteUrl)
+                            : null,
+                        onOpenDocument: entry.isDocument
+                            ? () => _openDocument(
+                                entry.documentUrl,
+                                suggestedFileName: entry.documentFileName,
+                              )
+                            : null,
+                      ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
       ),
     );
   }
@@ -852,6 +858,10 @@ class _HabitRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
+                if (habit.isNew) ...[
+                  const TaqaNewIndicator(),
+                  SizedBox(width: TaqaUiScale.w(8)),
+                ],
                 TaqaMiniTag(label: typeLabel),
               ],
             ),
@@ -974,160 +984,127 @@ class _FeedbackEntryCard extends StatelessWidget {
       visualDensity: const VisualDensity(horizontal: -2, vertical: -3),
     );
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.04),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.08),
-            ),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      decoration: BoxDecoration(
+        color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.08),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      workoutLabel,
-                      style: TextStyle(
-                        fontFamily: TaqaUiFontFamilies.interTight,
-                        color: TaqaUiColors.unnamedColor1c1d17,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    dateLabel,
-                    style: TextStyle(
-                      fontFamily: TaqaUiFontFamilies.interTight,
-                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                        alpha: 0.5,
-                      ),
-                      fontSize: TaqaUiScale.sp(12),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 5,
-                runSpacing: 4,
-                children: [
-                  TaqaMiniTag(
-                    label: isVoiceNote
-                        ? t.translate('coach_chip_voice_note')
-                        : (isDocument
-                              ? 'Document'
-                              : t.translate('coach_chip_text_note')),
-                  ),
-                  if (hasNutritionNote)
-                    TaqaMiniTag(label: t.translate('coach_chip_nutrition_note')),
-                  if (hasVideoNote)
-                    TaqaMiniTag(label: t.translate('coach_chip_video_note')),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                message,
-                style: TextStyle(
-                  fontFamily: TaqaUiFontFamilies.interTight,
-                  color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                    alpha: 0.75,
+              Expanded(
+                child: Text(
+                  workoutLabel,
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    color: TaqaUiColors.unnamedColor1c1d17,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-              const SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  if (isVoiceNote && onVoiceToggle != null) ...[
-                    TextButton.icon(
-                      onPressed: isVoiceLoading ? null : onVoiceToggle,
-                      style: textButtonStyle,
-                      icon: isVoiceLoading
-                          ? SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: TaqaUiColors.unnamedColor1c1d17
-                                    .withValues(alpha: 0.6),
-                              ),
-                            )
-                          : (isVoicePlaying
-                                ? _AudioWaveBars(
-                                    color: TaqaUiColors.unnamedColor1c1d17
-                                        .withValues(alpha: 0.6),
-                                    barCount: 4,
-                                    minHeight: 4,
-                                    maxHeight: 12,
-                                    barWidth: 2.5,
-                                    gap: 1.5,
-                                  )
-                                : const Icon(Icons.play_arrow, size: 16)),
-                      label: Text(isVoicePlaying ? 'Pause' : 'Play'),
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                  if (isDocument && onOpenDocument != null) ...[
-                    TextButton.icon(
-                      onPressed: onOpenDocument,
-                      style: textButtonStyle,
-                      icon: const Icon(Icons.open_in_new, size: 15),
-                      label: const Text('Open'),
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                  Icon(statusIcon, color: statusColor, size: 16),
-                  const SizedBox(width: 4),
-                  Text(
-                    statusLabel,
-                    style: TextStyle(
-                      fontFamily: TaqaUiFontFamilies.interTight,
-                      color: statusColor,
-                      fontSize: TaqaUiScale.sp(12),
-                    ),
-                  ),
-                ],
+              if (isNew) ...[
+                const TaqaNewIndicator(),
+                SizedBox(width: TaqaUiScale.w(8)),
+              ],
+              Text(
+                dateLabel,
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.5),
+                  fontSize: TaqaUiScale.sp(12),
+                ),
               ),
             ],
           ),
-        ),
-        if (isNew)
-          Positioned(
-            top: -8,
-            right: 10,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.orangeAccent,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: Colors.black, width: 0.8),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black45,
-                    blurRadius: 3,
-                    offset: Offset(0, 1),
-                  ),
-                ],
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 5,
+            runSpacing: 4,
+            children: [
+              TaqaMiniTag(
+                label: isVoiceNote
+                    ? t.translate('coach_chip_voice_note')
+                    : (isDocument
+                          ? 'Document'
+                          : t.translate('coach_chip_text_note')),
               ),
-              child: const Text(
-                'NEW',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.2,
-                ),
-              ),
+              if (hasNutritionNote)
+                TaqaMiniTag(label: t.translate('coach_chip_nutrition_note')),
+              if (hasVideoNote)
+                TaqaMiniTag(label: t.translate('coach_chip_video_note')),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.75),
             ),
           ),
-      ],
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              if (isVoiceNote && onVoiceToggle != null) ...[
+                TextButton.icon(
+                  onPressed: isVoiceLoading ? null : onVoiceToggle,
+                  style: textButtonStyle,
+                  icon: isVoiceLoading
+                      ? SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                              alpha: 0.6,
+                            ),
+                          ),
+                        )
+                      : (isVoicePlaying
+                            ? _AudioWaveBars(
+                                color: TaqaUiColors.unnamedColor1c1d17
+                                    .withValues(alpha: 0.6),
+                                barCount: 4,
+                                minHeight: 4,
+                                maxHeight: 12,
+                                barWidth: 2.5,
+                                gap: 1.5,
+                              )
+                            : const Icon(Icons.play_arrow, size: 16)),
+                  label: Text(isVoicePlaying ? 'Pause' : 'Play'),
+                ),
+                const SizedBox(width: 6),
+              ],
+              if (isDocument && onOpenDocument != null) ...[
+                TextButton.icon(
+                  onPressed: onOpenDocument,
+                  style: textButtonStyle,
+                  icon: const Icon(Icons.open_in_new, size: 15),
+                  label: const Text('Open'),
+                ),
+                const SizedBox(width: 6),
+              ],
+              Icon(statusIcon, color: statusColor, size: 16),
+              const SizedBox(width: 4),
+              Text(
+                statusLabel,
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  color: statusColor,
+                  fontSize: TaqaUiScale.sp(12),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
