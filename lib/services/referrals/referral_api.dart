@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import '../purchases/apple_promotional_offer.dart';
 
 class ReferralApiException implements Exception {
   const ReferralApiException(this.message, {this.statusCode});
@@ -93,6 +94,7 @@ class ReferralClaimPreparation {
     required this.offerId,
     required this.productId,
     required this.claimToken,
+    this.appleOfferAuthorization,
   });
 
   final int rewardId;
@@ -100,14 +102,23 @@ class ReferralClaimPreparation {
   final String offerId;
   final String productId;
   final String claimToken;
+  final ApplePromotionalOfferAuthorization? appleOfferAuthorization;
 
   factory ReferralClaimPreparation.fromJson(Map<String, dynamic> json) {
+    final offerId = json['offer_id'] as String;
+    final appleSignature = json['apple_offer_signature'];
     return ReferralClaimPreparation(
       rewardId: (json['reward_id'] as num).toInt(),
       platform: json['platform'] as String,
-      offerId: json['offer_id'] as String,
+      offerId: offerId,
       productId: json['product_id'] as String,
       claimToken: json['claim_token'] as String,
+      appleOfferAuthorization: appleSignature is Map<String, dynamic>
+          ? ApplePromotionalOfferAuthorization.fromJson(
+              offerId: offerId,
+              json: appleSignature,
+            )
+          : null,
     );
   }
 }

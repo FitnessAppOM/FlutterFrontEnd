@@ -20,6 +20,7 @@ import '../../screens/welcome.dart';
 import '../../services/core/notification_service.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/purchases/apple_billing_service.dart';
+import '../../services/purchases/apple_promotional_offer.dart';
 import '../../services/purchases/billing_api.dart';
 import '../../services/purchases/taqa_subscription_catalog.dart';
 import '../Typography/taqa_ui_typography.dart';
@@ -47,6 +48,7 @@ class TaqaSubscriptionPage extends StatefulWidget {
     this.referralClaimToken,
     this.googleReferralOfferTag,
     this.referralProductId,
+    this.appleOfferAuthorization,
   });
 
   /// When opened after onboarding, the user must subscribe or restore a
@@ -72,6 +74,7 @@ class TaqaSubscriptionPage extends StatefulWidget {
   final String? referralClaimToken;
   final String? googleReferralOfferTag;
   final String? referralProductId;
+  final ApplePromotionalOfferAuthorization? appleOfferAuthorization;
 
   @override
   State<TaqaSubscriptionPage> createState() => _TaqaSubscriptionPageState();
@@ -813,6 +816,33 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   }) async {
     if (!Platform.isAndroid) {
       final accountToken = await AppleBillingService.fetchAccountToken();
+      final authorization = widget.appleOfferAuthorization;
+      if (widget.referralClaimToken != null && authorization == null) {
+        throw const AppleBillingException(
+          'Apple referral offer authorization is unavailable.',
+        );
+      }
+      if (authorization != null) {
+        if (authorization.offerId != widget.googleReferralOfferTag ||
+            product.id != widget.referralProductId) {
+          throw const AppleBillingException(
+            'This Apple referral offer does not match the selected plan.',
+          );
+        }
+        return Sk2PurchaseParam(
+          productDetails: product,
+          applicationUserName: accountToken,
+          promotionalOffer: SK2PromotionalOffer(
+            offerId: authorization.offerId,
+            signature: SK2SubscriptionOfferSignature(
+              keyID: authorization.keyId,
+              nonce: authorization.nonce,
+              timestamp: authorization.timestamp,
+              signature: authorization.signature,
+            ),
+          ),
+        );
+      }
       return PurchaseParam(
         productDetails: product,
         applicationUserName: accountToken,
@@ -931,12 +961,16 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   }
 
   List<TaqaSubscriptionPlan> get _catalogPlans {
-    if (!widget.allowPlanTypeSwitch && widget.plans != null) {
-      return widget.plans!;
-    }
-    return _coachMembership
+    final plans = !widget.allowPlanTypeSwitch && widget.plans != null
+        ? widget.plans!
+        : _coachMembership
         ? TaqaSubscriptionCatalog.coachPlans
         : TaqaSubscriptionCatalog.plans;
+    final referralProductId = widget.referralProductId;
+    if (referralProductId == null) return plans;
+    return plans
+        .where((plan) => _storeProductIdForPlan(plan) == referralProductId)
+        .toList(growable: false);
   }
 
   String? _firstAvailableProductId() {
