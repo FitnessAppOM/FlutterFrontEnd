@@ -30,6 +30,7 @@ class ReferralReward {
     required this.status,
     this.billingPeriod,
     this.platform,
+    this.claimable = false,
   });
 
   final int id;
@@ -37,8 +38,9 @@ class ReferralReward {
   final String status;
   final String? billingPeriod;
   final String? platform;
+  final bool claimable;
 
-  bool get isClaimable => status == 'qualified';
+  bool get isClaimable => claimable;
 
   factory ReferralReward.fromJson(Map<String, dynamic> json) {
     return ReferralReward(
@@ -47,6 +49,27 @@ class ReferralReward {
       status: json['status'] as String? ?? '',
       billingPeriod: json['billing_period'] as String?,
       platform: json['platform'] as String?,
+      claimable: json['claimable'] == true,
+    );
+  }
+}
+
+class CoachReferralProgress {
+  const CoachReferralProgress({
+    required this.qualifiedCount,
+    required this.discountThreshold,
+    required this.freeThreshold,
+  });
+
+  final int qualifiedCount;
+  final int discountThreshold;
+  final int freeThreshold;
+
+  factory CoachReferralProgress.fromJson(Map<String, dynamic>? json) {
+    return CoachReferralProgress(
+      qualifiedCount: (json?['qualified_count'] as num?)?.toInt() ?? 0,
+      discountThreshold: (json?['discount_threshold'] as num?)?.toInt() ?? 10,
+      freeThreshold: (json?['free_threshold'] as num?)?.toInt() ?? 20,
     );
   }
 }
@@ -58,6 +81,8 @@ class ReferralSummary {
     required this.claimableCount,
     required this.rewards,
     required this.hasAttribution,
+    required this.monthlyCoachProgress,
+    required this.yearlyCoachProgress,
   });
 
   final ReferralIdentity identity;
@@ -65,9 +90,15 @@ class ReferralSummary {
   final int claimableCount;
   final List<ReferralReward> rewards;
   final bool hasAttribution;
+  final CoachReferralProgress monthlyCoachProgress;
+  final CoachReferralProgress yearlyCoachProgress;
 
   factory ReferralSummary.fromJson(Map<String, dynamic> json) {
     final rewardJson = json['rewards'];
+    final progressJson = json['coach_progress'];
+    final progress = progressJson is Map<String, dynamic>
+        ? progressJson
+        : const <String, dynamic>{};
     return ReferralSummary(
       identity: ReferralIdentity(
         code: json['referral_code'] as String? ?? '',
@@ -83,6 +114,16 @@ class ReferralSummary {
                 .toList(growable: false)
           : const [],
       hasAttribution: json['attribution'] is Map,
+      monthlyCoachProgress: CoachReferralProgress.fromJson(
+        progress['monthly'] is Map<String, dynamic>
+            ? progress['monthly'] as Map<String, dynamic>
+            : null,
+      ),
+      yearlyCoachProgress: CoachReferralProgress.fromJson(
+        progress['yearly'] is Map<String, dynamic>
+            ? progress['yearly'] as Map<String, dynamic>
+            : null,
+      ),
     );
   }
 }

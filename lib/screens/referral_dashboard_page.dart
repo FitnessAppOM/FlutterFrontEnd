@@ -382,6 +382,32 @@ class _ReferralDashboardPageState extends State<ReferralDashboardPage> {
                         ],
                       ),
                     ),
+                    if (_summary!.rewards.any(
+                      (reward) => reward.type.startsWith('coach_'),
+                    )) ...[
+                      SizedBox(height: TaqaUiScale.h(18)),
+                      Text(
+                        'COACH REFERRAL PROGRESS',
+                        style: _textStyle(
+                          size: 12,
+                          weight: FontWeight.w700,
+                        ),
+                      ),
+                      SizedBox(height: TaqaUiScale.h(10)),
+                      _coachProgressCard(
+                        label: 'Monthly referrals',
+                        rewardText: r'$10 monthly discount',
+                        freeText: 'Free monthly payment',
+                        progress: _summary!.monthlyCoachProgress,
+                      ),
+                      SizedBox(height: TaqaUiScale.h(10)),
+                      _coachProgressCard(
+                        label: 'Yearly referrals',
+                        rewardText: r'$100 yearly discount',
+                        freeText: 'Free yearly payment',
+                        progress: _summary!.yearlyCoachProgress,
+                      ),
+                    ],
                     SizedBox(height: TaqaUiScale.h(18)),
                     Text('REWARDS', style: _textStyle(size: 12, weight: FontWeight.w700)),
                     SizedBox(height: TaqaUiScale.h(10)),
@@ -463,6 +489,71 @@ class _ReferralDashboardPageState extends State<ReferralDashboardPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _coachProgressCard({
+    required String label,
+    required String rewardText,
+    required String freeText,
+    required CoachReferralProgress progress,
+  }) {
+    final count = progress.qualifiedCount;
+    final progressValue =
+        (count / progress.freeThreshold).clamp(0.0, 1.0).toDouble();
+    final status = count >= progress.freeThreshold
+        ? '$freeText unlocked'
+        : count >= progress.discountThreshold
+        ? '$rewardText unlocked'
+        : '${progress.discountThreshold - count} more for $rewardText';
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: _textStyle(size: 13, weight: FontWeight.w700),
+                ),
+              ),
+              Text(
+                '$count / ${progress.freeThreshold}',
+                style: _textStyle(size: 13, weight: FontWeight.w700),
+              ),
+            ],
+          ),
+          SizedBox(height: TaqaUiScale.h(10)),
+          ClipRRect(
+            borderRadius: TaqaUiScale.radius(8),
+            child: LinearProgressIndicator(
+              value: progressValue,
+              minHeight: TaqaUiScale.h(8),
+              backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                TaqaUiColors.lime,
+              ),
+            ),
+          ),
+          SizedBox(height: TaqaUiScale.h(8)),
+          Text(
+            status,
+            style: _textStyle(
+              size: 11,
+              color: TaqaUiColors.charcoal.withValues(alpha: 0.65),
+            ),
+          ),
+          SizedBox(height: TaqaUiScale.h(3)),
+          Text(
+            'Claimable only with the matching Coach plan.',
+            style: _textStyle(
+              size: 10,
+              color: TaqaUiColors.charcoal.withValues(alpha: 0.50),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

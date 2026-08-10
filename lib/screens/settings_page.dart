@@ -1716,22 +1716,21 @@ class _SettingsPageState extends State<SettingsPage>
                   SizedBox(height: TaqaUiScale.h(24)),
                   _sectionTitle(t.translate("settings_devices")),
                   SizedBox(height: TaqaUiScale.h(12)),
-                  _SettingsTile(
-                    title: _whoopLinked
-                        ? t.translate("whoop_connected_title")
-                        : t.translate("whoop_connect_title"),
-                    subtitle: _whoopLinked
-                        ? t.translate("whoop_disconnect_subtitle")
-                        : t.translate("whoop_link_subtitle"),
-                    onTap: (_whoopLoading || _isDeactivated)
-                        ? null
-                        : _handleWhoopTap,
-                    badge: Image.asset(
-                      'assets/images/whoop.png',
-                      height: TaqaUiScale.h(18),
-                      fit: BoxFit.contain,
+                  // WHOOP onboarding is hidden until the integration is verified.
+                  // Keep the tile for already-linked users so they can disconnect.
+                  if (_whoopLinked)
+                    _SettingsTile(
+                      title: t.translate("whoop_connected_title"),
+                      subtitle: t.translate("whoop_disconnect_subtitle"),
+                      onTap: (_whoopLoading || _isDeactivated)
+                          ? null
+                          : _handleWhoopTap,
+                      badge: Image.asset(
+                        'assets/images/whoop.png',
+                        height: TaqaUiScale.h(18),
+                        fit: BoxFit.contain,
+                      ),
                     ),
-                  ),
                   _SettingsTile(
                     title: _fitbitLinked
                         ? t.translate("fitbit_connected_title")
