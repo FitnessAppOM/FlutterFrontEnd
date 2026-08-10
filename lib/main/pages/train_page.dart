@@ -2416,6 +2416,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
   bool _loadingCardioLibrary = false;
   bool _cardioLibraryFetchedFromNetwork = false;
   List<Map<String, dynamic>> _trainExercises = const [];
+  bool _trainingDayRouteOpen = false;
   final Set<String> _preloadedThumbs = <String>{};
   List<int> _dayOrder = const [];
   List<bool> _dayCompletedByIndex = const [];
@@ -4025,56 +4026,78 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     required String dayLabel,
     bool autoOpenLauncher = false,
   }) async {
-    setState(() {
+    // Claim the route synchronously so rapid taps cannot enqueue duplicate
+    // pages while the first navigation is being prepared or animated.
+    if (_trainingDayRouteOpen || !mounted) return;
+    _trainingDayRouteOpen = true;
+
+    try {
       selectedDay = dayIndex;
       _rebuildExerciseLists();
-    });
-    await _preloadExerciseGifsForCurrentDay();
-    await _refreshInProgressExercises();
+      final exercises = _trainingExercisesForDay(
+        days: days,
+        dayIndex: dayIndex,
+        dayLabel: dayLabel,
+      );
 
-    if (!mounted) return;
-    final exercises = _trainingExercisesForDay(
-      days: days,
-      dayIndex: dayIndex,
-      dayLabel: dayLabel,
-    );
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => _TrainingDayExercisesPage(
-          dayLabel: dayLabel,
-          exercises: exercises,
-          autoOpenLauncher: autoOpenLauncher,
-          readDisabledState: () => _isDayDisabledForWorkout(dayIndex),
-          readDayNoteState: () => _dayNoteForWorkoutLock(dayIndex),
-          readLiveState: _readTrainingDayLiveState,
-          readHistoryCompletedExerciseNames: () {
-            final day = _dayAtIndex(dayIndex);
-            if (day == null) return const <String>{};
-            return _historyCompletedExerciseNamesForDay(day, dayIndex);
-          },
-          programExerciseIdOf: _programExerciseId,
-          normalizeExerciseName: _normalizeExerciseName,
-          onStartExercise: _startExerciseFromLauncher,
-          onExerciseFinished: _handleExerciseFinishedFromLauncher,
-          onReplaceExercise: _openReplaceSheet,
-          onWorkoutSessionClosed: () async {
-            await _loadWorkoutTimer();
-            await _refreshInProgressExercises();
-          },
-          onFinishWorkout: () => _finishWorkout(),
-          onSkipRest: _skipExRest,
-          onStartRest: _startExRestCountdown,
-          onSetCustomRest: _setCustomExRestPreset,
-          restPresets: const [10, 15, 30, 45, 60],
-          onSelectRestPreset: _setExRestPreset,
+      // Exercise cards load their thumbnails themselves. Waiting for every GIF
+      // to precache here made later days feel frozen before navigation.
+      final navigation = Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => _TrainingDayExercisesPage(
+            dayLabel: dayLabel,
+            exercises: exercises,
+            autoOpenLauncher: autoOpenLauncher,
+            readDisabledState: () => _isDayDisabledForWorkout(dayIndex),
+            readDayNoteState: () => _dayNoteForWorkoutLock(dayIndex),
+            readLiveState: _readTrainingDayLiveState,
+            readHistoryCompletedExerciseNames: () {
+              final day = _dayAtIndex(dayIndex);
+              if (day == null) return const <String>{};
+              return _historyCompletedExerciseNamesForDay(day, dayIndex);
+            },
+            programExerciseIdOf: _programExerciseId,
+            normalizeExerciseName: _normalizeExerciseName,
+            onStartExercise: _startExerciseFromLauncher,
+            onExerciseFinished: _handleExerciseFinishedFromLauncher,
+            onReplaceExercise: _openReplaceSheet,
+            onWorkoutSessionClosed: () async {
+              await _loadWorkoutTimer();
+              await _refreshInProgressExercises();
+            },
+            onFinishWorkout: () => _finishWorkout(),
+            onSkipRest: _skipExRest,
+            onStartRest: _startExRestCountdown,
+            onSetCustomRest: _setCustomExRestPreset,
+            restPresets: const [10, 15, 30, 45, 60],
+            onSelectRestPreset: _setExRestPreset,
+          ),
         ),
-      ),
-    );
+      );
+
+      // Refresh local timers after the route transition has started. The day
+      // page reads this state live and already rebuilds once per second.
+      unawaited(_refreshOpenedTrainingDayState(dayIndex));
+      await navigation;
+    } finally {
+      _trainingDayRouteOpen = false;
+    }
+
     if (!mounted) return;
     await _loadWorkoutTimer();
     await _refreshInProgressExercises();
     if (!mounted) return;
     setState(() {});
+  }
+
+  Future<void> _refreshOpenedTrainingDayState(int dayIndex) async {
+    await Future<void>.delayed(const Duration(milliseconds: 320));
+    if (!mounted || selectedDay != dayIndex) return;
+    try {
+      await _refreshInProgressExercises();
+    } catch (_) {
+      // Best effort: opening and interacting with the day must remain instant.
+    }
   }
 
   Future<void> _refreshDoneExercisesFromHistory() async {
