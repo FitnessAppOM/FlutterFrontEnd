@@ -401,6 +401,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   }
 
   bool _isExpectedPurchaseUpdate(PurchaseDetails purchase) {
+    if (!_isProductForCurrentMembership(purchase.productID)) return false;
     if (purchase.status == PurchaseStatus.restored) {
       return _restoreRequested || _checkoutProductId == purchase.productID;
     }
@@ -447,9 +448,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     _lastActivationChangePending = false;
     try {
       final entitlementCode = purchase == null
-          ? widget.mandatory
-                ? 'app_full'
-                : _coachMembership
+          ? _coachMembership
                 ? 'coach_tools'
                 : 'app_full'
           : _entitlementCodeForProduct(purchase.productID);
@@ -545,6 +544,14 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         true;
   }
 
+  bool _isProductForCurrentMembership(String productId) {
+    final referralProductId = widget.referralProductId;
+    if (referralProductId != null && productId != referralProductId) {
+      return false;
+    }
+    return _isCoachProductId(productId) == _coachMembership;
+  }
+
   Future<_RecoveryOutcome> _recoverActiveAppleSubscription({
     String? preferredProductId,
     required bool scheduleIntro,
@@ -559,7 +566,12 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         productIds: _knownProductIds,
       );
       transactions = AppleStoreKitEntitlementRecovery.prioritize(
-        active,
+        active
+            .where(
+              (transaction) =>
+                  _isProductForCurrentMembership(transaction.productId),
+            )
+            .toList(growable: false),
         activeAt: DateTime.now().toUtc(),
         preferredProductId: preferredProductId,
       );
@@ -647,6 +659,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
           .where(
             (purchase) =>
                 _knownProductIds.contains(purchase.productID) &&
+                _isProductForCurrentMembership(purchase.productID) &&
                 (purchase.status == PurchaseStatus.purchased ||
                     purchase.status == PurchaseStatus.restored) &&
                 purchase.verificationData.serverVerificationData
@@ -772,14 +785,19 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     }
     if (activeProductId == product.id && _billingState?.active == true) {
       if (widget.mandatory) {
-        await _finishMandatorySubscription();
+        // Coach plans include normal app access, so the app-wide entitlement
+        // can report this coach product even when coach access has not been
+        // linked yet. Only the entitlement required by this checkout may
+        // dismiss a mandatory route.
+        if (await _resumeExistingMandatorySubscription()) return;
+        if (!mounted) return;
       } else {
         _setMessage(
           'This is already your active subscription.',
           type: AppToastType.info,
         );
+        return;
       }
-      return;
     }
 
     if (_isStudentProduct(product.id)) {

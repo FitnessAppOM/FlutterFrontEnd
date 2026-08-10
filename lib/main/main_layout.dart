@@ -342,23 +342,7 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
       return;
     }
 
-    final t = AppLocalizations.of(context);
-    final choice = await showTaqaOptionDialog<String>(
-      context: context,
-      title: t.translate("coach_portal_dialog_title"),
-      options: [
-        TaqaDialogOption(
-          value: 'expert',
-          title: t.translate("coach_portal_expert_title"),
-          subtitle: t.translate("coach_portal_expert_sub"),
-        ),
-        TaqaDialogOption(
-          value: 'client',
-          title: t.translate("coach_portal_client_title"),
-          subtitle: t.translate("coach_portal_client_sub"),
-        ),
-      ],
-    );
+    final choice = await _chooseCoachPortal();
 
     if (!mounted || choice == null) return;
     if (choice == 'client') {
@@ -374,6 +358,26 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
     // the paywall returns to a usable Coach tab instead of the previous tab.
     _showClientCoachPage();
     await _openCoachMembershipPaywall();
+  }
+
+  Future<String?> _chooseCoachPortal() {
+    final t = AppLocalizations.of(context);
+    return showTaqaOptionDialog<String>(
+      context: context,
+      title: t.translate("coach_portal_dialog_title"),
+      options: [
+        TaqaDialogOption(
+          value: 'expert',
+          title: t.translate("coach_portal_expert_title"),
+          subtitle: t.translate("coach_portal_expert_sub"),
+        ),
+        TaqaDialogOption(
+          value: 'client',
+          title: t.translate("coach_portal_client_title"),
+          subtitle: t.translate("coach_portal_client_sub"),
+        ),
+      ],
+    );
   }
 
   void _showClientCoachPage() {
@@ -411,11 +415,16 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
     );
     if (!mounted) return;
     if (subscribed == true) {
-      // A successful coach-plan purchase unlocks the expert portal, but the
-      // user may still want to remain in the client-facing Coach page. Return
-      // to the same chooser used by a manual Coach-tab tap instead of routing
-      // directly to the Expert Dashboard.
-      await _openCoach();
+      // Checkout success already means the coach entitlement was verified.
+      // Do not re-run the cached role/access checks here: those can still be
+      // refreshing and would incorrectly leave the client Coach page open.
+      final choice = await _chooseCoachPortal();
+      if (!mounted) return;
+      if (choice == 'expert') {
+        _showExpertDashboard();
+      } else if (choice == 'client') {
+        _showClientCoachPage();
+      }
       return;
     }
     if (_index == MainLayout._coachTab) {

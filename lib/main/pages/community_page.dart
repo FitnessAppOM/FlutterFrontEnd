@@ -1953,52 +1953,72 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
 
   @override
   Widget build(BuildContext context) {
-    final scaffold = Scaffold(
-      backgroundColor: AppColors.appBackground,
+    final sectionTitle = _isGroupTab ? 'Group challenges' : 'Global challenges';
+    return Scaffold(
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       appBar: TaqaPageAppBar(
-        backgroundColor: AppColors.appBackground,
+        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
         title: widget.title,
-        trailing: _canCreateForCurrentTab
-            ? IconButton(
-                onPressed: _createChallenge,
-                icon: const Icon(
-                  Icons.add_circle_outline,
-                  color: TaqaUiColors.unnamedColor1c1d17,
-                ),
-              )
-            : null,
-        bottom: widget.isGroupScoped
-            ? TabBar(
-                onTap: (index) => setState(() => _selectedTabIndex = index),
-                labelColor: TaqaUiColors.charcoal,
-                unselectedLabelColor: TaqaUiColors.charcoal.withValues(
-                  alpha: 0.6,
-                ),
-                tabs: const [
-                  Tab(text: 'Global'),
-                  Tab(text: 'Group'),
-                ],
-              )
-            : null,
       ),
       body: TaqaRefreshIndicator(
         onRefresh: () => _load(),
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: TaqaUiScale.insetsLTRB(16, 20, 16, 28),
           children: [
+            if (widget.isGroupScoped) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: TaqaRangeTab(
+                      label: 'Global',
+                      selected: !_isGroupTab,
+                      onTap: () => setState(() => _selectedTabIndex = 0),
+                    ),
+                  ),
+                  SizedBox(width: TaqaUiScale.w(15)),
+                  Expanded(
+                    child: TaqaRangeTab(
+                      label: 'Group',
+                      selected: _isGroupTab,
+                      onTap: () => setState(() => _selectedTabIndex = 1),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: TaqaUiScale.h(24)),
+            ],
+            TaqaCommunitySectionHeader(
+              title: sectionTitle,
+              actionLabel: _canCreateForCurrentTab ? 'Create' : null,
+              onActionTap: _canCreateForCurrentTab ? _createChallenge : null,
+            ),
+            SizedBox(height: TaqaUiScale.h(24)),
             if (_loading)
               const TaqaCommunityLoadingCard()
             else if (_error != null)
-              _CommunityEmptyCard(
-                title: 'Could not load challenges',
-                message: _error!,
-                actionLabel: 'Retry',
-                onPressed: () => _load(),
+              Column(
+                children: [
+                  TaqaEmptyCard(
+                    title: 'Could not load challenges',
+                    subtitle: _error!,
+                    icon: Icons.error_outline_rounded,
+                  ),
+                  SizedBox(height: TaqaUiScale.h(15)),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TaqaOutlineTagButton(
+                      label: 'Retry',
+                      width: TaqaUiScale.w(92),
+                      onTap: _load,
+                    ),
+                  ),
+                ],
               )
             else if (_visibleChallenges.isEmpty)
-              _CommunityEmptyCard(
+              TaqaEmptyCard(
                 title: 'No challenges right now',
-                message: _currentEmptyMessage,
+                subtitle: _currentEmptyMessage,
+                icon: Icons.flag_outlined,
               )
             else
               ..._visibleChallenges.map(
@@ -2016,10 +2036,6 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
         ),
       ),
     );
-    if (!widget.isGroupScoped) {
-      return scaffold;
-    }
-    return DefaultTabController(length: 2, child: scaffold);
   }
 }
 
