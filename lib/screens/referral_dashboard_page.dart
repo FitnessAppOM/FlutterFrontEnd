@@ -101,6 +101,7 @@ class _ReferralDashboardPageState extends State<ReferralDashboardPage> {
             referralClaimToken: preparation.claimToken,
             googleReferralOfferTag: preparation.offerId,
             referralProductId: preparation.productId,
+            appleOfferAuthorization: preparation.appleOfferAuthorization,
           ),
         ),
       );
