@@ -5407,14 +5407,25 @@ class DashboardPageState extends State<DashboardPage>
               locale,
             ).format(_taqaScoreDateForSelection()),
             emptyMessage: t("taqa_no_data"),
-            onTap: () {
-              Navigator.of(context).push(
+            onTap: () async {
+              await Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => TaqaScoreDetailPage(
                     initialDate: _taqaScoreDateForSelection(),
                   ),
                 ),
               );
+              if (!mounted) return;
+
+              // The detail screen force-refreshes the live score. Discard the
+              // dashboard's separate cached copy when returning so both views
+              // cannot show different values for the same score day.
+              final scoreDate = _taqaScoreDateForSelection();
+              final scoreKey = _dayKey(scoreDate);
+              _taqaScoreCache.remove(scoreKey);
+              _taqaScoreCacheAt.remove(scoreKey);
+              TaqaScoreApi.clearCache();
+              await _loadTaqaScore(forceLiveRefresh: true);
             },
           ),
         ],
