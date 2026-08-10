@@ -74,29 +74,7 @@ class HealthRecoveryLoadService {
   }
 
   Future<bool> _ensurePermission() async {
-    try {
-      if (Platform.isAndroid &&
-          await ConsentManager.isAndroidHealthPromptCached()) {
-        return true;
-      }
-      final types = _typesForPlatform();
-      final permissions = List<HealthDataAccess>.filled(
-        types.length,
-        HealthDataAccess.READ,
-      );
-      var granted =
-          await _health.hasPermissions(types, permissions: permissions) ??
-          false;
-      if (!granted) {
-        granted = await _health.requestAuthorization(
-          types,
-          permissions: permissions,
-        );
-      }
-      return granted;
-    } catch (_) {
-      return false;
-    }
+    return ConsentManager.requestUnifiedHealthPermissionsJIT();
   }
 
   bool _isSameDay(DateTime a, DateTime b) =>

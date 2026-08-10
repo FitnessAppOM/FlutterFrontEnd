@@ -23,8 +23,10 @@ class ConsentManager {
   static bool _healthPermissionRequestInFlight = false;
   static Completer<void>? _healthPermissionGate;
   static bool? _unifiedHealthGrantedCache;
+  static bool _unifiedHealthRequestCompletedThisSession = false;
+  static bool _unifiedHealthRequestResult = false;
   static const String _unifiedHealthGrantedKey =
-      'taqa_unified_health_permission_granted_v1';
+      'taqa_unified_health_permission_granted_v2';
 
   static Future<bool> _isAndroidHealthPromptCached() =>
       isAndroidHealthPromptCached();
@@ -48,6 +50,7 @@ class ConsentManager {
     final sp = await SharedPreferences.getInstance();
     await sp.setBool(_unifiedHealthGrantedKey, true);
   }
+
   // ---------------------------------------------------------------------------
   // STARTUP (call once)
   // ---------------------------------------------------------------------------
@@ -55,9 +58,9 @@ class ConsentManager {
     await _requestATTIfAvailable(); // iOS tracking (IDFA)
     await _requestNotifications(); // Push permission
     await ensureHealthConnectInstalled(); // Prompt Health Connect on Android if missing
-    if (Platform.isAndroid) {
-      await requestAllHealth(); // Prompt Health Connect permissions on Android at startup
-    }
+    // Ask for every Dashboard health scope in one HealthKit/Health Connect
+    // authorization sheet. Individual metric services reuse this request.
+    await requestAllHealth();
   }
 
   // ---------------------------------------------------------------------------
@@ -173,114 +176,43 @@ class ConsentManager {
   }
 
   // ---------------------------------------------------------------------------
-  // HEALTH — Steps & Sleep (HealthKit on iOS, Google Fit/Health Connect on Android)
-  // Call this JIT before you try to read health data.
+  // HEALTH — compatibility entry point used by individual metric services.
   // ---------------------------------------------------------------------------
   static Future<bool> requestHealthPermissionsJIT({
     bool steps = true,
     bool sleep = true,
     bool calories = false,
   }) async {
-    // On Android, once the user has seen the unified Health Connect dialog
-    // we never re-prompt — Health Connect doesn't report grant state back to
-    // the app, so every helper would otherwise keep showing the sheet.
-    if (Platform.isAndroid && await _isAndroidHealthPromptCached()) {
-      return true;
-    }
-
-    final types = <HealthDataType>[];
-    if (steps) types.add(HealthDataType.STEPS);
-    if (calories) types.add(HealthDataType.ACTIVE_ENERGY_BURNED);
-    if (sleep && Platform.isIOS) {
-      // iOS supports these sleep types via HealthKit.
-      types.addAll([HealthDataType.SLEEP_ASLEEP, HealthDataType.SLEEP_IN_BED]);
-    }
-
-    if (types.isEmpty) return true;
-
-    // Some platforms split permissions by READ/WRITE
-    final permissions = types.map((_) => HealthDataAccess.READ).toList();
-
-    final health = Health();
-
-    // On Android emulators/devices without Health Connect or Google Fit, short-circuit
-    // to avoid spamming logs with repeated failures.
-    if (Platform.isAndroid) {
-      if (_healthAvailable == null) {
-        try {
-          _healthAvailable = await health.isHealthConnectAvailable();
-        } catch (e) {
-          _healthAvailable = false;
-          if (kDebugMode) {
-            print("Health availability check failed: $e");
-          }
-        }
-        if (kDebugMode) {
-          print("Health availability (Health Connect): $_healthAvailable");
-        }
-      }
-      if (_healthAvailable == false) {
-        return false;
-      }
-    }
-
-    if (_healthPermissionRequestInFlight) {
-      final gate = _healthPermissionGate;
-      if (gate != null) {
-        await gate.future;
-      }
-    }
-    _healthPermissionRequestInFlight = true;
-    _healthPermissionGate = Completer<void>();
-    try {
-      final has =
-          await health.hasPermissions(types, permissions: permissions) ?? false;
-      if (has) {
-        if (Platform.isAndroid) {
-          await _markAndroidHealthPromptShown();
-        }
-        return true;
-      }
-
-      final granted = await health.requestAuthorization(
-        types,
-        permissions: permissions,
-      );
-      if (Platform.isAndroid) {
-        await _markAndroidHealthPromptShown();
-      }
-      return granted;
-    } catch (e) {
-      if (kDebugMode) {
-        print(
-          "Health permission check failed (possibly missing Health Connect): $e",
-        );
-      }
-      return false;
-    } finally {
-      _healthPermissionRequestInFlight = false;
-      _healthPermissionGate?.complete();
-      _healthPermissionGate = null;
-    }
+    if (!steps && !sleep && !calories) return true;
+    // All callers intentionally share the complete Dashboard scope. Asking
+    // for subsets here caused iOS to show Sleep, Steps, and recovery sheets on
+    // separate launches depending on which widget loaded first.
+    return requestUnifiedHealthPermissionsJIT();
   }
 
-  /// Convenience helper to request both steps + sleep at once.
+  /// Legacy convenience helper; now joins the unified Dashboard request.
   static Future<bool> requestStepsAndSleep() =>
       requestHealthPermissionsJIT(steps: true, sleep: true);
 
-  /// Legacy alias kept for existing call sites.
-  /// Requests train + steps permissions together in one prompt.
+  /// Legacy alias kept for existing call sites. Requests the full Dashboard
+  /// and training health scope together in one prompt.
   static Future<bool> requestAllHealth() =>
       requestUnifiedHealthPermissionsJIT();
 
-  /// Unified health prompt: steps + workout read/write in one call.
-  /// Use this when you want to avoid separate permission sheets across pages.
+  /// Unified health prompt for every health type read by Dashboard, plus the
+  /// workout/step write scopes used by training sync.
   static Future<bool> requestUnifiedHealthPermissionsJIT() async {
     // On Android, Health Connect's hasPermissions() always returns false even
     // when granted (intentional Google privacy design). We cache the granted
     // state ourselves so we never re-prompt after the user already said yes.
     if (Platform.isAndroid && await _isAndroidHealthPromptCached()) {
+      _unifiedHealthRequestCompletedThisSession = true;
+      _unifiedHealthRequestResult = true;
       return true;
+    }
+
+    if (_unifiedHealthRequestCompletedThisSession) {
+      return _unifiedHealthRequestResult;
     }
 
     final types = <HealthDataType>[
@@ -298,8 +230,37 @@ class ConsentManager {
       // Connect — requesting WRITE for it on Android crashes the permission Activity.
       types.add(HealthDataType.TOTAL_CALORIES_BURNED);
       permissions.add(HealthDataAccess.WRITE);
-      types.addAll([HealthDataType.SLEEP_ASLEEP, HealthDataType.SLEEP_IN_BED]);
-      permissions.addAll([HealthDataAccess.READ, HealthDataAccess.READ]);
+      types.addAll([
+        HealthDataType.SLEEP_IN_BED,
+        HealthDataType.SLEEP_ASLEEP,
+        HealthDataType.SLEEP_AWAKE,
+        HealthDataType.SLEEP_LIGHT,
+        HealthDataType.SLEEP_DEEP,
+        HealthDataType.SLEEP_REM,
+        HealthDataType.RESTING_HEART_RATE,
+        HealthDataType.HEART_RATE,
+        HealthDataType.EXERCISE_TIME,
+        HealthDataType.HEART_RATE_VARIABILITY_SDNN,
+      ]);
+      permissions.addAll(
+        List<HealthDataAccess>.filled(10, HealthDataAccess.READ),
+      );
+    } else if (Platform.isAndroid) {
+      types.addAll([
+        HealthDataType.SLEEP_ASLEEP,
+        HealthDataType.SLEEP_AWAKE,
+        HealthDataType.SLEEP_AWAKE_IN_BED,
+        HealthDataType.SLEEP_OUT_OF_BED,
+        HealthDataType.SLEEP_LIGHT,
+        HealthDataType.SLEEP_DEEP,
+        HealthDataType.SLEEP_REM,
+        HealthDataType.RESTING_HEART_RATE,
+        HealthDataType.HEART_RATE,
+        HealthDataType.HEART_RATE_VARIABILITY_RMSSD,
+      ]);
+      permissions.addAll(
+        List<HealthDataAccess>.filled(10, HealthDataAccess.READ),
+      );
     }
 
     final health = Health();
@@ -325,6 +286,9 @@ class ConsentManager {
       if (gate != null) {
         await gate.future;
       }
+      return _unifiedHealthRequestCompletedThisSession
+          ? _unifiedHealthRequestResult
+          : false;
     }
     _healthPermissionRequestInFlight = true;
     _healthPermissionGate = Completer<void>();
@@ -335,6 +299,8 @@ class ConsentManager {
         if (Platform.isAndroid) {
           await _markAndroidHealthPromptShown();
         }
+        _unifiedHealthRequestCompletedThisSession = true;
+        _unifiedHealthRequestResult = true;
         return true;
       }
       final granted = await health.requestAuthorization(
@@ -347,7 +313,12 @@ class ConsentManager {
         // and made their choice; we must not ask again on next app open.
         await _markAndroidHealthPromptShown();
       }
-      return granted;
+      _unifiedHealthRequestCompletedThisSession = true;
+      // Health Connect does not reliably return its grant state. The user has
+      // completed the sheet, so allow reads to resolve to data or empty values
+      // without presenting the sheet again.
+      _unifiedHealthRequestResult = Platform.isAndroid ? true : granted;
+      return _unifiedHealthRequestResult;
     } catch (e) {
       if (kDebugMode) {
         print("Unified health permission request failed: $e");

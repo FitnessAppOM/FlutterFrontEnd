@@ -18,6 +18,7 @@ import '../screens/expert_dashboard_page.dart';
 import '../TaqaUI/components/taqa_bottom_nav_bar.dart';
 import '../TaqaUI/components/taqa_value_dialog.dart';
 import '../TaqaUI/screens/taqa_subscription_page.dart';
+import '../TaqaUI/screens/taqa_intro_module.dart';
 import '../TaqaUI/screens/taqa_post_purchase_intro_page.dart';
 import '../services/purchases/apple_billing_service.dart';
 import '../services/purchases/taqa_subscription_catalog.dart';
@@ -105,7 +106,7 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
     await _enforceAccessGates();
     if (!mounted) return;
     setState(() => _accessGatesResolved = true);
-    await _showPostPurchaseIntroIfNeeded();
+    await _showPostPurchaseIntroIfNeeded(_index);
     if (!mounted) return;
     if (_index == MainLayout._coachTab) {
       unawaited(_openCoach(autoOpen: widget.autoOpenExpertDashboard));
@@ -115,22 +116,41 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
     ScreeningPromptService.checkAndPromptIfDue();
   }
 
-  Future<void> _showPostPurchaseIntroIfNeeded() async {
+  Future<void> _showPostPurchaseIntroIfNeeded(int tabIndex) async {
     if (_postPurchaseIntroInProgress) return;
-    final shouldShow = await AccountStorage.shouldShowPostPurchaseIntro();
-    if (!shouldShow || !mounted) return;
+    final module = _introModuleForTab(tabIndex);
+    final shouldShow = await AccountStorage.shouldShowPostPurchaseIntroModule(
+      module.storageKey,
+    );
+    if (!shouldShow || !mounted || _index != tabIndex) return;
 
     _postPurchaseIntroInProgress = true;
     try {
       await Navigator.of(context).push<void>(
         MaterialPageRoute(
           fullscreenDialog: true,
-          builder: (_) => const TaqaPostPurchaseIntroPage(),
+          builder: (_) => TaqaPostPurchaseIntroPage(module: module),
         ),
       );
     } finally {
       _postPurchaseIntroInProgress = false;
     }
+  }
+
+  TaqaIntroModule _introModuleForTab(int tabIndex) => switch (tabIndex) {
+    MainLayout._dietTab => TaqaIntroModule.diet,
+    MainLayout._trainTab => TaqaIntroModule.training,
+    MainLayout._dashboardTab => TaqaIntroModule.dashboard,
+    MainLayout._communityTab => TaqaIntroModule.community,
+    MainLayout._coachTab => TaqaIntroModule.coach,
+    _ => TaqaIntroModule.dashboard,
+  };
+
+  void _queuePostPurchaseIntro(int tabIndex) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+      unawaited(_showPostPurchaseIntroIfNeeded(tabIndex));
+    });
   }
 
   Future<void> _enforceAccessGates() async {
@@ -222,6 +242,7 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
       });
       // Let the Train tab build before driving its launcher.
       await WidgetsBinding.instance.endOfFrame;
+      await _showPostPurchaseIntroIfNeeded(MainLayout._trainTab);
     }
     if (!mounted) return;
     await _trainKey.currentState?.openActiveWorkoutLauncher();
@@ -242,6 +263,7 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
       _index = idx;
       _pages[idx] ??= _buildPage(idx);
     });
+    _queuePostPurchaseIntro(idx);
     if (idx == MainLayout._dashboardTab) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _dashboardKey.currentState?.refreshLiveSteps();
@@ -362,6 +384,7 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
       );
       _index = MainLayout._coachTab;
     });
+    _queuePostPurchaseIntro(MainLayout._coachTab);
   }
 
   void _showExpertDashboard() {
@@ -370,6 +393,7 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
       _pages[MainLayout._coachTab] = const ExpertDashboardPage();
       _index = MainLayout._coachTab;
     });
+    _queuePostPurchaseIntro(MainLayout._coachTab);
   }
 
   Future<void> _openCoachMembershipPaywall() async {
@@ -385,8 +409,18 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
         ),
       ),
     );
-    if (!mounted || subscribed != true) return;
-    _showExpertDashboard();
+    if (!mounted) return;
+    if (subscribed == true) {
+      // A successful coach-plan purchase unlocks the expert portal, but the
+      // user may still want to remain in the client-facing Coach page. Return
+      // to the same chooser used by a manual Coach-tab tap instead of routing
+      // directly to the Expert Dashboard.
+      await _openCoach();
+      return;
+    }
+    if (_index == MainLayout._coachTab) {
+      _queuePostPurchaseIntro(MainLayout._coachTab);
+    }
   }
 
   Widget _buildBottomNav() {

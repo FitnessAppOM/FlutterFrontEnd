@@ -36,7 +36,7 @@ import '../screens/welcome.dart';
 import '../screens/account_restore_page.dart';
 import '../TaqaUI/components/taqa_value_dialog.dart';
 import '../TaqaUI/screens/taqa_subscription_page.dart';
-import '../TaqaUI/screens/taqa_post_purchase_intro_page.dart';
+import '../TaqaUI/screens/taqa_tutorial_library_page.dart';
 import '../TaqaUI/components/taqa_steps_ui.dart' show TaqaRangeTab;
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
@@ -1813,7 +1813,7 @@ class _SettingsPageState extends State<SettingsPage>
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
                         fullscreenDialog: true,
-                        builder: (_) => const TaqaPostPurchaseIntroPage(),
+                        builder: (_) => const TaqaTutorialLibraryPage(),
                       ),
                     ),
                   ),

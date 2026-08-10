@@ -372,6 +372,7 @@ class _MyAppState extends State<MyApp> {
       // Wait a beat so startup/login transitions settle before launching
       // Health Connect's permission activity.
       await Future.delayed(const Duration(milliseconds: 600));
+      await ConsentManager.requestActivityRecognitionAndroid();
       final granted = await ConsentManager.requestUnifiedHealthPermissionsJIT();
       if (granted) {
         _androidHealthPermissionGranted = true;

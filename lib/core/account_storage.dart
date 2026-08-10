@@ -34,6 +34,13 @@ class AccountStorage {
   static const _kSubscriptionRequired = 'subscription_required';
   static const _kPostPurchaseIntroPending = 'post_purchase_intro_pending';
   static const _kPostPurchaseIntroSeen = 'post_purchase_intro_seen';
+  static const _postPurchaseIntroModules = <String>[
+    'dashboard',
+    'diet',
+    'training',
+    'community',
+    'coach',
+  ];
   static const _kCoachMembershipActive = 'coach_membership_active';
   static const _kCoachMembershipVerifiedAt = 'coach_membership_verified_at';
   static const _kCoachMembershipExpiresAt = 'coach_membership_expires_at';
@@ -69,6 +76,8 @@ class AccountStorage {
       "${_kPostPurchaseIntroPending}_u$userId";
   static String _postPurchaseIntroSeenKey(int userId) =>
       "${_kPostPurchaseIntroSeen}_u$userId";
+  static String _postPurchaseIntroModuleSeenKey(int userId, String module) =>
+      "${_kPostPurchaseIntroSeen}_${module}_u$userId";
   static String _coachMembershipActiveKey(int? userId) => userId == null
       ? _kCoachMembershipActive
       : "${_kCoachMembershipActive}_u$userId";
@@ -469,6 +478,37 @@ class AccountStorage {
         sp.getBool(_postPurchaseIntroSeenKey(userId)) != true;
   }
 
+  /// Whether the post-purchase tour for [module] should be shown on entry.
+  ///
+  /// The legacy account-wide seen flag remains authoritative so people who
+  /// already completed the original combined tour are not shown it again.
+  static Future<bool> shouldShowPostPurchaseIntroModule(String module) async {
+    if (!_postPurchaseIntroModules.contains(module)) return false;
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    if (userId == null || userId <= 0) return false;
+    return sp.getBool(_postPurchaseIntroPendingKey(userId)) == true &&
+        sp.getBool(_postPurchaseIntroSeenKey(userId)) != true &&
+        sp.getBool(_postPurchaseIntroModuleSeenKey(userId, module)) != true;
+  }
+
+  /// Completes one module's tour. The account-wide tour is complete only
+  /// after every main module has been visited or skipped once.
+  static Future<void> completePostPurchaseIntroModule(String module) async {
+    if (!_postPurchaseIntroModules.contains(module)) return;
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    if (userId == null || userId <= 0) return;
+    await sp.setBool(_postPurchaseIntroModuleSeenKey(userId, module), true);
+    final allModulesSeen = _postPurchaseIntroModules.every(
+      (item) =>
+          sp.getBool(_postPurchaseIntroModuleSeenKey(userId, item)) == true,
+    );
+    if (!allModulesSeen) return;
+    await sp.setBool(_postPurchaseIntroSeenKey(userId), true);
+    await sp.remove(_postPurchaseIntroPendingKey(userId));
+  }
+
   static Future<void> completePostPurchaseIntro() async {
     final sp = await SharedPreferences.getInstance();
     final userId = sp.getInt(_kUserId);
@@ -841,6 +881,9 @@ class AccountStorage {
       await sp.remove(_subscriptionRequiredKey(currentUserId));
       await sp.remove(_postPurchaseIntroPendingKey(currentUserId));
       await sp.remove(_postPurchaseIntroSeenKey(currentUserId));
+      for (final module in _postPurchaseIntroModules) {
+        await sp.remove(_postPurchaseIntroModuleSeenKey(currentUserId, module));
+      }
       await sp.remove(_coachMembershipActiveKey(currentUserId));
       await sp.remove(_coachMembershipVerifiedAtKey(currentUserId));
       await sp.remove(_coachMembershipExpiresAtKey(currentUserId));

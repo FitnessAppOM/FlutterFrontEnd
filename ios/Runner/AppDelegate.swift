@@ -2,6 +2,7 @@ import Flutter
 import UIKit
 import UserNotifications
 import HealthKit
+import StoreKit
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -14,11 +15,118 @@ import HealthKit
     if let controller = window?.rootViewController as? FlutterViewController {
       InstagramShareChannel.register(with: controller)
       HealthWorkoutMetadataChannel.register(with: controller)
+      AppleSubscriptionEntitlementChannel.register(with: controller)
       if #available(iOS 16.1, *) {
         TrainingLiveActivityChannel.register(with: controller)
       }
     }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+}
+
+class AppleSubscriptionEntitlementChannel {
+  static func register(with controller: FlutterViewController) {
+    let channel = FlutterMethodChannel(
+      name: "taqa/apple_subscription_entitlements",
+      binaryMessenger: controller.binaryMessenger
+    )
+    channel.setMethodCallHandler { call, result in
+      guard call.method == "activeTransactions" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      guard #available(iOS 15.0, *) else {
+        result([])
+        return
+      }
+      let arguments = call.arguments as? [String: Any]
+      let productIds = Set(arguments?["productIds"] as? [String] ?? [])
+      Task {
+        let transactions = await activeTransactions(productIds: productIds)
+        await MainActor.run {
+          result(transactions)
+        }
+      }
+    }
+  }
+
+  @available(iOS 15.0, *)
+  private static func activeTransactions(productIds: Set<String>) async -> [[String: Any]] {
+    var activeByOriginalId: [UInt64: (transaction: Transaction, signedTransaction: String)] = [:]
+    let now = Date()
+
+    for await verification in Transaction.currentEntitlements {
+      guard case .verified(let transaction) = verification else { continue }
+      capture(
+        transaction: transaction,
+        signedTransaction: verification.jwsRepresentation,
+        productIds: productIds,
+        activeAt: now,
+        into: &activeByOriginalId
+      )
+    }
+
+    // StoreKit can report "currently subscribed" while currentEntitlements is
+    // temporarily empty in sandbox/TestFlight. Transaction.all still provides
+    // the signed verified transaction needed by Taqa's entitlement server.
+    for await verification in Transaction.all {
+      guard case .verified(let transaction) = verification else { continue }
+      capture(
+        transaction: transaction,
+        signedTransaction: verification.jwsRepresentation,
+        productIds: productIds,
+        activeAt: now,
+        into: &activeByOriginalId
+      )
+    }
+
+    return activeByOriginalId.values
+      .sorted { left, right in
+        let leftExpiration = left.transaction.expirationDate ?? .distantPast
+        let rightExpiration = right.transaction.expirationDate ?? .distantPast
+        if leftExpiration != rightExpiration {
+          return leftExpiration > rightExpiration
+        }
+        return left.transaction.purchaseDate > right.transaction.purchaseDate
+      }
+      .map { item in
+        let transaction = item.transaction
+        var payload: [String: Any] = [
+          "transactionId": String(transaction.id),
+          "originalTransactionId": String(transaction.originalID),
+          "productId": transaction.productID,
+          "signedTransaction": item.signedTransaction,
+          "purchaseDateMs": Int64(transaction.purchaseDate.timeIntervalSince1970 * 1000),
+          "expirationDateMs": Int64((transaction.expirationDate ?? .distantPast).timeIntervalSince1970 * 1000),
+        ]
+        if let appAccountToken = transaction.appAccountToken {
+          payload["appAccountToken"] = appAccountToken.uuidString.lowercased()
+        }
+        return payload
+      }
+  }
+
+  @available(iOS 15.0, *)
+  private static func capture(
+    transaction: Transaction,
+    signedTransaction: String,
+    productIds: Set<String>,
+    activeAt: Date,
+    into transactions: inout [UInt64: (transaction: Transaction, signedTransaction: String)]
+  ) {
+    guard productIds.contains(transaction.productID),
+      transaction.revocationDate == nil,
+      let expirationDate = transaction.expirationDate,
+      expirationDate > activeAt,
+      !signedTransaction.isEmpty
+    else { return }
+
+    if let existing = transactions[transaction.originalID],
+      existing.transaction.expirationDate ?? .distantPast >= expirationDate
+    {
+      return
+    }
+    transactions[transaction.originalID] = (transaction, signedTransaction)
   }
 }
 

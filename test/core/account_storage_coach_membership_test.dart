@@ -62,4 +62,49 @@ void main() {
     SharedPreferences.setMockInitialValues({'user_id': userId + 1});
     expect(await AccountStorage.shouldShowPostPurchaseIntro(), isFalse);
   });
+
+  test('tracks each post-purchase module independently', () async {
+    await AccountStorage.schedulePostPurchaseIntro();
+
+    expect(
+      await AccountStorage.shouldShowPostPurchaseIntroModule('dashboard'),
+      isTrue,
+    );
+    expect(
+      await AccountStorage.shouldShowPostPurchaseIntroModule('diet'),
+      isTrue,
+    );
+
+    await AccountStorage.completePostPurchaseIntroModule('dashboard');
+
+    expect(
+      await AccountStorage.shouldShowPostPurchaseIntroModule('dashboard'),
+      isFalse,
+    );
+    expect(
+      await AccountStorage.shouldShowPostPurchaseIntroModule('diet'),
+      isTrue,
+    );
+    expect(await AccountStorage.shouldShowPostPurchaseIntro(), isTrue);
+  });
+
+  test('finishes the account-wide intro after all five modules', () async {
+    await AccountStorage.schedulePostPurchaseIntro();
+
+    for (final module in const [
+      'dashboard',
+      'diet',
+      'training',
+      'community',
+      'coach',
+    ]) {
+      await AccountStorage.completePostPurchaseIntroModule(module);
+    }
+
+    expect(await AccountStorage.shouldShowPostPurchaseIntro(), isFalse);
+    expect(
+      await AccountStorage.shouldShowPostPurchaseIntroModule('coach'),
+      isFalse,
+    );
+  });
 }

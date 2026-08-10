@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:health/health.dart';
 
+import '../../consents/consent_manager.dart';
+
 enum WearableDetectionKind { none, apple, other }
 
 class WearableDetectionResult {
@@ -76,10 +78,8 @@ class AppleWatchDetectionService {
         if (!requestPermissionIfNeeded) {
           return const WearableDetectionResult(WearableDetectionKind.none);
         }
-        hasPermission = await _health.requestAuthorization(
-          _types,
-          permissions: _permissions,
-        );
+        hasPermission =
+            await ConsentManager.requestUnifiedHealthPermissionsJIT();
         if (!hasPermission) {
           return const WearableDetectionResult(WearableDetectionKind.none);
         }

@@ -128,58 +128,11 @@ class SleepService {
   }
 
   Future<bool> _ensureSleepMetricPermission() async {
-    try {
-      // Don't re-prompt on Android — unified prompt already covered this.
-      if (Platform.isAndroid &&
-          await ConsentManager.isAndroidHealthPromptCached()) {
-        return true;
-      }
-      final types = _sleepMetricTypesForPlatform();
-      final permissions = List<HealthDataAccess>.filled(
-        types.length,
-        HealthDataAccess.READ,
-      );
-      var granted =
-          await _health.hasPermissions(types, permissions: permissions) ??
-          false;
-      if (!granted) {
-        granted = await _health.requestAuthorization(
-          types,
-          permissions: permissions,
-        );
-      }
-      return granted;
-    } catch (_) {
-      return false;
-    }
+    return ConsentManager.requestUnifiedHealthPermissionsJIT();
   }
 
   Future<bool> _ensureSleepStagePermission() async {
-    try {
-      if (Platform.isAndroid &&
-          await ConsentManager.isAndroidHealthPromptCached()) {
-        return true;
-      }
-      final permissions = List<HealthDataAccess>.filled(
-        _sleepStageTypes.length,
-        HealthDataAccess.READ,
-      );
-      var granted =
-          await _health.hasPermissions(
-            _sleepStageTypes,
-            permissions: permissions,
-          ) ??
-          false;
-      if (!granted) {
-        granted = await _health.requestAuthorization(
-          _sleepStageTypes,
-          permissions: permissions,
-        );
-      }
-      return granted;
-    } catch (_) {
-      return false;
-    }
+    return ConsentManager.requestUnifiedHealthPermissionsJIT();
   }
 
   Future<SleepDayMetrics?> _fetchSleepMetricsInRange({

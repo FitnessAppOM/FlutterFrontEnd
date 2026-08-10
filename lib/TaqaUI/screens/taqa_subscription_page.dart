@@ -21,6 +21,7 @@ import '../../services/core/notification_service.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/purchases/apple_billing_service.dart';
 import '../../services/purchases/apple_promotional_offer.dart';
+import '../../services/purchases/apple_storekit_entitlement_recovery.dart';
 import '../../services/purchases/billing_api.dart';
 import '../../services/purchases/taqa_subscription_catalog.dart';
 import '../Typography/taqa_ui_typography.dart';
@@ -35,6 +36,8 @@ import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
 
 enum _SubscriptionAccountAction { freeze, delete, logout }
+
+enum _RecoveryOutcome { activated, notFound, failed }
 
 /// Taqa Fitness subscriptions purchased through the App Store / StoreKit.
 class TaqaSubscriptionPage extends StatefulWidget {
@@ -222,7 +225,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         _message = response.error?.message;
         if (_products.isEmpty && response.notFoundIDs.isNotEmpty) {
           _message =
-              'Subscriptions are not available from the App Store yet. Please try again soon.';
+              'Subscriptions are not available from ${_storeName()} yet. Please try again soon.';
         }
         storeMessage = _message;
         _loading = false;
@@ -262,16 +265,20 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
 
   void _handlePurchaseStreamError(Object _) {
     if (!mounted) return;
+    _setStoreOperationIdle();
+    _setMessage('${_storeName()} could not process the purchase.');
+  }
+
+  void _setStoreOperationIdle({bool preserveExpectedProduct = false}) {
+    if (!mounted) return;
     setState(() {
       _purchasePending = false;
       _restoring = false;
       _pendingReplacementProductId = null;
       _pendingChangeAction = null;
-      _checkoutProductId = null;
+      if (!preserveExpectedProduct) _checkoutProductId = null;
       _restoreRequested = false;
-      _message = null;
     });
-    _setMessage('The App Store could not process the purchase.');
   }
 
   Future<void> _handlePurchaseUpdates(List<PurchaseDetails> purchases) async {
@@ -299,22 +306,39 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       }
 
       if (purchase.status == PurchaseStatus.error) {
-        // StoreKit can report its "currently subscribed" alert as either an
-        // error or a cancellation. Recover from both by asking for current
-        // entitlements, but retain the original result if none are returned.
+        final purchaseMessage = _purchaseErrorMessage(purchase);
+        final recoverySignal =
+            '$purchaseMessage ${purchase.error?.code ?? ''} '
+            '${purchase.error?.details ?? ''}';
+        if (!_purchaseMayAlreadyBeOwned(recoverySignal)) {
+          _setStoreOperationIdle();
+          _setMessage(purchaseMessage);
+          return;
+        }
+        if (Platform.isIOS) {
+          final outcome = await _recoverActiveAppleSubscription(
+            preferredProductId: purchase.productID,
+            scheduleIntro: true,
+          );
+          if (outcome != _RecoveryOutcome.notFound) return;
+        } else {
+          final outcome = await _recoverActiveGoogleSubscription(
+            preferredProductId: purchase.productID,
+            scheduleIntro: true,
+          );
+          if (outcome != _RecoveryOutcome.notFound) return;
+        }
         await _restorePurchases(
           automatic: true,
-          emptyResultMessage: _purchaseErrorMessage(purchase),
+          skipStorePreflight: true,
+          emptyResultMessage: Platform.isIOS
+              ? 'Apple reports that this subscription is already owned, but did not return its transaction. Check the Apple ID used for the purchase.'
+              : purchaseMessage,
         );
         return;
       } else if (purchase.status == PurchaseStatus.canceled) {
         if (mounted) {
-          setState(() {
-            _purchasePending = false;
-            _restoring = false;
-            _checkoutProductId = null;
-            _restoreRequested = false;
-          });
+          _setStoreOperationIdle();
           _setMessage('The purchase was canceled.', type: AppToastType.info);
         }
         return;
@@ -330,12 +354,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
           }
           if (!mounted) return;
           final existingMessage = _message;
-          setState(() {
-            _purchasePending = false;
-            _restoring = false;
-            _checkoutProductId = null;
-            _restoreRequested = false;
-          });
+          _setStoreOperationIdle();
           if (existingMessage == null) {
             _setMessage(
               _coachMembership
@@ -376,14 +395,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         await _store.completePurchase(purchase);
       }
       if (mounted) {
-        setState(() {
-          _purchasePending = false;
-          _restoring = false;
-          _pendingReplacementProductId = null;
-          _pendingChangeAction = null;
-          _checkoutProductId = null;
-          _restoreRequested = false;
-        });
+        _setStoreOperationIdle();
       }
     }
   }
@@ -410,6 +422,16 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         : 'The purchase could not be completed. Please try again.';
   }
 
+  bool _purchaseMayAlreadyBeOwned(String message) {
+    final normalized = message.toLowerCase().replaceAll('-', '_');
+    return normalized.contains('currently subscribed') ||
+        normalized.contains('already subscribed') ||
+        normalized.contains('already owned') ||
+        normalized.contains('already own') ||
+        normalized.contains('item_already_owned') ||
+        normalized.contains('duplicate_product');
+  }
+
   Future<void> _completePurchaseInBackground(PurchaseDetails purchase) async {
     try {
       await _store.completePurchase(purchase);
@@ -424,7 +446,13 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   }) async {
     _lastActivationChangePending = false;
     try {
-      final entitlementCode = _coachMembership ? 'coach_tools' : 'app_full';
+      final entitlementCode = purchase == null
+          ? widget.mandatory
+                ? 'app_full'
+                : _coachMembership
+                ? 'coach_tools'
+                : 'app_full'
+          : _entitlementCodeForProduct(purchase.productID);
       final entitlement = purchase == null
           ? await AppleBillingService.fetchEntitlement(entitlementCode)
           : Platform.isAndroid
@@ -443,34 +471,11 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
               reactivateAutoRenew: purchase.status == PurchaseStatus.purchased,
               referralClaimToken: widget.referralClaimToken,
             );
-      if (!entitlement.active) return false;
-      final requestedProductId = _checkoutProductId;
-      final verifiedProductId =
-          purchase?.productID ?? entitlement.productId ?? '';
-      final requestedChangeIsPending =
-          requestedProductId != null &&
-          entitlement.pendingProductId == requestedProductId;
-      if (requestedProductId != null &&
-          requestedProductId != verifiedProductId &&
-          !requestedChangeIsPending) {
-        _setMessage(
-          'Your current plan is still active. Apple has not activated the selected plan yet. A switch to a lower plan takes effect at the next renewal.',
-          type: AppToastType.info,
-        );
-        return false;
-      }
-      _lastActivationChangePending = requestedChangeIsPending;
-      if (_coachMembership) {
-        final expiration = entitlement.expiresAt;
-        if (expiration == null || !expiration.isAfter(DateTime.now().toUtc())) {
-          return false;
-        }
-        await AccountStorage.setCoachMembershipActive(
-          true,
-          expiresAt: expiration,
-        );
-      }
-      return true;
+      return _acceptVerifiedEntitlement(
+        entitlement,
+        entitlementCode: entitlementCode,
+        verifiedProductId: purchase?.productID ?? entitlement.productId ?? '',
+      );
     } on AppleBillingException catch (error) {
       _setMessage(error.message);
       return false;
@@ -484,6 +489,250 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         'Your subscription could not be verified. Please try Restore Purchases.',
       );
       return false;
+    }
+  }
+
+  Future<bool> _acceptVerifiedEntitlement(
+    AppleBillingEntitlement entitlement, {
+    required String entitlementCode,
+    required String verifiedProductId,
+    bool enforceRequestedProduct = true,
+  }) async {
+    if (!entitlement.active) return false;
+    final requestedProductId = enforceRequestedProduct
+        ? _checkoutProductId
+        : null;
+    final requestedChangeIsPending =
+        requestedProductId != null &&
+        entitlement.pendingProductId == requestedProductId;
+    if (requestedProductId != null &&
+        requestedProductId != verifiedProductId &&
+        !requestedChangeIsPending) {
+      _setMessage(
+        'Your current plan is still active. ${_storeName()} has not activated the selected plan yet. A switch to a lower plan takes effect at the next renewal.',
+        type: AppToastType.info,
+      );
+      return false;
+    }
+    _lastActivationChangePending = requestedChangeIsPending;
+    _applyBillingState(entitlement);
+    if (entitlementCode == 'coach_tools') {
+      final expiration = entitlement.expiresAt;
+      if (expiration == null || !expiration.isAfter(DateTime.now().toUtc())) {
+        return false;
+      }
+      await AccountStorage.setCoachMembershipActive(
+        true,
+        expiresAt: expiration,
+      );
+    }
+    return true;
+  }
+
+  String _entitlementCodeForProduct(String productId) {
+    return _isCoachProductId(productId) ? 'coach_tools' : 'app_full';
+  }
+
+  bool _isCoachProductId(String productId) {
+    if (TaqaSubscriptionCatalog.coachPlans.any(
+      (plan) => plan.productId == productId,
+    )) {
+      return true;
+    }
+    return _googleOfferingsByProductId[productId]?.planCode.startsWith(
+          'coach_',
+        ) ==
+        true;
+  }
+
+  Future<_RecoveryOutcome> _recoverActiveAppleSubscription({
+    String? preferredProductId,
+    required bool scheduleIntro,
+  }) async {
+    if (!Platform.isIOS || !InAppPurchaseStoreKitPlatform.isStoreKit2Enabled) {
+      return _RecoveryOutcome.notFound;
+    }
+
+    late final List<AppleStoreKitEntitlementTransaction> transactions;
+    try {
+      final active = await AppleStoreKitEntitlementRecovery.activeTransactions(
+        productIds: _knownProductIds,
+      );
+      transactions = AppleStoreKitEntitlementRecovery.prioritize(
+        active,
+        activeAt: DateTime.now().toUtc(),
+        preferredProductId: preferredProductId,
+      );
+    } catch (_) {
+      return _RecoveryOutcome.notFound;
+    }
+    if (transactions.isEmpty) return _RecoveryOutcome.notFound;
+
+    final transaction = transactions.first;
+    final preferredTransactionFound =
+        preferredProductId == null ||
+        transactions.any(
+          (candidate) => candidate.productId == preferredProductId,
+        );
+    final entitlementCode = _entitlementCodeForProduct(transaction.productId);
+    try {
+      final entitlement = await AppleBillingService.verifyPurchase(
+        productId: transaction.productId,
+        signedTransaction: transaction.signedTransaction,
+        entitlementCode: entitlementCode,
+        // This is an entitlement recovery, not a new StoreKit purchase. Keep
+        // the renewal state already reconciled by App Store notifications.
+        reactivateAutoRenew: false,
+        referralClaimToken: widget.referralClaimToken,
+      );
+      final active = await _acceptVerifiedEntitlement(
+        entitlement,
+        entitlementCode: entitlementCode,
+        verifiedProductId: transaction.productId,
+        enforceRequestedProduct: preferredTransactionFound,
+      );
+      if (!active) {
+        _setStoreOperationIdle();
+        if (_message == null) {
+          _setMessage(
+            'Apple returned the subscription, but it is not active for this Taqa account.',
+          );
+        }
+        return _RecoveryOutcome.failed;
+      }
+
+      _setStoreOperationIdle();
+      _setMessage(
+        'Your subscription is active and linked.',
+        type: AppToastType.success,
+      );
+      if (widget.referralClaimToken != null && mounted) {
+        Navigator.of(context).pop(true);
+        return _RecoveryOutcome.activated;
+      }
+      if (widget.mandatory && mounted) {
+        await _finishMandatorySubscription(scheduleIntro: scheduleIntro);
+      }
+      return _RecoveryOutcome.activated;
+    } on AppleBillingException catch (error) {
+      _setStoreOperationIdle();
+      _setMessage(error.message);
+      return _RecoveryOutcome.failed;
+    } on TimeoutException {
+      _setStoreOperationIdle();
+      _setMessage('Subscription verification timed out. Please try again.');
+      return _RecoveryOutcome.failed;
+    } catch (_) {
+      _setStoreOperationIdle();
+      _setMessage('Your subscription could not be verified. Please try again.');
+      return _RecoveryOutcome.failed;
+    }
+  }
+
+  Future<_RecoveryOutcome> _recoverActiveGoogleSubscription({
+    String? preferredProductId,
+    required bool scheduleIntro,
+  }) async {
+    if (!Platform.isAndroid) return _RecoveryOutcome.notFound;
+
+    late final List<PurchaseDetails> purchases;
+    try {
+      final addition = _store
+          .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
+      final response = await addition.queryPastPurchases().timeout(
+        const Duration(seconds: 8),
+      );
+      if (response.error != null) return _RecoveryOutcome.notFound;
+      purchases = response.pastPurchases
+          .where(
+            (purchase) =>
+                _knownProductIds.contains(purchase.productID) &&
+                (purchase.status == PurchaseStatus.purchased ||
+                    purchase.status == PurchaseStatus.restored) &&
+                purchase.verificationData.serverVerificationData
+                    .trim()
+                    .isNotEmpty,
+          )
+          .toList(growable: false);
+    } catch (_) {
+      return _RecoveryOutcome.notFound;
+    }
+    if (purchases.isEmpty) return _RecoveryOutcome.notFound;
+
+    purchases.sort((left, right) {
+      final leftPreferred = left.productID == preferredProductId ? 1 : 0;
+      final rightPreferred = right.productID == preferredProductId ? 1 : 0;
+      final preferredOrder = rightPreferred.compareTo(leftPreferred);
+      if (preferredOrder != 0) return preferredOrder;
+      final leftDate = int.tryParse(left.transactionDate ?? '') ?? 0;
+      final rightDate = int.tryParse(right.transactionDate ?? '') ?? 0;
+      return rightDate.compareTo(leftDate);
+    });
+
+    final purchase = purchases.first;
+    final preferredPurchaseFound =
+        preferredProductId == null ||
+        purchases.any((candidate) => candidate.productID == preferredProductId);
+    try {
+      final entitlementCode = _entitlementCodeForProduct(purchase.productID);
+      final entitlement = await AppleBillingService.verifyGooglePurchase(
+        productId: purchase.productID,
+        purchaseToken: purchase.verificationData.serverVerificationData,
+        entitlementCode: entitlementCode,
+        replacementProductId: purchase.productID == _pendingReplacementProductId
+            ? _pendingReplacementProductId
+            : null,
+        referralClaimToken: widget.referralClaimToken,
+      );
+      final active = await _acceptVerifiedEntitlement(
+        entitlement,
+        entitlementCode: entitlementCode,
+        verifiedProductId: purchase.productID,
+        enforceRequestedProduct: preferredPurchaseFound,
+      );
+      if (!active) {
+        _setStoreOperationIdle();
+        if (_message == null) {
+          _setMessage(
+            'Google Play returned the subscription, but it is not active for this Taqa account.',
+          );
+        }
+        return _RecoveryOutcome.failed;
+      }
+
+      _setStoreOperationIdle();
+      _setMessage(
+        'Your subscription is active and linked.',
+        type: AppToastType.success,
+      );
+      if (widget.referralClaimToken != null && mounted) {
+        if (purchase.pendingCompletePurchase) {
+          await _store.completePurchase(purchase);
+        }
+        if (mounted) Navigator.of(context).pop(true);
+        return _RecoveryOutcome.activated;
+      }
+      if (widget.mandatory && mounted) {
+        await _finishMandatorySubscription(
+          purchase: purchase,
+          scheduleIntro: scheduleIntro,
+        );
+      } else if (purchase.pendingCompletePurchase) {
+        await _store.completePurchase(purchase);
+      }
+      return _RecoveryOutcome.activated;
+    } on AppleBillingException catch (error) {
+      _setStoreOperationIdle();
+      _setMessage(error.message);
+      return _RecoveryOutcome.failed;
+    } on TimeoutException {
+      _setStoreOperationIdle();
+      _setMessage('Subscription verification timed out. Please try again.');
+      return _RecoveryOutcome.failed;
+    } catch (_) {
+      _setStoreOperationIdle();
+      _setMessage('Your subscription could not be verified. Please try again.');
+      return _RecoveryOutcome.failed;
     }
   }
 
@@ -519,6 +768,17 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
 
     final activeProductId = await _refreshBillingStateForCheckout();
     if (!mounted || _billingPreflightFailed || !_purchaseAllowedOnThisStore()) {
+      return;
+    }
+    if (activeProductId == product.id && _billingState?.active == true) {
+      if (widget.mandatory) {
+        await _finishMandatorySubscription();
+      } else {
+        _setMessage(
+          'This is already your active subscription.',
+          type: AppToastType.info,
+        );
+      }
       return;
     }
 
@@ -631,35 +891,32 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     } catch (error) {
       final startError = _purchaseStartErrorMessage(error);
       if (error is PlatformException &&
-          error.code == 'storekit_duplicate_product_object' &&
-          await _recoverUnfinishedAppleTransaction(product.id)) {
-        if (!mounted) return;
-        final active = await _performSubscriptionActivation();
-        if (!mounted) return;
-        if (active && widget.mandatory) {
-          await _finishMandatorySubscription(scheduleIntro: true);
-          return;
+          error.code == 'storekit_duplicate_product_object') {
+        await _recoverUnfinishedAppleTransaction(product.id);
+      }
+      final errorCode = error is PlatformException ? error.code : '';
+      if (_purchaseMayAlreadyBeOwned('$startError $errorCode')) {
+        if (Platform.isIOS) {
+          final outcome = await _recoverActiveAppleSubscription(
+            preferredProductId: product.id,
+            scheduleIntro: true,
+          );
+          if (outcome != _RecoveryOutcome.notFound) return;
+        } else {
+          final outcome = await _recoverActiveGoogleSubscription(
+            preferredProductId: product.id,
+            scheduleIntro: true,
+          );
+          if (outcome != _RecoveryOutcome.notFound) return;
         }
-        setState(() {
-          _purchasePending = false;
-          _checkoutProductId = null;
-        });
-        _setMessage(
-          active
-              ? 'Your subscription is active and linked.'
-              : 'Apple finished the previous purchase attempt. Tap Subscribe again to continue.',
-          type: AppToastType.info,
+        await _restorePurchases(
+          automatic: true,
+          skipStorePreflight: true,
+          emptyResultMessage: startError,
         );
         return;
       }
-      if (await _resumeExistingMandatorySubscription()) return;
-      await _restorePurchases(automatic: true, emptyResultMessage: startError);
-      if (_restoring || _mandatoryRouteFinished) return;
-      if (!mounted) return;
-      setState(() {
-        _purchasePending = false;
-        _checkoutProductId = null;
-      });
+      _setStoreOperationIdle();
       _setMessage(startError);
     }
   }
@@ -670,7 +927,9 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     }
 
     try {
-      final unfinished = await SK2Transaction.unfinishedTransactions();
+      final unfinished = await SK2Transaction.unfinishedTransactions().timeout(
+        const Duration(seconds: 5),
+      );
       var recovered = false;
       for (final transaction in unfinished) {
         if (transaction.productId != productId) continue;
@@ -715,7 +974,9 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     }
     final addition = _store
         .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
-    final response = await addition.queryPastPurchases();
+    final response = await addition.queryPastPurchases().timeout(
+      const Duration(seconds: 8),
+    );
     if (response.error != null) {
       throw BillingApiException(
         response.error?.message ??
@@ -885,7 +1146,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       final message = error.message?.trim() ?? '';
       if (message.isNotEmpty) return message;
       if (error.code.trim().isNotEmpty) {
-        return 'The App Store could not start the purchase (${error.code}).';
+        return '${_storeName()} could not start the purchase (${error.code}).';
       }
     }
     return 'The purchase could not be started. Please try again.';
@@ -896,7 +1157,12 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     required bool planChange,
     required DateTime? currentPlanEndsAt,
   }) {
-    Future<void>.delayed(Duration(seconds: planChange ? 6 : 30), () async {
+    final timeout = planChange
+        ? const Duration(seconds: 6)
+        : Platform.isIOS
+        ? const Duration(seconds: 12)
+        : const Duration(seconds: 20);
+    Future<void>.delayed(timeout, () async {
       if (!mounted ||
           _mandatoryRouteFinished ||
           !_purchasePending ||
@@ -926,13 +1192,26 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         );
         return;
       }
+      if (Platform.isIOS) {
+        final outcome = await _recoverActiveAppleSubscription(
+          preferredProductId: productId,
+          scheduleIntro: true,
+        );
+        if (outcome != _RecoveryOutcome.notFound) return;
+      } else {
+        final outcome = await _recoverActiveGoogleSubscription(
+          preferredProductId: productId,
+          scheduleIntro: true,
+        );
+        if (outcome != _RecoveryOutcome.notFound) return;
+      }
       if (await _resumeExistingMandatorySubscription()) return;
       if (!mounted || _checkoutProductId != productId) return;
-      final processingMessage =
-          'Apple is still processing the purchase. Try Restore Purchases to continue.';
+      final processingMessage = Platform.isAndroid
+          ? 'Google Play has not completed the purchase yet. If it is pending approval, access will update when Google confirms it.'
+          : 'Apple did not return a completed transaction. If Apple says you already own this plan, use Restore Purchases with the Apple ID that bought it.';
       setState(() {
         _purchasePending = false;
-        _checkoutProductId = null;
       });
       if (_message == null) {
         _setMessage(processingMessage, type: AppToastType.info);
@@ -1056,6 +1335,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
 
   Future<void> _restorePurchases({
     bool automatic = false,
+    bool skipStorePreflight = false,
     String? emptyResultMessage,
   }) async {
     if (_restoring) return;
@@ -1066,29 +1346,34 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     });
     try {
       if (await _resumeExistingMandatorySubscription()) return;
+      if (Platform.isIOS && !skipStorePreflight) {
+        final outcome = await _recoverActiveAppleSubscription(
+          preferredProductId: _checkoutProductId,
+          scheduleIntro: false,
+        );
+        if (outcome != _RecoveryOutcome.notFound) return;
+      } else if (Platform.isAndroid && !skipStorePreflight) {
+        final outcome = await _recoverActiveGoogleSubscription(
+          preferredProductId: _checkoutProductId,
+          scheduleIntro: false,
+        );
+        if (outcome != _RecoveryOutcome.notFound) return;
+      }
       final applicationUserName = await _storeAccountIdentifier();
-      await _store.restorePurchases(applicationUserName: applicationUserName);
+      await _store
+          .restorePurchases(applicationUserName: applicationUserName)
+          .timeout(const Duration(seconds: 12));
       _scheduleRestoreTimeout(
         showMissingSubscriptionMessage: !automatic,
         emptyResultMessage: emptyResultMessage,
       );
     } on AppleBillingException catch (error) {
       if (!mounted) return;
-      setState(() {
-        _restoring = false;
-        _purchasePending = false;
-        _checkoutProductId = null;
-        _restoreRequested = false;
-      });
+      _setStoreOperationIdle();
       _setMessage(error.message);
     } catch (_) {
       if (!mounted) return;
-      setState(() {
-        _restoring = false;
-        _purchasePending = false;
-        _checkoutProductId = null;
-        _restoreRequested = false;
-      });
+      _setStoreOperationIdle();
       _setMessage('Purchases could not be restored. Please try again.');
     }
   }
@@ -1097,8 +1382,21 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     required bool showMissingSubscriptionMessage,
     String? emptyResultMessage,
   }) {
-    Future<void>.delayed(const Duration(seconds: 15), () async {
+    Future<void>.delayed(const Duration(seconds: 12), () async {
       if (!mounted || !_restoring || _mandatoryRouteFinished) return;
+      if (Platform.isIOS) {
+        final outcome = await _recoverActiveAppleSubscription(
+          preferredProductId: _checkoutProductId,
+          scheduleIntro: false,
+        );
+        if (outcome != _RecoveryOutcome.notFound) return;
+      } else if (Platform.isAndroid) {
+        final outcome = await _recoverActiveGoogleSubscription(
+          preferredProductId: _checkoutProductId,
+          scheduleIntro: false,
+        );
+        if (outcome != _RecoveryOutcome.notFound) return;
+      }
       if (await _resumeExistingMandatorySubscription()) return;
       if (!mounted || !_restoring) return;
       String? resultMessage;

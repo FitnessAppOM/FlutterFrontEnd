@@ -381,7 +381,31 @@ class AppLocalizations {
       "finish": "Finish",
       "common_continue": "Continue",
       "post_purchase_intro_skip": "Skip",
-      "post_purchase_intro_done": "Start using Taqa",
+      "post_purchase_intro_done": "Done",
+      "post_purchase_intro_dashboard_explore_title":
+          "Explore the other modules",
+      "post_purchase_intro_dashboard_explore_body":
+          "Open Diet, Training, Community and Coach when you need them. Each module will introduce itself the first time you visit.",
+      "post_purchase_intro_community_title": "Move forward together",
+      "post_purchase_intro_community_body":
+          "Join groups, share progress and take part in challenges with the Taqa community.",
+      "post_purchase_intro_coach_title": "Your coach, connected",
+      "post_purchase_intro_coach_body":
+          "Keep coaching, habits and progress in one place, whether you are a client or a coach.",
+      "taqa_tutorial_library_body":
+          "Choose a module to replay its guide. Each guide stays separate, just like it appears in the app.",
+      "taqa_tutorial_dashboard_title": "Dashboard",
+      "taqa_tutorial_dashboard_sub":
+          "Daily Taqa, widgets, recovery and connected health",
+      "taqa_tutorial_diet_title": "Diet",
+      "taqa_tutorial_diet_sub": "Calories, macros and daily meals",
+      "taqa_tutorial_training_title": "Training",
+      "taqa_tutorial_training_sub":
+          "Plans, live sets, outdoor cardio and sharing",
+      "taqa_tutorial_community_title": "Community",
+      "taqa_tutorial_community_sub": "Groups, progress and challenges",
+      "taqa_tutorial_coach_title": "Coach",
+      "taqa_tutorial_coach_sub": "Coaching, habits and client progress",
       "post_purchase_intro_1_title": "Welcome to your Taqa",
       "post_purchase_intro_1_body":
           "Your training, nutrition, recovery and daily progress—together in one dashboard.",
@@ -1848,7 +1872,30 @@ class AppLocalizations {
       "finish": "إنهاء",
       "common_continue": "متابعة",
       "post_purchase_intro_skip": "تخطي",
-      "post_purchase_intro_done": "ابدأ باستخدام Taqa",
+      "post_purchase_intro_done": "تم",
+      "post_purchase_intro_dashboard_explore_title": "استكشف الوحدات الأخرى",
+      "post_purchase_intro_dashboard_explore_body":
+          "افتح التغذية والتمارين والمجتمع والمدرب عند الحاجة. ستعرّفك كل وحدة بنفسها عند زيارتها للمرة الأولى.",
+      "post_purchase_intro_community_title": "نتقدم معاً",
+      "post_purchase_intro_community_body":
+          "انضم إلى المجموعات وشارك تقدمك وخض التحديات مع مجتمع Taqa.",
+      "post_purchase_intro_coach_title": "مدربك على تواصل دائم",
+      "post_purchase_intro_coach_body":
+          "اجمع التدريب والعادات والتقدم في مكان واحد، سواء كنت متدرباً أو مدرباً.",
+      "taqa_tutorial_library_body":
+          "اختر وحدة لإعادة مشاهدة دليلها. يبقى كل دليل منفصلاً كما يظهر داخل التطبيق.",
+      "taqa_tutorial_dashboard_title": "لوحة التحكم",
+      "taqa_tutorial_dashboard_sub":
+          "طاقة اليومية والعناصر والاستشفاء والبيانات الصحية",
+      "taqa_tutorial_diet_title": "التغذية",
+      "taqa_tutorial_diet_sub": "السعرات والماكرو والوجبات اليومية",
+      "taqa_tutorial_training_title": "التمارين",
+      "taqa_tutorial_training_sub":
+          "الخطط والمجموعات المباشرة والكارديو والمشاركة",
+      "taqa_tutorial_community_title": "المجتمع",
+      "taqa_tutorial_community_sub": "المجموعات والتقدم والتحديات",
+      "taqa_tutorial_coach_title": "المدرب",
+      "taqa_tutorial_coach_sub": "التدريب والعادات وتقدم المتدربين",
       "post_purchase_intro_1_title": "مرحباً بك في Taqa",
       "post_purchase_intro_1_body":
           "تمارينك وتغذيتك واستشفاؤك وتقدمك اليومي معاً في لوحة واحدة.",
