@@ -53,20 +53,28 @@ class _TaqaPostPurchaseIntroPageState extends State<TaqaPostPurchaseIntroPage> {
 
   static const _dietSlides = <_TaqaIntroSlide>[
     _TaqaIntroSlide.screenshot(6, 9),
+    _TaqaIntroSlide.screenshot(17, 17),
   ];
 
   static const _communitySlides = <_TaqaIntroSlide>[
-    _TaqaIntroSlide.text(
-      'post_purchase_intro_community_title',
-      'post_purchase_intro_community_body',
-    ),
+    _TaqaIntroSlide.screenshot(14, 14),
+    _TaqaIntroSlide.screenshot(16, 16),
+    _TaqaIntroSlide.screenshot(15, 15),
+    _TaqaIntroSlide.screenshot(18, 18),
   ];
 
-  static const _coachSlides = <_TaqaIntroSlide>[
-    _TaqaIntroSlide.text(
-      'post_purchase_intro_coach_title',
-      'post_purchase_intro_coach_body',
-    ),
+  static const _clientCoachSlides = <_TaqaIntroSlide>[
+    _TaqaIntroSlide.screenshot(19, 19),
+    _TaqaIntroSlide.screenshot(21, 21),
+    _TaqaIntroSlide.screenshot(20, 20),
+  ];
+
+  static const _expertCoachSlides = <_TaqaIntroSlide>[
+    _TaqaIntroSlide.screenshot(22, 22),
+    _TaqaIntroSlide.screenshot(24, 24),
+    _TaqaIntroSlide.screenshot(23, 23),
+    _TaqaIntroSlide.screenshot(25, 25),
+    _TaqaIntroSlide.screenshot(26, 26),
   ];
 
   List<_TaqaIntroSlide> get _slides => switch (widget.module) {
@@ -74,7 +82,8 @@ class _TaqaPostPurchaseIntroPageState extends State<TaqaPostPurchaseIntroPage> {
     TaqaIntroModule.diet => _dietSlides,
     TaqaIntroModule.training => _trainingSlides,
     TaqaIntroModule.community => _communitySlides,
-    TaqaIntroModule.coach => _coachSlides,
+    TaqaIntroModule.clientCoach => _clientCoachSlides,
+    TaqaIntroModule.expertCoach => _expertCoachSlides,
   };
 
   Future<void> _finish() async {

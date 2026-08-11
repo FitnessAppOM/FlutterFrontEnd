@@ -392,6 +392,9 @@ class AppLocalizations {
       "post_purchase_intro_coach_title": "Your coach, connected",
       "post_purchase_intro_coach_body":
           "Keep coaching, habits and progress in one place, whether you are a client or a coach.",
+      "post_purchase_intro_expert_coach_title": "Coach with confidence",
+      "post_purchase_intro_expert_coach_body":
+          "Open the coach dashboard to manage clients, review progress and leave clear feedback from one place.",
       "taqa_tutorial_library_body":
           "Choose a module to replay its guide. Each guide stays separate, just like it appears in the app.",
       "taqa_tutorial_dashboard_title": "Dashboard",
@@ -406,6 +409,12 @@ class AppLocalizations {
       "taqa_tutorial_community_sub": "Groups, progress and challenges",
       "taqa_tutorial_coach_title": "Coach",
       "taqa_tutorial_coach_sub": "Coaching, habits and client progress",
+      "taqa_tutorial_client_coach_title": "Client Coaching",
+      "taqa_tutorial_client_coach_sub":
+          "Habits, pinned feedback and direct coach chat",
+      "taqa_tutorial_expert_coach_title": "Coach Dashboard",
+      "taqa_tutorial_expert_coach_sub":
+          "Client habits, corrections and feedback",
       "post_purchase_intro_1_title": "Welcome to your Taqa",
       "post_purchase_intro_1_body":
           "Your training, nutrition, recovery and daily progress—together in one dashboard.",
@@ -445,6 +454,45 @@ class AppLocalizations {
       "post_purchase_intro_13_title": "Connect the full picture",
       "post_purchase_intro_13_body":
           "Use Fitbit health metrics alongside training, nutrition and recovery for richer insights.",
+      "post_purchase_intro_14_title": "Find your community",
+      "post_purchase_intro_14_body":
+          "Discover groups by interest and connect with people working toward similar goals.",
+      "post_purchase_intro_15_title": "Take on challenges",
+      "post_purchase_intro_15_body":
+          "Join global or group challenges and follow your progress as you move up together.",
+      "post_purchase_intro_16_title": "Share your progress",
+      "post_purchase_intro_16_body":
+          "Post wins, streaks and updates, then encourage the people in your groups.",
+      "post_purchase_intro_17_title": "Log meals your way",
+      "post_purchase_intro_17_body":
+          "Search foods, enter an item manually or estimate a meal from a photo.",
+      "post_purchase_intro_18_title": "Earn your badges",
+      "post_purchase_intro_18_body":
+          "Celebrate training consistency and the milestones you reach along the way.",
+      "post_purchase_intro_19_title": "Keep coach feedback visible",
+      "post_purchase_intro_19_body":
+          "Follow habits, review pinned corrections and see every new note from your coach in one place.",
+      "post_purchase_intro_20_title": "Chat with your coach",
+      "post_purchase_intro_20_body":
+          "Ask questions and keep personalized guidance together in one conversation.",
+      "post_purchase_intro_21_title": "Check your form",
+      "post_purchase_intro_21_body":
+          "Upload or record a short exercise video and receive AI feedback on movement quality and technique.",
+      "post_purchase_intro_22_title": "Keep clients in view",
+      "post_purchase_intro_22_body":
+          "See every client, activity status and pending plan update from one coach dashboard.",
+      "post_purchase_intro_23_title": "Build reusable programs",
+      "post_purchase_intro_23_body":
+          "Create training templates, assign them to clients and manage active programs.",
+      "post_purchase_intro_24_title": "Understand every client",
+      "post_purchase_intro_24_body":
+          "Review weight, weekly training, cardio and activity signals before adjusting the plan.",
+      "post_purchase_intro_25_title": "Review nutrition clearly",
+      "post_purchase_intro_25_body":
+          "Compare targets with intake, inspect logged meals and update each client's nutrition plan.",
+      "post_purchase_intro_26_title": "Support clients directly",
+      "post_purchase_intro_26_body":
+          "Keep questions, guidance and follow-up in one private client conversation.",
       "generating_waiting_hint": "This may take a few seconds.",
       "generating_error_title": "Taking longer than usual",
       "generating_error_body":
@@ -932,6 +980,163 @@ class AppLocalizations {
       "expert_dash_sec_workflow": "Workflow Tools",
       "expert_dash_sec_workflow_body":
           "Manage feedback queue, training plans, and nutrition schedule updates.",
+      "subscription_page_title": "Subscriptions",
+      "subscription_membership_title": "Taqa Subscription",
+      "subscription_coach_membership_title": "Taqa Coach Membership",
+      "subscription_membership_body":
+          "One membership for your full Taqa Subscription experience.",
+      "subscription_coach_membership_body":
+          "Start your membership to access your coach tools.",
+      "subscription_ready_body": "Your plan is ready. Subscribe to unlock it.",
+      "subscription_normal_plans": "Normal plans",
+      "subscription_coach_plans": "Coach plans",
+      "subscription_choose_a_plan": "Choose a plan",
+      "subscription_choose_plan": "Choose plan",
+      "subscription_subscribe_for": "Subscribe for {price}",
+      "subscription_change_plan": "Change plan · {price}",
+      "subscription_restore_purchases": "Restore Purchases",
+      "subscription_payment_disclaimer":
+          "Payment will be charged to your {account} when you confirm. Your subscription automatically renews unless you cancel at least 24 hours before the end of the current period. You can manage or cancel it in your {store} account settings.",
+      "subscription_continue": "Continue",
+      "subscription_confirm_coach_upgrade": "Confirm coach upgrade",
+      "subscription_confirm_plan_change": "Confirm plan change",
+      "subscription_confirm_subscription": "Confirm subscription",
+      "subscription_confirm_upgrade_body":
+          "Upgrade to Taqa Coach now. Google Play will apply credit from your current plan and show the prorated charge before you confirm.",
+      "subscription_confirm_downgrade_body":
+          "Keep Taqa Coach until the current paid period ends, then switch to the normal {price} plan. Google Play will show the effective date before you confirm.",
+      "subscription_confirm_referral_body":
+          "Apply the referral reward at your next renewal. Google Play will show the discounted renewal terms before you confirm.",
+      "subscription_confirm_purchase_body":
+          "Subscribe for {price} after any displayed free trial. Your {account} will be charged when you confirm in {store}.",
+      "subscription_store_plans_unavailable":
+          "Subscriptions are not available from {store} yet. Please try again soon.",
+      "subscription_store_unavailable":
+          "{store} is unavailable. Please try again later.",
+      "subscription_store_process_failed":
+          "{store} could not process the purchase.",
+      "subscription_apple_owned_missing_transaction":
+          "Apple reports that this subscription is already owned, but did not return its transaction. Check the Apple ID used for the purchase.",
+      "subscription_purchase_canceled": "The purchase was canceled.",
+      "subscription_verify_coach_failed_restore":
+          "We could not verify an active coach subscription. Please try Restore Purchases.",
+      "subscription_verify_failed_restore":
+          "We could not verify your subscription. Please try Restore Purchases.",
+      "subscription_change_scheduled":
+          "Your change is scheduled for the next renewal date.",
+      "subscription_restored_linked":
+          "Your subscription has been restored and linked.",
+      "subscription_coach_active": "Your Taqa Coach membership is active.",
+      "subscription_active_linked": "Your subscription is active and linked.",
+      "subscription_purchase_failed":
+          "The purchase could not be completed. Please try again.",
+      "subscription_verification_timeout_restore":
+          "Subscription verification timed out. Please try Restore Purchases.",
+      "subscription_current_plan_still_active":
+          "Your current plan is still active. {store} has not activated the selected plan yet. A switch to a lower plan takes effect at the next renewal.",
+      "subscription_apple_inactive_account":
+          "Apple returned the subscription, but it is not active for this Taqa account.",
+      "subscription_google_inactive_account":
+          "Google Play returned the subscription, but it is not active for this Taqa account.",
+      "subscription_verification_timeout":
+          "Subscription verification timed out. Please try again.",
+      "subscription_verification_failed":
+          "Your subscription could not be verified. Please try again.",
+      "subscription_already_active":
+          "This is already your active subscription.",
+      "subscription_referral_active_only":
+          "This referral reward must be claimed on your active subscription.",
+      "subscription_google_check_failed":
+          "Your current Google Play subscription could not be checked.",
+      "subscription_store_start_failed":
+          "{store} could not start the purchase.",
+      "subscription_google_missing":
+          "The current Google Play subscription is missing.",
+      "subscription_google_load_failed":
+          "The current Google Play subscription could not be loaded.",
+      "subscription_google_owner_account":
+          "Open Google Play with the account that owns the current subscription, then try again.",
+      "subscription_change_not_supported":
+          "This subscription change is not supported.",
+      "subscription_current_check_failed":
+          "Your current subscription could not be checked. Please try again.",
+      "subscription_other_store_managed":
+          "Your active subscription is managed through {otherStore}. To prevent two renewals, keep using Taqa with that plan and subscribe through {store} only after it ends.",
+      "subscription_apple_referral_unavailable":
+          "Apple referral offer authorization is unavailable.",
+      "subscription_apple_referral_mismatch":
+          "This Apple referral offer does not match the selected plan.",
+      "subscription_apple_finishing_previous":
+          "Apple is finishing a previous purchase attempt. Wait a moment, then try again.",
+      "subscription_store_start_failed_code":
+          "{store} could not start the purchase ({code}).",
+      "subscription_purchase_start_failed":
+          "The purchase could not be started. Please try again.",
+      "subscription_google_processing":
+          "Google Play has not completed the purchase yet. If it is pending approval, access will update when Google confirms it.",
+      "subscription_apple_processing":
+          "Apple did not return a completed transaction. If Apple says you already own this plan, use Restore Purchases with the Apple ID that bought it.",
+      "subscription_deferred_change":
+          "Your current plan stays active until the next renewal. The selected plan will start then.",
+      "subscription_deferred_change_date":
+          "Your current plan stays active until {date} at {time}. The selected plan will start at the next renewal.",
+      "subscription_restore_failed":
+          "Purchases could not be restored. Please try again.",
+      "subscription_none_found":
+          "No active subscription was found. Check that you are signed in with the {account} account used to subscribe.",
+      "subscription_legal_unavailable":
+          "This legal page is not available right now.",
+      "subscription_legal_open_failed": "This legal page could not be opened.",
+      "subscription_plan_standard_monthly": "Taqa Fitness Monthly",
+      "subscription_plan_standard_annual": "Taqa Fitness Annual",
+      "subscription_plan_student_monthly": "Taqa Fitness Student Monthly",
+      "subscription_plan_student_annual": "Taqa Fitness Student Annual",
+      "subscription_plan_coach_monthly": "Taqa Coach Monthly",
+      "subscription_plan_coach_annual": "Taqa Coach Annual",
+      "subscription_period_monthly": "Monthly",
+      "subscription_period_annual": "Annual",
+      "subscription_student_annual_description":
+          "Full access with student pricing, billed annually.",
+      "subscription_student_monthly_description":
+          "Full access with student pricing, billed monthly.",
+      "subscription_annual_description":
+          "Full Taqa Subscription access, billed annually.",
+      "subscription_monthly_description":
+          "Full Taqa Subscription access, billed monthly.",
+      "subscription_everything_coach": "Everything in Taqa Coach",
+      "subscription_everything_standard": "Everything in Taqa Subscription",
+      "subscription_coach_overview_body":
+          "The tools you need to coach clients, review their progress and grow your practice.",
+      "subscription_standard_overview_body":
+          "One membership, all the tools you need to train with intent.",
+      "subscription_coach_feature_1":
+          "Create and manage personalised training plans",
+      "subscription_coach_feature_2":
+          "Review client progress, feedback and check-ins",
+      "subscription_coach_feature_3":
+          "Message clients and manage your coaching relationships",
+      "subscription_coach_feature_4":
+          "Access coach dashboards and client insights",
+      "subscription_coach_feature_5":
+          "Share your referral code—referred coaches get \$1 off their first month",
+      "subscription_standard_feature_1":
+          "Personalised training plans and workout logging",
+      "subscription_standard_feature_2":
+          "Nutrition guidance, meal tracking and daily targets",
+      "subscription_standard_feature_3":
+          "Progress, recovery and wearable health insights",
+      "subscription_standard_feature_4":
+          "Message your coach and receive feedback",
+      "subscription_standard_feature_5":
+          "Connect with the Taqa Fitness community",
+      "subscription_standard_feature_6": "And more!",
+      "subscription_close_plan_selection": "Close plan selection",
+      "subscription_choose_your_plan": "Choose your plan",
+      "subscription_close": "Close",
+      "subscription_plan_picker_body":
+          "Every plan includes the same Taqa Subscription features. Tap a plan to select it.",
+      "subscription_terms_of_use": "Terms of Use",
+      "subscription_privacy_policy": "Privacy Policy",
       "settings_delete_account": "Delete account",
       "subscription_account_actions_title": "Account options",
       "subscription_freeze_account": "Freeze account",
@@ -1882,6 +2087,9 @@ class AppLocalizations {
       "post_purchase_intro_coach_title": "مدربك على تواصل دائم",
       "post_purchase_intro_coach_body":
           "اجمع التدريب والعادات والتقدم في مكان واحد، سواء كنت متدرباً أو مدرباً.",
+      "post_purchase_intro_expert_coach_title": "درّب بثقة",
+      "post_purchase_intro_expert_coach_body":
+          "افتح لوحة تحكم المدرب لإدارة المتدربين ومراجعة تقدمهم وترك ملاحظات واضحة من مكان واحد.",
       "taqa_tutorial_library_body":
           "اختر وحدة لإعادة مشاهدة دليلها. يبقى كل دليل منفصلاً كما يظهر داخل التطبيق.",
       "taqa_tutorial_dashboard_title": "لوحة التحكم",
@@ -1896,6 +2104,11 @@ class AppLocalizations {
       "taqa_tutorial_community_sub": "المجموعات والتقدم والتحديات",
       "taqa_tutorial_coach_title": "المدرب",
       "taqa_tutorial_coach_sub": "التدريب والعادات وتقدم المتدربين",
+      "taqa_tutorial_client_coach_title": "التدريب كمتدرب",
+      "taqa_tutorial_client_coach_sub":
+          "العادات والملاحظات المثبتة والتواصل المباشر مع المدرب",
+      "taqa_tutorial_expert_coach_title": "لوحة تحكم المدرب",
+      "taqa_tutorial_expert_coach_sub": "عادات المتدربين والتصحيحات والملاحظات",
       "post_purchase_intro_1_title": "مرحباً بك في Taqa",
       "post_purchase_intro_1_body":
           "تمارينك وتغذيتك واستشفاؤك وتقدمك اليومي معاً في لوحة واحدة.",
@@ -1935,6 +2148,45 @@ class AppLocalizations {
       "post_purchase_intro_13_title": "اربط الصورة الكاملة",
       "post_purchase_intro_13_body":
           "استخدم مؤشرات Fitbit الصحية مع التدريب والتغذية والاستشفاء لرؤية أوضح.",
+      "post_purchase_intro_14_title": "اعثر على مجتمعك",
+      "post_purchase_intro_14_body":
+          "استكشف المجموعات حسب الاهتمام وتواصل مع أشخاص يسعون إلى أهداف مشابهة.",
+      "post_purchase_intro_15_title": "شارك في التحديات",
+      "post_purchase_intro_15_body":
+          "انضم إلى التحديات العامة أو الجماعية وتابع تقدمك مع المجموعة.",
+      "post_purchase_intro_16_title": "شارك تقدمك",
+      "post_purchase_intro_16_body":
+          "انشر إنجازاتك وسلاسل التزامك وتحديثاتك وشجّع أعضاء مجموعاتك.",
+      "post_purchase_intro_17_title": "سجّل وجباتك بطريقتك",
+      "post_purchase_intro_17_body":
+          "ابحث عن الأطعمة أو أدخلها يدوياً أو قدّر الوجبة من صورة.",
+      "post_purchase_intro_18_title": "اكسب شاراتك",
+      "post_purchase_intro_18_body":
+          "احتفل باستمراريتك في التدريب وبالمحطات التي تحققها خلال رحلتك.",
+      "post_purchase_intro_19_title": "تابع ملاحظات مدربك",
+      "post_purchase_intro_19_body":
+          "تابع عاداتك وراجع التصحيحات المثبتة وشاهد كل ملاحظة جديدة من مدربك في مكان واحد.",
+      "post_purchase_intro_20_title": "تواصل مع مدربك",
+      "post_purchase_intro_20_body":
+          "اطرح أسئلتك واحتفظ بالإرشادات المخصصة ضمن محادثة واحدة.",
+      "post_purchase_intro_21_title": "راجع أداءك الحركي",
+      "post_purchase_intro_21_body":
+          "ارفع أو سجّل فيديو تمرين قصيراً لتحصل على ملاحظات ذكية حول جودة الحركة والتقنية.",
+      "post_purchase_intro_22_title": "تابع جميع عملائك",
+      "post_purchase_intro_22_body":
+          "شاهد جميع العملاء وحالة نشاطهم وتحديثات الخطط المطلوبة من لوحة تحكم واحدة.",
+      "post_purchase_intro_23_title": "أنشئ برامج قابلة لإعادة الاستخدام",
+      "post_purchase_intro_23_body":
+          "أنشئ قوالب تدريبية وعيّنها للعملاء وأدر البرامج النشطة بسهولة.",
+      "post_purchase_intro_24_title": "افهم حالة كل عميل",
+      "post_purchase_intro_24_body":
+          "راجع الوزن والتدريب الأسبوعي والكارديو والنشاط قبل تعديل الخطة.",
+      "post_purchase_intro_25_title": "راجع التغذية بوضوح",
+      "post_purchase_intro_25_body":
+          "قارن الأهداف بالاستهلاك وراجع الوجبات المسجلة وحدّث خطة تغذية كل عميل.",
+      "post_purchase_intro_26_title": "ادعم عملاءك مباشرة",
+      "post_purchase_intro_26_body":
+          "اجمع الأسئلة والإرشادات والمتابعة ضمن محادثة خاصة واحدة مع العميل.",
       "generating_waiting_hint": "قد يستغرق الأمر بضع ثوانٍ.",
       "generating_error_title": "الأمر يستغرق وقتاً أطول من المعتاد",
       "generating_error_body":
@@ -2414,6 +2666,151 @@ class AppLocalizations {
       "expert_dash_sec_workflow": "أدوات سير العمل",
       "expert_dash_sec_workflow_body":
           "أدر قائمة الملاحظات وخطط التدريب وتحديثات البرامج الغذائية.",
+      "subscription_page_title": "الاشتراكات",
+      "subscription_membership_title": "اشتراك Taqa",
+      "subscription_coach_membership_title": "عضوية مدرب Taqa",
+      "subscription_membership_body": "عضوية واحدة تمنحك تجربة Taqa الكاملة.",
+      "subscription_coach_membership_body":
+          "ابدأ عضويتك للوصول إلى جميع أدوات المدرب.",
+      "subscription_ready_body": "خطتك جاهزة. اشترك الآن لفتحها.",
+      "subscription_normal_plans": "خطط المستخدم",
+      "subscription_coach_plans": "خطط المدرب",
+      "subscription_choose_a_plan": "اختر خطة",
+      "subscription_choose_plan": "اختيار الخطة",
+      "subscription_subscribe_for": "اشترك مقابل {price}",
+      "subscription_change_plan": "تغيير الخطة · {price}",
+      "subscription_restore_purchases": "استعادة المشتريات",
+      "subscription_payment_disclaimer":
+          "سيتم تحصيل الدفع من حساب {account} عند التأكيد. يتجدد اشتراكك تلقائياً ما لم تلغه قبل 24 ساعة على الأقل من نهاية الفترة الحالية. يمكنك إدارته أو إلغاؤه من إعدادات حسابك في {store}.",
+      "subscription_continue": "متابعة",
+      "subscription_confirm_coach_upgrade": "تأكيد الترقية إلى خطة المدرب",
+      "subscription_confirm_plan_change": "تأكيد تغيير الخطة",
+      "subscription_confirm_subscription": "تأكيد الاشتراك",
+      "subscription_confirm_upgrade_body":
+          "قم بالترقية إلى Taqa Coach الآن. سيحتسب Google Play رصيد خطتك الحالية ويعرض المبلغ النسبي قبل التأكيد.",
+      "subscription_confirm_downgrade_body":
+          "احتفظ بخطة Taqa Coach حتى نهاية الفترة المدفوعة الحالية، ثم انتقل إلى الخطة العادية بسعر {price}. سيعرض Google Play تاريخ سريان التغيير قبل التأكيد.",
+      "subscription_confirm_referral_body":
+          "طبّق مكافأة الإحالة عند التجديد القادم. سيعرض Google Play شروط التجديد المخفّضة قبل التأكيد.",
+      "subscription_confirm_purchase_body":
+          "اشترك مقابل {price} بعد أي فترة تجريبية ظاهرة. سيتم تحصيل المبلغ من حساب {account} عند التأكيد في {store}.",
+      "subscription_store_plans_unavailable":
+          "الاشتراكات غير متاحة من {store} حالياً. يرجى المحاولة لاحقاً.",
+      "subscription_store_unavailable":
+          "خدمة {store} غير متاحة حالياً. يرجى المحاولة لاحقاً.",
+      "subscription_store_process_failed":
+          "تعذر على {store} معالجة عملية الشراء.",
+      "subscription_apple_owned_missing_transaction":
+          "تفيد Apple بأن هذا الاشتراك مملوك بالفعل، لكنها لم تُرجع بيانات العملية. تحقق من Apple ID المستخدم للشراء.",
+      "subscription_purchase_canceled": "تم إلغاء عملية الشراء.",
+      "subscription_verify_coach_failed_restore":
+          "تعذر التحقق من اشتراك مدرب نشط. يرجى تجربة استعادة المشتريات.",
+      "subscription_verify_failed_restore":
+          "تعذر التحقق من اشتراكك. يرجى تجربة استعادة المشتريات.",
+      "subscription_change_scheduled":
+          "تمت جدولة التغيير لموعد التجديد القادم.",
+      "subscription_restored_linked": "تمت استعادة اشتراكك وربطه.",
+      "subscription_coach_active": "عضوية Taqa Coach الخاصة بك نشطة.",
+      "subscription_active_linked": "اشتراكك نشط ومربوط بالحساب.",
+      "subscription_purchase_failed":
+          "تعذر إكمال عملية الشراء. يرجى المحاولة مرة أخرى.",
+      "subscription_verification_timeout_restore":
+          "انتهت مهلة التحقق من الاشتراك. يرجى تجربة استعادة المشتريات.",
+      "subscription_current_plan_still_active":
+          "خطتك الحالية ما زالت نشطة، ولم يفعّل {store} الخطة المحددة بعد. يسري الانتقال إلى خطة أقل عند التجديد القادم.",
+      "subscription_apple_inactive_account":
+          "أعادت Apple بيانات الاشتراك، لكنه غير نشط لحساب Taqa هذا.",
+      "subscription_google_inactive_account":
+          "أعاد Google Play بيانات الاشتراك، لكنه غير نشط لحساب Taqa هذا.",
+      "subscription_verification_timeout":
+          "انتهت مهلة التحقق من الاشتراك. يرجى المحاولة مرة أخرى.",
+      "subscription_verification_failed":
+          "تعذر التحقق من اشتراكك. يرجى المحاولة مرة أخرى.",
+      "subscription_already_active": "هذا هو اشتراكك النشط بالفعل.",
+      "subscription_referral_active_only":
+          "يجب استخدام مكافأة الإحالة على اشتراكك النشط.",
+      "subscription_google_check_failed":
+          "تعذر التحقق من اشتراكك الحالي في Google Play.",
+      "subscription_store_start_failed": "تعذر على {store} بدء عملية الشراء.",
+      "subscription_google_missing":
+          "بيانات اشتراك Google Play الحالي غير موجودة.",
+      "subscription_google_load_failed":
+          "تعذر تحميل اشتراك Google Play الحالي.",
+      "subscription_google_owner_account":
+          "افتح Google Play بالحساب الذي يملك الاشتراك الحالي، ثم حاول مرة أخرى.",
+      "subscription_change_not_supported": "تغيير الاشتراك هذا غير مدعوم.",
+      "subscription_current_check_failed":
+          "تعذر التحقق من اشتراكك الحالي. يرجى المحاولة مرة أخرى.",
+      "subscription_other_store_managed":
+          "تتم إدارة اشتراكك النشط عبر {otherStore}. لتجنب تجديدين، استمر باستخدام Taqa مع هذه الخطة ولا تشترك عبر {store} إلا بعد انتهائها.",
+      "subscription_apple_referral_unavailable":
+          "تفويض عرض الإحالة من Apple غير متاح.",
+      "subscription_apple_referral_mismatch":
+          "عرض الإحالة من Apple لا يطابق الخطة المحددة.",
+      "subscription_apple_finishing_previous":
+          "تقوم Apple بإنهاء محاولة شراء سابقة. انتظر قليلاً ثم حاول مرة أخرى.",
+      "subscription_store_start_failed_code":
+          "تعذر على {store} بدء عملية الشراء ({code}).",
+      "subscription_purchase_start_failed":
+          "تعذر بدء عملية الشراء. يرجى المحاولة مرة أخرى.",
+      "subscription_google_processing":
+          "لم يُكمل Google Play عملية الشراء بعد. إذا كانت بانتظار الموافقة، فسيتم تحديث وصولك عند تأكيد Google.",
+      "subscription_apple_processing":
+          "لم تُرجع Apple عملية مكتملة. إذا أفادت بأنك تملك الخطة بالفعل، فاستخدم استعادة المشتريات مع Apple ID الذي اشترى الخطة.",
+      "subscription_deferred_change":
+          "تبقى خطتك الحالية نشطة حتى التجديد القادم، ثم تبدأ الخطة المحددة.",
+      "subscription_deferred_change_date":
+          "تبقى خطتك الحالية نشطة حتى {date} الساعة {time}، ثم تبدأ الخطة المحددة عند التجديد القادم.",
+      "subscription_restore_failed":
+          "تعذرت استعادة المشتريات. يرجى المحاولة مرة أخرى.",
+      "subscription_none_found":
+          "لم يتم العثور على اشتراك نشط. تأكد من تسجيل الدخول بحساب {account} المستخدم للاشتراك.",
+      "subscription_legal_unavailable":
+          "هذه الصفحة القانونية غير متاحة حالياً.",
+      "subscription_legal_open_failed": "تعذر فتح الصفحة القانونية.",
+      "subscription_plan_standard_monthly": "Taqa Fitness الشهرية",
+      "subscription_plan_standard_annual": "Taqa Fitness السنوية",
+      "subscription_plan_student_monthly": "خطة طلاب Taqa الشهرية",
+      "subscription_plan_student_annual": "خطة طلاب Taqa السنوية",
+      "subscription_plan_coach_monthly": "Taqa Coach الشهرية",
+      "subscription_plan_coach_annual": "Taqa Coach السنوية",
+      "subscription_period_monthly": "شهرياً",
+      "subscription_period_annual": "سنوياً",
+      "subscription_student_annual_description":
+          "وصول كامل بسعر الطلاب مع دفع سنوي.",
+      "subscription_student_monthly_description":
+          "وصول كامل بسعر الطلاب مع دفع شهري.",
+      "subscription_annual_description": "وصول كامل إلى Taqa مع دفع سنوي.",
+      "subscription_monthly_description": "وصول كامل إلى Taqa مع دفع شهري.",
+      "subscription_everything_coach": "كل ما تحتاجه في Taqa Coach",
+      "subscription_everything_standard": "كل مزايا اشتراك Taqa",
+      "subscription_coach_overview_body":
+          "الأدوات التي تحتاجها لتدريب العملاء ومراجعة تقدمهم وتنمية عملك.",
+      "subscription_standard_overview_body":
+          "عضوية واحدة تضم كل الأدوات التي تحتاجها لتتدرب بوضوح وهدف.",
+      "subscription_coach_feature_1": "إنشاء خطط تدريب مخصصة وإدارتها",
+      "subscription_coach_feature_2":
+          "مراجعة تقدم العملاء وملاحظاتهم وتحديثاتهم",
+      "subscription_coach_feature_3": "مراسلة العملاء وإدارة علاقات التدريب",
+      "subscription_coach_feature_4":
+          "الوصول إلى لوحات المدرب وتحليلات العملاء",
+      "subscription_coach_feature_5":
+          "شارك رمز الإحالة ليحصل المدربون المحالون على خصم دولار واحد في الشهر الأول",
+      "subscription_standard_feature_1": "خطط تدريب مخصصة وتسجيل التمارين",
+      "subscription_standard_feature_2":
+          "إرشادات غذائية وتتبع الوجبات والأهداف اليومية",
+      "subscription_standard_feature_3":
+          "مؤشرات التقدم والاستشفاء والصحة من الأجهزة القابلة للارتداء",
+      "subscription_standard_feature_4": "مراسلة مدربك وتلقي الملاحظات",
+      "subscription_standard_feature_5": "التواصل مع مجتمع Taqa Fitness",
+      "subscription_standard_feature_6": "والمزيد!",
+      "subscription_close_plan_selection": "إغلاق اختيار الخطة",
+      "subscription_choose_your_plan": "اختر خطتك",
+      "subscription_close": "إغلاق",
+      "subscription_plan_picker_body":
+          "تتضمن جميع الخطط مزايا اشتراك Taqa نفسها. اضغط على خطة لاختيارها.",
+      "subscription_terms_of_use": "شروط الاستخدام",
+      "subscription_privacy_policy": "سياسة الخصوصية",
       "settings_delete_account": "حذف الحساب",
       "subscription_account_actions_title": "خيارات الحساب",
       "subscription_freeze_account": "تجميد الحساب",

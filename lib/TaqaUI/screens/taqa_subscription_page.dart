@@ -113,6 +113,14 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       const {};
   Set<String> _storeProductIds = const {};
 
+  String _tr(String key, [Map<String, String> values = const {}]) {
+    var text = AppLocalizations.of(context).translate(key);
+    for (final entry in values.entries) {
+      text = text.replaceAll('{${entry.key}}', entry.value);
+    }
+    return text;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -224,8 +232,9 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
             : _firstAvailableProductId();
         _message = response.error?.message;
         if (_products.isEmpty && response.notFoundIDs.isNotEmpty) {
-          _message =
-              'Subscriptions are not available from ${_storeName()} yet. Please try again soon.';
+          _message = _tr('subscription_store_plans_unavailable', {
+            'store': _storeName(),
+          });
         }
         storeMessage = _message;
         _loading = false;
@@ -243,7 +252,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       _storeAvailable = false;
       _message = null;
     });
-    _setMessage('${_storeName()} is unavailable. Please try again later.');
+    _setMessage(_tr('subscription_store_unavailable', {'store': _storeName()}));
   }
 
   void _showToast(String message, {AppToastType type = AppToastType.error}) {
@@ -266,7 +275,9 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   void _handlePurchaseStreamError(Object _) {
     if (!mounted) return;
     _setStoreOperationIdle();
-    _setMessage('${_storeName()} could not process the purchase.');
+    _setMessage(
+      _tr('subscription_store_process_failed', {'store': _storeName()}),
+    );
   }
 
   void _setStoreOperationIdle({bool preserveExpectedProduct = false}) {
@@ -332,14 +343,17 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
           automatic: true,
           skipStorePreflight: true,
           emptyResultMessage: Platform.isIOS
-              ? 'Apple reports that this subscription is already owned, but did not return its transaction. Check the Apple ID used for the purchase.'
+              ? _tr('subscription_apple_owned_missing_transaction')
               : purchaseMessage,
         );
         return;
       } else if (purchase.status == PurchaseStatus.canceled) {
         if (mounted) {
           _setStoreOperationIdle();
-          _setMessage('The purchase was canceled.', type: AppToastType.info);
+          _setMessage(
+            _tr('subscription_purchase_canceled'),
+            type: AppToastType.info,
+          );
         }
         return;
       } else if (purchase.status == PurchaseStatus.purchased ||
@@ -358,20 +372,20 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
           if (existingMessage == null) {
             _setMessage(
               _coachMembership
-                  ? 'We could not verify an active coach subscription. Please try Restore Purchases.'
-                  : 'We could not verify an active subscription. Please try Restore Purchases.',
+                  ? _tr('subscription_verify_coach_failed_restore')
+                  : _tr('subscription_verify_failed_restore'),
             );
           }
           continue;
         }
         _setMessage(
           _lastActivationChangePending
-              ? 'Your change is scheduled for the next renewal date.'
+              ? _tr('subscription_change_scheduled')
               : purchase.status == PurchaseStatus.restored
-              ? 'Your subscription has been restored and linked.'
+              ? _tr('subscription_restored_linked')
               : _pendingChangeAction == 'upgrade_to_coach'
-              ? 'Your Taqa Coach membership is active.'
-              : 'Your subscription is active and linked.',
+              ? _tr('subscription_coach_active')
+              : _tr('subscription_active_linked'),
           type: AppToastType.success,
         );
         if (widget.referralClaimToken != null && mounted) {
@@ -418,9 +432,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       return details.trim();
     }
     final message = purchase.error?.message.trim() ?? '';
-    return message.isNotEmpty
-        ? message
-        : 'The purchase could not be completed. Please try again.';
+    return message.isNotEmpty ? message : _tr('subscription_purchase_failed');
   }
 
   bool _purchaseMayAlreadyBeOwned(String message) {
@@ -479,14 +491,10 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       _setMessage(error.message);
       return false;
     } on TimeoutException {
-      _setMessage(
-        'Subscription verification timed out. Please try Restore Purchases.',
-      );
+      _setMessage(_tr('subscription_verification_timeout_restore'));
       return false;
     } catch (_) {
-      _setMessage(
-        'Your subscription could not be verified. Please try Restore Purchases.',
-      );
+      _setMessage(_tr('subscription_verify_failed_restore'));
       return false;
     }
   }
@@ -508,7 +516,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         requestedProductId != verifiedProductId &&
         !requestedChangeIsPending) {
       _setMessage(
-        'Your current plan is still active. ${_storeName()} has not activated the selected plan yet. A switch to a lower plan takes effect at the next renewal.',
+        _tr('subscription_current_plan_still_active', {'store': _storeName()}),
         type: AppToastType.info,
       );
       return false;
@@ -606,16 +614,14 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       if (!active) {
         _setStoreOperationIdle();
         if (_message == null) {
-          _setMessage(
-            'Apple returned the subscription, but it is not active for this Taqa account.',
-          );
+          _setMessage(_tr('subscription_apple_inactive_account'));
         }
         return _RecoveryOutcome.failed;
       }
 
       _setStoreOperationIdle();
       _setMessage(
-        'Your subscription is active and linked.',
+        _tr('subscription_active_linked'),
         type: AppToastType.success,
       );
       if (widget.referralClaimToken != null && mounted) {
@@ -632,11 +638,11 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       return _RecoveryOutcome.failed;
     } on TimeoutException {
       _setStoreOperationIdle();
-      _setMessage('Subscription verification timed out. Please try again.');
+      _setMessage(_tr('subscription_verification_timeout'));
       return _RecoveryOutcome.failed;
     } catch (_) {
       _setStoreOperationIdle();
-      _setMessage('Your subscription could not be verified. Please try again.');
+      _setMessage(_tr('subscription_verification_failed'));
       return _RecoveryOutcome.failed;
     }
   }
@@ -706,16 +712,14 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       if (!active) {
         _setStoreOperationIdle();
         if (_message == null) {
-          _setMessage(
-            'Google Play returned the subscription, but it is not active for this Taqa account.',
-          );
+          _setMessage(_tr('subscription_google_inactive_account'));
         }
         return _RecoveryOutcome.failed;
       }
 
       _setStoreOperationIdle();
       _setMessage(
-        'Your subscription is active and linked.',
+        _tr('subscription_active_linked'),
         type: AppToastType.success,
       );
       if (widget.referralClaimToken != null && mounted) {
@@ -740,11 +744,11 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       return _RecoveryOutcome.failed;
     } on TimeoutException {
       _setStoreOperationIdle();
-      _setMessage('Subscription verification timed out. Please try again.');
+      _setMessage(_tr('subscription_verification_timeout'));
       return _RecoveryOutcome.failed;
     } catch (_) {
       _setStoreOperationIdle();
-      _setMessage('Your subscription could not be verified. Please try again.');
+      _setMessage(_tr('subscription_verification_failed'));
       return _RecoveryOutcome.failed;
     }
   }
@@ -793,7 +797,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         if (!mounted) return;
       } else {
         _setMessage(
-          'This is already your active subscription.',
+          _tr('subscription_already_active'),
           type: AppToastType.info,
         );
         return;
@@ -816,9 +820,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       try {
         if (widget.referralClaimToken != null) {
           if (activeProductId != product.id) {
-            _setMessage(
-              'This referral reward must be claimed on your active subscription.',
-            );
+            _setMessage(_tr('subscription_referral_active_only'));
             return;
           }
           change = GoogleSubscriptionChange(
@@ -833,7 +835,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
           );
         }
         if (change.isAlreadySubscribed) {
-          _setMessage('This is already your active subscription.');
+          _setMessage(_tr('subscription_already_active'));
           return;
         }
         if (!change.isInitialPurchase) {
@@ -843,9 +845,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         _setMessage(error.message);
         return;
       } catch (_) {
-        _setMessage(
-          'Your current Google Play subscription could not be checked.',
-        );
+        _setMessage(_tr('subscription_google_check_failed'));
         return;
       }
     }
@@ -854,13 +854,13 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     final confirmed = await showTaqaConfirmDialog(
       context: context,
       title: change?.action == 'upgrade_to_coach'
-          ? 'Confirm coach upgrade'
+          ? _tr('subscription_confirm_coach_upgrade')
           : change?.action == 'downgrade_to_standard'
-          ? 'Confirm plan change'
-          : 'Confirm subscription',
+          ? _tr('subscription_confirm_plan_change')
+          : _tr('subscription_confirm_subscription'),
       message: _confirmationMessage(product, change),
-      cancelLabel: 'Cancel',
-      confirmLabel: 'Continue',
+      cancelLabel: _tr('cancel'),
+      confirmLabel: _tr('subscription_continue'),
     );
     if (!confirmed || !mounted) return;
 
@@ -897,7 +897,9 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
           _purchasePending = false;
           _checkoutProductId = null;
         });
-        _setMessage('${_storeName()} could not start the purchase.');
+        _setMessage(
+          _tr('subscription_store_start_failed', {'store': _storeName()}),
+        );
       }
     } on AppleBillingException catch (error) {
       if (!mounted) return;
@@ -986,9 +988,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   ) async {
     final currentProductId = change.currentProductId;
     if (currentProductId == null) {
-      throw const BillingApiException(
-        'The current Google Play subscription is missing.',
-      );
+      throw BillingApiException(_tr('subscription_google_missing'));
     }
     final addition = _store
         .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
@@ -997,24 +997,19 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     );
     if (response.error != null) {
       throw BillingApiException(
-        response.error?.message ??
-            'The current Google Play subscription could not be loaded.',
+        response.error?.message ?? _tr('subscription_google_load_failed'),
       );
     }
     final oldPurchase = response.pastPurchases
         .where((purchase) => purchase.productID == currentProductId)
         .firstOrNull;
     if (oldPurchase == null) {
-      throw const BillingApiException(
-        'Open Google Play with the account that owns the current subscription, then try again.',
-      );
+      throw BillingApiException(_tr('subscription_google_owner_account'));
     }
     final replacementMode = switch (change.replacementMode) {
       'CHARGE_PRORATED_PRICE' => ReplacementMode.chargeProratedPrice,
       'DEFERRED' => ReplacementMode.deferred,
-      _ => throw const BillingApiException(
-        'This subscription change is not supported.',
-      ),
+      _ => throw BillingApiException(_tr('subscription_change_not_supported')),
     };
     return ChangeSubscriptionParam(
       oldPurchaseDetails: oldPurchase,
@@ -1027,16 +1022,21 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     GoogleSubscriptionChange? change,
   ) {
     if (change?.action == 'upgrade_to_coach') {
-      return 'Upgrade to Taqa Coach now. Google Play will apply credit from your current plan and show the prorated charge before you confirm.';
+      return _tr('subscription_confirm_upgrade_body');
     }
     if (change?.action == 'downgrade_to_standard') {
-      return 'Keep Taqa Coach until the current paid period ends, then switch to the normal ${product.price} plan. Google Play will show the effective date before you confirm.';
+      return _tr('subscription_confirm_downgrade_body', {
+        'price': product.price,
+      });
     }
     if (change?.action == 'referral_reward') {
-      return 'Apply the referral reward at your next renewal. Google Play will show the discounted renewal terms before you confirm.';
+      return _tr('subscription_confirm_referral_body');
     }
-    return 'Subscribe for ${product.price} after any displayed free trial. '
-        'Your ${Platform.isAndroid ? 'Google Play account' : 'Apple ID'} will be charged when you confirm in ${_storeName()}.';
+    return _tr('subscription_confirm_purchase_body', {
+      'price': product.price,
+      'account': Platform.isAndroid ? 'Google Play' : 'Apple ID',
+      'store': _storeName(),
+    });
   }
 
   Future<String?> _refreshBillingStateForCheckout() async {
@@ -1054,9 +1054,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       return null;
     } catch (_) {
       _billingPreflightFailed = true;
-      _setMessage(
-        'Your current subscription could not be checked. Please try again.',
-      );
+      _setMessage(_tr('subscription_current_check_failed'));
       return null;
     }
   }
@@ -1081,9 +1079,10 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     }
     final otherPlatform = _storePlatform == 'apple' ? 'google' : 'apple';
     _setMessage(
-      'Your active subscription is managed through ${_storeName(otherPlatform)}. '
-      'To prevent two renewals, keep using Taqa with that plan and subscribe '
-      'through ${_storeName()} only after it ends.',
+      _tr('subscription_other_store_managed', {
+        'otherStore': _storeName(otherPlatform),
+        'store': _storeName(),
+      }),
       type: AppToastType.info,
     );
     return false;
@@ -1097,15 +1096,15 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       final accountToken = await AppleBillingService.fetchAccountToken();
       final authorization = widget.appleOfferAuthorization;
       if (widget.referralClaimToken != null && authorization == null) {
-        throw const AppleBillingException(
-          'Apple referral offer authorization is unavailable.',
+        throw AppleBillingException(
+          _tr('subscription_apple_referral_unavailable'),
         );
       }
       if (authorization != null) {
         if (authorization.offerId != widget.googleReferralOfferTag ||
             product.id != widget.referralProductId) {
-          throw const AppleBillingException(
-            'This Apple referral offer does not match the selected plan.',
+          throw AppleBillingException(
+            _tr('subscription_apple_referral_mismatch'),
           );
         }
         return Sk2PurchaseParam(
@@ -1159,15 +1158,18 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   String _purchaseStartErrorMessage(Object error) {
     if (error is PlatformException) {
       if (error.code == 'storekit_duplicate_product_object') {
-        return 'Apple is finishing a previous purchase attempt. Wait a moment, then try again.';
+        return _tr('subscription_apple_finishing_previous');
       }
       final message = error.message?.trim() ?? '';
       if (message.isNotEmpty) return message;
       if (error.code.trim().isNotEmpty) {
-        return '${_storeName()} could not start the purchase (${error.code}).';
+        return _tr('subscription_store_start_failed_code', {
+          'store': _storeName(),
+          'code': error.code,
+        });
       }
     }
-    return 'The purchase could not be started. Please try again.';
+    return _tr('subscription_purchase_start_failed');
   }
 
   void _schedulePurchaseTimeout(
@@ -1226,8 +1228,8 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       if (await _resumeExistingMandatorySubscription()) return;
       if (!mounted || _checkoutProductId != productId) return;
       final processingMessage = Platform.isAndroid
-          ? 'Google Play has not completed the purchase yet. If it is pending approval, access will update when Google confirms it.'
-          : 'Apple did not return a completed transaction. If Apple says you already own this plan, use Restore Purchases with the Apple ID that bought it.';
+          ? _tr('subscription_google_processing')
+          : _tr('subscription_apple_processing');
       setState(() {
         _purchasePending = false;
       });
@@ -1239,8 +1241,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
 
   String _deferredPlanChangeMessage(DateTime? currentPlanEndsAt) {
     if (currentPlanEndsAt == null) {
-      return 'Your current plan stays active until the next renewal. '
-          'The selected plan will start then.';
+      return _tr('subscription_deferred_change');
     }
 
     final localEnd = currentPlanEndsAt.toLocal();
@@ -1249,8 +1250,10 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     final time = localizations.formatTimeOfDay(
       TimeOfDay.fromDateTime(localEnd),
     );
-    return 'Your current plan stays active until $date at $time. '
-        'The selected plan will start at the next renewal.';
+    return _tr('subscription_deferred_change_date', {
+      'date': date,
+      'time': time,
+    });
   }
 
   bool _isStudentProduct(String productId) {
@@ -1392,7 +1395,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     } catch (_) {
       if (!mounted) return;
       _setStoreOperationIdle();
-      _setMessage('Purchases could not be restored. Please try again.');
+      _setMessage(_tr('subscription_restore_failed'));
     }
   }
 
@@ -1427,9 +1430,9 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
           _message = emptyResultMessage;
           resultMessage = emptyResultMessage;
         } else if (showMissingSubscriptionMessage) {
-          _message ??=
-              'No active subscription was found. Check that you are signed in '
-              'with the ${Platform.isAndroid ? 'Google Play account' : 'Apple ID'} used to subscribe.';
+          _message ??= _tr('subscription_none_found', {
+            'account': Platform.isAndroid ? 'Google Play' : 'Apple ID',
+          });
           resultMessage = _message;
         }
       });
@@ -1461,11 +1464,11 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   Future<void> _openLegalLink(String rawUrl) async {
     final uri = Uri.tryParse(rawUrl);
     if (uri == null || !uri.hasScheme) {
-      _setMessage('This legal page is not available right now.');
+      _setMessage(_tr('subscription_legal_unavailable'));
       return;
     }
     final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!opened) _setMessage('This legal page could not be opened.');
+    if (!opened) _setMessage(_tr('subscription_legal_open_failed'));
   }
 
   Future<void> _showAccountActions() async {
@@ -1597,7 +1600,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       child: Scaffold(
         backgroundColor: TaqaUiColors.lightGray,
         appBar: TaqaPageAppBar(
-          title: 'Subscriptions',
+          title: t.translate('subscription_page_title'),
           showBackButton: !widget.mandatory || widget.allowBackNavigation,
           trailing: IconButton(
             tooltip: widget.mandatory
@@ -1625,8 +1628,8 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                   children: [
                     Text(
                       _coachMembership
-                          ? 'Taqa Coach Membership'
-                          : 'Taqa Subscription',
+                          ? t.translate('subscription_coach_membership_title')
+                          : t.translate('subscription_membership_title'),
                       style: TextStyle(
                         fontFamily: TaqaUiFontFamilies.interTight,
                         fontSize: TaqaUiScale.sp(25),
@@ -1638,10 +1641,10 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                     SizedBox(height: TaqaUiScale.h(8)),
                     Text(
                       _coachMembership
-                          ? 'Start your membership to access your coach tools.'
+                          ? t.translate('subscription_coach_membership_body')
                           : widget.mandatory
-                          ? 'Your plan is ready. Subscribe to unlock it.'
-                          : 'One membership for your full Taqa Subscription experience.',
+                          ? t.translate('subscription_ready_body')
+                          : t.translate('subscription_membership_body'),
                       style: _bodyStyle,
                     ),
                     if (widget.allowPlanTypeSwitch && _coachPlanAvailable) ...[
@@ -1658,7 +1661,9 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                                     ? 0.55
                                     : 1,
                                 child: TaqaRangeTab(
-                                  label: 'Normal plans',
+                                  label: t.translate(
+                                    'subscription_normal_plans',
+                                  ),
                                   selected: !_coachMembership,
                                   onTap: () => _selectMembershipType(false),
                                 ),
@@ -1676,7 +1681,9 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                                     ? 0.55
                                     : 1,
                                 child: TaqaRangeTab(
-                                  label: 'Coach plans',
+                                  label: t.translate(
+                                    'subscription_coach_plans',
+                                  ),
                                   selected: _coachMembership,
                                   onTap: () => _selectMembershipType(true),
                                 ),
@@ -1697,8 +1704,10 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                     SizedBox(height: TaqaUiScale.h(16)),
                     TaqaFilledButton(
                       label: selectedProduct == null
-                          ? 'Choose a plan'
-                          : 'Subscribe for ${selectedProduct.price}',
+                          ? t.translate('subscription_choose_a_plan')
+                          : _tr('subscription_subscribe_for', {
+                              'price': selectedProduct.price,
+                            }),
                       onTap: canSubscribe ? _subscribe : null,
                     ),
                     SizedBox(height: TaqaUiScale.h(6)),
@@ -1706,14 +1715,19 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                       onPressed: _storeAvailable && !operationInProgress
                           ? _restorePurchases
                           : null,
-                      child: Text('Restore Purchases', style: _linkStyle),
+                      child: Text(
+                        t.translate('subscription_restore_purchases'),
+                        style: _linkStyle,
+                      ),
                     ),
                     SizedBox(height: TaqaUiScale.h(8)),
                     Text(
-                      'Payment will be charged to your ${Platform.isAndroid ? 'Google Play account' : 'Apple ID'} when you confirm. '
-                      'Your subscription automatically renews unless you cancel at '
-                      'least 24 hours before the end of the current period. You can '
-                      'manage or cancel it in your ${_storeName()} account settings.',
+                      _tr('subscription_payment_disclaimer', {
+                        'account': Platform.isAndroid
+                            ? 'Google Play'
+                            : 'Apple ID',
+                        'store': _storeName(),
+                      }),
                       style: _bodyStyle,
                     ),
                     SizedBox(height: TaqaUiScale.h(12)),
@@ -1739,8 +1753,8 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     final productId = _storeProductIdForPlan(plan);
     final product = _products[productId];
     return TaqaSubscriptionPlanCard(
-      title: plan.title,
-      period: plan.periodLabel,
+      title: _planTitle(plan),
+      period: _planPeriod(plan),
       price: product?.price ?? '',
       description: _planDescription(plan),
       student:
@@ -1764,19 +1778,48 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         plan == TaqaSubscriptionCatalog.annual ||
         plan == TaqaSubscriptionCatalog.studentAnnual;
     if (student && annual) {
-      return 'Full access with student pricing, billed annually.';
+      return _tr('subscription_student_annual_description');
     }
     if (student) {
-      return 'Full access with student pricing, billed monthly.';
+      return _tr('subscription_student_monthly_description');
     }
-    if (annual) return 'Full Taqa Subscription access, billed annually.';
-    return 'Full Taqa Subscription access, billed monthly.';
+    if (annual) return _tr('subscription_annual_description');
+    return _tr('subscription_monthly_description');
+  }
+
+  String _planTitle(TaqaSubscriptionPlan plan) {
+    if (plan == TaqaSubscriptionCatalog.monthly) {
+      return _tr('subscription_plan_standard_monthly');
+    }
+    if (plan == TaqaSubscriptionCatalog.annual) {
+      return _tr('subscription_plan_standard_annual');
+    }
+    if (plan == TaqaSubscriptionCatalog.studentMonthly) {
+      return _tr('subscription_plan_student_monthly');
+    }
+    if (plan == TaqaSubscriptionCatalog.studentAnnual) {
+      return _tr('subscription_plan_student_annual');
+    }
+    if (plan == TaqaSubscriptionCatalog.coachMonthly) {
+      return _tr('subscription_plan_coach_monthly');
+    }
+    return _tr('subscription_plan_coach_annual');
+  }
+
+  String _planPeriod(TaqaSubscriptionPlan plan) {
+    final annual =
+        plan == TaqaSubscriptionCatalog.annual ||
+        plan == TaqaSubscriptionCatalog.studentAnnual ||
+        plan == TaqaSubscriptionCatalog.coachAnnual;
+    return _tr(
+      annual ? 'subscription_period_annual' : 'subscription_period_monthly',
+    );
   }
 
   Future<void> _showPlanPicker(List<TaqaSubscriptionPlan> plans) async {
     await showGeneralDialog<void>(
       context: context,
-      barrierLabel: 'Close plan selection',
+      barrierLabel: _tr('subscription_close_plan_selection'),
       barrierDismissible: true,
       barrierColor: Colors.transparent,
       pageBuilder: (dialogContext, _, _) => _PlanPickerOverlay(
@@ -1822,6 +1865,7 @@ class _PremiumOverviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final selectedPrice = selectedProduct?.price;
     return Container(
       padding: TaqaUiScale.insetsLTRB(14, 13, 14, 13),
@@ -1834,8 +1878,8 @@ class _PremiumOverviewCard extends StatelessWidget {
         children: [
           Text(
             coachMembership
-                ? 'Everything in Taqa Coach'
-                : 'Everything in Taqa Subscription',
+                ? t.translate('subscription_everything_coach')
+                : t.translate('subscription_everything_standard'),
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(15),
@@ -1846,8 +1890,8 @@ class _PremiumOverviewCard extends StatelessWidget {
           SizedBox(height: TaqaUiScale.h(6)),
           Text(
             coachMembership
-                ? 'The tools you need to coach clients, review their progress and grow your practice.'
-                : 'One membership, all the tools you need to train with intent.',
+                ? t.translate('subscription_coach_overview_body')
+                : t.translate('subscription_standard_overview_body'),
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(13),
@@ -1858,55 +1902,57 @@ class _PremiumOverviewCard extends StatelessWidget {
           ),
           SizedBox(height: TaqaUiScale.h(14)),
           if (coachMembership)
-            const Column(
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _PremiumFeatureBullet(
-                  label: 'Create and manage personalised training plans',
+                  label: t.translate('subscription_coach_feature_1'),
                 ),
                 _PremiumFeatureBullet(
-                  label: 'Review client progress, feedback and check-ins',
+                  label: t.translate('subscription_coach_feature_2'),
                 ),
                 _PremiumFeatureBullet(
-                  label:
-                      'Message clients and manage your coaching relationships',
+                  label: t.translate('subscription_coach_feature_3'),
                 ),
                 _PremiumFeatureBullet(
-                  label: 'Access coach dashboards and client insights',
+                  label: t.translate('subscription_coach_feature_4'),
                 ),
                 _PremiumFeatureBullet(
-                  label:
-                      'Share your referral code—referred coaches get \$1 off their first month',
+                  label: t.translate('subscription_coach_feature_5'),
                 ),
               ],
             )
           else
-            const Column(
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _PremiumFeatureBullet(
-                  label: 'Personalised training plans and workout logging',
+                  label: t.translate('subscription_standard_feature_1'),
                 ),
                 _PremiumFeatureBullet(
-                  label: 'Nutrition guidance, meal tracking and daily targets',
+                  label: t.translate('subscription_standard_feature_2'),
                 ),
                 _PremiumFeatureBullet(
-                  label: 'Progress, recovery and wearable health insights',
+                  label: t.translate('subscription_standard_feature_3'),
                 ),
                 _PremiumFeatureBullet(
-                  label: 'Message your coach and receive feedback',
+                  label: t.translate('subscription_standard_feature_4'),
                 ),
                 _PremiumFeatureBullet(
-                  label: 'Connect with the Taqa Fitness community',
+                  label: t.translate('subscription_standard_feature_5'),
                 ),
-                _PremiumFeatureBullet(label: 'And more!'),
+                _PremiumFeatureBullet(
+                  label: t.translate('subscription_standard_feature_6'),
+                ),
               ],
             ),
           SizedBox(height: TaqaUiScale.h(18)),
           _PlanChoiceButton(
             label: selectedPrice == null
-                ? 'Choose plan'
-                : 'Change plan · $selectedPrice',
+                ? t.translate('subscription_choose_plan')
+                : t
+                      .translate('subscription_change_plan')
+                      .replaceAll('{price}', selectedPrice),
             onTap: onChoosePlan,
           ),
         ],
@@ -2004,6 +2050,7 @@ class _PlanPickerOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Stack(
       children: [
         Positioned.fill(
@@ -2042,7 +2089,7 @@ class _PlanPickerOverlay extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                'Choose your plan',
+                                t.translate('subscription_choose_your_plan'),
                                 style: TextStyle(
                                   fontFamily: TaqaUiFontFamilies.interTight,
                                   fontSize: TaqaUiScale.sp(21),
@@ -2055,13 +2102,13 @@ class _PlanPickerOverlay extends StatelessWidget {
                               onPressed: () => Navigator.of(context).pop(),
                               icon: const Icon(Icons.close_rounded),
                               color: TaqaUiColors.charcoal,
-                              tooltip: 'Close',
+                              tooltip: t.translate('subscription_close'),
                             ),
                           ],
                         ),
                         SizedBox(height: TaqaUiScale.h(2)),
                         Text(
-                          'Every plan includes the same Taqa Subscription features. Tap a plan to select it.',
+                          t.translate('subscription_plan_picker_body'),
                           style: TextStyle(
                             fontFamily: TaqaUiFontFamilies.interTight,
                             fontSize: TaqaUiScale.sp(13),
@@ -2116,6 +2163,7 @@ class _LegalLinks extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final buttonStyle = TextButton.styleFrom(
       foregroundColor: TaqaUiColors.charcoal,
       padding: EdgeInsets.zero,
@@ -2135,7 +2183,10 @@ class _LegalLinks extends StatelessWidget {
         TextButton(
           onPressed: () => onOpen(TaqaSubscriptionCatalog.termsOfUseUrl),
           style: buttonStyle,
-          child: Text('Terms of Use', style: linkStyle),
+          child: Text(
+            t.translate('subscription_terms_of_use'),
+            style: linkStyle,
+          ),
         ),
         Text(
           '·',
@@ -2147,7 +2198,10 @@ class _LegalLinks extends StatelessWidget {
         TextButton(
           onPressed: () => onOpen(TaqaSubscriptionCatalog.privacyPolicyUrl),
           style: buttonStyle,
-          child: Text('Privacy Policy', style: linkStyle),
+          child: Text(
+            t.translate('subscription_privacy_policy'),
+            style: linkStyle,
+          ),
         ),
       ],
     );

@@ -17,7 +17,8 @@ class TaqaTutorialLibraryPage extends StatelessWidget {
     TaqaIntroModule.diet,
     TaqaIntroModule.training,
     TaqaIntroModule.community,
-    TaqaIntroModule.coach,
+    TaqaIntroModule.clientCoach,
+    TaqaIntroModule.expertCoach,
   ];
 
   @override

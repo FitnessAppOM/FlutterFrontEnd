@@ -106,7 +106,11 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
     await _enforceAccessGates();
     if (!mounted) return;
     setState(() => _accessGatesResolved = true);
-    await _showPostPurchaseIntroIfNeeded(_index);
+    // The Coach tab has two independent tours. Wait until the portal choice
+    // resolves before deciding whether to show the client or expert guide.
+    if (_index != MainLayout._coachTab) {
+      await _showPostPurchaseIntroIfNeeded(_index);
+    }
     if (!mounted) return;
     if (_index == MainLayout._coachTab) {
       unawaited(_openCoach(autoOpen: widget.autoOpenExpertDashboard));
@@ -116,9 +120,12 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
     ScreeningPromptService.checkAndPromptIfDue();
   }
 
-  Future<void> _showPostPurchaseIntroIfNeeded(int tabIndex) async {
+  Future<void> _showPostPurchaseIntroIfNeeded(
+    int tabIndex, {
+    TaqaIntroModule? moduleOverride,
+  }) async {
     if (_postPurchaseIntroInProgress) return;
-    final module = _introModuleForTab(tabIndex);
+    final module = moduleOverride ?? _introModuleForTab(tabIndex);
     final shouldShow = await AccountStorage.shouldShowPostPurchaseIntroModule(
       module.storageKey,
     );
@@ -142,14 +149,22 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
     MainLayout._trainTab => TaqaIntroModule.training,
     MainLayout._dashboardTab => TaqaIntroModule.dashboard,
     MainLayout._communityTab => TaqaIntroModule.community,
-    MainLayout._coachTab => TaqaIntroModule.coach,
+    MainLayout._coachTab => TaqaIntroModule.clientCoach,
     _ => TaqaIntroModule.dashboard,
   };
 
-  void _queuePostPurchaseIntro(int tabIndex) {
+  void _queuePostPurchaseIntro(
+    int tabIndex, {
+    TaqaIntroModule? moduleOverride,
+  }) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
-      unawaited(_showPostPurchaseIntroIfNeeded(tabIndex));
+      unawaited(
+        _showPostPurchaseIntroIfNeeded(
+          tabIndex,
+          moduleOverride: moduleOverride,
+        ),
+      );
     });
   }
 
@@ -388,7 +403,10 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
       );
       _index = MainLayout._coachTab;
     });
-    _queuePostPurchaseIntro(MainLayout._coachTab);
+    _queuePostPurchaseIntro(
+      MainLayout._coachTab,
+      moduleOverride: TaqaIntroModule.clientCoach,
+    );
   }
 
   void _showExpertDashboard() {
@@ -397,7 +415,10 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
       _pages[MainLayout._coachTab] = const ExpertDashboardPage();
       _index = MainLayout._coachTab;
     });
-    _queuePostPurchaseIntro(MainLayout._coachTab);
+    _queuePostPurchaseIntro(
+      MainLayout._coachTab,
+      moduleOverride: TaqaIntroModule.expertCoach,
+    );
   }
 
   Future<void> _openCoachMembershipPaywall() async {
@@ -428,7 +449,10 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
       return;
     }
     if (_index == MainLayout._coachTab) {
-      _queuePostPurchaseIntro(MainLayout._coachTab);
+      _queuePostPurchaseIntro(
+        MainLayout._coachTab,
+        moduleOverride: TaqaIntroModule.clientCoach,
+      );
     }
   }
 
