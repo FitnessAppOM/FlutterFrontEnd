@@ -510,60 +510,25 @@ class _WelcomePageState extends State<WelcomePage> {
               SizedBox(height: TaqaUiScale.h(16)),
 
               Expanded(
-                child: Container(
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    color: TaqaUiColors.unnamedColor1c1d17,
-                    borderRadius: TaqaUiScale.radius(20),
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Positioned(
-                        top: TaqaUiScale.h(-50),
-                        right: TaqaUiScale.w(-60),
-                        child: Opacity(
-                          opacity: 0.12,
-                          child: Transform.rotate(
-                            angle: 0.5,
-                            child: Image.asset(
-                              'lib/TaqaUI/Assets/Taqa_Fitness_Favicon.png',
-                              width: TaqaUiScale.w(240),
-                            ),
-                          ),
-                        ),
+                      Image.asset(
+                        'lib/TaqaUI/Assets/Taqa_Fitness_Favicon.png',
+                        width: TaqaUiScale.w(140),
+                        height: TaqaUiScale.w(140),
                       ),
-                      Positioned(
-                        bottom: TaqaUiScale.h(-60),
-                        left: TaqaUiScale.w(-70),
-                        child: Opacity(
-                          opacity: 0.10,
-                          child: Transform.rotate(
-                            angle: -0.4,
-                            child: Image.asset(
-                              'lib/TaqaUI/Assets/Taqa_Fitness_Favicon.png',
-                              width: TaqaUiScale.w(200),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: TaqaUiScale.radius(28),
-                          boxShadow: [
-                            BoxShadow(
-                              color: TaqaUiColors.unnamedColorE4e93b.withValues(
-                                alpha: 0.35,
-                              ),
-                              blurRadius: 40,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: Image.asset(
-                          'lib/TaqaUI/Assets/Taqa_Fitness_Favicon.png',
-                          width: TaqaUiScale.w(140),
-                          height: TaqaUiScale.w(140),
+                      SizedBox(height: TaqaUiScale.h(14)),
+                      Text(
+                        'Taqa Fitness',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          fontSize: TaqaUiScale.sp(28),
+                          fontWeight: FontWeight.w700,
+                          height: 1,
+                          color: TaqaUiColors.unnamedColor1c1d17,
                         ),
                       ),
                     ],

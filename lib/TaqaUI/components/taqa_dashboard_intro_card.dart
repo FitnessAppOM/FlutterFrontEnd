@@ -114,23 +114,26 @@ class TaqaDashboardIntroCard extends StatelessWidget {
                     child: GestureDetector(
                       onTap: onAvatarTap,
                       behavior: HitTestBehavior.opaque,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: TaqaAdaptiveNameText(
-                                welcomeText: cleanName,
-                                userNameText: cleanName,
-                                style: TaqaUiStyles.userName,
+                      child: Directionality(
+                        textDirection: TextDirection.ltr,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: TaqaAdaptiveNameText(
+                                  welcomeText: cleanName,
+                                  userNameText: cleanName,
+                                  style: TaqaUiStyles.userName,
+                                ),
                               ),
                             ),
-                          ),
-                          if (streakDays != null) ...[
-                            SizedBox(width: streakTagGap),
-                            TaqaStreakTag(days: streakDays!),
+                            if (streakDays != null) ...[
+                              SizedBox(width: streakTagGap),
+                              TaqaStreakTag(days: streakDays!),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
                   ),

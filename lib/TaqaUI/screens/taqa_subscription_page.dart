@@ -1967,6 +1967,9 @@ class _PremiumOverviewCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _PremiumFeatureBullet(
+                  label: t.translate('subscription_coach_feature_0'),
+                ),
+                _PremiumFeatureBullet(
                   label: t.translate('subscription_coach_feature_1'),
                 ),
                 _PremiumFeatureBullet(

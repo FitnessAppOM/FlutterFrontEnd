@@ -429,7 +429,7 @@ class AppLocalizations {
           "Turn recovery, sleep, stress and training load into a clear daily readiness score.",
       "post_purchase_intro_5_title": "Follow your training plan",
       "post_purchase_intro_5_body":
-          "Open each training day and follow the exercises, sets and reps prepared for you.",
+          "Open each training day and follow the exercises, sets and reps prepared for you. Keep your coach updated as you progress through their training plan.",
       "post_purchase_intro_6_title": "Own every set",
       "post_purchase_intro_6_body":
           "Log weight, reps and effort while Taqa keeps your rest and session progress organized.",
@@ -477,7 +477,7 @@ class AppLocalizations {
           "Ask questions and keep personalized guidance together in one conversation.",
       "post_purchase_intro_21_title": "Check your form",
       "post_purchase_intro_21_body":
-          "Upload or record a short exercise video and receive AI feedback on movement quality and technique.",
+          "Upload or record a short exercise video and receive feedback on movement quality and technique.",
       "post_purchase_intro_22_title": "Keep clients in view",
       "post_purchase_intro_22_body":
           "See every client, activity status and pending plan update from one coach dashboard.",
@@ -1109,6 +1109,8 @@ class AppLocalizations {
           "The tools you need to coach clients, review their progress and grow your practice.",
       "subscription_standard_overview_body":
           "One membership, all the tools you need to train with intent.",
+      "subscription_coach_feature_0":
+          "Everything included for regular users, plus coach-specific features and tools",
       "subscription_coach_feature_1":
           "Create and manage personalised training plans",
       "subscription_coach_feature_2":
@@ -1118,7 +1120,7 @@ class AppLocalizations {
       "subscription_coach_feature_4":
           "Access coach dashboards and client insights",
       "subscription_coach_feature_5":
-          "Share your referral code—referred coaches get \$1 off their first month",
+          "10 monthly-plan referrals unlock 50% off one monthly payment; 20 unlock one free monthly payment. Separately, 10 yearly-plan referrals unlock 50% off one yearly payment; 20 unlock one free yearly payment. The two counts never combine.",
       "subscription_standard_feature_1":
           "Personalised training plans and workout logging",
       "subscription_standard_feature_2":
@@ -1199,11 +1201,7 @@ class AppLocalizations {
       "settings_contact": "Contact us",
       "settings_contact_sub": "Reach our support team",
       "settings_contact_body":
-          "Email us at support@taqa.app and we'll get back to you shortly.",
-      "settings_help": "Help & FAQ",
-      "settings_help_sub": "Common questions and answers",
-      "settings_help_body":
-          "We’re preparing a help center. In the meantime, contact support for any issue.",
+          "Email us at tech@taqafitness.com and we'll get back to you shortly.",
       "dash_stay_tuned": "Stay tuned",
       "dash_announce_here": "Announcements will appear here.",
       "dash_news_tag": "News",
@@ -2123,7 +2121,7 @@ class AppLocalizations {
           "حوّل الاستشفاء والنوم والضغط والحمل التدريبي إلى درجة جاهزية واضحة.",
       "post_purchase_intro_5_title": "اتبع خطتك التدريبية",
       "post_purchase_intro_5_body":
-          "افتح كل يوم تدريبي واتبع التمارين والمجموعات والتكرارات المعدّة لك.",
+          "افتح كل يوم تدريبي واتبع التمارين والمجموعات والتكرارات المعدّة لك، وأبقِ مدربك على اطلاع بتقدمك في خطته التدريبية.",
       "post_purchase_intro_6_title": "سجّل كل مجموعة",
       "post_purchase_intro_6_body":
           "سجّل الوزن والتكرارات والجهد ودع Taqa ينظّم الراحة وتقدم الجلسة.",
@@ -2788,6 +2786,8 @@ class AppLocalizations {
           "الأدوات التي تحتاجها لتدريب العملاء ومراجعة تقدمهم وتنمية عملك.",
       "subscription_standard_overview_body":
           "عضوية واحدة تضم كل الأدوات التي تحتاجها لتتدرب بوضوح وهدف.",
+      "subscription_coach_feature_0":
+          "جميع مزايا المستخدم العادي، بالإضافة إلى ميزات وأدوات خاصة بالمدرب",
       "subscription_coach_feature_1": "إنشاء خطط تدريب مخصصة وإدارتها",
       "subscription_coach_feature_2":
           "مراجعة تقدم العملاء وملاحظاتهم وتحديثاتهم",
@@ -2795,7 +2795,7 @@ class AppLocalizations {
       "subscription_coach_feature_4":
           "الوصول إلى لوحات المدرب وتحليلات العملاء",
       "subscription_coach_feature_5":
-          "شارك رمز الإحالة ليحصل المدربون المحالون على خصم دولار واحد في الشهر الأول",
+          "10 إحالات للخطة الشهرية تمنح خصم 50% على دفعة شهرية واحدة، و20 تمنح دفعة شهرية مجانية. وبشكل منفصل، 10 إحالات للخطة السنوية تمنح خصم 50% على دفعة سنوية واحدة، و20 تمنح دفعة سنوية مجانية. لا يتم جمع العددين معاً.",
       "subscription_standard_feature_1": "خطط تدريب مخصصة وتسجيل التمارين",
       "subscription_standard_feature_2":
           "إرشادات غذائية وتتبع الوجبات والأهداف اليومية",
@@ -2869,11 +2869,7 @@ class AppLocalizations {
       "settings_contact": "اتصل بنا",
       "settings_contact_sub": "تواصل مع فريق الدعم",
       "settings_contact_body":
-          "راسلنا على support@taqa.app وسنعاود الاتصال بك في أقرب وقت.",
-      "settings_help": "المساعدة والأسئلة الشائعة",
-      "settings_help_sub": "أبرز الأسئلة والإجابات",
-      "settings_help_body":
-          "نجهّز مركز مساعدة. يمكنك التواصل مع الدعم لأي استفسار.",
+          "راسلنا على tech@taqafitness.com وسنعاود الاتصال بك في أقرب وقت.",
       "dash_stay_tuned": "ابقَ على اطلاع",
       "dash_announce_here": "ستظهر الإعلانات هنا.",
       "dash_news_tag": "أخبار",

@@ -1825,14 +1825,6 @@ class _SettingsPageState extends State<SettingsPage>
                       body: t.translate("settings_contact_body"),
                     ),
                   ),
-                  _SettingsTile(
-                    title: t.translate("settings_help"),
-                    subtitle: t.translate("settings_help_sub"),
-                    onTap: () => _showSupportDialog(
-                      title: t.translate("settings_help"),
-                      body: t.translate("settings_help_body"),
-                    ),
-                  ),
                   const SizedBox(height: 60),
                 ],
               ),

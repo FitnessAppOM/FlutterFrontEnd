@@ -33,8 +33,6 @@ class _TaqaPostPurchaseIntroPageState extends State<TaqaPostPurchaseIntroPage> {
     _TaqaIntroSlide.screenshot(7, 1),
     _TaqaIntroSlide.screenshot(9, 2),
     _TaqaIntroSlide.screenshot(8, 3),
-    _TaqaIntroSlide.screenshot(5, 4),
-    _TaqaIntroSlide.screenshot(1, 10),
     _TaqaIntroSlide.screenshot(2, 11),
     _TaqaIntroSlide.screenshot(3, 12),
     _TaqaIntroSlide.screenshot(4, 13),
