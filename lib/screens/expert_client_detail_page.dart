@@ -124,6 +124,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   String? _habitsError;
   bool _detachingClient = false;
   bool _reportingClient = false;
+  bool _reportDialogOpen = false;
   late bool _showFormReviewPendingNote;
   late bool _showDietLogPendingNote;
   late bool _showTrainingPlanPendingNote;
@@ -522,7 +523,8 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
   }
 
   Future<void> _reportClient() async {
-    if (_reportingClient) return;
+    if (_reportingClient || _reportDialogOpen) return;
+    setState(() => _reportDialogOpen = true);
     final reason = await showTaqaMultilineTextDialog(
       context: context,
       title: 'Report client',
@@ -532,9 +534,19 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       requiredMessage: 'Reason is required.',
       maxLength: 1000,
     );
-    if (reason == null) return;
+    if (!mounted) return;
+    if (reason == null) {
+      // Keep the trigger disabled until the dialog's reverse transition has
+      // fully removed its inherited widgets from the route tree.
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      if (mounted) setState(() => _reportDialogOpen = false);
+      return;
+    }
 
-    setState(() => _reportingClient = true);
+    setState(() {
+      _reportDialogOpen = false;
+      _reportingClient = true;
+    });
     try {
       await ProgressionReviewService.reportClient(
         clientUserId: widget.client.userId,
@@ -1805,7 +1817,11 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
               ),
               padding: EdgeInsets.zero,
               splashRadius: TaqaUiScale.r(16),
-              onPressed: (_loading || _detachingClient || _reportingClient)
+              onPressed:
+                  (_loading ||
+                      _detachingClient ||
+                      _reportingClient ||
+                      _reportDialogOpen)
                   ? null
                   : _reportClient,
               icon: _reportingClient
@@ -1827,7 +1843,11 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
               ),
               padding: EdgeInsets.zero,
               splashRadius: TaqaUiScale.r(16),
-              onPressed: (_loading || _detachingClient || _reportingClient)
+              onPressed:
+                  (_loading ||
+                      _detachingClient ||
+                      _reportingClient ||
+                      _reportDialogOpen)
                   ? null
                   : _detachClient,
               icon: TaqaPersonRemoveIcon(loading: _detachingClient),
