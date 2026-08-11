@@ -673,7 +673,7 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
 
   String _historySessionTitle(_TrainingHistoryEntry entry) {
     final label = entry.label.trim();
-    if (label.isEmpty) return 'TAQA Strength Workout';
+    if (label.isEmpty) return 'Taqa Strength Workout';
     return '$label Workout';
   }
 

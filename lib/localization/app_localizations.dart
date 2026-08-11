@@ -101,7 +101,7 @@ class AppLocalizations {
       "switch_account_type_confirm": "Change account type",
       "switch_account_type_failed": "Could not switch forms. Please try again.",
       "questionnaire_consent_notice":
-          "By signing up for TAQA Fitness and completing the onboarding questionnaire, you consent to the collection and analysis of your personal, health, and activity data—including information from connected wearables and health apps, training data, self-reported inputs, PROMs, and journal entries—to personalize your training, recovery, and health insights in accordance with our Privacy Policy.",
+          "By signing up for Taqa Fitness and completing the onboarding questionnaire, you consent to the collection and analysis of your personal, health, and activity data—including information from connected wearables and health apps, training data, self-reported inputs, PROMs, and journal entries—to personalize your training, recovery, and health insights in accordance with our Privacy Policy.",
       "questionnaire_chip_time": "Takes ~3–5 min",
       "questionnaire_chip_personal": "Fully personalized",
       "questionnaire_chip_private": "Your data is private",
@@ -168,7 +168,7 @@ class AppLocalizations {
       "generating_training_body":
           "Hang tight while we tailor your workouts and nutrition.",
       "generating_training_note":
-          "TAQA prepares your template right away. An expert will review and verify it within 24–48 hours.",
+          "Taqa prepares your template right away. An expert will review and verify it within 24–48 hours.",
       "updating_plan_title": "Updating your plan",
       "updating_plan_body":
           "We’re saving your profile and rebuilding your training and diet.",
@@ -1240,7 +1240,7 @@ class AppLocalizations {
       "dash_no_calories_data": "No calories data",
       "dash_fueling": "Fueling compliance",
       "dash_muscle": "Muscle stimulus",
-      "dash_taqa_score": "TAQA Fitness Score",
+      "dash_taqa_score": "Taqa Fitness Score",
       "dash_taqa_yesterday_scores": "Yesterday's Scores",
       "dash_daily_outlook_title": "Daily Outlook",
       "dash_daily_outlook_subtitle":
@@ -1253,7 +1253,7 @@ class AppLocalizations {
       "dash_daily_outlook_failed": "Failed to generate Daily Outlook: {error}",
       "dash_placeholder": "Placeholder",
       "taqa_detail_title": "Taqa Fitness Scores",
-      "taqa_label_taqa_value": "TAQA Fitness Score",
+      "taqa_label_taqa_value": "Taqa Fitness Score",
       "taqa_label_sleep": "Sleep",
       "taqa_label_recovery": "Recovery",
       "taqa_label_stress": "Stress",
@@ -1266,7 +1266,7 @@ class AppLocalizations {
           "Fill your journal tomorrow to see your first scores.",
       "taqa_7day_trend": "7-day trend",
       "taqa_7day_value_trend_caption":
-          "7-day TAQA Fitness Score trend on a 0-100 scale",
+          "7-day Taqa Fitness Score trend on a 0-100 scale",
       "taqa_detail_efficiency": "Efficiency",
       "taqa_detail_architecture": "Architecture",
       "taqa_detail_deep_rem": "Deep + REM %",
@@ -1800,7 +1800,7 @@ class AppLocalizations {
       "switch_account_type_confirm": "تغيير نوع الحساب",
       "switch_account_type_failed": "تعذر تبديل النموذج. يرجى المحاولة مجددًا.",
       "questionnaire_consent_notice":
-          "عند التسجيل في TAQA Fitness وإكمال استبيان البدء، فإنك توافق على جمع وتحليل بياناتك الشخصية والصحية وبيانات النشاط -بما في ذلك معلومات الأجهزة القابلة للارتداء والتطبيقات الصحية المتصلة وبيانات التدريب والمدخلات التي تُدخلها ذاتيًا ونتائج PROMs ومدخلات اليوميات- بهدف تخصيص التدريب والاستشفاء والرؤى الصحية وفقًا لسياسة الخصوصية.",
+          "عند التسجيل في طاقة فيتنس وإكمال استبيان البدء، فإنك توافق على جمع وتحليل بياناتك الشخصية والصحية وبيانات النشاط -بما في ذلك معلومات الأجهزة القابلة للارتداء والتطبيقات الصحية المتصلة وبيانات التدريب والمدخلات التي تُدخلها ذاتيًا ونتائج PROMs ومدخلات اليوميات- بهدف تخصيص التدريب والاستشفاء والرؤى الصحية وفقًا لسياسة الخصوصية.",
       "questionnaire_chip_time": "يستغرق ~3–5 دقائق",
       "questionnaire_chip_personal": "مخصّص بالكامل",
       "questionnaire_chip_private": "بياناتك خاصة",
@@ -1864,7 +1864,7 @@ class AppLocalizations {
       "generating_training_title": "جارٍ إعداد خطتك التدريبية",
       "generating_training_body": "يرجى الانتظار بينما نخصّص تمارينك وتغذيتك.",
       "generating_training_note":
-          "تُنشئ TAQA قالبك مباشرةً، وسيقوم خبير بمراجعته وتأكيده خلال 24–48 ساعة.",
+          "تُنشئ طاقة قالبك مباشرةً، وسيقوم خبير بمراجعته وتأكيده خلال 24–48 ساعة.",
       "updating_plan_title": "جارٍ تحديث خطتك",
       "updating_plan_body":
           "نقوم بحفظ ملفك الشخصي وإعادة إنشاء التدريب والتغذية.",
@@ -2908,7 +2908,7 @@ class AppLocalizations {
       "dash_no_calories_data": "لا توجد بيانات سعرات",
       "dash_fueling": "الالتزام بالتغذية",
       "dash_muscle": "تحفيز العضلات",
-      "dash_taqa_score": "درجة لياقة TAQA",
+      "dash_taqa_score": "درجة لياقة طاقة",
       "dash_taqa_yesterday_scores": "درجات أمس",
       "dash_daily_outlook_title": "النظرة اليومية",
       "dash_daily_outlook_subtitle":
@@ -2920,8 +2920,8 @@ class AppLocalizations {
       "dash_daily_outlook_ready": "تم إنشاء النظرة اليومية.",
       "dash_daily_outlook_failed": "فشل إنشاء النظرة اليومية: {error}",
       "dash_placeholder": "قريباً",
-      "taqa_detail_title": "درجات لياقة TAQA",
-      "taqa_label_taqa_value": "درجة لياقة TAQA",
+      "taqa_detail_title": "درجات لياقة طاقة",
+      "taqa_label_taqa_value": "درجة لياقة طاقة",
       "taqa_label_sleep": "النوم",
       "taqa_label_recovery": "التعافي",
       "taqa_label_stress": "الإجهاد",
@@ -2933,7 +2933,7 @@ class AppLocalizations {
       "taqa_no_data_yesterday_hint": "املأ مفكرتك غداً لتظهر لك أولى درجاتك.",
       "taqa_7day_trend": "اتجاه 7 أيام",
       "taqa_7day_value_trend_caption":
-          "اتجاه درجة لياقة TAQA لمدة 7 أيام على مقياس 0-100",
+          "اتجاه درجة لياقة طاقة لمدة 7 أيام على مقياس 0-100",
       "taqa_detail_efficiency": "الكفاءة",
       "taqa_detail_architecture": "بنية النوم",
       "taqa_detail_deep_rem": "عميق + REM %",
@@ -2979,7 +2979,7 @@ class AppLocalizations {
       "daily_journal_no_entry_today": "لا يوجد إدخال ليوم أمس",
       "daily_journal_no_entry_date": "لا يوجد إدخال في هذا التاريخ",
       "daily_journal_prompt_today":
-          "أجب عن أسئلة أمس ليتم احتساب درجات لياقة TAQA.",
+          "أجب عن أسئلة أمس ليتم احتساب درجات لياقة طاقة.",
       "daily_journal_prompt_other": "استخدم الأسهم لعرض الأيام الأخرى.",
       "daily_journal_record_today": "سجّل أمس",
       "daily_journal_sleep_hours_label": "ساعات النوم",

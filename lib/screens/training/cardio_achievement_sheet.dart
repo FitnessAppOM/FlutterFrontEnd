@@ -255,7 +255,7 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
       final distanceMeters = widget.distanceKm > 0
           ? widget.distanceKm * 1000.0
           : null;
-      final name = "TAQA Cardio ${_sessionDateLabel()}";
+      final name = "Taqa Cardio ${_sessionDateLabel()}";
       final descriptionParts = <String>[
         "Duration ${_formatTime(widget.durationSeconds)}",
         if (_showDistance)
@@ -650,4 +650,3 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
     );
   }
 }
-

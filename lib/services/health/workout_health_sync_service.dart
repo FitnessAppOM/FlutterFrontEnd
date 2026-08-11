@@ -529,7 +529,7 @@ class WorkoutHealthSyncService {
   Future<WorkoutSessionWriteResult> writeWorkoutSessionWithStatus({
     required DateTime start,
     required DateTime end,
-    String title = 'TAQA Workout',
+    String title = 'Taqa Workout',
     HealthWorkoutActivityType? activityType,
     String? exerciseName,
     bool isCardio = false,
@@ -573,7 +573,7 @@ class WorkoutHealthSyncService {
   Future<bool> writeWorkoutSession({
     required DateTime start,
     required DateTime end,
-    String title = 'TAQA Workout',
+    String title = 'Taqa Workout',
     HealthWorkoutActivityType? activityType,
     String? exerciseName,
     bool isCardio = false,
@@ -1014,7 +1014,7 @@ class WorkoutHealthSyncService {
       final label = (item['label'] ?? item['day_label'] ?? 'Training day')
           .toString()
           .trim();
-      final title = label.isEmpty ? 'TAQA Strength Workout' : '$label Workout';
+      final title = label.isEmpty ? 'Taqa Strength Workout' : '$label Workout';
       final durationSeconds = _estimateTrainingHistoryDurationSeconds(
         completedExercises: completedExercises,
         completedCount: completedCount,

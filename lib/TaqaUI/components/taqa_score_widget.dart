@@ -27,12 +27,9 @@ class TaqaScoreWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final localizedTitle = AppLocalizations.of(
+    final taqaTitle = AppLocalizations.of(
       context,
     ).translate('taqa_label_taqa_value');
-    final taqaTitle = localizedTitle == 'TAQA Fitness Score'
-        ? 'Taqa Fitness Score'
-        : localizedTitle;
     final taqaValue = score?.taqaValueScore ?? 0;
     final displayValue = taqaValue.round();
     final progress = (taqaValue / 100).clamp(0.0, 1.0);

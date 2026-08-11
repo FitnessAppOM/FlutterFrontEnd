@@ -28,7 +28,7 @@ class _StravaDetailPageState extends State<StravaDetailPage> {
   int? _selectedActivityId;
 
   final TextEditingController _nameCtrl = TextEditingController(
-    text: "TAQA Activity",
+    text: "Taqa Activity",
   );
   final TextEditingController _descriptionCtrl = TextEditingController();
   final TextEditingController _elapsedMinutesCtrl = TextEditingController(

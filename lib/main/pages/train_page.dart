@@ -2971,7 +2971,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
             .writeWorkoutSession(
               start: DateTime.fromMillisecondsSinceEpoch(sessionStartMs),
               end: now,
-              title: "TAQA Workout Session",
+              title: "Taqa Workout Session",
               isCardio: false,
               workoutBrandName: workoutBrandName,
               isIndoorWorkout: true,

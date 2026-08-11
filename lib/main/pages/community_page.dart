@@ -3946,8 +3946,8 @@ class _CommunitySharedMetricsPageState
             ),
             const SizedBox(height: 15),
             TaqaMuteNotificationsCard(
-              title: 'TAQA Fitness Score',
-              description: 'Share your TAQA Fitness Score with this group.',
+              title: 'Taqa Fitness Score',
+              description: 'Share your Taqa Fitness Score with this group.',
               value: _settings.shareTaqaScore,
               onChanged: (value) => _toggle(
                 (settings) => settings.copyWith(shareTaqaScore: value),
