@@ -52,9 +52,9 @@ class TaqaPageAppBar extends StatelessWidget implements PreferredSizeWidget {
         child: Stack(
           children: [
             if (showBackButton)
-              Positioned(
+              PositionedDirectional(
                 top: TaqaUiScale.h(8),
-                left: TaqaUiScale.w(8),
+                start: TaqaUiScale.w(8),
                 child: leading ?? const TaqaBackButton(),
               ),
             Positioned(
@@ -82,9 +82,9 @@ class TaqaPageAppBar extends StatelessWidget implements PreferredSizeWidget {
               ),
             ),
             if (trailing != null)
-              Positioned(
+              PositionedDirectional(
                 top: TaqaUiScale.h(8),
-                right: TaqaUiScale.w(8),
+                end: TaqaUiScale.w(8),
                 child: trailing!,
               ),
           ],

@@ -11,6 +11,7 @@ import 'ForgetPassword/forgot_password_page.dart';
 import '../services/auth/profile_service.dart';
 import '../core/account_storage.dart';
 import '../TaqaUI/components/taqa_community_option_picker_sheet.dart';
+import '../TaqaUI/components/taqa_back_button.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
 import '../TaqaUI/components/taqa_log_entry_card.dart';
 import '../TaqaUI/components/taqa_outline_tag_button.dart';
@@ -1481,15 +1482,8 @@ class _SettingsPageState extends State<SettingsPage>
                   ),
                   Align(
                     alignment: AlignmentDirectional.centerStart,
-                    child: IconButton(
+                    child: TaqaBackButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      icon: Icon(
-                        Directionality.of(context) == TextDirection.rtl
-                            ? Icons.arrow_forward_ios
-                            : Icons.arrow_back_ios_new,
-                        size: TaqaUiScale.w(18),
-                        color: TaqaUiColors.unnamedColor1c1d17,
-                      ),
                     ),
                   ),
                 ],

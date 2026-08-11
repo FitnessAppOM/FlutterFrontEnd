@@ -25,12 +25,13 @@ class TaqaBackButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isRtl = Directionality.of(context) == TextDirection.rtl;
     return IconButton(
       onPressed: onPressed ?? () => Navigator.of(context).maybePop(),
       splashRadius: TaqaUiScale.w(splashRadius),
       icon: Icon(
-        isRtl ? Icons.arrow_forward_ios : Icons.arrow_back_ios_new,
+        // Material's back icon mirrors itself for RTL. Picking a different
+        // icon manually would mirror it twice and make it point the wrong way.
+        Icons.arrow_back_ios_new,
         color: color,
         size: TaqaUiScale.w(iconSize),
       ),

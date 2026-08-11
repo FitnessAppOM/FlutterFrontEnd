@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../TaqaUI/components/taqa_back_button.dart';
+
 class AppBarBackButton extends StatelessWidget {
   final VoidCallback onTap;
 
@@ -7,10 +9,6 @@ class AppBarBackButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isRtl = Directionality.of(context) == TextDirection.rtl;
-    return IconButton(
-      icon: Icon(isRtl ? Icons.arrow_forward : Icons.arrow_back),
-      onPressed: onTap,
-    );
+    return TaqaBackButton(onPressed: onTap);
   }
 }

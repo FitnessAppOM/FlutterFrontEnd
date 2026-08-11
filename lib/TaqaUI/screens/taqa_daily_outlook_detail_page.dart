@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/daily_outlook/daily_outlook_service.dart';
 import '../Typography/taqa_ui_typography.dart';
+import '../components/taqa_back_button.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../styles/taqa_ui_styles.dart';
 import '../taqa_ui_colors.dart';
@@ -44,17 +45,7 @@ class TaqaDailyOutlookDetailPage extends StatelessWidget {
                       children: [
                         Align(
                           alignment: AlignmentDirectional.centerStart,
-                          child: IconButton(
-                            onPressed: () => Navigator.of(context).maybePop(),
-                            splashRadius: TaqaUiScale.w(20),
-                            icon: Icon(
-                              Directionality.of(context) == TextDirection.rtl
-                                  ? Icons.arrow_forward_ios
-                                  : Icons.arrow_back_ios_new,
-                              color: TaqaUiColors.charcoal,
-                              size: TaqaUiScale.w(18),
-                            ),
-                          ),
+                          child: const TaqaBackButton(),
                         ),
                         Text(
                           t('dash_daily_outlook_title'),

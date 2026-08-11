@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
+import 'taqa_back_button.dart';
 import 'taqa_outline_tag_button.dart';
 
 class TaqaDashboardPageHeader extends StatelessWidget {
@@ -41,16 +42,7 @@ class TaqaDashboardPageHeader extends StatelessWidget {
           if (onBack != null)
             Align(
               alignment: AlignmentDirectional.centerStart,
-              child: IconButton(
-                onPressed: onBack,
-                icon: Icon(
-                  Directionality.of(context) == TextDirection.rtl
-                      ? Icons.arrow_forward_ios
-                      : Icons.arrow_back_ios_new,
-                  size: TaqaUiScale.w(18),
-                  color: TaqaUiColors.charcoal,
-                ),
-              ),
+              child: TaqaBackButton(onPressed: onBack),
             ),
           if (trailing != null)
             Align(alignment: AlignmentDirectional.centerEnd, child: trailing!),
