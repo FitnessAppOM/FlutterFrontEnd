@@ -85,16 +85,10 @@ class TaqaCommunityFeedCard extends StatelessWidget {
             ],
           ),
           SizedBox(height: TaqaUiScale.h(16)),
-          Text(
-            title,
-            style: TaqaUiStyles.dailyOutlookTitle,
-          ),
+          Text(title, style: TaqaUiStyles.dailyOutlookTitle),
           if ((subtitle ?? '').trim().isNotEmpty) ...[
             SizedBox(height: TaqaUiScale.h(8)),
-            Text(
-              subtitle!,
-              style: TaqaUiStyles.dailyOutlookDescription,
-            ),
+            Text(subtitle!, style: TaqaUiStyles.dailyOutlookDescription),
           ],
           if (payloadEntries.isNotEmpty) ...[
             SizedBox(height: TaqaUiScale.h(12)),
@@ -102,7 +96,12 @@ class TaqaCommunityFeedCard extends StatelessWidget {
               spacing: TaqaUiScale.w(8),
               runSpacing: TaqaUiScale.h(8),
               children: payloadEntries
-                  .map((entry) => _TaqaFeedPayloadChip(label: entry.key, value: entry.value))
+                  .map(
+                    (entry) => _TaqaFeedPayloadChip(
+                      label: entry.key,
+                      value: entry.value,
+                    ),
+                  )
                   .toList(growable: false),
             ),
           ],
@@ -115,13 +114,14 @@ class TaqaCommunityFeedCard extends StatelessWidget {
                 accent: liked,
                 onTap: onLikeTap,
               ),
-              SizedBox(width: TaqaUiScale.w(10)),
-              _TaqaFeedActionButton(
-                icon: Icons.chat_bubble_outline,
-                label: '$commentCount',
-                enabled: canComment,
-                onTap: canComment ? onCommentTap : null,
-              ),
+              if (canComment) ...[
+                SizedBox(width: TaqaUiScale.w(10)),
+                _TaqaFeedActionButton(
+                  icon: Icons.chat_bubble_outline,
+                  label: '$commentCount',
+                  onTap: onCommentTap,
+                ),
+              ],
             ],
           ),
         ],
@@ -160,7 +160,6 @@ class _TaqaFeedAvatar extends StatelessWidget {
   }
 }
 
-
 class _TaqaFeedPayloadChip extends StatelessWidget {
   const _TaqaFeedPayloadChip({required this.label, required this.value});
 
@@ -178,10 +177,7 @@ class _TaqaFeedPayloadChip extends StatelessWidget {
       child: RichText(
         text: TextSpan(
           children: [
-            TextSpan(
-              text: '$label: ',
-              style: TaqaUiStyles.dailyOutlookTag,
-            ),
+            TextSpan(text: '$label: ', style: TaqaUiStyles.dailyOutlookTag),
             TextSpan(
               text: value,
               style: TaqaUiStyles.dailyOutlookTag.copyWith(
@@ -202,25 +198,21 @@ class _TaqaFeedActionButton extends StatelessWidget {
     required this.label,
     this.onTap,
     this.accent = false,
-    this.enabled = true,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
   final bool accent;
-  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
-    final color = enabled
-        ? TaqaUiColors.charcoal
-        : TaqaUiColors.charcoal.withValues(alpha: 0.32);
+    const color = TaqaUiColors.charcoal;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: enabled ? onTap : null,
+        onTap: onTap,
         borderRadius: TaqaUiScale.radius(999),
         child: Container(
           padding: TaqaUiScale.insetsLTRB(12, 8, 12, 8),
@@ -235,9 +227,7 @@ class _TaqaFeedActionButton extends StatelessWidget {
               SizedBox(width: TaqaUiScale.w(6)),
               Text(
                 label,
-                style: TaqaUiStyles.dailyOutlookButton.copyWith(
-                  color: color,
-                ),
+                style: TaqaUiStyles.dailyOutlookButton.copyWith(color: color),
               ),
             ],
           ),

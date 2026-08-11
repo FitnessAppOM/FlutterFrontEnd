@@ -31,6 +31,7 @@ import '../../TaqaUI/components/taqa_community_member_card.dart';
 import '../../TaqaUI/components/taqa_community_option_picker_sheet.dart';
 import '../../TaqaUI/components/taqa_community_report_card.dart';
 import '../../TaqaUI/components/taqa_empty_card.dart';
+import '../../TaqaUI/components/taqa_filled_button.dart';
 import '../../TaqaUI/components/taqa_outline_tag_button.dart';
 import '../../TaqaUI/components/taqa_page_app_bar.dart';
 import '../../TaqaUI/components/taqa_page_header.dart';
@@ -207,6 +208,7 @@ class _CommunityPageState extends State<CommunityPage> {
   }
 
   Future<void> _openComments(CommunityFeedItem item) async {
+    if (!item.canComment) return;
     final changed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -1827,69 +1829,10 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
   }
 
   Future<void> _showChallengeProgress(CommunityChallenge challenge) async {
-    final unit = challenge.progressUnit?.trim();
-    final valueLabel = unit == null || unit.isEmpty
-        ? challenge.progressValue.toStringAsFixed(1)
-        : '${challenge.progressValue.toStringAsFixed(1)} $unit';
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.appBackground,
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                challenge.name,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '${challenge.progressPercent.toStringAsFixed(0)}% | $valueLabel',
-              ),
-              if (challenge.currentPeriodStart != null &&
-                  challenge.currentPeriodEnd != null) ...[
-                const SizedBox(height: 6),
-                Text(
-                  '${challenge.currentPeriodStart!.toLocal().toIso8601String().substring(0, 10)}'
-                  ' - ${challenge.currentPeriodEnd!.toLocal().toIso8601String().substring(0, 10)}',
-                ),
-              ],
-              if (challenge.segments.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 320),
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: challenge.segments.length,
-                    separatorBuilder: (_, _) => const Divider(),
-                    itemBuilder: (context, index) {
-                      final segment = challenge.segments[index];
-                      final target = segment.targetValue;
-                      return ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: Icon(
-                          segment.isCompleted
-                              ? Icons.check_circle
-                              : Icons.radio_button_unchecked,
-                        ),
-                        title: Text('Week ${segment.segmentIndex + 1}'),
-                        subtitle: Text(
-                          target == null
-                              ? segment.progressValue.toStringAsFixed(1)
-                              : '${segment.progressValue.toStringAsFixed(1)} / ${target.toStringAsFixed(1)}',
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CommunityChallengeProgressPage(challenge: challenge),
       ),
     );
   }
@@ -2034,6 +1977,243 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class CommunityChallengeProgressPage extends StatefulWidget {
+  const CommunityChallengeProgressPage({super.key, required this.challenge});
+
+  final CommunityChallenge challenge;
+
+  @override
+  State<CommunityChallengeProgressPage> createState() =>
+      _CommunityChallengeProgressPageState();
+}
+
+class _CommunityChallengeProgressPageState
+    extends State<CommunityChallengeProgressPage> {
+  late CommunityChallenge _challenge = widget.challenge;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final challenge = await CommunityService.fetchChallenge(
+        widget.challenge.challengeId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _challenge = challenge;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = userFriendlyErrorMessage(e);
+        _loading = false;
+      });
+    }
+  }
+
+  String _valueLabel(double value) {
+    final unit = _challenge.progressUnit?.trim();
+    final number = value == value.roundToDouble()
+        ? value.toStringAsFixed(0)
+        : value.toStringAsFixed(1);
+    return unit == null || unit.isEmpty ? number : '$number $unit';
+  }
+
+  String _dateLabel(DateTime date) =>
+      DateFormat('MMM d, yyyy').format(date.toLocal());
+
+  @override
+  Widget build(BuildContext context) {
+    final challenge = _challenge;
+    final progress = (challenge.progressPercent / 100)
+        .clamp(0.0, 1.0)
+        .toDouble();
+    return Scaffold(
+      backgroundColor: AppColors.appBackground,
+      appBar: const TaqaPageAppBar(
+        title: 'Challenge Details',
+        backgroundColor: AppColors.appBackground,
+      ),
+      body: TaqaRefreshIndicator(
+        onRefresh: _load,
+        child: ListView(
+          padding: TaqaUiScale.insetsLTRB(20, 12, 20, 32),
+          children: [
+            if (_loading)
+              const TaqaCommunityLoadingCard()
+            else if (_error != null)
+              _CommunityEmptyCard(
+                title: 'Could not load challenge',
+                message: _error!,
+                actionLabel: 'Retry',
+                onPressed: _load,
+              )
+            else ...[
+              _LightCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      challenge.displayRuleName.toUpperCase(),
+                      style: TaqaUiStyles.dailyOutlookTag,
+                    ),
+                    SizedBox(height: TaqaUiScale.h(8)),
+                    Text(
+                      challenge.name,
+                      style: TaqaUiStyles.communityChallengeName,
+                    ),
+                    if ((challenge.description ?? '').trim().isNotEmpty) ...[
+                      SizedBox(height: TaqaUiScale.h(8)),
+                      Text(
+                        challenge.description!.trim(),
+                        style: TaqaUiStyles.dailyOutlookDescription,
+                      ),
+                    ],
+                    SizedBox(height: TaqaUiScale.h(20)),
+                    ClipRRect(
+                      borderRadius: TaqaUiStyles.communityChallengeBarRadius,
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: TaqaUiScale.h(12),
+                        color: TaqaUiColors.lime,
+                        backgroundColor: TaqaUiColors.lightGray,
+                      ),
+                    ),
+                    SizedBox(height: TaqaUiScale.h(10)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _valueLabel(challenge.progressValue),
+                          style: TaqaUiStyles.dailyOutlookTitle,
+                        ),
+                        Text(
+                          '${challenge.progressPercent.clamp(0, 100).round()}%',
+                          style: TaqaUiStyles.scoreCardValue,
+                        ),
+                      ],
+                    ),
+                    if (challenge.goalValue != null) ...[
+                      SizedBox(height: TaqaUiScale.h(6)),
+                      Text(
+                        'Goal: ${_valueLabel(challenge.goalValue!)}',
+                        style: TaqaUiStyles.dailyOutlookDescription,
+                      ),
+                    ],
+                    if (challenge.startAt != null ||
+                        challenge.endAt != null) ...[
+                      SizedBox(height: TaqaUiScale.h(14)),
+                      Text(
+                        [
+                          if (challenge.startAt != null)
+                            _dateLabel(challenge.startAt!),
+                          if (challenge.endAt != null)
+                            _dateLabel(challenge.endAt!),
+                        ].join(' – '),
+                        style: TaqaUiStyles.dailyOutlookDescription,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              SizedBox(height: TaqaUiScale.h(16)),
+              _InlineSectionHeader(title: 'Progress details'),
+              SizedBox(height: TaqaUiScale.h(10)),
+              if (challenge.segments.isEmpty)
+                const _CommunityEmptyCard(
+                  title: 'No weekly breakdown',
+                  message:
+                      'Your overall challenge progress is shown above. Detailed periods will appear when this challenge records them.',
+                )
+              else
+                ...challenge.segments.map(
+                  (segment) => Padding(
+                    padding: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
+                    child: _ChallengeSegmentCard(
+                      segment: segment,
+                      valueLabel: _valueLabel,
+                      dateLabel: _dateLabel,
+                    ),
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChallengeSegmentCard extends StatelessWidget {
+  const _ChallengeSegmentCard({
+    required this.segment,
+    required this.valueLabel,
+    required this.dateLabel,
+  });
+
+  final CommunityChallengeSegment segment;
+  final String Function(double) valueLabel;
+  final String Function(DateTime) dateLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final target = segment.targetValue;
+    return _LightCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            segment.isCompleted
+                ? Icons.check_circle
+                : Icons.radio_button_unchecked,
+            color: segment.isCompleted
+                ? TaqaUiColors.lime
+                : TaqaUiColors.charcoal.withValues(alpha: 0.4),
+          ),
+          SizedBox(width: TaqaUiScale.w(12)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Week ${segment.segmentIndex + 1}',
+                  style: TaqaUiStyles.dailyOutlookTitle,
+                ),
+                SizedBox(height: TaqaUiScale.h(4)),
+                Text(
+                  target == null
+                      ? valueLabel(segment.progressValue)
+                      : '${valueLabel(segment.progressValue)} / ${valueLabel(target)}',
+                  style: TaqaUiStyles.dailyOutlookDescription,
+                ),
+                if (segment.periodStart != null &&
+                    segment.periodEnd != null) ...[
+                  SizedBox(height: TaqaUiScale.h(4)),
+                  Text(
+                    '${dateLabel(segment.periodStart!)} – ${dateLabel(segment.periodEnd!)}',
+                    style: TaqaUiStyles.dailyOutlookDescription,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2474,6 +2654,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
   @override
   void initState() {
     super.initState();
+    assert(widget.feedItem.canComment);
     _load();
   }
 
@@ -2567,7 +2748,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
         builder: (context, scrollController) {
           return Container(
             decoration: const BoxDecoration(
-              color: Color(0xFF0B0B0B),
+              color: TaqaUiColors.unnamedColorE3e3e3,
               borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
             ),
             child: Column(
@@ -2577,16 +2758,17 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                   width: 44,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: Colors.white24,
+                    color: TaqaUiColors.charcoal.withValues(alpha: 0.24),
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Comments',
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    color: TaqaUiColors.charcoal,
+                    fontSize: TaqaUiScale.sp(18),
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -2600,9 +2782,21 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                             padding: const EdgeInsets.all(24),
                             child: Text(
                               _error!,
-                              style: const TextStyle(color: Colors.white70),
+                              style: TextStyle(
+                                color: TaqaUiColors.charcoal.withValues(
+                                  alpha: 0.7,
+                                ),
+                              ),
                               textAlign: TextAlign.center,
                             ),
+                          ),
+                        )
+                      : _comments.isEmpty
+                      ? Center(
+                          child: Text(
+                            'No comments yet. Start the conversation.',
+                            style: TaqaUiStyles.dailyOutlookDescription,
+                            textAlign: TextAlign.center,
                           ),
                         )
                       : ListView.builder(
@@ -2616,8 +2810,8 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                               child: Container(
                                 padding: const EdgeInsets.all(14),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.05),
-                                  borderRadius: BorderRadius.circular(16),
+                                  color: TaqaUiColors.white,
+                                  borderRadius: TaqaUiScale.radius(15),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2634,24 +2828,26 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                                           child: Text(
                                             comment.author.primaryLabel,
                                             style: const TextStyle(
-                                              color: Colors.white,
+                                              color: TaqaUiColors.charcoal,
                                               fontWeight: FontWeight.w700,
                                             ),
                                           ),
                                         ),
                                         Text(
                                           _formatDate(comment.createdAt),
-                                          style: const TextStyle(
-                                            color: Colors.white54,
+                                          style: TextStyle(
+                                            color: TaqaUiColors.charcoal
+                                                .withValues(alpha: 0.54),
                                             fontSize: 11,
                                           ),
                                         ),
                                         IconButton(
                                           onPressed: () =>
                                               _reportComment(comment),
-                                          icon: const Icon(
+                                          icon: Icon(
                                             Icons.flag_outlined,
-                                            color: Colors.white54,
+                                            color: TaqaUiColors.charcoal
+                                                .withValues(alpha: 0.54),
                                           ),
                                         ),
                                       ],
@@ -2660,7 +2856,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                                     Text(
                                       comment.commentText,
                                       style: TextStyle(
-                                        color: Colors.white.withValues(
+                                        color: TaqaUiColors.charcoal.withValues(
                                           alpha: 0.8,
                                         ),
                                         height: 1.45,
@@ -2676,10 +2872,10 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                 Container(
                   padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.02),
+                    color: TaqaUiColors.white,
                     border: Border(
                       top: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.08),
+                        color: TaqaUiColors.charcoal.withValues(alpha: 0.08),
                       ),
                     ),
                   ),
@@ -2688,26 +2884,37 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                       Expanded(
                         child: TextField(
                           controller: _controller,
-                          style: const TextStyle(color: Colors.white),
+                          style: const TextStyle(color: TaqaUiColors.charcoal),
                           minLines: 1,
                           maxLines: 4,
                           decoration: const InputDecoration(
                             hintText: 'Add a comment',
+                            enabledBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(
+                                color: TaqaUiColors.charcoal,
+                                width: 0.5,
+                              ),
+                            ),
+                            focusedBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(
+                                color: TaqaUiColors.charcoal,
+                                width: 0.5,
+                              ),
+                            ),
                           ),
                         ),
                       ),
                       const SizedBox(width: 12),
-                      ElevatedButton(
-                        onPressed: _submitting ? null : _submit,
-                        child: _submitting
-                            ? const SizedBox(
-                                height: 16,
-                                width: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Text('Send'),
+                      SizedBox(
+                        width: TaqaUiScale.w(88),
+                        child: TaqaFilledButton(
+                          label: 'Send',
+                          onTap: _submitting ? null : _submit,
+                          loading: _submitting,
+                          height: 45,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
@@ -3076,30 +3283,28 @@ class _GroupFeedCard extends StatelessWidget {
                   color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
                 ),
               ),
-              const SizedBox(width: 18),
-              InkWell(
-                onTap: onCommentsTap,
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.chat_bubble_outline,
-                      color: item.canComment
-                          ? TaqaUiColors.charcoal.withValues(alpha: 0.54)
-                          : TaqaUiColors.charcoal.withValues(alpha: 0.24),
-                      size: 18,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${item.commentCount}',
-                      style: TextStyle(
-                        color: item.canComment
-                            ? TaqaUiColors.charcoal.withValues(alpha: 0.7)
-                            : TaqaUiColors.charcoal.withValues(alpha: 0.24),
+              if (item.canComment) ...[
+                const SizedBox(width: 18),
+                InkWell(
+                  onTap: onCommentsTap,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.chat_bubble_outline,
+                        color: TaqaUiColors.charcoal.withValues(alpha: 0.54),
+                        size: 18,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 6),
+                      Text(
+                        '${item.commentCount}',
+                        style: TextStyle(
+                          color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ],

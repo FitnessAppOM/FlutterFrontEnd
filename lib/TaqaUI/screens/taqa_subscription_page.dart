@@ -218,6 +218,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       _storeProductIds = productIds;
       final response = await _store.queryProductDetails(productIds);
       if (!mounted) return;
+      final reconcileGooglePurchase = Platform.isAndroid && widget.mandatory;
       String? storeMessage;
       setState(() {
         _storeAvailable = true;
@@ -237,11 +238,60 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
           });
         }
         storeMessage = _message;
-        _loading = false;
+        _loading = reconcileGooglePurchase;
       });
       if (storeMessage != null) _showToast(storeMessage!);
+      if (reconcileGooglePurchase) {
+        await _reconcileOwnedGooglePurchase();
+        if (!mounted || _mandatoryRouteFinished) return;
+        setState(() => _loading = false);
+      }
     } catch (_) {
       _setStoreUnavailable();
+    }
+  }
+
+  Future<bool> _reconcileOwnedGooglePurchase() async {
+    if (!Platform.isAndroid || !widget.mandatory || _restoring) return false;
+    if (mounted) {
+      setState(() => _restoring = true);
+    }
+    try {
+      final addition = _store
+          .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
+      final response = await addition.queryPastPurchases();
+      if (response.error != null) return false;
+
+      for (final purchase in response.pastPurchases.reversed) {
+        if (!_storeProductIds.contains(purchase.productID)) continue;
+        final token = purchase.verificationData.serverVerificationData.trim();
+        if (token.isEmpty) continue;
+        try {
+          final entitlement = await AppleBillingService.verifyGooglePurchase(
+            productId: purchase.productID,
+            purchaseToken: token,
+            entitlementCode: 'app_full',
+          );
+          if (!entitlement.active) continue;
+          if (purchase.pendingCompletePurchase) {
+            await _store.completePurchase(purchase);
+          }
+          await _finishMandatorySubscription();
+          return true;
+        } on AppleBillingException {
+          // A stale or differently-bound purchase must not prevent another
+          // owned Google purchase from being checked.
+        }
+      }
+      return false;
+    } catch (_) {
+      // A transient Play connection failure falls back to the normal paywall
+      // and its manual Restore Purchases recovery action.
+      return false;
+    } finally {
+      if (mounted && !_mandatoryRouteFinished) {
+        setState(() => _restoring = false);
+      }
     }
   }
 
@@ -855,7 +905,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       context: context,
       title: change?.action == 'upgrade_to_coach'
           ? _tr('subscription_confirm_coach_upgrade')
-          : change?.action == 'downgrade_to_standard'
+          : change != null && !change.isInitialPurchase
           ? _tr('subscription_confirm_plan_change')
           : _tr('subscription_confirm_subscription'),
       message: _confirmationMessage(product, change),
@@ -1008,6 +1058,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     }
     final replacementMode = switch (change.replacementMode) {
       'CHARGE_PRORATED_PRICE' => ReplacementMode.chargeProratedPrice,
+      'CHARGE_FULL_PRICE' => ReplacementMode.chargeFullPrice,
       'DEFERRED' => ReplacementMode.deferred,
       _ => throw BillingApiException(_tr('subscription_change_not_supported')),
     };
@@ -1022,12 +1073,17 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     GoogleSubscriptionChange? change,
   ) {
     if (change?.action == 'upgrade_to_coach') {
-      return _tr('subscription_confirm_upgrade_body');
+      return change?.replacementMode == 'CHARGE_FULL_PRICE'
+          ? 'Upgrade to Taqa Coach now. Google Play will charge the displayed new-plan price and apply the remaining value from your current plan before you confirm.'
+          : _tr('subscription_confirm_upgrade_body');
     }
-    if (change?.action == 'downgrade_to_standard') {
-      return _tr('subscription_confirm_downgrade_body', {
-        'price': product.price,
-      });
+    if (change?.action == 'downgrade_to_standard' ||
+        change?.action == 'change_billing_period') {
+      final effectiveDate = _googleChangeEffectiveDate(change?.effectiveAt);
+      final timing = effectiveDate == null
+          ? 'your current paid period ends'
+          : effectiveDate;
+      return 'Your current plan remains active until $timing. The new ${product.price} plan starts and is charged at the next renewal. Google Play will show the final terms before you confirm.';
     }
     if (change?.action == 'referral_reward') {
       return _tr('subscription_confirm_referral_body');
@@ -1037,6 +1093,11 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       'account': Platform.isAndroid ? 'Google Play' : 'Apple ID',
       'store': _storeName(),
     });
+  }
+
+  String? _googleChangeEffectiveDate(DateTime? value) {
+    if (value == null) return null;
+    return MaterialLocalizations.of(context).formatMediumDate(value.toLocal());
   }
 
   Future<String?> _refreshBillingStateForCheckout() async {
